@@ -1,0 +1,67 @@
+import type {CompiledRequest,JsonObject} from './types.js';
+import {MirrorError} from './errors.js';
+import {stable} from './security.js';
+const obj=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?v as JsonObject:{};
+export function nextPage(plan:CompiledRequest,response:unknown):CompiledRequest|null{
+ const d=obj(response),data=obj(d.data);const next=structuredClone(plan);
+ if(plan.gateway==='meta_native_action'){
+  if(!d.paging?.next)return null;const cursor=d.paging?.cursors?.after;
+  if(!cursor)throw new MirrorError('UNKNOWN_PAGINATION','Meta advertises another page but supplies no cursor.');next.query.after=cursor;return next;
+ }
+ if(plan.gateway==='tiktok_native_action'){
+  const info=data.page_info??d.page_info;if(!info||Number(info.page)>=Number(info.total_page))return null;next.query.page=Number(info.page)+1;return next;
+ }
+ if(plan.gateway==='snapchat_native_action'){
+  const link=d.paging?.next_link??d.paging?.next;if(!link)return null;
+  const url=new URL(link,'https://adsapi.snapchat.com');if(url.origin!=='https://adsapi.snapchat.com'||url.pathname!==plan.path)throw new MirrorError('UNSAFE_PAGINATION_LINK','Pagination link changed upstream scope.');
+  const paginationKeys=new Set(['cursor','offset','page','page_token']);
+  for(const [key,value]of url.searchParams){
+   if(paginationKeys.has(key)){next.query[key]=value;continue;}
+   const original=plan.query[key];
+   if(original===undefined||String(original)!==value)throw new MirrorError('UNSAFE_PAGINATION_LINK','Pagination link changed account scope or report filters.',{parameter:key});
+  }
+  // The server may omit invariant filters from its link; retain them verbatim.
+  return next;
+ }
+ if(plan.gateway==='x_ads_native_action'){
+  const cursor=d.next_cursor??data.next_cursor;if(!cursor||cursor==='0')return null;next.query.cursor=cursor;return next;
+ }
+ if(plan.gateway==='reddit_native_action'){
+  const link=d.pagination?.next_url;if(!link)return null;
+  let url:URL;try{url=new URL(link);}catch{throw new MirrorError('UNSAFE_PAGINATION_LINK','Reddit pagination must supply a valid absolute URL.');}
+  if(url.origin!=='https://ads-api.reddit.com'||url.username||url.password||url.hash||url.pathname!==plan.path)throw new MirrorError('UNSAFE_PAGINATION_LINK','Reddit pagination changed upstream scope.');
+  const keys=new Set<string>();
+  for(const [key,value]of url.searchParams){
+   if(keys.has(key))throw new MirrorError('UNSAFE_PAGINATION_LINK','Reddit pagination contains duplicate parameters.');keys.add(key);
+   if(key==='page.token'){next.query[key]=value;continue;}
+   if(plan.query[key]===undefined||String(plan.query[key])!==value)throw new MirrorError('UNSAFE_PAGINATION_LINK','Reddit pagination changed account scope, page size or report filters.',{parameter:key});
+  }
+  if(!keys.has('page.token'))throw new MirrorError('UNKNOWN_PAGINATION','Reddit supplied a next URL without a page token.');
+  return next;
+ }
+ if(plan.gateway==='linkedin_native_action'){
+  const paging=d.paging;if(!paging||Number(paging.start)+Number(paging.count)>=Number(paging.total))return null;
+  next.query.start=Number(paging.start)+Number(paging.count);return next;
+ }
+ const token=d.nextPageToken??d.next_page_token??d.nextToken??data.nextToken;
+ if(token){const key=d.nextToken!==undefined||data.nextToken!==undefined?'nextToken':plan.gateway==='google_ads_native_action'?'page_token':'pageToken';if(plan.method==='POST')next.body={...obj(plan.body),[key]:token};else next.query[key]=token;return next;}
+ return null;
+}
+function arraySlots(value:unknown,prefix=''):string[]{
+ if(Array.isArray(value))return [prefix];if(!value||typeof value!=='object')return [];
+ return Object.entries(value).flatMap(([k,v])=>Array.isArray(v)?[prefix+'/'+k]:k==='data'?arraySlots(v,prefix+'/'+k):[]);
+}
+function at(root:any,path:string){return path?path.slice(1).split('/').reduce((v,k)=>v?.[k],root):root;}
+function put(root:any,path:string,value:any){const parts=path.slice(1).split('/');const key=parts.pop()!;const parent=parts.reduce((v,k)=>v[k],root);parent[key]=value;}
+export async function paginate(plan:CompiledRequest,fetchPage:(plan:CompiledRequest)=>Promise<unknown>,maxPages=25):Promise<{data:unknown;pages:number;truncated:boolean}>{
+ if(!Number.isInteger(maxPages)||maxPages<1||maxPages>100)throw new MirrorError('INVALID_PAGE_LIMIT','max_pages must be between 1 and 100.');
+ const first=await fetchPage(plan);let merged=structuredClone(first);let current=plan;let response=first;let pages=1;const seen=new Set([stable({path:plan.path,query:plan.query,body:plan.body})]);const slots=arraySlots(first);
+ while(true){const next=nextPage(current,response);if(!next)return {data:merged,pages,truncated:false};if(pages>=maxPages)return {data:merged,pages,truncated:true};
+  const key=stable({path:next.path,query:next.query,body:next.body});if(seen.has(key))throw new MirrorError('PAGINATION_LOOP','Platform repeated a page cursor.');seen.add(key);
+  response=await fetchPage(next);pages++;
+  if(arraySlots(response).join('|')!==slots.join('|'))throw new MirrorError('PAGINATION_SHAPE_CHANGED','Row collections changed between pages; refusing to return a partial successful result.');
+  for(const slot of slots){const a=at(merged,slot),b=at(response,slot);if(Array.isArray(a)&&Array.isArray(b)){if(slot==='')merged=[...a,...b];else put(merged,slot,[...a,...b]);}}
+  current=next;
+  if(Buffer.byteLength(JSON.stringify(merged))>64*1024*1024)throw new MirrorError('AGGREGATE_TOO_LARGE','Aggregated data exceeds 64 MiB; split the query.');
+ }
+}

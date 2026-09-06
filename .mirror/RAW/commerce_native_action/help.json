@@ -1,0 +1,22 @@
+{
+  "captured_at": "2026-09-04T23:24:04.784Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "commerce_native_action",
+  "operation": "help",
+  "request": {
+    "gateway": "commerce_native_action",
+    "args": {}
+  },
+  "request_id": null,
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"gateway\": \"commerce_native_action\",\n  \"mode\": \"delegated\",\n  \"description\": \"Commerce gateway for WooCommerce, Salla, and Shopify store discovery and store operations.\",\n  \"operation_count\": 2,\n  \"operations\": [\n    \"woocommerce_list_stores\",\n    \"woocommerce_store_ops\"\n  ]\n}"
+      }
+    ]
+  }
+}

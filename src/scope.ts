@@ -1,0 +1,113 @@
+import type {CompiledRequest,Connection,JsonObject} from './types.js';
+import {MirrorError} from './errors.js';
+import {Registry} from './catalog.js';
+import {Store} from './store.js';
+import {stable} from './security.js';
+
+export function normalizeAccount(gateway:string,id:unknown):string{
+ const value=String(id);return gateway==='meta_native_action'?value.replace(/^act_/,''):gateway==='google_ads_native_action'?value.replaceAll('-',''):value;
+}
+const accountFields:Record<string,Set<string>>={
+ meta_native_action:new Set(['account_id','ad_account_id']),
+ google_ads_native_action:new Set(['customer_id','customerId']),
+ tiktok_native_action:new Set(['advertiser_id','advertiser_ids']),
+ snapchat_native_action:new Set(['ad_account_id','ad_account_ids']),
+ linkedin_native_action:new Set(['ad_account_id','account_id']),
+ x_ads_native_action:new Set(['account_id']),dv360_native_action:new Set(['advertiserId','advertiser_id']),reddit_native_action:new Set(['ad_account_id','account_id'])
+};
+function mismatch(field:string):never{throw new MirrorError('ACCOUNT_SCOPE_MISMATCH','The final request targets a resource outside the selected account binding.',{field},403);}
+
+/** This guard runs on every final page, before token refresh or authenticated egress. */
+export class ScopeGuard {
+ constructor(private registry:Registry,private store:Store){}
+ authorize(plan:CompiledRequest,connection:Connection):string{
+  if(connection.gateway!==plan.gateway)throw new MirrorError('ACCOUNT_SCOPE_MISMATCH','Connection gateway does not match request.',{},403);
+  const id=normalizeAccount(plan.gateway,plan.accountId??(connection.accounts.length===1?connection.accounts[0]:''));
+  if(!id||!connection.accounts.some(a=>normalizeAccount(plan.gateway,a)===id))throw new MirrorError('ACCOUNT_REQUIRED','Select an explicitly bound account for this request.',{},403);
+  let decoded:string;try{decoded=decodeURIComponent(plan.path);}catch{throw new MirrorError('INVALID_PATH','Malformed path encoding.');}
+  const compare=(value:unknown,field:string)=>{for(const item of Array.isArray(value)?value:[value])if(normalizeAccount(plan.gateway,item)!==id)mismatch(field);};
+  const walk=(value:unknown,field='$'):void=>{
+   if(typeof value==='string'&&plan.gateway==='google_ads_native_action')for(const m of value.matchAll(/\bcustomers\/([^/\s'"),]+)/g))compare(m[1],field);
+   if(Array.isArray(value)){value.forEach(v=>walk(v,field));return;}
+   if(value&&typeof value==='object')for(const [key,v]of Object.entries(value)){
+    if(/^(?:access_token|oauth_token|refresh_token|client_secret|developer_token|authorization)$/i.test(key))throw new MirrorError('CREDENTIAL_PARAMETER_FORBIDDEN','Credentials must come from the encrypted connection provider.',{field:key},403);
+    if(accountFields[plan.gateway]?.has(key)){
+     let candidate=v;if(typeof v==='string'&&v.startsWith('[')){try{candidate=JSON.parse(v);}catch{mismatch(key);}}
+     compare(candidate,key);
+    }
+    walk(v,field+'.'+key);
+   }
+  };
+  walk(plan.query);walk(plan.body);walk(decoded,'path');
+  const patterns:Record<string,RegExp>={
+   google_ads_native_action:/\/customers\/([^/:]+)/,
+   meta_native_action:/^\/v[^/]+\/act_([^/]+)/,
+   snapchat_native_action:/^\/v1\/adaccounts\/([^/]+)/,
+   linkedin_native_action:/^\/rest\/(?:adAccounts|adAccountTrustPreferences)\/([^/]+)/,
+   x_ads_native_action:/\/accounts\/([^/]+)/,
+   dv360_native_action:/\/advertisers\/([^/:]+)/
+   ,ga4_native_action:/\/properties\/([^/:]+)/,gtm_native_action:/\/accounts\/([^/:]+)/,criteo_native_action:/\/accounts\/([^/:]+)/,reddit_native_action:/^\/api\/v3\/ad_accounts\/([^/]+)/
+  };
+  const match=patterns[plan.gateway]?.exec(decoded);
+  if(match){compare(match[1],'path');return id;}
+  if(plan.gateway==='google_search_console_native_action'){
+   const site=/\/sites\/([^/]+)/.exec(plan.path)?.[1];
+   const value=site?decodeURIComponent(site):(plan.body as JsonObject)?.siteUrl;
+   if(value!==undefined){compare(value,'siteUrl');return id;}
+  }
+  if(plan.gateway==='google_business_native_action'){
+   const account=/\/accounts\/([^/:]+)/.exec(decoded)?.[1];if(account){compare(account,'path');return id;}
+   const location=/\/locations\/([^/:]+)/.exec(decoded)?.[1];if(location&&id.startsWith('locations/')){compare('locations/'+location,'path');return id;}
+  }
+  if(plan.gateway==='linkedin_native_action'&&['/rest/adAnalytics','/rest/audienceCounts'].includes(decoded)){
+   const value=plan.query.accounts??plan.query.account;
+   if(typeof value==='string'){
+    let decodedValue:string;try{decodedValue=decodeURIComponent(value);}catch{mismatch('account filter');}
+    const filter=/^(?:List\()?urn:li:sponsoredAccount:(\d+)\)?$/.exec(decodedValue);
+    if(filter){compare(filter[1],'account filter');return id;}
+   }
+  }
+  if(plan.gateway==='tiktok_native_action'){
+   const action=this.registry.action(plan.gateway,plan.action);
+   // Some Business Center routes ignore advertiser_id. Only vendor-declared required
+   // advertiser parameters establish this automatic boundary.
+   if(action?.required.includes('advertiser_id')&&((plan.query.advertiser_id===id)||(plan.body as JsonObject)?.advertiser_id===id))return id;
+  }
+  if(['amazon_native_action','apple_ads_native_action'].includes(plan.gateway))return id; // account header scope is mandatory in transport
+  if(plan.gateway==='reddit_native_action'){
+   if(['/api/v3/time_zones','/api/v3/targeting/interests','/api/v3/targeting/geolocations','/api/v3/targeting/communities/search'].includes(decoded)&&plan.readOnly)return id;
+   if(decoded==='/api/v3/me/businesses'&&plan.query.ad_account_id===id)return id;
+   const entity=/^\/api\/v3\/(campaigns|ad_groups|ads|profiles|saved_audiences|lead_gen_forms|posts|structured_posts|funding_instruments)\/([^/]+)/.exec(decoded);
+   if(entity&&this.store.ownsResource(connection,id,entity[1]+'/'+entity[2]))return id;
+  }
+  // Global object paths need an ownership observation from an account-scoped list.
+  const resource=plan.gateway==='meta_native_action'?/^\/v[^/]+\/([^/]+)/.exec(decoded)?.[1]:plan.gateway==='snapchat_native_action'?/^\/v1\/(campaigns|adsquads|ads|creatives|media)\/([^/]+)/.exec(decoded)?.slice(1).join('/'):undefined;
+  if(resource&&this.store.ownsResource(connection,id,resource))return id;
+  // Administrative provisioning can declare otherwise unscoped Business/Profile resources.
+  for(const binding of connection.resourceBindings??[]){
+   if(normalizeAccount(plan.gateway,binding.accountId)!==id)continue;
+   if((decoded===binding.pathPrefix||decoded.startsWith(binding.pathPrefix+'/')||decoded.startsWith(binding.pathPrefix+':'))&&Object.entries(binding.query??{}).every(([k,v])=>stable(plan.query[k])===stable(v)))return id;
+  }
+  throw new MirrorError('RESOURCE_SCOPE_REQUIRED','Resource ownership is not established. Read its account-scoped collection first, or have an administrator provision an exact resource binding.',{gateway:plan.gateway,path:plan.path,account_id:id},403);
+ }
+ observe(plan:CompiledRequest,connection:Connection,data:unknown):void{
+  if(!plan.readOnly)return;
+  const id=this.authorize(plan,connection),d=data as JsonObject;
+  // Only named entity collections are ownership evidence; never learn from arbitrary
+  // nested IDs, reports, user supplied state, search results or unscoped account lists.
+  if(plan.gateway==='meta_native_action'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads|adcreatives)$/.test(plan.path)&&Array.isArray(d?.data)){
+   for(const entity of d.data)if(typeof entity?.id==='string'&&/^\d+$/.test(entity.id))this.store.rememberResource(connection,id,entity.id);
+  }
+  if(plan.gateway==='snapchat_native_action'){
+   const m=/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives|media)$/.exec(plan.path);
+   const kind=m?.[1];if(kind&&Array.isArray(d?.[kind]))for(const wrapped of d[kind]){
+    const entity=wrapped[kind==='media'?'media':kind.slice(0,-1)]??wrapped;
+    if(typeof entity?.id==='string'&&/^[\w-]+$/.test(entity.id))this.store.rememberResource(connection,id,kind+'/'+entity.id);
+   }
+  }
+  if(plan.gateway==='reddit_native_action'){
+   const collection=/^\/api\/v3\/ad_accounts\/[^/]+\/(campaigns|ad_groups|ads|profiles|saved_audiences|lead_gen_forms|funding_instruments)$/.exec(plan.path)?.[1]??/^\/api\/v3\/profiles\/[^/]+\/(posts|structured_posts)$/.exec(plan.path)?.[1];
+   if(collection&&Array.isArray(d?.data))for(const entity of d.data)if(typeof entity?.id==='string'&&/^[A-Za-z0-9_-]+$/.test(entity.id)&&(!entity.ad_account_id||entity.ad_account_id===id))this.store.rememberResource(connection,id,collection+'/'+entity.id);
+  }
+ }
+}

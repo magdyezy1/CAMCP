@@ -1,0 +1,25 @@
+{
+  "captured_at": "2026-09-04T23:42:05.125Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "google_ads_native_action",
+  "operation": "DESCRIBE_ACTION",
+  "request": {
+    "gateway": "google_ads_native_action",
+    "args": {
+      "action": "DESCRIBE_ACTION",
+      "target_action": "CREATE_CAMPAIGN"
+    }
+  },
+  "request_id": "c9fcae94-7146-4791-a29f-98c8b89a7107",
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"success\": true,\n  \"data\": {\n    \"success\": true,\n    \"api_version\": \"v23\",\n    \"surface\": \"legacy\",\n    \"action\": \"CREATE_CAMPAIGN\",\n    \"id\": \"GOOGLE.CAMPAIGN.CREATE\",\n    \"entity\": \"campaign\",\n    \"verb\": \"create\",\n    \"capability\": \"write:campaigns\",\n    \"dry_run_supported\": true,\n    \"idempotent\": false\n  },\n  \"meta\": {\n    \"requestId\": \"c9fcae94-7146-4791-a29f-98c8b89a7107\",\n    \"latencyMs\": 283\n  }\n}"
+      }
+    ]
+  }
+}

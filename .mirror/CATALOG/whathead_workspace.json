@@ -1,0 +1,127 @@
+{
+  "gateway": "whathead_workspace",
+  "mode": "delegated",
+  "api_version": null,
+  "reported_total": 3,
+  "captured": 3,
+  "denominator_kind": "operation_count",
+  "complete": true,
+  "actions": [
+    {
+      "name": "get_workspace_context",
+      "canonical_name": "get_workspace_context",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "whathead_workspace",
+        "operation": "get_workspace_context",
+        "description": "Fetch a lightweight Whathead user/workspace context: user, company, billing summary, connected platform summary, and recommended defaults. Use this first to infer workspace defaults. Keep it lightweight by default; call list_accounts or list_workspace_assets only when exact account or asset IDs are needed.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "include_accounts": {
+              "type": "boolean",
+              "default": false,
+              "description": "Also return discovered ad accounts from list_accounts. Leave false for a fast bootstrap; call list_accounts when you need exhaustive account discovery."
+            },
+            "account_limit": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100,
+              "default": 20,
+              "description": "Maximum accounts returned per platform when include_accounts is true. account_summary still reports total/truncated counts."
+            },
+            "include_asset_summary": {
+              "type": "boolean",
+              "default": false,
+              "description": "Also return grouped asset counts (pages, profiles, pixels, apps, catalogs, custom conversions) across connected platforms."
+            },
+            "include_integration_details": {
+              "type": "boolean",
+              "default": false,
+              "description": "Return raw connection and selected asset arrays inside integrations. This can be large; prefer list_workspace_assets for asset details."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "list_accounts",
+      "canonical_name": "list_accounts",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "whathead_workspace",
+        "operation": "list_accounts",
+        "description": "List all connected ad accounts across Meta, TikTok, Snapchat, Reddit, LinkedIn, Google, OpenAI, X, DV360, and Criteo Retail Media. Returns account IDs, names, currency, and timezone. Use this first to discover which accounts are available before calling other tools. If a platform fails, other platforms still return results (graceful degradation). Requires scope: read:accounts.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "platform": {
+              "description": "Filter to a specific connected-account discovery platform (reddit, linkedin, google, openai, x, dv360, criteo, plus meta, snapchat, and tiktok). Cross-platform account discovery includes native-only ad platforms for workspace bootstrap; use native account tools for platform-specific account operations."
+            },
+            "include_inactive": {
+              "type": "boolean",
+              "default": false,
+              "description": "Include inactive or paused ad accounts. Default: false (active only)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "list_workspace_assets",
+      "canonical_name": "list_workspace_assets",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "whathead_workspace",
+        "operation": "list_workspace_assets",
+        "description": "List workspace-selected assets across connected platforms in a normalized shape. Use this when you need pages, profiles, pixels, apps, catalogs, custom conversions, or advertiser/ad-account IDs before building payloads. The response preserves each asset's payload_value so the selected row can be reused directly in campaign/ad set/ad payloads.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "platform": {
+              "description": "Optional workspace-asset platform filter, including meta, snapchat, and tiktok. Campaign/report/launch operations for those platforms are native-only."
+            },
+            "include_items": {
+              "type": "boolean",
+              "default": true,
+              "description": "Include grouped asset rows. Disable to fetch counts/coverage only."
+            },
+            "include_disconnected": {
+              "type": "boolean",
+              "default": false,
+              "description": "Also return disconnected assets. Default: false."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    }
+  ],
+  "gaps": []
+}

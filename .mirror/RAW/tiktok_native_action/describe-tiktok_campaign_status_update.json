@@ -1,0 +1,25 @@
+{
+  "captured_at": "2026-09-04T23:34:34.191Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "tiktok_native_action",
+  "operation": "DESCRIBE_ACTION",
+  "request": {
+    "gateway": "tiktok_native_action",
+    "args": {
+      "action": "DESCRIBE_ACTION",
+      "target_action": "tiktok_campaign_status_update"
+    }
+  },
+  "request_id": "78ddeeb5-ae6c-4e43-a893-4d01fc3726c9",
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"success\": true,\n  \"data\": {\n    \"success\": true,\n    \"api_version\": \"v1.3\",\n    \"requested_action\": \"tiktok_campaign_status_update\",\n    \"name\": \"tiktok_campaign_status_update\",\n    \"canonical_action\": \"tiktok_campaign_status_update\",\n    \"method\": \"POST\",\n    \"path\": \"/v1.3/campaign/status/update/\",\n    \"category\": \"Campaign\",\n    \"read_only\": false,\n    \"destructive\": false,\n    \"access_management\": false,\n    \"path_parameters\": [],\n    \"required_parameters\": [\n      \"advertiser_id\",\n      \"campaign_ids\",\n      \"operation_status\"\n    ],\n    \"native_fields\": [\n      \"advertiser_id\",\n      \"campaign_ids\",\n      \"operation_status\",\n      \"postback_window_mode\"\n    ],\n    \"parameters\": [\n      {\n        \"name\": \"advertiser_id\",\n        \"dataType\": \"string\",\n        \"required\": true,\n        \"description\": \"Advertiser ID\"\n      },\n      {\n        \"name\": \"campaign_ids\",\n        \"dataType\": \"string[]\",\n        \"required\": true,\n        \"description\": \"A list of campaign IDs, with an allowed quantity range 1-20.\"\n      },\n      {\n        \"name\": \"operation_status\",\n        \"dataType\": \"string\",\n        \"required\": true,\n        \"description\": \"The operation being made. Enum values: DELETE (delete), DISABLE (pause), ENABLE (enable). Note : The status of deleted campaigns cannot be modified.\"\n      },\n      {\n        \"name\": \"postback_window_mode\",\n        \"dataType\": \"string\",\n        \"required\": false,\n        \"description\": \"Valid only when the following conditions are all met: The campaigns (campaign_ids) are Dedicated Campaigns (campaign_type is IOS14_CAMPAIGN). You specify operation_status as DISABLE at the same time in the request. postback_window_mode has not been configured \"\n      }\n    ],\n    \"schema_fields\": [\n      \"advertiser_id\",\n      \"campaign_ids\",\n      \"operation_status\",\n      \"postback_window_mode\"\n    ],\n    \"docs_path\": \"MDFILES/tiktok-business-api/docs/api-reference/campaign/update-the-operation-statuses-of-campaigns.md\",\n    \"docs_url\": \"https://business-api.tiktok.com/portal/docs?id=1739320994354178\",\n    \"invocation\": {\n      \"tool\": \"tiktok_native_action\",\n      \"arguments\": {\n        \"action\": \"tiktok_campaign_status_update\",\n        \"path_params\": {},\n        \"payload\": {\n          \"advertiser_id\": \"<advertiser_id>\",\n          \"campaign_ids\": \"<campaign_ids>\",\n          \"operation_status\": \"<operation_status>\",\n          \"postback_window_mode\": \"<postback_window_mode>\"\n        },\n        \"dry_run\": true\n      }\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"78ddeeb5-ae6c-4e43-a893-4d01fc3726c9\",\n    \"latencyMs\": 255\n  }\n}"
+      }
+    ]
+  }
+}

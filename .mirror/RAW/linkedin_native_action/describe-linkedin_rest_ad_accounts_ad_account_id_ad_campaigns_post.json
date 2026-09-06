@@ -1,0 +1,25 @@
+{
+  "captured_at": "2026-09-04T23:35:11.237Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "linkedin_native_action",
+  "operation": "DESCRIBE_ACTION",
+  "request": {
+    "gateway": "linkedin_native_action",
+    "args": {
+      "action": "DESCRIBE_ACTION",
+      "target_action": "linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post"
+    }
+  },
+  "request_id": "c2bb995e-52a7-4474-99a7-a8ad5a7b1e62",
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"success\": true,\n  \"data\": {\n    \"success\": true,\n    \"api_version\": \"202605\",\n    \"requested_action\": \"linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post\",\n    \"name\": \"linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post\",\n    \"canonical_action\": \"linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post\",\n    \"method\": \"POST\",\n    \"path\": \"/rest/adAccounts/{ad_account_id}/adCampaigns\",\n    \"resource\": \"adAccounts\",\n    \"category\": \"Advertising / Campaign Management\",\n    \"read_only\": false,\n    \"destructive\": false,\n    \"access_management\": false,\n    \"required_path_params\": [\n      \"ad_account_id\"\n    ],\n    \"oauth_scopes\": [\n      \"r_ads\",\n      \"r_basicprofile\",\n      \"r_events\",\n      \"r_organization_social\",\n      \"rw_ads\",\n      \"rw_events\",\n      \"w_organization_social\"\n    ],\n    \"schema_fields\": [\n      \"ad_account_id\",\n      \"fields\"\n    ],\n    \"docs_paths\": [\n      \"MDFILES/linkedin-marketing-api/docs/Advertising/Campaign Management/Account Structure/Accounts.md\",\n      \"MDFILES/linkedin-marketing-api/docs/Advertising/Campaign Management/Advertising and Targeting/Ad Formats/Event Ads.md\",\n      \"MDFILES/linkedin-marketing-api/docs/Advertising/Campaign Management/Advertising and Targeting/Ads Targeting/LinkedIn Audience Network.md\",\n      \"MDFILES/linkedin-marketing-api/docs/Advertising/Campaign Management/Advertising and Targeting/Ads Targeting/Manage Audience Restrictions.md\",\n      \"MDFILES/linkedin-marketing-api/docs/Advertising/Campaign Management/Building an Ad Campaign.md\",\n      \"MDFILES/linkedin-marketing-api/docs/Advertising/Campaign Management/Campaigns Structure/Campaigns.md\"\n    ],\n    \"docs_urls\": [\n      \"https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/create-and-manage-accounts?view=li-lms-2026-05\",\n      \"https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/advertising-targeting/version/event-ads-integrations?view=li-lms-2026-05\",\n      \"https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/advertising-targeting/linkedin-audience-network?view=li-lms-2026-05\",\n      \"https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/advertising-targeting/manage-audience-restrictions?view=li-lms-2026-05\",\n      \"https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/getting-started?view=li-lms-2026-05\",\n      \"https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/create-and-manage-campaigns?view=li-lms-2026-05\"\n    ],\n    \"input_guidance\": null,\n    \"invocation\": {\n      \"tool\": \"linkedin_native_action\",\n      \"arguments\": {\n        \"action\": \"linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post\",\n        \"path_params\": {\n          \"ad_account_id\": \"<ad_account_id>\"\n        },\n        \"dry_run\": true\n      }\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"c2bb995e-52a7-4474-99a7-a8ad5a7b1e62\",\n    \"latencyMs\": 267\n  }\n}"
+      }
+    ]
+  }
+}

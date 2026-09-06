@@ -1,0 +1,22 @@
+{
+  "captured_at": "2026-09-04T23:23:56.760Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "adjust_native_action",
+  "operation": "help",
+  "request": {
+    "gateway": "adjust_native_action",
+    "args": {}
+  },
+  "request_id": null,
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"gateway\": \"adjust_native_action\",\n  \"mode\": \"delegated\",\n  \"description\": \"Adjust gateway for assets, reporting, deep links, campaign API, app automation, and ad spend.\",\n  \"operation_count\": 6,\n  \"operations\": [\n    \"adjust_ad_spend\",\n    \"adjust_app_automation\",\n    \"adjust_campaign_api\",\n    \"adjust_deeplinks\",\n    \"adjust_list_assets\",\n    \"adjust_reporting\"\n  ]\n}"
+      }
+    ]
+  }
+}

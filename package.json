@@ -1,0 +1,38 @@
+{
+  "name": "amcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AMCP advertising workspace, OAuth connections, and read-only MCP server",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server/stdio.js",
+    "start:http": "node dist/server/http.js",
+    "worker": "node dist/server/worker.js",
+    "admin": "node dist/tools/admin.js",
+    "verify:reads": "node dist/tools/verify-reads.js",
+    "test:capture": "node --test tools/catalog/core.test.mjs",
+    "test": "npm run build && node --test dist/tests/*.test.js",
+    "capture:normalize": "node tools/catalog/normalize.mjs",
+    "generate": "node codegen/generate.mjs",
+    "generate:check": "node codegen/generate.mjs --check",
+    "generate:vendor:check": "node tools/fetch-vendor-specs.mjs --generate-only --check",
+    "report": "node dist/tools/report.js",
+    "check": "npm run generate:check && npm run generate:vendor:check && npm test && npm run test:capture && npm run report"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "express": "5.2.1",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/node": "24.13.3",
+    "typescript": "7.0.2"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "captured_at": "2026-09-04T23:23:46.998Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "gtm_native_action",
+  "operation": "help",
+  "request": {
+    "gateway": "gtm_native_action",
+    "args": {}
+  },
+  "request_id": null,
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"gateway\": \"gtm_native_action\",\n  \"mode\": \"delegated\",\n  \"description\": \"Google Tag Manager gateway for native operations, queued-job status, and audits.\",\n  \"operation_count\": 3,\n  \"operations\": [\n    \"gtm_action_job_status\",\n    \"gtm_audit_ops\",\n    \"gtm_ops\"\n  ]\n}"
+      }
+    ]
+  }
+}

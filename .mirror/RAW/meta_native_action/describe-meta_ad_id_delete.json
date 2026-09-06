@@ -1,0 +1,25 @@
+{
+  "captured_at": "2026-09-04T23:34:12.048Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "meta_native_action",
+  "operation": "DESCRIBE_ACTION",
+  "request": {
+    "gateway": "meta_native_action",
+    "args": {
+      "action": "DESCRIBE_ACTION",
+      "target_action": "meta_ad_id_delete"
+    }
+  },
+  "request_id": "ce2e65d9-3e2f-4177-b486-ceb04bcf3938",
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"success\": true,\n  \"data\": {\n    \"success\": true,\n    \"api_version\": \"v25.0\",\n    \"requested_action\": \"meta_ad_id_delete\",\n    \"name\": \"meta_ad_id_delete\",\n    \"canonical_action\": \"meta_ad_id_delete\",\n    \"method\": \"DELETE\",\n    \"path\": \"/v25.0/{ad_id}\",\n    \"category\": \"Marketing API / reference/adgroup\",\n    \"read_only\": false,\n    \"destructive\": true,\n    \"access_management\": false,\n    \"path_parameters\": [\n      \"ad_id\"\n    ],\n    \"required_parameters\": [\n      \"ad_id\"\n    ],\n    \"native_fields\": [],\n    \"parameters\": [\n      {\n        \"name\": \"ad_id\",\n        \"required\": true\n      }\n    ],\n    \"schema_fields\": [\n      \"ad_id\"\n    ],\n    \"docs_path\": \"MDFILES/meta-marketing-api/marketing-api/reference/adgroup.md\",\n    \"docs_url\": \"https://developers.facebook.com/documentation/ads-commerce/marketing-api/reference/adgroup\",\n    \"invocation\": {\n      \"tool\": \"meta_native_action\",\n      \"arguments\": {\n        \"action\": \"meta_ad_id_delete\",\n        \"path_params\": {\n          \"ad_id\": \"<ad_id>\"\n        },\n        \"payload\": {},\n        \"dry_run\": true,\n        \"confirmed\": false\n      }\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"ce2e65d9-3e2f-4177-b486-ceb04bcf3938\",\n    \"latencyMs\": 258\n  }\n}"
+      }
+    ]
+  }
+}

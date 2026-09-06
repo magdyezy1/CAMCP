@@ -1,0 +1,1021 @@
+{
+  "gateway": "google_business_native_action",
+  "mode": "delegated",
+  "api_version": null,
+  "reported_total": 10,
+  "captured": 10,
+  "denominator_kind": "operation_count",
+  "complete": true,
+  "actions": [
+    {
+      "name": "gmb_account_ops",
+      "canonical_name": "gmb_account_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "google_business_native_action",
+        "operation": "gmb_account_ops",
+        "description": "Run Google Business Profile account/admin/invitation/transfer operations from the Account Management API. Reads require read:accounts; writes require write:campaigns.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "LIST_ACCOUNTS",
+                "CREATE_ACCOUNT",
+                "GET_ACCOUNT",
+                "PATCH_ACCOUNT",
+                "LIST_ACCOUNT_INVITATIONS",
+                "ACCEPT_ACCOUNT_INVITATION",
+                "DECLINE_ACCOUNT_INVITATION",
+                "LIST_ACCOUNT_ADMINS",
+                "CREATE_ACCOUNT_ADMIN",
+                "PATCH_ACCOUNT_ADMIN",
+                "DELETE_ACCOUNT_ADMIN",
+                "LIST_LOCATION_ADMINS",
+                "CREATE_LOCATION_ADMIN",
+                "PATCH_LOCATION_ADMIN",
+                "DELETE_LOCATION_ADMIN",
+                "TRANSFER_LOCATION"
+              ]
+            },
+            "admin_id": {
+              "type": "string"
+            },
+            "invitation_id": {
+              "type": "string"
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional Google Business Profile connection ID. Omit to use the active workspace connection."
+            },
+            "account_id": {
+              "type": "string",
+              "description": "Account ID or resource name, e.g. 123 or accounts/123."
+            },
+            "location_id": {
+              "type": "string",
+              "description": "Location ID or resource name, e.g. 456 or locations/456."
+            },
+            "path_params": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Optional raw path parameter map. Friendly fields such as account_id and location_id are also accepted."
+            },
+            "query": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "boolean"
+                    }
+                  }
+                ]
+              },
+              "description": "Google Business Profile query params such as pageSize, pageToken, readMask, languageCode, dailyMetric, or date ranges."
+            },
+            "params": {
+              "$ref": "#/properties/query",
+              "description": "Alias for query params."
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Native Google Business Profile request body for create/update/verify operations."
+            },
+            "dry_run": {
+              "type": "boolean",
+              "default": true,
+              "description": "Preview mutating operations without sending them to Google. Read-only actions ignore this."
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "gmb_catalog_ops",
+      "canonical_name": "gmb_catalog_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "google_business_native_action",
+        "operation": "gmb_catalog_ops",
+        "description": "Read Business Profile catalog/reference data: attributes, categories, chains, and chain search. Requires read:campaigns.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "LIST_ATTRIBUTES",
+                "LIST_CATEGORIES",
+                "BATCH_GET_CATEGORIES",
+                "GET_CHAIN",
+                "SEARCH_CHAINS"
+              ]
+            },
+            "chain_id": {
+              "type": "string"
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional Google Business Profile connection ID. Omit to use the active workspace connection."
+            },
+            "account_id": {
+              "type": "string",
+              "description": "Account ID or resource name, e.g. 123 or accounts/123."
+            },
+            "location_id": {
+              "type": "string",
+              "description": "Location ID or resource name, e.g. 456 or locations/456."
+            },
+            "path_params": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Optional raw path parameter map. Friendly fields such as account_id and location_id are also accepted."
+            },
+            "query": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "boolean"
+                    }
+                  }
+                ]
+              },
+              "description": "Google Business Profile query params such as pageSize, pageToken, readMask, languageCode, dailyMetric, or date ranges."
+            },
+            "params": {
+              "$ref": "#/properties/query",
+              "description": "Alias for query params."
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Native Google Business Profile request body for create/update/verify operations."
+            },
+            "dry_run": {
+              "type": "boolean",
+              "default": true,
+              "description": "Preview mutating operations without sending them to Google. Read-only actions ignore this."
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "gmb_connection_ops",
+      "canonical_name": "gmb_connection_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "google_business_native_action",
+        "operation": "gmb_connection_ops",
+        "description": "Start, complete, refresh, inspect, disconnect, or sync Google Business Profile OAuth connections. Uses business.manage scope and encrypted token storage.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "start",
+                "exchange",
+                "refresh",
+                "status",
+                "disconnect",
+                "sync_assets"
+              ]
+            },
+            "code": {
+              "type": "string",
+              "description": "OAuth authorization code for exchange."
+            },
+            "state": {
+              "type": "string",
+              "description": "Signed OAuth state returned by start."
+            },
+            "redirect_uri": {
+              "type": "string",
+              "format": "uri",
+              "description": "OAuth redirect URI. Defaults to GMB_REDIRECT_URI or /auth/callback/gmb."
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "include_locations": {
+              "type": "boolean",
+              "default": true,
+              "description": "When syncing, also discover locations for each accessible account."
+            },
+            "max_accounts": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 50
+            },
+            "max_locations_per_account": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 500,
+              "default": 100
+            },
+            "read_mask": {
+              "type": "string",
+              "description": "Business Information locations.list readMask override."
+            },
+            "dry_run": {
+              "type": "boolean",
+              "default": true,
+              "description": "Preview mutating connection operations."
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "gmb_engagement_ops",
+      "canonical_name": "gmb_engagement_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "google_business_native_action",
+        "operation": "gmb_engagement_ops",
+        "description": "Manage place action links through the current Place Actions API. Legacy posts/reviews/media/food menu compatibility is available only with action=LEGACY_V4_REQUEST and allow_deprecated=true.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "LIST_PLACE_ACTION_TYPE_METADATA",
+                "LIST_PLACE_ACTION_LINKS",
+                "GET_PLACE_ACTION_LINK",
+                "CREATE_PLACE_ACTION_LINK",
+                "PATCH_PLACE_ACTION_LINK",
+                "DELETE_PLACE_ACTION_LINK",
+                "LEGACY_V4_REQUEST"
+              ]
+            },
+            "place_action_link_id": {
+              "type": "string"
+            },
+            "method": {
+              "type": "string",
+              "enum": [
+                "GET",
+                "POST",
+                "PATCH",
+                "PUT",
+                "DELETE"
+              ],
+              "description": "Only used for LEGACY_V4_REQUEST."
+            },
+            "legacy_path": {
+              "type": "string",
+              "description": "Legacy v4 relative path for posts/reviews/media/foodMenus/reportInsights. No leading slash."
+            },
+            "allow_deprecated": {
+              "type": "boolean",
+              "default": false,
+              "description": "Required for LEGACY_V4_REQUEST because Google My Business v4 is deprecated."
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional Google Business Profile connection ID. Omit to use the active workspace connection."
+            },
+            "account_id": {
+              "type": "string",
+              "description": "Account ID or resource name, e.g. 123 or accounts/123."
+            },
+            "location_id": {
+              "type": "string",
+              "description": "Location ID or resource name, e.g. 456 or locations/456."
+            },
+            "path_params": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Optional raw path parameter map. Friendly fields such as account_id and location_id are also accepted."
+            },
+            "query": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "boolean"
+                    }
+                  }
+                ]
+              },
+              "description": "Google Business Profile query params such as pageSize, pageToken, readMask, languageCode, dailyMetric, or date ranges."
+            },
+            "params": {
+              "$ref": "#/properties/query",
+              "description": "Alias for query params."
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Native Google Business Profile request body for create/update/verify operations."
+            },
+            "dry_run": {
+              "type": "boolean",
+              "default": true,
+              "description": "Preview mutating operations without sending them to Google. Read-only actions ignore this."
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "gmb_location_ops",
+      "canonical_name": "gmb_location_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "google_business_native_action",
+        "operation": "gmb_location_ops",
+        "description": "Run Google Business Profile location and location-attribute operations from the Business Information API, including discovery/search and create/update/delete.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "LIST_ACCOUNT_LOCATIONS",
+                "CREATE_ACCOUNT_LOCATION",
+                "GET_LOCATION",
+                "PATCH_LOCATION",
+                "DELETE_LOCATION",
+                "GET_GOOGLE_UPDATED_LOCATION",
+                "GET_LOCATION_ATTRIBUTES",
+                "UPDATE_LOCATION_ATTRIBUTES",
+                "GET_GOOGLE_UPDATED_LOCATION_ATTRIBUTES",
+                "SEARCH_GOOGLE_LOCATIONS"
+              ]
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional Google Business Profile connection ID. Omit to use the active workspace connection."
+            },
+            "account_id": {
+              "type": "string",
+              "description": "Account ID or resource name, e.g. 123 or accounts/123."
+            },
+            "location_id": {
+              "type": "string",
+              "description": "Location ID or resource name, e.g. 456 or locations/456."
+            },
+            "path_params": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Optional raw path parameter map. Friendly fields such as account_id and location_id are also accepted."
+            },
+            "query": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "boolean"
+                    }
+                  }
+                ]
+              },
+              "description": "Google Business Profile query params such as pageSize, pageToken, readMask, languageCode, dailyMetric, or date ranges."
+            },
+            "params": {
+              "$ref": "#/properties/query",
+              "description": "Alias for query params."
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Native Google Business Profile request body for create/update/verify operations."
+            },
+            "dry_run": {
+              "type": "boolean",
+              "default": true,
+              "description": "Preview mutating operations without sending them to Google. Read-only actions ignore this."
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "gmb_lodging_ops",
+      "canonical_name": "gmb_lodging_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "google_business_native_action",
+        "operation": "gmb_lodging_ops",
+        "description": "Read, update, or compare Google-updated lodging details for hotel locations. Reads require read:campaigns; updates require write:campaigns.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "GET_LODGING",
+                "UPDATE_LODGING",
+                "GET_GOOGLE_UPDATED_LODGING"
+              ]
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional Google Business Profile connection ID. Omit to use the active workspace connection."
+            },
+            "account_id": {
+              "type": "string",
+              "description": "Account ID or resource name, e.g. 123 or accounts/123."
+            },
+            "location_id": {
+              "type": "string",
+              "description": "Location ID or resource name, e.g. 456 or locations/456."
+            },
+            "path_params": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Optional raw path parameter map. Friendly fields such as account_id and location_id are also accepted."
+            },
+            "query": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "boolean"
+                    }
+                  }
+                ]
+              },
+              "description": "Google Business Profile query params such as pageSize, pageToken, readMask, languageCode, dailyMetric, or date ranges."
+            },
+            "params": {
+              "$ref": "#/properties/query",
+              "description": "Alias for query params."
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Native Google Business Profile request body for create/update/verify operations."
+            },
+            "dry_run": {
+              "type": "boolean",
+              "default": true,
+              "description": "Preview mutating operations without sending them to Google. Read-only actions ignore this."
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "gmb_notification_ops",
+      "canonical_name": "gmb_notification_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "google_business_native_action",
+        "operation": "gmb_notification_ops",
+        "description": "Read or update Business Profile notification settings for an account. Reads require read:accounts; updates require write:campaigns.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "GET_NOTIFICATION_SETTING",
+                "UPDATE_NOTIFICATION_SETTING"
+              ]
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional Google Business Profile connection ID. Omit to use the active workspace connection."
+            },
+            "account_id": {
+              "type": "string",
+              "description": "Account ID or resource name, e.g. 123 or accounts/123."
+            },
+            "location_id": {
+              "type": "string",
+              "description": "Location ID or resource name, e.g. 456 or locations/456."
+            },
+            "path_params": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Optional raw path parameter map. Friendly fields such as account_id and location_id are also accepted."
+            },
+            "query": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "boolean"
+                    }
+                  }
+                ]
+              },
+              "description": "Google Business Profile query params such as pageSize, pageToken, readMask, languageCode, dailyMetric, or date ranges."
+            },
+            "params": {
+              "$ref": "#/properties/query",
+              "description": "Alias for query params."
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Native Google Business Profile request body for create/update/verify operations."
+            },
+            "dry_run": {
+              "type": "boolean",
+              "default": true,
+              "description": "Preview mutating operations without sending them to Google. Read-only actions ignore this."
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "gmb_performance_ops",
+      "canonical_name": "gmb_performance_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "google_business_native_action",
+        "operation": "gmb_performance_ops",
+        "description": "Read Business Profile Performance API metrics, multi-metric time series, and monthly search keyword impressions. Requires read:reports.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "GET_DAILY_METRICS_TIME_SERIES",
+                "FETCH_MULTI_DAILY_METRICS_TIME_SERIES",
+                "LIST_SEARCH_KEYWORD_IMPRESSIONS_MONTHLY"
+              ]
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional Google Business Profile connection ID. Omit to use the active workspace connection."
+            },
+            "account_id": {
+              "type": "string",
+              "description": "Account ID or resource name, e.g. 123 or accounts/123."
+            },
+            "location_id": {
+              "type": "string",
+              "description": "Location ID or resource name, e.g. 456 or locations/456."
+            },
+            "path_params": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Optional raw path parameter map. Friendly fields such as account_id and location_id are also accepted."
+            },
+            "query": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "boolean"
+                    }
+                  }
+                ]
+              },
+              "description": "Google Business Profile query params such as pageSize, pageToken, readMask, languageCode, dailyMetric, or date ranges."
+            },
+            "params": {
+              "$ref": "#/properties/query",
+              "description": "Alias for query params."
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Native Google Business Profile request body for create/update/verify operations."
+            },
+            "dry_run": {
+              "type": "boolean",
+              "default": false,
+              "description": "No effect for read-only performance actions."
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "gmb_qanda_ops",
+      "canonical_name": "gmb_qanda_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "google_business_native_action",
+        "operation": "gmb_qanda_ops",
+        "description": "Returns the retirement status for Google Business Profile Q&A. Google discontinued the Q&A API on 2025-11-03, so this tool does not send upstream requests.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "status"
+              ],
+              "default": "status"
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "gmb_verification_ops",
+      "canonical_name": "gmb_verification_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "google_business_native_action",
+        "operation": "gmb_verification_ops",
+        "description": "Run Business Profile verification flows: voice-of-merchant state, options, verify, list, complete, and verification-token generation.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "GET_VOICE_OF_MERCHANT_STATE",
+                "FETCH_VERIFICATION_OPTIONS",
+                "VERIFY_LOCATION",
+                "LIST_VERIFICATIONS",
+                "COMPLETE_VERIFICATION",
+                "GENERATE_VERIFICATION_TOKEN"
+              ]
+            },
+            "verification_id": {
+              "type": "string"
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional Google Business Profile connection ID. Omit to use the active workspace connection."
+            },
+            "account_id": {
+              "type": "string",
+              "description": "Account ID or resource name, e.g. 123 or accounts/123."
+            },
+            "location_id": {
+              "type": "string",
+              "description": "Location ID or resource name, e.g. 456 or locations/456."
+            },
+            "path_params": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Optional raw path parameter map. Friendly fields such as account_id and location_id are also accepted."
+            },
+            "query": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "boolean"
+                    }
+                  }
+                ]
+              },
+              "description": "Google Business Profile query params such as pageSize, pageToken, readMask, languageCode, dailyMetric, or date ranges."
+            },
+            "params": {
+              "$ref": "#/properties/query",
+              "description": "Alias for query params."
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Native Google Business Profile request body for create/update/verify operations."
+            },
+            "dry_run": {
+              "type": "boolean",
+              "default": true,
+              "description": "Preview mutating operations without sending them to Google. Read-only actions ignore this."
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    }
+  ],
+  "gaps": []
+}

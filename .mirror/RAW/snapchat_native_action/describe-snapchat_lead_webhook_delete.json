@@ -1,0 +1,25 @@
+{
+  "captured_at": "2026-09-04T23:34:56.492Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "snapchat_native_action",
+  "operation": "DESCRIBE_ACTION",
+  "request": {
+    "gateway": "snapchat_native_action",
+    "args": {
+      "action": "DESCRIBE_ACTION",
+      "target_action": "snapchat_lead_webhook_delete"
+    }
+  },
+  "request_id": "e9c30415-023c-4166-b5ef-2e7331f5239d",
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"success\": true,\n  \"data\": {\n    \"requested_action\": \"snapchat_lead_webhook_delete\",\n    \"canonical_action\": \"snapchat_lead_gen_integrations_integration_id_delete\",\n    \"method\": \"DELETE\",\n    \"host\": \"adsapi.snapchat.com\",\n    \"path\": \"/v1/lead_gen/integrations/{integration_id}\",\n    \"category\": \"Ads API / lead-generation-ads\",\n    \"read_only\": false,\n    \"destructive\": true,\n    \"parameters\": [\n      {\n        \"name\": \"integration_id\",\n        \"required\": true\n      }\n    ],\n    \"schema_fields\": [\n      \"integration_id\"\n    ],\n    \"docs_path\": \"MDFILES/snap-marketing-api/marketing-api/Ads-API/lead-generation-ads.md\",\n    \"docs_url\": \"https://developers.snap.com/api/marketing-api/Ads-API/lead-generation-ads\"\n  },\n  \"meta\": {\n    \"requestId\": \"e9c30415-023c-4166-b5ef-2e7331f5239d\",\n    \"latencyMs\": 262\n  }\n}"
+      }
+    ]
+  }
+}

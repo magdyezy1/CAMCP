@@ -1,0 +1,25 @@
+{
+  "captured_at": "2026-09-04T23:35:27.537Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "x_ads_native_action",
+  "operation": "DESCRIBE_ACTION",
+  "request": {
+    "gateway": "x_ads_native_action",
+    "args": {
+      "action": "DESCRIBE_ACTION",
+      "target_action": "x_accounts_account_id_campaigns_get"
+    }
+  },
+  "request_id": "0a96f349-9a5f-4e76-a228-dbbce81b83b9",
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"success\": true,\n  \"data\": {\n    \"success\": true,\n    \"api_version\": \"12\",\n    \"action\": \"x_accounts_account_id_campaigns_get\",\n    \"aliases\": [\n      \"FETCH_CAMPAIGNS\",\n      \"LIST_CAMPAIGNS\"\n    ],\n    \"method\": \"GET\",\n    \"endpoint\": \"/12/accounts/{account_id}/campaigns\",\n    \"category\": \"campaign\",\n    \"read_only\": true,\n    \"destructive\": false,\n    \"deprecated\": false,\n    \"path_parameters\": [\n      \"account_id\"\n    ],\n    \"special_transport\": null,\n    \"docs_paths\": [\n      \"MDFILES/x-ads-api/campaign-management/reference.mdx\"\n    ],\n    \"invocation\": {\n      \"tool\": \"x_ads_native_action\",\n      \"arguments\": {\n        \"action\": \"x_accounts_account_id_campaigns_get\",\n        \"account_id\": \"<X Ads account id>\",\n        \"path_params\": {},\n        \"params\": \"<native query/form fields>\"\n      }\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"0a96f349-9a5f-4e76-a228-dbbce81b83b9\",\n    \"latencyMs\": 305\n  }\n}"
+      }
+    ]
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "gateway": "commerce_native_action",
+  "mode": "delegated",
+  "api_version": null,
+  "reported_total": 2,
+  "captured": 2,
+  "denominator_kind": "operation_count",
+  "complete": true,
+  "actions": [
+    {
+      "name": "woocommerce_list_stores",
+      "canonical_name": "woocommerce_list_stores",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "commerce_native_action",
+        "operation": "woocommerce_list_stores",
+        "description": "List connected WooCommerce stores in this Whathead workspace. Use this first to discover store labels before pulling products, orders, or sales reports. Requires scope: read:accounts.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "include_disconnected": {
+              "type": "boolean",
+              "default": false,
+              "description": "Include stores that were disconnected. Default: false."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "woocommerce_store_ops",
+      "canonical_name": "woocommerce_store_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action",
+        "label"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "commerce_native_action",
+        "operation": "woocommerce_store_ops",
+        "description": "WooCommerce read-only commerce operations: products, orders, customers, coupons, sales reports, top sellers, Analytics reports/stats, report totals, and custom sales breakdowns by date, product, category, coupon, customer, country, status, or payment method. Requires scope: read:reports.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "LIST_PRODUCTS",
+                "GET_PRODUCT",
+                "LIST_PRODUCT_CATEGORIES",
+                "LIST_ORDERS",
+                "GET_ORDER",
+                "LIST_CUSTOMERS",
+                "LIST_COUPONS",
+                "GET_SALES_REPORT",
+                "GET_TOP_SELLERS",
+                "GET_REVENUE_STATS",
+                "GET_REPORT_TOTALS",
+                "GET_PRODUCTS_REPORT",
+                "GET_PRODUCTS_STATS",
+                "GET_CATEGORIES_REPORT",
+                "GET_CATEGORIES_STATS",
+                "GET_ORDERS_REPORT",
+                "GET_ORDERS_STATS",
+                "GET_COUPONS_REPORT",
+                "GET_COUPONS_STATS",
+                "GET_CUSTOMERS_REPORT",
+                "GET_CUSTOMERS_STATS",
+                "GET_VARIATIONS_REPORT",
+                "GET_VARIATIONS_STATS",
+                "GET_TAXES_REPORT",
+                "GET_TAXES_STATS",
+                "GET_DOWNLOADS_REPORT",
+                "GET_DOWNLOADS_STATS",
+                "GET_STOCK_REPORT",
+                "GET_ANALYTICS_REPORT",
+                "GET_SALES_BREAKDOWN"
+              ],
+              "description": "Read operation. Includes REST products/orders/customers/coupons, report totals, WooCommerce Analytics reports, and custom sales breakdowns."
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "description": "WooCommerce connection label shown in Whathead integrations. Use woocommerce_list_stores first to discover labels."
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Action-specific body. Common pagination: { page?, perPage? }. LIST_PRODUCTS supports search/status/type/sku/category/tag/minPrice/maxPrice/onSale/inStock. LIST_ORDERS supports status/customer/product/after/before. GET_PRODUCT requires { productId }. GET_ORDER requires { orderId }. GET_SALES_REPORT / GET_TOP_SELLERS support { period? | dateMin/dateMax | startDate/endDate }. GET_REVENUE_STATS and *_STATS actions support { after|startDate, before|endDate, interval? }. GET_REPORT_TOTALS requires { report: \"orders/totals\" | \"products/totals\" | \"customers/totals\" | \"coupons/totals\" | \"reviews/totals\" | \"categories/totals\" | \"tags/totals\" | \"attributes/totals\" }. GET_ANALYTICS_REPORT requires { endpoint, expectList? } for any supported wc-analytics report endpoint. GET_SALES_BREAKDOWN supports { groupBy: date|product|sku|variation|category|coupon|status|country|customer|payment_method, interval: day|week|month|quarter|year, startDate/endDate, status?, maxPages?, perPage?, limit?, sortBy?, sortDir? }."
+            }
+          },
+          "required": [
+            "action",
+            "label"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    }
+  ],
+  "gaps": []
+}

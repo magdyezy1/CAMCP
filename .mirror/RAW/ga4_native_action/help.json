@@ -1,0 +1,22 @@
+{
+  "captured_at": "2026-09-04T23:23:43.689Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "ga4_native_action",
+  "operation": "help",
+  "request": {
+    "gateway": "ga4_native_action",
+    "args": {}
+  },
+  "request_id": null,
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"gateway\": \"ga4_native_action\",\n  \"mode\": \"delegated\",\n  \"description\": \"Google Analytics 4 gateway for OAuth, properties, metadata, reports, async report tasks, and audience exports.\",\n  \"operation_count\": 10,\n  \"operations\": [\n    \"ga4_audience_export_ops\",\n    \"ga4_connection_ops\",\n    \"ga4_create_audience_export\",\n    \"ga4_create_report_task\",\n    \"ga4_data_report\",\n    \"ga4_list_properties\",\n    \"ga4_metadata_ops\",\n    \"ga4_report_task_ops\",\n    \"ga4_run_report\",\n    \"ga4_sync_properties\"\n  ]\n}"
+      }
+    ]
+  }
+}

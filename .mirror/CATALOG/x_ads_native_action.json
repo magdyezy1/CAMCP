@@ -1,0 +1,6036 @@
+{
+  "gateway": "x_ads_native_action",
+  "mode": "direct",
+  "api_version": "12",
+  "reported_total": 186,
+  "captured": 186,
+  "denominator_kind": "LIST_ACTIONS",
+  "complete": true,
+  "actions": [
+    {
+      "name": "x_accounts_get",
+      "canonical_name": "x_accounts_get",
+      "aliases": [
+        "LIST_ACCOUNTS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_get",
+        "aliases": [
+          "LIST_ACCOUNTS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts",
+        "category": "account",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_get",
+      "canonical_name": "x_accounts_account_id_get",
+      "aliases": [
+        "GET_AD_ACCOUNT"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_get",
+        "aliases": [
+          "GET_AD_ACCOUNT"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}",
+        "category": "account",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_post",
+      "canonical_name": "x_accounts_post",
+      "aliases": [
+        "CREATE_AD_ACCOUNT"
+      ],
+      "method": "POST",
+      "path": "/12/accounts",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_post",
+        "aliases": [
+          "CREATE_AD_ACCOUNT"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts",
+        "category": "account",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_put",
+      "canonical_name": "x_accounts_account_id_put",
+      "aliases": [
+        "UPDATE_AD_ACCOUNT"
+      ],
+      "method": "PUT",
+      "path": "/12/accounts/{account_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_put",
+        "aliases": [
+          "UPDATE_AD_ACCOUNT"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}",
+        "category": "account",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_delete",
+      "canonical_name": "x_accounts_account_id_delete",
+      "aliases": [
+        "DELETE_AD_ACCOUNT"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_delete",
+        "aliases": [
+          "DELETE_AD_ACCOUNT"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}",
+        "category": "account",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_account_apps_get",
+      "canonical_name": "x_accounts_account_id_account_apps_get",
+      "aliases": [
+        "LIST_ACCOUNT_APPS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/account_apps",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_account_apps_get",
+        "aliases": [
+          "LIST_ACCOUNT_APPS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/account_apps",
+        "category": "account",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_account_history_get",
+      "canonical_name": "x_accounts_account_id_account_history_get",
+      "aliases": [
+        "LIST_ACCOUNT_HISTORY"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/account_history",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_account_history_get",
+        "aliases": [
+          "LIST_ACCOUNT_HISTORY"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/account_history",
+        "category": "account",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_advertiser_business_categories_get",
+      "canonical_name": "x_advertiser_business_categories_get",
+      "aliases": [
+        "LIST_ADVERTISER_BUSINESS_CATEGORIES"
+      ],
+      "method": "GET",
+      "path": "/12/advertiser_business_categories",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_advertiser_business_categories_get",
+        "aliases": [
+          "LIST_ADVERTISER_BUSINESS_CATEGORIES"
+        ],
+        "method": "GET",
+        "endpoint": "/12/advertiser_business_categories",
+        "category": "account",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_authenticated_user_access_get",
+      "canonical_name": "x_accounts_account_id_authenticated_user_access_get",
+      "aliases": [
+        "GET_AUTHENTICATED_USER_ACCESS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/authenticated_user_access",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_authenticated_user_access_get",
+        "aliases": [
+          "GET_AUTHENTICATED_USER_ACCESS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/authenticated_user_access",
+        "category": "account",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_features_get",
+      "canonical_name": "x_accounts_account_id_features_get",
+      "aliases": [
+        "LIST_FEATURES"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/features",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_features_get",
+        "aliases": [
+          "LIST_FEATURES"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/features",
+        "category": "account",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_features_post",
+      "canonical_name": "x_accounts_account_id_features_post",
+      "aliases": [
+        "CREATE_FEATURE"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/features",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_features_post",
+        "aliases": [
+          "CREATE_FEATURE"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/features",
+        "category": "account",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_features_delete",
+      "canonical_name": "x_accounts_account_id_features_delete",
+      "aliases": [
+        "DELETE_FEATURE"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/features",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_features_delete",
+        "aliases": [
+          "DELETE_FEATURE"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/features",
+        "category": "account",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_tax_settings_get",
+      "canonical_name": "x_accounts_account_id_tax_settings_get",
+      "aliases": [
+        "GET_TAX_SETTINGS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/tax_settings",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_tax_settings_get",
+        "aliases": [
+          "GET_TAX_SETTINGS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/tax_settings",
+        "category": "account",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_tax_settings_put",
+      "canonical_name": "x_accounts_account_id_tax_settings_put",
+      "aliases": [
+        "UPDATE_TAX_SETTINGS"
+      ],
+      "method": "PUT",
+      "path": "/12/accounts/{account_id}/tax_settings",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_tax_settings_put",
+        "aliases": [
+          "UPDATE_TAX_SETTINGS"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}/tax_settings",
+        "category": "account",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_user_settings_user_id_get",
+      "canonical_name": "x_accounts_account_id_user_settings_user_id_get",
+      "aliases": [
+        "GET_USER_SETTINGS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/user_settings/{user_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "user_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_user_settings_user_id_get",
+        "aliases": [
+          "GET_USER_SETTINGS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/user_settings/{user_id}",
+        "category": "account",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "user_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_user_settings_user_id_put",
+      "canonical_name": "x_accounts_account_id_user_settings_user_id_put",
+      "aliases": [
+        "UPDATE_USER_SETTINGS"
+      ],
+      "method": "PUT",
+      "path": "/12/accounts/{account_id}/user_settings/{user_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "user_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_user_settings_user_id_put",
+        "aliases": [
+          "UPDATE_USER_SETTINGS"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}/user_settings/{user_id}",
+        "category": "account",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "user_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_recommendations_get",
+      "canonical_name": "x_accounts_account_id_recommendations_get",
+      "aliases": [
+        "LIST_RECOMMENDATIONS"
+      ],
+      "method": "GET",
+      "path": "/5/accounts/{account_id}/recommendations",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_recommendations_get",
+        "aliases": [
+          "LIST_RECOMMENDATIONS"
+        ],
+        "method": "GET",
+        "endpoint": "/5/accounts/{account_id}/recommendations",
+        "category": "account",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": true,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_recommendations_recommendation_id_get",
+      "canonical_name": "x_accounts_account_id_recommendations_recommendation_id_get",
+      "aliases": [
+        "GET_RECOMMENDATION"
+      ],
+      "method": "GET",
+      "path": "/5/accounts/{account_id}/recommendations/{recommendation_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "recommendation_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_recommendations_recommendation_id_get",
+        "aliases": [
+          "GET_RECOMMENDATION"
+        ],
+        "method": "GET",
+        "endpoint": "/5/accounts/{account_id}/recommendations/{recommendation_id}",
+        "category": "account",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": true,
+        "path_parameters": [
+          "account_id",
+          "recommendation_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_promotable_users_get",
+      "canonical_name": "x_accounts_account_id_promotable_users_get",
+      "aliases": [
+        "LIST_PROMOTABLE_USERS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/promotable_users",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_promotable_users_get",
+        "aliases": [
+          "LIST_PROMOTABLE_USERS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/promotable_users",
+        "category": "account",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_promotable_users_promotable_user_id_get",
+      "canonical_name": "x_accounts_account_id_promotable_users_promotable_user_id_get",
+      "aliases": [
+        "GET_PROMOTABLE_USER"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/promotable_users/{promotable_user_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "promotable_user_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_promotable_users_promotable_user_id_get",
+        "aliases": [
+          "GET_PROMOTABLE_USER"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/promotable_users/{promotable_user_id}",
+        "category": "account",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "promotable_user_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_publishers_get",
+      "canonical_name": "x_publishers_get",
+      "aliases": [
+        "LIST_PUBLISHERS"
+      ],
+      "method": "GET",
+      "path": "/12/publishers",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_publishers_get",
+        "aliases": [
+          "LIST_PUBLISHERS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/publishers",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_bidding_rules_get",
+      "canonical_name": "x_bidding_rules_get",
+      "aliases": [
+        "LIST_BIDDING_RULES"
+      ],
+      "method": "GET",
+      "path": "/12/bidding_rules",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_bidding_rules_get",
+        "aliases": [
+          "LIST_BIDDING_RULES"
+        ],
+        "method": "GET",
+        "endpoint": "/12/bidding_rules",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_content_categories_get",
+      "canonical_name": "x_content_categories_get",
+      "aliases": [
+        "LIST_CONTENT_CATEGORIES"
+      ],
+      "method": "GET",
+      "path": "/12/content_categories",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_content_categories_get",
+        "aliases": [
+          "LIST_CONTENT_CATEGORIES"
+        ],
+        "method": "GET",
+        "endpoint": "/12/content_categories",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_iab_categories_get",
+      "canonical_name": "x_iab_categories_get",
+      "aliases": [
+        "LIST_IAB_CATEGORIES"
+      ],
+      "method": "GET",
+      "path": "/12/iab_categories",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_iab_categories_get",
+        "aliases": [
+          "LIST_IAB_CATEGORIES"
+        ],
+        "method": "GET",
+        "endpoint": "/12/iab_categories",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_curated_categories_get",
+      "canonical_name": "x_accounts_account_id_curated_categories_get",
+      "aliases": [
+        "LIST_CURATED_CATEGORIES"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/curated_categories",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_curated_categories_get",
+        "aliases": [
+          "LIST_CURATED_CATEGORIES"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/curated_categories",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_curated_categories_curated_category_id_get",
+      "canonical_name": "x_accounts_account_id_curated_categories_curated_category_id_get",
+      "aliases": [
+        "GET_CURATED_CATEGORY"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/curated_categories/{curated_category_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "curated_category_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_curated_categories_curated_category_id_get",
+        "aliases": [
+          "GET_CURATED_CATEGORY"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/curated_categories/{curated_category_id}",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "curated_category_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_funding_instruments_get",
+      "canonical_name": "x_accounts_account_id_funding_instruments_get",
+      "aliases": [
+        "LIST_FUNDING_INSTRUMENTS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/funding_instruments",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_funding_instruments_get",
+        "aliases": [
+          "LIST_FUNDING_INSTRUMENTS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/funding_instruments",
+        "category": "campaign",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_funding_instruments_funding_instrument_id_get",
+      "canonical_name": "x_accounts_account_id_funding_instruments_funding_instrument_id_get",
+      "aliases": [
+        "GET_FUNDING_INSTRUMENT"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/funding_instruments/{funding_instrument_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "funding_instrument_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_funding_instruments_funding_instrument_id_get",
+        "aliases": [
+          "GET_FUNDING_INSTRUMENT"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/funding_instruments/{funding_instrument_id}",
+        "category": "campaign",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "funding_instrument_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_funding_instruments_post",
+      "canonical_name": "x_accounts_account_id_funding_instruments_post",
+      "aliases": [
+        "CREATE_FUNDING_INSTRUMENT"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/funding_instruments",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_funding_instruments_post",
+        "aliases": [
+          "CREATE_FUNDING_INSTRUMENT"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/funding_instruments",
+        "category": "campaign",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_funding_instruments_funding_instrument_id_put",
+      "canonical_name": "x_accounts_account_id_funding_instruments_funding_instrument_id_put",
+      "aliases": [
+        "UPDATE_FUNDING_INSTRUMENT"
+      ],
+      "method": "PUT",
+      "path": "/12/accounts/{account_id}/funding_instruments/{funding_instrument_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "funding_instrument_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_funding_instruments_funding_instrument_id_put",
+        "aliases": [
+          "UPDATE_FUNDING_INSTRUMENT"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}/funding_instruments/{funding_instrument_id}",
+        "category": "campaign",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "funding_instrument_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_funding_instruments_funding_instrument_id_delete",
+      "canonical_name": "x_accounts_account_id_funding_instruments_funding_instrument_id_delete",
+      "aliases": [
+        "DELETE_FUNDING_INSTRUMENT"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/funding_instruments/{funding_instrument_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "funding_instrument_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_funding_instruments_funding_instrument_id_delete",
+        "aliases": [
+          "DELETE_FUNDING_INSTRUMENT"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/funding_instruments/{funding_instrument_id}",
+        "category": "campaign",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "funding_instrument_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_campaigns_get",
+      "canonical_name": "x_accounts_account_id_campaigns_get",
+      "aliases": [
+        "FETCH_CAMPAIGNS",
+        "LIST_CAMPAIGNS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/campaigns",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_campaigns_get",
+        "aliases": [
+          "FETCH_CAMPAIGNS",
+          "LIST_CAMPAIGNS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/campaigns",
+        "category": "campaign",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_campaigns_campaign_id_get",
+      "canonical_name": "x_accounts_account_id_campaigns_campaign_id_get",
+      "aliases": [
+        "GET_CAMPAIGN"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/campaigns/{campaign_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "campaign_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_campaigns_campaign_id_get",
+        "aliases": [
+          "GET_CAMPAIGN"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/campaigns/{campaign_id}",
+        "category": "campaign",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "campaign_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_campaigns_post",
+      "canonical_name": "x_accounts_account_id_campaigns_post",
+      "aliases": [
+        "CREATE_CAMPAIGN"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/campaigns",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_campaigns_post",
+        "aliases": [
+          "CREATE_CAMPAIGN"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/campaigns",
+        "category": "campaign",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_campaigns_campaign_id_put",
+      "canonical_name": "x_accounts_account_id_campaigns_campaign_id_put",
+      "aliases": [
+        "UPDATE_CAMPAIGN"
+      ],
+      "method": "PUT",
+      "path": "/12/accounts/{account_id}/campaigns/{campaign_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "campaign_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_campaigns_campaign_id_put",
+        "aliases": [
+          "UPDATE_CAMPAIGN"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}/campaigns/{campaign_id}",
+        "category": "campaign",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "campaign_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_campaigns_campaign_id_delete",
+      "canonical_name": "x_accounts_account_id_campaigns_campaign_id_delete",
+      "aliases": [
+        "DELETE_CAMPAIGN"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/campaigns/{campaign_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "campaign_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_campaigns_campaign_id_delete",
+        "aliases": [
+          "DELETE_CAMPAIGN"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/campaigns/{campaign_id}",
+        "category": "campaign",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "campaign_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_batch_accounts_account_id_campaigns_post",
+      "canonical_name": "x_batch_accounts_account_id_campaigns_post",
+      "aliases": [
+        "BATCH_CREATE_CAMPAIGNS"
+      ],
+      "method": "POST",
+      "path": "/12/batch/accounts/{account_id}/campaigns",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_batch_accounts_account_id_campaigns_post",
+        "aliases": [
+          "BATCH_CREATE_CAMPAIGNS"
+        ],
+        "method": "POST",
+        "endpoint": "/12/batch/accounts/{account_id}/campaigns",
+        "category": "campaign",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_line_items_get",
+      "canonical_name": "x_accounts_account_id_line_items_get",
+      "aliases": [
+        "LIST_LINE_ITEMS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/line_items",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_line_items_get",
+        "aliases": [
+          "LIST_LINE_ITEMS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/line_items",
+        "category": "campaign",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_line_items_line_item_id_get",
+      "canonical_name": "x_accounts_account_id_line_items_line_item_id_get",
+      "aliases": [
+        "GET_LINE_ITEM"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/line_items/{line_item_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "line_item_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_line_items_line_item_id_get",
+        "aliases": [
+          "GET_LINE_ITEM"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/line_items/{line_item_id}",
+        "category": "campaign",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "line_item_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_line_items_post",
+      "canonical_name": "x_accounts_account_id_line_items_post",
+      "aliases": [
+        "CREATE_LINE_ITEM"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/line_items",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_line_items_post",
+        "aliases": [
+          "CREATE_LINE_ITEM"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/line_items",
+        "category": "campaign",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_line_items_line_item_id_put",
+      "canonical_name": "x_accounts_account_id_line_items_line_item_id_put",
+      "aliases": [
+        "UPDATE_LINE_ITEM"
+      ],
+      "method": "PUT",
+      "path": "/12/accounts/{account_id}/line_items/{line_item_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "line_item_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_line_items_line_item_id_put",
+        "aliases": [
+          "UPDATE_LINE_ITEM"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}/line_items/{line_item_id}",
+        "category": "campaign",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "line_item_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_line_items_line_item_id_delete",
+      "canonical_name": "x_accounts_account_id_line_items_line_item_id_delete",
+      "aliases": [
+        "DELETE_LINE_ITEM"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/line_items/{line_item_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "line_item_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_line_items_line_item_id_delete",
+        "aliases": [
+          "DELETE_LINE_ITEM"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/line_items/{line_item_id}",
+        "category": "campaign",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "line_item_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_batch_accounts_account_id_line_items_post",
+      "canonical_name": "x_batch_accounts_account_id_line_items_post",
+      "aliases": [
+        "BATCH_CREATE_LINE_ITEMS"
+      ],
+      "method": "POST",
+      "path": "/12/batch/accounts/{account_id}/line_items",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_batch_accounts_account_id_line_items_post",
+        "aliases": [
+          "BATCH_CREATE_LINE_ITEMS"
+        ],
+        "method": "POST",
+        "endpoint": "/12/batch/accounts/{account_id}/line_items",
+        "category": "campaign",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_line_items_placements_get",
+      "canonical_name": "x_line_items_placements_get",
+      "aliases": [
+        "GET_LINE_ITEMS_PLACEMENTS"
+      ],
+      "method": "GET",
+      "path": "/12/line_items/placements",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_line_items_placements_get",
+        "aliases": [
+          "GET_LINE_ITEMS_PLACEMENTS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/line_items/placements",
+        "category": "campaign",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_line_item_curated_categories_get",
+      "canonical_name": "x_accounts_account_id_line_item_curated_categories_get",
+      "aliases": [
+        "LIST_LINE_ITEM_CURATED_CATEGORIES"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/line_item_curated_categories",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_line_item_curated_categories_get",
+        "aliases": [
+          "LIST_LINE_ITEM_CURATED_CATEGORIES"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/line_item_curated_categories",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_line_item_curated_categories_line_item_curated_category_id_get",
+      "canonical_name": "x_accounts_account_id_line_item_curated_categories_line_item_curated_category_id_get",
+      "aliases": [
+        "GET_LINE_ITEM_CURATED_CATEGORY"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/line_item_curated_categories/{line_item_curated_category_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "line_item_curated_category_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_line_item_curated_categories_line_item_curated_category_id_get",
+        "aliases": [
+          "GET_LINE_ITEM_CURATED_CATEGORY"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/line_item_curated_categories/{line_item_curated_category_id}",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "line_item_curated_category_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_line_item_curated_categories_post",
+      "canonical_name": "x_accounts_account_id_line_item_curated_categories_post",
+      "aliases": [
+        "CREATE_LINE_ITEM_CURATED_CATEGORY"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/line_item_curated_categories",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_line_item_curated_categories_post",
+        "aliases": [
+          "CREATE_LINE_ITEM_CURATED_CATEGORY"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/line_item_curated_categories",
+        "category": "targeting",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_line_item_curated_categories_line_item_curated_category_id_put",
+      "canonical_name": "x_accounts_account_id_line_item_curated_categories_line_item_curated_category_id_put",
+      "aliases": [
+        "UPDATE_LINE_ITEM_CURATED_CATEGORY"
+      ],
+      "method": "PUT",
+      "path": "/12/accounts/{account_id}/line_item_curated_categories/{line_item_curated_category_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "line_item_curated_category_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_line_item_curated_categories_line_item_curated_category_id_put",
+        "aliases": [
+          "UPDATE_LINE_ITEM_CURATED_CATEGORY"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}/line_item_curated_categories/{line_item_curated_category_id}",
+        "category": "targeting",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "line_item_curated_category_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_line_item_curated_categories_line_item_curated_category_id_delete",
+      "canonical_name": "x_accounts_account_id_line_item_curated_categories_line_item_curated_category_id_delete",
+      "aliases": [
+        "DELETE_LINE_ITEM_CURATED_CATEGORY"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/line_item_curated_categories/{line_item_curated_category_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "line_item_curated_category_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_line_item_curated_categories_line_item_curated_category_id_delete",
+        "aliases": [
+          "DELETE_LINE_ITEM_CURATED_CATEGORY"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/line_item_curated_categories/{line_item_curated_category_id}",
+        "category": "targeting",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "line_item_curated_category_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_promoted_tweets_get",
+      "canonical_name": "x_accounts_account_id_promoted_tweets_get",
+      "aliases": [
+        "LIST_PROMOTED_TWEETS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/promoted_tweets",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_promoted_tweets_get",
+        "aliases": [
+          "LIST_PROMOTED_TWEETS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/promoted_tweets",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_promoted_tweets_promoted_tweet_id_get",
+      "canonical_name": "x_accounts_account_id_promoted_tweets_promoted_tweet_id_get",
+      "aliases": [
+        "GET_PROMOTED_TWEET"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/promoted_tweets/{promoted_tweet_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "promoted_tweet_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_promoted_tweets_promoted_tweet_id_get",
+        "aliases": [
+          "GET_PROMOTED_TWEET"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/promoted_tweets/{promoted_tweet_id}",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "promoted_tweet_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_promoted_tweets_post",
+      "canonical_name": "x_accounts_account_id_promoted_tweets_post",
+      "aliases": [
+        "CREATE_PROMOTED_TWEET"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/promoted_tweets",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_promoted_tweets_post",
+        "aliases": [
+          "CREATE_PROMOTED_TWEET"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/promoted_tweets",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_promoted_tweets_promoted_tweet_id_delete",
+      "canonical_name": "x_accounts_account_id_promoted_tweets_promoted_tweet_id_delete",
+      "aliases": [
+        "DELETE_PROMOTED_TWEET"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/promoted_tweets/{promoted_tweet_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "promoted_tweet_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_promoted_tweets_promoted_tweet_id_delete",
+        "aliases": [
+          "DELETE_PROMOTED_TWEET"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/promoted_tweets/{promoted_tweet_id}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "promoted_tweet_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_promoted_accounts_get",
+      "canonical_name": "x_accounts_account_id_promoted_accounts_get",
+      "aliases": [
+        "LIST_PROMOTED_ACCOUNTS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/promoted_accounts",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_promoted_accounts_get",
+        "aliases": [
+          "LIST_PROMOTED_ACCOUNTS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/promoted_accounts",
+        "category": "campaign",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_promoted_accounts_promoted_account_id_get",
+      "canonical_name": "x_accounts_account_id_promoted_accounts_promoted_account_id_get",
+      "aliases": [
+        "GET_PROMOTED_ACCOUNT"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/promoted_accounts/{promoted_account_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "promoted_account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_promoted_accounts_promoted_account_id_get",
+        "aliases": [
+          "GET_PROMOTED_ACCOUNT"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/promoted_accounts/{promoted_account_id}",
+        "category": "campaign",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "promoted_account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_promoted_accounts_post",
+      "canonical_name": "x_accounts_account_id_promoted_accounts_post",
+      "aliases": [
+        "CREATE_PROMOTED_ACCOUNT"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/promoted_accounts",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_promoted_accounts_post",
+        "aliases": [
+          "CREATE_PROMOTED_ACCOUNT"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/promoted_accounts",
+        "category": "campaign",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_promoted_accounts_promoted_account_id_delete",
+      "canonical_name": "x_accounts_account_id_promoted_accounts_promoted_account_id_delete",
+      "aliases": [
+        "DELETE_PROMOTED_ACCOUNT"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/promoted_accounts/{promoted_account_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "promoted_account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_promoted_accounts_promoted_account_id_delete",
+        "aliases": [
+          "DELETE_PROMOTED_ACCOUNT"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/promoted_accounts/{promoted_account_id}",
+        "category": "campaign",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "promoted_account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_scheduled_promoted_tweets_get",
+      "canonical_name": "x_accounts_account_id_scheduled_promoted_tweets_get",
+      "aliases": [
+        "LIST_SCHEDULED_PROMOTED_TWEETS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/scheduled_promoted_tweets",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_scheduled_promoted_tweets_get",
+        "aliases": [
+          "LIST_SCHEDULED_PROMOTED_TWEETS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/scheduled_promoted_tweets",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_scheduled_promoted_tweets_scheduled_promoted_tweet_id_get",
+      "canonical_name": "x_accounts_account_id_scheduled_promoted_tweets_scheduled_promoted_tweet_id_get",
+      "aliases": [
+        "GET_SCHEDULED_PROMOTED_TWEET"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/scheduled_promoted_tweets/{scheduled_promoted_tweet_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "scheduled_promoted_tweet_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_scheduled_promoted_tweets_scheduled_promoted_tweet_id_get",
+        "aliases": [
+          "GET_SCHEDULED_PROMOTED_TWEET"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/scheduled_promoted_tweets/{scheduled_promoted_tweet_id}",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "scheduled_promoted_tweet_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_scheduled_promoted_tweets_post",
+      "canonical_name": "x_accounts_account_id_scheduled_promoted_tweets_post",
+      "aliases": [
+        "CREATE_SCHEDULED_PROMOTED_TWEET"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/scheduled_promoted_tweets",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_scheduled_promoted_tweets_post",
+        "aliases": [
+          "CREATE_SCHEDULED_PROMOTED_TWEET"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/scheduled_promoted_tweets",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_scheduled_promoted_tweets_scheduled_promoted_tweet_id_delete",
+      "canonical_name": "x_accounts_account_id_scheduled_promoted_tweets_scheduled_promoted_tweet_id_delete",
+      "aliases": [
+        "DELETE_SCHEDULED_PROMOTED_TWEET"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/scheduled_promoted_tweets/{scheduled_promoted_tweet_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "scheduled_promoted_tweet_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_scheduled_promoted_tweets_scheduled_promoted_tweet_id_delete",
+        "aliases": [
+          "DELETE_SCHEDULED_PROMOTED_TWEET"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/scheduled_promoted_tweets/{scheduled_promoted_tweet_id}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "scheduled_promoted_tweet_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_media_creatives_get",
+      "canonical_name": "x_accounts_account_id_media_creatives_get",
+      "aliases": [
+        "LIST_MEDIA_CREATIVES"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/media_creatives",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_media_creatives_get",
+        "aliases": [
+          "LIST_MEDIA_CREATIVES"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/media_creatives",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_media_creatives_media_creative_id_get",
+      "canonical_name": "x_accounts_account_id_media_creatives_media_creative_id_get",
+      "aliases": [
+        "GET_MEDIA_CREATIVE"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/media_creatives/{media_creative_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "media_creative_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_media_creatives_media_creative_id_get",
+        "aliases": [
+          "GET_MEDIA_CREATIVE"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/media_creatives/{media_creative_id}",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "media_creative_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_media_creatives_post",
+      "canonical_name": "x_accounts_account_id_media_creatives_post",
+      "aliases": [
+        "CREATE_MEDIA_CREATIVE"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/media_creatives",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_media_creatives_post",
+        "aliases": [
+          "CREATE_MEDIA_CREATIVE"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/media_creatives",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_media_creatives_media_creative_id_delete",
+      "canonical_name": "x_accounts_account_id_media_creatives_media_creative_id_delete",
+      "aliases": [
+        "DELETE_MEDIA_CREATIVE"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/media_creatives/{media_creative_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "media_creative_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_media_creatives_media_creative_id_delete",
+        "aliases": [
+          "DELETE_MEDIA_CREATIVE"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/media_creatives/{media_creative_id}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "media_creative_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_targeting_criteria_get",
+      "canonical_name": "x_accounts_account_id_targeting_criteria_get",
+      "aliases": [
+        "LIST_TARGETING_CRITERIA"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/targeting_criteria",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_targeting_criteria_get",
+        "aliases": [
+          "LIST_TARGETING_CRITERIA"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/targeting_criteria",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_targeting_criteria_targeting_criterion_id_get",
+      "canonical_name": "x_accounts_account_id_targeting_criteria_targeting_criterion_id_get",
+      "aliases": [
+        "GET_TARGETING_CRITERION"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/targeting_criteria/{targeting_criterion_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "targeting_criterion_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_targeting_criteria_targeting_criterion_id_get",
+        "aliases": [
+          "GET_TARGETING_CRITERION"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/targeting_criteria/{targeting_criterion_id}",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "targeting_criterion_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_targeting_criteria_post",
+      "canonical_name": "x_accounts_account_id_targeting_criteria_post",
+      "aliases": [
+        "CREATE_TARGETING_CRITERIA"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/targeting_criteria",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_targeting_criteria_post",
+        "aliases": [
+          "CREATE_TARGETING_CRITERIA"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/targeting_criteria",
+        "category": "targeting",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_targeting_criteria_targeting_criterion_id_put",
+      "canonical_name": "x_accounts_account_id_targeting_criteria_targeting_criterion_id_put",
+      "aliases": [
+        "UPDATE_TARGETING_CRITERIA"
+      ],
+      "method": "PUT",
+      "path": "/12/accounts/{account_id}/targeting_criteria/{targeting_criterion_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "targeting_criterion_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_targeting_criteria_targeting_criterion_id_put",
+        "aliases": [
+          "UPDATE_TARGETING_CRITERIA"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}/targeting_criteria/{targeting_criterion_id}",
+        "category": "targeting",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "targeting_criterion_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_targeting_criteria_targeting_criterion_id_delete",
+      "canonical_name": "x_accounts_account_id_targeting_criteria_targeting_criterion_id_delete",
+      "aliases": [
+        "DELETE_TARGETING_CRITERIA"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/targeting_criteria/{targeting_criterion_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "targeting_criterion_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_targeting_criteria_targeting_criterion_id_delete",
+        "aliases": [
+          "DELETE_TARGETING_CRITERIA"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/targeting_criteria/{targeting_criterion_id}",
+        "category": "targeting",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "targeting_criterion_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_batch_accounts_account_id_targeting_criteria_post",
+      "canonical_name": "x_batch_accounts_account_id_targeting_criteria_post",
+      "aliases": [
+        "BATCH_CREATE_TARGETING_CRITERIA"
+      ],
+      "method": "POST",
+      "path": "/12/batch/accounts/{account_id}/targeting_criteria",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_batch_accounts_account_id_targeting_criteria_post",
+        "aliases": [
+          "BATCH_CREATE_TARGETING_CRITERIA"
+        ],
+        "method": "POST",
+        "endpoint": "/12/batch/accounts/{account_id}/targeting_criteria",
+        "category": "targeting",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_targeting_suggestions_get",
+      "canonical_name": "x_accounts_account_id_targeting_suggestions_get",
+      "aliases": [
+        "LIST_TARGETING_SUGGESTIONS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/targeting_suggestions",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_targeting_suggestions_get",
+        "aliases": [
+          "LIST_TARGETING_SUGGESTIONS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/targeting_suggestions",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_targeting_criteria_interests_get",
+      "canonical_name": "x_targeting_criteria_interests_get",
+      "aliases": [
+        "SEARCH_TARGETING_INTERESTS"
+      ],
+      "method": "GET",
+      "path": "/12/targeting_criteria/interests",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_targeting_criteria_interests_get",
+        "aliases": [
+          "SEARCH_TARGETING_INTERESTS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/targeting_criteria/interests",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_targeting_criteria_locations_get",
+      "canonical_name": "x_targeting_criteria_locations_get",
+      "aliases": [
+        "SEARCH_TARGETING_LOCATIONS"
+      ],
+      "method": "GET",
+      "path": "/12/targeting_criteria/locations",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_targeting_criteria_locations_get",
+        "aliases": [
+          "SEARCH_TARGETING_LOCATIONS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/targeting_criteria/locations",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_targeting_criteria_events_get",
+      "canonical_name": "x_targeting_criteria_events_get",
+      "aliases": [
+        "SEARCH_TARGETING_EVENTS"
+      ],
+      "method": "GET",
+      "path": "/12/targeting_criteria/events",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_targeting_criteria_events_get",
+        "aliases": [
+          "SEARCH_TARGETING_EVENTS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/targeting_criteria/events",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_targeting_criteria_app_store_categories_get",
+      "canonical_name": "x_targeting_criteria_app_store_categories_get",
+      "aliases": [
+        "SEARCH_TARGETING_APP_STORE_CATEGORIES"
+      ],
+      "method": "GET",
+      "path": "/12/targeting_criteria/app_store_categories",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_targeting_criteria_app_store_categories_get",
+        "aliases": [
+          "SEARCH_TARGETING_APP_STORE_CATEGORIES"
+        ],
+        "method": "GET",
+        "endpoint": "/12/targeting_criteria/app_store_categories",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_targeting_criteria_network_operators_get",
+      "canonical_name": "x_targeting_criteria_network_operators_get",
+      "aliases": [
+        "SEARCH_TARGETING_NETWORK_OPERATORS"
+      ],
+      "method": "GET",
+      "path": "/12/targeting_criteria/network_operators",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_targeting_criteria_network_operators_get",
+        "aliases": [
+          "SEARCH_TARGETING_NETWORK_OPERATORS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/targeting_criteria/network_operators",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_targeting_criteria_platforms_get",
+      "canonical_name": "x_targeting_criteria_platforms_get",
+      "aliases": [
+        "SEARCH_TARGETING_PLATFORMS"
+      ],
+      "method": "GET",
+      "path": "/12/targeting_criteria/platforms",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_targeting_criteria_platforms_get",
+        "aliases": [
+          "SEARCH_TARGETING_PLATFORMS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/targeting_criteria/platforms",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_targeting_criteria_platform_versions_get",
+      "canonical_name": "x_targeting_criteria_platform_versions_get",
+      "aliases": [
+        "SEARCH_TARGETING_PLATFORM_VERSIONS"
+      ],
+      "method": "GET",
+      "path": "/12/targeting_criteria/platform_versions",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_targeting_criteria_platform_versions_get",
+        "aliases": [
+          "SEARCH_TARGETING_PLATFORM_VERSIONS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/targeting_criteria/platform_versions",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_targeting_criteria_devices_get",
+      "canonical_name": "x_targeting_criteria_devices_get",
+      "aliases": [
+        "SEARCH_TARGETING_DEVICES"
+      ],
+      "method": "GET",
+      "path": "/12/targeting_criteria/devices",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_targeting_criteria_devices_get",
+        "aliases": [
+          "SEARCH_TARGETING_DEVICES"
+        ],
+        "method": "GET",
+        "endpoint": "/12/targeting_criteria/devices",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_targeting_criteria_conversations_get",
+      "canonical_name": "x_targeting_criteria_conversations_get",
+      "aliases": [
+        "SEARCH_TARGETING_CONVERSATIONS"
+      ],
+      "method": "GET",
+      "path": "/12/targeting_criteria/conversations",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_targeting_criteria_conversations_get",
+        "aliases": [
+          "SEARCH_TARGETING_CONVERSATIONS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/targeting_criteria/conversations",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_targeting_criteria_languages_get",
+      "canonical_name": "x_targeting_criteria_languages_get",
+      "aliases": [
+        "SEARCH_TARGETING_LANGUAGES"
+      ],
+      "method": "GET",
+      "path": "/12/targeting_criteria/languages",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_targeting_criteria_languages_get",
+        "aliases": [
+          "SEARCH_TARGETING_LANGUAGES"
+        ],
+        "method": "GET",
+        "endpoint": "/12/targeting_criteria/languages",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_targeting_criteria_tv_markets_get",
+      "canonical_name": "x_targeting_criteria_tv_markets_get",
+      "aliases": [
+        "SEARCH_TARGETING_TV_MARKETS"
+      ],
+      "method": "GET",
+      "path": "/12/targeting_criteria/tv_markets",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_targeting_criteria_tv_markets_get",
+        "aliases": [
+          "SEARCH_TARGETING_TV_MARKETS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/targeting_criteria/tv_markets",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_targeting_criteria_tv_shows_get",
+      "canonical_name": "x_targeting_criteria_tv_shows_get",
+      "aliases": [
+        "SEARCH_TARGETING_TV_SHOWS"
+      ],
+      "method": "GET",
+      "path": "/12/targeting_criteria/tv_shows",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_targeting_criteria_tv_shows_get",
+        "aliases": [
+          "SEARCH_TARGETING_TV_SHOWS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/targeting_criteria/tv_shows",
+        "category": "targeting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_audience_estimate_post",
+      "canonical_name": "x_accounts_account_id_audience_estimate_post",
+      "aliases": [
+        "ESTIMATE_AUDIENCE_SIZE"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/audience_estimate",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_audience_estimate_post",
+        "aliases": [
+          "ESTIMATE_AUDIENCE_SIZE"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/audience_estimate",
+        "category": "audience",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_tracking_tags_get",
+      "canonical_name": "x_accounts_account_id_tracking_tags_get",
+      "aliases": [
+        "LIST_TRACKING_TAGS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/tracking_tags",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_tracking_tags_get",
+        "aliases": [
+          "LIST_TRACKING_TAGS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/tracking_tags",
+        "category": "measurement",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_tracking_tags_tracking_tag_id_get",
+      "canonical_name": "x_accounts_account_id_tracking_tags_tracking_tag_id_get",
+      "aliases": [
+        "GET_TRACKING_TAG"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/tracking_tags/{tracking_tag_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "tracking_tag_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_tracking_tags_tracking_tag_id_get",
+        "aliases": [
+          "GET_TRACKING_TAG"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/tracking_tags/{tracking_tag_id}",
+        "category": "measurement",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "tracking_tag_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_tracking_tags_post",
+      "canonical_name": "x_accounts_account_id_tracking_tags_post",
+      "aliases": [
+        "CREATE_TRACKING_TAG"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/tracking_tags",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_tracking_tags_post",
+        "aliases": [
+          "CREATE_TRACKING_TAG"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/tracking_tags",
+        "category": "measurement",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_tracking_tags_tracking_tag_id_put",
+      "canonical_name": "x_accounts_account_id_tracking_tags_tracking_tag_id_put",
+      "aliases": [
+        "UPDATE_TRACKING_TAG"
+      ],
+      "method": "PUT",
+      "path": "/12/accounts/{account_id}/tracking_tags/{tracking_tag_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "tracking_tag_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_tracking_tags_tracking_tag_id_put",
+        "aliases": [
+          "UPDATE_TRACKING_TAG"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}/tracking_tags/{tracking_tag_id}",
+        "category": "measurement",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "tracking_tag_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_tracking_tags_tracking_tag_id_delete",
+      "canonical_name": "x_accounts_account_id_tracking_tags_tracking_tag_id_delete",
+      "aliases": [
+        "DELETE_TRACKING_TAG"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/tracking_tags/{tracking_tag_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "tracking_tag_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_tracking_tags_tracking_tag_id_delete",
+        "aliases": [
+          "DELETE_TRACKING_TAG"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/tracking_tags/{tracking_tag_id}",
+        "category": "measurement",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "tracking_tag_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_app_event_tags_get",
+      "canonical_name": "x_accounts_account_id_app_event_tags_get",
+      "aliases": [
+        "LIST_APP_EVENT_TAGS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/app_event_tags",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_app_event_tags_get",
+        "aliases": [
+          "LIST_APP_EVENT_TAGS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/app_event_tags",
+        "category": "measurement",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_app_event_tags_app_event_tag_id_get",
+      "canonical_name": "x_accounts_account_id_app_event_tags_app_event_tag_id_get",
+      "aliases": [
+        "GET_APP_EVENT_TAG"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/app_event_tags/{app_event_tag_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "app_event_tag_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_app_event_tags_app_event_tag_id_get",
+        "aliases": [
+          "GET_APP_EVENT_TAG"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/app_event_tags/{app_event_tag_id}",
+        "category": "measurement",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "app_event_tag_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_conversion_event_post",
+      "canonical_name": "x_conversion_event_post",
+      "aliases": [
+        "POST_CONVERSION_EVENT"
+      ],
+      "method": "POST",
+      "path": "/12/conversion_event",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_conversion_event_post",
+        "aliases": [
+          "POST_CONVERSION_EVENT"
+        ],
+        "method": "POST",
+        "endpoint": "/12/conversion_event",
+        "category": "measurement",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_tweets_get",
+      "canonical_name": "x_accounts_account_id_tweets_get",
+      "aliases": [
+        "SCOPED_TIMELINE",
+        "LIST_TWEETS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/tweets",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_tweets_get",
+        "aliases": [
+          "SCOPED_TIMELINE",
+          "LIST_TWEETS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/tweets",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_account_media_get",
+      "canonical_name": "x_accounts_account_id_account_media_get",
+      "aliases": [
+        "LIST_ACCOUNT_MEDIA"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/account_media",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_account_media_get",
+        "aliases": [
+          "LIST_ACCOUNT_MEDIA"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/account_media",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_account_media_account_media_id_get",
+      "canonical_name": "x_accounts_account_id_account_media_account_media_id_get",
+      "aliases": [
+        "GET_ACCOUNT_MEDIA"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/account_media/{account_media_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "account_media_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_account_media_account_media_id_get",
+        "aliases": [
+          "GET_ACCOUNT_MEDIA"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/account_media/{account_media_id}",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "account_media_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_account_media_account_media_id_delete",
+      "canonical_name": "x_accounts_account_id_account_media_account_media_id_delete",
+      "aliases": [
+        "DELETE_ACCOUNT_MEDIA"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/account_media/{account_media_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "account_media_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_account_media_account_media_id_delete",
+        "aliases": [
+          "DELETE_ACCOUNT_MEDIA"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/account_media/{account_media_id}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "account_media_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_media_library_get",
+      "canonical_name": "x_accounts_account_id_media_library_get",
+      "aliases": [
+        "LIST_MEDIA_LIBRARY"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/media_library",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_media_library_get",
+        "aliases": [
+          "LIST_MEDIA_LIBRARY"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/media_library",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_media_library_media_key_get",
+      "canonical_name": "x_accounts_account_id_media_library_media_key_get",
+      "aliases": [
+        "GET_MEDIA_LIBRARY_ITEM"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/media_library/{media_key}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "media_key"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_media_library_media_key_get",
+        "aliases": [
+          "GET_MEDIA_LIBRARY_ITEM"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/media_library/{media_key}",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "media_key"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_media_library_post",
+      "canonical_name": "x_accounts_account_id_media_library_post",
+      "aliases": [
+        "CREATE_MEDIA_LIBRARY_ITEM"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/media_library",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_media_library_post",
+        "aliases": [
+          "CREATE_MEDIA_LIBRARY_ITEM"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/media_library",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_media_library_media_key_put",
+      "canonical_name": "x_accounts_account_id_media_library_media_key_put",
+      "aliases": [
+        "UPDATE_MEDIA_LIBRARY_ITEM"
+      ],
+      "method": "PUT",
+      "path": "/12/accounts/{account_id}/media_library/{media_key}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "media_key"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_media_library_media_key_put",
+        "aliases": [
+          "UPDATE_MEDIA_LIBRARY_ITEM"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}/media_library/{media_key}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "media_key"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_media_library_media_key_delete",
+      "canonical_name": "x_accounts_account_id_media_library_media_key_delete",
+      "aliases": [
+        "DELETE_MEDIA_LIBRARY_ITEM"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/media_library/{media_key}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "media_key"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_media_library_media_key_delete",
+        "aliases": [
+          "DELETE_MEDIA_LIBRARY_ITEM"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/media_library/{media_key}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "media_key"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_media_upload_post",
+      "canonical_name": "x_media_upload_post",
+      "aliases": [
+        "UPLOAD_MEDIA"
+      ],
+      "method": "POST",
+      "path": "https://upload.x.com/1.1/media/upload.json",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_media_upload_post",
+        "aliases": [
+          "UPLOAD_MEDIA"
+        ],
+        "method": "POST",
+        "endpoint": "https://upload.x.com/1.1/media/upload.json",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": "media_upload"
+      }
+    },
+    {
+      "name": "x_accounts_account_id_tweet_post",
+      "canonical_name": "x_accounts_account_id_tweet_post",
+      "aliases": [
+        "CREATE_TWEET"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/tweet",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_tweet_post",
+        "aliases": [
+          "CREATE_TWEET"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/tweet",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_tweet_previews_get",
+      "canonical_name": "x_accounts_account_id_tweet_previews_get",
+      "aliases": [
+        "LIST_TWEET_PREVIEWS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/tweet_previews",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_tweet_previews_get",
+        "aliases": [
+          "LIST_TWEET_PREVIEWS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/tweet_previews",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_tweets_tweet_id_name_put",
+      "canonical_name": "x_accounts_account_id_tweets_tweet_id_name_put",
+      "aliases": [
+        "UPDATE_TWEET_NAME"
+      ],
+      "method": "PUT",
+      "path": "/12/accounts/{account_id}/tweets/{tweet_id}/name",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "tweet_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_tweets_tweet_id_name_put",
+        "aliases": [
+          "UPDATE_TWEET_NAME"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}/tweets/{tweet_id}/name",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "tweet_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_post",
+      "canonical_name": "x_accounts_account_id_cards_post",
+      "aliases": [
+        "CREATE_CARD"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/cards",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_post",
+        "aliases": [
+          "CREATE_CARD"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/cards",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_get",
+      "canonical_name": "x_accounts_account_id_cards_get",
+      "aliases": [
+        "LIST_CARDS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/cards",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_get",
+        "aliases": [
+          "LIST_CARDS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/cards",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_card_id_get",
+      "canonical_name": "x_accounts_account_id_cards_card_id_get",
+      "aliases": [
+        "GET_CARD"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/cards/{card_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "card_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_card_id_get",
+        "aliases": [
+          "GET_CARD"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/cards/{card_id}",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "card_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_card_id_put",
+      "canonical_name": "x_accounts_account_id_cards_card_id_put",
+      "aliases": [
+        "UPDATE_CARD"
+      ],
+      "method": "PUT",
+      "path": "/12/accounts/{account_id}/cards/{card_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "card_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_card_id_put",
+        "aliases": [
+          "UPDATE_CARD"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}/cards/{card_id}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "card_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_card_id_delete",
+      "canonical_name": "x_accounts_account_id_cards_card_id_delete",
+      "aliases": [
+        "DELETE_CARD"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/cards/{card_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "card_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_card_id_delete",
+        "aliases": [
+          "DELETE_CARD"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/cards/{card_id}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "card_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_all_get",
+      "canonical_name": "x_accounts_account_id_cards_all_get",
+      "aliases": [
+        "LIST_CARDS_ALL"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/cards/all",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_all_get",
+        "aliases": [
+          "LIST_CARDS_ALL"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/cards/all",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_all_card_id_get",
+      "canonical_name": "x_accounts_account_id_cards_all_card_id_get",
+      "aliases": [
+        "GET_CARD_ALL"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/cards/all/{card_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "card_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_all_card_id_get",
+        "aliases": [
+          "GET_CARD_ALL"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/cards/all/{card_id}",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "card_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_image_conversation_get",
+      "canonical_name": "x_accounts_account_id_cards_image_conversation_get",
+      "aliases": [
+        "LIST_CARDS_IMAGE_CONVERSATION"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/cards/image_conversation",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_image_conversation_get",
+        "aliases": [
+          "LIST_CARDS_IMAGE_CONVERSATION"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/cards/image_conversation",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_image_conversation_post",
+      "canonical_name": "x_accounts_account_id_cards_image_conversation_post",
+      "aliases": [
+        "CREATE_CARD_IMAGE_CONVERSATION"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/cards/image_conversation",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_image_conversation_post",
+        "aliases": [
+          "CREATE_CARD_IMAGE_CONVERSATION"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/cards/image_conversation",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_image_conversation_card_id_get",
+      "canonical_name": "x_accounts_account_id_cards_image_conversation_card_id_get",
+      "aliases": [
+        "GET_CARD_IMAGE_CONVERSATION"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/cards/image_conversation/{card_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "card_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_image_conversation_card_id_get",
+        "aliases": [
+          "GET_CARD_IMAGE_CONVERSATION"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/cards/image_conversation/{card_id}",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "card_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_image_conversation_card_id_put",
+      "canonical_name": "x_accounts_account_id_cards_image_conversation_card_id_put",
+      "aliases": [
+        "UPDATE_CARD_IMAGE_CONVERSATION"
+      ],
+      "method": "PUT",
+      "path": "/12/accounts/{account_id}/cards/image_conversation/{card_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "card_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_image_conversation_card_id_put",
+        "aliases": [
+          "UPDATE_CARD_IMAGE_CONVERSATION"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}/cards/image_conversation/{card_id}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "card_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_image_conversation_card_id_delete",
+      "canonical_name": "x_accounts_account_id_cards_image_conversation_card_id_delete",
+      "aliases": [
+        "DELETE_CARD_IMAGE_CONVERSATION"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/cards/image_conversation/{card_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "card_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_image_conversation_card_id_delete",
+        "aliases": [
+          "DELETE_CARD_IMAGE_CONVERSATION"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/cards/image_conversation/{card_id}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "card_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_poll_get",
+      "canonical_name": "x_accounts_account_id_cards_poll_get",
+      "aliases": [
+        "LIST_CARDS_POLL"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/cards/poll",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_poll_get",
+        "aliases": [
+          "LIST_CARDS_POLL"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/cards/poll",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_poll_post",
+      "canonical_name": "x_accounts_account_id_cards_poll_post",
+      "aliases": [
+        "CREATE_CARD_POLL"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/cards/poll",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_poll_post",
+        "aliases": [
+          "CREATE_CARD_POLL"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/cards/poll",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_poll_card_id_get",
+      "canonical_name": "x_accounts_account_id_cards_poll_card_id_get",
+      "aliases": [
+        "GET_CARD_POLL"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/cards/poll/{card_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "card_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_poll_card_id_get",
+        "aliases": [
+          "GET_CARD_POLL"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/cards/poll/{card_id}",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "card_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_poll_card_id_delete",
+      "canonical_name": "x_accounts_account_id_cards_poll_card_id_delete",
+      "aliases": [
+        "DELETE_CARD_POLL"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/cards/poll/{card_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "card_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_poll_card_id_delete",
+        "aliases": [
+          "DELETE_CARD_POLL"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/cards/poll/{card_id}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "card_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_video_conversation_get",
+      "canonical_name": "x_accounts_account_id_cards_video_conversation_get",
+      "aliases": [
+        "LIST_CARDS_VIDEO_CONVERSATION"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/cards/video_conversation",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_video_conversation_get",
+        "aliases": [
+          "LIST_CARDS_VIDEO_CONVERSATION"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/cards/video_conversation",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_video_conversation_post",
+      "canonical_name": "x_accounts_account_id_cards_video_conversation_post",
+      "aliases": [
+        "CREATE_CARD_VIDEO_CONVERSATION"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/cards/video_conversation",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_video_conversation_post",
+        "aliases": [
+          "CREATE_CARD_VIDEO_CONVERSATION"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/cards/video_conversation",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_video_conversation_card_id_get",
+      "canonical_name": "x_accounts_account_id_cards_video_conversation_card_id_get",
+      "aliases": [
+        "GET_CARD_VIDEO_CONVERSATION"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/cards/video_conversation/{card_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "card_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_video_conversation_card_id_get",
+        "aliases": [
+          "GET_CARD_VIDEO_CONVERSATION"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/cards/video_conversation/{card_id}",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "card_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_video_conversation_card_id_put",
+      "canonical_name": "x_accounts_account_id_cards_video_conversation_card_id_put",
+      "aliases": [
+        "UPDATE_CARD_VIDEO_CONVERSATION"
+      ],
+      "method": "PUT",
+      "path": "/12/accounts/{account_id}/cards/video_conversation/{card_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "card_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_video_conversation_card_id_put",
+        "aliases": [
+          "UPDATE_CARD_VIDEO_CONVERSATION"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}/cards/video_conversation/{card_id}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "card_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_cards_video_conversation_card_id_delete",
+      "canonical_name": "x_accounts_account_id_cards_video_conversation_card_id_delete",
+      "aliases": [
+        "DELETE_CARD_VIDEO_CONVERSATION"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/cards/video_conversation/{card_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "card_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_cards_video_conversation_card_id_delete",
+        "aliases": [
+          "DELETE_CARD_VIDEO_CONVERSATION"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/cards/video_conversation/{card_id}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "card_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_draft_tweets_get",
+      "canonical_name": "x_accounts_account_id_draft_tweets_get",
+      "aliases": [
+        "LIST_DRAFT_TWEETS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/draft_tweets",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_draft_tweets_get",
+        "aliases": [
+          "LIST_DRAFT_TWEETS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/draft_tweets",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_draft_tweets_post",
+      "canonical_name": "x_accounts_account_id_draft_tweets_post",
+      "aliases": [
+        "CREATE_DRAFT_TWEET"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/draft_tweets",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_draft_tweets_post",
+        "aliases": [
+          "CREATE_DRAFT_TWEET"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/draft_tweets",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_draft_tweets_draft_tweet_id_get",
+      "canonical_name": "x_accounts_account_id_draft_tweets_draft_tweet_id_get",
+      "aliases": [
+        "GET_DRAFT_TWEET"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/draft_tweets/{draft_tweet_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "draft_tweet_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_draft_tweets_draft_tweet_id_get",
+        "aliases": [
+          "GET_DRAFT_TWEET"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/draft_tweets/{draft_tweet_id}",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "draft_tweet_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_draft_tweets_draft_tweet_id_put",
+      "canonical_name": "x_accounts_account_id_draft_tweets_draft_tweet_id_put",
+      "aliases": [
+        "UPDATE_DRAFT_TWEET"
+      ],
+      "method": "PUT",
+      "path": "/12/accounts/{account_id}/draft_tweets/{draft_tweet_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "draft_tweet_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_draft_tweets_draft_tweet_id_put",
+        "aliases": [
+          "UPDATE_DRAFT_TWEET"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}/draft_tweets/{draft_tweet_id}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "draft_tweet_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_draft_tweets_draft_tweet_id_delete",
+      "canonical_name": "x_accounts_account_id_draft_tweets_draft_tweet_id_delete",
+      "aliases": [
+        "DELETE_DRAFT_TWEET"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/draft_tweets/{draft_tweet_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "draft_tweet_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_draft_tweets_draft_tweet_id_delete",
+        "aliases": [
+          "DELETE_DRAFT_TWEET"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/draft_tweets/{draft_tweet_id}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "draft_tweet_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_draft_tweets_preview_draft_tweet_id_post",
+      "canonical_name": "x_accounts_account_id_draft_tweets_preview_draft_tweet_id_post",
+      "aliases": [
+        "PREVIEW_DRAFT_TWEET"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/draft_tweets/preview/{draft_tweet_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "draft_tweet_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_draft_tweets_preview_draft_tweet_id_post",
+        "aliases": [
+          "PREVIEW_DRAFT_TWEET"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/draft_tweets/preview/{draft_tweet_id}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "draft_tweet_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_preroll_call_to_actions_get",
+      "canonical_name": "x_accounts_account_id_preroll_call_to_actions_get",
+      "aliases": [
+        "LIST_PREROLL_CALL_TO_ACTIONS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/preroll_call_to_actions",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_preroll_call_to_actions_get",
+        "aliases": [
+          "LIST_PREROLL_CALL_TO_ACTIONS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/preroll_call_to_actions",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_preroll_call_to_actions_post",
+      "canonical_name": "x_accounts_account_id_preroll_call_to_actions_post",
+      "aliases": [
+        "CREATE_PREROLL_CALL_TO_ACTION"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/preroll_call_to_actions",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_preroll_call_to_actions_post",
+        "aliases": [
+          "CREATE_PREROLL_CALL_TO_ACTION"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/preroll_call_to_actions",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_preroll_call_to_actions_preroll_call_to_action_id_get",
+      "canonical_name": "x_accounts_account_id_preroll_call_to_actions_preroll_call_to_action_id_get",
+      "aliases": [
+        "GET_PREROLL_CALL_TO_ACTION"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/preroll_call_to_actions/{preroll_call_to_action_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "preroll_call_to_action_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_preroll_call_to_actions_preroll_call_to_action_id_get",
+        "aliases": [
+          "GET_PREROLL_CALL_TO_ACTION"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/preroll_call_to_actions/{preroll_call_to_action_id}",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "preroll_call_to_action_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_preroll_call_to_actions_preroll_call_to_action_id_put",
+      "canonical_name": "x_accounts_account_id_preroll_call_to_actions_preroll_call_to_action_id_put",
+      "aliases": [
+        "UPDATE_PREROLL_CALL_TO_ACTION"
+      ],
+      "method": "PUT",
+      "path": "/12/accounts/{account_id}/preroll_call_to_actions/{preroll_call_to_action_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "preroll_call_to_action_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_preroll_call_to_actions_preroll_call_to_action_id_put",
+        "aliases": [
+          "UPDATE_PREROLL_CALL_TO_ACTION"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}/preroll_call_to_actions/{preroll_call_to_action_id}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "preroll_call_to_action_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_preroll_call_to_actions_preroll_call_to_action_id_delete",
+      "canonical_name": "x_accounts_account_id_preroll_call_to_actions_preroll_call_to_action_id_delete",
+      "aliases": [
+        "DELETE_PREROLL_CALL_TO_ACTION"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/preroll_call_to_actions/{preroll_call_to_action_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "preroll_call_to_action_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_preroll_call_to_actions_preroll_call_to_action_id_delete",
+        "aliases": [
+          "DELETE_PREROLL_CALL_TO_ACTION"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/preroll_call_to_actions/{preroll_call_to_action_id}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "preroll_call_to_action_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_scheduled_tweets_get",
+      "canonical_name": "x_accounts_account_id_scheduled_tweets_get",
+      "aliases": [
+        "LIST_SCHEDULED_TWEETS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/scheduled_tweets",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_scheduled_tweets_get",
+        "aliases": [
+          "LIST_SCHEDULED_TWEETS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/scheduled_tweets",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_scheduled_tweets_post",
+      "canonical_name": "x_accounts_account_id_scheduled_tweets_post",
+      "aliases": [
+        "CREATE_SCHEDULED_TWEET"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/scheduled_tweets",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_scheduled_tweets_post",
+        "aliases": [
+          "CREATE_SCHEDULED_TWEET"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/scheduled_tweets",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_scheduled_tweets_scheduled_tweet_id_get",
+      "canonical_name": "x_accounts_account_id_scheduled_tweets_scheduled_tweet_id_get",
+      "aliases": [
+        "GET_SCHEDULED_TWEET"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/scheduled_tweets/{scheduled_tweet_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "scheduled_tweet_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_scheduled_tweets_scheduled_tweet_id_get",
+        "aliases": [
+          "GET_SCHEDULED_TWEET"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/scheduled_tweets/{scheduled_tweet_id}",
+        "category": "creative",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "scheduled_tweet_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_scheduled_tweets_scheduled_tweet_id_put",
+      "canonical_name": "x_accounts_account_id_scheduled_tweets_scheduled_tweet_id_put",
+      "aliases": [
+        "UPDATE_SCHEDULED_TWEET"
+      ],
+      "method": "PUT",
+      "path": "/12/accounts/{account_id}/scheduled_tweets/{scheduled_tweet_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "scheduled_tweet_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_scheduled_tweets_scheduled_tweet_id_put",
+        "aliases": [
+          "UPDATE_SCHEDULED_TWEET"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}/scheduled_tweets/{scheduled_tweet_id}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "scheduled_tweet_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_scheduled_tweets_scheduled_tweet_id_delete",
+      "canonical_name": "x_accounts_account_id_scheduled_tweets_scheduled_tweet_id_delete",
+      "aliases": [
+        "DELETE_SCHEDULED_TWEET"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/scheduled_tweets/{scheduled_tweet_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "scheduled_tweet_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_scheduled_tweets_scheduled_tweet_id_delete",
+        "aliases": [
+          "DELETE_SCHEDULED_TWEET"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/scheduled_tweets/{scheduled_tweet_id}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "scheduled_tweet_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_custom_audiences_get",
+      "canonical_name": "x_accounts_account_id_custom_audiences_get",
+      "aliases": [
+        "LIST_CUSTOM_AUDIENCES"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/custom_audiences",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_custom_audiences_get",
+        "aliases": [
+          "LIST_CUSTOM_AUDIENCES"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/custom_audiences",
+        "category": "audience",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_custom_audiences_custom_audience_id_get",
+      "canonical_name": "x_accounts_account_id_custom_audiences_custom_audience_id_get",
+      "aliases": [
+        "GET_CUSTOM_AUDIENCE"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/custom_audiences/{custom_audience_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "custom_audience_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_custom_audiences_custom_audience_id_get",
+        "aliases": [
+          "GET_CUSTOM_AUDIENCE"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/custom_audiences/{custom_audience_id}",
+        "category": "audience",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "custom_audience_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_custom_audiences_post",
+      "canonical_name": "x_accounts_account_id_custom_audiences_post",
+      "aliases": [
+        "CREATE_CUSTOM_AUDIENCE"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/custom_audiences",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_custom_audiences_post",
+        "aliases": [
+          "CREATE_CUSTOM_AUDIENCE"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/custom_audiences",
+        "category": "audience",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_custom_audiences_custom_audience_id_put",
+      "canonical_name": "x_accounts_account_id_custom_audiences_custom_audience_id_put",
+      "aliases": [
+        "UPDATE_CUSTOM_AUDIENCE"
+      ],
+      "method": "PUT",
+      "path": "/12/accounts/{account_id}/custom_audiences/{custom_audience_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "custom_audience_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_custom_audiences_custom_audience_id_put",
+        "aliases": [
+          "UPDATE_CUSTOM_AUDIENCE"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}/custom_audiences/{custom_audience_id}",
+        "category": "audience",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "custom_audience_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_custom_audiences_custom_audience_id_delete",
+      "canonical_name": "x_accounts_account_id_custom_audiences_custom_audience_id_delete",
+      "aliases": [
+        "DELETE_CUSTOM_AUDIENCE"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/custom_audiences/{custom_audience_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "custom_audience_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_custom_audiences_custom_audience_id_delete",
+        "aliases": [
+          "DELETE_CUSTOM_AUDIENCE"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/custom_audiences/{custom_audience_id}",
+        "category": "audience",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "custom_audience_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_custom_audiences_custom_audience_id_users_post",
+      "canonical_name": "x_accounts_account_id_custom_audiences_custom_audience_id_users_post",
+      "aliases": [
+        "ADD_CUSTOM_AUDIENCE_USERS"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/custom_audiences/{custom_audience_id}/users",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "custom_audience_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_custom_audiences_custom_audience_id_users_post",
+        "aliases": [
+          "ADD_CUSTOM_AUDIENCE_USERS"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/custom_audiences/{custom_audience_id}/users",
+        "category": "audience",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "custom_audience_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_batch_accounts_account_id_custom_audiences_post",
+      "canonical_name": "x_batch_accounts_account_id_custom_audiences_post",
+      "aliases": [
+        "BATCH_CREATE_CUSTOM_AUDIENCES"
+      ],
+      "method": "POST",
+      "path": "/12/batch/accounts/{account_id}/custom_audiences",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_batch_accounts_account_id_custom_audiences_post",
+        "aliases": [
+          "BATCH_CREATE_CUSTOM_AUDIENCES"
+        ],
+        "method": "POST",
+        "endpoint": "/12/batch/accounts/{account_id}/custom_audiences",
+        "category": "audience",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_custom_audiences_custom_audience_id_permissions_get",
+      "canonical_name": "x_accounts_account_id_custom_audiences_custom_audience_id_permissions_get",
+      "aliases": [
+        "LIST_CUSTOM_AUDIENCE_PERMISSIONS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/custom_audiences/{custom_audience_id}/permissions",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "custom_audience_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_custom_audiences_custom_audience_id_permissions_get",
+        "aliases": [
+          "LIST_CUSTOM_AUDIENCE_PERMISSIONS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/custom_audiences/{custom_audience_id}/permissions",
+        "category": "audience",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "custom_audience_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_custom_audiences_custom_audience_id_permissions_post",
+      "canonical_name": "x_accounts_account_id_custom_audiences_custom_audience_id_permissions_post",
+      "aliases": [
+        "CREATE_CUSTOM_AUDIENCE_PERMISSION"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/custom_audiences/{custom_audience_id}/permissions",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "custom_audience_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_custom_audiences_custom_audience_id_permissions_post",
+        "aliases": [
+          "CREATE_CUSTOM_AUDIENCE_PERMISSION"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/custom_audiences/{custom_audience_id}/permissions",
+        "category": "audience",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "custom_audience_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_custom_audiences_custom_audience_id_permissions_custom_audience_permission_id_delete",
+      "canonical_name": "x_accounts_account_id_custom_audiences_custom_audience_id_permissions_custom_audience_permission_id_delete",
+      "aliases": [
+        "DELETE_CUSTOM_AUDIENCE_PERMISSION"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/custom_audiences/{custom_audience_id}/permissions/{custom_audience_permission_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "custom_audience_id",
+        "custom_audience_permission_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_custom_audiences_custom_audience_id_permissions_custom_audience_permission_id_delete",
+        "aliases": [
+          "DELETE_CUSTOM_AUDIENCE_PERMISSION"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/custom_audiences/{custom_audience_id}/permissions/{custom_audience_permission_id}",
+        "category": "audience",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "custom_audience_id",
+          "custom_audience_permission_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_custom_audiences_custom_audience_id_targeted_get",
+      "canonical_name": "x_accounts_account_id_custom_audiences_custom_audience_id_targeted_get",
+      "aliases": [
+        "LIST_CUSTOM_AUDIENCE_TARGETED"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/custom_audiences/{custom_audience_id}/targeted",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "custom_audience_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_custom_audiences_custom_audience_id_targeted_get",
+        "aliases": [
+          "LIST_CUSTOM_AUDIENCE_TARGETED"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/custom_audiences/{custom_audience_id}/targeted",
+        "category": "audience",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "custom_audience_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_do_not_reach_lists_get",
+      "canonical_name": "x_accounts_account_id_do_not_reach_lists_get",
+      "aliases": [
+        "LIST_DO_NOT_REACH_LISTS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/do_not_reach_lists",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_do_not_reach_lists_get",
+        "aliases": [
+          "LIST_DO_NOT_REACH_LISTS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/do_not_reach_lists",
+        "category": "audience",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_do_not_reach_lists_post",
+      "canonical_name": "x_accounts_account_id_do_not_reach_lists_post",
+      "aliases": [
+        "CREATE_DO_NOT_REACH_LIST"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/do_not_reach_lists",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_do_not_reach_lists_post",
+        "aliases": [
+          "CREATE_DO_NOT_REACH_LIST"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/do_not_reach_lists",
+        "category": "audience",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_do_not_reach_lists_do_not_reach_list_id_delete",
+      "canonical_name": "x_accounts_account_id_do_not_reach_lists_do_not_reach_list_id_delete",
+      "aliases": [
+        "DELETE_DO_NOT_REACH_LIST"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/do_not_reach_lists/{do_not_reach_list_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "do_not_reach_list_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_do_not_reach_lists_do_not_reach_list_id_delete",
+        "aliases": [
+          "DELETE_DO_NOT_REACH_LIST"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/do_not_reach_lists/{do_not_reach_list_id}",
+        "category": "audience",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "do_not_reach_list_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_batch_accounts_account_id_do_not_reach_lists_do_not_reach_list_id_users_post",
+      "canonical_name": "x_batch_accounts_account_id_do_not_reach_lists_do_not_reach_list_id_users_post",
+      "aliases": [
+        "BATCH_ADD_DO_NOT_REACH_USERS"
+      ],
+      "method": "POST",
+      "path": "/12/batch/accounts/{account_id}/do_not_reach_lists/{do_not_reach_list_id}/users",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "do_not_reach_list_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_batch_accounts_account_id_do_not_reach_lists_do_not_reach_list_id_users_post",
+        "aliases": [
+          "BATCH_ADD_DO_NOT_REACH_USERS"
+        ],
+        "method": "POST",
+        "endpoint": "/12/batch/accounts/{account_id}/do_not_reach_lists/{do_not_reach_list_id}/users",
+        "category": "audience",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "do_not_reach_list_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_tailored_audiences_tailored_audience_id_permissions_get",
+      "canonical_name": "x_accounts_account_id_tailored_audiences_tailored_audience_id_permissions_get",
+      "aliases": [
+        "LIST_TAILORED_AUDIENCE_PERMISSIONS"
+      ],
+      "method": "GET",
+      "path": "/12/accounts/{account_id}/tailored_audiences/{tailored_audience_id}/permissions",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "tailored_audience_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_tailored_audiences_tailored_audience_id_permissions_get",
+        "aliases": [
+          "LIST_TAILORED_AUDIENCE_PERMISSIONS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/accounts/{account_id}/tailored_audiences/{tailored_audience_id}/permissions",
+        "category": "audience",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "tailored_audience_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_tailored_audiences_tailored_audience_id_permissions_post",
+      "canonical_name": "x_accounts_account_id_tailored_audiences_tailored_audience_id_permissions_post",
+      "aliases": [
+        "CREATE_TAILORED_AUDIENCE_PERMISSION"
+      ],
+      "method": "POST",
+      "path": "/12/accounts/{account_id}/tailored_audiences/{tailored_audience_id}/permissions",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "tailored_audience_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_tailored_audiences_tailored_audience_id_permissions_post",
+        "aliases": [
+          "CREATE_TAILORED_AUDIENCE_PERMISSION"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/tailored_audiences/{tailored_audience_id}/permissions",
+        "category": "audience",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "tailored_audience_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_accounts_account_id_tailored_audiences_tailored_audience_id_permissions_tailored_audience_permission_id_delete",
+      "canonical_name": "x_accounts_account_id_tailored_audiences_tailored_audience_id_permissions_tailored_audience_permission_id_delete",
+      "aliases": [
+        "DELETE_TAILORED_AUDIENCE_PERMISSION"
+      ],
+      "method": "DELETE",
+      "path": "/12/accounts/{account_id}/tailored_audiences/{tailored_audience_id}/permissions/{tailored_audience_permission_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id",
+        "tailored_audience_id",
+        "tailored_audience_permission_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_accounts_account_id_tailored_audiences_tailored_audience_id_permissions_tailored_audience_permission_id_delete",
+        "aliases": [
+          "DELETE_TAILORED_AUDIENCE_PERMISSION"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/accounts/{account_id}/tailored_audiences/{tailored_audience_id}/permissions/{tailored_audience_permission_id}",
+        "category": "audience",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "tailored_audience_id",
+          "tailored_audience_permission_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_insights_keywords_search_get",
+      "canonical_name": "x_insights_keywords_search_get",
+      "aliases": [
+        "SEARCH_KEYWORD_INSIGHTS"
+      ],
+      "method": "GET",
+      "path": "/12/insights/keywords/search",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_insights_keywords_search_get",
+        "aliases": [
+          "SEARCH_KEYWORD_INSIGHTS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/insights/keywords/search",
+        "category": "reporting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_stats_accounts_account_id_get",
+      "canonical_name": "x_stats_accounts_account_id_get",
+      "aliases": [
+        "GET_INSIGHTS_SYNC"
+      ],
+      "method": "GET",
+      "path": "/12/stats/accounts/{account_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_stats_accounts_account_id_get",
+        "aliases": [
+          "GET_INSIGHTS_SYNC"
+        ],
+        "method": "GET",
+        "endpoint": "/12/stats/accounts/{account_id}",
+        "category": "reporting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_stats_accounts_account_id_active_entities_get",
+      "canonical_name": "x_stats_accounts_account_id_active_entities_get",
+      "aliases": [
+        "GET_INSIGHTS_ACTIVE_ENTITIES"
+      ],
+      "method": "GET",
+      "path": "/12/stats/accounts/{account_id}/active_entities",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_stats_accounts_account_id_active_entities_get",
+        "aliases": [
+          "GET_INSIGHTS_ACTIVE_ENTITIES"
+        ],
+        "method": "GET",
+        "endpoint": "/12/stats/accounts/{account_id}/active_entities",
+        "category": "reporting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_stats_accounts_account_id_reach_campaigns_get",
+      "canonical_name": "x_stats_accounts_account_id_reach_campaigns_get",
+      "aliases": [
+        "GET_INSIGHTS_REACH_CAMPAIGNS"
+      ],
+      "method": "GET",
+      "path": "/12/stats/accounts/{account_id}/reach/campaigns",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_stats_accounts_account_id_reach_campaigns_get",
+        "aliases": [
+          "GET_INSIGHTS_REACH_CAMPAIGNS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/stats/accounts/{account_id}/reach/campaigns",
+        "category": "reporting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_stats_accounts_account_id_reach_funding_instruments_get",
+      "canonical_name": "x_stats_accounts_account_id_reach_funding_instruments_get",
+      "aliases": [
+        "GET_INSIGHTS_REACH_FUNDING_INSTRUMENTS"
+      ],
+      "method": "GET",
+      "path": "/12/stats/accounts/{account_id}/reach/funding_instruments",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_stats_accounts_account_id_reach_funding_instruments_get",
+        "aliases": [
+          "GET_INSIGHTS_REACH_FUNDING_INSTRUMENTS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/stats/accounts/{account_id}/reach/funding_instruments",
+        "category": "reporting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_stats_jobs_accounts_account_id_post",
+      "canonical_name": "x_stats_jobs_accounts_account_id_post",
+      "aliases": [
+        "CREATE_INSIGHTS_JOB"
+      ],
+      "method": "POST",
+      "path": "/12/stats/jobs/accounts/{account_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_stats_jobs_accounts_account_id_post",
+        "aliases": [
+          "CREATE_INSIGHTS_JOB"
+        ],
+        "method": "POST",
+        "endpoint": "/12/stats/jobs/accounts/{account_id}",
+        "category": "reporting",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_stats_jobs_accounts_account_id_get",
+      "canonical_name": "x_stats_jobs_accounts_account_id_get",
+      "aliases": [
+        "LIST_INSIGHTS_JOBS"
+      ],
+      "method": "GET",
+      "path": "/12/stats/jobs/accounts/{account_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_stats_jobs_accounts_account_id_get",
+        "aliases": [
+          "LIST_INSIGHTS_JOBS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/stats/jobs/accounts/{account_id}",
+        "category": "reporting",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_stats_jobs_accounts_account_id_delete",
+      "canonical_name": "x_stats_jobs_accounts_account_id_delete",
+      "aliases": [
+        "DELETE_INSIGHTS_JOB"
+      ],
+      "method": "DELETE",
+      "path": "/12/stats/jobs/accounts/{account_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "account_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_stats_jobs_accounts_account_id_delete",
+        "aliases": [
+          "DELETE_INSIGHTS_JOB"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/stats/jobs/accounts/{account_id}",
+        "category": "reporting",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_product_catalogs_get",
+      "canonical_name": "x_product_catalogs_get",
+      "aliases": [
+        "LIST_PRODUCT_CATALOGS"
+      ],
+      "method": "GET",
+      "path": "/12/product_catalogs",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_product_catalogs_get",
+        "aliases": [
+          "LIST_PRODUCT_CATALOGS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/product_catalogs",
+        "category": "catalog",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_product_catalogs_product_catalog_id_get",
+      "canonical_name": "x_product_catalogs_product_catalog_id_get",
+      "aliases": [
+        "GET_PRODUCT_CATALOG"
+      ],
+      "method": "GET",
+      "path": "/12/product_catalogs/{product_catalog_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "product_catalog_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_product_catalogs_product_catalog_id_get",
+        "aliases": [
+          "GET_PRODUCT_CATALOG"
+        ],
+        "method": "GET",
+        "endpoint": "/12/product_catalogs/{product_catalog_id}",
+        "category": "catalog",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "product_catalog_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_product_catalogs_post",
+      "canonical_name": "x_product_catalogs_post",
+      "aliases": [
+        "CREATE_PRODUCT_CATALOG"
+      ],
+      "method": "POST",
+      "path": "/12/product_catalogs",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_product_catalogs_post",
+        "aliases": [
+          "CREATE_PRODUCT_CATALOG"
+        ],
+        "method": "POST",
+        "endpoint": "/12/product_catalogs",
+        "category": "catalog",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_product_catalogs_product_catalog_id_put",
+      "canonical_name": "x_product_catalogs_product_catalog_id_put",
+      "aliases": [
+        "UPDATE_PRODUCT_CATALOG"
+      ],
+      "method": "PUT",
+      "path": "/12/product_catalogs/{product_catalog_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "product_catalog_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_product_catalogs_product_catalog_id_put",
+        "aliases": [
+          "UPDATE_PRODUCT_CATALOG"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/product_catalogs/{product_catalog_id}",
+        "category": "catalog",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "product_catalog_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_product_catalogs_product_catalog_id_delete",
+      "canonical_name": "x_product_catalogs_product_catalog_id_delete",
+      "aliases": [
+        "DELETE_PRODUCT_CATALOG"
+      ],
+      "method": "DELETE",
+      "path": "/12/product_catalogs/{product_catalog_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "product_catalog_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_product_catalogs_product_catalog_id_delete",
+        "aliases": [
+          "DELETE_PRODUCT_CATALOG"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/product_catalogs/{product_catalog_id}",
+        "category": "catalog",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "product_catalog_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_product_catalogs_product_catalog_id_products_get",
+      "canonical_name": "x_product_catalogs_product_catalog_id_products_get",
+      "aliases": [
+        "LIST_PRODUCTS"
+      ],
+      "method": "GET",
+      "path": "/12/product_catalogs/{product_catalog_id}/products",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "product_catalog_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_product_catalogs_product_catalog_id_products_get",
+        "aliases": [
+          "LIST_PRODUCTS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/product_catalogs/{product_catalog_id}/products",
+        "category": "catalog",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "product_catalog_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_product_catalogs_product_catalog_id_products_put",
+      "canonical_name": "x_product_catalogs_product_catalog_id_products_put",
+      "aliases": [
+        "BATCH_UPDATE_PRODUCTS"
+      ],
+      "method": "PUT",
+      "path": "/12/product_catalogs/{product_catalog_id}/products",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "product_catalog_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_product_catalogs_product_catalog_id_products_put",
+        "aliases": [
+          "BATCH_UPDATE_PRODUCTS"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/product_catalogs/{product_catalog_id}/products",
+        "category": "catalog",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "product_catalog_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_product_catalogs_product_catalog_id_products_delete",
+      "canonical_name": "x_product_catalogs_product_catalog_id_products_delete",
+      "aliases": [
+        "BATCH_DELETE_PRODUCTS"
+      ],
+      "method": "DELETE",
+      "path": "/12/product_catalogs/{product_catalog_id}/products",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "product_catalog_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_product_catalogs_product_catalog_id_products_delete",
+        "aliases": [
+          "BATCH_DELETE_PRODUCTS"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/product_catalogs/{product_catalog_id}/products",
+        "category": "catalog",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "product_catalog_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_product_catalogs_product_catalog_id_product_sets_get",
+      "canonical_name": "x_product_catalogs_product_catalog_id_product_sets_get",
+      "aliases": [
+        "LIST_PRODUCT_SETS"
+      ],
+      "method": "GET",
+      "path": "/12/product_catalogs/{product_catalog_id}/product_sets",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "product_catalog_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_product_catalogs_product_catalog_id_product_sets_get",
+        "aliases": [
+          "LIST_PRODUCT_SETS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/product_catalogs/{product_catalog_id}/product_sets",
+        "category": "catalog",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "product_catalog_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_product_catalogs_product_catalog_id_product_sets_product_set_id_get",
+      "canonical_name": "x_product_catalogs_product_catalog_id_product_sets_product_set_id_get",
+      "aliases": [
+        "GET_PRODUCT_SET"
+      ],
+      "method": "GET",
+      "path": "/12/product_catalogs/{product_catalog_id}/product_sets/{product_set_id}",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "product_catalog_id",
+        "product_set_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_product_catalogs_product_catalog_id_product_sets_product_set_id_get",
+        "aliases": [
+          "GET_PRODUCT_SET"
+        ],
+        "method": "GET",
+        "endpoint": "/12/product_catalogs/{product_catalog_id}/product_sets/{product_set_id}",
+        "category": "catalog",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "product_catalog_id",
+          "product_set_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_product_catalogs_product_catalog_id_product_sets_post",
+      "canonical_name": "x_product_catalogs_product_catalog_id_product_sets_post",
+      "aliases": [
+        "CREATE_PRODUCT_SET"
+      ],
+      "method": "POST",
+      "path": "/12/product_catalogs/{product_catalog_id}/product_sets",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "product_catalog_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_product_catalogs_product_catalog_id_product_sets_post",
+        "aliases": [
+          "CREATE_PRODUCT_SET"
+        ],
+        "method": "POST",
+        "endpoint": "/12/product_catalogs/{product_catalog_id}/product_sets",
+        "category": "catalog",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "product_catalog_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_product_catalogs_product_catalog_id_product_sets_product_set_id_put",
+      "canonical_name": "x_product_catalogs_product_catalog_id_product_sets_product_set_id_put",
+      "aliases": [
+        "UPDATE_PRODUCT_SET"
+      ],
+      "method": "PUT",
+      "path": "/12/product_catalogs/{product_catalog_id}/product_sets/{product_set_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "product_catalog_id",
+        "product_set_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_product_catalogs_product_catalog_id_product_sets_product_set_id_put",
+        "aliases": [
+          "UPDATE_PRODUCT_SET"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/product_catalogs/{product_catalog_id}/product_sets/{product_set_id}",
+        "category": "catalog",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "product_catalog_id",
+          "product_set_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_product_catalogs_product_catalog_id_product_sets_product_set_id_delete",
+      "canonical_name": "x_product_catalogs_product_catalog_id_product_sets_product_set_id_delete",
+      "aliases": [
+        "DELETE_PRODUCT_SET"
+      ],
+      "method": "DELETE",
+      "path": "/12/product_catalogs/{product_catalog_id}/product_sets/{product_set_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "product_catalog_id",
+        "product_set_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_product_catalogs_product_catalog_id_product_sets_product_set_id_delete",
+        "aliases": [
+          "DELETE_PRODUCT_SET"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/product_catalogs/{product_catalog_id}/product_sets/{product_set_id}",
+        "category": "catalog",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "product_catalog_id",
+          "product_set_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_product_catalogs_product_catalog_id_scheduled_feeds_get",
+      "canonical_name": "x_product_catalogs_product_catalog_id_scheduled_feeds_get",
+      "aliases": [
+        "LIST_PRODUCT_FEEDS",
+        "LIST_SCHEDULED_FEEDS"
+      ],
+      "method": "GET",
+      "path": "/12/product_catalogs/{product_catalog_id}/scheduled_feeds",
+      "read_only": true,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "product_catalog_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_product_catalogs_product_catalog_id_scheduled_feeds_get",
+        "aliases": [
+          "LIST_PRODUCT_FEEDS",
+          "LIST_SCHEDULED_FEEDS"
+        ],
+        "method": "GET",
+        "endpoint": "/12/product_catalogs/{product_catalog_id}/scheduled_feeds",
+        "category": "catalog",
+        "read_only": true,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "product_catalog_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_product_catalogs_product_catalog_id_scheduled_feeds_post",
+      "canonical_name": "x_product_catalogs_product_catalog_id_scheduled_feeds_post",
+      "aliases": [
+        "CREATE_PRODUCT_FEED",
+        "CREATE_SCHEDULED_FEED"
+      ],
+      "method": "POST",
+      "path": "/12/product_catalogs/{product_catalog_id}/scheduled_feeds",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "product_catalog_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_product_catalogs_product_catalog_id_scheduled_feeds_post",
+        "aliases": [
+          "CREATE_PRODUCT_FEED",
+          "CREATE_SCHEDULED_FEED"
+        ],
+        "method": "POST",
+        "endpoint": "/12/product_catalogs/{product_catalog_id}/scheduled_feeds",
+        "category": "catalog",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "product_catalog_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_product_catalogs_product_catalog_id_scheduled_feeds_scheduled_feed_id_put",
+      "canonical_name": "x_product_catalogs_product_catalog_id_scheduled_feeds_scheduled_feed_id_put",
+      "aliases": [
+        "UPDATE_PRODUCT_FEED",
+        "UPDATE_SCHEDULED_FEED"
+      ],
+      "method": "PUT",
+      "path": "/12/product_catalogs/{product_catalog_id}/scheduled_feeds/{scheduled_feed_id}",
+      "read_only": false,
+      "destructive": false,
+      "required": [],
+      "path_parameters": [
+        "product_catalog_id",
+        "scheduled_feed_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_product_catalogs_product_catalog_id_scheduled_feeds_scheduled_feed_id_put",
+        "aliases": [
+          "UPDATE_PRODUCT_FEED",
+          "UPDATE_SCHEDULED_FEED"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/product_catalogs/{product_catalog_id}/scheduled_feeds/{scheduled_feed_id}",
+        "category": "catalog",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "product_catalog_id",
+          "scheduled_feed_id"
+        ],
+        "special_transport": null
+      }
+    },
+    {
+      "name": "x_product_catalogs_product_catalog_id_scheduled_feeds_scheduled_feed_id_delete",
+      "canonical_name": "x_product_catalogs_product_catalog_id_scheduled_feeds_scheduled_feed_id_delete",
+      "aliases": [
+        "DELETE_PRODUCT_FEED",
+        "DELETE_SCHEDULED_FEED"
+      ],
+      "method": "DELETE",
+      "path": "/12/product_catalogs/{product_catalog_id}/scheduled_feeds/{scheduled_feed_id}",
+      "read_only": false,
+      "destructive": true,
+      "required": [],
+      "path_parameters": [
+        "product_catalog_id",
+        "scheduled_feed_id"
+      ],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "x_product_catalogs_product_catalog_id_scheduled_feeds_scheduled_feed_id_delete",
+        "aliases": [
+          "DELETE_PRODUCT_FEED",
+          "DELETE_SCHEDULED_FEED"
+        ],
+        "method": "DELETE",
+        "endpoint": "/12/product_catalogs/{product_catalog_id}/scheduled_feeds/{scheduled_feed_id}",
+        "category": "catalog",
+        "read_only": false,
+        "destructive": true,
+        "deprecated": false,
+        "path_parameters": [
+          "product_catalog_id",
+          "scheduled_feed_id"
+        ],
+        "special_transport": null
+      }
+    }
+  ],
+  "gaps": []
+}

@@ -1,0 +1,387 @@
+{
+  "gateway": "gtm_native_action",
+  "mode": "delegated",
+  "api_version": null,
+  "reported_total": 3,
+  "captured": 3,
+  "denominator_kind": "operation_count",
+  "complete": true,
+  "actions": [
+    {
+      "name": "gtm_action_job_status",
+      "canonical_name": "gtm_action_job_status",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "job_id"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "gtm_native_action",
+        "operation": "gtm_action_job_status",
+        "description": "Read the status and result of a queued Google Tag Manager mutation. Use the job_id returned by gtm_ops when a write was accepted asynchronously.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "job_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Durable GTM action job id returned by gtm_ops."
+            }
+          },
+          "required": [
+            "job_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "gtm_audit_ops",
+      "canonical_name": "gtm_audit_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "gtm_native_action",
+        "operation": "gtm_audit_ops",
+        "description": "Audit a Google Tag Manager account/container/workspace without writing changes. Lists resources, checks workspace status, version headers, duplicate names, unresolved trigger references, variable references, and publish-readiness gaps.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "connection_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional GTM connection id. Omit to use the active GTM connection for the workspace."
+            },
+            "account_id": {
+              "type": "string",
+              "description": "GTM account id. Omit to audit account/container discovery only."
+            },
+            "container_id": {
+              "type": "string",
+              "description": "GTM container id. Required for container/workspace audits."
+            },
+            "workspace_id": {
+              "type": "string",
+              "description": "GTM workspace id. Required for workspace resource inventory and status checks."
+            },
+            "include_resources": {
+              "type": "boolean",
+              "default": false,
+              "description": "When true, include normalized GTM resources in the response. Defaults to counts/findings only."
+            },
+            "include_versions": {
+              "type": "boolean",
+              "default": true,
+              "description": "When true, include live/latest/version header checks for the container."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "gtm_ops",
+      "canonical_name": "gtm_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "gtm_native_action",
+        "operation": "gtm_ops",
+        "description": "Run Google Tag Manager v2 operations across accounts, user permissions, containers, destinations, workspaces, variables, built-in variables, triggers, tags, gtag configs, templates, folders, zones, server clients, transformations, versions, and environments. GTM is a measurement integration, not a campaign/adset/ad platform.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "LIST_ACCOUNTS",
+                "GET_ACCOUNT",
+                "UPDATE_ACCOUNT",
+                "LIST_USER_PERMISSIONS",
+                "GET_USER_PERMISSION",
+                "CREATE_USER_PERMISSION",
+                "UPDATE_USER_PERMISSION",
+                "DELETE_USER_PERMISSION",
+                "CREATE_CONTAINER",
+                "LIST_CONTAINERS",
+                "GET_CONTAINER",
+                "GET_CONTAINER_SNIPPET",
+                "LOOKUP_CONTAINER",
+                "UPDATE_CONTAINER",
+                "COMBINE_CONTAINERS",
+                "MOVE_TAG_ID",
+                "DELETE_CONTAINER",
+                "LIST_DESTINATIONS",
+                "GET_DESTINATION",
+                "LINK_DESTINATION",
+                "LIST_WORKSPACES",
+                "GET_WORKSPACE",
+                "CREATE_WORKSPACE",
+                "UPDATE_WORKSPACE",
+                "DELETE_WORKSPACE",
+                "SYNC_WORKSPACE",
+                "GET_WORKSPACE_STATUS",
+                "BULK_UPDATE_WORKSPACE",
+                "RESOLVE_WORKSPACE_CONFLICT",
+                "QUICK_PREVIEW",
+                "CREATE_CONTAINER_VERSION",
+                "LIST_VARIABLES",
+                "GET_VARIABLE",
+                "CREATE_VARIABLE",
+                "UPDATE_VARIABLE",
+                "DELETE_VARIABLE",
+                "REVERT_VARIABLE",
+                "CREATE_BUILT_IN_VARIABLES",
+                "DELETE_BUILT_IN_VARIABLES",
+                "LIST_BUILT_IN_VARIABLES",
+                "REVERT_BUILT_IN_VARIABLE",
+                "LIST_TRIGGERS",
+                "GET_TRIGGER",
+                "CREATE_TRIGGER",
+                "UPDATE_TRIGGER",
+                "DELETE_TRIGGER",
+                "REVERT_TRIGGER",
+                "LIST_TAGS",
+                "GET_TAG",
+                "CREATE_TAG",
+                "UPDATE_TAG",
+                "DELETE_TAG",
+                "REVERT_TAG",
+                "LIST_GTAG_CONFIGS",
+                "GET_GTAG_CONFIG",
+                "CREATE_GTAG_CONFIG",
+                "UPDATE_GTAG_CONFIG",
+                "DELETE_GTAG_CONFIG",
+                "LIST_TEMPLATES",
+                "GET_TEMPLATE",
+                "CREATE_TEMPLATE",
+                "IMPORT_TEMPLATE_FROM_GALLERY",
+                "UPDATE_TEMPLATE",
+                "DELETE_TEMPLATE",
+                "REVERT_TEMPLATE",
+                "LIST_FOLDERS",
+                "GET_FOLDER",
+                "CREATE_FOLDER",
+                "UPDATE_FOLDER",
+                "DELETE_FOLDER",
+                "LIST_FOLDER_ENTITIES",
+                "MOVE_ENTITIES_TO_FOLDER",
+                "REVERT_FOLDER",
+                "LIST_ZONES",
+                "GET_ZONE",
+                "CREATE_ZONE",
+                "UPDATE_ZONE",
+                "DELETE_ZONE",
+                "REVERT_ZONE",
+                "LIST_CLIENTS",
+                "GET_CLIENT",
+                "CREATE_CLIENT",
+                "UPDATE_CLIENT",
+                "DELETE_CLIENT",
+                "REVERT_CLIENT",
+                "LIST_TRANSFORMATIONS",
+                "GET_TRANSFORMATION",
+                "CREATE_TRANSFORMATION",
+                "UPDATE_TRANSFORMATION",
+                "DELETE_TRANSFORMATION",
+                "REVERT_TRANSFORMATION",
+                "GET_CONTAINER_VERSION",
+                "UPDATE_CONTAINER_VERSION",
+                "DELETE_CONTAINER_VERSION",
+                "UNDELETE_CONTAINER_VERSION",
+                "PUBLISH_CONTAINER_VERSION",
+                "SET_LATEST_CONTAINER_VERSION",
+                "GET_LIVE_VERSION",
+                "LIST_VERSION_HEADERS",
+                "GET_LATEST_VERSION_HEADER",
+                "LIST_ENVIRONMENTS",
+                "GET_ENVIRONMENT",
+                "CREATE_ENVIRONMENT",
+                "UPDATE_ENVIRONMENT",
+                "DELETE_ENVIRONMENT",
+                "REAUTHORIZE_ENVIRONMENT"
+              ],
+              "description": "GTM v2 action to execute. Use one of the documented GTM_ACTION_VALUES exposed by the gateway."
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional GTM connection id. Omit to use the active GTM connection for the workspace."
+            },
+            "account_id": {
+              "type": "string",
+              "description": "GTM account id. Required for account-scoped actions."
+            },
+            "container_id": {
+              "type": "string",
+              "description": "GTM container id. Required for container/workspace actions."
+            },
+            "workspace_id": {
+              "type": "string",
+              "description": "GTM workspace id. Required for workspace entity actions."
+            },
+            "version_id": {
+              "type": "string",
+              "description": "GTM container version id for publish actions."
+            },
+            "path": {
+              "type": "string",
+              "description": "Optional GTM API relative path, e.g. accounts/123/containers/456/workspaces/789/tags/1."
+            },
+            "parent": {
+              "type": "string",
+              "description": "Optional GTM API parent path for list/create actions."
+            },
+            "id": {
+              "type": "string",
+              "description": "Generic entity id fallback for get/update/delete/revert actions."
+            },
+            "tag_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "Tag id or ids for tag/folder/container operations."
+            },
+            "trigger_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "Trigger id or ids for trigger/folder operations."
+            },
+            "variable_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "Variable id or ids for variable/folder operations."
+            },
+            "folder_id": {
+              "type": "string",
+              "description": "Folder id for folder operations."
+            },
+            "user_permission_id": {
+              "type": "string",
+              "description": "User permission id for account user permission operations."
+            },
+            "destination_id": {
+              "type": "string",
+              "description": "Destination id for lookup/link/get destination actions."
+            },
+            "environment_id": {
+              "type": "string",
+              "description": "Environment id for environment actions."
+            },
+            "gtag_config_id": {
+              "type": "string",
+              "description": "Google tag config id for gtag_config actions."
+            },
+            "template_id": {
+              "type": "string",
+              "description": "Template id for template actions."
+            },
+            "zone_id": {
+              "type": "string",
+              "description": "Zone id for zone actions."
+            },
+            "client_id": {
+              "type": "string",
+              "description": "Server container client id for client actions."
+            },
+            "transformation_id": {
+              "type": "string",
+              "description": "Transformation id for transformation actions."
+            },
+            "type": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "Built-in variable type or types."
+            },
+            "fingerprint": {
+              "type": "string",
+              "description": "Optional GTM fingerprint for optimistic concurrency on update/publish/revert actions."
+            },
+            "idempotency_key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "description": "Optional stable key for retrying the same mutation without creating a duplicate GTM write."
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "GTM API request body, such as Tag, Trigger, Variable, Folder, or Workspace payload."
+            },
+            "params": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Optional GTM query params such as fingerprint or pageToken."
+            },
+            "wait_for_completion": {
+              "type": "boolean",
+              "description": "For mutations, wait for Google to finish instead of receiving a durable job id. Defaults to false so large writes return immediately."
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    }
+  ],
+  "gaps": []
+}

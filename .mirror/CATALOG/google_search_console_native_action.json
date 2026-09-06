@@ -1,0 +1,316 @@
+{
+  "gateway": "google_search_console_native_action",
+  "mode": "delegated",
+  "api_version": null,
+  "reported_total": 3,
+  "captured": 3,
+  "denominator_kind": "operation_count",
+  "complete": true,
+  "actions": [
+    {
+      "name": "gsc_analytics_ops",
+      "canonical_name": "gsc_analytics_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "google_search_console_native_action",
+        "operation": "gsc_analytics_ops",
+        "description": "Run Google Search Console Search Analytics queries for connected properties. Requires read:reports.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "QUERY_SEARCH_ANALYTICS"
+              ]
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional Google Search Console OAuth connection ID. Omit to use the active workspace connection."
+            },
+            "site_url": {
+              "type": "string",
+              "description": "Search Console property URL, e.g. https://www.example.com/ or sc-domain:example.com."
+            },
+            "site": {
+              "type": "string",
+              "description": "Alias for site_url."
+            },
+            "property_url": {
+              "type": "string",
+              "description": "Alias for site_url."
+            },
+            "path_params": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Optional raw path parameter map. Friendly fields such as site_url and sitemap_url are also accepted."
+            },
+            "query": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "boolean"
+                    }
+                  }
+                ]
+              },
+              "description": "Google Search Console query params such as sitemapIndex, dimensions, type, aggregationType, or row limits."
+            },
+            "params": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Alias for query/path params."
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Native Google Search Console request body. Search analytics uses startDate, endDate, dimensions, filters, rowLimit, and startRow."
+            },
+            "dry_run": {
+              "type": "boolean",
+              "default": false,
+              "description": "No effect for read-only analytics actions."
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "gsc_connection_ops",
+      "canonical_name": "gsc_connection_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "google_search_console_native_action",
+        "operation": "gsc_connection_ops",
+        "description": "Start, complete, refresh, inspect, disconnect, or sync Google Search Console OAuth connections. Uses webmasters scopes, encrypted token storage, and site discovery.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "start",
+                "exchange",
+                "refresh",
+                "status",
+                "disconnect",
+                "sync_sites"
+              ]
+            },
+            "code": {
+              "type": "string",
+              "description": "OAuth authorization code for exchange."
+            },
+            "state": {
+              "type": "string",
+              "description": "Signed OAuth state returned by start."
+            },
+            "redirect_uri": {
+              "type": "string",
+              "format": "uri",
+              "description": "OAuth redirect URI. Defaults to GSC_REDIRECT_URI or /auth/callback/gsc."
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "dry_run": {
+              "type": "boolean",
+              "default": true,
+              "description": "Preview mutating connection operations."
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "gsc_site_ops",
+      "canonical_name": "gsc_site_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "google_search_console_native_action",
+        "operation": "gsc_site_ops",
+        "description": "Run Google Search Console site, sitemap, and URL inspection operations. Reads require read:accounts or read:reports for URL inspection; writes require write:campaigns.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "LIST_SITES",
+                "GET_SITE",
+                "ADD_SITE",
+                "DELETE_SITE",
+                "LIST_SITEMAPS",
+                "GET_SITEMAP",
+                "SUBMIT_SITEMAP",
+                "DELETE_SITEMAP",
+                "INSPECT_URL"
+              ]
+            },
+            "sitemap_url": {
+              "type": "string",
+              "description": "Sitemap feed URL/path for GET_SITEMAP, SUBMIT_SITEMAP, and DELETE_SITEMAP."
+            },
+            "feedpath": {
+              "type": "string",
+              "description": "Alias for sitemap_url."
+            },
+            "inspection_url": {
+              "type": "string",
+              "description": "URL to inspect for INSPECT_URL."
+            },
+            "url": {
+              "type": "string",
+              "description": "Alias for inspection_url."
+            },
+            "language_code": {
+              "type": "string",
+              "description": "Optional URL Inspection language code, e.g. en-US."
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional Google Search Console OAuth connection ID. Omit to use the active workspace connection."
+            },
+            "site_url": {
+              "type": "string",
+              "description": "Search Console property URL, e.g. https://www.example.com/ or sc-domain:example.com."
+            },
+            "site": {
+              "type": "string",
+              "description": "Alias for site_url."
+            },
+            "property_url": {
+              "type": "string",
+              "description": "Alias for site_url."
+            },
+            "path_params": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Optional raw path parameter map. Friendly fields such as site_url and sitemap_url are also accepted."
+            },
+            "query": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "boolean"
+                    }
+                  }
+                ]
+              },
+              "description": "Google Search Console query params such as sitemapIndex, dimensions, type, aggregationType, or row limits."
+            },
+            "params": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Alias for query/path params."
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Native Google Search Console request body. Search analytics uses startDate, endDate, dimensions, filters, rowLimit, and startRow."
+            },
+            "dry_run": {
+              "type": "boolean",
+              "default": true,
+              "description": "Preview mutating operations without sending them to Google. Read-only actions ignore this."
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    }
+  ],
+  "gaps": []
+}

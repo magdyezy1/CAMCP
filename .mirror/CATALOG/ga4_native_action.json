@@ -1,0 +1,551 @@
+{
+  "gateway": "ga4_native_action",
+  "mode": "delegated",
+  "api_version": null,
+  "reported_total": 10,
+  "captured": 10,
+  "denominator_kind": "operation_count",
+  "complete": true,
+  "actions": [
+    {
+      "name": "ga4_audience_export_ops",
+      "canonical_name": "ga4_audience_export_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action",
+        "property"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "ga4_native_action",
+        "operation": "ga4_audience_export_ops",
+        "description": "Read/query/list GA4 audience exports. Query results may contain user-level audience data; summarize before showing to the LLM/user. Requires scope: read:reports.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "get",
+                "list",
+                "query"
+              ]
+            },
+            "property": {
+              "type": "string",
+              "minLength": 1,
+              "description": "GA4 property ID, either numeric or properties/{property_id}."
+            },
+            "audience_export_name": {
+              "type": "string",
+              "description": "Full audience export resource name, e.g. properties/{id}/audienceExports/{export_id}."
+            },
+            "request": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Query request body or audienceExportId fallback."
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "action",
+            "property"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "ga4_connection_ops",
+      "canonical_name": "ga4_connection_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "ga4_native_action",
+        "operation": "ga4_connection_ops",
+        "description": "Start, complete, refresh, inspect, or disconnect the Google Analytics 4 OAuth connection. Uses analytics.readonly and encrypted token storage. Mutating actions require dry_run=false after approval. Requires read:reports for status and write:exports for connection changes.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "start",
+                "exchange",
+                "refresh",
+                "status",
+                "disconnect"
+              ]
+            },
+            "code": {
+              "type": "string",
+              "description": "OAuth authorization code for exchange."
+            },
+            "state": {
+              "type": "string",
+              "description": "Signed OAuth state returned by start."
+            },
+            "redirect_uri": {
+              "type": "string",
+              "format": "uri",
+              "description": "OAuth redirect URI. Defaults to GOOGLE_ANALYTICS_REDIRECT_URI or /auth/google-analytics."
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional GA4 connection ID."
+            },
+            "dry_run": {
+              "type": "boolean",
+              "default": true,
+              "description": "Preview mutating operations without storing/revoking tokens."
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "ga4_create_audience_export",
+      "canonical_name": "ga4_create_audience_export",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "property",
+        "request"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "ga4_native_action",
+        "operation": "ga4_create_audience_export",
+        "description": "Create a GA4 audience export. This can expose user-level audience membership snapshots, so use only when explicitly requested. Requires scope: write:exports.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "property": {
+              "type": "string",
+              "minLength": 1,
+              "description": "GA4 property ID, either numeric or properties/{property_id}."
+            },
+            "request": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Native Google Analytics Data API request body."
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "dry_run": {
+              "type": "boolean",
+              "default": true,
+              "description": "Preview the audience export creation without creating a Google export."
+            }
+          },
+          "required": [
+            "property",
+            "request"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "ga4_create_report_task",
+      "canonical_name": "ga4_create_report_task",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "property",
+        "request"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "ga4_native_action",
+        "operation": "ga4_create_report_task",
+        "description": "Create an async GA4 report task for large report jobs. The task is retained by Google for a limited time and tracked in Whathead. Requires scope: write:exports.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "property": {
+              "type": "string",
+              "minLength": 1,
+              "description": "GA4 property ID, either numeric or properties/{property_id}."
+            },
+            "request": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Native Google Analytics Data API request body."
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "dry_run": {
+              "type": "boolean",
+              "default": true,
+              "description": "Preview the report task creation without creating a Google async task."
+            }
+          },
+          "required": [
+            "property",
+            "request"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "ga4_data_report",
+      "canonical_name": "ga4_data_report",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action",
+        "property"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "ga4_native_action",
+        "operation": "ga4_data_report",
+        "description": "Run GA4 Data API batch, realtime, pivot, funnel, or quota snapshot report methods. Requires scope: read:reports.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "batch_run_reports",
+                "realtime",
+                "pivot",
+                "batch_pivot",
+                "funnel",
+                "quota_snapshot"
+              ]
+            },
+            "property": {
+              "type": "string",
+              "minLength": 1,
+              "description": "GA4 property ID, either numeric or properties/{property_id}."
+            },
+            "request": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Native Google Analytics Data API request body."
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "action",
+            "property"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "ga4_list_properties",
+      "canonical_name": "ga4_list_properties",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "ga4_native_action",
+        "operation": "ga4_list_properties",
+        "description": "List stored Google Analytics 4 properties for the workspace. Use ga4_sync_properties first if no properties are stored yet. Requires scope: read:reports.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "connection_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional GA4 connection ID."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "ga4_metadata_ops",
+      "canonical_name": "ga4_metadata_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action",
+        "property"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "ga4_native_action",
+        "operation": "ga4_metadata_ops",
+        "description": "Read GA4 Data API metadata or check dimension/metric compatibility before running a report. Requires scope: read:reports.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "get_metadata",
+                "check_compatibility"
+              ]
+            },
+            "property": {
+              "type": "string",
+              "minLength": 1,
+              "description": "GA4 property ID, either numeric or properties/{property_id}."
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "request": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Compatibility request body when action=check_compatibility."
+            },
+            "api_version": {
+              "type": "string",
+              "enum": [
+                "v1beta",
+                "v1alpha"
+              ],
+              "default": "v1beta"
+            },
+            "fresh": {
+              "type": "boolean",
+              "default": false,
+              "description": "Bypass metadata cache."
+            }
+          },
+          "required": [
+            "action",
+            "property"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "ga4_report_task_ops",
+      "canonical_name": "ga4_report_task_ops",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action",
+        "property"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "ga4_native_action",
+        "operation": "ga4_report_task_ops",
+        "description": "Read/query/list GA4 async report tasks. Requires scope: read:reports.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "get",
+                "list",
+                "query"
+              ]
+            },
+            "property": {
+              "type": "string",
+              "minLength": 1,
+              "description": "GA4 property ID, either numeric or properties/{property_id}."
+            },
+            "report_task_name": {
+              "type": "string",
+              "description": "Full report task resource name, e.g. properties/{id}/reportTasks/{task_id}."
+            },
+            "request": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Query request body or reportTaskId fallback."
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "action",
+            "property"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "ga4_run_report",
+      "canonical_name": "ga4_run_report",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "property",
+        "request"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "ga4_native_action",
+        "operation": "ga4_run_report",
+        "description": "Run a GA4 Data API runReport request. Supports cache, fresh reads, and safe pagination across all rows. For large exports use paginate_all with max_rows, or ga4_create_report_task for async reports. Requires scope: read:reports.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "property": {
+              "type": "string",
+              "minLength": 1,
+              "description": "GA4 property ID, either numeric or properties/{property_id}."
+            },
+            "request": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Native Google Analytics Data API request body."
+            },
+            "connection_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "paginate_all": {
+              "type": "boolean",
+              "default": false,
+              "description": "Page through all available rows using the Data API offset/limit controls."
+            },
+            "max_rows": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5000000,
+              "description": "Maximum rows to return when paginate_all=true."
+            },
+            "fresh": {
+              "type": "boolean",
+              "default": false,
+              "description": "Bypass report cache."
+            },
+            "cache_ttl_seconds": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 86400,
+              "description": "Cache TTL. Use 0 for no cache."
+            }
+          },
+          "required": [
+            "property",
+            "request"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "ga4_sync_properties",
+      "canonical_name": "ga4_sync_properties",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "ga4_native_action",
+        "operation": "ga4_sync_properties",
+        "description": "Discover accessible Google Analytics accounts/properties through the Analytics Admin API and persist them for the workspace. This does not change Google Analytics; it updates Whathead connection metadata. Requires scope: write:exports.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "connection_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional GA4 connection ID."
+            },
+            "include_details": {
+              "type": "boolean",
+              "default": false,
+              "description": "Fetch per-property details such as currency and timezone."
+            },
+            "max_pages": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10,
+              "description": "Maximum Admin API account summary pages to scan."
+            },
+            "dry_run": {
+              "type": "boolean",
+              "default": true,
+              "description": "Preview the sync without storing property metadata."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    }
+  ],
+  "gaps": []
+}

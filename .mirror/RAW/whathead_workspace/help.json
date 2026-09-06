@@ -1,0 +1,22 @@
+{
+  "captured_at": "2026-09-04T23:23:30.278Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "whathead_workspace",
+  "operation": "help",
+  "request": {
+    "gateway": "whathead_workspace",
+    "args": {}
+  },
+  "request_id": null,
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"gateway\": \"whathead_workspace\",\n  \"mode\": \"delegated\",\n  \"description\": \"Workspace and connected-account gateway. Choose an operation, then pass that operation's exact input in arguments.\",\n  \"operation_count\": 3,\n  \"operations\": [\n    \"get_workspace_context\",\n    \"list_accounts\",\n    \"list_workspace_assets\"\n  ]\n}"
+      }
+    ]
+  }
+}

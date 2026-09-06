@@ -1,0 +1,25 @@
+{
+  "captured_at": "2026-09-04T23:33:41.130Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "google_ads_native_action",
+  "operation": "DESCRIBE_ACTION",
+  "request": {
+    "gateway": "google_ads_native_action",
+    "args": {
+      "action": "DESCRIBE_ACTION",
+      "target_action": "google_ads_v23_campaign_mutate_campaigns"
+    }
+  },
+  "request_id": "6a51ccc8-83e2-46e4-a88d-37ad94d74448",
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"success\": true,\n  \"data\": {\n    \"success\": true,\n    \"api_version\": \"v23\",\n    \"action\": \"google_ads_v23_campaign_mutate_campaigns\",\n    \"service\": \"CampaignService\",\n    \"rpc\": \"MutateCampaigns\",\n    \"method\": \"POST\",\n    \"path\": \"/v23/customers/{customer_id=*}/campaigns:mutate\",\n    \"read_only\": false,\n    \"destructive\": false,\n    \"requires_confirmation\": false,\n    \"publicly_available\": true,\n    \"required_fields\": [\n      \"customer_id\",\n      \"operations\"\n    ],\n    \"request_type\": \"MutateCampaignsRequest\",\n    \"response_type\": \"MutateCampaignsResponse\",\n    \"body_mapping\": \"*\",\n    \"path_fields\": [\n      \"customer_id\"\n    ],\n    \"native_fields\": [\n      {\n        \"name\": \"customer_id\",\n        \"required\": true,\n        \"repeated\": false\n      },\n      {\n        \"name\": \"operations\",\n        \"required\": true,\n        \"repeated\": true\n      },\n      {\n        \"name\": \"partial_failure\",\n        \"required\": false,\n        \"repeated\": false\n      },\n      {\n        \"name\": \"validate_only\",\n        \"required\": false,\n        \"repeated\": false\n      },\n      {\n        \"name\": \"response_content_type\",\n        \"required\": false,\n        \"repeated\": false\n      }\n    ],\n    \"docs_path\": \"MDFILES/v23/services/campaign_service.proto\",\n    \"invocation\": {\n      \"tool\": \"google_ads_native_action\",\n      \"arguments\": {\n        \"action\": \"google_ads_v23_campaign_mutate_campaigns\",\n        \"account_id\": \"<customer id>\",\n        \"path_params\": \"<URI-template values only>\",\n        \"params\": \"<other native request fields>\",\n        \"payload\": \"<native request body fields>\"\n      }\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"6a51ccc8-83e2-46e4-a88d-37ad94d74448\",\n    \"latencyMs\": 251\n  }\n}"
+      }
+    ]
+  }
+}

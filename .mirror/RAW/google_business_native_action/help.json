@@ -1,0 +1,22 @@
+{
+  "captured_at": "2026-09-04T23:23:50.220Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "google_business_native_action",
+  "operation": "help",
+  "request": {
+    "gateway": "google_business_native_action",
+    "args": {}
+  },
+  "request_id": null,
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"gateway\": \"google_business_native_action\",\n  \"mode\": \"delegated\",\n  \"description\": \"Google Business Profile gateway for OAuth, accounts, locations, catalogs, verification, engagement, performance, notifications, and lodging.\",\n  \"operation_count\": 10,\n  \"operations\": [\n    \"gmb_account_ops\",\n    \"gmb_catalog_ops\",\n    \"gmb_connection_ops\",\n    \"gmb_engagement_ops\",\n    \"gmb_location_ops\",\n    \"gmb_lodging_ops\",\n    \"gmb_notification_ops\",\n    \"gmb_performance_ops\",\n    \"gmb_qanda_ops\",\n    \"gmb_verification_ops\"\n  ]\n}"
+      }
+    ]
+  }
+}

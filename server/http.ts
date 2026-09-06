@@ -1,0 +1,18 @@
+import {createRuntime} from './runtime.js';
+import {createHttpApp} from './http-app.js';
+import {ReportWorker} from '../src/worker.js';
+import {createReportExecutor} from '../src/report-executor.js';
+import {setTimeout as delay} from 'node:timers/promises';
+const {service,store}=createRuntime();
+const host=process.env.MIRROR_HOST??(process.env.PORT?'0.0.0.0':'127.0.0.1'),port=Number(process.env.PORT??process.env.MIRROR_PORT??4317);
+if(!Number.isInteger(port)||port<1||port>65535)throw Error('Invalid MIRROR_PORT.');
+const publicOrigin=process.env.AMCP_PUBLIC_ORIGIN??process.env.MIRROR_PUBLIC_ORIGIN??(process.env.RAILWAY_PUBLIC_DOMAIN?'https://'+process.env.RAILWAY_PUBLIC_DOMAIN:undefined);
+if(process.env.NODE_ENV==='production'&&(!process.env.MIRROR_MASTER_KEY||!(process.env.AMCP_ADMIN_PASSWORD||process.env.AMCP_ADMIN_PASSWORD_HASH)))throw Error('Production requires MIRROR_MASTER_KEY and an AMCP administrator password.');
+const app=createHttpApp(service,store,{host,publicOrigin,website:{origin:publicOrigin??'http://127.0.0.1:'+port,masterKey:process.env.MIRROR_MASTER_KEY,adminPassword:process.env.AMCP_ADMIN_PASSWORD,adminPasswordHash:process.env.AMCP_ADMIN_PASSWORD_HASH,tenantId:process.env.AMCP_TENANT_ID}});
+const listener=app.listen(port,host,()=>process.stderr.write('AMCP listening on http://'+(host==='0.0.0.0'?'127.0.0.1':host)+':'+port+'\n'));
+listener.requestTimeout=45000;listener.headersTimeout=10000;
+let closing=false;
+const worker=new ReportWorker(store,createReportExecutor(service));
+const workerDone=(async()=>{if(process.env.AMCP_RUN_WORKER==='false')return;while(!closing){try{if(await worker.once())continue;}catch{process.stderr.write('AMCP report worker encountered an error; retrying.\n');}await delay(1000);}})();
+const stop=()=>{if(closing)return;closing=true;listener.close(()=>{void workerDone.then(()=>{store.close();process.exit(0);});});setTimeout(()=>{listener.closeAllConnections();process.exit(1);},10000).unref();};
+process.on('SIGTERM',stop);process.on('SIGINT',stop);

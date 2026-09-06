@@ -1,0 +1,25 @@
+{
+  "captured_at": "2026-09-04T23:33:48.302Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "google_ads_native_action",
+  "operation": "DESCRIBE_ACTION",
+  "request": {
+    "gateway": "google_ads_native_action",
+    "args": {
+      "action": "DESCRIBE_ACTION",
+      "target_action": "google_ads_v23_ad_group_ad_remove_automatically_created_assets"
+    }
+  },
+  "request_id": "12f40388-f8ca-4561-ac19-537910a7f8d0",
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"success\": true,\n  \"data\": {\n    \"success\": true,\n    \"api_version\": \"v23\",\n    \"action\": \"google_ads_v23_ad_group_ad_remove_automatically_created_assets\",\n    \"service\": \"AdGroupAdService\",\n    \"rpc\": \"RemoveAutomaticallyCreatedAssets\",\n    \"method\": \"POST\",\n    \"path\": \"/v23/{ad_group_ad=customers/*/adGroupAds/*}:removeAutomaticallyCreatedAssets\",\n    \"read_only\": false,\n    \"destructive\": true,\n    \"requires_confirmation\": true,\n    \"publicly_available\": true,\n    \"required_fields\": [\n      \"ad_group_ad\",\n      \"assets_with_field_type\"\n    ],\n    \"request_type\": \"RemoveAutomaticallyCreatedAssetsRequest\",\n    \"response_type\": \"Empty\",\n    \"body_mapping\": \"*\",\n    \"path_fields\": [\n      \"ad_group_ad\"\n    ],\n    \"native_fields\": [\n      {\n        \"name\": \"ad_group_ad\",\n        \"required\": true,\n        \"repeated\": false\n      },\n      {\n        \"name\": \"assets_with_field_type\",\n        \"required\": true,\n        \"repeated\": true\n      }\n    ],\n    \"docs_path\": \"MDFILES/v23/services/ad_group_ad_service.proto\",\n    \"invocation\": {\n      \"tool\": \"google_ads_native_action\",\n      \"arguments\": {\n        \"action\": \"google_ads_v23_ad_group_ad_remove_automatically_created_assets\",\n        \"account_id\": \"<customer id>\",\n        \"path_params\": \"<URI-template values only>\",\n        \"params\": \"<other native request fields>\",\n        \"payload\": \"<native request body fields>\"\n      }\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"12f40388-f8ca-4561-ac19-537910a7f8d0\",\n    \"latencyMs\": 252\n  }\n}"
+      }
+    ]
+  }
+}

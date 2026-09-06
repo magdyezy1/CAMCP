@@ -1,0 +1,25 @@
+{
+  "captured_at": "2026-09-04T23:35:03.590Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "linkedin_native_action",
+  "operation": "DESCRIBE_ACTION",
+  "request": {
+    "gateway": "linkedin_native_action",
+    "args": {
+      "action": "DESCRIBE_ACTION",
+      "target_action": "linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_get"
+    }
+  },
+  "request_id": "f643927b-4b12-476b-bc74-1c5f34f9d96a",
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"success\": true,\n  \"data\": {\n    \"success\": true,\n    \"api_version\": \"202605\",\n    \"requested_action\": \"linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_get\",\n    \"name\": \"linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_get\",\n    \"canonical_action\": \"linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_get\",\n    \"method\": \"GET\",\n    \"path\": \"/rest/adAccounts/{ad_account_id}/adCampaigns\",\n    \"resource\": \"adAccounts\",\n    \"category\": \"Advertising / Campaign Management\",\n    \"read_only\": true,\n    \"destructive\": false,\n    \"access_management\": false,\n    \"required_path_params\": [\n      \"ad_account_id\"\n    ],\n    \"oauth_scopes\": [\n      \"r_ads\",\n      \"rw_ads\"\n    ],\n    \"schema_fields\": [\n      \"ad_account_id\",\n      \"fields\"\n    ],\n    \"docs_paths\": [\n      \"MDFILES/linkedin-marketing-api/docs/Advertising/Campaign Management/Account Structure/Accounts.md\",\n      \"MDFILES/linkedin-marketing-api/docs/Advertising/Campaign Management/Campaigns Structure/Campaigns.md\"\n    ],\n    \"docs_urls\": [\n      \"https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/create-and-manage-accounts?view=li-lms-2026-05\",\n      \"https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/create-and-manage-campaigns?view=li-lms-2026-05\"\n    ],\n    \"input_guidance\": null,\n    \"invocation\": {\n      \"tool\": \"linkedin_native_action\",\n      \"arguments\": {\n        \"action\": \"linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_get\",\n        \"path_params\": {\n          \"ad_account_id\": \"<ad_account_id>\"\n        }\n      }\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"f643927b-4b12-476b-bc74-1c5f34f9d96a\",\n    \"latencyMs\": 255\n  }\n}"
+      }
+    ]
+  }
+}

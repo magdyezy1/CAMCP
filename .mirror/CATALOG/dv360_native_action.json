@@ -1,0 +1,2955 @@
+{
+  "gateway": "dv360_native_action",
+  "mode": "direct",
+  "api_version": null,
+  "reported_total": 173,
+  "captured": 173,
+  "denominator_kind": "action_enum",
+  "complete": true,
+  "actions": [
+    {
+      "name": "DV360_ADVERTISERS_AD_ASSETS_BULK_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_AD_ASSETS_BULK_CREATE",
+      "aliases": [
+        "ADVERTISERS_AD_ASSETS_BULK_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_ASSETS_BULK_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_ASSETS_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_AD_ASSETS_CREATE",
+      "aliases": [
+        "ADVERTISERS_AD_ASSETS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_ASSETS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_ASSETS_GET",
+      "canonical_name": "DV360_ADVERTISERS_AD_ASSETS_GET",
+      "aliases": [
+        "ADVERTISERS_AD_ASSETS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_ASSETS_GET"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_ASSETS_LIST",
+      "canonical_name": "DV360_ADVERTISERS_AD_ASSETS_LIST",
+      "aliases": [
+        "ADVERTISERS_AD_ASSETS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_ASSETS_LIST"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_ASSETS_UPLOAD",
+      "canonical_name": "DV360_ADVERTISERS_AD_ASSETS_UPLOAD",
+      "aliases": [
+        "ADVERTISERS_AD_ASSETS_UPLOAD"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_ASSETS_UPLOAD"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_GROUP_ADS_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_AD_GROUP_ADS_CREATE",
+      "aliases": [
+        "ADVERTISERS_AD_GROUP_ADS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_GROUP_ADS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_GROUP_ADS_DELETE",
+      "canonical_name": "DV360_ADVERTISERS_AD_GROUP_ADS_DELETE",
+      "aliases": [
+        "ADVERTISERS_AD_GROUP_ADS_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_GROUP_ADS_DELETE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_GROUP_ADS_GET",
+      "canonical_name": "DV360_ADVERTISERS_AD_GROUP_ADS_GET",
+      "aliases": [
+        "ADVERTISERS_AD_GROUP_ADS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_GROUP_ADS_GET"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_GROUP_ADS_LIST",
+      "canonical_name": "DV360_ADVERTISERS_AD_GROUP_ADS_LIST",
+      "aliases": [
+        "ADVERTISERS_AD_GROUP_ADS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_GROUP_ADS_LIST"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_GROUP_ADS_PATCH",
+      "canonical_name": "DV360_ADVERTISERS_AD_GROUP_ADS_PATCH",
+      "aliases": [
+        "ADVERTISERS_AD_GROUP_ADS_PATCH"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_GROUP_ADS_PATCH"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_GROUPS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS",
+      "canonical_name": "DV360_ADVERTISERS_AD_GROUPS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS",
+      "aliases": [
+        "ADVERTISERS_AD_GROUPS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_GROUPS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_GROUPS_BULK_LIST_ASSIGNED_TARGETING_OPTIONS",
+      "canonical_name": "DV360_ADVERTISERS_AD_GROUPS_BULK_LIST_ASSIGNED_TARGETING_OPTIONS",
+      "aliases": [
+        "ADVERTISERS_AD_GROUPS_BULK_LIST_ASSIGNED_TARGETING_OPTIONS"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_GROUPS_BULK_LIST_ASSIGNED_TARGETING_OPTIONS"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_GROUPS_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_AD_GROUPS_CREATE",
+      "aliases": [
+        "ADVERTISERS_AD_GROUPS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_GROUPS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_GROUPS_DELETE",
+      "canonical_name": "DV360_ADVERTISERS_AD_GROUPS_DELETE",
+      "aliases": [
+        "ADVERTISERS_AD_GROUPS_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_GROUPS_DELETE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_GROUPS_GET",
+      "canonical_name": "DV360_ADVERTISERS_AD_GROUPS_GET",
+      "aliases": [
+        "ADVERTISERS_AD_GROUPS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_GROUPS_GET"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_GROUPS_LIST",
+      "canonical_name": "DV360_ADVERTISERS_AD_GROUPS_LIST",
+      "aliases": [
+        "ADVERTISERS_AD_GROUPS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_GROUPS_LIST"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_GROUPS_PATCH",
+      "canonical_name": "DV360_ADVERTISERS_AD_GROUPS_PATCH",
+      "aliases": [
+        "ADVERTISERS_AD_GROUPS_PATCH"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_GROUPS_PATCH"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE",
+      "aliases": [
+        "ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_DELETE",
+      "canonical_name": "DV360_ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_DELETE",
+      "aliases": [
+        "ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_DELETE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_GET",
+      "canonical_name": "DV360_ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_GET",
+      "aliases": [
+        "ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_GET"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_LIST",
+      "canonical_name": "DV360_ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_LIST",
+      "aliases": [
+        "ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_LIST"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_GROUPS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_AD_GROUPS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_CREATE",
+      "aliases": [
+        "ADVERTISERS_AD_GROUPS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_GROUPS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_GROUPS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_DELETE",
+      "canonical_name": "DV360_ADVERTISERS_AD_GROUPS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_DELETE",
+      "aliases": [
+        "ADVERTISERS_AD_GROUPS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_GROUPS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_DELETE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AD_GROUPS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_LIST",
+      "canonical_name": "DV360_ADVERTISERS_AD_GROUPS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_LIST",
+      "aliases": [
+        "ADVERTISERS_AD_GROUPS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AD_GROUPS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_LIST"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_ASSETS_UPLOAD",
+      "canonical_name": "DV360_ADVERTISERS_ASSETS_UPLOAD",
+      "aliases": [
+        "ADVERTISERS_ASSETS_UPLOAD"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_ASSETS_UPLOAD"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_AUDIT",
+      "canonical_name": "DV360_ADVERTISERS_AUDIT",
+      "aliases": [
+        "ADVERTISERS_AUDIT"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_AUDIT"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CAMPAIGNS_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_CAMPAIGNS_CREATE",
+      "aliases": [
+        "ADVERTISERS_CAMPAIGNS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CAMPAIGNS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CAMPAIGNS_DELETE",
+      "canonical_name": "DV360_ADVERTISERS_CAMPAIGNS_DELETE",
+      "aliases": [
+        "ADVERTISERS_CAMPAIGNS_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CAMPAIGNS_DELETE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CAMPAIGNS_GET",
+      "canonical_name": "DV360_ADVERTISERS_CAMPAIGNS_GET",
+      "aliases": [
+        "ADVERTISERS_CAMPAIGNS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CAMPAIGNS_GET"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CAMPAIGNS_LIST",
+      "canonical_name": "DV360_ADVERTISERS_CAMPAIGNS_LIST",
+      "aliases": [
+        "ADVERTISERS_CAMPAIGNS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CAMPAIGNS_LIST"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CAMPAIGNS_PATCH",
+      "canonical_name": "DV360_ADVERTISERS_CAMPAIGNS_PATCH",
+      "aliases": [
+        "ADVERTISERS_CAMPAIGNS_PATCH"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CAMPAIGNS_PATCH"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CHANNELS_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_CHANNELS_CREATE",
+      "aliases": [
+        "ADVERTISERS_CHANNELS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CHANNELS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CHANNELS_GET",
+      "canonical_name": "DV360_ADVERTISERS_CHANNELS_GET",
+      "aliases": [
+        "ADVERTISERS_CHANNELS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CHANNELS_GET"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CHANNELS_LIST",
+      "canonical_name": "DV360_ADVERTISERS_CHANNELS_LIST",
+      "aliases": [
+        "ADVERTISERS_CHANNELS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CHANNELS_LIST"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CHANNELS_PATCH",
+      "canonical_name": "DV360_ADVERTISERS_CHANNELS_PATCH",
+      "aliases": [
+        "ADVERTISERS_CHANNELS_PATCH"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CHANNELS_PATCH"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CHANNELS_SITES_BULK_EDIT",
+      "canonical_name": "DV360_ADVERTISERS_CHANNELS_SITES_BULK_EDIT",
+      "aliases": [
+        "ADVERTISERS_CHANNELS_SITES_BULK_EDIT"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CHANNELS_SITES_BULK_EDIT"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CHANNELS_SITES_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_CHANNELS_SITES_CREATE",
+      "aliases": [
+        "ADVERTISERS_CHANNELS_SITES_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CHANNELS_SITES_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CHANNELS_SITES_DELETE",
+      "canonical_name": "DV360_ADVERTISERS_CHANNELS_SITES_DELETE",
+      "aliases": [
+        "ADVERTISERS_CHANNELS_SITES_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CHANNELS_SITES_DELETE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CHANNELS_SITES_LIST",
+      "canonical_name": "DV360_ADVERTISERS_CHANNELS_SITES_LIST",
+      "aliases": [
+        "ADVERTISERS_CHANNELS_SITES_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CHANNELS_SITES_LIST"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CHANNELS_SITES_REPLACE",
+      "canonical_name": "DV360_ADVERTISERS_CHANNELS_SITES_REPLACE",
+      "aliases": [
+        "ADVERTISERS_CHANNELS_SITES_REPLACE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CHANNELS_SITES_REPLACE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_CREATE",
+      "aliases": [
+        "ADVERTISERS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CREATIVES_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_CREATIVES_CREATE",
+      "aliases": [
+        "ADVERTISERS_CREATIVES_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CREATIVES_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CREATIVES_DELETE",
+      "canonical_name": "DV360_ADVERTISERS_CREATIVES_DELETE",
+      "aliases": [
+        "ADVERTISERS_CREATIVES_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CREATIVES_DELETE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CREATIVES_GET",
+      "canonical_name": "DV360_ADVERTISERS_CREATIVES_GET",
+      "aliases": [
+        "ADVERTISERS_CREATIVES_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CREATIVES_GET"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CREATIVES_LIST",
+      "canonical_name": "DV360_ADVERTISERS_CREATIVES_LIST",
+      "aliases": [
+        "ADVERTISERS_CREATIVES_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CREATIVES_LIST"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_CREATIVES_PATCH",
+      "canonical_name": "DV360_ADVERTISERS_CREATIVES_PATCH",
+      "aliases": [
+        "ADVERTISERS_CREATIVES_PATCH"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_CREATIVES_PATCH"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_DELETE",
+      "canonical_name": "DV360_ADVERTISERS_DELETE",
+      "aliases": [
+        "ADVERTISERS_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_DELETE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_EDIT_ASSIGNED_TARGETING_OPTIONS",
+      "canonical_name": "DV360_ADVERTISERS_EDIT_ASSIGNED_TARGETING_OPTIONS",
+      "aliases": [
+        "ADVERTISERS_EDIT_ASSIGNED_TARGETING_OPTIONS"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_EDIT_ASSIGNED_TARGETING_OPTIONS"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_GET",
+      "canonical_name": "DV360_ADVERTISERS_GET",
+      "aliases": [
+        "ADVERTISERS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_GET"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_INSERTION_ORDERS_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_INSERTION_ORDERS_CREATE",
+      "aliases": [
+        "ADVERTISERS_INSERTION_ORDERS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_INSERTION_ORDERS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_INSERTION_ORDERS_DELETE",
+      "canonical_name": "DV360_ADVERTISERS_INSERTION_ORDERS_DELETE",
+      "aliases": [
+        "ADVERTISERS_INSERTION_ORDERS_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_INSERTION_ORDERS_DELETE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_INSERTION_ORDERS_GET",
+      "canonical_name": "DV360_ADVERTISERS_INSERTION_ORDERS_GET",
+      "aliases": [
+        "ADVERTISERS_INSERTION_ORDERS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_INSERTION_ORDERS_GET"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_INSERTION_ORDERS_LIST",
+      "canonical_name": "DV360_ADVERTISERS_INSERTION_ORDERS_LIST",
+      "aliases": [
+        "ADVERTISERS_INSERTION_ORDERS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_INSERTION_ORDERS_LIST"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_INSERTION_ORDERS_PATCH",
+      "canonical_name": "DV360_ADVERTISERS_INSERTION_ORDERS_PATCH",
+      "aliases": [
+        "ADVERTISERS_INSERTION_ORDERS_PATCH"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_INSERTION_ORDERS_PATCH"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_INVOICES_LIST",
+      "canonical_name": "DV360_ADVERTISERS_INVOICES_LIST",
+      "aliases": [
+        "ADVERTISERS_INVOICES_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_INVOICES_LIST"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_INVOICES_LOOKUP_INVOICE_CURRENCY",
+      "canonical_name": "DV360_ADVERTISERS_INVOICES_LOOKUP_INVOICE_CURRENCY",
+      "aliases": [
+        "ADVERTISERS_INVOICES_LOOKUP_INVOICE_CURRENCY"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_INVOICES_LOOKUP_INVOICE_CURRENCY"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LINE_ITEMS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS",
+      "canonical_name": "DV360_ADVERTISERS_LINE_ITEMS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS",
+      "aliases": [
+        "ADVERTISERS_LINE_ITEMS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LINE_ITEMS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LINE_ITEMS_BULK_LIST_ASSIGNED_TARGETING_OPTIONS",
+      "canonical_name": "DV360_ADVERTISERS_LINE_ITEMS_BULK_LIST_ASSIGNED_TARGETING_OPTIONS",
+      "aliases": [
+        "ADVERTISERS_LINE_ITEMS_BULK_LIST_ASSIGNED_TARGETING_OPTIONS"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LINE_ITEMS_BULK_LIST_ASSIGNED_TARGETING_OPTIONS"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LINE_ITEMS_BULK_UPDATE",
+      "canonical_name": "DV360_ADVERTISERS_LINE_ITEMS_BULK_UPDATE",
+      "aliases": [
+        "ADVERTISERS_LINE_ITEMS_BULK_UPDATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LINE_ITEMS_BULK_UPDATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LINE_ITEMS_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_LINE_ITEMS_CREATE",
+      "aliases": [
+        "ADVERTISERS_LINE_ITEMS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LINE_ITEMS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LINE_ITEMS_DELETE",
+      "canonical_name": "DV360_ADVERTISERS_LINE_ITEMS_DELETE",
+      "aliases": [
+        "ADVERTISERS_LINE_ITEMS_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LINE_ITEMS_DELETE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LINE_ITEMS_DUPLICATE",
+      "canonical_name": "DV360_ADVERTISERS_LINE_ITEMS_DUPLICATE",
+      "aliases": [
+        "ADVERTISERS_LINE_ITEMS_DUPLICATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LINE_ITEMS_DUPLICATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LINE_ITEMS_GET",
+      "canonical_name": "DV360_ADVERTISERS_LINE_ITEMS_GET",
+      "aliases": [
+        "ADVERTISERS_LINE_ITEMS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LINE_ITEMS_GET"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LINE_ITEMS_LIST",
+      "canonical_name": "DV360_ADVERTISERS_LINE_ITEMS_LIST",
+      "aliases": [
+        "ADVERTISERS_LINE_ITEMS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LINE_ITEMS_LIST"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LINE_ITEMS_PATCH",
+      "canonical_name": "DV360_ADVERTISERS_LINE_ITEMS_PATCH",
+      "aliases": [
+        "ADVERTISERS_LINE_ITEMS_PATCH"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LINE_ITEMS_PATCH"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LINE_ITEMS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_LINE_ITEMS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE",
+      "aliases": [
+        "ADVERTISERS_LINE_ITEMS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LINE_ITEMS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LINE_ITEMS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_DELETE",
+      "canonical_name": "DV360_ADVERTISERS_LINE_ITEMS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_DELETE",
+      "aliases": [
+        "ADVERTISERS_LINE_ITEMS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LINE_ITEMS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_DELETE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LINE_ITEMS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_GET",
+      "canonical_name": "DV360_ADVERTISERS_LINE_ITEMS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_GET",
+      "aliases": [
+        "ADVERTISERS_LINE_ITEMS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LINE_ITEMS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_GET"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LINE_ITEMS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_LIST",
+      "canonical_name": "DV360_ADVERTISERS_LINE_ITEMS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_LIST",
+      "aliases": [
+        "ADVERTISERS_LINE_ITEMS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LINE_ITEMS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_LIST"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LINE_ITEMS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_LINE_ITEMS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_CREATE",
+      "aliases": [
+        "ADVERTISERS_LINE_ITEMS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LINE_ITEMS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LINE_ITEMS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_DELETE",
+      "canonical_name": "DV360_ADVERTISERS_LINE_ITEMS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_DELETE",
+      "aliases": [
+        "ADVERTISERS_LINE_ITEMS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LINE_ITEMS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_DELETE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LINE_ITEMS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_LIST",
+      "canonical_name": "DV360_ADVERTISERS_LINE_ITEMS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_LIST",
+      "aliases": [
+        "ADVERTISERS_LINE_ITEMS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LINE_ITEMS_YOUTUBE_ASSET_TYPES_YOUTUBE_ASSET_ASSOCIATIONS_LIST"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LIST",
+      "canonical_name": "DV360_ADVERTISERS_LIST",
+      "aliases": [
+        "ADVERTISERS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LIST"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LIST_ASSIGNED_TARGETING_OPTIONS",
+      "canonical_name": "DV360_ADVERTISERS_LIST_ASSIGNED_TARGETING_OPTIONS",
+      "aliases": [
+        "ADVERTISERS_LIST_ASSIGNED_TARGETING_OPTIONS"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LIST_ASSIGNED_TARGETING_OPTIONS"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LOCATION_LISTS_ASSIGNED_LOCATIONS_BULK_EDIT",
+      "canonical_name": "DV360_ADVERTISERS_LOCATION_LISTS_ASSIGNED_LOCATIONS_BULK_EDIT",
+      "aliases": [
+        "ADVERTISERS_LOCATION_LISTS_ASSIGNED_LOCATIONS_BULK_EDIT"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LOCATION_LISTS_ASSIGNED_LOCATIONS_BULK_EDIT"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LOCATION_LISTS_ASSIGNED_LOCATIONS_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_LOCATION_LISTS_ASSIGNED_LOCATIONS_CREATE",
+      "aliases": [
+        "ADVERTISERS_LOCATION_LISTS_ASSIGNED_LOCATIONS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LOCATION_LISTS_ASSIGNED_LOCATIONS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LOCATION_LISTS_ASSIGNED_LOCATIONS_DELETE",
+      "canonical_name": "DV360_ADVERTISERS_LOCATION_LISTS_ASSIGNED_LOCATIONS_DELETE",
+      "aliases": [
+        "ADVERTISERS_LOCATION_LISTS_ASSIGNED_LOCATIONS_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LOCATION_LISTS_ASSIGNED_LOCATIONS_DELETE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LOCATION_LISTS_ASSIGNED_LOCATIONS_LIST",
+      "canonical_name": "DV360_ADVERTISERS_LOCATION_LISTS_ASSIGNED_LOCATIONS_LIST",
+      "aliases": [
+        "ADVERTISERS_LOCATION_LISTS_ASSIGNED_LOCATIONS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LOCATION_LISTS_ASSIGNED_LOCATIONS_LIST"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LOCATION_LISTS_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_LOCATION_LISTS_CREATE",
+      "aliases": [
+        "ADVERTISERS_LOCATION_LISTS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LOCATION_LISTS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LOCATION_LISTS_GET",
+      "canonical_name": "DV360_ADVERTISERS_LOCATION_LISTS_GET",
+      "aliases": [
+        "ADVERTISERS_LOCATION_LISTS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LOCATION_LISTS_GET"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LOCATION_LISTS_LIST",
+      "canonical_name": "DV360_ADVERTISERS_LOCATION_LISTS_LIST",
+      "aliases": [
+        "ADVERTISERS_LOCATION_LISTS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LOCATION_LISTS_LIST"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_LOCATION_LISTS_PATCH",
+      "canonical_name": "DV360_ADVERTISERS_LOCATION_LISTS_PATCH",
+      "aliases": [
+        "ADVERTISERS_LOCATION_LISTS_PATCH"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_LOCATION_LISTS_PATCH"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_CREATE",
+      "aliases": [
+        "ADVERTISERS_NEGATIVE_KEYWORD_LISTS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_DELETE",
+      "canonical_name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_DELETE",
+      "aliases": [
+        "ADVERTISERS_NEGATIVE_KEYWORD_LISTS_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_DELETE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_GET",
+      "canonical_name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_GET",
+      "aliases": [
+        "ADVERTISERS_NEGATIVE_KEYWORD_LISTS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_GET"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_LIST",
+      "canonical_name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_LIST",
+      "aliases": [
+        "ADVERTISERS_NEGATIVE_KEYWORD_LISTS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_LIST"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_BULK_EDIT",
+      "canonical_name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_BULK_EDIT",
+      "aliases": [
+        "ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_BULK_EDIT"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_BULK_EDIT"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_CREATE",
+      "aliases": [
+        "ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_DELETE",
+      "canonical_name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_DELETE",
+      "aliases": [
+        "ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_DELETE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_LIST",
+      "canonical_name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_LIST",
+      "aliases": [
+        "ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_LIST"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_REPLACE",
+      "canonical_name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_REPLACE",
+      "aliases": [
+        "ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_REPLACE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_REPLACE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_PATCH",
+      "canonical_name": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_PATCH",
+      "aliases": [
+        "ADVERTISERS_NEGATIVE_KEYWORD_LISTS_PATCH"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_PATCH"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_PATCH",
+      "canonical_name": "DV360_ADVERTISERS_PATCH",
+      "aliases": [
+        "ADVERTISERS_PATCH"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_PATCH"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE",
+      "canonical_name": "DV360_ADVERTISERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE",
+      "aliases": [
+        "ADVERTISERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_DELETE",
+      "canonical_name": "DV360_ADVERTISERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_DELETE",
+      "aliases": [
+        "ADVERTISERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_DELETE"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_GET",
+      "canonical_name": "DV360_ADVERTISERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_GET",
+      "aliases": [
+        "ADVERTISERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_GET"
+      }
+    },
+    {
+      "name": "DV360_ADVERTISERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_LIST",
+      "canonical_name": "DV360_ADVERTISERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_LIST",
+      "aliases": [
+        "ADVERTISERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_ADVERTISERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_LIST"
+      }
+    },
+    {
+      "name": "DV360_COMBINED_AUDIENCES_GET",
+      "canonical_name": "DV360_COMBINED_AUDIENCES_GET",
+      "aliases": [
+        "COMBINED_AUDIENCES_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_COMBINED_AUDIENCES_GET"
+      }
+    },
+    {
+      "name": "DV360_COMBINED_AUDIENCES_LIST",
+      "canonical_name": "DV360_COMBINED_AUDIENCES_LIST",
+      "aliases": [
+        "COMBINED_AUDIENCES_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_COMBINED_AUDIENCES_LIST"
+      }
+    },
+    {
+      "name": "DV360_CUSTOM_BIDDING_ALGORITHMS_CREATE",
+      "canonical_name": "DV360_CUSTOM_BIDDING_ALGORITHMS_CREATE",
+      "aliases": [
+        "CUSTOM_BIDDING_ALGORITHMS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_CUSTOM_BIDDING_ALGORITHMS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_CUSTOM_BIDDING_ALGORITHMS_GET",
+      "canonical_name": "DV360_CUSTOM_BIDDING_ALGORITHMS_GET",
+      "aliases": [
+        "CUSTOM_BIDDING_ALGORITHMS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_CUSTOM_BIDDING_ALGORITHMS_GET"
+      }
+    },
+    {
+      "name": "DV360_CUSTOM_BIDDING_ALGORITHMS_LIST",
+      "canonical_name": "DV360_CUSTOM_BIDDING_ALGORITHMS_LIST",
+      "aliases": [
+        "CUSTOM_BIDDING_ALGORITHMS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_CUSTOM_BIDDING_ALGORITHMS_LIST"
+      }
+    },
+    {
+      "name": "DV360_CUSTOM_BIDDING_ALGORITHMS_PATCH",
+      "canonical_name": "DV360_CUSTOM_BIDDING_ALGORITHMS_PATCH",
+      "aliases": [
+        "CUSTOM_BIDDING_ALGORITHMS_PATCH"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_CUSTOM_BIDDING_ALGORITHMS_PATCH"
+      }
+    },
+    {
+      "name": "DV360_CUSTOM_BIDDING_ALGORITHMS_RULES_CREATE",
+      "canonical_name": "DV360_CUSTOM_BIDDING_ALGORITHMS_RULES_CREATE",
+      "aliases": [
+        "CUSTOM_BIDDING_ALGORITHMS_RULES_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_CUSTOM_BIDDING_ALGORITHMS_RULES_CREATE"
+      }
+    },
+    {
+      "name": "DV360_CUSTOM_BIDDING_ALGORITHMS_RULES_GET",
+      "canonical_name": "DV360_CUSTOM_BIDDING_ALGORITHMS_RULES_GET",
+      "aliases": [
+        "CUSTOM_BIDDING_ALGORITHMS_RULES_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_CUSTOM_BIDDING_ALGORITHMS_RULES_GET"
+      }
+    },
+    {
+      "name": "DV360_CUSTOM_BIDDING_ALGORITHMS_RULES_LIST",
+      "canonical_name": "DV360_CUSTOM_BIDDING_ALGORITHMS_RULES_LIST",
+      "aliases": [
+        "CUSTOM_BIDDING_ALGORITHMS_RULES_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_CUSTOM_BIDDING_ALGORITHMS_RULES_LIST"
+      }
+    },
+    {
+      "name": "DV360_CUSTOM_BIDDING_ALGORITHMS_SCRIPTS_CREATE",
+      "canonical_name": "DV360_CUSTOM_BIDDING_ALGORITHMS_SCRIPTS_CREATE",
+      "aliases": [
+        "CUSTOM_BIDDING_ALGORITHMS_SCRIPTS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_CUSTOM_BIDDING_ALGORITHMS_SCRIPTS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_CUSTOM_BIDDING_ALGORITHMS_SCRIPTS_GET",
+      "canonical_name": "DV360_CUSTOM_BIDDING_ALGORITHMS_SCRIPTS_GET",
+      "aliases": [
+        "CUSTOM_BIDDING_ALGORITHMS_SCRIPTS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_CUSTOM_BIDDING_ALGORITHMS_SCRIPTS_GET"
+      }
+    },
+    {
+      "name": "DV360_CUSTOM_BIDDING_ALGORITHMS_SCRIPTS_LIST",
+      "canonical_name": "DV360_CUSTOM_BIDDING_ALGORITHMS_SCRIPTS_LIST",
+      "aliases": [
+        "CUSTOM_BIDDING_ALGORITHMS_SCRIPTS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_CUSTOM_BIDDING_ALGORITHMS_SCRIPTS_LIST"
+      }
+    },
+    {
+      "name": "DV360_CUSTOM_BIDDING_ALGORITHMS_UPLOAD_RULES",
+      "canonical_name": "DV360_CUSTOM_BIDDING_ALGORITHMS_UPLOAD_RULES",
+      "aliases": [
+        "CUSTOM_BIDDING_ALGORITHMS_UPLOAD_RULES"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_CUSTOM_BIDDING_ALGORITHMS_UPLOAD_RULES"
+      }
+    },
+    {
+      "name": "DV360_CUSTOM_BIDDING_ALGORITHMS_UPLOAD_SCRIPT",
+      "canonical_name": "DV360_CUSTOM_BIDDING_ALGORITHMS_UPLOAD_SCRIPT",
+      "aliases": [
+        "CUSTOM_BIDDING_ALGORITHMS_UPLOAD_SCRIPT"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_CUSTOM_BIDDING_ALGORITHMS_UPLOAD_SCRIPT"
+      }
+    },
+    {
+      "name": "DV360_CUSTOM_LISTS_GET",
+      "canonical_name": "DV360_CUSTOM_LISTS_GET",
+      "aliases": [
+        "CUSTOM_LISTS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_CUSTOM_LISTS_GET"
+      }
+    },
+    {
+      "name": "DV360_CUSTOM_LISTS_LIST",
+      "canonical_name": "DV360_CUSTOM_LISTS_LIST",
+      "aliases": [
+        "CUSTOM_LISTS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_CUSTOM_LISTS_LIST"
+      }
+    },
+    {
+      "name": "DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_CREATE",
+      "canonical_name": "DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_CREATE",
+      "aliases": [
+        "FIRST_PARTY_AND_PARTNER_AUDIENCES_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_CREATE"
+      }
+    },
+    {
+      "name": "DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_EDIT_CUSTOMER_MATCH_MEMBERS",
+      "canonical_name": "DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_EDIT_CUSTOMER_MATCH_MEMBERS",
+      "aliases": [
+        "FIRST_PARTY_AND_PARTNER_AUDIENCES_EDIT_CUSTOMER_MATCH_MEMBERS"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_EDIT_CUSTOMER_MATCH_MEMBERS"
+      }
+    },
+    {
+      "name": "DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_GET",
+      "canonical_name": "DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_GET",
+      "aliases": [
+        "FIRST_PARTY_AND_PARTNER_AUDIENCES_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_GET"
+      }
+    },
+    {
+      "name": "DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_LIST",
+      "canonical_name": "DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_LIST",
+      "aliases": [
+        "FIRST_PARTY_AND_PARTNER_AUDIENCES_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_LIST"
+      }
+    },
+    {
+      "name": "DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_PATCH",
+      "canonical_name": "DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_PATCH",
+      "aliases": [
+        "FIRST_PARTY_AND_PARTNER_AUDIENCES_PATCH"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_PATCH"
+      }
+    },
+    {
+      "name": "DV360_FLOODLIGHT_GROUPS_FLOODLIGHT_ACTIVITIES_GET",
+      "canonical_name": "DV360_FLOODLIGHT_GROUPS_FLOODLIGHT_ACTIVITIES_GET",
+      "aliases": [
+        "FLOODLIGHT_GROUPS_FLOODLIGHT_ACTIVITIES_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_FLOODLIGHT_GROUPS_FLOODLIGHT_ACTIVITIES_GET"
+      }
+    },
+    {
+      "name": "DV360_FLOODLIGHT_GROUPS_FLOODLIGHT_ACTIVITIES_LIST",
+      "canonical_name": "DV360_FLOODLIGHT_GROUPS_FLOODLIGHT_ACTIVITIES_LIST",
+      "aliases": [
+        "FLOODLIGHT_GROUPS_FLOODLIGHT_ACTIVITIES_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_FLOODLIGHT_GROUPS_FLOODLIGHT_ACTIVITIES_LIST"
+      }
+    },
+    {
+      "name": "DV360_FLOODLIGHT_GROUPS_GET",
+      "canonical_name": "DV360_FLOODLIGHT_GROUPS_GET",
+      "aliases": [
+        "FLOODLIGHT_GROUPS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_FLOODLIGHT_GROUPS_GET"
+      }
+    },
+    {
+      "name": "DV360_FLOODLIGHT_GROUPS_PATCH",
+      "canonical_name": "DV360_FLOODLIGHT_GROUPS_PATCH",
+      "aliases": [
+        "FLOODLIGHT_GROUPS_PATCH"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_FLOODLIGHT_GROUPS_PATCH"
+      }
+    },
+    {
+      "name": "DV360_GOOGLE_AUDIENCES_GET",
+      "canonical_name": "DV360_GOOGLE_AUDIENCES_GET",
+      "aliases": [
+        "GOOGLE_AUDIENCES_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_GOOGLE_AUDIENCES_GET"
+      }
+    },
+    {
+      "name": "DV360_GOOGLE_AUDIENCES_LIST",
+      "canonical_name": "DV360_GOOGLE_AUDIENCES_LIST",
+      "aliases": [
+        "GOOGLE_AUDIENCES_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_GOOGLE_AUDIENCES_LIST"
+      }
+    },
+    {
+      "name": "DV360_GUARANTEED_ORDERS_CREATE",
+      "canonical_name": "DV360_GUARANTEED_ORDERS_CREATE",
+      "aliases": [
+        "GUARANTEED_ORDERS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_GUARANTEED_ORDERS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_GUARANTEED_ORDERS_EDIT_GUARANTEED_ORDER_READ_ACCESSORS",
+      "canonical_name": "DV360_GUARANTEED_ORDERS_EDIT_GUARANTEED_ORDER_READ_ACCESSORS",
+      "aliases": [
+        "GUARANTEED_ORDERS_EDIT_GUARANTEED_ORDER_READ_ACCESSORS"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_GUARANTEED_ORDERS_EDIT_GUARANTEED_ORDER_READ_ACCESSORS"
+      }
+    },
+    {
+      "name": "DV360_GUARANTEED_ORDERS_GET",
+      "canonical_name": "DV360_GUARANTEED_ORDERS_GET",
+      "aliases": [
+        "GUARANTEED_ORDERS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_GUARANTEED_ORDERS_GET"
+      }
+    },
+    {
+      "name": "DV360_GUARANTEED_ORDERS_LIST",
+      "canonical_name": "DV360_GUARANTEED_ORDERS_LIST",
+      "aliases": [
+        "GUARANTEED_ORDERS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_GUARANTEED_ORDERS_LIST"
+      }
+    },
+    {
+      "name": "DV360_GUARANTEED_ORDERS_PATCH",
+      "canonical_name": "DV360_GUARANTEED_ORDERS_PATCH",
+      "aliases": [
+        "GUARANTEED_ORDERS_PATCH"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_GUARANTEED_ORDERS_PATCH"
+      }
+    },
+    {
+      "name": "DV360_INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_BULK_EDIT",
+      "canonical_name": "DV360_INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_BULK_EDIT",
+      "aliases": [
+        "INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_BULK_EDIT"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_BULK_EDIT"
+      }
+    },
+    {
+      "name": "DV360_INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_CREATE",
+      "canonical_name": "DV360_INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_CREATE",
+      "aliases": [
+        "INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_CREATE"
+      }
+    },
+    {
+      "name": "DV360_INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_DELETE",
+      "canonical_name": "DV360_INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_DELETE",
+      "aliases": [
+        "INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_DELETE"
+      }
+    },
+    {
+      "name": "DV360_INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_LIST",
+      "canonical_name": "DV360_INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_LIST",
+      "aliases": [
+        "INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_LIST"
+      }
+    },
+    {
+      "name": "DV360_INVENTORY_SOURCE_GROUPS_CREATE",
+      "canonical_name": "DV360_INVENTORY_SOURCE_GROUPS_CREATE",
+      "aliases": [
+        "INVENTORY_SOURCE_GROUPS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_INVENTORY_SOURCE_GROUPS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_INVENTORY_SOURCE_GROUPS_DELETE",
+      "canonical_name": "DV360_INVENTORY_SOURCE_GROUPS_DELETE",
+      "aliases": [
+        "INVENTORY_SOURCE_GROUPS_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_INVENTORY_SOURCE_GROUPS_DELETE"
+      }
+    },
+    {
+      "name": "DV360_INVENTORY_SOURCE_GROUPS_GET",
+      "canonical_name": "DV360_INVENTORY_SOURCE_GROUPS_GET",
+      "aliases": [
+        "INVENTORY_SOURCE_GROUPS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_INVENTORY_SOURCE_GROUPS_GET"
+      }
+    },
+    {
+      "name": "DV360_INVENTORY_SOURCE_GROUPS_LIST",
+      "canonical_name": "DV360_INVENTORY_SOURCE_GROUPS_LIST",
+      "aliases": [
+        "INVENTORY_SOURCE_GROUPS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_INVENTORY_SOURCE_GROUPS_LIST"
+      }
+    },
+    {
+      "name": "DV360_INVENTORY_SOURCE_GROUPS_PATCH",
+      "canonical_name": "DV360_INVENTORY_SOURCE_GROUPS_PATCH",
+      "aliases": [
+        "INVENTORY_SOURCE_GROUPS_PATCH"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_INVENTORY_SOURCE_GROUPS_PATCH"
+      }
+    },
+    {
+      "name": "DV360_INVENTORY_SOURCES_CREATE",
+      "canonical_name": "DV360_INVENTORY_SOURCES_CREATE",
+      "aliases": [
+        "INVENTORY_SOURCES_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_INVENTORY_SOURCES_CREATE"
+      }
+    },
+    {
+      "name": "DV360_INVENTORY_SOURCES_EDIT_INVENTORY_SOURCE_READ_WRITE_ACCESSORS",
+      "canonical_name": "DV360_INVENTORY_SOURCES_EDIT_INVENTORY_SOURCE_READ_WRITE_ACCESSORS",
+      "aliases": [
+        "INVENTORY_SOURCES_EDIT_INVENTORY_SOURCE_READ_WRITE_ACCESSORS"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_INVENTORY_SOURCES_EDIT_INVENTORY_SOURCE_READ_WRITE_ACCESSORS"
+      }
+    },
+    {
+      "name": "DV360_INVENTORY_SOURCES_GET",
+      "canonical_name": "DV360_INVENTORY_SOURCES_GET",
+      "aliases": [
+        "INVENTORY_SOURCES_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_INVENTORY_SOURCES_GET"
+      }
+    },
+    {
+      "name": "DV360_INVENTORY_SOURCES_LIST",
+      "canonical_name": "DV360_INVENTORY_SOURCES_LIST",
+      "aliases": [
+        "INVENTORY_SOURCES_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_INVENTORY_SOURCES_LIST"
+      }
+    },
+    {
+      "name": "DV360_INVENTORY_SOURCES_PATCH",
+      "canonical_name": "DV360_INVENTORY_SOURCES_PATCH",
+      "aliases": [
+        "INVENTORY_SOURCES_PATCH"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_INVENTORY_SOURCES_PATCH"
+      }
+    },
+    {
+      "name": "DV360_MEDIA_DOWNLOAD",
+      "canonical_name": "DV360_MEDIA_DOWNLOAD",
+      "aliases": [
+        "MEDIA_DOWNLOAD"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_MEDIA_DOWNLOAD"
+      }
+    },
+    {
+      "name": "DV360_MEDIA_UPLOAD",
+      "canonical_name": "DV360_MEDIA_UPLOAD",
+      "aliases": [
+        "MEDIA_UPLOAD"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_MEDIA_UPLOAD"
+      }
+    },
+    {
+      "name": "DV360_PARTNERS_CHANNELS_CREATE",
+      "canonical_name": "DV360_PARTNERS_CHANNELS_CREATE",
+      "aliases": [
+        "PARTNERS_CHANNELS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_PARTNERS_CHANNELS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_PARTNERS_CHANNELS_GET",
+      "canonical_name": "DV360_PARTNERS_CHANNELS_GET",
+      "aliases": [
+        "PARTNERS_CHANNELS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_PARTNERS_CHANNELS_GET"
+      }
+    },
+    {
+      "name": "DV360_PARTNERS_CHANNELS_LIST",
+      "canonical_name": "DV360_PARTNERS_CHANNELS_LIST",
+      "aliases": [
+        "PARTNERS_CHANNELS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_PARTNERS_CHANNELS_LIST"
+      }
+    },
+    {
+      "name": "DV360_PARTNERS_CHANNELS_PATCH",
+      "canonical_name": "DV360_PARTNERS_CHANNELS_PATCH",
+      "aliases": [
+        "PARTNERS_CHANNELS_PATCH"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_PARTNERS_CHANNELS_PATCH"
+      }
+    },
+    {
+      "name": "DV360_PARTNERS_CHANNELS_SITES_BULK_EDIT",
+      "canonical_name": "DV360_PARTNERS_CHANNELS_SITES_BULK_EDIT",
+      "aliases": [
+        "PARTNERS_CHANNELS_SITES_BULK_EDIT"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_PARTNERS_CHANNELS_SITES_BULK_EDIT"
+      }
+    },
+    {
+      "name": "DV360_PARTNERS_CHANNELS_SITES_CREATE",
+      "canonical_name": "DV360_PARTNERS_CHANNELS_SITES_CREATE",
+      "aliases": [
+        "PARTNERS_CHANNELS_SITES_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_PARTNERS_CHANNELS_SITES_CREATE"
+      }
+    },
+    {
+      "name": "DV360_PARTNERS_CHANNELS_SITES_DELETE",
+      "canonical_name": "DV360_PARTNERS_CHANNELS_SITES_DELETE",
+      "aliases": [
+        "PARTNERS_CHANNELS_SITES_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_PARTNERS_CHANNELS_SITES_DELETE"
+      }
+    },
+    {
+      "name": "DV360_PARTNERS_CHANNELS_SITES_LIST",
+      "canonical_name": "DV360_PARTNERS_CHANNELS_SITES_LIST",
+      "aliases": [
+        "PARTNERS_CHANNELS_SITES_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_PARTNERS_CHANNELS_SITES_LIST"
+      }
+    },
+    {
+      "name": "DV360_PARTNERS_CHANNELS_SITES_REPLACE",
+      "canonical_name": "DV360_PARTNERS_CHANNELS_SITES_REPLACE",
+      "aliases": [
+        "PARTNERS_CHANNELS_SITES_REPLACE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_PARTNERS_CHANNELS_SITES_REPLACE"
+      }
+    },
+    {
+      "name": "DV360_PARTNERS_EDIT_ASSIGNED_TARGETING_OPTIONS",
+      "canonical_name": "DV360_PARTNERS_EDIT_ASSIGNED_TARGETING_OPTIONS",
+      "aliases": [
+        "PARTNERS_EDIT_ASSIGNED_TARGETING_OPTIONS"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_PARTNERS_EDIT_ASSIGNED_TARGETING_OPTIONS"
+      }
+    },
+    {
+      "name": "DV360_PARTNERS_GET",
+      "canonical_name": "DV360_PARTNERS_GET",
+      "aliases": [
+        "PARTNERS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_PARTNERS_GET"
+      }
+    },
+    {
+      "name": "DV360_PARTNERS_LIST",
+      "canonical_name": "DV360_PARTNERS_LIST",
+      "aliases": [
+        "PARTNERS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_PARTNERS_LIST"
+      }
+    },
+    {
+      "name": "DV360_PARTNERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE",
+      "canonical_name": "DV360_PARTNERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE",
+      "aliases": [
+        "PARTNERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_PARTNERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_PARTNERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_DELETE",
+      "canonical_name": "DV360_PARTNERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_DELETE",
+      "aliases": [
+        "PARTNERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_PARTNERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_DELETE"
+      }
+    },
+    {
+      "name": "DV360_PARTNERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_GET",
+      "canonical_name": "DV360_PARTNERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_GET",
+      "aliases": [
+        "PARTNERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_PARTNERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_GET"
+      }
+    },
+    {
+      "name": "DV360_PARTNERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_LIST",
+      "canonical_name": "DV360_PARTNERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_LIST",
+      "aliases": [
+        "PARTNERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_PARTNERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_LIST"
+      }
+    },
+    {
+      "name": "DV360_SDFDOWNLOADTASKS_CREATE",
+      "canonical_name": "DV360_SDFDOWNLOADTASKS_CREATE",
+      "aliases": [
+        "SDFDOWNLOADTASKS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_SDFDOWNLOADTASKS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_SDFDOWNLOADTASKS_OPERATIONS_GET",
+      "canonical_name": "DV360_SDFDOWNLOADTASKS_OPERATIONS_GET",
+      "aliases": [
+        "SDFDOWNLOADTASKS_OPERATIONS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_SDFDOWNLOADTASKS_OPERATIONS_GET"
+      }
+    },
+    {
+      "name": "DV360_SDFUPLOADTASKS_OPERATIONS_GET",
+      "canonical_name": "DV360_SDFUPLOADTASKS_OPERATIONS_GET",
+      "aliases": [
+        "SDFUPLOADTASKS_OPERATIONS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_SDFUPLOADTASKS_OPERATIONS_GET"
+      }
+    },
+    {
+      "name": "DV360_TARGETING_TYPES_TARGETING_OPTIONS_GET",
+      "canonical_name": "DV360_TARGETING_TYPES_TARGETING_OPTIONS_GET",
+      "aliases": [
+        "TARGETING_TYPES_TARGETING_OPTIONS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_TARGETING_TYPES_TARGETING_OPTIONS_GET"
+      }
+    },
+    {
+      "name": "DV360_TARGETING_TYPES_TARGETING_OPTIONS_LIST",
+      "canonical_name": "DV360_TARGETING_TYPES_TARGETING_OPTIONS_LIST",
+      "aliases": [
+        "TARGETING_TYPES_TARGETING_OPTIONS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_TARGETING_TYPES_TARGETING_OPTIONS_LIST"
+      }
+    },
+    {
+      "name": "DV360_TARGETING_TYPES_TARGETING_OPTIONS_SEARCH",
+      "canonical_name": "DV360_TARGETING_TYPES_TARGETING_OPTIONS_SEARCH",
+      "aliases": [
+        "TARGETING_TYPES_TARGETING_OPTIONS_SEARCH"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_TARGETING_TYPES_TARGETING_OPTIONS_SEARCH"
+      }
+    },
+    {
+      "name": "DV360_USERS_BULK_EDIT_ASSIGNED_USER_ROLES",
+      "canonical_name": "DV360_USERS_BULK_EDIT_ASSIGNED_USER_ROLES",
+      "aliases": [
+        "USERS_BULK_EDIT_ASSIGNED_USER_ROLES"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_USERS_BULK_EDIT_ASSIGNED_USER_ROLES"
+      }
+    },
+    {
+      "name": "DV360_USERS_CREATE",
+      "canonical_name": "DV360_USERS_CREATE",
+      "aliases": [
+        "USERS_CREATE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_USERS_CREATE"
+      }
+    },
+    {
+      "name": "DV360_USERS_DELETE",
+      "canonical_name": "DV360_USERS_DELETE",
+      "aliases": [
+        "USERS_DELETE"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_USERS_DELETE"
+      }
+    },
+    {
+      "name": "DV360_USERS_GET",
+      "canonical_name": "DV360_USERS_GET",
+      "aliases": [
+        "USERS_GET"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_USERS_GET"
+      }
+    },
+    {
+      "name": "DV360_USERS_LIST",
+      "canonical_name": "DV360_USERS_LIST",
+      "aliases": [
+        "USERS_LIST"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_USERS_LIST"
+      }
+    },
+    {
+      "name": "DV360_USERS_PATCH",
+      "canonical_name": "DV360_USERS_PATCH",
+      "aliases": [
+        "USERS_PATCH"
+      ],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "action": "DV360_USERS_PATCH"
+      }
+    }
+  ],
+  "gaps": [
+    "Action enum captured; method/path/required-field catalog not exposed by WhatHead help."
+  ]
+}

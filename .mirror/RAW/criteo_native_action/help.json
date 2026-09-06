@@ -1,0 +1,22 @@
+{
+  "captured_at": "2026-09-04T23:23:40.483Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "criteo_native_action",
+  "operation": "help",
+  "request": {
+    "gateway": "criteo_native_action",
+    "args": {}
+  },
+  "request_id": null,
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"gateway\": \"criteo_native_action\",\n  \"mode\": \"delegated\",\n  \"description\": \"Criteo Retail Media gateway for accounts, campaigns, line items, creatives, audiences, catalogs, budgets, billing, and reporting.\",\n  \"operation_count\": 9,\n  \"operations\": [\n    \"criteo_account_ops\",\n    \"criteo_audience_ops\",\n    \"criteo_billing_ops\",\n    \"criteo_budget_ops\",\n    \"criteo_campaign_ops\",\n    \"criteo_catalog_ops\",\n    \"criteo_creative_ops\",\n    \"criteo_line_item_ops\",\n    \"criteo_reporting_ops\"\n  ]\n}"
+      }
+    ]
+  }
+}

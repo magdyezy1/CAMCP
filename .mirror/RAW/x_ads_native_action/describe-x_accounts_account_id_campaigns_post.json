@@ -1,0 +1,25 @@
+{
+  "captured_at": "2026-09-04T23:35:35.442Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "x_ads_native_action",
+  "operation": "DESCRIBE_ACTION",
+  "request": {
+    "gateway": "x_ads_native_action",
+    "args": {
+      "action": "DESCRIBE_ACTION",
+      "target_action": "x_accounts_account_id_campaigns_post"
+    }
+  },
+  "request_id": "0bfed111-f1c4-4845-967d-209207aeda06",
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"success\": true,\n  \"data\": {\n    \"success\": true,\n    \"api_version\": \"12\",\n    \"action\": \"x_accounts_account_id_campaigns_post\",\n    \"aliases\": [\n      \"CREATE_CAMPAIGN\"\n    ],\n    \"method\": \"POST\",\n    \"endpoint\": \"/12/accounts/{account_id}/campaigns\",\n    \"category\": \"campaign\",\n    \"read_only\": false,\n    \"destructive\": false,\n    \"deprecated\": false,\n    \"path_parameters\": [\n      \"account_id\"\n    ],\n    \"special_transport\": null,\n    \"docs_paths\": [\n      \"MDFILES/x-ads-api/campaign-management/reference.mdx\"\n    ],\n    \"invocation\": {\n      \"tool\": \"x_ads_native_action\",\n      \"arguments\": {\n        \"action\": \"x_accounts_account_id_campaigns_post\",\n        \"account_id\": \"<X Ads account id>\",\n        \"path_params\": {},\n        \"params\": \"<native query/form fields>\",\n        \"payload\": \"<native request body>\"\n      }\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"0bfed111-f1c4-4845-967d-209207aeda06\",\n    \"latencyMs\": 265\n  }\n}"
+      }
+    ]
+  }
+}

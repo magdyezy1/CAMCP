@@ -1,0 +1,306 @@
+{
+  "gateway": "adjust_native_action",
+  "mode": "delegated",
+  "api_version": null,
+  "reported_total": 6,
+  "captured": 6,
+  "denominator_kind": "operation_count",
+  "complete": true,
+  "actions": [
+    {
+      "name": "adjust_ad_spend",
+      "canonical_name": "adjust_ad_spend",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action",
+        "label",
+        "payload"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "adjust_native_action",
+        "operation": "adjust_ad_spend",
+        "description": "Adjust Ad Spend API: send a partner cost engagement (CPC / CPI / CPE / CPM / CPA / flat). Wraps POST https://app.adjust.com/cost. Adjust accepts events up to 7 days after the engagement. Requires scope: write:campaigns.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "SEND_AD_SPEND",
+                "SEND_AD_SPEND_BULK"
+              ],
+              "description": "Ad Spend operation. SEND_AD_SPEND = post one cost engagement. SEND_AD_SPEND_BULK = fan-out up to 100 events; partial-success aware (returns per-event status)."
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Adjust connection label (the slug shown in the integrations drawer). Pick which token to use."
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "For SEND_AD_SPEND: { event: { cost_type, cost_currency, cost_amount, cost_id (12-256 chars), tag? } }. For SEND_AD_SPEND_BULK: { events: AdjustCostEvent[] }."
+            }
+          },
+          "required": [
+            "action",
+            "label",
+            "payload"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "adjust_app_automation",
+      "canonical_name": "adjust_app_automation",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action",
+        "label"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "adjust_native_action",
+        "operation": "adjust_app_automation",
+        "description": "Adjust App Automation API: programmatic app creation + channel setup + ticket polling + multi-app event upsert + app settings + SDK-secret rotation. Wraps https://automate.adjust.com/app-automation/. Most reads require read:accounts, writes require write:campaigns, and SDK-secret rotation requires admin access in Adjust.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "CREATE_APP",
+                "UPDATE_APP",
+                "GET_APP",
+                "GET_APP_BY_STORE_ID",
+                "LIST_AUTOMATION_APPS",
+                "GET_JOB_STATUS",
+                "UPSERT_EVENTS",
+                "GET_APP_SETTINGS",
+                "REVOKE_OUTDATED_SECRETS",
+                "REVOKE_SECRET",
+                "REACTIVATE_SECRET"
+              ],
+              "description": "App Automation operation. CREATE_APP / UPDATE_APP = manage app definitions; returns ticket_token to poll. GET_APP / GET_APP_BY_STORE_ID / LIST_AUTOMATION_APPS = read app metadata. GET_JOB_STATUS = poll a ticket_token until completed/failed. UPSERT_EVENTS = create/update events on multiple apps in one call. GET_APP_SETTINGS = full read of an app's automation config. REVOKE_OUTDATED_SECRETS / REVOKE_SECRET / REACTIVATE_SECRET = SDK-secret rotation (admin scope)."
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Adjust connection label (the slug shown in the integrations drawer). Pick which token to use."
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Action-specific body. See AdjustAppCreateRequest, AdjustAppUpdateRequest, AdjustEventsUpsertRequest, and the channel_setup partner table in shared/platforms/adjust/types.ts."
+            }
+          },
+          "required": [
+            "action",
+            "label"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "adjust_campaign_api",
+      "canonical_name": "adjust_campaign_api",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action",
+        "label"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "adjust_native_action",
+        "operation": "adjust_campaign_api",
+        "description": "Adjust Campaign API: partners + trackers + sublinks management. Wraps https://api.adjust.com/public/v2/. Cursor-paginated lists; create/update returns the tracker payload. Reads require read:reporting; writes require write:campaigns.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "LIST_PARTNERS",
+                "LIST_TRACKERS",
+                "LIST_TRACKER_CHILDREN",
+                "CREATE_TRACKER",
+                "UPDATE_TRACKER"
+              ],
+              "description": "Campaign API operation. LIST_PARTNERS = available networks (cursor paginated). LIST_TRACKERS = network-level trackers for an app. LIST_TRACKER_CHILDREN = sublinks (campaign / adgroup / creative). CREATE_TRACKER = create a tracker or sublink. UPDATE_TRACKER = patch partner_id / cost_data_enabled / name."
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Adjust connection label (the slug shown in the integrations drawer). Pick which token to use."
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Action-specific body. LIST_TRACKERS: { appToken, limit?, cursor? }. LIST_TRACKER_CHILDREN: { appToken, linkToken, limit?, cursor? }. CREATE_TRACKER: { appToken, request: { name, parent_token? } }. UPDATE_TRACKER: { appToken, linkToken, patch: { partner_id?, cost_data_enabled?, name? } }."
+            }
+          },
+          "required": [
+            "action",
+            "label"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "adjust_deeplinks",
+      "canonical_name": "adjust_deeplinks",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action",
+        "label"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "adjust_native_action",
+        "operation": "adjust_deeplinks",
+        "description": "Adjust TrueLink (Deep Link Generator): create / get / update / quota / bulk-create. Wraps https://automate.adjust.com/engage/deep-links/. Reads require read:reports; writes require write:campaigns.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "CREATE",
+                "CREATE_BULK",
+                "GET",
+                "UPDATE",
+                "GET_QUOTA"
+              ],
+              "description": "TrueLink operation. CREATE / CREATE_BULK = generate short links (max 100 per bulk). GET = fetch metadata by short_token + app_token. UPDATE = patch redirect / fallback / deep_link_path. GET_QUOTA = check daily TrueLink quota."
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Adjust connection label (the slug shown in the integrations drawer). Pick which token to use."
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Action-specific body. CREATE: { request: AdjustDeepLinkRequest }. CREATE_BULK: { requests: AdjustDeepLinkRequest[] }. GET: { shortToken, appToken }. UPDATE: { shortToken, patch }."
+            }
+          },
+          "required": [
+            "action",
+            "label"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "adjust_list_assets",
+      "canonical_name": "adjust_list_assets",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "adjust_native_action",
+        "operation": "adjust_list_assets",
+        "description": "List all connected Adjust accounts and the apps each token can see. Use this first to discover labels (per-token connection slug) and app_tokens before calling other Adjust tools. Mirrors how list_workspace_assets works for the ad platforms. Requires scope: read:accounts.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "include_disconnected": {
+              "type": "boolean",
+              "default": false,
+              "description": "Include connections marked inactive and apps the user toggled off. Default: false (active only)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    },
+    {
+      "name": "adjust_reporting",
+      "canonical_name": "adjust_reporting",
+      "aliases": [],
+      "method": null,
+      "path": null,
+      "read_only": null,
+      "destructive": null,
+      "required": [
+        "action",
+        "label"
+      ],
+      "path_parameters": [],
+      "evidence": "OBSERVED",
+      "raw": {
+        "gateway": "adjust_native_action",
+        "operation": "adjust_reporting",
+        "description": "Adjust Reports Service: filters, events, JSON report, pivot. Wraps GET https://automate.adjust.com/reports-service/{filters_data,events,report,pivot_report}. CSV / Parquet exports are intentionally not exposed via MCP because the response payload is binary. Requires scope: read:reports.",
+        "argumentsSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "LIST_FILTERS",
+                "LIST_APPS",
+                "LIST_EVENTS",
+                "GET_REPORT",
+                "GET_PIVOT"
+              ],
+              "description": "Reports Service operation. LIST_FILTERS = enumerate apps / countries / partners / metrics / etc. LIST_APPS = shorthand for filters with required_filters=apps. LIST_EVENTS = list custom events on given apps. GET_REPORT = JSON report grouped by dimensions. GET_PIVOT = JSON report with per-dimension totals. CSV / Parquet downloads are intentionally excluded from MCP — use the web app."
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Adjust connection label (the slug shown in the integrations drawer). Pick which token to use."
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Action-specific body. LIST_FILTERS: { requiredFilters, section?, search? }. LIST_EVENTS: { appTokens, datePeriod }. GET_REPORT / GET_PIVOT: { request: { dimensions, metrics, date_period, ... } }."
+            }
+          },
+          "required": [
+            "action",
+            "label"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    }
+  ],
+  "gaps": []
+}

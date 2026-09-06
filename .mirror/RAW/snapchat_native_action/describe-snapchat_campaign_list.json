@@ -1,0 +1,25 @@
+{
+  "captured_at": "2026-09-04T23:34:42.616Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "snapchat_native_action",
+  "operation": "DESCRIBE_ACTION",
+  "request": {
+    "gateway": "snapchat_native_action",
+    "args": {
+      "action": "DESCRIBE_ACTION",
+      "target_action": "snapchat_campaign_list"
+    }
+  },
+  "request_id": "66f192bf-214c-4929-88fa-e07bdb1d70d9",
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"success\": true,\n  \"data\": {\n    \"requested_action\": \"snapchat_campaign_list\",\n    \"canonical_action\": \"snapchat_adaccounts_ad_account_id_campaigns_get\",\n    \"method\": \"GET\",\n    \"host\": \"adsapi.snapchat.com\",\n    \"path\": \"/v1/adaccounts/{ad_account_id}/campaigns\",\n    \"category\": \"Ads API / campaigns\",\n    \"read_only\": true,\n    \"destructive\": false,\n    \"parameters\": [\n      {\n        \"name\": \"ad_account_id\",\n        \"required\": true\n      }\n    ],\n    \"schema_fields\": [\n      \"ad_account_id\"\n    ],\n    \"docs_path\": \"MDFILES/snap-marketing-api/marketing-api/Ads-API/campaigns.md\",\n    \"docs_url\": \"https://developers.snap.com/api/marketing-api/Ads-API/campaigns\"\n  },\n  \"meta\": {\n    \"requestId\": \"66f192bf-214c-4929-88fa-e07bdb1d70d9\",\n    \"latencyMs\": 279\n  }\n}"
+      }
+    ]
+  }
+}

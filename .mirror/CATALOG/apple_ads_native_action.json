@@ -1,0 +1,13 @@
+{
+  "gateway": "apple_ads_native_action",
+  "mode": "direct",
+  "api_version": null,
+  "reported_total": null,
+  "captured": 0,
+  "denominator_kind": "unknown",
+  "complete": false,
+  "actions": [],
+  "gaps": [
+    "LIST_ACTIONS unsupported; full action denominator unknown."
+  ]
+}

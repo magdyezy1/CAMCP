@@ -1,0 +1,14 @@
+{
+  "captured_at": "2026-09-04T23:21:39.922Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "safety_mode": "metadata_only",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"surface\": \"compact-v1\",\n  \"tool_count\": 20,\n  \"gateways\": [\n    \"meta_native_action\",\n    \"tiktok_native_action\",\n    \"snapchat_native_action\",\n    \"amazon_native_action\",\n    \"apple_ads_native_action\",\n    \"dv360_native_action\",\n    \"linkedin_native_action\",\n    \"google_ads_native_action\",\n    \"x_ads_native_action\",\n    \"whathead_workspace\",\n    \"whathead_native_action\",\n    \"reddit_native_action\",\n    \"criteo_native_action\",\n    \"ga4_native_action\",\n    \"gtm_native_action\",\n    \"google_business_native_action\",\n    \"google_search_console_native_action\",\n    \"adjust_native_action\",\n    \"commerce_native_action\"\n  ],\n  \"usage\": \"Call again with gateway. For delegated gateways, add operation to receive the exact arguments schema.\"\n}"
+      }
+    ]
+  }
+}

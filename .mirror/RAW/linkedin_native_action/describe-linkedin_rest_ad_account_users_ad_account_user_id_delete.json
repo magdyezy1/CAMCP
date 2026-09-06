@@ -1,0 +1,25 @@
+{
+  "captured_at": "2026-09-04T23:35:19.422Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "linkedin_native_action",
+  "operation": "DESCRIBE_ACTION",
+  "request": {
+    "gateway": "linkedin_native_action",
+    "args": {
+      "action": "DESCRIBE_ACTION",
+      "target_action": "linkedin_rest_ad_account_users_ad_account_user_id_delete"
+    }
+  },
+  "request_id": "d137d3cd-0515-43ca-ad17-02ca402dea23",
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"success\": true,\n  \"data\": {\n    \"success\": true,\n    \"api_version\": \"202605\",\n    \"requested_action\": \"linkedin_rest_ad_account_users_ad_account_user_id_delete\",\n    \"name\": \"linkedin_rest_ad_account_users_ad_account_user_id_delete\",\n    \"canonical_action\": \"linkedin_rest_ad_account_users_ad_account_user_id_delete\",\n    \"method\": \"DELETE\",\n    \"path\": \"/rest/adAccountUsers/{ad_account_user_id}\",\n    \"resource\": \"adAccountUsers\",\n    \"category\": \"Advertising / Campaign Management\",\n    \"read_only\": false,\n    \"destructive\": true,\n    \"access_management\": true,\n    \"required_path_params\": [\n      \"ad_account_user_id\"\n    ],\n    \"oauth_scopes\": [\n      \"r_ads\",\n      \"rw_ads\"\n    ],\n    \"schema_fields\": [\n      \"ad_account_user_id\",\n      \"fields\"\n    ],\n    \"docs_paths\": [\n      \"MDFILES/linkedin-marketing-api/docs/Advertising/Campaign Management/Account Structure/Account Access Controls.md\",\n      \"MDFILES/linkedin-marketing-api/docs/Advertising/Campaign Management/Account Structure/Account Users.md\"\n    ],\n    \"docs_urls\": [\n      \"https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/account-access-controls?view=li-lms-2026-05\",\n      \"https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/create-and-manage-account-users?view=li-lms-2026-05\"\n    ],\n    \"input_guidance\": {\n      \"path_params\": {\n        \"ad_account_user_id\": \"(account=urn:li:sponsoredAccount:<account_id>,user=urn:li:person:<person_id>)\"\n      },\n      \"restli_method\": \"DELETE\",\n      \"notes\": [\n        \"Live execution requires dry_run=false and confirmed=true.\"\n      ]\n    },\n    \"invocation\": {\n      \"tool\": \"linkedin_native_action\",\n      \"arguments\": {\n        \"action\": \"linkedin_rest_ad_account_users_ad_account_user_id_delete\",\n        \"path_params\": {\n          \"ad_account_user_id\": \"(account=urn:li:sponsoredAccount:<account_id>,user=urn:li:person:<person_id>)\"\n        },\n        \"dry_run\": true,\n        \"confirmed\": false,\n        \"restli_method\": \"DELETE\"\n      }\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"d137d3cd-0515-43ca-ad17-02ca402dea23\",\n    \"latencyMs\": 282\n  }\n}"
+      }
+    ]
+  }
+}

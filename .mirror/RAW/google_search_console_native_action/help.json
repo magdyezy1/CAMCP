@@ -1,0 +1,22 @@
+{
+  "captured_at": "2026-09-04T23:23:53.345Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "google_search_console_native_action",
+  "operation": "help",
+  "request": {
+    "gateway": "google_search_console_native_action",
+    "args": {}
+  },
+  "request_id": null,
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"gateway\": \"google_search_console_native_action\",\n  \"mode\": \"delegated\",\n  \"description\": \"Google Search Console gateway for OAuth, sites, sitemaps, URL inspection, and search analytics.\",\n  \"operation_count\": 3,\n  \"operations\": [\n    \"gsc_analytics_ops\",\n    \"gsc_connection_ops\",\n    \"gsc_site_ops\"\n  ]\n}"
+      }
+    ]
+  }
+}
