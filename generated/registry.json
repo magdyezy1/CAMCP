@@ -134357,6 +134357,60 @@
         }
       }
     },
+    "linkedin_native_action/linkedin_rest_ad_account_users_ad_account_user_id_delete": {
+      "success": true,
+      "api_version": "202605",
+      "requested_action": "linkedin_rest_ad_account_users_ad_account_user_id_delete",
+      "name": "linkedin_rest_ad_account_users_ad_account_user_id_delete",
+      "canonical_action": "linkedin_rest_ad_account_users_ad_account_user_id_delete",
+      "method": "DELETE",
+      "path": "/rest/adAccountUsers/{ad_account_user_id}",
+      "resource": "adAccountUsers",
+      "category": "Advertising / Campaign Management",
+      "read_only": false,
+      "destructive": true,
+      "access_management": true,
+      "required_path_params": [
+        "ad_account_user_id"
+      ],
+      "oauth_scopes": [
+        "r_ads",
+        "rw_ads"
+      ],
+      "schema_fields": [
+        "ad_account_user_id",
+        "fields"
+      ],
+      "docs_paths": [
+        "MDFILES/linkedin-marketing-api/docs/Advertising/Campaign Management/Account Structure/Account Access Controls.md",
+        "MDFILES/linkedin-marketing-api/docs/Advertising/Campaign Management/Account Structure/Account Users.md"
+      ],
+      "docs_urls": [
+        "https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/account-access-controls?view=li-lms-2026-05",
+        "https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/create-and-manage-account-users?view=li-lms-2026-05"
+      ],
+      "input_guidance": {
+        "path_params": {
+          "ad_account_user_id": "(account=urn:li:sponsoredAccount:<account_id>,user=urn:li:person:<person_id>)"
+        },
+        "restli_method": "DELETE",
+        "notes": [
+          "Live execution requires dry_run=false and confirmed=true."
+        ]
+      },
+      "invocation": {
+        "tool": "linkedin_native_action",
+        "arguments": {
+          "action": "linkedin_rest_ad_account_users_ad_account_user_id_delete",
+          "path_params": {
+            "ad_account_user_id": "(account=urn:li:sponsoredAccount:<account_id>,user=urn:li:person:<person_id>)"
+          },
+          "dry_run": true,
+          "confirmed": false,
+          "restli_method": "DELETE"
+        }
+      }
+    },
     "linkedin_native_action/linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_get": {
       "success": true,
       "api_version": "202605",
@@ -134454,60 +134508,6 @@
             "ad_account_id": "<ad_account_id>"
           },
           "dry_run": true
-        }
-      }
-    },
-    "linkedin_native_action/linkedin_rest_ad_account_users_ad_account_user_id_delete": {
-      "success": true,
-      "api_version": "202605",
-      "requested_action": "linkedin_rest_ad_account_users_ad_account_user_id_delete",
-      "name": "linkedin_rest_ad_account_users_ad_account_user_id_delete",
-      "canonical_action": "linkedin_rest_ad_account_users_ad_account_user_id_delete",
-      "method": "DELETE",
-      "path": "/rest/adAccountUsers/{ad_account_user_id}",
-      "resource": "adAccountUsers",
-      "category": "Advertising / Campaign Management",
-      "read_only": false,
-      "destructive": true,
-      "access_management": true,
-      "required_path_params": [
-        "ad_account_user_id"
-      ],
-      "oauth_scopes": [
-        "r_ads",
-        "rw_ads"
-      ],
-      "schema_fields": [
-        "ad_account_user_id",
-        "fields"
-      ],
-      "docs_paths": [
-        "MDFILES/linkedin-marketing-api/docs/Advertising/Campaign Management/Account Structure/Account Access Controls.md",
-        "MDFILES/linkedin-marketing-api/docs/Advertising/Campaign Management/Account Structure/Account Users.md"
-      ],
-      "docs_urls": [
-        "https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/account-access-controls?view=li-lms-2026-05",
-        "https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/create-and-manage-account-users?view=li-lms-2026-05"
-      ],
-      "input_guidance": {
-        "path_params": {
-          "ad_account_user_id": "(account=urn:li:sponsoredAccount:<account_id>,user=urn:li:person:<person_id>)"
-        },
-        "restli_method": "DELETE",
-        "notes": [
-          "Live execution requires dry_run=false and confirmed=true."
-        ]
-      },
-      "invocation": {
-        "tool": "linkedin_native_action",
-        "arguments": {
-          "action": "linkedin_rest_ad_account_users_ad_account_user_id_delete",
-          "path_params": {
-            "ad_account_user_id": "(account=urn:li:sponsoredAccount:<account_id>,user=urn:li:person:<person_id>)"
-          },
-          "dry_run": true,
-          "confirmed": false,
-          "restli_method": "DELETE"
         }
       }
     },

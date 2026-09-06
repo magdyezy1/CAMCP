@@ -6,7 +6,7 @@ const read=file=>JSON.parse(fs.readFileSync(file,'utf8'));
 const toolData=read('.mirror/TOOLS.json');
 const catalogs=fs.readdirSync('.mirror/CATALOG').filter(x=>x.endsWith('.json')).sort().map(f=>read('.mirror/CATALOG/'+f));
 const descriptions={};
-for(const c of catalogs){const dir='.mirror/RAW/'+c.gateway;for(const file of fs.readdirSync(dir).filter(f=>f.startsWith('describe-'))){
+for(const c of catalogs){const dir='.mirror/RAW/'+c.gateway;for(const file of fs.readdirSync(dir).filter(f=>f.startsWith('describe-')).sort()){
  const evidence=read(dir+'/'+file),raw=unwrap(evidence.response),d=raw.data??raw;
  if(raw.success===false)continue;
  const name=evidence.request?.args?.target_action??evidence.request?.args?.operation;
