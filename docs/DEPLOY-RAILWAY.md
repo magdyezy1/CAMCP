@@ -14,6 +14,7 @@ Add these service variables:
 
 | Variable | Value |
 | --- | --- |
+| `PORT` | `4317` (also use this domain target port) |
 | `MIRROR_DB` | `/data/mirror.sqlite` |
 | `MIRROR_MASTER_KEY` | A new random 32-byte base64 key |
 | `AMCP_ADMIN_PASSWORD` | A unique strong password, at least 16 characters |

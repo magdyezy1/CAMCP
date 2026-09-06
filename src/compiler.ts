@@ -3,8 +3,9 @@ import type {Action,CallOptions,CompiledRequest,JsonObject} from './types.js';
 import {Registry} from './catalog.js';
 import {guardInput} from './security.js';
 import {adaptGoogleLegacy} from './google-legacy.js';
+import {accountAliases as aliases,parameterBag,nativeTopLevel,assertSameAlias} from './parameters.js';
+import {responseControls} from './projection.js';
 const object=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?{...v}:{};
-const aliases:Record<string,string[]>={meta_native_action:['ad_account_id','account_id'],tiktok_native_action:['advertiser_id','account_id'],snapchat_native_action:['ad_account_id','account_id'],google_ads_native_action:['account_id','customer_id'],linkedin_native_action:['account_id','ad_account_id'],x_ads_native_action:['account_id'],amazon_native_action:['profile_id'],apple_ads_native_action:['account_id','ad_account_id','org_id'],dv360_native_action:['advertiserId']};
 export function expandPath(template:string,values:JsonObject):{path:string;consumed:string[]}{
  const consumed:string[]=[];
  const path=template.replace(/\{(\+?)([^{}=]+)(?:=([^{}]+))?\}/g,(_full,plus:string,key:string,pattern:string|undefined)=>{
@@ -37,14 +38,25 @@ export class Compiler {
   if(action&&!action.path)action=this.registry.data.supplemental.find(a=>a.gateway===gateway&&a.name===action!.name)??action;
   if(!action)throw new MirrorError('UNKNOWN_ACTION','Action is absent from the captured catalog.',{gateway,action:input.action});
   if(!action.method||!action.path)throw new MirrorError('CONTRACT_UNAVAILABLE','Upstream routing metadata is not available for this action.',{gateway,action:action.name});
-  const params=object(input.params),explicitPath=object(input.path_params??input.pathParams),explicitQuery=object(input.query);
-  let body=input.payload??input.body??params.payload??params.body;
+  assertSameAlias(input.path_params,input.pathParams,'path_params/pathParams');
+  assertSameAlias(input.payload,input.body,'payload/body');
+  const params=parameterBag(input.params,'params'),explicitPath=parameterBag(input.path_params!==undefined?input.path_params:input.pathParams,'path_params'),explicitQuery=parameterBag(input.query,'query');
+  const top=nativeTopLevel(gateway,action,input),projection=responseControls(gateway,action,input);
+  for(const [key,value]of Object.entries(top)){
+   for(const bag of [params,explicitPath,explicitQuery,object(input.payload??input.body)])if(bag[key]!==undefined&&!aliases[gateway]?.includes(key))assertSameAlias(value,gateway==='meta_native_action'&&key==='fields'&&Array.isArray(bag[key])?bag[key].join(','):bag[key],key);
+   params[key]??=value;
+  }
+  const bodies=[input.payload,input.body,params.payload,params.body].filter(v=>v!==undefined);
+  for(const v of bodies.slice(1))assertSameAlias(bodies[0],v,'payload/body');
+  let body=bodies[0];
   delete params.payload;delete params.body;
-  if(['dv360_native_action','linkedin_native_action'].includes(gateway)&&typeof body==='string'){
+  if(['dv360_native_action','linkedin_native_action','x_ads_native_action'].includes(gateway)&&typeof body==='string'){
    try{body=JSON.parse(body);}catch{throw new MirrorError('INVALID_JSON_BODY','body/payload must contain valid JSON.');}
    if(!body||typeof body!=='object')throw new MirrorError('INVALID_JSON_BODY','body/payload must decode to an object or array.');
    guardInput(body);
   }
+  if(body!==undefined&&(!body||typeof body!=='object'))throw new MirrorError('INVALID_JSON_BODY','body/payload must be an object or array.');
+  for(const [key,value]of Object.entries(top))if(object(body)[key]!==undefined&&!aliases[gateway]?.includes(key))assertSameAlias(value,gateway==='meta_native_action'&&key==='fields'&&Array.isArray(object(body)[key])?object(body)[key].join(','):object(body)[key],key);
   const values={...params,...object(body),...explicitQuery,...explicitPath};
   const account=aliases[gateway]?.map(k=>input[k]??values[k]).find(v=>v!==undefined&&v!==null&&v!=='');
   const accountId=account===undefined?undefined:String(account);
@@ -74,8 +86,18 @@ export class Compiler {
   const query:JsonObject={...templateQuery};const headers:Record<string,string>={};
   let method=action.method.toUpperCase();let readOnly=action.read_only===true;
   const queryOnly=['GET','HEAD','DELETE'].includes(method)||gateway==='linkedin_native_action'||gateway==='dv360_native_action';
+  if(!queryOnly&&Array.isArray(body)&&Object.keys(remaining).length)throw new MirrorError('UNSUPPORTED_PARAMETER','Array payloads cannot be merged with body parameters. Use query for explicit URL parameters.',{parameter:'params'});
   if(queryOnly)Object.assign(query,remaining,explicitQuery);
   else {body=Array.isArray(body)?body:{...remaining,...object(body)};Object.assign(query,explicitQuery);}
+  if(['GET','HEAD'].includes(method)&&body!==undefined){
+   const supplied=object(body);for(const key of consumed)delete supplied[key];
+   if(Array.isArray(body)||Object.keys(supplied).length)throw new MirrorError('UNSUPPORTED_PARAMETER','GET/HEAD requests cannot carry a payload. Put native request fields in params or query.',{parameter:'payload'});
+   body=undefined;
+  }
+  if(gateway==='meta_native_action'){
+   if(Array.isArray(query.fields))query.fields=query.fields.join(',');
+   if(!Array.isArray(body)&&Array.isArray(object(body).fields))body={...object(body),fields:object(body).fields.join(',')};
+  }
   if(gateway==='tiktok_native_action'&&accountId){if(['GET','HEAD','DELETE'].includes(method))query.advertiser_id??=accountId;else if(!Array.isArray(body))body={advertiser_id:accountId,...object(body)};if(input.lead_region)headers['X-Lead-Region']=input.lead_region;}
   if(gateway==='google_ads_native_action'){
    const desc=this.registry.data.descriptions[gateway+'/'+action.name];
@@ -101,7 +123,7 @@ export class Compiler {
    readOnly=readOnly&&['GET','HEAD'].includes(override);
   }
   if(gateway==='meta_native_action'&&query.batch!==undefined)readOnly=false;
-  return {gateway,action:action.name,method,path,query,...(absolute?{origin:absolute.origin}:{}),...(body===undefined?{}:{body}),headers,readOnly,destructive:action.destructive===true||headers['X-HTTP-Method-Override']==='DELETE',requiresConfirmation:!readOnly,accountId,evidence:action.evidence,warnings:['Request routing compiled locally; live behavioral parity is tracked separately.'],specialTransport:action.raw.special_transport??undefined};
+  return {gateway,action:action.canonical_name||action.name,method,path,query,...(absolute?{origin:absolute.origin}:{}),...(body===undefined?{}:{body}),headers,readOnly,destructive:action.destructive===true||headers['X-HTTP-Method-Override']==='DELETE',requiresConfirmation:!readOnly,accountId,evidence:action.evidence,warnings:['Request routing compiled locally; live behavioral parity is tracked separately.'],specialTransport:action.raw.special_transport??undefined,...(projection?{responseControls:projection}:{})};
  }
  private native(gateway:string,input:JsonObject):CompiledRequest{
   const n=input.native_request;if(!['GET','POST','PUT','PATCH','DELETE'].includes(n.method)||typeof n.path!=='string')throw new MirrorError('INVALID_NATIVE_REQUEST','Provide a supported HTTP method and a relative path.');

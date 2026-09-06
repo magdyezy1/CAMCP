@@ -28,6 +28,7 @@ export interface CompiledRequest {
   headers:Record<string,string>; readOnly:boolean; destructive:boolean; requiresConfirmation:boolean;
   accountId?:string; evidence:string; warnings:string[]; specialTransport?:string;
   queryArrayEncoding?:'json'|'repeat';
+  responseControls?:import('./projection.js').ResponseControls;
 }
 export interface EnhancementFlags {
   catalogEnvelope?:boolean; catalogPagination?:boolean; catalogFields?:boolean;

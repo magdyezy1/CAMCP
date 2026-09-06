@@ -1,0 +1,104 @@
+[
+  {
+    "gateway": "meta_native_action",
+    "source": {
+      "file": "meta_native_action/preview-empty-payload.json",
+      "sha256": "2479bf7d6303370f28ed0a6d9907b1c395e4ebe49f2b9fdacc5e88d308ee5679",
+      "captured_at": "2026-09-04T23:45:33.716Z"
+    },
+    "comparison": "compiled_route_subset",
+    "normalization": "Account identifiers replaced consistently with synthetic 123; X endpoint expanded using the captured request account_id. No response envelope, headers or preflight receipts are asserted.",
+    "input": {
+      "action": "meta_ad_account_id_campaigns_create",
+      "account_id": "123",
+      "payload": {},
+      "dry_run": true,
+      "confirmed": false
+    },
+    "expected": {
+      "action": "meta_ad_account_id_campaigns_create",
+      "method": "POST",
+      "path": "/v25.0/act_123/campaigns",
+      "query": {},
+      "body": {}
+    }
+  },
+  {
+    "gateway": "tiktok_native_action",
+    "source": {
+      "file": "tiktok_native_action/preview-empty-payload.json",
+      "sha256": "6e1ecf195eeff647662742741b75f596e0fba2095877e5f2185e0977cbd5ba88",
+      "captured_at": "2026-09-04T23:45:55.548Z"
+    },
+    "comparison": "compiled_route_subset",
+    "normalization": "Account identifiers replaced consistently with synthetic 123; X endpoint expanded using the captured request account_id. No response envelope, headers or preflight receipts are asserted.",
+    "input": {
+      "action": "tiktok_campaign_create",
+      "advertiser_id": "123",
+      "payload": {},
+      "dry_run": true,
+      "confirmed": false
+    },
+    "expected": {
+      "action": "tiktok_campaign_create",
+      "method": "POST",
+      "path": "/v1.3/campaign/create/",
+      "query": {},
+      "body": {
+        "advertiser_id": "123"
+      }
+    }
+  },
+  {
+    "gateway": "snapchat_native_action",
+    "source": {
+      "file": "snapchat_native_action/preview-empty-payload.json",
+      "sha256": "86355c1b541bb102e80f8c5e5c5c3fed5b2605a566a552b9c79366376a714c89",
+      "captured_at": "2026-09-04T23:46:09.496Z"
+    },
+    "comparison": "compiled_route_subset",
+    "normalization": "Account identifiers replaced consistently with synthetic 123; X endpoint expanded using the captured request account_id. No response envelope, headers or preflight receipts are asserted.",
+    "input": {
+      "action": "snapchat_campaign_create",
+      "ad_account_id": "123",
+      "payload": {
+        "campaigns": []
+      },
+      "dry_run": true,
+      "confirmed": false
+    },
+    "expected": {
+      "action": "snapchat_adaccounts_ad_account_id_campaigns_create",
+      "method": "POST",
+      "path": "/v1/adaccounts/123/campaigns",
+      "query": {},
+      "body": {
+        "campaigns": []
+      }
+    }
+  },
+  {
+    "gateway": "x_ads_native_action",
+    "source": {
+      "file": "x_ads_native_action/preview-empty-payload.json",
+      "sha256": "b0c064126e18c94a4de0dedd0b0ce99c45de070be1b5fe0a1481f27313d9ca80",
+      "captured_at": "2026-09-04T23:46:18.240Z"
+    },
+    "comparison": "compiled_route_subset",
+    "normalization": "Account identifiers replaced consistently with synthetic 123; X endpoint expanded using the captured request account_id. No response envelope, headers or preflight receipts are asserted.",
+    "input": {
+      "action": "x_accounts_account_id_campaigns_post",
+      "account_id": "123",
+      "payload": {},
+      "dry_run": true,
+      "confirmed": false
+    },
+    "expected": {
+      "action": "x_accounts_account_id_campaigns_post",
+      "method": "POST",
+      "path": "/12/accounts/123/campaigns",
+      "query": {},
+      "body": {}
+    }
+  }
+]

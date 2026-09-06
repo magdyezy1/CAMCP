@@ -33,6 +33,8 @@ This release permits **reads and local dry runs**. Live advertising mutations ar
 
 Full production qualification of every provider and workflow is **not complete**. Provider app approval, production OAuth round trips, complete asset discovery coverage, special media transports, and some delegated workflows remain outstanding. See [deployment acceptance limits](docs/DEPLOY-RAILWAY.md#operations-and-qualification) and run `npm run report` for the current implementation inventory. Private account evidence, credentials, local databases, and the original project brief are excluded from this public repository.
 
+The [hardening review](docs/HARDENING-REVIEW.md) records parameter behavior, measured fixture checks, and suggestions deferred for insufficient evidence.
+
 ## Deployment files
 
 `railway.json` selects the Dockerfile, checks `/healthz`, and runs a single replica. Attach a volume at `/data`. The website, MCP endpoint, and report worker run together. Register callbacks such as **https://amcp.shop/api/auth/snapchat/callback** after the domain is live.

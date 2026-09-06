@@ -15,6 +15,7 @@ import {DelegatedNativeCompiler} from './delegated-native.js';
 import {WorkflowEngine} from './workflows.js';
 import {ReportingService,reportingOperations} from './reporting.js';
 import {applyExecutionRisk} from './execution-risk.js';
+import {projectResponse} from './projection.js';
 export const strictOptions:CallOptions={mode:'strict',flags:{}};
 export class MirrorService {
  readonly compiler:Compiler;readonly introspection:Introspection;readonly credentials:CredentialProvider;
@@ -47,7 +48,8 @@ export class MirrorService {
   try{
    const fetchPage=async(p:CompiledRequest)=>{scope.authorize(p,connection);const {data,status}=await this.transport.request(p,connection,credentials);this.delegatedCompiler.validateResponse(p,data,status);scope.observe(p,connection,data);return data;};
    const result=input.aggregate_pages||input.paginate||input.allPages?await paginate(plan,fetchPage,Number(input.max_pages??25)):{data:await fetchPage(plan),pages:1,truncated:false};
-   const outcome={success:true,action:plan.action,dry_run:false,...result};
+   const projected=projectResponse(result.data,plan.responseControls);
+   const outcome={success:true,action:plan.action,dry_run:false,...result,data:projected.data,truncated:result.truncated||projected.truncated,...(projected.truncated?{response_truncated:true}:{})};
    this.store.appendAudit(actor.tenantId,requestId,{event:'request_completed',request:plan,outcome});if(!plan.readOnly)this.store.complete(actor.tenantId,input.idempotency_key,outcome);return outcome;
   }catch(e){if(!plan.readOnly)this.store.uncertain(actor.tenantId,input.idempotency_key);this.store.appendAudit(actor.tenantId,requestId,{event:'request_failed',request:plan,error:e instanceof MirrorError?{code:e.code,message:e.message,details:e.details}:{code:'INTERNAL_ERROR'}});throw e;}
  }
