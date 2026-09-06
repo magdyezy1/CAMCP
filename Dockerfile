@@ -19,6 +19,6 @@ COPY deploy/entrypoint.sh /usr/local/bin/amcp-entrypoint
 RUN chmod 755 /usr/local/bin/amcp-entrypoint
 RUN mkdir /data && chown node:node /data
 EXPOSE 4317
-VOLUME ["/data"]
+# Attach /data using Railway's service volume configuration.
 ENTRYPOINT ["amcp-entrypoint"]
 CMD ["node", "dist/server/http.js"]

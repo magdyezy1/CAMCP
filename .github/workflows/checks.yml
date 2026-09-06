@@ -14,5 +14,6 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: node --check web/app.js
+      - run: node deploy/check-railway.mjs
       - run: docker build -t amcp:check .
       - run: node deploy/smoke.mjs

@@ -8,6 +8,8 @@ This application runs its website, OAuth callbacks, MCP server, and report worke
 
 In Railway, create a project from the AMCP GitHub repository. Railway reads `railway.json` and builds the included Dockerfile. Add a volume mounted at `/data` before connecting accounts. The container initializes the mount directory and then runs Node as the unprivileged `node` user.
 
+Railway rejects Dockerfile `VOLUME` instructions. This image deliberately has none: create the persistent volume in Railway and set its mount path to `/data`. Keep the domain target port and the `PORT` service variable both set to `4317`.
+
 Add these service variables:
 
 | Variable | Value |

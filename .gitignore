@@ -18,5 +18,4 @@ coverage/
 secrets/
 auth.json
 tokens.json
-
 .release/
