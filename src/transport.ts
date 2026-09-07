@@ -30,7 +30,7 @@ export function oauth1(method:string,url:URL,credentials:Credentials,bodyParams?
 }
 function camelKeys(value:unknown):unknown{
  if(Array.isArray(value))return value.map(camelKeys);
- if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).map(([k,v])=>[k.replace(/_([a-z])/g,(_,c:string)=>c.toUpperCase()),camelKeys(v)]));
+ if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).map(([k,v])=>[k.replace(/_([a-z])/g,(_,c:string)=>c.toUpperCase()),/^(?:update_mask|updateMask|read_mask|readMask)$/.test(k)&&typeof v==='string'?v.replace(/_([a-z])/g,(_,c:string)=>c.toUpperCase()):camelKeys(v)]));
  return value;
 }
 export interface TransportResult {data:unknown;status:number;headers:Record<string,string>}
@@ -50,7 +50,7 @@ export class NativeTransport {
   let body:BodyInit|undefined;let form:URLSearchParams|undefined;
   if(plan.body!==undefined){
    if(plan.gateway==='meta_native_action'||plan.gateway==='x_ads_native_action'&&!plan.path.includes('/batch/')){form=new URLSearchParams();for(const [k,v]of Object.entries(plan.body as JsonObject))form.set(k,typeof v==='object'?JSON.stringify(v):String(v));body=form.toString();headers['Content-Type']='application/x-www-form-urlencoded';}
-   else {body=JSON.stringify(plan.gateway==='google_ads_native_action'?camelKeys(plan.body):plan.body);headers['Content-Type']='application/json';}
+   else {body=JSON.stringify(plan.gateway==='google_ads_native_action'?camelKeys(plan.body):plan.body);headers['Content-Type']=plan.gateway==='snapchat_native_action'&&plan.method==='PATCH'?'application/json-patch+json':'application/json';}
   }
   if(credentials.accessToken){if(plan.gateway==='tiktok_native_action')headers['Access-Token']=credentials.accessToken;else headers.Authorization='Bearer '+credentials.accessToken;}
   if(plan.gateway==='google_ads_native_action'){
@@ -68,7 +68,7 @@ export class NativeTransport {
    try{
     const response=await this.fetcher(url,{method:plan.method,headers,body,redirect:'error',signal:AbortSignal.timeout(this.timeoutMs)});
     if([429,502,503,504].includes(response.status)&&attempt+1<maxAttempts){await response.body?.cancel();this.metrics.retries++;const retry=Number(response.headers.get('retry-after'));await this.sleeper(Math.min(5000,Math.max(200*2**attempt,Number.isFinite(retry)?retry*1000:0)));continue;}
-    const data=await this.readBody(response,plan.method==='HEAD'||!plan.readOnly&&[204,205].includes(response.status));
+    const data=await this.readBody(response,plan.method==='HEAD'||!plan.readOnly&&([204,205].includes(response.status)||plan.gateway==='linkedin_native_action'&&response.status===201&&response.headers.has('x-restli-id')));
     if(!response.ok){const code=response.status===401?'AUTH_EXPIRED':response.status===403?'INSUFFICIENT_SCOPE':response.status===429?'PLATFORM_RATE_LIMIT':'UPSTREAM_ERROR';throw new MirrorError(code,'Platform returned HTTP '+response.status,{upstream:redact(data)},response.status,response.status===429||response.status>=500);}
     if(data&&typeof data==='object'){
      const d=data as JsonObject;

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "AMCP advertising workspace, OAuth connections, and read-only MCP server",
+  "description": "AMCP advertising workspace, OAuth connections, and reviewed MCP campaign operations",
   "engines": {
     "node": ">=24"
   },

@@ -16,6 +16,8 @@ export interface Connection {
   baseUrl?:string; apiVersion?:string; scopes:string[]; userAgent?:string;
   resourceBindings?:{accountId:string;pathPrefix:string;query?:JsonObject}[];
   isDefault?:boolean;
+  /** Explicit per-account mutation grants; absent means read-only. */
+  writeAccounts?:string[];
 }
 export interface Credentials {
   accessToken?:string; refreshToken?:string; expiresAt?:number; clientId?:string; clientSecret?:string;

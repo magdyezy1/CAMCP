@@ -17,3 +17,4 @@ jobs:
       - run: node deploy/check-railway.mjs
       - run: docker build -t amcp:check .
       - run: node deploy/smoke.mjs
+      - run: node deploy/smoke.mjs --writes

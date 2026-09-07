@@ -8,7 +8,7 @@ import {CredentialProvider} from './auth.js';
 import {NativeTransport} from './transport.js';
 import {authorizeExecution,readOnlyPolicy,type ExecutionPolicy} from './preflight.js';
 import {errorResult,MirrorError} from './errors.js';
-import {redact,sha256,stable} from './security.js';
+import {redact} from './security.js';
 import {paginate} from './pagination.js';
 import {ScopeGuard} from './scope.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
@@ -16,14 +16,17 @@ import {WorkflowEngine} from './workflows.js';
 import {ReportingService,reportingOperations} from './reporting.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {projectResponse} from './projection.js';
+import {WriteReviewService,writeTool} from './write-review.js';
 export const strictOptions:CallOptions={mode:'strict',flags:{}};
 export class MirrorService {
  readonly compiler:Compiler;readonly introspection:Introspection;readonly credentials:CredentialProvider;
  readonly delegatedCompiler=new DelegatedNativeCompiler();
+ listTools(){return [...this.registry.listTools(this.options),...(this.policy.allowWrites?[writeTool]:[])];}
  constructor(readonly registry:Registry,readonly store:Store,readonly transport=new NativeTransport(),readonly options:CallOptions=strictOptions,readonly policy:ExecutionPolicy=readOnlyPolicy){this.compiler=new Compiler(registry);this.introspection=new Introspection(registry);this.credentials=new CredentialProvider(store);}
  async call(tool:string,input:JsonObject,actor:Actor):Promise<JsonObject>{
   const requestId=randomUUID(),start=Date.now();
   try{
+   if(tool===writeTool.name){const result:any=await new WriteReviewService(this.registry,this.compiler,this.store,this.transport,this.credentials,this.options,this.policy).call(input,actor);return {...this.wrap(result,requestId,start),...(result.success===false?{success:false,error:{code:'WRITE_PARTIAL_OR_FAILED',message:'Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.'}}:{})};}
    this.registry.validate(tool,input,this.options);
    if(tool==='whathead_tool_help')return this.registry.help(input,this.options);
    if(input.action==='LIST_ACTIONS')return this.wrap(this.introspection.list(tool,input,this.options),requestId,start);
@@ -39,19 +42,19 @@ export class MirrorService {
   plan=applyExecutionRisk(plan);
   if(input.dry_run===true||!plan.readOnly&&input.dry_run!==false){const result={success:true,dry_run:true,action:plan.action,request:plan,executed:false};this.store.appendAudit(actor.tenantId,requestId,{event:'preview',request:plan,outcome:'not_executed'});return result;}
   authorizeExecution(actor,plan,input,this.policy);
+  if(!plan.readOnly)throw new MirrorError('WRITE_REVIEW_REQUIRED','Use amcp_write prepare and execute for a reviewed mutation.');
   const connection=this.store.resolveConnection(actor,plan.gateway,plan.accountId,input.connection_id??input.connectionId);
   if(!plan.accountId&&connection.accounts.length!==1)throw new MirrorError('ACCOUNT_REQUIRED','Specify an account_id for this connection.');
   const scope=new ScopeGuard(this.registry,this.store);scope.authorize(plan,connection);
-  const credentials=await this.credentials.get(connection);const fingerprint=sha256(stable({connection_id:connection.id,plan}));
-  if(!plan.readOnly){const claim=this.store.claim(actor.tenantId,input.idempotency_key,fingerprint);if(!claim.fresh)return claim.result;}
-  this.store.appendAudit(actor.tenantId,requestId,{event:'request_started',actor:actor.userId,request:plan,before_state:input.before_state??null});
+  const credentials=await this.credentials.get(connection);
+  this.store.appendAudit(actor.tenantId,requestId,{event:'request_started',actor:actor.userId,request:plan});
   try{
-   const fetchPage=async(p:CompiledRequest)=>{scope.authorize(p,connection);const {data,status}=await this.transport.request(p,connection,credentials);this.delegatedCompiler.validateResponse(p,data,status);scope.observe(p,connection,data);return data;};
+   const fetchPage=async(p:CompiledRequest)=>{this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,p.gateway,p.accountId,connection.id);scope.authorize(p,current);const {data,status}=await this.transport.request(p,current,credentials);this.delegatedCompiler.validateResponse(p,data,status);scope.observe(p,current,data);return data;};
    const result=input.aggregate_pages||input.paginate||input.allPages?await paginate(plan,fetchPage,Number(input.max_pages??25)):{data:await fetchPage(plan),pages:1,truncated:false};
    const projected=projectResponse(result.data,plan.responseControls);
    const outcome={success:true,action:plan.action,dry_run:false,...result,data:projected.data,truncated:result.truncated||projected.truncated,...(projected.truncated?{response_truncated:true}:{})};
-   this.store.appendAudit(actor.tenantId,requestId,{event:'request_completed',request:plan,outcome});if(!plan.readOnly)this.store.complete(actor.tenantId,input.idempotency_key,outcome);return outcome;
-  }catch(e){if(!plan.readOnly)this.store.uncertain(actor.tenantId,input.idempotency_key);this.store.appendAudit(actor.tenantId,requestId,{event:'request_failed',request:plan,error:e instanceof MirrorError?{code:e.code,message:e.message,details:e.details}:{code:'INTERNAL_ERROR'}});throw e;}
+   this.store.appendAudit(actor.tenantId,requestId,{event:'request_completed',request:plan,outcome});return outcome;
+  }catch(e){this.store.appendAudit(actor.tenantId,requestId,{event:'request_failed',request:plan,error:e instanceof MirrorError?{code:e.code,message:e.message,details:e.details}:{code:'INTERNAL_ERROR'}});throw e;}
  }
  private async delegated(gateway:string,operation:string,args:JsonObject,actor:Actor,requestId:string):Promise<unknown>{
   if(this.delegatedCompiler.isNativeOperation(gateway,operation))return this.runPlan(this.delegatedCompiler.compile(gateway,{operation,arguments:args}),args,actor,requestId);

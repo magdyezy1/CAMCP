@@ -7,6 +7,7 @@ import {SecretBox,sha256,stable,redact,scopeKey} from './security.js';
 import type {Actor,Connection,Credentials,JsonObject} from './types.js';
 export class Store {
  readonly db:DatabaseSync;private box?:SecretBox;
+ private authenticatedActors=new WeakMap<Actor,string>();
  constructor(filename:string,masterKey?:string){
   if(masterKey)this.box=new SecretBox(masterKey);
   if(filename!==':memory:')fs.mkdirSync(path.dirname(filename),{recursive:true});
@@ -43,13 +44,20 @@ export class Store {
  authenticate(token:string):Actor{
   const row=this.db.prepare('SELECT * FROM api_keys WHERE hash=? AND revoked=0 AND (expires_at IS NULL OR expires_at>?)').get(sha256(token),Date.now()) as JsonObject|undefined;
   if(!row)throw new MirrorError('UNAUTHORIZED','A valid, unexpired API key is required.',{},401);
-  return {tenantId:row.tenant_id,userId:row.user_id,role:row.role};
+  const actor:Actor={tenantId:row.tenant_id,userId:row.user_id,role:row.role};this.authenticatedActors.set(actor,sha256(token));return actor;
+ }
+ /** HTTP actors retain a process-local credential identity without exposing the token or hash. */
+ assertActorActive(actor:Actor):void{
+  const hash=this.authenticatedActors.get(actor);if(!hash)return; // Trusted local/stdio actors have no bearer credential.
+  const row=this.db.prepare('SELECT tenant_id,user_id,role FROM api_keys WHERE hash=? AND revoked=0 AND (expires_at IS NULL OR expires_at>?)').get(hash,Date.now()) as JsonObject|undefined;
+  if(!row||row.tenant_id!==actor.tenantId||row.user_id!==actor.userId||row.role!==actor.role)throw new MirrorError('UNAUTHORIZED','Connector access expired, changed or was revoked during this request.',{},401);
  }
  revokeKey(token:string){this.db.prepare('UPDATE api_keys SET revoked=1 WHERE hash=?').run(sha256(token));}
  putConnection(actor:Actor,connection:Connection,credentials:Credentials){
   if(actor.role!=='admin'||actor.tenantId!==connection.tenantId)throw new MirrorError('FORBIDDEN','Only a tenant administrator can provision a connection.',{},403);
   if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Configure MIRROR_MASTER_KEY before storing credentials.',{},503);
   if(connection.enabled&&!connection.accounts.length||connection.accounts.some(x=>typeof x!=='string'||!x))throw new MirrorError('INVALID_ACCOUNT_BINDING','Enabled connections require explicit nonempty account bindings.');
+  if(connection.writeAccounts!==undefined&&(!Array.isArray(connection.writeAccounts)||connection.writeAccounts.some(id=>typeof id!=='string'||!connection.accounts.includes(id))))throw new MirrorError('INVALID_WRITE_BINDING','Write grants must be a subset of the connection account grants.');
   for(const binding of connection.resourceBindings??[])if(!connection.accounts.includes(binding.accountId)||!/^\/[a-zA-Z0-9]/.test(binding.pathPrefix)||binding.pathPrefix.endsWith('/')||/[?%#\\]|\/\.\.?($|\/)/.test(binding.pathPrefix))throw new MirrorError('INVALID_RESOURCE_BINDING','Resource bindings require an exact safe path prefix and a configured account.');
   this.ensureTenant(actor.tenantId);
   const secret='v2:'+this.box.seal(credentials,scopeKey(connection.tenantId,connection.id));

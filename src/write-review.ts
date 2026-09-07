@@ -1,0 +1,244 @@
+import {randomUUID} from 'node:crypto';
+import {MirrorError} from './errors.js';
+import {Registry} from './catalog.js';
+import {Compiler} from './compiler.js';
+import {Store} from './store.js';
+import {CredentialProvider} from './auth.js';
+import {NativeTransport,type TransportResult} from './transport.js';
+import {ScopeGuard,normalizeAccount} from './scope.js';
+import {applyExecutionRisk} from './execution-risk.js';
+import {authorizeExecution,type ExecutionPolicy} from './preflight.js';
+import {guardInput,redact,sha256,stable} from './security.js';
+import type {Actor,CallOptions,CompiledRequest,Connection,JsonObject} from './types.js';
+
+export const writeTool={name:'amcp_write',description:'Prepare and execute an explicitly reviewed native advertising mutation. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request. Execution requires its review_id, idempotency_key and explicit confirmation. Operator role and administrator account write grants are required. This is an AMCP extension, not a captured WhatHead tool.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['prepare','execute']},gateway:{type:'string'},arguments:{type:'object'},connection_id:{type:'string'},review_id:{type:'string'},idempotency_key:{type:'string'},confirmed:{type:'boolean'},spend_change_confirmed:{type:'boolean'}},additionalProperties:false}};
+const gateways=new Set(['meta_native_action','tiktok_native_action','snapchat_native_action','google_ads_native_action','linkedin_native_action','x_ads_native_action','dv360_native_action']);
+const object=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?v as JsonObject:{};
+const snake=(s:string)=>s.replace(/([a-z0-9])([A-Z])/g,'$1_$2').toLowerCase();
+function fail(code:string,message:string,details:JsonObject={}):never{throw new MirrorError(code,message,details);}
+function cleanedState(value:unknown):unknown {
+ if(Array.isArray(value))return value.map(cleanedState);
+ if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).filter(([k])=>!['request_id','requestId','request_time','requestTime','trace_id','traceId'].includes(k)).map(([k,v])=>[k,cleanedState(v)]));
+ return value;
+}
+export function writeOutcome(result:TransportResult,plan?:CompiledRequest):JsonObject {
+ const errors:JsonObject[]=[];
+ const walk=(value:unknown,path='$')=>{
+  if(Array.isArray(value)){value.forEach((v,i)=>walk(v,path+'['+i+']'));return;}
+  if(!value||typeof value!=='object')return;
+  for(const [key,v]of Object.entries(value)){
+   const nonempty=v!==null&&v!==false&&v!==''&&v!==0&&(!Array.isArray(v)||v.length>0)&&(!v||typeof v!=='object'||Object.keys(v).length>0);
+   if(nonempty&&/error|fail/i.test(key)||/^(?:is_)?success$/.test(key)&&v===false||/status$/i.test(key)&&(typeof v==='string'&&/ERROR|FAIL|PARTIAL/i.test(v)||typeof v==='number'&&v>=400))errors.push({path:path+'.'+key,value:v});
+   else walk(v,path+'.'+key);
+  }
+ };walk(result.data);
+ if(!plan&&result.status!==204&&result.status!==205&&!result.headers['x-restli-id']&&(result.data===null||typeof result.data!=='object'||!Object.keys(result.data).length))errors.push({path:'$',value:'Provider returned no verifiable mutation result.'});
+ if(plan&&!confirmedMutationResult(plan,result))errors.push({path:'$',value:'The response does not confirm every mutation under this provider response contract.'});
+ return {success:errors.length===0,executed:true,outcome:errors.length?'partial_or_failed':'succeeded',data:result.data,status:result.status,headers:result.headers,...(result.headers['x-restli-id']?{created_id:result.headers['x-restli-id']}:{ }),...(errors.length?{failures:errors,retry_safe:false}:{})};
+}
+function confirmedMutationResult(plan:CompiledRequest,result:TransportResult):boolean {
+ const d=object(result.data),b=object(plan.body),segments=plan.path.split('/'),last=segments.at(-1)!,hasId=(v:unknown)=>typeof v==='string'&&v.length>0||typeof v==='number'&&Number.isSafeInteger(v);
+ if(plan.gateway==='meta_native_action')return /^\/v[^/]+\/act_/.test(plan.path)?hasId(d.id):d.success===true;
+ if(plan.gateway==='google_ads_native_action')return Array.isArray(d.results)&&d.results.length===b.operations.length&&d.results.every((r:JsonObject,i:number)=>{
+  const op=b.operations[i],expected=op.remove??op.update?.resource_name??op.update?.resourceName;return typeof r.resourceName==='string'&&(expected?r.resourceName===expected:r.resourceName.startsWith('customers/'+plan.accountId+'/'+last.replace(':mutate','')+'/'));
+ });
+ if(plan.gateway==='tiktok_native_action'){
+  if(d.code!==0)return false;if(!plan.path.endsWith('/create/'))return true;
+  const kind=segments[2]!,data=object(d.data);return hasId(data[kind+'_id'])||Array.isArray(data[kind+'_ids'])&&data[kind+'_ids'].length>0&&data[kind+'_ids'].every(hasId);
+ }
+ if(plan.gateway==='snapchat_native_action'){
+  if(String(d.request_status).toUpperCase()!=='SUCCESS')return false;
+  const kind=['campaigns','adsquads','ads'].find(k=>segments.includes(k))!,rows=d[kind];
+  if(plan.method==='DELETE')return Array.isArray(rows)&&rows.length===0;
+  const singular=kind==='adsquads'?'adsquad':kind.slice(0,-1),expected=Array.isArray(b[kind])?b[kind].length:1;
+  return Array.isArray(rows)&&rows.length===expected&&rows.every((r,i)=>String(r.sub_request_status).toUpperCase()==='SUCCESS'&&hasId(r[singular]?.id)&&(plan.method==='POST'||String(r[singular].id)===String(plan.method==='PUT'?b[kind][i].id:last)));
+ }
+ if(plan.gateway==='linkedin_native_action')return result.status===201?hasId(result.headers['x-restli-id']):result.status===204;
+ if(plan.gateway==='x_ads_native_action')return Array.isArray(d.data)?plan.method==='POST'&&d.data.length>0&&d.data.every(r=>hasId(r.id)):hasId(d.data?.id)&&(plan.method==='POST'||String(d.data.id)===last);
+ if(plan.gateway==='dv360_native_action'){
+  if(plan.method==='DELETE')return result.status===200&&result.data!==null&&Object.keys(d).length===0||result.status===204;
+  const kind=plan.method==='POST'?last:segments.at(-2)!,key:Record<string,string>={campaigns:'campaignId',insertionOrders:'insertionOrderId',lineItems:'lineItemId',creatives:'creativeId'};return hasId(d[key[kind]!])&&(plan.method==='POST'||String(d[key[kind]!])===last);
+ }
+ return false;
+}
+export function validateState(read:CompiledRequest,result:TransportResult):void {
+ if(writeOutcome(result).success!==true)fail('STATE_READ_FAILED','Failed or partial provider responses cannot verify before-state.');
+ const data=object(result.data),id=normalizeAccount(read.gateway,read.accountId!);
+ const inspect=(v:unknown)=>{if(Array.isArray(v)){v.forEach(inspect);return;}if(!v||typeof v!=='object')return;
+  const r=object(v);if(r.has_more===true||r.hasMore===true||r.nextPageToken||r.next_page_token||r.next_cursor&&r.next_cursor!=='0'||r.next_link||r.paging?.next||r.page_info?.total_page>1||Array.isArray(r.links)&&r.links.some((l:JsonObject)=>l.rel==='next'))fail('INCOMPLETE_STATE','State read was paginated; narrow the mutation.');Object.values(r).forEach(inspect);
+ };inspect(data);
+ const sameIds=(actual:unknown[],expected:unknown[])=>{const clean=(ids:unknown[])=>ids.map(x=>String(x)).sort();if(actual.length!==expected.length||stable(clean(actual))!==stable(clean(expected)))fail('STATE_TARGET_MISMATCH','State read did not return every exact requested target.');};
+ if(read.gateway==='google_ads_native_action'){
+  if(!Array.isArray(data.results)||!data.results.length)fail('STATE_NOT_FOUND','Google state query returned no target rows.');
+  const q=String(object(read.body).query),type=q.match(/ FROM ([a-z_]+)/)?.[1];
+  if(type==='customer'){sameIds(data.results.map((r:JsonObject)=>r.customer?.id),[id]);return;}
+  if(!type)fail('STATE_READ_FAILED','Unrecognized Google state query.');
+  const expected=[...q.matchAll(/'(customers\/[^']+)'/g)].map(m=>m[1]),camel=type.replace(/_([a-z])/g,(_,c:string)=>c.toUpperCase());
+  sameIds(data.results.map((r:JsonObject)=>(r[camel]??r[type])?.resourceName??(r[camel]??r[type])?.resource_name),expected);return;
+ }
+ if(read.gateway==='tiktok_native_action'){
+  if(!Array.isArray(data.data?.list))fail('STATE_READ_FAILED','TikTok state must contain its native list.');
+  const kind=read.path.split('/')[2]!,key=kind==='advertiser'?'advertiser_id':kind+'_id';
+  sameIds(data.data.list.map((r:JsonObject)=>r[key]),kind==='advertiser'?[id]:read.query.filtering[kind+'_ids']);return;
+ }
+ const target=decodeURIComponent(read.path.split('/').at(-1)!).replace(/^act_/,'').split(':').at(-1);
+ if(read.gateway==='meta_native_action'){
+  sameIds([String(data.id).replace(/^act_/,'')],[target]);
+  if(String(read.query.fields).split(',').includes('status')&&!Object.hasOwn(data,'status'))fail('STATE_READ_FAILED','Meta did not return the requested target status.');return;
+ }
+ if(read.gateway==='snapchat_native_action'){
+  const kind=read.path.split('/').at(-2)!,rows=data[kind];if(!Array.isArray(rows)||rows.length!==1)fail('STATE_READ_FAILED','Snapchat must return one exact target record.');const singular=kind==='adsquads'?'adsquad':kind.slice(0,-1);sameIds(rows.map((r:JsonObject)=>(r[singular]??r).id),[target]);return;
+ }
+ if(read.gateway==='x_ads_native_action'){sameIds([data.data?.id],[target]);return;}
+ if(read.gateway==='linkedin_native_action'){sameIds([String(data.id??'').split(':').at(-1)],[target]);return;}
+ if(read.gateway==='dv360_native_action'){const key:Record<string,string>={advertisers:'advertiserId',campaigns:'campaignId',insertionOrders:'insertionOrderId',lineItems:'lineItemId',creatives:'creativeId'};sameIds([data[key[read.path.split('/').at(-2)!]!]], [target]);return;}
+ fail('STATE_READ_FAILED','No response contract exists for this state read.');
+}
+function assertWriteShape(plan:CompiledRequest){
+ if(!gateways.has(plan.gateway))fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed write execution is available for the six primary advertising platforms and DV360.');
+ if(plan.readOnly)fail('MUTATION_REQUIRED','Use the original native gateway to perform this read.');
+ if(plan.specialTransport)fail('WRITE_CONTRACT_UNAVAILABLE','Special media transports require a dedicated verified upload implementation.');
+ if(plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['CREATE','PARTIAL_UPDATE','DELETE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))fail('WRITE_CONTRACT_UNAVAILABLE','This REST.li method override is not qualified for reviewed execution.');
+ const body=object(plan.body);
+ const route=plan.path,method=plan.method;
+ const supported=plan.gateway==='meta_native_action'?method==='POST'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads)$/.test(route)||['POST','DELETE'].includes(method)&&/^meta_(campaign_id|ad_set_id|ad_id)_(update|delete)$/.test(plan.action):
+  plan.gateway==='snapchat_native_action'?method==='POST'&&/^\/v1\/(adaccounts\/[^/]+\/(campaigns|adsquads|ads)|campaigns\/[^/]+\/adsquads|adsquads\/[^/]+\/ads)$/.test(route)||method==='PUT'&&/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads)$/.test(route)||method==='PATCH'&&/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads)\/[^/]+$/.test(route)||method==='DELETE'&&/^\/v1\/(campaigns|adsquads|ads)\/[^/]+$/.test(route):
+  plan.gateway==='tiktok_native_action'?method==='POST'&&/^\/v1\.3\/(campaign|adgroup|ad)\/(?:status\/)?(create|update|delete)\/$/.test(route):
+  plan.gateway==='x_ads_native_action'?method==='POST'&&/^\/12\/accounts\/[^/]+\/(campaigns|line_items|promoted_tweets)$/.test(route)||['PUT','DELETE'].includes(method)&&/^\/12\/accounts\/[^/]+\/(campaigns|line_items|promoted_tweets)\/[^/]+$/.test(route):
+  plan.gateway==='linkedin_native_action'?method==='POST'&&/^\/rest\/adAccounts\/[^/]+\/(adCampaigns|adCampaignGroups|creatives)$/.test(route)||['POST','PUT','PATCH','DELETE'].includes(method)&&/^\/rest\/adAccounts\/[^/]+\/(adCampaigns|adCampaignGroups|creatives)\/[^/]+$/.test(route):
+  plan.gateway==='dv360_native_action'?method==='POST'&&/^\/v\d+\/advertisers\/[^/]+\/(campaigns|insertionOrders|lineItems|creatives)$/.test(route)||['PATCH','DELETE'].includes(method)&&/^\/v\d+\/advertisers\/[^/]+\/(campaigns|insertionOrders|lineItems|creatives)\/[^/]+$/.test(route):
+  plan.gateway==='google_ads_native_action'&&method==='POST'&&/^\/v23\/customers\/[^/]+\/(campaigns|adGroups|adGroupAds|campaignBudgets|ads|assetGroups):mutate$/.test(route);
+ if(!supported)fail('WRITE_CONTRACT_UNAVAILABLE','This route is outside the reviewed campaign-management execution contracts. Use a local dry run.');
+ if(Object.keys(plan.query).some(k=>plan.gateway!=='dv360_native_action'||k!=='updateMask'))fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed writes accept body fields; query mutation/tunneling parameters are not allowed.');
+ if(plan.gateway==='linkedin_native_action'&&method==='POST'&&/^\/rest\/adAccounts\/[^/]+\/[^/]+\/[^/]+$/.test(route)&&(!body.patch||plan.headers['X-RestLi-Method']?.toUpperCase()!=='PARTIAL_UPDATE'))fail('WRITE_CONTRACT_UNAVAILABLE','LinkedIn entity POST requires a native patch and restli_method PARTIAL_UPDATE.');
+ if(['method','_method','http_method','method_override','batch','adbatch'].some(k=>plan.query[k]!==undefined||body[k]!==undefined)||/\/batch\//.test(plan.path))fail('WRITE_CONTRACT_UNAVAILABLE','Batch and method-tunneled writes require individual reviewed native requests.');
+ if(plan.method==='GET'||plan.method==='HEAD')fail('WRITE_CONTRACT_UNAVAILABLE','Side-effecting GET/HEAD actions are not qualified for execution.');
+ const expect=(record:JsonObject,key:string,values:string[])=>{if(!values.includes(record[key]))fail('PAUSED_CREATION_REQUIRED','New serving entities require an explicit paused or draft state.',{field:key,allowed:values});};
+ if(plan.gateway==='meta_native_action'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads)$/.test(plan.path)&&plan.method==='POST')expect(body,'status',['PAUSED']);
+ if(plan.gateway==='tiktok_native_action'&&/^\/v1\.3\/(?:campaign|adgroup|ad)\/create\/$/.test(plan.path))expect(body,'operation_status',['DISABLE']);
+ if(plan.gateway==='snapchat_native_action'&&plan.method==='POST'){
+  const kind=plan.path.split('/').at(-1)!;if(!Array.isArray(body[kind])||!body[kind].length||body[kind].length>25)fail('MISSING_PAYLOAD','Provide 1–25 native '+kind+' records.');for(const row of body[kind])expect(object(row),'status',['PAUSED']);
+ }
+ if(plan.gateway==='snapchat_native_action'&&plan.method==='PATCH'){
+  if(!Array.isArray(plan.body)||!plan.body.length||plan.body.length>25||plan.body.some(op=>!op||!['add','remove','replace','test'].includes(op.op)||typeof op.path!=='string'||!/^\/[a-zA-Z0-9_/-]+$/.test(op.path)||op.path.split('/').some((part:string)=>['__proto__','constructor','prototype'].includes(part))||op.op!=='remove'&&!Object.hasOwn(op,'value')))fail('INVALID_PATCH','Use 1–25 native JSON Patch add, remove, replace or test operations.');
+ }
+ if(plan.gateway==='x_ads_native_action'&&/^\/12\/accounts\/[^/]+\/(campaigns|line_items|promoted_tweets)$/.test(plan.path)&&plan.method==='POST')expect(body,'entity_status',['PAUSED']);
+ if(plan.gateway==='linkedin_native_action'&&/^\/rest\/adAccounts\/[^/]+\/(adCampaigns|adCampaignGroups|creatives)$/.test(plan.path)&&plan.method==='POST')expect(body,'status',['PAUSED','DRAFT']);
+ if(plan.gateway==='dv360_native_action'&&/^\/v\d+\/advertisers\/[^/]+\/(campaigns|insertionOrders|lineItems)$/.test(plan.path)&&plan.method==='POST')expect(body,'entityStatus',['ENTITY_STATUS_PAUSED','ENTITY_STATUS_DRAFT']);
+ if(plan.gateway==='google_ads_native_action'){
+  if(!Array.isArray(body.operations)||!body.operations.length||body.operations.length>25)fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed Google mutations require 1–25 homogeneous native operations.');
+  if(/\/(campaigns|adGroups|adGroupAds|assetGroups):mutate$/.test(plan.path))for(const op of body.operations)if(op.create)expect(op.create,'status',['PAUSED']);
+  if(body.partial_failure===true||body.partialFailure===true)fail('WRITE_CONTRACT_UNAVAILABLE','Execute homogeneous Google mutations atomically; partial_failure must be false.');
+  if(body.validate_only===true||body.validateOnly===true)fail('WRITE_CONTRACT_UNAVAILABLE','This tool executes mutations; use a local dry run for validation-only plans.');
+  for(const op of body.operations)if(!op||typeof op!=='object'||['create','update','remove'].filter(k=>op[k]!==undefined).length!==1)fail('INVALID_MUTATION','Each Google operation must contain exactly one create, update or remove.');
+ }
+}
+
+/** Reads are explicitly derived from the target, never supplied by the caller as proof. */
+export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRequest[]{
+ const base=(path:string,query:JsonObject={},body?:JsonObject,method='GET'):CompiledRequest=>applyExecutionRisk({...plan,action:'AMCP_STATE_READ',method,path,query,body,headers:plan.gateway==='linkedin_native_action'?Object.fromEntries(Object.entries(plan.headers).filter(([k])=>['LinkedIn-Version','X-Restli-Protocol-Version'].includes(k))):{},readOnly:true,destructive:false,requiresConfirmation:false,responseControls:undefined,specialTransport:undefined});
+ const id=normalizeAccount(plan.gateway,plan.accountId!),body=object(plan.body);
+ if(plan.gateway==='google_ads_native_action'){
+  const kind=plan.path.match(/\/([^/]+):mutate$/)?.[1],map:Record<string,string>={campaigns:'campaign',adGroups:'ad_group',adGroupAds:'ad_group_ad',campaignBudgets:'campaign_budget',ads:'ad',assetGroups:'asset_group',campaignCriteria:'campaign_criterion',adGroupCriteria:'ad_group_criterion'};
+  if(!kind||!map[kind])fail('WRITE_CONTRACT_UNAVAILABLE','This Google mutation has no implemented state-read contract.');
+  const resource=map[kind]!,snapshots:CompiledRequest[]=[],fields=new Set([resource+'.resource_name']),names:string[]=[];
+  for(const op of body.operations){const record=object(op.update),name=op.remove??record.resource_name??record.resourceName;
+   if(name!==undefined){if(typeof name!=='string'||!new RegExp('^customers/'+id+'/'+kind+'/[0-9~_-]+$').test(name))fail('ACCOUNT_SCOPE_MISMATCH','Google mutation resource does not match the selected customer/type.');names.push(name);}
+   if(op.update){const mask=op.update_mask??op.updateMask;if(typeof mask!=='string'||!mask)fail('MISSING_UPDATE_MASK','Updates require an explicit field mask.');for(const f of mask.split(',')){if(!/^[A-Za-z][A-Za-z0-9_.]*$/.test(f))fail('INVALID_UPDATE_MASK','Invalid field mask.');fields.add(resource+'.'+snake(f));}}
+   if(op.remove){const deletionFields:Record<string,string[]>={campaign:['name','status','campaign_budget','advertising_channel_type'],ad_group:['name','status','campaign','cpc_bid_micros'],ad_group_ad:['status','ad.id','ad.final_urls'],campaign_budget:['name','amount_micros','delivery_method'],ad:['name','final_urls'],asset_group:['name','status','campaign']};for(const f of deletionFields[resource]??[])fields.add(resource+'.'+f);}
+  }
+  const search=(query:string)=>base('/v23/customers/'+id+'/googleAds:search',{}, {query},'POST');
+  if(names.length)snapshots.push(search('SELECT '+[...fields].join(', ')+' FROM '+resource+' WHERE '+resource+'.resource_name IN ('+names.map(n=>"'"+n+"'").join(', ')+')'));
+  if(body.operations.some((op:JsonObject)=>op.create))snapshots.push(search('SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1'));
+  const parents:Record<string,{kind:string;fields:string}>= {campaign_budget:{kind:'campaignBudgets',fields:'campaign_budget.resource_name, campaign_budget.amount_micros'},campaign:{kind:'campaigns',fields:'campaign.resource_name, campaign.status, campaign.campaign_budget'},ad_group:{kind:'adGroups',fields:'ad_group.resource_name, ad_group.status, ad_group.campaign'}};
+  const seen=new Set<string>();for(const op of body.operations)for(const [field,parent]of Object.entries(parents)){
+   const record=object(op.create??op.update),name=record[field]??record[field.replace(/_([a-z])/g,(_,c:string)=>c.toUpperCase())];if(name===undefined||seen.has(name))continue;
+   if(typeof name!=='string'||!new RegExp('^customers/'+id+'/'+parent.kind+'/[0-9]+$').test(name))fail('INVALID_PARENT_RESOURCE','Parent resources must exist in the selected customer. Create temporary resources in a separate review.');
+   seen.add(name);snapshots.push(search('SELECT '+parent.fields+' FROM '+field+' WHERE '+field+'.resource_name IN (\''+name+'\')'));
+  }
+  if(!snapshots.length)fail('WRITE_CONTRACT_UNAVAILABLE','Each operation must contain create, update or remove.');return snapshots;
+ }
+ if(plan.gateway==='tiktok_native_action'){
+  const match=/^\/v1\.3\/(campaign|adgroup|ad)\/(?:status\/)?(create|update|delete)\/$/.exec(plan.path);
+  if(!match)fail('WRITE_CONTRACT_UNAVAILABLE','This TikTok action has no implemented state-read contract.');
+  if(match[2]==='create'){
+   const reads=[base('/v1.3/advertiser/info/',{advertiser_ids:[id]})],parent=match[1]==='adgroup'?'campaign':match[1]==='ad'?'adgroup':undefined;
+   if(parent){const parentId=body[parent+'_id'];if(typeof parentId!=='string'||!/^\d+$/.test(parentId))fail('MISSING_PARAMETER','Child creates require their exact parent ID.');const read=base('/v1.3/'+parent+'/get/',{advertiser_id:id,filtering:{[parent+'_ids']:[parentId]},page_size:100});read.action='tiktok_'+parent+'_get';reads.push(read);}return reads;
+  }
+  const kind=match[1]!,ids=body[kind+'_ids']??(body[kind+'_id']?[body[kind+'_id']]:undefined);
+  if(!Array.isArray(ids)||!ids.length||ids.length>25||ids.some(v=>typeof v!=='string'||!/^\d+$/.test(v)))fail('MISSING_PARAMETER','Supply 1–25 exact '+kind+' IDs.');
+  const read=base('/v1.3/'+kind+'/get/',{advertiser_id:id,filtering:{[kind+'_ids']:ids},page_size:100});read.action='tiktok_'+kind+'_get';return [read];
+ }
+ if(plan.gateway==='meta_native_action'){
+  const create=/^\/v[^/]+\/act_[^/]+\//.test(plan.path)&&plan.method==='POST';
+  if(create){const reads=[base(plan.path.match(/^\/v[^/]+\/act_[^/]+/)![0],{fields:'id,account_status,currency'})];const parent=plan.path.endsWith('/adsets')?body.campaign_id:plan.path.endsWith('/ads')?body.adset_id:undefined;
+   if(!plan.path.endsWith('/campaigns')){if(typeof parent!=='string'||!/^\d+$/.test(parent))fail('MISSING_PARAMETER','Child creates require their exact parent ID.');reads.push(base(plan.path.split('/').slice(0,2).join('/')+'/'+parent,{fields:'id,name,status'}));}return reads;}
+  if(/^\/v[^/]+\/\d+$/.test(plan.path)){const fields=new Set(['id','name','status']);for(const k of Object.keys(body))if(/^[a-z_]+$/.test(k)&&!['execution_options','fields'].includes(k))fields.add(k);return [base(plan.path,{fields:[...fields].join(',')})];}
+ }
+ if(plan.gateway==='snapchat_native_action'&&plan.method==='PUT'){
+  const kind=plan.path.split('/').at(-1)!,rows=body[kind];if(!Array.isArray(rows)||!rows.length||rows.length>25)fail('MISSING_PAYLOAD','Provide 1–25 native update records.');
+  return rows.map(row=>{if(typeof row.id!=='string'||!/^[-a-zA-Z0-9]+$/.test(row.id))fail('MISSING_PARAMETER','Each update record requires its exact ID.');return base('/v1/'+kind+'/'+row.id);});
+ }
+ if(plan.gateway==='snapchat_native_action'&&plan.method==='PATCH'){const match=/\/adaccounts\/[^/]+\/(campaigns|adsquads|ads)\/([^/]+)$/.exec(plan.path)!;return [base('/v1/'+match[1]+'/'+match[2])];}
+ const catalog=registry.catalogs.get(plan.gateway);
+ const samePath=[...(catalog?.actions??[]),...registry.data.supplemental.filter(a=>a.gateway===plan.gateway)].some(a=>a.method==='GET'&&a.path&&new RegExp('^'+a.path.split('?')[0]!.replace(/[.*+?^$()|[\]\\]/g,'\\$&').replace(/\{[^}]+\}/g,'[^/]+')+'$').test(plan.path));
+ const accountPaths:Record<string,RegExp>={snapchat_native_action:/^\/v1\/adaccounts\/[^/]+/,x_ads_native_action:/^\/12\/accounts\/[^/]+/,linkedin_native_action:/^\/rest\/adAccounts\/[^/]+/,dv360_native_action:/^\/v\d+\/advertisers\/[^/]+/};
+ const account=accountPaths[plan.gateway]?.exec(plan.path)?.[0];
+ if(plan.gateway==='snapchat_native_action'&&plan.method==='POST'&&!account)return [base(plan.path.slice(0,plan.path.lastIndexOf('/')))];
+ // On collection creates, snapshot the account. On edits/deletes, the catalog must expose a matching GET.
+ if(plan.method==='POST'&&account&&plan.path.slice(account.length).split('/').filter(Boolean).length===1)return [base(account)];
+ if(samePath&&['POST','PUT','PATCH','DELETE'].includes(plan.method))return [base(plan.path)];
+ fail('WRITE_CONTRACT_UNAVAILABLE','This operation lacks an implemented target-state read. It remains available as a local dry run.');
+}
+
+export class WriteReviewService {
+ constructor(private registry:Registry,private compiler:Compiler,private store:Store,private transport:NativeTransport,private credentials:CredentialProvider,private options:CallOptions,private policy:ExecutionPolicy){}
+ private access(actor:Actor,plan:CompiledRequest,connectionId?:string):Connection {
+  this.store.assertActorActive(actor);
+  if(!this.policy.allowWrites)fail('LIVE_WRITES_DISABLED','Enable MIRROR_ALLOW_WRITES=true for reviewed write support.');
+  if(actor.role==='reader')throw new MirrorError('FORBIDDEN','A writer connector and administrator account grant are required.',{},403);
+  const c=this.store.resolveConnection(actor,plan.gateway,plan.accountId,connectionId),id=normalizeAccount(plan.gateway,plan.accountId??(c.accounts.length===1?c.accounts[0]:''));
+  if(!id||!c.writeAccounts?.some(a=>normalizeAccount(c.gateway,a)===id))throw new MirrorError('WRITE_ACCOUNT_FORBIDDEN','The administrator has not enabled writes for this account.',{},403);
+  plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);return c;
+ }
+ private async state(actor:Actor,plan:CompiledRequest,connectionId:string,reads:CompiledRequest[]):Promise<unknown[]> {
+  const values:unknown[]=[];
+  for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);const result=await this.transport.request(read,c,auth);
+   validateState(read,result);values.push(cleanedState(result.data));
+  }return values;
+ }
+ async call(input:JsonObject,actor:Actor):Promise<unknown>{
+  guardInput(input);for(const key of Object.keys(input))if(!Object.hasOwn(writeTool.inputSchema.properties,key))fail('INVALID_ARGUMENT','Unknown write-tool parameter.',{parameter:key});
+  if(input.action==='prepare'){
+   if(typeof input.gateway!=='string'||!input.arguments||typeof input.arguments!=='object'||Array.isArray(input.arguments))fail('INVALID_ARGUMENT','prepare requires gateway and arguments.');
+   if(['aggregate_pages','paginate','allPages'].some(k=>input.arguments[k]))fail('MUTATION_PAGINATION_FORBIDDEN','A reviewed mutation executes exactly one request.');
+   const args={...input.arguments,dry_run:true};this.registry.validate(input.gateway,args,this.options);const plan=applyExecutionRisk(this.compiler.compile(input.gateway,args,this.options));
+   assertWriteShape(plan);const c=this.access(actor,plan,input.connection_id??args.connection_id),reads=snapshotPlans(plan,this.registry),state=await this.state(actor,plan,c.id,reads);
+   const reviewId=randomUUID(),fingerprint=sha256(stable({tenant:actor.tenantId,user:actor.userId,connection:c.id,plan})),expiresAt=Date.now()+300000;
+   this.store.putDocument(actor.tenantId,'write_review',reviewId,{user_id:actor.userId,connection_id:c.id,plan,reads,state,fingerprint,expires_at:expiresAt});
+   this.store.appendAudit(actor.tenantId,reviewId,{event:'write_prepared',request:plan,fingerprint,expires_at:expiresAt});
+   return {success:true,executed:false,review_id:reviewId,idempotency_key:reviewId,expires_at:new Date(expiresAt).toISOString(),request:redact(plan),before_state:redact(state),fingerprint,confirmation_required:true};
+  }
+  if(input.action!=='execute'||typeof input.review_id!=='string')fail('INVALID_ARGUMENT','Use prepare or execute with a review_id.');
+  if(input.arguments!==undefined||input.gateway!==undefined||input.connection_id!==undefined)fail('INVALID_ARGUMENT','Execute uses the frozen reviewed request; prepare a new review to change it.');
+  const review=this.store.document(actor.tenantId,'write_review',input.review_id);
+  if(review.user_id!==actor.userId)throw new MirrorError('FORBIDDEN','The review belongs to a different actor.',{},403);
+  const plan=review.plan as CompiledRequest;assertWriteShape(plan);this.access(actor,plan,review.connection_id);
+  if(input.idempotency_key!==input.review_id)fail('IDEMPOTENCY_REQUIRED','Use the exact idempotency_key returned by prepare.');
+  authorizeExecution(actor,plan,{...input,dry_run:false},this.policy,true);
+  const fingerprint=sha256(stable({tenant:actor.tenantId,user:actor.userId,connection:review.connection_id,plan}));if(fingerprint!==review.fingerprint)fail('REVIEW_CHANGED','The stored reviewed request failed its integrity check.');
+  const previous=this.store.db.prepare('SELECT state,result,fingerprint FROM idempotency WHERE tenant_id=? AND key=?').get(actor.tenantId,input.idempotency_key) as JsonObject|undefined;
+  if(previous){if(previous.fingerprint!==fingerprint)fail('IDEMPOTENCY_CONFLICT','The key is bound to another request.');if(previous.state==='complete')return {...JSON.parse(previous.result),replayed:true};fail('WRITE_OUTCOME_UNCERTAIN','This review was already submitted. Inspect provider state; do not retry with a new key.');}
+  if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Prepare and review a fresh request.');
+  const current=await this.state(actor,plan,review.connection_id,review.reads);if(stable(current)!==stable(review.state))fail('STATE_CHANGED','The provider state changed after preparation. Prepare and review a fresh request.');
+  const c=this.access(actor,plan,review.connection_id),auth=await this.credentials.get(c);this.access(actor,plan,review.connection_id);
+  if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Review expired during state verification.');
+  const claim=this.store.claim(actor.tenantId,input.idempotency_key,fingerprint);if(!claim.fresh)return {...object(claim.result),replayed:true};
+  try{
+   this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_started',request:plan,fingerprint,before_state:current});
+   const result=writeOutcome(await this.transport.request(plan,c,auth),plan);
+   const outcome={...result,review_id:input.review_id,action:plan.action,fingerprint};
+   this.store.complete(actor.tenantId,input.idempotency_key,outcome);this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_completed',outcome});return outcome;
+  }catch(e){this.store.uncertain(actor.tenantId,input.idempotency_key);this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_uncertain',code:e instanceof MirrorError?e.code:'INTERNAL_ERROR'});throw e;}
+ }
+}

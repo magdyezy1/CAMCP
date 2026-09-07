@@ -1,6 +1,6 @@
 # Operations
 
-This runbook covers the current single-host, read-only development deployment. It does not certify production release.
+This runbook covers the current single-host deployment with read access by default and optional reviewed writes. It does not certify production release.
 
 ## Configuration
 
@@ -10,7 +10,7 @@ Connection credentials: Meta/TikTok/Snapchat/LinkedIn use access tokens; Google 
 
 Globally addressed Meta/Snapchat objects need recent ownership evidence from an account-scoped collection. Otherwise provision explicit resourceBindings with an accountId, exact pathPrefix and any required query invariants. These are administrator grants, not arbitrary caller input. GA4 connections bind property IDs; GTM binds account IDs; Search Console binds exact property URLs or sc-domain properties. Business Profile locations can be explicitly bound as `locations/<id>`.
 
-The program rejects `MIRROR_ALLOW_WRITES=true` while mutation execution is unqualified. Local dry-run previews remain available. Existing idempotency/before-state primitives are not a finished approval or rollback system.
+Set `MIRROR_ALLOW_WRITES=true` to expose `amcp_write`, grant specific accounts, and issue operator access. The review service reads provider state, freezes requests for five minutes, verifies state again before submission, and persists idempotency across restarts. Lost or partial responses are retained and must be reconciled before new submissions. There is no automatic rollback. See [write operations](WRITE-OPERATIONS.md).
 
 ## Backup and recovery
 
@@ -32,4 +32,4 @@ Schedules use local IANA clock time, and enqueue atomically with the next-occurr
 
 Default bind is loopback. External bind requires MIRROR_PUBLIC_ORIGIN as an HTTPS origin and a TLS reverse proxy. The service validates Host and Origin, authenticates bearer tokens, limits JSON bodies to 4 MiB, and supports stateless POST requests. Provision a distinct mirror key per operator with an appropriate role. Keys expire after 30 days by default; provision replacements and revoke old keys with `npm run admin -- revoke-key <protected-token-file>`.
 
-The Dockerfile is provided for review; this workspace has not validated a Docker image, TLS proxy, multi-host load, or recovery under production traffic. SQLite/WAL is a single-host storage choice. No deployment or image publication has been performed.
+GitHub CI builds the Dockerfile and checks both read-only and write-enabled startup, volume ownership, authentication, MCP access, restart persistence and revocation using synthetic credentials. This does not qualify the TLS proxy, multi-host load, provider authorization, or recovery under production traffic. SQLite/WAL remains a single-host storage choice.

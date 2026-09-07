@@ -3,6 +3,7 @@ import type {Actor,JsonObject} from './types.js';
 import type {Registry} from './catalog.js';
 import type {Store} from './store.js';
 import {guardInput,stable} from './security.js';
+import {auditCampaign,optimizationSuggestions,type CampaignAuditInput} from './campaign-audit.js';
 
 /** Independently implemented workflow semantics. Captured action routes are evidence,
  * not evidence that these composite response envelopes match WhatHead byte-for-byte. */
@@ -243,7 +244,14 @@ export class WorkflowEngine {
    const existing=await this.handle('list_campaigns',{platform:args.platform,account_id:args.account_id,limit:args.max_recent_campaigns??5},actor);const assets=this.dependencies.store.documents(actor.tenantId,'workspace_asset').filter(a=>!a.platform||a.platform===args.platform);
    return {evidence:workflowEvidence,source_campaigns:existing,workspace_assets:assets,objective:args.objective,recommendation:{adsets:1,ads_per_adset:2,basis:'Initial reviewable structure; split only where audience, budget or creative treatment must differ.'},missing_inputs:['Verified targeting IDs','Account currency and budget runway','Approved creative identifiers','Conversion tracking configuration'],created:false};
   }
-  if(operation==='audit_campaign'||operation==='get_optimization_suggestions')return unsupported('A production health score requires calibrated platform-specific rules and comparison data; fetch campaign details and performance reports instead.');
+  if(operation==='audit_campaign'||operation==='get_optimization_suggestions'){
+   const p=platform(args.platform),acct=account(p,args.account_id),period=dateRange(args.date_range??lastDays(30));
+   const campaignResult=await this.handle('fetch_campaign',{platform:p,account_id:acct,campaign_id:args.campaign_id,include_insights:false},actor),rows=responseRows(campaignResult);
+   if(rows.length!==1)throw new MirrorError('CAMPAIGN_NOT_FOUND','The campaign read must return exactly one campaign.');
+   const report=await this.report({platform:p,account_id:acct,campaign_ids:[args.campaign_id],date_range:period,level:'campaign',granularity:'day'},actor);
+   const input:CampaignAuditInput={platform:p,account_id:acct,campaign_id:args.campaign_id,campaign:rows[0]!,report,checks:args.checks,date_range:period,as_of:new Date().toISOString().slice(0,10)};
+   return operation==='audit_campaign'?auditCampaign(input):optimizationSuggestions(input,{budget_reallocation:args.budget_reallocation});
+  }
   return unsupported('This workflow requires a separately implemented provider or contract.',{operation});
  }
  private async report(args:JsonObject,actor:Actor):Promise<JsonObject>{

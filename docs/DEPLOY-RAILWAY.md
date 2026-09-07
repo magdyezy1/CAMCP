@@ -19,12 +19,12 @@ Add these service variables:
 | `MIRROR_MASTER_KEY` | A new random 32-byte base64 key |
 | `AMCP_ADMIN_PASSWORD` | A unique strong password, at least 16 characters |
 | `AMCP_PUBLIC_ORIGIN` | Your generated Railway HTTPS origin initially; later `https://amcp.shop` |
-| `MIRROR_ALLOW_WRITES` | `false` |
+| `MIRROR_ALLOW_WRITES` | `true` for reviewed write support; `false` for reads and dry runs only |
 | `AMCP_RUN_WORKER` | `true` |
 
 Generate the encryption key locally using `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. Put it directly in Railway variables and a password manager. Do not commit it. Preserve this key across deployments: changing it makes existing credentials unreadable. Do not copy your local test database or previously shared provider tokens into this deployment.
 
-The app uses Railway's `PORT`. Networking → Generate Domain supplies the initial HTTPS URL. If you omit `AMCP_PUBLIC_ORIGIN`, AMCP can use Railway's `RAILWAY_PUBLIC_DOMAIN` when supplied; set an explicit origin before registering provider callbacks. Redeploy after changing variables. `/healthz` should return status `up` and `live_writes: false`. Sign in and check Settings. An unconfigured provider displays “Setup needed.”
+The app uses Railway's `PORT`. Networking → Generate Domain supplies the initial HTTPS URL. If you omit `AMCP_PUBLIC_ORIGIN`, AMCP can use Railway's `RAILWAY_PUBLIC_DOMAIN` when supplied; set an explicit origin before registering provider callbacks. Redeploy after changing variables. `/healthz` should return status `up` and `live_writes` matching your `MIRROR_ALLOW_WRITES` setting. Sign in and check Settings. An unconfigured provider displays “Setup needed.”
 
 ## 2. Connect amcp.shop
 
@@ -70,7 +70,7 @@ url = "https://amcp.shop/mcp"
 bearer_token_env_var = "AMCP_MCP_TOKEN"
 ```
 
-Provide `AMCP_MCP_TOKEN` in the client process environment. Website tokens expire after 30 days; browser authorization issues one-hour access tokens with rotating 30-day refresh tokens. Revoke either type on the connector page. All issued credentials have the reader role.
+Provide `AMCP_MCP_TOKEN` in the client process environment. Website tokens expire after 30 days; browser authorization issues one-hour access tokens with rotating 30-day refresh tokens. Revoke either type on the connector page. Credentials default to reader. With write support enabled, select operator on the connector page and confirm access; then grant individual accounts in Connections. OAuth clients may explicitly request `mcp:write` during both registration and authorization. See [the write runbook](WRITE-OPERATIONS.md).
 
 ## Operations and qualification
 
@@ -80,4 +80,4 @@ Back up SQLite with `npm run admin -- backup /data/backup.sqlite`; store backups
 
 The administrator login deliberately does not trust arbitrary forwarded IP headers. Its rate-limit bucket may be shared behind a proxy, so add appropriately scoped Cloudflare edge rate limits and monitor failed logins. Do not enable Express `trust proxy: true` indiscriminately. Rotating provider secrets or losing refresh access requires reconnecting the affected provider.
 
-Local tests validate contracts and security behavior with synthetic provider responses. They do not demonstrate every live provider workflow. Google discovery currently lists directly accessible customers, not every descendant of a manager hierarchy. Vendor approval, full production OAuth round trips, complete per-platform asset endpoint qualification, and live reporting remain deployment acceptance work. Unsupported or incomplete discovery surfaces return explicit errors. Advertising-account writes are blocked in this release.
+Local tests validate contracts and security behavior with synthetic provider responses. They do not demonstrate every live provider workflow. Google discovery currently lists directly accessible customers, not every descendant of a manager hierarchy. Vendor approval, full production OAuth round trips, complete per-platform asset endpoint qualification, and live reporting remain deployment acceptance work. Unsupported or incomplete discovery surfaces return explicit errors. Reviewed campaign-management writes are implemented and opt-in. Their native contracts have synthetic tests, but live mutation qualification is outstanding. Special media and other unsupported write routes remain dry-run-only.

@@ -21,10 +21,12 @@ export function signOAuth1(method:string,url:URL,consumerKey:string,consumerSecr
  return 'OAuth '+Object.entries({...params,oauth_signature:signature}).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>pct(k)+'="'+pct(v)+'"').join(', ');
 }
 export class PlatformOAuth {
- constructor(readonly web:WebStore,private env:NodeJS.ProcessEnv=process.env,private fetcher:typeof fetch=fetch){}
+ constructor(readonly web:WebStore,private env:NodeJS.ProcessEnv=process.env,private fetcher:typeof fetch=fetch,readonly allowWrites=false){}
  config(p:PlatformDefinition){
   const clientId=this.env['AMCP_'+p.env+'_CLIENT_ID'],clientSecret=this.env['AMCP_'+p.env+'_CLIENT_SECRET'];
-  return {clientId,clientSecret,configured:!!(clientId&&clientSecret),redirectUri:this.web.origin+'/api/auth/'+p.id+'/callback',scopes:(this.env['AMCP_'+p.env+'_SCOPES']?.split(/[ ,]+/).filter(Boolean))??p.scopes};
+  const writeScope=this.allowWrites?(p.id==='meta'?'ads_management':p.id==='linkedin'?'rw_ads':undefined):undefined;
+  const defaults=writeScope?[...p.scopes,writeScope]:[...p.scopes];
+  return {clientId,clientSecret,configured:!!(clientId&&clientSecret),redirectUri:this.web.origin+'/api/auth/'+p.id+'/callback',scopes:(this.env['AMCP_'+p.env+'_SCOPES']?.split(/[ ,]+/).filter(Boolean))??defaults};
  }
  publicConfig(){return platforms.map(p=>{const c=this.config(p);return {...p,authorize:undefined,token:undefined,configured:c.configured,callback:c.redirectUri,scopes:c.scopes};});}
  async readResponse(response:Response,format:'json'|'form'='json'):Promise<JsonObject>{
@@ -36,14 +38,15 @@ export class PlatformOAuth {
  async start(session:WebSession,id:string):Promise<{url:string;attemptId:string}>{
   const p=platform(id),c=this.config(p);if(!c.configured)throw new MirrorError('PROVIDER_SETUP_REQUIRED','Add the '+p.name+' app credentials in Railway before connecting.',{callback:c.redirectUri},409);
   const state=randomBytes(32).toString('base64url'),attemptId=randomUUID(),verifier=randomBytes(48).toString('base64url');
-  let data:JsonObject={attemptId,redirectUri:c.redirectUri,verifier},url=new URL(p.authorize);
+  let data:JsonObject={attemptId,redirectUri:c.redirectUri,verifier,requestedScopes:[...c.scopes]},url=new URL(p.authorize);
   if(id==='x'){
-   const requestUrl=new URL('https://api.x.com/oauth/request_token');requestUrl.searchParams.set('x_auth_access_type','read');
+   const requestedAccessType=this.allowWrites?'write':'read';
+   const requestUrl=new URL('https://api.x.com/oauth/request_token');requestUrl.searchParams.set('x_auth_access_type',requestedAccessType);
    const callback=c.redirectUri+'?state='+state;
    const auth=signOAuth1('POST',requestUrl,c.clientId!,c.clientSecret!,'','',{oauth_callback:callback});
    const result=await this.readResponse(await this.fetcher(requestUrl,{method:'POST',headers:{Authorization:auth},redirect:'error',signal:AbortSignal.timeout(15000)}),'form');
    if(result.oauth_callback_confirmed!=='true'||typeof result.oauth_token!=='string'||typeof result.oauth_token_secret!=='string')throw new MirrorError('OAUTH_RESPONSE_INVALID','X did not confirm the callback.',{},502);
-   data={...data,requestToken:result.oauth_token,requestSecret:result.oauth_token_secret};url.searchParams.set('oauth_token',result.oauth_token);
+   data={...data,requestedAccessType,requestToken:result.oauth_token,requestSecret:result.oauth_token_secret};url.searchParams.set('oauth_token',result.oauth_token);
   }else{
    const redirectParameter=id==='tiktok'?(this.env.AMCP_TIKTOK_REDIRECT_PARAMETER??'redirect_uri'):'redirect_uri';if(!['redirect_uri','redirect_url'].includes(redirectParameter))throw new MirrorError('CONFIG_ERROR','TikTok redirect parameter must match the developer portal URL.');
    url.searchParams.set(id==='tiktok'?'app_id':'client_id',c.clientId!);url.searchParams.set(redirectParameter,c.redirectUri);url.searchParams.set('state',state);
@@ -61,6 +64,8 @@ export class PlatformOAuth {
   let result:JsonObject;
   if(id==='x'){
    if(query.oauth_token!==stored.requestToken||!query.oauth_verifier)throw new MirrorError('OAUTH_TOKEN_MISMATCH','X returned a mismatched authorization token.',{},400);
+   // X binds access to the original request token. Never replace that token or
+   // request a new access type during exchange when deployment settings change.
    const url=new URL(p.token),authorization=signOAuth1('POST',url,c.clientId!,c.clientSecret!,stored.requestToken,stored.requestSecret,{oauth_verifier:query.oauth_verifier});
    result=await this.readResponse(await this.fetcher(url,{method:'POST',headers:{Authorization:authorization},redirect:'error',signal:AbortSignal.timeout(15000)}),'form');
    if(typeof result.oauth_token!=='string'||typeof result.oauth_token_secret!=='string')throw new MirrorError('OAUTH_RESPONSE_INVALID','X did not return usable user credentials.',{},502);
@@ -74,6 +79,9 @@ export class PlatformOAuth {
   if(typeof result.access_token!=='string'||!result.access_token||result.refresh_token!==undefined&&typeof result.refresh_token!=='string')throw new MirrorError('OAUTH_RESPONSE_INVALID','The provider did not return a usable access token.',{},502);
   const expires=result.expires_in===undefined?undefined:Number(result.expires_in);if(expires!==undefined&&(!Number.isFinite(expires)||expires<=0))throw new MirrorError('OAUTH_RESPONSE_INVALID','The provider returned an invalid token lifetime.',{},502);
   const credentials:Credentials={accessToken:result.access_token,refreshToken:result.refresh_token,clientId:c.clientId,clientSecret:c.clientSecret,redirectUri:stored.redirectUri,...(expires?{expiresAt:Date.now()+expires*1000}:{}),...(id==='google'?{developerToken:this.env.AMCP_GOOGLE_DEVELOPER_TOKEN,loginCustomerId:this.env.AMCP_GOOGLE_LOGIN_CUSTOMER_ID}:{})};
-  return {credentials,label:p.name+' login',scopes:typeof result.scope==='string'?result.scope.split(/[ ,]+/):c.scopes};
+  // Bind fallback scope metadata to the authorization that produced this code.
+  // An in-flight or legacy read authorization must never inherit a later write configuration.
+  const requestedScopes=Array.isArray(stored.requestedScopes)&&stored.requestedScopes.every((scope:unknown)=>typeof scope==='string')?stored.requestedScopes:[...p.scopes];
+  return {credentials,label:p.name+' login',scopes:typeof result.scope==='string'?result.scope.split(/[ ,]+/).filter(Boolean):requestedScopes};
  }
 }

@@ -28,7 +28,13 @@ export class ScopeGuard {
   const compare=(value:unknown,field:string)=>{for(const item of Array.isArray(value)?value:[value])if(normalizeAccount(plan.gateway,item)!==id)mismatch(field);};
   const walk=(value:unknown,field='$'):void=>{
    if(typeof value==='string'&&plan.gateway==='google_ads_native_action')for(const m of value.matchAll(/\bcustomers\/([^/\s'"),]+)/g))compare(m[1],field);
+   if(typeof value==='string'&&plan.gateway==='linkedin_native_action')for(const m of value.matchAll(/urn:li:sponsoredAccount:(\d+)/g))compare(m[1],field);
    if(Array.isArray(value)){value.forEach(v=>walk(v,field));return;}
+   if(value&&typeof value==='object'&&plan.gateway==='snapchat_native_action'&&plan.method==='PATCH'){
+    const patch=value as JsonObject;if(typeof patch.path==='string'&&accountFields[plan.gateway]?.has(patch.path.split('/').at(-1)!)){
+     if(patch.op==='remove'||patch.value===undefined)mismatch('account patch');compare(patch.value,'account patch');
+    }
+   }
    if(value&&typeof value==='object')for(const [key,v]of Object.entries(value)){
     if(/^(?:access_token|oauth_token|refresh_token|client_secret|developer_token|authorization)$/i.test(key))throw new MirrorError('CREDENTIAL_PARAMETER_FORBIDDEN','Credentials must come from the encrypted connection provider.',{field:key},403);
     if(accountFields[plan.gateway]?.has(key)){
@@ -68,6 +74,7 @@ export class ScopeGuard {
    }
   }
   if(plan.gateway==='tiktok_native_action'){
+   if(plan.readOnly&&decoded==='/v1.3/advertiser/info/'&&Array.isArray(plan.query.advertiser_ids)&&plan.query.advertiser_ids.length===1){compare(plan.query.advertiser_ids,'advertiser_ids');return id;}
    const action=this.registry.action(plan.gateway,plan.action);
    // Some Business Center routes ignore advertiser_id. Only vendor-declared required
    // advertiser parameters establish this automatic boundary.
