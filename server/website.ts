@@ -138,6 +138,7 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
  }));
  router.get('/api/activity',handler((req,res)=>{const s=web.requireSession(req);res.json({events:store.audit(s.actor.tenantId,100).map((r:any)=>({id:r.seq,at:r.created_at,event:redact(JSON.parse(r.event))})).reverse()});}));
  const directory=path.resolve(options.staticDirectory??'web');router.use('/assets',express.static(directory,{dotfiles:'deny',index:false,fallthrough:false,maxAge:0}));
+ router.get('/tiktok94H3oMGQTvC0GEzgKcmffbz8W0CAHhan.txt',(_req,res)=>res.type('text/plain').sendFile('tiktok94H3oMGQTvC0GEzgKcmffbz8W0CAHhan.txt',{root:directory}));
  for(const route of ['/','/connectors','/activity','/settings','/login','/oauth/result','/oauth/consent','/privacy','/terms','/data-deletion'])router.get(route,(_req,res)=>res.sendFile('index.html',{root:directory}));
  return {router,web,oauth,discovery,mcpOAuth};
 }
