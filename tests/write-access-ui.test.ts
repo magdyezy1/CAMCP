@@ -29,7 +29,7 @@ test('website operator credentials require explicit confirmation and account gra
   s.store.putConnection(admin,connection,{accessToken:'synthetic-not-live'});
   const state=await (await s.request('/api/session','GET',undefined,s.headers)).json();assert.equal(state.writesEnabled,true);assert.equal(state.readOnly,false);
   const info=await (await s.request('/api/connections/'+connection.id,'GET',undefined,s.headers)).json();assert.deepEqual(info.writeAccounts,[]);
-  const reader=await (await s.request('/api/connector-tokens','POST',{name:'Reader by default'},s.headers)).json();assert.equal(s.store.authenticate(reader.token).role,'reader');
+  const reader=await (await s.request('/api/connector-tokens','POST',{name:'Explicit reader',role:'reader'},s.headers)).json();assert.equal(s.store.authenticate(reader.token).role,'reader');
   assert.equal((await s.request('/api/connector-tokens','POST',{role:'admin',confirmed:true},s.headers)).status,400);
   assert.equal((await s.request('/api/connector-tokens','POST',{role:'operator'},s.headers)).status,400);
   assert.equal((await s.request('/api/connector-tokens','POST',{role:'operator',confirmed:true},{Cookie:s.headers.Cookie})).status,403);
@@ -51,7 +51,10 @@ test('website operator credentials require explicit confirmation and account gra
 
 test('disabled deployments reject new write access while existing write grants can be revoked',async()=>{
  const s=await site(false);try{
-  s.store.putConnection(admin,{...connection,writeAccounts:['111']},{accessToken:'synthetic-not-live'});
+  s.store.putConnection(admin,{...connection,writeAccounts:['111'],defaultWriteAccess:true},{accessToken:'synthetic-not-live'});
+  const assets='/api/connections/'+connection.id+'/assets';
+  assert.equal((await s.request(assets,'PATCH',{selected:['ad_accounts:111','ad_accounts:222']},s.headers)).status,200);assert.deepEqual(s.store.listConnections('local')[0]!.writeAccounts,['111']);
+  assert.equal((await s.request(assets,'PATCH',{selected:['ad_accounts:111'],write_access:true},s.headers)).status,403);
   const state=await (await s.request('/api/session')).json();assert.equal(state.writesEnabled,false);assert.equal(state.readOnly,true);
   assert.equal((await s.request('/api/connector-tokens','POST',{role:'operator',confirmed:true},s.headers)).status,403);
   const access='/api/connections/'+connection.id+'/write-access';assert.equal((await s.request(access,'PATCH',{accounts:['222'],confirmed:true},s.headers)).status,403);
@@ -64,8 +67,8 @@ test('disabled deployments reject new write access while existing write grants c
 test('operator OAuth consent and scope narrowing work through the HTTP authorization and token endpoints',async()=>{
  const s=await site(true);try{
   const metadata=await (await s.request('/.well-known/oauth-authorization-server')).json();assert.deepEqual(metadata.scopes_supported,['mcp:read','mcp:write']);
-  const response=await s.request('/register','POST',{client_name:'Synthetic operator MCP',redirect_uris:['http://127.0.0.1:8769/callback'],token_endpoint_auth_method:'none',scope:'mcp:read mcp:write'});assert.equal(response.status,201);const client=await response.json();
-  const verifier=randomBytes(48).toString('base64url'),redirect='http://127.0.0.1:49222/callback',params=new URLSearchParams({client_id:client.client_id,redirect_uri:redirect,response_type:'code',code_challenge:createHash('sha256').update(verifier).digest('base64url'),code_challenge_method:'S256',scope:'mcp:read mcp:write',resource:origin+'/mcp'});
+  const response=await s.request('/register','POST',{client_name:'Synthetic operator MCP',redirect_uris:['http://127.0.0.1:8769/callback'],token_endpoint_auth_method:'none'});assert.equal(response.status,201);const client=await response.json();
+  const verifier=randomBytes(48).toString('base64url'),redirect='http://127.0.0.1:49222/callback',params=new URLSearchParams({client_id:client.client_id,redirect_uri:redirect,response_type:'code',code_challenge:createHash('sha256').update(verifier).digest('base64url'),code_challenge_method:'S256',resource:origin+'/mcp'});
   const start=await s.request('/authorize?'+params);assert.equal(start.status,303);const request=new URL(start.headers.get('location')!).searchParams.get('request')!;
   const preview=await (await s.request('/api/mcp/consent?request='+request,'GET',undefined,s.headers)).json();assert.equal(preview.role,'operator');assert.equal(preview.scope,'mcp:read mcp:write');
   assert.equal((await s.request('/api/mcp/consent','POST',{request,approved:true},{Cookie:s.headers.Cookie})).status,403);
@@ -91,9 +94,10 @@ function oauthFixture(allowWrites=true){
 
 test('OAuth write scope has explicit consent, bound PKCE grants, and refresh cannot upgrade reader access',async()=>{
  const f=oauthFixture();try{
-  const reader=await f.register(),writer=await f.register('mcp:read mcp:write');assert.equal(reader.scope,'mcp:read');
+  const reader=await f.register('mcp:read'),writer=await f.register();assert.equal(writer.scope,'mcp:read mcp:write');assert.equal(reader.scope,'mcp:read');
+  const defaultWriter=await f.begin(writer);assert.equal(defaultWriter.preview.role,'operator');assert.equal(defaultWriter.preview.scope,'mcp:read mcp:write');
   await assert.rejects(()=>f.begin(reader,['mcp:read','mcp:write']),/exceeds/);
-  const defaultRead=await f.begin(writer);assert.equal(defaultRead.preview.role,'reader');assert.equal(defaultRead.preview.scope,'mcp:read');
+  const defaultRead=await f.begin(writer,['mcp:read']);assert.equal(defaultRead.preview.role,'reader');assert.equal(defaultRead.preview.scope,'mcp:read');
   const readTokens=await f.oauth.exchangeAuthorizationCode(writer,defaultRead.code,defaultRead.verifier,defaultRead.redirectUri);assert.equal(f.store.authenticate(readTokens.access_token).role,'reader');
   await assert.rejects(()=>f.oauth.exchangeRefreshToken(writer,readTokens.refresh_token!,['mcp:read','mcp:write']),/cannot add/);
   const refreshedRead=await f.oauth.exchangeRefreshToken(writer,readTokens.refresh_token!);assert.equal(f.store.authenticate(refreshedRead.access_token).role,'reader');
@@ -106,6 +110,20 @@ test('OAuth write scope has explicit consent, bound PKCE grants, and refresh can
   await assert.rejects(()=>f.oauth.exchangeRefreshToken(writer,downgraded.refresh_token!,['mcp:read','mcp:write']),/cannot add/);
   await assert.rejects(()=>f.oauth.exchangeRefreshToken(writer,tokens.refresh_token!));assert.throws(()=>f.store.authenticate(downgraded.access_token));assert.throws(()=>f.store.authenticate(tokens.access_token));
  }finally{f.store.close();}
+});
+
+test('new connection selections and connector tokens default to read/write, explicit read-only and revocations persist',async()=>{
+ const s=await site(true);try{
+  const c={...connection,defaultWriteAccess:true};s.store.putConnection(admin,c,{accessToken:'synthetic'});
+  const assets='/api/connections/'+c.id+'/assets',selection={selected:['ad_accounts:111','ad_accounts:222']};
+  assert.equal((await s.request(assets,'PATCH',selection,s.headers)).status,200);assert.deepEqual(s.store.listConnections('local')[0]!.writeAccounts,['111','222']);
+  const token=await (await s.request('/api/connector-tokens','POST',{name:'Default connector',confirmed:true},s.headers)).json();assert.equal(s.store.authenticate(token.token).role,'operator');
+  await s.request(assets,'PATCH',{...selection,write_access:false},s.headers);assert.deepEqual(s.store.listConnections('local')[0]!.writeAccounts,[]);
+  await s.request(assets,'PATCH',selection,s.headers);assert.deepEqual(s.store.listConnections('local')[0]!.writeAccounts,[]);
+  await s.request(assets,'PATCH',{...selection,write_access:true},s.headers);assert.deepEqual(s.store.listConnections('local')[0]!.writeAccounts,['111','222']);
+  await s.request('/api/connections/'+c.id+'/write-access','PATCH',{accounts:[]},s.headers);
+  await s.request(assets,'PATCH',selection,s.headers);assert.deepEqual(s.store.listConnections('local')[0]!.writeAccounts,[]);
+ }finally{await s.close();}
 });
 
 test('legacy OAuth grant data remains read-only and loopback redirects relax only the port',async()=>{

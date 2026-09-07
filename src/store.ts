@@ -31,6 +31,7 @@ export class Store {
    CREATE INDEX IF NOT EXISTS jobs_ready ON jobs(state,available_at);
    CREATE INDEX IF NOT EXISTS audit_tenant ON audit(tenant_id,seq);
    CREATE TABLE IF NOT EXISTS resource_ownership(tenant_id TEXT NOT NULL,connection_id TEXT NOT NULL,account_id TEXT NOT NULL,resource TEXT NOT NULL,expires_at INTEGER NOT NULL,PRIMARY KEY(tenant_id,connection_id,account_id,resource));
+   CREATE TABLE IF NOT EXISTS media_staging(tenant_id TEXT NOT NULL,id TEXT NOT NULL,secret TEXT,expires_at INTEGER NOT NULL,PRIMARY KEY(tenant_id,id));
   `);
   const version=this.db.prepare('SELECT version FROM schema_version').get() as {version:number};
   if(version.version===1)this.db.exec('ALTER TABLE jobs ADD COLUMN lease_token TEXT; UPDATE schema_version SET version=2;');
@@ -39,6 +40,27 @@ export class Store {
   }catch(e){this.db.close();throw e;}
  }
  close(){this.db.close();}
+ reserveMedia(tenant:string,id:string,expiresAt:number){
+  if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Media staging requires the configured master key.');
+  this.transaction(()=>{
+   this.db.prepare('DELETE FROM media_staging WHERE expires_at<=?').run(Date.now());
+   const local=this.db.prepare('SELECT count(*) AS n FROM media_staging WHERE tenant_id=?').get(tenant) as {n:number};
+   const total=this.db.prepare('SELECT count(*) AS n FROM media_staging').get() as {n:number};
+   if(local.n>=2||total.n>=8)throw new MirrorError('MEDIA_STAGING_FULL','Finish or cancel existing media reviews, or wait five minutes for them to expire.',{},429);
+   this.db.prepare('INSERT INTO media_staging VALUES(?,?,NULL,?)').run(tenant,id,expiresAt);
+  });
+ }
+ stageMedia(tenant:string,id:string,bytes:Buffer){
+  if(!this.box||bytes.length>32*1024*1024)throw new MirrorError('MEDIA_STAGING_INVALID','Media staging requires encryption and a file of at most 32 MiB.');
+  const updated=this.db.prepare('UPDATE media_staging SET secret=? WHERE tenant_id=? AND id=? AND expires_at>?').run(this.box.seal({bytes:bytes.toString('base64')},scopeKey(tenant,'media',id)),tenant,id,Date.now());
+  if(!updated.changes)throw new MirrorError('REVIEW_EXPIRED','Media preparation expired.');
+ }
+ stagedMedia(tenant:string,id:string):Buffer{
+  const row=this.db.prepare('SELECT secret FROM media_staging WHERE tenant_id=? AND id=? AND expires_at>?').get(tenant,id,Date.now()) as {secret:string}|undefined;
+  if(!this.box||!row?.secret)throw new MirrorError('REVIEW_EXPIRED','The staged media expired or was removed.');
+  return Buffer.from(this.box.open<{bytes:string}>(row.secret,scopeKey(tenant,'media',id)).bytes,'base64');
+ }
+ removeStagedMedia(tenant:string,id:string){this.db.prepare('DELETE FROM media_staging WHERE tenant_id=? AND id=?').run(tenant,id);}
  transaction<T>(fn:()=>T):T{
   if(fn.constructor.name==='AsyncFunction')throw new MirrorError('ASYNC_TRANSACTION_UNSUPPORTED','SQLite transactions require synchronous callbacks.');
   const depth=this.transactionDepth,name='amcp_sp_'+depth;

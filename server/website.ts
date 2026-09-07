@@ -27,7 +27,7 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
  const savedAssets=(tenant:string,c:Connection)=>{const kind=selectionKind(c.gateway);return readDocument(tenant,'website_assets',c.id,{groups:[{kind,complete:false,assets:c.accounts.map(id=>({id,kind,name:id,source:'configured_binding'}))}],selected:c.accounts.map(id=>kind+':'+id),lastSync:null});};
  const publicConnection=(tenant:string,c:Connection)=>{
   const assets=savedAssets(tenant,c),meta=readDocument(tenant,'website_connection',c.id);
-  return {id:c.id,name:c.label,enabled:c.enabled,isDefault:c.isDefault===true,accounts:c.accounts,writeAccounts:(c.writeAccounts??[]).filter(id=>c.accounts.includes(id)),expiresAt:meta.expiresAt??null,lastSync:assets.lastSync??null,error:assets.error??null,selected:assets.selected??[],groups:assets.groups??[],status:assets.error?'attention':c.enabled?'connected':'selection_required'};
+  return {id:c.id,name:c.label,enabled:c.enabled,isDefault:c.isDefault===true,defaultWriteAccess:c.defaultWriteAccess===true,accounts:c.accounts,writeAccounts:(c.writeAccounts??[]).filter(id=>c.accounts.includes(id)),expiresAt:meta.expiresAt??null,lastSync:assets.lastSync??null,error:assets.error??null,selected:assets.selected??[],groups:assets.groups??[],status:assets.error?'attention':c.enabled?'connected':'selection_required'};
  };
  const sync=async(tenant:string,c:Connection,kinds?:string[])=>{
   const result=await discovery.sync(c,kinds);
@@ -58,7 +58,7 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   const result=await oauth.connectService(id),connectionId=randomUUID(),attemptId=randomUUID(),tenant=session.actor.tenantId;
   // Browser sessions may be revoked while the token service is responding.
   web.requireMutation(req);
-  const c:Connection={id:connectionId,tenantId:tenant,gateway:p.gateway,accounts:[],label:result.label,enabled:false,scopes:result.scopes,isDefault:!store.listConnections(tenant).some(c=>c.gateway===p.gateway&&c.isDefault)};
+  const c:Connection={id:connectionId,tenantId:tenant,gateway:p.gateway,accounts:[],defaultWriteAccess:allowWrites,label:result.label,enabled:false,scopes:result.scopes,isDefault:!store.listConnections(tenant).some(c=>c.gateway===p.gateway&&c.isDefault)};
   store.putConnection(session.actor,c,result.credentials);store.putDocument(tenant,'website_connection',connectionId,{platform:id,expiresAt:result.credentials.expiresAt??null,createdAt:Date.now()});
   store.appendAudit(tenant,attemptId,{event:'website_api_connected',platform:id,connection_id:connectionId,vendor_writes:0});
   let error:string|null=null;try{error=(await sync(tenant,c)).error;}catch(e){error=e instanceof MirrorError?e.message:'Asset sync could not be completed. Retry from the connection manager.';}
@@ -77,7 +77,7 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
    const result=await oauth.exchange(id,pending,query),connectionId=randomUUID();
    // A completed token exchange must not restore access after the initiating session ended.
    web.requireSession(req);
-   const c:Connection={id:connectionId,tenantId:tenant,gateway:p.gateway,accounts:[],label:result.label,enabled:false,scopes:result.scopes,isDefault:!store.listConnections(tenant).some(c=>c.gateway===p.gateway&&c.isDefault)};
+   const c:Connection={id:connectionId,tenantId:tenant,gateway:p.gateway,accounts:[],defaultWriteAccess:allowWrites&&pending.requestedWriteAccess===true,label:result.label,enabled:false,scopes:result.scopes,isDefault:!store.listConnections(tenant).some(c=>c.gateway===p.gateway&&c.isDefault)};
    store.putConnection(session.actor,c,result.credentials);securedConnectionId=connectionId;store.putDocument(tenant,'website_connection',connectionId,{platform:id,expiresAt:result.credentials.expiresAt??null,providerId:result.providerId??null,createdAt:Date.now()});
    store.appendAudit(tenant,attemptId,{event:'website_oauth_connected',platform:id,connection_id:connectionId});progress({state:'sync',authorization:true,exchange:true,sync:false,connectionId});
    const synced=await sync(tenant,c);progress({state:synced.error?'sync_attention':'complete',authorization:true,exchange:true,sync:!synced.error,connectionId,message:synced.error??'Connection secured. Choose the assets AMCP can use.'});
@@ -99,7 +99,11 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   const prefix=selectionKind(c.gateway)+':';
   if(selected.some(k=>!k.startsWith(prefix)))throw new MirrorError('INVALID_ASSET_SELECTION','Select the platform’s primary accounts, properties or sites for MCP access. Other tabs show related inventory.');
   const accounts=selected.map(k=>k.slice(prefix.length));
-  store.transaction(()=>{store.putConnection(s.actor,{...c,accounts,writeAccounts:(c.writeAccounts??[]).filter(id=>accounts.includes(id)),enabled:accounts.length>0},store.credentials(tenant,c.id));store.db.prepare('INSERT INTO documents(tenant_id,kind,id,data) VALUES(?,?,?,?) ON CONFLICT(tenant_id,kind,id) DO UPDATE SET data=excluded.data,revision=documents.revision+1').run(tenant,'website_assets',c.id,JSON.stringify({...assets,selected}));});
+  if(req.body?.write_access!==undefined&&typeof req.body.write_access!=='boolean')throw new MirrorError('INVALID_WRITE_ACCOUNTS','write_access must be a boolean.');
+  const defaultWriteAccess=req.body.write_access??c.defaultWriteAccess===true;
+  if(req.body.write_access===true&&!allowWrites)throw new MirrorError('WRITES_DISABLED','Reviewed writes are disabled in this deployment.',{},403);
+  const writeAccounts=defaultWriteAccess&&allowWrites?accounts:req.body.write_access===false?[]:(c.writeAccounts??[]).filter(id=>accounts.includes(id));
+  store.transaction(()=>{store.putConnection(s.actor,{...c,accounts,writeAccounts,defaultWriteAccess,enabled:accounts.length>0},store.credentials(tenant,c.id));store.db.prepare('INSERT INTO documents(tenant_id,kind,id,data) VALUES(?,?,?,?) ON CONFLICT(tenant_id,kind,id) DO UPDATE SET data=excluded.data,revision=documents.revision+1').run(tenant,'website_assets',c.id,JSON.stringify({...assets,selected}));});
   store.appendAudit(tenant,randomUUID(),{event:'website_asset_selection',connection_id:c.id,selected_accounts:accounts,selected_assets:selected.length,vendor_writes:0});res.json(publicConnection(tenant,connection(tenant,c.id)));
  }));
  router.patch('/api/connections/:id/write-access',express.json({limit:'256kb'}),handler((req,res)=>{
@@ -109,7 +113,7 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   if(accounts.length&&(!allowWrites||!c.enabled))throw new MirrorError('WRITES_DISABLED','Enable deployment write support and select resources before granting write access.',{},403);
   if(accounts.some(id=>!c.accounts.includes(id)))throw new MirrorError('WRITE_ACCOUNT_NOT_SELECTED','Write access is limited to this login’s selected resources.',{},403);
   if(accounts.length&&req.body?.confirmed!==true)throw new MirrorError('WRITE_ACCESS_CONFIRMATION_REQUIRED','Explicitly confirm that operator connectors may change these resources.',{},400);
-  store.putConnection(s.actor,{...c,writeAccounts:accounts},store.credentials(tenant,c.id));
+  store.putConnection(s.actor,{...c,writeAccounts:accounts,defaultWriteAccess:false},store.credentials(tenant,c.id));
   store.appendAudit(tenant,randomUUID(),{event:'website_write_access_changed',connection_id:c.id,write_accounts:accounts,previous_write_accounts:c.writeAccounts??[],vendor_writes:0});res.json(publicConnection(tenant,connection(tenant,c.id)));
  }));
  router.post('/api/connections/:id/default',handler((req,res)=>{
@@ -125,7 +129,7 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
  router.get('/api/connector-tokens',handler((req,res)=>{const s=web.requireSession(req);res.json({tokens:store.documents(s.actor.tenantId,'website_mcp_token').map(({hash,...v})=>v),url:web.origin+'/mcp'});}));
  router.post('/api/connector-tokens',express.json({limit:'4kb'}),handler((req,res)=>{
   const s=web.requireMutation(req),name=String(req.body?.name??'MCP connector').trim();if(!name||name.length>80)throw new MirrorError('INVALID_ARGUMENT','Use a connector name of 1 to 80 characters.');
-  const role=req.body?.role??'reader';if(role!=='reader'&&role!=='operator')throw new MirrorError('INVALID_ROLE','Choose reader or operator access.');
+  const role=req.body?.role??(allowWrites?'operator':'reader');if(role!=='reader'&&role!=='operator')throw new MirrorError('INVALID_ROLE','Choose reader or operator access.');
   if(s.actor.role!=='admin')throw new MirrorError('FORBIDDEN','Only the workspace administrator can create connector tokens.',{},403);
   if(role==='operator'&&!allowWrites)throw new MirrorError('WRITES_DISABLED','Advertising writes are disabled in this deployment.',{},403);
   if(role==='operator'&&req.body?.confirmed!==true)throw new MirrorError('WRITE_ACCESS_CONFIRMATION_REQUIRED','Explicitly confirm this connector’s operator access.',{},400);

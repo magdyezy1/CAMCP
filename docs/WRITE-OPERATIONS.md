@@ -6,10 +6,10 @@ AMCP supports explicitly reviewed campaign-management mutations. The existing na
 
 1. In Railway variables, set `MIRROR_ALLOW_WRITES=true` and redeploy. Preserve `MIRROR_MASTER_KEY` and the persistent `/data` volume. Set the target port to the effective Railway `PORT` (**8080** in the current Railway service; local development defaults to 4317). `/healthz` reports the effective `live_writes` flag.
 2. Sign in to Connections. Connect or reconnect each provider with the required app permissions. New Meta authorizations request `ads_management`; LinkedIn requests `rw_ads`; X requests write access. Existing provider tokens are not upgraded by changing an environment variable. Explicit `AMCP_<PROVIDER>_SCOPES` overrides take precedence, including an empty override.
-3. Select the accounts available to the connection. Grant writes separately for the accounts you intend to manage. A write grant is always a subset of selected accounts; deselection removes it.
-4. On Connectors, create an **operator** token and confirm its access. Configure the client using the displayed bearer-token configuration. Tokens default to **reader**. OAuth clients must explicitly request `mcp:write` during registration and authorization and receive administrator consent. Refresh cannot increase scope.
+3. Select the accounts available to the connection. New logins default to read plus reviewed write access when deployment write support is enabled. The selection screen offers an explicit read-only choice and per-account grant controls. Existing logins and manually revoked grants retain their access. Write grants are always a subset of selected accounts; deselection removes them.
+4. On Connectors, create the default **read + write** operator token and confirm its access, or choose a read-only token. New OAuth clients that omit scope default to `mcp:read mcp:write`; the authorization page still requires administrator consent. Explicit `mcp:read` requests and existing reader registrations stay read-only. Refresh cannot increase scope.
 
-For local stdio, explicitly set `MIRROR_ROLE=operator` and `MIRROR_ALLOW_WRITES=true`, provide the encryption key, and provision the connection's `writeAccounts` subset using the administrator CLI. HTTP role selection always comes from the authenticated connector, never client-supplied tool arguments.
+For local stdio, `MIRROR_ALLOW_WRITES=true` defaults the role to operator; explicit `MIRROR_ROLE=reader` keeps read-only access. Provide the encryption key and provision the connection's `writeAccounts` subset using the administrator CLI. HTTP role selection always comes from the authenticated connector, never client-supplied tool arguments. An explicit deployment setting of `MIRROR_ALLOW_WRITES=false` disables all live writes.
 
 Provider permissions, account roles, app review and API access remain necessary. Broad provider permissions do not override AMCP's account grants. Stop future submissions by revoking the connector, removing account write grants, or disabling write support. Revocation is checked again after asynchronous state reads and credential refresh. Requests already received by a provider cannot be recalled.
 
@@ -34,7 +34,9 @@ Call `amcp_write` with a normal native gateway request. This example uses a synt
 }
 ```
 
-Preparation performs provider reads and returns `executed:false`, the frozen native request, its before-state, expiry, `review_id` and `idempotency_key`. Inspect the account, resources and payload. No mutation is submitted during preparation. `dry_run:true` on the original gateway is an entirely local preview and does not produce a write review.
+Preparation performs provider reads and returns `executed:false`, the frozen native request, its before-state, `state_hash`, `state_reads`, expiry, `review_id` and `idempotency_key`. Inspect the account, resources and payload. No mutation is submitted during preparation. `dry_run:true` on the original gateway is an entirely local preview and does not produce a write review.
+
+Prepare and execute reuse the stored read plans. Both snapshots are normalized before comparison: object keys and scalar arrays are sorted, while duplicate scalar members, scalar types and ordered object arrays are preserved. Delivery telemetry, server timestamps, request-status wrappers and stats/pacing telemetry are excluded after validating the raw response. Mutable status, budgets, schedules, targeting, bids and pacing configuration remain protected. Unknown configuration fields are retained. `STATE_CHANGED` includes `expected_state_hash`, `actual_state_hash` and JSON paths in `changed_fields`; the request `fingerprint` remains a separate hash of the frozen request. The guard never treats provider errors or partial reads as valid state.
 
 Submit the same review only after confirming its intended change:
 
@@ -47,7 +49,7 @@ Submit the same review only after confirming its intended change:
 }
 ```
 
-Budget, bid, spend or activation changes additionally require `spend_change_confirmed:true`. New serving entities must explicitly be paused or draft. Execute cannot replace the request, account or connection. Reviews expire after five minutes and belong to the same tenant and user that prepared them. Changed, incomplete, paginated or missing state prevents submission. Meta and Snapchat global entity reads require ownership observed from an account-scoped collection, or an explicit administrator resource binding.
+Budget, bid, spend or activation changes additionally require `spend_change_confirmed:true`. New serving entities must explicitly be paused or draft. Execute cannot replace the request, account or connection. Reviews expire after five minutes and belong to the same tenant and user that prepared them. Changed, incomplete, paginated or missing state prevents submission. Successful Meta and Snapchat creates register their returned resource IDs to the owning tenant, connection and selected account, immediately allowing child prepares. Other global resources require an account-scoped collection read or an administrator binding. Existing ownership expiry and revocation rules remain enforced.
 
 ## Supported execution contracts
 
@@ -65,7 +67,7 @@ Budget, bid, spend or activation changes additionally require `spend_change_conf
 | Search Console | Add/remove a selected site; submit/remove its sitemaps. |
 | Apple Ads | Platform API v1 campaign create/update/delete; paused creation, native account header and exact target checks. |
 
-An action also needs an implemented target-state read. Unsupported contracts return a precise error before mutation egress. Special media upload, arbitrary batch/tunnel requests, unqualified delegated workflows and other catalog routes remain unavailable for live execution. Catalog presence describes an interface, not live execution qualification.
+An action also needs an implemented target-state read. Unsupported contracts return a precise error before mutation egress. [Google Drive media imports](MEDIA-UPLOADS.md) use the separate `amcp_media` review tool. Arbitrary binary transports, batch/tunnel requests, unqualified delegated workflows and other catalog routes remain unavailable for live execution. Catalog presence describes an interface, not live execution qualification.
 
 ## Outcomes and recovery
 

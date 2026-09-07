@@ -34,11 +34,12 @@ function camelKeys(value:unknown):unknown{
  return value;
 }
 export interface TransportResult {data:unknown;status:number;headers:Record<string,string>}
+export interface BinaryUpload {field:string;bytes:Buffer;filename:string;mime:string}
 export class NativeTransport {
  private circuits=new Map<string,{failures:number;until:number}>();private budgets=new Map<string,{tokens:number;at:number}>();
  readonly metrics={requests:0,retries:0,errors:0,totalLatencyMs:0};
  constructor(private fetcher:typeof fetch=fetch,private sleeper:(ms:number)=>Promise<unknown>=delay,private timeoutMs=30000,private maximumBytes=8*1024*1024){}
- async request(plan:CompiledRequest,connection:Connection,credentials:Credentials):Promise<TransportResult>{
+ async request(plan:CompiledRequest,connection:Connection,credentials:Credentials,upload?:BinaryUpload):Promise<TransportResult>{
   const key=scopeKey(connection.tenantId,connection.gateway);
   const circuit=this.circuits.get(key);if(circuit&&circuit.until>Date.now())throw new MirrorError('CIRCUIT_OPEN','Platform circuit is temporarily open.',{retry_after_ms:circuit.until-Date.now()},503,true);
   const budget=this.budgets.get(key)??{tokens:30,at:Date.now()};budget.tokens=Math.min(30,budget.tokens+(Date.now()-budget.at)/1000);budget.at=Date.now();
@@ -48,7 +49,12 @@ export class NativeTransport {
    if(!connection.userAgent||/[\r\n]/.test(connection.userAgent))throw new MirrorError('USER_AGENT_REQUIRED','Configure a descriptive Reddit application userAgent on the connection.');headers['User-Agent']=connection.userAgent;
   }
   let body:BodyInit|undefined;let form:URLSearchParams|undefined;
-  if(plan.body!==undefined){
+  if(upload){
+   if(plan.readOnly)throw new MirrorError('INVALID_UPLOAD','Binary uploads must be reviewed mutations.');
+   const multipart=new FormData();for(const [k,v]of Object.entries((plan.body??{}) as JsonObject))multipart.set(k,typeof v==='object'?JSON.stringify(v):String(v));
+   multipart.set(upload.field,new Blob([new Uint8Array(upload.bytes)],{type:upload.mime}),upload.filename);body=multipart;
+   for(const key of Object.keys(headers))if(key.toLowerCase()==='content-type')delete headers[key];
+  }else if(plan.body!==undefined){
    if(plan.gateway==='meta_native_action'||plan.gateway==='x_ads_native_action'&&!plan.path.includes('/batch/')){form=new URLSearchParams();for(const [k,v]of Object.entries(plan.body as JsonObject))form.set(k,typeof v==='object'?JSON.stringify(v):String(v));body=form.toString();headers['Content-Type']='application/x-www-form-urlencoded';}
    else {body=JSON.stringify(plan.gateway==='google_ads_native_action'?camelKeys(plan.body):plan.body);headers['Content-Type']=plan.gateway==='snapchat_native_action'&&plan.method==='PATCH'?'application/json-patch+json':'application/json';}
   }
@@ -84,6 +90,14 @@ export class NativeTransport {
    }
   }
   throw new MirrorError('UPSTREAM_UNAVAILABLE','Platform request failed.');
+ }
+ /** Only signed upload URLs returned by LinkedIn's initializeUpload response. */
+ async uploadLinkedIn(raw:string,bytes:Buffer,mime:string):Promise<string|undefined>{
+  let url:URL;try{url=new URL(raw);}catch{throw new MirrorError('INVALID_UPLOAD_URL','LinkedIn returned an invalid upload URL.');}
+  if(url.origin!=='https://www.linkedin.com'||url.username||url.password||url.hash||!url.pathname.startsWith('/dms-uploads/'))throw new MirrorError('UNAPPROVED_UPLOAD_URL','LinkedIn upload URL is outside the approved upload host/path.');
+  let response:Response;try{response=await this.fetcher(url,{method:'PUT',headers:{'Content-Type':mime},body:new Uint8Array(bytes),redirect:'error',signal:AbortSignal.timeout(this.timeoutMs)});}catch{throw new MirrorError('WRITE_OUTCOME_UNCERTAIN','Upload response was lost. Inspect the allocated media before retrying.',{},502);}
+  await response.body?.cancel();if(!response.ok)throw new MirrorError('MEDIA_UPLOAD_FAILED','LinkedIn binary upload returned HTTP '+response.status,{},502);
+  return response.headers.get('etag')?.replace(/^"|"$/g,'');
  }
  private async readBody(response:Response,allowEmpty:boolean):Promise<unknown>{
   const reader=response.body?.getReader();let size=0;const chunks:Uint8Array[]=[];

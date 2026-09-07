@@ -77,7 +77,7 @@ url = "https://amcp.shop/mcp"
 bearer_token_env_var = "AMCP_MCP_TOKEN"
 ```
 
-Provide `AMCP_MCP_TOKEN` in the client process environment. Website tokens expire after 30 days; browser authorization issues one-hour access tokens with rotating 30-day refresh tokens. Revoke either type on the connector page. Credentials default to reader. With write support enabled, select operator on the connector page and confirm access; then grant individual accounts in Connections. OAuth clients may explicitly request `mcp:write` during both registration and authorization. See [the write runbook](WRITE-OPERATIONS.md).
+Provide `AMCP_MCP_TOKEN` in the client process environment. Website tokens expire after 30 days; browser authorization issues one-hour access tokens with rotating 30-day refresh tokens. Revoke either type on the connector page. New credentials default to operator when write support is enabled; explicit reader credentials remain available. With write support enabled, select operator on the connector page and confirm access; then grant individual accounts in Connections. OAuth clients may explicitly request `mcp:write` during both registration and authorization. See [the write runbook](WRITE-OPERATIONS.md).
 
 ## Operations and qualification
 

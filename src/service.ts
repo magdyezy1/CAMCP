@@ -18,15 +18,17 @@ import {applyExecutionRisk} from './execution-risk.js';
 import {projectResponse} from './projection.js';
 import {WriteReviewService,writeTool} from './write-review.js';
 import {validateAppleResponse} from './apple-native.js';
+import {MediaUploadService,mediaTool} from './media-upload.js';
 export const strictOptions:CallOptions={mode:'strict',flags:{}};
 export class MirrorService {
  readonly compiler:Compiler;readonly introspection:Introspection;readonly credentials:CredentialProvider;
  readonly delegatedCompiler=new DelegatedNativeCompiler();
- listTools(){return [...this.registry.listTools(this.options),...(this.policy.allowWrites?[writeTool]:[])];}
- constructor(readonly registry:Registry,readonly store:Store,readonly transport=new NativeTransport(),readonly options:CallOptions=strictOptions,readonly policy:ExecutionPolicy=readOnlyPolicy){this.compiler=new Compiler(registry);this.introspection=new Introspection(registry);this.credentials=new CredentialProvider(store);}
+ listTools(){return [...this.registry.listTools(this.options),...(this.policy.allowWrites?[writeTool,mediaTool]:[])];}
+ constructor(readonly registry:Registry,readonly store:Store,readonly transport=new NativeTransport(),readonly options:CallOptions=strictOptions,readonly policy:ExecutionPolicy=readOnlyPolicy,private mediaFetcher:typeof fetch=fetch){this.compiler=new Compiler(registry);this.introspection=new Introspection(registry);this.credentials=new CredentialProvider(store);}
  async call(tool:string,input:JsonObject,actor:Actor):Promise<JsonObject>{
   const requestId=randomUUID(),start=Date.now();
   try{
+   if(tool===mediaTool.name)return this.wrap(await new MediaUploadService(this.registry,this.store,this.transport,this.credentials,this.policy,this.mediaFetcher).call(input,actor),requestId,start);
    if(tool===writeTool.name){const result:any=await new WriteReviewService(this.registry,this.compiler,this.store,this.transport,this.credentials,this.options,this.policy,this.delegatedCompiler).call(input,actor);return {...this.wrap(result,requestId,start),...(result.success===false?{success:false,error:{code:'WRITE_PARTIAL_OR_FAILED',message:'Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.'}}:{})};}
    this.registry.validate(tool,input,this.options);
    if(tool==='whathead_tool_help')return this.registry.help(input,this.options);

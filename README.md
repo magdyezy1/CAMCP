@@ -12,6 +12,8 @@ AMCP connects an advertising workspace to Codex and other MCP clients. It includ
 - OAuth completion page with authorization, credential exchange, and asset sync results.
 - MCP connector page with browser authorization, Codex/Cursor configurations, reader/operator access, expiring bearer tokens, and revocation.
 - Reviewed campaign mutations with five-minute state snapshots, explicit confirmation, account grants, and persistent duplicate-submission protection.
+- Configuration-only state guards ignore delivery telemetry and normalize unordered scalar arrays; failures identify changed fields and state hashes. Created Meta/Snapchat resources immediately receive account ownership bindings.
+- Google Drive media imports through the reviewed amcp_media extension, with encrypted frozen files and native uploads. See [formats, limits and examples](docs/MEDIA-UPLOADS.md).
 - Evidence-linked campaign audits and deterministic optimization suggestions with explicit unknown coverage.
 - Session authentication, CSRF protection, encrypted OAuth state, PKCE where supported, and activity records. Claude-compatible dynamic registration supports encrypted client secrets with client_secret_post alongside public clients. See [OAuth and hardening decisions](docs/OAUTH-HARDENING.md).
 
@@ -31,7 +33,7 @@ The default local URL is http://127.0.0.1:4317. Configure the variables in [.env
 
 The server preserves a captured compact-v1 compatibility surface with 20 tools, 19 gateways, and 112 nested operation schemas. Generated route metadata and official vendor contracts are included for reproducible checks. AMCP is an independent implementation; it is not affiliated with WhatHead or any advertising platform.
 
-This release supports reads, local dry runs, and opt-in **reviewed advertising writes** through the AMCP extension tool. Existing credentials stay read-only until an administrator grants write accounts and issues operator access. See [write setup and supported contracts](docs/WRITE-OPERATIONS.md). OAuth, tenant isolation, account grants, native request compilation, credential refresh, reporting jobs, and MCP transports have automated tests. Captured action counts describe catalog coverage and do not prove live behavior.
+This release supports reads, local dry runs, and **reviewed advertising writes** through amcp_write and amcp_media (22 tools when write support is enabled). New connections and OAuth clients default to read + reviewed write access; explicit read-only choices and existing grants are preserved. The deployment write kill switch, account boundaries and per-change review remain enforced. See [write setup and supported contracts](docs/WRITE-OPERATIONS.md). OAuth, tenant isolation, account grants, native request compilation, credential refresh, reporting jobs, and MCP transports have automated tests. Captured action counts describe catalog coverage and do not prove live behavior.
 
 Full production qualification of every provider and workflow is **not complete**. Provider app approval, production OAuth round trips, complete asset discovery coverage, special media transports, and some delegated workflows remain outstanding. See [deployment acceptance limits](docs/DEPLOY-RAILWAY.md#operations-and-qualification) and run `npm run report` for the current implementation inventory. Private account evidence, credentials, local databases, and the original project brief are excluded from this public repository.
 

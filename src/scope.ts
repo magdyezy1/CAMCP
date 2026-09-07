@@ -118,4 +118,28 @@ export class ScopeGuard {
    if(collection&&Array.isArray(d?.data))for(const entity of d.data)if(typeof entity?.id==='string'&&/^[A-Za-z0-9_-]+$/.test(entity.id)&&(!entity.ad_account_id||entity.ad_account_id===id))this.store.rememberResource(connection,id,collection+'/'+entity.id);
   }
  }
+ /** Called only after a verified successful mutation, never on caller-supplied data. */
+ observeCreated(plan:CompiledRequest,connection:Connection,data:unknown):void{
+  if(plan.readOnly||plan.method!=='POST')return;
+  const id=normalizeAccount(plan.gateway,plan.accountId),d=data as JsonObject;
+  // Other qualified gateways carry the account in every child path/body. These two
+  // use global IDs and therefore need this extra, connection-bound observation.
+  if(plan.gateway==='meta_native_action'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads|adcreatives)$/.test(plan.path)&&typeof d?.id==='string'&&/^\d+$/.test(d.id)){
+   if(d.account_id!==undefined&&normalizeAccount(plan.gateway,d.account_id)!==id)return;
+   this.store.rememberResource(connection,id,d.id);
+  }
+  if(plan.gateway==='snapchat_native_action'){
+   const match=/^\/v1\/(?:adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives|media)|campaigns\/[^/]+\/(adsquads)|adsquads\/[^/]+\/(ads))$/.exec(plan.path);
+   const kind=match?.slice(1).find(Boolean);
+   if(!kind||String(d?.request_status).toUpperCase()!=='SUCCESS'||!Array.isArray(d[kind]))return;
+   for(const row of d[kind]){
+    const entity=row[kind==='media'?'media':kind.slice(0,-1)];
+    if(String(row.sub_request_status).toUpperCase()!=='SUCCESS'||typeof entity?.id!=='string'||!/^[-\w]+$/.test(entity.id))continue;
+    if(entity.ad_account_id!==undefined&&entity.ad_account_id!==id)continue;
+    const parent=/^\/v1\/(campaigns|adsquads)\/([^/]+)\//.exec(plan.path);
+    if(parent&&entity[parent[1]==='campaigns'?'campaign_id':'ad_squad_id']!==undefined&&entity[parent[1]==='campaigns'?'campaign_id':'ad_squad_id']!==parent[2])continue;
+    this.store.rememberResource(connection,id,kind+'/'+entity.id);
+   }
+  }
+ }
 }

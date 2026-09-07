@@ -21,8 +21,8 @@ try{
  assert.equal(configured.platforms.find(p=>p.id==='gtm').scopes.includes('https://www.googleapis.com/auth/tagmanager.publish'),writes);
  assert.equal(configured.platforms.find(p=>p.id==='gsc').scopes.includes('https://www.googleapis.com/auth/webmasters'),writes);
  const metadata=await (await api('/.well-known/oauth-authorization-server')).json();assert.deepEqual(metadata.token_endpoint_auth_methods_supported.sort(),['client_secret_post','none']);assert.ok(metadata.code_challenge_methods_supported.includes('S256'));
- const tokenResponse=await api('/api/connector-tokens','POST',{name:'Synthetic CI client'},headers);assert.equal(tokenResponse.status,200);const token=await tokenResponse.json();
- const mcp=await api('/mcp','POST',{jsonrpc:'2.0',id:1,method:'tools/list'},{Authorization:'Bearer '+token.token,Accept:'application/json, text/event-stream'});assert.equal(mcp.status,200);assert.equal((await mcp.json()).result.tools.length,writes?21:20);
+ const tokenResponse=await api('/api/connector-tokens','POST',{name:'Synthetic CI client',role:'reader'},headers);assert.equal(tokenResponse.status,200);const token=await tokenResponse.json();
+ const mcp=await api('/mcp','POST',{jsonrpc:'2.0',id:1,method:'tools/list'},{Authorization:'Bearer '+token.token,Accept:'application/json, text/event-stream'});assert.equal(mcp.status,200);assert.equal((await mcp.json()).result.tools.length,writes?22:20);
  const writer=await api('/api/connector-tokens','POST',{name:'Synthetic operator',role:'operator',confirmed:true},headers);assert.equal(writer.status,writes?200:403);
  if(writes){const w=await writer.json();const denied=await api('/mcp','POST',{jsonrpc:'2.0',id:2,method:'tools/call',params:{name:'amcp_write',arguments:{action:'prepare',gateway:'meta_native_action',arguments:{action:'meta_campaign_create',account_id:'123',payload:{name:'Synthetic',status:'PAUSED'}}}}},{Authorization:'Bearer '+w.token,Accept:'application/json, text/event-stream'});assert.equal((await denied.json()).result.isError,true);}
  docker('restart',container);await ready();assert.equal((await (await api('/api/session','GET',undefined,headers)).json()).authenticated,true);

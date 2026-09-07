@@ -54,7 +54,7 @@ export class PlatformOAuth {
   const p=platform(id),c=this.config(p);if(!c.configured)throw new MirrorError('PROVIDER_SETUP_REQUIRED','Add the '+p.name+' app credentials in Railway before connecting.',{callback:c.redirectUri},409);
   if(p.authType)throw new MirrorError('SERVICE_CONNECTION_REQUIRED','This platform uses server-side API credentials, without a browser OAuth callback.');
   const state=randomBytes(32).toString('base64url'),attemptId=randomUUID(),verifier=randomBytes(48).toString('base64url');
-  let data:JsonObject={attemptId,redirectUri:c.redirectUri,verifier,requestedScopes:[...c.scopes]},url=new URL(p.authorize);
+  let data:JsonObject={attemptId,redirectUri:c.redirectUri,verifier,requestedScopes:[...c.scopes],requestedWriteAccess:this.allowWrites},url=new URL(p.authorize);
   if(id==='x'){
    const requestedAccessType=this.allowWrites?'write':'read';
    const requestUrl=new URL('https://api.x.com/oauth/request_token');requestUrl.searchParams.set('x_auth_access_type',requestedAccessType);

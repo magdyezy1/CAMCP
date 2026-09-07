@@ -27,7 +27,7 @@ export class McpOAuth implements OAuthServerProvider {
   registerClient:async(input:Omit<OAuthClientInformationFull,'client_id'|'client_id_issued_at'>)=>{
    if(input.token_endpoint_auth_method!=='none'&&input.token_endpoint_auth_method!=='client_secret_post')throw new InvalidClientMetadataError('Use none or client_secret_post with S256 PKCE.');
    if(!input.redirect_uris.length||input.redirect_uris.length>10||input.redirect_uris.some(uri=>{try{const u=new URL(uri);return !!(u.username||u.password||u.hash)||u.protocol!=='https:'&&!(u.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(u.hostname));}catch{return true;}}))throw new InvalidClientMetadataError('Register exact HTTPS or loopback HTTP redirect URIs.');
-   const scopes=this.validateScopes(input.scope?.split(' '));
+   const scopes=this.validateScopes(input.scope===undefined?(this.allowWrites?[readScope,writeScope]:[readScope]):input.scope.split(' '));
    const count=this.web.store.db.prepare('SELECT count(*) AS n FROM amcp_mcp_clients').get() as {n:number};if(count.n>=1000)throw new InvalidClientMetadataError('Client registration limit reached. Contact the workspace administrator.');
    const client:OAuthClientInformationFull={client_id:randomUUID(),client_id_issued_at:Math.floor(Date.now()/1000),client_name:String(input.client_name??'MCP client').slice(0,120),redirect_uris:input.redirect_uris,token_endpoint_auth_method:input.token_endpoint_auth_method,grant_types:['authorization_code','refresh_token'],response_types:['code'],scope:scopes.join(' ')};
    if(input.token_endpoint_auth_method==='client_secret_post'){client.client_secret=opaque();client.client_secret_expires_at=0;}
@@ -59,7 +59,7 @@ export class McpOAuth implements OAuthServerProvider {
   return {...row,data:JSON.parse(row.data)};
  }
  async authorize(client:OAuthClientInformationFull,params:AuthorizationParams,res:Response){
-  const scopes=this.validateScopes(params.scopes?.length?params.scopes:undefined);this.validateResource(params.resource);
+  const scopes=this.validateScopes(params.scopes?.length?params.scopes:client.scope?.split(' '));this.validateResource(params.resource);
   const registered=client.scope?.split(' ')??[readScope];if(scopes.some(s=>!registered.includes(s)))throw new InvalidScopeError('The requested scope exceeds this client registration. Register and authorize write access explicitly.');
   const redirect=new URL(params.redirectUri);
   if(redirect.username||redirect.password||redirect.hash||!client.redirect_uris.some(uri=>redirectUriMatches(params.redirectUri,uri))||!/^[A-Za-z0-9_-]{43}$/.test(params.codeChallenge))throw new InvalidGrantError('A registered redirect URI and S256 PKCE challenge are required. Only the port may vary for loopback callbacks.');

@@ -11,6 +11,7 @@ import {authorizeExecution,type ExecutionPolicy} from './preflight.js';
 import {guardInput,redact,sha256,stable} from './security.js';
 import type {Actor,CallOptions,CompiledRequest,Connection,JsonObject} from './types.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
+import {normalizeReviewState,reviewStateHash,changedStateFields} from './review-state.js';
 import {measurementWriteGateways,assertMeasurementWrite,assertMeasurementScopes,measurementSnapshots,optionalMissingState,validateMeasurementState,measurementOutcome} from './measurement-writes.js';
 
 export const writeTool={name:'amcp_write',description:'Prepare and execute an explicitly reviewed native advertising or measurement mutation. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request. Execution requires its review_id, idempotency_key and explicit confirmation. Operator role and administrator account write grants are required. This is an AMCP extension, not a captured WhatHead tool.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['prepare','execute']},gateway:{type:'string'},arguments:{type:'object'},connection_id:{type:'string'},review_id:{type:'string'},idempotency_key:{type:'string'},confirmed:{type:'boolean'},spend_change_confirmed:{type:'boolean'}},additionalProperties:false}};
@@ -18,11 +19,6 @@ const gateways=new Set(['meta_native_action','tiktok_native_action','snapchat_na
 const object=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?v as JsonObject:{};
 const snake=(s:string)=>s.replace(/([a-z0-9])([A-Z])/g,'$1_$2').toLowerCase();
 function fail(code:string,message:string,details:JsonObject={}):never{throw new MirrorError(code,message,details);}
-function cleanedState(value:unknown):unknown {
- if(Array.isArray(value))return value.map(cleanedState);
- if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).filter(([k])=>!['request_id','requestId','request_time','requestTime','trace_id','traceId'].includes(k)).map(([k,v])=>[k,cleanedState(v)]));
- return value;
-}
 export function writeOutcome(result:TransportResult,plan?:CompiledRequest):JsonObject {
  const errors:JsonObject[]=[];
  const walk=(value:unknown,path='$')=>{
@@ -51,7 +47,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult):bo
  }
  if(plan.gateway==='snapchat_native_action'){
   if(String(d.request_status).toUpperCase()!=='SUCCESS')return false;
-  const kind=['campaigns','adsquads','ads'].find(k=>segments.includes(k))!,rows=d[kind];
+  const kind=[...segments].reverse().find(k=>['campaigns','adsquads','ads'].includes(k))!,rows=d[kind];
   if(plan.method==='DELETE')return Array.isArray(rows)&&rows.length===0;
   const singular=kind==='adsquads'?'adsquad':kind.slice(0,-1),expected=Array.isArray(b[kind])?b[kind].length:1;
   return Array.isArray(rows)&&rows.length===expected&&rows.every((r,i)=>String(r.sub_request_status).toUpperCase()==='SUCCESS'&&hasId(r[singular]?.id)&&(plan.method==='POST'||String(r[singular].id)===String(plan.method==='PUT'?b[kind][i].id:last)));
@@ -103,7 +99,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
 function assertWriteShape(plan:CompiledRequest){
  if(!gateways.has(plan.gateway))fail('WRITE_CONTRACT_UNAVAILABLE','This platform has no reviewed mutation contract.');
  if(plan.readOnly)fail('MUTATION_REQUIRED','Use the original native gateway to perform this read.');
- if(plan.specialTransport)fail('WRITE_CONTRACT_UNAVAILABLE','Special media transports require a dedicated verified upload implementation.');
+ if(plan.specialTransport)fail('WRITE_CONTRACT_UNAVAILABLE','For Google Drive media imports, use amcp_media prepare and execute. Other binary transports need a dedicated upload contract.');
  if(plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['CREATE','PARTIAL_UPDATE','DELETE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))fail('WRITE_CONTRACT_UNAVAILABLE','This REST.li method override is not qualified for reviewed execution.');
  const body=object(plan.body);
  const route=plan.path,method=plan.method;
@@ -212,7 +208,7 @@ export class WriteReviewService {
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
    try{result=await this.transport.request(read,c,auth);}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
-   validateState(read,result);values.push(cleanedState(result.data));
+   validateState(read,result);values.push(normalizeReviewState(result.data));
   }return values;
  }
  async call(input:JsonObject,actor:Actor):Promise<unknown>{
@@ -232,9 +228,10 @@ export class WriteReviewService {
     }
    }
    const reviewId=randomUUID(),fingerprint=sha256(stable({tenant:actor.tenantId,user:actor.userId,connection:c.id,plan})),expiresAt=Date.now()+300000;
-   this.store.putDocument(actor.tenantId,'write_review',reviewId,{user_id:actor.userId,connection_id:c.id,plan,reads,state,fingerprint,expires_at:expiresAt});
+   const stateHash=reviewStateHash(state);
+   this.store.putDocument(actor.tenantId,'write_review',reviewId,{user_id:actor.userId,connection_id:c.id,plan,reads,state,state_hash:stateHash,fingerprint,expires_at:expiresAt});
    this.store.appendAudit(actor.tenantId,reviewId,{event:'write_prepared',request:plan,fingerprint,expires_at:expiresAt});
-   return {success:true,executed:false,review_id:reviewId,idempotency_key:reviewId,expires_at:new Date(expiresAt).toISOString(),request:redact(plan),before_state:redact(state),fingerprint,confirmation_required:true};
+   return {success:true,executed:false,review_id:reviewId,idempotency_key:reviewId,expires_at:new Date(expiresAt).toISOString(),request:redact(plan),before_state:redact(state),state_hash:stateHash,state_reads:reads.map(r=>({method:r.method,path:r.path})),fingerprint,confirmation_required:true};
   }
   if(input.action!=='execute'||typeof input.review_id!=='string')fail('INVALID_ARGUMENT','Use prepare or execute with a review_id.');
   if(input.arguments!==undefined||input.gateway!==undefined||input.connection_id!==undefined)fail('INVALID_ARGUMENT','Execute uses the frozen reviewed request; prepare a new review to change it.');
@@ -247,7 +244,8 @@ export class WriteReviewService {
   const previous=this.store.db.prepare('SELECT state,result,fingerprint FROM idempotency WHERE tenant_id=? AND key=?').get(actor.tenantId,input.idempotency_key) as JsonObject|undefined;
   if(previous){if(previous.fingerprint!==fingerprint)fail('IDEMPOTENCY_CONFLICT','The key is bound to another request.');if(previous.state==='complete')return {...JSON.parse(previous.result),replayed:true};fail('WRITE_OUTCOME_UNCERTAIN','This review was already submitted. Inspect provider state; do not retry with a new key.');}
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Prepare and review a fresh request.');
-  const current=await this.state(actor,plan,review.connection_id,review.reads);if(stable(current)!==stable(review.state))fail('STATE_CHANGED','The provider state changed after preparation. Prepare and review a fresh request.');
+  const current=await this.state(actor,plan,review.connection_id,review.reads),expectedHash=reviewStateHash(review.state),actualHash=reviewStateHash(current);
+  if(actualHash!==expectedHash)fail('STATE_CHANGED','The provider configuration changed after preparation. Prepare and review a fresh request.',{expected_state_hash:expectedHash,actual_state_hash:actualHash,changed_fields:changedStateFields(review.state,current)});
   const c=this.access(actor,plan,review.connection_id),auth=await this.credentials.get(c);this.access(actor,plan,review.connection_id);
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Review expired during state verification.');
   const claim=this.store.claim(actor.tenantId,input.idempotency_key,fingerprint);if(!claim.fresh)return {...object(claim.result),replayed:true};
@@ -255,7 +253,10 @@ export class WriteReviewService {
    this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_started',request:plan,fingerprint,before_state:current});
    const response=await this.transport.request(plan,c,auth);this.delegated.validateResponse(plan,response.data,response.status);const result=writeOutcome(response,plan);
    const outcome={...result,review_id:input.review_id,action:plan.action,fingerprint};
-   this.store.complete(actor.tenantId,input.idempotency_key,outcome);this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_completed',outcome});return outcome;
+   this.store.transaction(()=>{
+    if(result.success===true)new ScopeGuard(this.registry,this.store).observeCreated(plan,c,response.data);
+    this.store.complete(actor.tenantId,input.idempotency_key,outcome);this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_completed',outcome});
+   });return outcome;
   }catch(e){this.store.uncertain(actor.tenantId,input.idempotency_key);this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_uncertain',code:e instanceof MirrorError?e.code:'INTERNAL_ERROR'});throw e;}
  }
 }
