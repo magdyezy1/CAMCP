@@ -108,7 +108,8 @@ export class MediaUploadService {
   if(!options.readOnly&&this.executionDeadline!==undefined&&this.executionDeadline<=Date.now())fail('REVIEW_EXPIRED','Media review expired before the next upload step.');
   const plan:CompiledRequest={...p.read,action:'AMCP_REVIEWED_MEDIA',method:options.method??'POST',path,body,query:options.query??{},origin:options.origin,readOnly:options.readOnly??false};
   const response=await this.transport.request(plan,c,auth,options.upload);
-  if(response.data!==null&&writeOutcome(response).success!==true)fail('MEDIA_RESPONSE_INVALID','Provider did not confirm this upload step.');return response;
+  const emptyFinalize=p.platform==='linkedin'&&path==='/rest/videos'&&options.query?.action==='finalizeUpload'&&[200,204].includes(response.status)&&response.data!==null&&typeof response.data==='object'&&!Array.isArray(response.data)&&Object.keys(response.data).length===0;
+  if(!emptyFinalize&&response.data!==null&&writeOutcome(response).success!==true)fail('MEDIA_RESPONSE_INVALID','Provider did not confirm this upload step.');return response;
  }
  private async upload(actor:Actor,p:UploadPlan,bytes:Buffer,record:(v:JsonObject)=>void):Promise<UploadResult>{
   const binary=(field:string,part=bytes):BinaryUpload=>({field,bytes:part,filename:p.filename,mime:p.mime});
@@ -144,9 +145,9 @@ export class MediaUploadService {
    const d=(await send('/rest/'+kind,{initializeUploadRequest:request},{query:{action:'initializeUpload'}})).data as JsonObject,v=d.value,id=responseId(v?.[p.kind],new RegExp('^urn:li:'+p.kind+':[A-Za-z0-9_-]+$'));record({media_id:id});
    const instructions=p.kind==='image'?[{uploadUrl:v.uploadUrl,firstByte:0,lastByte:bytes.length-1}]:v.uploadInstructions;
    if(!Array.isArray(instructions)||!instructions.length||instructions.length>32)fail('MEDIA_RESPONSE_INVALID','LinkedIn returned invalid upload instructions.');
-   let offset=0;for(const part of instructions){if(part.firstByte!==offset||!Number.isSafeInteger(part.lastByte)||part.lastByte<offset||part.lastByte>=bytes.length)fail('MEDIA_RESPONSE_INVALID','LinkedIn upload byte ranges do not cover the reviewed file.');offset=part.lastByte+1;}
+   let offset=0;for(const part of instructions){if(part.firstByte!==offset||!Number.isSafeInteger(part.lastByte)||part.lastByte<offset||part.firstByte>=bytes.length)fail('MEDIA_RESPONSE_INVALID','LinkedIn upload byte ranges do not cover the reviewed file.');offset=Math.min(part.lastByte+1,bytes.length);}
    if(offset!==bytes.length)fail('MEDIA_RESPONSE_INVALID','LinkedIn upload ranges omit file bytes.');
-   const ids:string[]=[];for(const part of instructions){this.access(actor,p.platform,p.account_id,p.connection_id);if(this.executionDeadline!==undefined&&this.executionDeadline<=Date.now())fail('REVIEW_EXPIRED','Media review expired before the next upload step.');const etag=await this.transport.uploadLinkedIn(part.uploadUrl,bytes.subarray(part.firstByte,part.lastByte+1),p.mime);if(p.kind==='video'){if(!etag)fail('MEDIA_RESPONSE_INVALID','LinkedIn upload did not return its part identifier.');ids.push(etag!);}}
+   const ids:string[]=[];for(const part of instructions){const c=this.access(actor,p.platform,p.account_id,p.connection_id),token=p.kind==='image'?(await this.credentials.get(c)).accessToken:undefined;this.access(actor,p.platform,p.account_id,p.connection_id);if(this.executionDeadline!==undefined&&this.executionDeadline<=Date.now())fail('REVIEW_EXPIRED','Media review expired before the next upload step.');const etag=await this.transport.uploadLinkedIn(part.uploadUrl,bytes.subarray(part.firstByte,part.lastByte+1),p.mime,token);if(p.kind==='video'){if(!etag)fail('MEDIA_RESPONSE_INVALID','LinkedIn upload did not return its part identifier.');ids.push(etag!);}}
    if(p.kind==='video'){if(typeof v.uploadToken!=='string')fail('MEDIA_RESPONSE_INVALID','LinkedIn did not return its upload token.');await send('/rest/videos',{finalizeUploadRequest:{video:id,uploadToken:v.uploadToken,uploadedPartIds:ids}},{query:{action:'finalizeUpload'}});}
    return {media_id:id,ready:false,processing_status:'PROCESSING'};
   }

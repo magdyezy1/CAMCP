@@ -74,7 +74,7 @@ export class NativeTransport {
    try{
     const response=await this.fetcher(url,{method:plan.method,headers,body,redirect:'error',signal:AbortSignal.timeout(this.timeoutMs)});
     if([429,502,503,504].includes(response.status)&&attempt+1<maxAttempts){await response.body?.cancel();this.metrics.retries++;const retry=Number(response.headers.get('retry-after'));await this.sleeper(Math.min(5000,Math.max(200*2**attempt,Number.isFinite(retry)?retry*1000:0)));continue;}
-    const documentedEmpty=response.status===200&&(plan.gateway==='google_search_console_native_action'&&['PUT','DELETE'].includes(plan.method)&&/^\/webmasters\/v3\/sites\//.test(plan.path)||plan.gateway==='gtm_native_action'&&plan.method==='DELETE');
+    const documentedEmpty=response.status===200&&(plan.gateway==='google_search_console_native_action'&&['PUT','DELETE'].includes(plan.method)&&/^\/webmasters\/v3\/sites\//.test(plan.path)||plan.gateway==='gtm_native_action'&&plan.method==='DELETE'||plan.gateway==='linkedin_native_action'&&plan.method==='POST'&&plan.path==='/rest/videos'&&plan.query.action==='finalizeUpload');
     const data=await this.readBody(response,plan.method==='HEAD'||!plan.readOnly&&(documentedEmpty||[204,205].includes(response.status)||plan.gateway==='linkedin_native_action'&&response.status===201&&response.headers.has('x-restli-id')));
     if(!response.ok){const code=response.status===401?'AUTH_EXPIRED':response.status===403?'INSUFFICIENT_SCOPE':response.status===429?'PLATFORM_RATE_LIMIT':'UPSTREAM_ERROR';throw new MirrorError(code,'Platform returned HTTP '+response.status,{upstream:redact(data)},response.status,response.status===429||response.status>=500);}
     if(data&&typeof data==='object'){
@@ -92,10 +92,12 @@ export class NativeTransport {
   throw new MirrorError('UPSTREAM_UNAVAILABLE','Platform request failed.');
  }
  /** Only signed upload URLs returned by LinkedIn's initializeUpload response. */
- async uploadLinkedIn(raw:string,bytes:Buffer,mime:string):Promise<string|undefined>{
+ async uploadLinkedIn(raw:string,bytes:Buffer,mime:string,accessToken?:string):Promise<string|undefined>{
   let url:URL;try{url=new URL(raw);}catch{throw new MirrorError('INVALID_UPLOAD_URL','LinkedIn returned an invalid upload URL.');}
   if(url.origin!=='https://www.linkedin.com'||url.username||url.password||url.hash||!url.pathname.startsWith('/dms-uploads/'))throw new MirrorError('UNAPPROVED_UPLOAD_URL','LinkedIn upload URL is outside the approved upload host/path.');
-  let response:Response;try{response=await this.fetcher(url,{method:'PUT',headers:{'Content-Type':mime},body:new Uint8Array(bytes),redirect:'error',signal:AbortSignal.timeout(this.timeoutMs)});}catch{throw new MirrorError('WRITE_OUTCOME_UNCERTAIN','Upload response was lost. Inspect the allocated media before retrying.',{},502);}
+  if(mime.startsWith('image/')&&!accessToken)throw new MirrorError('CREDENTIALS_REQUIRED','LinkedIn image uploads require an access token.');
+  const headers:Record<string,string>={'Content-Type':mime.startsWith('video/')?'application/octet-stream':mime,...(mime.startsWith('image/')?{Authorization:'Bearer '+accessToken}:{})};
+  let response:Response;try{response=await this.fetcher(url,{method:'PUT',headers,body:new Uint8Array(bytes),redirect:'error',signal:AbortSignal.timeout(this.timeoutMs)});}catch{throw new MirrorError('WRITE_OUTCOME_UNCERTAIN','Upload response was lost. Inspect the allocated media before retrying.',{},502);}
   await response.body?.cancel();if(!response.ok)throw new MirrorError('MEDIA_UPLOAD_FAILED','LinkedIn binary upload returned HTTP '+response.status,{},502);
   return response.headers.get('etag')?.replace(/^"|"$/g,'');
  }

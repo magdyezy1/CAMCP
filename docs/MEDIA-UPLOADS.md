@@ -48,7 +48,7 @@ For processing updates, call `{"action":"status","review_id":"..."}`. It perform
 
 No upload step is automatically retried. If a provider allocates media and a later step fails, the error and audit contain `media_id` and `retry_safe:false`. A lost response leaves a durable uncertain submission claim. Inspect the allocated media in the provider before deciding how to recover; do not automatically create a replacement review. Multi-step uploads cannot be rolled back across providers.
 
-Account and connector revocation are checked before egress, including after credential refresh. Provider responses cannot choose arbitrary binary destinations: LinkedIn signed upload URLs are restricted to its HTTPS upload host/path, while other uploads use fixed vendor origins. The review gate on normal native tools remains unchanged.
+Account and connector revocation are checked before egress, including after credential refresh. Provider responses cannot choose arbitrary binary destinations: LinkedIn signed upload URLs are restricted to its HTTPS upload host/path, with OAuth attached only for its image upload contract and no OAuth header on video uploads, while other uploads use fixed vendor origins. The review gate on normal native tools remains unchanged.
 
 ## Contract sources and verification
 

@@ -10,14 +10,14 @@ import type {Actor,JsonObject} from '../src/types.js';
 const key=Buffer.alloc(32,19).toString('base64'),actor:Actor={tenantId:'t',userId:'u',role:'operator'},admin:Actor={...actor,role:'admin'},registry=new Registry();
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64');
 const mp4=Buffer.concat([Buffer.from([0,0,0,24]),Buffer.from('ftypisom'),Buffer.alloc(24)]),link='https://drive.google.com/file/d/abcdefghijklmno/view?usp=sharing';
-function fixture(platform:string,kind='image',options:{pending?:boolean;failUpload?:boolean;badUrl?:boolean}={}){
+function fixture(platform:string,kind='image',options:{pending?:boolean;failUpload?:boolean;badUrl?:boolean;finalizeObject?:boolean}={}){
  const store=new Store(':memory:',key),gateway=platform+'_native_action',c={id:'c',tenantId:'t',gateway,accounts:['123'],writeAccounts:['123'],label:'Synthetic',enabled:true,scopes:[]};
  store.putConnection(admin,c,{accessToken:'synthetic',developerToken:'synthetic',consumerKey:'synthetic',consumerSecret:'synthetic',tokenSecret:'synthetic'});
  const file=kind==='image'?png:mp4,calls:{path:string;method:string;body:any;headers:Headers}[]=[];let downloads=0,stateChanged=false;
  const transport=new NativeTransport((async(input,init)=>{
   const url=new URL(String(input)),path=url.pathname.replace('/open_api',''),method=init?.method??'GET',headers=new Headers(init?.headers),body=init?.body;
   calls.push({path,method,body,headers});
-  if(url.hostname==='www.linkedin.com'){assert.equal(headers.has('authorization'),false);assert.equal(method,'PUT');assert.deepEqual(Buffer.from(body as Uint8Array),file);return new Response(null,{status:201,headers:{etag:'"part-1"'}});}
+  if(url.hostname==='www.linkedin.com'){assert.equal(headers.get('authorization'),kind==='image'?'Bearer synthetic':null);assert.equal(headers.get('content-type'),kind==='image'?'image/png':'application/octet-stream');assert.equal(method,'PUT');assert.deepEqual(Buffer.from(body as Uint8Array),file);return new Response(null,{status:201,headers:{etag:'"part-1"'}});}
   if(method==='GET'||path.endsWith('/googleAds:search')){
    const extra={name:stateChanged?'Changed':'Account'};
    if(platform==='meta')return Response.json({id:'act_123',account_status:1,currency:'USD',...extra});
@@ -43,9 +43,9 @@ function fixture(platform:string,kind='image',options:{pending?:boolean;failUplo
    return Response.json({request_status:'SUCCESS',result:{id:'456',ad_account_id:'123',media_status:'READY'}});
   }
   if(platform==='linkedin'){
-   if(url.searchParams.get('action')==='finalizeUpload'){assert.deepEqual(JSON.parse(String(body)).finalizeUploadRequest.uploadedPartIds,['part-1']);return new Response(null,{status:204});}
+   if(url.searchParams.get('action')==='finalizeUpload'){assert.deepEqual(JSON.parse(String(body)).finalizeUploadRequest.uploadedPartIds,['part-1']);return options.finalizeObject?Response.json({}):new Response(null,{status:200});}
    const request=JSON.parse(String(body));assert.equal(request.initializeUploadRequest.owner,'urn:li:sponsoredAccount:123');
-   return Response.json({value:{[kind]:'urn:li:'+kind+':456',uploadToken:'',uploadUrl:options.badUrl?'https://attacker.invalid/upload':'https://www.linkedin.com/dms-uploads/456/image',uploadInstructions:[{uploadUrl:'https://www.linkedin.com/dms-uploads/456/video',firstByte:0,lastByte:file.length-1}]}});
+   return Response.json({value:{[kind]:'urn:li:'+kind+':456',uploadToken:'',uploadUrl:options.badUrl?'https://attacker.invalid/upload':'https://www.linkedin.com/dms-uploads/456/image',uploadInstructions:[{uploadUrl:'https://www.linkedin.com/dms-uploads/456/video',firstByte:0,lastByte:4*1024*1024-1}]}});
   }
   if(path.endsWith('/media_library'))return Response.json({data:{media_key:kind==='image'?'3_456':'13_456'}});
   const command=body instanceof FormData?body.get('command'):new URLSearchParams(String(body)).get('command');
@@ -76,6 +76,12 @@ test('X asynchronous processing requires a fresh reviewed library attachment wit
   assert.notEqual(r.review_id,first.review_id);assert.equal((await f.call({action:'prepare_library',review_id:first.review_id})).data.review_id,r.review_id);
   const result=await f.call({action:'execute',review_id:r.review_id,idempotency_key:r.review_id,confirmed:true});assert.equal(result.success,true,JSON.stringify(result));assert.equal(result.data.library_id,'13_456');assert.equal(f.downloads(),1);
   assert.equal((await f.call({action:'prepare_library',review_id:first.review_id})).data.already_in_library,true);
+ }finally{f.close();}
+});
+
+test('LinkedIn also accepts the documented empty JSON video-finalize success envelope',async()=>{
+ const f=fixture('linkedin','video',{finalizeObject:true});try{const prepared=await f.prepare();assert.equal(prepared.success,true);const r=prepared.data;
+  const result=await f.call({action:'execute',review_id:r.review_id,idempotency_key:r.review_id,confirmed:true});assert.equal(result.success,true,JSON.stringify(result));
  }finally{f.close();}
 });
 
