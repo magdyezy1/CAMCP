@@ -17,6 +17,7 @@ import {ReportingService,reportingOperations} from './reporting.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {projectResponse} from './projection.js';
 import {WriteReviewService,writeTool} from './write-review.js';
+import {validateAppleResponse} from './apple-native.js';
 export const strictOptions:CallOptions={mode:'strict',flags:{}};
 export class MirrorService {
  readonly compiler:Compiler;readonly introspection:Introspection;readonly credentials:CredentialProvider;
@@ -26,7 +27,7 @@ export class MirrorService {
  async call(tool:string,input:JsonObject,actor:Actor):Promise<JsonObject>{
   const requestId=randomUUID(),start=Date.now();
   try{
-   if(tool===writeTool.name){const result:any=await new WriteReviewService(this.registry,this.compiler,this.store,this.transport,this.credentials,this.options,this.policy).call(input,actor);return {...this.wrap(result,requestId,start),...(result.success===false?{success:false,error:{code:'WRITE_PARTIAL_OR_FAILED',message:'Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.'}}:{})};}
+   if(tool===writeTool.name){const result:any=await new WriteReviewService(this.registry,this.compiler,this.store,this.transport,this.credentials,this.options,this.policy,this.delegatedCompiler).call(input,actor);return {...this.wrap(result,requestId,start),...(result.success===false?{success:false,error:{code:'WRITE_PARTIAL_OR_FAILED',message:'Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.'}}:{})};}
    this.registry.validate(tool,input,this.options);
    if(tool==='whathead_tool_help')return this.registry.help(input,this.options);
    if(input.action==='LIST_ACTIONS')return this.wrap(this.introspection.list(tool,input,this.options),requestId,start);
@@ -49,7 +50,7 @@ export class MirrorService {
   const credentials=await this.credentials.get(connection);
   this.store.appendAudit(actor.tenantId,requestId,{event:'request_started',actor:actor.userId,request:plan});
   try{
-   const fetchPage=async(p:CompiledRequest)=>{this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,p.gateway,p.accountId,connection.id);scope.authorize(p,current);const {data,status}=await this.transport.request(p,current,credentials);this.delegatedCompiler.validateResponse(p,data,status);scope.observe(p,current,data);return data;};
+   const fetchPage=async(p:CompiledRequest)=>{this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,p.gateway,p.accountId,connection.id);scope.authorize(p,current);const {data,status}=await this.transport.request(p,current,credentials);this.delegatedCompiler.validateResponse(p,data,status);validateAppleResponse(p,data);scope.observe(p,current,data);return data;};
    const result=input.aggregate_pages||input.paginate||input.allPages?await paginate(plan,fetchPage,Number(input.max_pages??25)):{data:await fetchPage(plan),pages:1,truncated:false};
    const projected=projectResponse(result.data,plan.responseControls);
    const outcome={success:true,action:plan.action,dry_run:false,...result,data:projected.data,truncated:result.truncated||projected.truncated,...(projected.truncated?{response_truncated:true}:{})};

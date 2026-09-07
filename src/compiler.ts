@@ -5,6 +5,7 @@ import {guardInput} from './security.js';
 import {adaptGoogleLegacy} from './google-legacy.js';
 import {accountAliases as aliases,parameterBag,nativeTopLevel,assertSameAlias} from './parameters.js';
 import {responseControls} from './projection.js';
+import {validateApplePlan} from './apple-native.js';
 const object=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?{...v}:{};
 export function expandPath(template:string,values:JsonObject):{path:string;consumed:string[]}{
  const consumed:string[]=[];
@@ -68,7 +69,8 @@ export class Compiler {
    if(gateway==='meta_native_action'&&action.path.includes('act_{ad_account_id}'))values.ad_account_id=String(values.ad_account_id).replace(/^act_/,'');
   }
   const absolute=action.path.startsWith('https://')?new URL(action.path):undefined;
-  const [pathTemplate,queryTemplate]=(absolute?absolute.pathname+absolute.search:action.path).split('?');
+  // URL serializes template braces; restore those delimiters before expansion.
+  const [pathTemplate,queryTemplate]=(absolute?(absolute.pathname+absolute.search).replace(/%7B/gi,'{').replace(/%7D/gi,'}'):action.path).split('?');
   const {path,consumed}=expandPath(pathTemplate!,values);
   const templateQuery:JsonObject={};
   for(const [key,template]of new URLSearchParams(queryTemplate)){
@@ -123,7 +125,7 @@ export class Compiler {
    readOnly=readOnly&&['GET','HEAD'].includes(override);
   }
   if(gateway==='meta_native_action'&&query.batch!==undefined)readOnly=false;
-  return {gateway,action:action.canonical_name||action.name,method,path,query,...(absolute?{origin:absolute.origin}:{}),...(body===undefined?{}:{body}),headers,readOnly,destructive:action.destructive===true||headers['X-HTTP-Method-Override']==='DELETE',requiresConfirmation:!readOnly,accountId,evidence:action.evidence,warnings:['Request routing compiled locally; live behavioral parity is tracked separately.'],specialTransport:action.raw.special_transport??undefined,...(projection?{responseControls:projection}:{})};
+  return validateApplePlan({gateway,action:action.canonical_name||action.name,method,path,query,...(absolute?{origin:absolute.origin}:{}),...(body===undefined?{}:{body}),headers,readOnly,destructive:action.destructive===true||headers['X-HTTP-Method-Override']==='DELETE',requiresConfirmation:!readOnly,accountId,evidence:action.evidence,warnings:['Request routing compiled locally; live behavioral parity is tracked separately.'],specialTransport:action.raw.special_transport??undefined,...(projection?{responseControls:projection}:{})});
  }
  private native(gateway:string,input:JsonObject):CompiledRequest{
   const n=input.native_request;if(!['GET','POST','PUT','PATCH','DELETE'].includes(n.method)||typeof n.path!=='string')throw new MirrorError('INVALID_NATIVE_REQUEST','Provide a supported HTTP method and a relative path.');

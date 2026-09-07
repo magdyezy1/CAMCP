@@ -5,6 +5,7 @@ import addFormatsModule from 'ajv-formats';
 import type {Action,CallOptions,Catalog,RegistryData,ToolDefinition,JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {guardInput} from './security.js';
+import {appleActions} from './apple-native.js';
 const addFormats=addFormatsModule as unknown as (ajv:Ajv)=>void;
 export class Registry {
  readonly data:RegistryData; readonly tools=new Map<string,ToolDefinition>(); readonly catalogs=new Map<string,Catalog>();
@@ -16,6 +17,7 @@ export class Registry {
   for(const tool of this.data.tools){this.tools.set(tool.name,tool);this.validators.set(tool.name,this.ajv.compile(tool.inputSchema));for(const op of tool.operations??[])this.validators.set(tool.name+'/'+op.operation,this.ajv.compile(op.argumentsSchema));}
   for(const catalog of this.data.catalogs){this.catalogs.set(catalog.gateway,catalog);for(const action of catalog.actions)this.register(catalog.gateway,action);}
   for(const action of this.data.supplemental)this.register(action.gateway!,action,false);
+  if(this.tools.has('apple_ads_native_action'))for(const action of appleActions)this.register('apple_ads_native_action',action,false);
  }
  private register(gateway:string,action:Action,strict=true){
   const names=new Set([action.name,action.canonical_name,...action.aliases]);
@@ -46,6 +48,11 @@ export class Registry {
  help(input:JsonObject,options:CallOptions):JsonObject{
   if(!input.gateway)return structuredClone(this.data.discovery);
   const tool=this.tools.get(input.gateway);if(!tool)throw new MirrorError('UNKNOWN_GATEWAY','Unknown gateway.');
+  if(input.gateway==='apple_ads_native_action'){
+   const action=appleActions.find(a=>a.name===input.operation);
+   if(action)return {...structuredClone(action),qualification:'Independent AMCP implementation; no live parity claim.'};
+   if(!input.operation)return {...structuredClone(tool.help),amcp_actions:appleActions.map(a=>({action:a.name,method:a.method,path:a.path,read_only:a.read_only})),qualification:'Independent AMCP v1 extensions. Captured catalog counts are unchanged. Legacy v5 routes are unavailable.'};
+  }
   if(input.operation&&tool.mode==='delegated'){
    const op=tool.operations?.find(x=>x.operation===input.operation);if(!op)throw new MirrorError('UNKNOWN_OPERATION','Unknown operation.');return structuredClone(op);
   }

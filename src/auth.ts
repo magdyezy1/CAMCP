@@ -2,6 +2,7 @@ import {Store} from './store.js';
 import type {Connection,Credentials,JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {scopeKey} from './security.js';
+import {requestAppleAccessToken} from './apple-auth.js';
 const refreshEndpoints:Record<string,string>={google_ads_native_action:'https://oauth2.googleapis.com/token',dv360_native_action:'https://oauth2.googleapis.com/token',ga4_native_action:'https://oauth2.googleapis.com/token',gtm_native_action:'https://oauth2.googleapis.com/token',google_business_native_action:'https://oauth2.googleapis.com/token',google_search_console_native_action:'https://oauth2.googleapis.com/token',snapchat_native_action:'https://accounts.snapchat.com/login/oauth2/access_token',linkedin_native_action:'https://www.linkedin.com/oauth/v2/accessToken',amazon_native_action:'https://api.amazon.com/auth/o2/token'};
 export class CredentialProvider {
  private refreshes=new Map<string,Promise<Credentials>>();
@@ -12,6 +13,9 @@ export class CredentialProvider {
   const work=this.refresh(connection,c);this.refreshes.set(key,work);try{return await work;}finally{this.refreshes.delete(key);}
  }
  private async refresh(connection:Connection,c:Credentials):Promise<Credentials>{
+  if(connection.gateway==='apple_ads_native_action'){
+   const next=await requestAppleAccessToken(c,this.fetcher);this.store.replaceCredentials(connection.tenantId,connection.id,next);return next;
+  }
   const endpoint=connection.gateway==='reddit_native_action'?'https://www.reddit.com/api/v1/access_token':refreshEndpoints[connection.gateway];if(!endpoint||!c.refreshToken||!c.clientId||!c.clientSecret)throw new MirrorError('REAUTHORIZATION_REQUIRED','Credentials expired and this connection needs reauthorization.',{connection_id:connection.id},401);
   const body=new URLSearchParams({grant_type:'refresh_token',refresh_token:c.refreshToken,client_id:c.clientId,client_secret:c.clientSecret});
   if(connection.gateway==='snapchat_native_action'){

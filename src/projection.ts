@@ -3,7 +3,7 @@ import type {Action,JsonObject} from './types.js';
 import {nativeFields,assertSameAlias} from './parameters.js';
 export interface ResponseControls {fields?:string[];maxItems?:number;compact?:boolean}
 const metadata=/^(?:.*[Ee]rror.*|.*[Ff]ail.*|warnings?|paging|pagination|page_info|pageInfo|page|page_size|pageSize|total_pages|links|metadata|meta|summary|request_id|requestId|request_status|status|code|message|success|truncated|total|total_count|totalCount|totalResults|has_more|hasMore|count|offset|limit|start|cursor|next.*|previous.*)$/;
-const containers=new Set(['data','results','result','list','items','elements','campaigns','campaign','adaccounts','adaccount','adsets','adset','ads','ad','creatives','creative','organizations','stats','timeseries_stats','total_stats']);
+const containers=new Set(['data','results','result','rows','list','items','elements','campaigns','campaign','adaccounts','adaccount','adsets','adset','ads','ad','creatives','creative','organizations','stats','timeseries_stats','total_stats']);
 const object=(v:unknown):v is JsonObject=>!!v&&typeof v==='object'&&!Array.isArray(v);
 export function responseControls(gateway:string,action:Action,input:JsonObject):ResponseControls|undefined {
  const alias=!nativeFields(gateway,action)?input.fields:undefined;

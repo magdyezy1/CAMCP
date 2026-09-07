@@ -24,6 +24,8 @@ export interface Credentials {
   developerToken?:string; loginCustomerId?:string; consumerKey?:string; consumerSecret?:string;
   tokenSecret?:string; apiKey?:string; username?:string; password?:string; headers?:Record<string,string>;
   redirectUri?:string;
+  /** Apple Ads API signing credentials; encrypted with the connection, never public metadata. */
+  appleTeamId?:string; appleKeyId?:string; applePrivateKey?:string;
 }
 export interface CompiledRequest {
   gateway:string; action:string; method:string; path:string; query:JsonObject; body?:unknown; origin?:string;

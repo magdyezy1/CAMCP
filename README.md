@@ -6,14 +6,14 @@ AMCP connects an advertising workspace to Codex and other MCP clients. It includ
 
 ## Website
 
-- Connections: Google Ads, Meta, TikTok, Snapchat, LinkedIn, and X; each provider uses your own app credentials.
+- Connections: Google Ads, Meta, TikTok, Snapchat, LinkedIn, X, GA4, Google Tag Manager / Google tag, Search Console, and Apple Ads; each provider uses your own app credentials. See [measurement and Apple setup](docs/MEASUREMENT-AND-APPLE.md).
 - Multiple encrypted logins per provider, default login, synchronization, searchable account selection, and local disconnect.
-- Asset tabs show related inventory. Selected ad accounts are the enforced MCP access boundary; some standalone resources need explicit ownership bindings.
+- Asset tabs show related inventory. Selected ad accounts, GA4 properties, Tag Manager accounts and Search Console sites are the enforced MCP access boundaries; some standalone resources need explicit ownership bindings.
 - OAuth completion page with authorization, credential exchange, and asset sync results.
 - MCP connector page with browser authorization, Codex/Cursor configurations, reader/operator access, expiring bearer tokens, and revocation.
 - Reviewed campaign mutations with five-minute state snapshots, explicit confirmation, account grants, and persistent duplicate-submission protection.
 - Evidence-linked campaign audits and deterministic optimization suggestions with explicit unknown coverage.
-- Session authentication, CSRF protection, encrypted OAuth state, PKCE where supported, and activity records.
+- Session authentication, CSRF protection, encrypted OAuth state, PKCE where supported, and activity records. Claude-compatible dynamic registration supports encrypted client secrets with client_secret_post alongside public clients. See [OAuth and hardening decisions](docs/OAUTH-HARDENING.md).
 
 ## Run locally
 
@@ -39,4 +39,4 @@ The [hardening review](docs/HARDENING-REVIEW.md) records parameter behavior, mea
 
 ## Deployment files
 
-`railway.json` selects the Dockerfile, checks `/healthz`, and runs a single replica. Attach a volume at `/data`. The website, MCP endpoint, and report worker run together. Register callbacks such as **https://amcp.shop/api/auth/snapchat/callback** after the domain is live.
+Use the Dockerfile and set Railway's health check to `/healthz`, one replica, and Wait for CI in service settings. `railway.json` is a legacy reference; new Railway services cannot opt into deprecated Config as Code. Attach a volume at `/data` and match domain target ports to the actual `PORT` (the existing AMCP deployment uses 8080). The website, MCP endpoint, and report worker run together. Register callbacks such as **https://amcp.shop/api/auth/snapchat/callback** after the domain is live.

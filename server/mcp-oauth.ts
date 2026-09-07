@@ -2,7 +2,7 @@ import {randomBytes,randomUUID,createHash} from 'node:crypto';
 import type {Response} from 'express';
 import type {OAuthServerProvider,AuthorizationParams} from '@modelcontextprotocol/sdk/server/auth/provider.js';
 import type {OAuthClientInformationFull,OAuthTokens,OAuthTokenRevocationRequest} from '@modelcontextprotocol/sdk/shared/auth.js';
-import {InvalidClientMetadataError,InvalidGrantError,InvalidScopeError,InvalidTargetError} from '@modelcontextprotocol/sdk/server/auth/errors.js';
+import {InvalidClientMetadataError,InvalidClientError,InvalidGrantError,InvalidScopeError,InvalidTargetError} from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import {redirectUriMatches} from '@modelcontextprotocol/sdk/server/auth/handlers/authorize.js';
 import {WebStore,type WebSession} from './web-store.js';
 import {sha256,safeEqual} from '../src/security.js';
@@ -15,16 +15,36 @@ export class McpOAuth implements OAuthServerProvider {
  readonly resource:URL;
  constructor(readonly web:WebStore,readonly allowWrites=false){this.resource=new URL(web.origin+'/mcp');}
  get clientsStore(){return {
-  getClient:async(id:string)=>{const row=this.web.store.db.prepare('SELECT data FROM amcp_mcp_clients WHERE id=?').get(id) as {data:string}|undefined;return row?JSON.parse(row.data) as OAuthClientInformationFull:undefined;},
+  getClient:async(id:string)=>{
+   const row=this.web.store.db.prepare('SELECT data FROM amcp_mcp_clients WHERE id=?').get(id) as {data:string}|undefined;if(!row)return;
+   const {encrypted_client_secret,...client}=JSON.parse(row.data);
+   if(client.token_endpoint_auth_method==='client_secret_post'){
+    if(typeof encrypted_client_secret!=='string')throw new InvalidClientError('Client credentials are unavailable.');
+    client.client_secret=this.web.openClientSecret(id,encrypted_client_secret);
+   }
+   return client as OAuthClientInformationFull;
+  },
   registerClient:async(input:Omit<OAuthClientInformationFull,'client_id'|'client_id_issued_at'>)=>{
-   if(input.token_endpoint_auth_method!=='none')throw new InvalidClientMetadataError('Use a public client with PKCE and token_endpoint_auth_method none.');
+   if(input.token_endpoint_auth_method!=='none'&&input.token_endpoint_auth_method!=='client_secret_post')throw new InvalidClientMetadataError('Use none or client_secret_post with S256 PKCE.');
    if(!input.redirect_uris.length||input.redirect_uris.length>10||input.redirect_uris.some(uri=>{try{const u=new URL(uri);return !!(u.username||u.password||u.hash)||u.protocol!=='https:'&&!(u.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(u.hostname));}catch{return true;}}))throw new InvalidClientMetadataError('Register exact HTTPS or loopback HTTP redirect URIs.');
    const scopes=this.validateScopes(input.scope?.split(' '));
    const count=this.web.store.db.prepare('SELECT count(*) AS n FROM amcp_mcp_clients').get() as {n:number};if(count.n>=1000)throw new InvalidClientMetadataError('Client registration limit reached. Contact the workspace administrator.');
-   const client:OAuthClientInformationFull={client_id:randomUUID(),client_id_issued_at:Math.floor(Date.now()/1000),client_name:String(input.client_name??'MCP client').slice(0,120),redirect_uris:input.redirect_uris,token_endpoint_auth_method:'none',grant_types:['authorization_code','refresh_token'],response_types:['code'],scope:scopes.join(' ')};
-   this.web.store.db.prepare('INSERT INTO amcp_mcp_clients VALUES(?,?)').run(client.client_id,JSON.stringify(client));return client;
+   const client:OAuthClientInformationFull={client_id:randomUUID(),client_id_issued_at:Math.floor(Date.now()/1000),client_name:String(input.client_name??'MCP client').slice(0,120),redirect_uris:input.redirect_uris,token_endpoint_auth_method:input.token_endpoint_auth_method,grant_types:['authorization_code','refresh_token'],response_types:['code'],scope:scopes.join(' ')};
+   if(input.token_endpoint_auth_method==='client_secret_post'){client.client_secret=opaque();client.client_secret_expires_at=0;}
+   const {client_secret,...metadata}=client;
+   this.web.store.db.prepare('INSERT INTO amcp_mcp_clients VALUES(?,?)').run(client.client_id,JSON.stringify({...metadata,...(client_secret?{encrypted_client_secret:this.web.sealClientSecret(client.client_id,client_secret)}:{})}));return client;
   }
  };}
+ /** Additional constant-time authentication before the SDK's token/revocation handlers. */
+ async authenticateClient(body:unknown,authorization?:string){
+  const input=body as JsonObject|undefined;
+  if(authorization!==undefined||typeof input?.client_id!=='string')throw new InvalidClientError('Use the registered token endpoint authentication method.');
+  const client=await this.clientsStore.getClient(input.client_id);
+  if(!client)throw new InvalidClientError('Invalid client credentials.');
+  if(client.token_endpoint_auth_method==='client_secret_post'){
+   if(typeof input.client_secret!=='string'||!client.client_secret||!safeEqual(client.client_secret,input.client_secret))throw new InvalidClientError('Invalid client credentials.');
+  }else if(input.client_secret!==undefined)throw new InvalidClientError('Public clients must not supply a client secret.');
+ }
  private validateScopes(scopes?:string[]){
   const granted=scopes===undefined?[readScope]:scopes;
   if(!granted.length||new Set(granted).size!==granted.length||granted.some(s=>s!==readScope&&s!==writeScope)||!granted.includes(readScope))throw new InvalidScopeError('Request mcp:read, optionally together with mcp:write.');

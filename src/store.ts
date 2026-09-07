@@ -8,6 +8,7 @@ import type {Actor,Connection,Credentials,JsonObject} from './types.js';
 export class Store {
  readonly db:DatabaseSync;private box?:SecretBox;
  private authenticatedActors=new WeakMap<Actor,string>();
+ private transactionDepth=0;
  constructor(filename:string,masterKey?:string){
   if(masterKey)this.box=new SecretBox(masterKey);
   if(filename!==':memory:')fs.mkdirSync(path.dirname(filename),{recursive:true});
@@ -38,7 +39,20 @@ export class Store {
   }catch(e){this.db.close();throw e;}
  }
  close(){this.db.close();}
- transaction<T>(fn:()=>T):T{this.db.exec('BEGIN IMMEDIATE');try{const result=fn();this.db.exec('COMMIT');return result;}catch(e){this.db.exec('ROLLBACK');throw e;}}
+ transaction<T>(fn:()=>T):T{
+  if(fn.constructor.name==='AsyncFunction')throw new MirrorError('ASYNC_TRANSACTION_UNSUPPORTED','SQLite transactions require synchronous callbacks.');
+  const depth=this.transactionDepth,name='amcp_sp_'+depth;
+  this.db.exec(depth===0?'BEGIN IMMEDIATE':'SAVEPOINT '+name);this.transactionDepth++;
+  try{
+   const result=fn();
+   if(result&&typeof (result as {then?:unknown}).then==='function')throw new MirrorError('ASYNC_TRANSACTION_UNSUPPORTED','SQLite transactions require synchronous callbacks.');
+   this.db.exec(depth===0?'COMMIT':'RELEASE SAVEPOINT '+name);return result;
+  }catch(e){
+   // ROLLBACK TO preserves the savepoint; release it after undoing the inner work.
+   if(this.db.isTransaction)this.db.exec(depth===0?'ROLLBACK':'ROLLBACK TO SAVEPOINT '+name+'; RELEASE SAVEPOINT '+name);
+   throw e;
+  }finally{this.transactionDepth=depth;}
+ }
  ensureTenant(id:string,name=id){if(!id)throw new MirrorError('INVALID_TENANT','Tenant ID is required.');this.db.prepare('INSERT INTO tenants(id,name) VALUES(?,?) ON CONFLICT(id) DO NOTHING').run(id,name);}
  createKey(actor:Actor,ttlMs:number=86400000*30):string{this.ensureTenant(actor.tenantId);const token='whm_'+randomUUID().replaceAll('-','')+randomUUID().replaceAll('-','');this.db.prepare('INSERT INTO api_keys(hash,tenant_id,user_id,role,expires_at) VALUES(?,?,?,?,?)').run(sha256(token),actor.tenantId,actor.userId,actor.role,Date.now()+ttlMs);return token;}
  authenticate(token:string):Actor{

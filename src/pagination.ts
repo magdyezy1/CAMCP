@@ -4,6 +4,16 @@ import {stable} from './security.js';
 const obj=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?v as JsonObject:{};
 export function nextPage(plan:CompiledRequest,response:unknown):CompiledRequest|null{
  const d=obj(response),data=obj(d.data);const next=structuredClone(plan);
+ if(plan.gateway==='apple_ads_native_action'&&plan.origin==='https://api.ads.apple.com'&&plan.path.endsWith('/query')){
+  const pagination=obj(d.pagination),body=obj(plan.body),requested=obj(body.pagination);
+  const rows=Array.isArray(d.result)?d.result:obj(d.result).rows;
+  if(!Array.isArray(rows))throw new MirrorError('UNKNOWN_PAGINATION','Apple query response is missing its row collection.');
+  const offset=requested.offset??0,size=requested.pageSize??100,total=pagination.totalCount;
+  if(pagination.offset!==undefined&&pagination.offset!==offset||pagination.pageSize!==undefined&&(!Number.isSafeInteger(pagination.pageSize)||pagination.pageSize<0)||total!==undefined&&(!Number.isSafeInteger(total)||total<0)||rows.length>size)throw new MirrorError('UNKNOWN_PAGINATION','Apple returned inconsistent pagination metadata.');
+  if(total!==undefined&&offset+rows.length>=total||total===undefined&&rows.length<size)return null;
+  if(!rows.length)throw new MirrorError('UNKNOWN_PAGINATION','Apple returned an empty page before its reported total.');
+  next.body={...body,pagination:{...requested,offset:offset+rows.length}};return next;
+ }
  if(plan.gateway==='meta_native_action'){
   if(!d.paging?.next)return null;const cursor=d.paging?.cursors?.after;
   if(!cursor)throw new MirrorError('UNKNOWN_PAGINATION','Meta advertises another page but supplies no cursor.');next.query.after=cursor;return next;
@@ -49,7 +59,7 @@ export function nextPage(plan:CompiledRequest,response:unknown):CompiledRequest|
 }
 function arraySlots(value:unknown,prefix=''):string[]{
  if(Array.isArray(value))return [prefix];if(!value||typeof value!=='object')return [];
- return Object.entries(value).flatMap(([k,v])=>Array.isArray(v)?[prefix+'/'+k]:k==='data'?arraySlots(v,prefix+'/'+k):[]);
+ return Object.entries(value).flatMap(([k,v])=>Array.isArray(v)?[prefix+'/'+k]:k==='data'||k==='result'?arraySlots(v,prefix+'/'+k):[]);
 }
 function at(root:any,path:string){return path?path.slice(1).split('/').reduce((v,k)=>v?.[k],root):root;}
 function put(root:any,path:string,value:any){const parts=path.slice(1).split('/');const key=parts.pop()!;const parent=parts.reduce((v,k)=>v[k],root);parent[key]=value;}

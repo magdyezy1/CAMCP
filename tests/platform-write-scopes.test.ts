@@ -35,11 +35,11 @@ test('configuration changes do not upgrade existing connections or pending autho
   const c:Connection={id:'existing-read-login',tenantId:'local',gateway:'meta_native_action',accounts:['111'],label:'Existing read login',enabled:true,scopes:['ads_read']};f.store.putConnection(f.session.actor,c,{accessToken:'synthetic-existing'});
   const reader=new PlatformOAuth(f.web,env,blocked),start=await reader.start(f.session,'meta'),url=new URL(start.url),pending=f.web.consumeOAuth(f.session,'meta',url.searchParams.get('state')!);
   // The fake exchange exercises metadata processing only; no provider endpoint is contacted.
-  const fake:typeof fetch=async()=>new Response(JSON.stringify({access_token:'synthetic-new'}),{headers:{'Content-Type':'application/json'}});
+  const fake:typeof fetch=async()=>new Response(JSON.stringify({access_token:'synthetic-new',expires_in:5184000}),{headers:{'Content-Type':'application/json'}});
   const writer=new PlatformOAuth(f.web,env,fake,true);assert.equal((await writer.exchange('meta',pending,{code:'synthetic-code'})).scopes.includes('ads_management'),false);
   const legacy={...pending};delete legacy.requestedScopes;assert.equal((await writer.exchange('meta',legacy,{code:'synthetic-code'})).scopes.includes('ads_management'),false);
   const newStart=await writer.start(f.session,'meta'),newUrl=new URL(newStart.url),newPending=f.web.consumeOAuth(f.session,'meta',newUrl.searchParams.get('state')!);assert.equal((await writer.exchange('meta',newPending,{code:'synthetic-code'})).scopes.includes('ads_management'),true);
-  const narrowed=new PlatformOAuth(f.web,env,async()=>new Response(JSON.stringify({access_token:'synthetic-limited',scope:'ads_read'}),{headers:{'Content-Type':'application/json'}}),true);assert.deepEqual((await narrowed.exchange('meta',newPending,{code:'synthetic-code'})).scopes,['ads_read']);
+  const narrowed=new PlatformOAuth(f.web,env,async()=>new Response(JSON.stringify({access_token:'synthetic-limited',scope:'ads_read',expires_in:5184000}),{headers:{'Content-Type':'application/json'}}),true);assert.deepEqual((await narrowed.exchange('meta',newPending,{code:'synthetic-code'})).scopes,['ads_read']);
   assert.deepEqual(f.store.listConnections('local')[0]!.scopes,['ads_read']);assert.deepEqual(f.store.listConnections('local')[0]!.writeAccounts??[],[]);
  }finally{f.store.close();}
 });

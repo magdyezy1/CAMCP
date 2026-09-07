@@ -8,7 +8,7 @@ const host=process.env.MIRROR_HOST??(process.env.PORT?'0.0.0.0':'127.0.0.1'),por
 if(!Number.isInteger(port)||port<1||port>65535)throw Error('Invalid MIRROR_PORT.');
 const publicOrigin=process.env.AMCP_PUBLIC_ORIGIN??process.env.MIRROR_PUBLIC_ORIGIN??(process.env.RAILWAY_PUBLIC_DOMAIN?'https://'+process.env.RAILWAY_PUBLIC_DOMAIN:undefined);
 if(process.env.NODE_ENV==='production'&&(!process.env.MIRROR_MASTER_KEY||!(process.env.AMCP_ADMIN_PASSWORD||process.env.AMCP_ADMIN_PASSWORD_HASH)))throw Error('Production requires MIRROR_MASTER_KEY and an AMCP administrator password.');
-const app=createHttpApp(service,store,{host,publicOrigin,website:{origin:publicOrigin??'http://127.0.0.1:'+port,masterKey:process.env.MIRROR_MASTER_KEY,adminPassword:process.env.AMCP_ADMIN_PASSWORD,adminPasswordHash:process.env.AMCP_ADMIN_PASSWORD_HASH,tenantId:process.env.AMCP_TENANT_ID}});
+const app=createHttpApp(service,store,{host,publicOrigin,website:{origin:publicOrigin??'http://127.0.0.1:'+port,masterKey:process.env.MIRROR_MASTER_KEY,adminPassword:process.env.AMCP_ADMIN_PASSWORD,adminPasswordHash:process.env.AMCP_ADMIN_PASSWORD_HASH,tenantId:process.env.AMCP_TENANT_ID,trustedProxyCidrs:process.env.AMCP_TRUSTED_PROXY_CIDRS?.split(/[ ,]+/).filter(Boolean)}});
 const listener=app.listen(port,host,()=>process.stderr.write('AMCP listening on http://'+(host==='0.0.0.0'?'127.0.0.1':host)+':'+port+'\n'));
 listener.requestTimeout=45000;listener.headersTimeout=10000;
 let closing=false;

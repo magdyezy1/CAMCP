@@ -13,6 +13,7 @@ const accountFields:Record<string,Set<string>>={
  tiktok_native_action:new Set(['advertiser_id','advertiser_ids']),
  snapchat_native_action:new Set(['ad_account_id','ad_account_ids']),
  linkedin_native_action:new Set(['ad_account_id','account_id']),
+ apple_ads_native_action:new Set(['adAccountId','account_id','ad_account_id']),
  x_ads_native_action:new Set(['account_id']),dv360_native_action:new Set(['advertiserId','advertiser_id']),reddit_native_action:new Set(['ad_account_id','account_id'])
 };
 function mismatch(field:string):never{throw new MirrorError('ACCOUNT_SCOPE_MISMATCH','The final request targets a resource outside the selected account binding.',{field},403);}

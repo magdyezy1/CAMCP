@@ -4,7 +4,7 @@ AMCP supports explicitly reviewed campaign-management mutations. The existing na
 
 ## Enable access
 
-1. In Railway variables, set `MIRROR_ALLOW_WRITES=true` and redeploy. Preserve `MIRROR_MASTER_KEY` and the persistent `/data` volume. Keep the target port and `PORT` at **4317**. `/healthz` reports the effective `live_writes` flag.
+1. In Railway variables, set `MIRROR_ALLOW_WRITES=true` and redeploy. Preserve `MIRROR_MASTER_KEY` and the persistent `/data` volume. Set the target port to the effective Railway `PORT` (**8080** in the current Railway service; local development defaults to 4317). `/healthz` reports the effective `live_writes` flag.
 2. Sign in to Connections. Connect or reconnect each provider with the required app permissions. New Meta authorizations request `ads_management`; LinkedIn requests `rw_ads`; X requests write access. Existing provider tokens are not upgraded by changing an environment variable. Explicit `AMCP_<PROVIDER>_SCOPES` overrides take precedence, including an empty override.
 3. Select the accounts available to the connection. Grant writes separately for the accounts you intend to manage. A write grant is always a subset of selected accounts; deselection removes it.
 4. On Connectors, create an **operator** token and confirm its access. Configure the client using the displayed bearer-token configuration. Tokens default to **reader**. OAuth clients must explicitly request `mcp:write` during registration and authorization and receive administrator consent. Refresh cannot increase scope.
@@ -60,8 +60,12 @@ Budget, bid, spend or activation changes additionally require `spend_change_conf
 | LinkedIn | Account-scoped campaign groups, campaigns and creatives; entity POST updates require `restli_method: "PARTIAL_UPDATE"` and a native patch. |
 | X | Account-scoped campaigns, line items and promoted tweets. |
 | DV360 | Advertiser-scoped campaigns, insertion orders, line items and creatives. |
+| GA4 | Audience export and report task creation; exact selected property and audience scope. |
+| Tag Manager / Google tag | Container, workspace, tag, trigger, variable, Google tag config, template, folder, zone, client, transformation and environment CRUD; create/update/delete container versions and publish versions. |
+| Search Console | Add/remove a selected site; submit/remove its sitemaps. |
+| Apple Ads | Platform API v1 campaign create/update/delete; paused creation, native account header and exact target checks. |
 
-An action also needs an implemented target-state read. Unsupported contracts return a precise error before mutation egress. Special media upload, arbitrary batch/tunnel requests, delegated writes and other catalog routes remain unavailable for live execution. Catalog presence describes an interface, not live execution qualification.
+An action also needs an implemented target-state read. Unsupported contracts return a precise error before mutation egress. Special media upload, arbitrary batch/tunnel requests, unqualified delegated workflows and other catalog routes remain unavailable for live execution. Catalog presence describes an interface, not live execution qualification.
 
 ## Outcomes and recovery
 
@@ -73,4 +77,4 @@ Protect the SQLite volume and backups: they retain account information, review p
 
 ## Verification boundary
 
-Automated tests cover native campaign CRUD requests for all six primary platforms and DV360, response validation, expired/stale reviews, tenant/user binding, grants, paused creation, duplicate submissions, lost responses, credential revocation and restart persistence using synthetic provider responses. Container CI exercises both runtime modes. Live mutations were not executed against user advertising accounts during development. Production OAuth, app approvals and live endpoint qualification remain external acceptance work.
+Automated tests cover native campaign CRUD requests for all six primary platforms and DV360, response validation, expired/stale reviews, tenant/user binding, grants, paused creation, duplicate submissions, lost responses, credential revocation and restart persistence using synthetic provider responses. The container CI workflow exercises both runtime modes. New tests exercise all four measurement/Apple providers with synthetic state and responses, including every enabled Tag Manager action, required scopes, native fingerprints, optional target absence and cross-resource rejection. Live mutations were not executed against user advertising accounts during development. Production OAuth, app approvals and live endpoint qualification remain external acceptance work.

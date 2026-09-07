@@ -6,15 +6,17 @@ This application runs its website, OAuth callbacks, MCP server, and report worke
 
 ## 1. Create the service
 
-In Railway, create a project from the AMCP GitHub repository. Railway reads `railway.json` and builds the included Dockerfile. Add a volume mounted at `/data` before connecting accounts. The container initializes the mount directory and then runs Node as the unprivileged `node` user.
+In Railway, create a project from the AMCP GitHub repository and build the included Dockerfile. Set these service settings explicitly: health-check path `/healthz`, one replica, restart on failure, and Wait for CI enabled. Add a volume mounted at `/data` before connecting accounts. The container initializes the mount directory and then runs Node as the unprivileged `node` user.
 
-Railway rejects Dockerfile `VOLUME` instructions. This image deliberately has none: create the persistent volume in Railway and set its mount path to `/data`. Keep the domain target port and the `PORT` service variable both set to `4317`.
+Railway has deprecated `railway.json` configuration for new services. The file remains a legacy reference; verify settings in the dashboard instead of assuming it is applied. Existing Config as Code support ends on December 1, 2026. See [Railway's configuration notice](https://docs.railway.com/config-as-code).
+
+Railway rejects Dockerfile `VOLUME` instructions. This image deliberately has none: create the persistent volume in Railway and set its mount path to `/data`. Set each domain's target port to the service's actual `PORT`. The existing AMCP deployment uses `8080`. Local development defaults to `4317`; that local default does not override Railway's `PORT`.
 
 Add these service variables:
 
 | Variable | Value |
 | --- | --- |
-| `PORT` | `4317` (also use this domain target port) |
+| `PORT` | Railway's supplied port, or an explicit value such as `8080`; match the domain target port |
 | `MIRROR_DB` | `/data/mirror.sqlite` |
 | `MIRROR_MASTER_KEY` | A new random 32-byte base64 key |
 | `AMCP_ADMIN_PASSWORD` | A unique strong password, at least 16 characters |
@@ -46,6 +48,11 @@ Use **AMCP** as the app name. Secrets go in Railway variables; Settings shows th
 | Snapchat | `https://amcp.shop/api/auth/snapchat/callback` |
 | LinkedIn | `https://amcp.shop/api/auth/linkedin/callback` |
 | X | `https://amcp.shop/api/auth/x/callback` |
+| GA4 | `https://amcp.shop/api/auth/ga4/callback` |
+| Google Tag Manager / Google tag | `https://amcp.shop/api/auth/gtm/callback` |
+| Google Search Console | `https://amcp.shop/api/auth/gsc/callback` |
+
+Apple Ads uses server-side API credentials and has no browser callback. See [measurement and Apple setup](MEASUREMENT-AND-APPLE.md) for app variables, enabled APIs, resource selection and tested MCP examples. GA4, GTM and Search Console can reuse the Google OAuth client when both dedicated client fields are unset; each still needs its own registered callback and authorization.
 
 All use `AMCP_<PROVIDER>_CLIENT_ID` and `AMCP_<PROVIDER>_CLIENT_SECRET`, with uppercase provider names. X uses its consumer/API key and secret in these variables. Google additionally requires `AMCP_GOOGLE_DEVELOPER_TOKEN`; an optional manager context uses `AMCP_GOOGLE_LOGIN_CUSTOMER_ID`. Meta Login for Business can use `AMCP_META_CONFIG_ID`. TikTok's developer portal may provide `redirect_uri` or `redirect_url`; match it using `AMCP_TIKTOK_REDIRECT_PARAMETER`. LinkedIn API version defaults to `202605` and is configurable.
 
@@ -62,7 +69,7 @@ codex mcp add amcp --url https://amcp.shop/mcp
 codex mcp login amcp
 ```
 
-AMCP supports OAuth discovery, public client registration, S256 PKCE, browser consent, access-token expiry, rotating refresh tokens, and revocation. For a bearer-token client, create a token on the connector page and use:
+AMCP supports OAuth discovery, dynamic client registration with `none` or `client_secret_post`, S256 PKCE, browser consent, access-token expiry, rotating refresh tokens, and revocation. Confidential clients such as Claude receive a generated secret during registration; AMCP stores it encrypted using `MIRROR_MASTER_KEY`. Claude's `https://claude.ai/api/mcp/auth_callback` redirect is accepted under the same exact HTTPS redirect rules as other clients. For a bearer-token client, create a token on the connector page and use:
 
 ```toml
 [mcp_servers.amcp]
@@ -78,6 +85,6 @@ The embedded report worker uses the same volume. Do not create a second Railway 
 
 Back up SQLite with `npm run admin -- backup /data/backup.sqlite`; store backups outside the service and keep the encryption key separately. Exercise a restore before depending on the deployment. Database backups contain sensitive account data and encrypted credentials. Never commit them.
 
-The administrator login deliberately does not trust arbitrary forwarded IP headers. Its rate-limit bucket may be shared behind a proxy, so add appropriately scoped Cloudflare edge rate limits and monitor failed logins. Do not enable Express `trust proxy: true` indiscriminately. Rotating provider secrets or losing refresh access requires reconnecting the affected provider.
+The administrator login ignores forwarded IP headers by default. Optional `AMCP_TRUSTED_PROXY_CIDRS` lists verified proxy CIDRs; AMCP walks the chain from the socket toward the client and stops at the first untrusted address. Malformed chains fall back to the socket. Specify the actual Railway ingress proxy addresses, not merely Cloudflare's public ranges: Railway is the immediate peer. Until those addresses and header sanitization are verified, leave this setting empty and expect a shared login rate-limit bucket. Do not enable blanket Express proxy trust. Rotating provider secrets or losing refresh access requires reconnecting the affected provider.
 
 Local tests validate contracts and security behavior with synthetic provider responses. They do not demonstrate every live provider workflow. Google discovery currently lists directly accessible customers, not every descendant of a manager hierarchy. Vendor approval, full production OAuth round trips, complete per-platform asset endpoint qualification, and live reporting remain deployment acceptance work. Unsupported or incomplete discovery surfaces return explicit errors. Reviewed campaign-management writes are implemented and opt-in. Their native contracts have synthetic tests, but live mutation qualification is outstanding. Special media and other unsupported write routes remain dry-run-only.

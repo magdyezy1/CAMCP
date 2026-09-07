@@ -58,7 +58,7 @@ export class NativeTransport {
    if(credentials.loginCustomerId)headers['login-customer-id']=credentials.loginCustomerId.replaceAll('-','');
   }
   if(plan.gateway==='amazon_native_action'){if(!credentials.clientId)throw new MirrorError('CLIENT_ID_REQUIRED','Amazon Ads requires a client ID.');headers['Amazon-Advertising-API-ClientId']=credentials.clientId;if(plan.accountId)headers['Amazon-Advertising-API-Scope']=plan.accountId;}
-  if(plan.gateway==='apple_ads_native_action'&&plan.accountId)headers['X-AP-Context']='orgId='+plan.accountId;
+  if(plan.gateway==='apple_ads_native_action'&&plan.accountId)headers['X-AP-Context']=(url.origin==='https://api.ads.apple.com'&&plan.path.startsWith('/v1/')?'adAccountId='+plan.accountId+';':'orgId='+plan.accountId);
   if(plan.gateway==='x_ads_native_action')headers.Authorization=oauth1(plan.method,url,credentials,form);
   if(credentials.apiKey&&!headers.Authorization)headers.Authorization='Bearer '+credentials.apiKey;
   if(!headers.Authorization&&!headers['Access-Token'])throw new MirrorError('CREDENTIALS_REQUIRED','An authenticated platform connection is required.',{},401);
@@ -68,7 +68,8 @@ export class NativeTransport {
    try{
     const response=await this.fetcher(url,{method:plan.method,headers,body,redirect:'error',signal:AbortSignal.timeout(this.timeoutMs)});
     if([429,502,503,504].includes(response.status)&&attempt+1<maxAttempts){await response.body?.cancel();this.metrics.retries++;const retry=Number(response.headers.get('retry-after'));await this.sleeper(Math.min(5000,Math.max(200*2**attempt,Number.isFinite(retry)?retry*1000:0)));continue;}
-    const data=await this.readBody(response,plan.method==='HEAD'||!plan.readOnly&&([204,205].includes(response.status)||plan.gateway==='linkedin_native_action'&&response.status===201&&response.headers.has('x-restli-id')));
+    const documentedEmpty=response.status===200&&(plan.gateway==='google_search_console_native_action'&&['PUT','DELETE'].includes(plan.method)&&/^\/webmasters\/v3\/sites\//.test(plan.path)||plan.gateway==='gtm_native_action'&&plan.method==='DELETE');
+    const data=await this.readBody(response,plan.method==='HEAD'||!plan.readOnly&&(documentedEmpty||[204,205].includes(response.status)||plan.gateway==='linkedin_native_action'&&response.status===201&&response.headers.has('x-restli-id')));
     if(!response.ok){const code=response.status===401?'AUTH_EXPIRED':response.status===403?'INSUFFICIENT_SCOPE':response.status===429?'PLATFORM_RATE_LIMIT':'UPSTREAM_ERROR';throw new MirrorError(code,'Platform returned HTTP '+response.status,{upstream:redact(data)},response.status,response.status===429||response.status>=500);}
     if(data&&typeof data==='object'){
      const d=data as JsonObject;

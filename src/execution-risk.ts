@@ -32,6 +32,7 @@ export function independentlyReadOnly(plan:CompiledRequest):boolean{
   case 'google_search_console_native_action':return /\/searchAnalytics\/query$/.test(pathname)||pathname==='/v1/urlInspection/index:inspect';
   case 'criteo_native_action':return /\/(?:search|preview)$/.test(pathname);
   case 'reddit_native_action':return /^\/api\/v3\/ad_accounts\/[^/]+\/reports$/.test(pathname);
+  case 'apple_ads_native_action':return plan.origin==='https://api.ads.apple.com'&&/^\/v1\/(?:campaigns|adgroups|ads|creatives|keywords|negative-keywords|shared-budgets|reports\/apps\/(?:campaigns|adgroups|ads|keywords|searchterms))\/query$/.test(pathname);
   default:return false;
  }
 }

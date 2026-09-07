@@ -1,12 +1,40 @@
 import {randomBytes,scryptSync,timingSafeEqual,randomUUID} from 'node:crypto';
 import type {Request} from 'express';
+import {BlockList,isIP} from 'node:net';
 import {Store} from '../src/store.js';
 import {SecretBox,sha256,scopeKey} from '../src/security.js';
 import {MirrorError} from '../src/errors.js';
 import type {Actor,JsonObject} from '../src/types.js';
 
 export interface WebSession {id:string;actor:Actor;csrf:string;expiresAt:number}
-export interface WebsiteOptions {origin:string;masterKey?:string;adminPassword?:string;adminPasswordHash?:string;tenantId?:string;fetcher?:typeof fetch;staticDirectory?:string}
+export interface WebsiteOptions {origin:string;masterKey?:string;adminPassword?:string;adminPasswordHash?:string;tenantId?:string;fetcher?:typeof fetch;staticDirectory?:string;trustedProxyCidrs?:string[]}
+function canonicalIp(value:string):string|undefined{
+ if(isIP(value)===4)return value;
+ if(isIP(value)!==6||value.includes('%'))return;
+ const address=new URL('http://['+value+']/').hostname.slice(1,-1);
+ const mapped=/^::ffff:([a-f0-9]+):([a-f0-9]+)$/.exec(address);
+ if(mapped){const n=parseInt(mapped[1]!,16)*65536+parseInt(mapped[2]!,16);return [n>>>24,(n>>>16)&255,(n>>>8)&255,n&255].join('.');}
+ return address;
+}
+/** Walk the proxy chain from the socket, stopping at the nearest untrusted hop. */
+export function clientAddressResolver(cidrs:string[]=[]):(req:Request)=>string{
+ const allowed=new BlockList();
+ for(const cidr of cidrs){
+  const [raw,prefix,...extra]=cidr.split('/'),address=raw&&canonicalIp(raw),bits=address&&isIP(address)===4?32:128;
+  if(!address||extra.length||prefix===undefined||!/^\d+$/.test(prefix)||Number(prefix)<1||Number(prefix)>bits||raw!==address&&isIP(raw!)!==isIP(address))throw Error('AMCP_TRUSTED_PROXY_CIDRS requires explicit IPv4/IPv6 CIDRs with nonzero prefixes.');
+  allowed.addSubnet(address,Number(prefix),bits===32?'ipv4':'ipv6');
+ }
+ const trusted=(address:string)=>allowed.check(address,isIP(address)===4?'ipv4':'ipv6');
+ return req=>{
+  const peer=canonicalIp(req.socket.remoteAddress??'')??'unknown',header=req.headers['x-forwarded-for'];
+  if(peer==='unknown'||!trusted(peer)||typeof header!=='string'||header.length>2048)return peer;
+  const chain=header.split(',').map(s=>canonicalIp(s.trim()));
+  if(chain.length>32||chain.some(s=>!s))return peer;
+  let address=peer;
+  for(let i=chain.length-1;i>=0&&trusted(address);i--)address=chain[i]!;
+  return address;
+ };
+}
 export function passwordHash(password:string,salt=randomBytes(16).toString('hex')):string{return 'scrypt$'+salt+'$'+scryptSync(password,salt,32).toString('hex');}
 export function checkPassword(password:string,hash:string):boolean{
  const [algorithm,salt,value]=hash.split('$');if(algorithm!=='scrypt'||!salt||!/^[a-f0-9]{64}$/.test(value??'')||password.length>1024)return false;
@@ -17,8 +45,10 @@ export function cookieValue(req:Request,name:string):string|undefined{
  return entries.length===1?entries[0]!.slice(name.length+1):undefined;
 }
 export class WebStore {
+ readonly clientAddress:(req:Request)=>string;
  readonly tenantId:string;readonly origin:string;readonly secure:boolean;readonly cookieName:string;readonly administratorHash?:string;private box?:SecretBox;
  constructor(readonly store:Store,readonly options:WebsiteOptions){
+  this.clientAddress=clientAddressResolver(options.trustedProxyCidrs);
   const origin=new URL(options.origin);if(origin.username||origin.password||origin.pathname!=='/'||origin.search||origin.hash||origin.protocol!=='https:'&&!(origin.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(origin.hostname)))throw Error('AMCP origin must be HTTPS, except for loopback development.');
   this.origin=origin.origin;this.secure=origin.protocol==='https:';this.cookieName=this.secure?'__Host-amcp_session':'amcp_local_session';this.tenantId=options.tenantId??'local';
   if(options.masterKey)this.box=new SecretBox(options.masterKey);
@@ -33,6 +63,15 @@ export class WebStore {
   `));
  }
  get configured(){return !!this.administratorHash;}
+ consumeMcpAttempt(req:Request){
+  const key=sha256('mcp-auth:'+this.clientAddress(req)),now=Date.now();
+  this.store.db.prepare('DELETE FROM amcp_login_limits WHERE until_at<=?').run(now);
+  const row=this.store.db.prepare('SELECT attempts FROM amcp_login_limits WHERE key=?').get(key) as {attempts:number}|undefined;
+  if(row&&row.attempts>=50)throw new MirrorError('OAUTH_RATE_LIMIT','Too many OAuth requests. Try again in 15 minutes.',{},429);
+  this.store.db.prepare('INSERT INTO amcp_login_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET attempts=attempts+1').run(key,now+900000);
+ }
+ sealClientSecret(id:string,secret:string){if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Configure credential encryption before registering confidential MCP clients.',{},503);return this.box.seal(secret,scopeKey('mcp-client',this.tenantId,id));}
+ openClientSecret(id:string,sealed:string){if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Credential encryption is unavailable.',{},503);return this.box.open<string>(sealed,scopeKey('mcp-client',this.tenantId,id));}
  signIn(password:string,address:string):WebSession{
   if(!this.administratorHash)throw new MirrorError('SETUP_REQUIRED','Configure the AMCP administrator password on the server before signing in.',{},503);
   const key=sha256(address),now=Date.now();this.store.db.prepare('DELETE FROM amcp_login_limits WHERE until_at<?').run(now);

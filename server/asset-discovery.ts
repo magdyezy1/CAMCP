@@ -3,7 +3,7 @@ import {MirrorError} from '../src/errors.js';
 import {CredentialProvider} from '../src/auth.js';
 import type {Connection,Credentials,CompiledRequest,JsonObject} from '../src/types.js';
 import {Store} from '../src/store.js';
-import {platform,platforms} from './platform-oauth.js';
+import {platforms,selectionKind} from './platform-oauth.js';
 
 export interface WorkspaceAsset {id:string;kind:string;name:string;parentId?:string;currency?:string;timezone?:string;status?:string;source:'vendor'|'configured_binding'}
 export interface AssetGroup {kind:string;assets:WorkspaceAsset[];complete:boolean;error?:string}
@@ -11,8 +11,8 @@ export class AssetDiscovery {
  private transport:NativeTransport;private credentials:CredentialProvider;
  constructor(private store:Store,fetcher:typeof fetch=fetch){this.transport=new NativeTransport(fetcher);this.credentials=new CredentialProvider(store,fetcher);}
  private plan(c:Connection,path:string,query:JsonObject={},method='GET',body?:unknown):CompiledRequest{return {gateway:c.gateway,action:'AMCP_ASSET_DISCOVERY',path,query,method,body,headers:c.gateway==='linkedin_native_action'?{'LinkedIn-Version':process.env.AMCP_LINKEDIN_API_VERSION??'202605','X-Restli-Protocol-Version':'2.0.0'}:{},readOnly:true,destructive:false,requiresConfirmation:false,evidence:'INDEPENDENT_ACCOUNT_DISCOVERY',warnings:[]};}
- private async pages(c:Connection,credentials:Credentials,path:string,query:JsonObject,extract:(data:JsonObject)=>unknown[]):Promise<JsonObject[]>{
-  const plan=this.plan(c,path,query),original=buildUrl(plan,c),items:JsonObject[]=[],seen=new Set<string>();
+ private async pages(c:Connection,credentials:Credentials,path:string,query:JsonObject,extract:(data:JsonObject)=>unknown[],origin?:string):Promise<JsonObject[]>{
+  const plan={...this.plan(c,path,query),...(origin?{origin}:{})},original=buildUrl(plan,c),items:JsonObject[]=[],seen=new Set<string>();
   for(let page=0;page<25;page++){
    const response=await this.transport.request(plan,c,credentials),data=response.data as JsonObject,rows=extract(data);
    if(!Array.isArray(rows))throw new MirrorError('ASSET_RESPONSE_INVALID','The provider returned an unexpected asset list.',{},502);
@@ -20,7 +20,10 @@ export class AssetDiscovery {
    items.push(...rows as JsonObject[]);if(items.length>10000)throw new MirrorError('ASSET_SYNC_LIMIT','Too many assets for one sync; narrow the provider login.',{},409);
    const next=data.paging?.next??data.paging?.next_link??data.paging?.links?.find((l:JsonObject)=>l.rel==='next')?.href;
    const cursor=data.next_cursor??data.cursor?.next??null;
-   if(next){
+   if(data.nextPageToken!==undefined&&data.nextPageToken!==''){
+    if(typeof data.nextPageToken!=='string'||seen.has('pageToken'+data.nextPageToken))throw new MirrorError('PAGINATION_LOOP','Provider returned an invalid or repeated page token.',{},502);
+    seen.add('pageToken'+data.nextPageToken);plan.query.pageToken=data.nextPageToken;
+   }else if(next){
     const nextUrl=new URL(next,original);if(nextUrl.origin!==original.origin||nextUrl.pathname!==original.pathname||nextUrl.username||nextUrl.password||nextUrl.hash)throw new MirrorError('UNSAFE_PAGINATION','Provider pagination changed the asset endpoint.',{},502);
     const cursorKey=['after','cursor','start','offset'].find(k=>nextUrl.searchParams.has(k));if(!cursorKey)throw new MirrorError('ASSET_SYNC_LIMIT','Provider paging does not expose a supported cursor.',{},409);
     const value=nextUrl.searchParams.get(cursorKey)!;if(seen.has(cursorKey+value))throw new MirrorError('PAGINATION_LOOP','Provider repeated its pagination cursor.',{},502);seen.add(cursorKey+value);plan.query[cursorKey]=value;
@@ -41,7 +44,7 @@ export class AssetDiscovery {
  }
  async sync(connection:Connection,kinds?:string[]):Promise<{groups:AssetGroup[];label?:string}>{
   const p=platforms.find(p=>p.gateway===connection.gateway);if(!p)throw new MirrorError('PLATFORM_NOT_FOUND','This connection is not supported by the website.',{},404);
-  const selected=kinds??['ad_accounts'];if(selected.some(k=>!p.assetKinds.includes(k)))throw new MirrorError('ASSET_KIND_INVALID','This asset type is not available for the platform.');
+  const selected=kinds??[selectionKind(connection.gateway)];if(selected.some(k=>!p.assetKinds.includes(k)))throw new MirrorError('ASSET_KIND_INVALID','This asset type is not available for the platform.');
   const credentials=await this.credentials.get(connection),groups:AssetGroup[]=[];let label:string|undefined;
   for(const kind of selected){
    try{
@@ -62,6 +65,45 @@ export class AssetDiscovery {
      const response=await this.transport.request(this.plan(connection,'/v23/customers:listAccessibleCustomers'),connection,credentials),names=(response.data as JsonObject).resourceNames;
      if(!Array.isArray(names)||names.some(n=>typeof n!=='string'||!/^customers\/\d+$/.test(n)))throw new MirrorError('ASSET_RESPONSE_INVALID','Google did not return a customer list.',{},502);
      assets=names.map((name:string)=>this.asset({id:name.split('/')[1],name:'Google Ads '+name.split('/')[1]},kind));
+    }else if(p.id==='ga4'){
+     if(kind==='properties'){
+      const accounts=await this.pages(connection,credentials,'/v1beta/accountSummaries',{pageSize:200},d=>d.accountSummaries??[],'https://analyticsadmin.googleapis.com');
+      for(const account of accounts){
+       if(typeof account.account!=='string'||!/^accounts\/\d+$/.test(account.account)||account.propertySummaries!==undefined&&!Array.isArray(account.propertySummaries))throw new MirrorError('ASSET_RESPONSE_INVALID','GA4 returned an invalid account summary.',{},502);
+       for(const row of account.propertySummaries??[]){if(typeof row?.property!=='string'||!/^properties\/\d+$/.test(row.property))throw new MirrorError('ASSET_ID_INVALID','GA4 returned an invalid property identifier.',{},502);assets.push(this.asset({id:row.property.slice(11),name:row.displayName},kind,account.account));}
+      }
+     }else{
+      if(!connection.accounts.length)throw new MirrorError('SELECT_ACCOUNT_FIRST','Select GA4 properties before syncing their data streams.',{},409);
+      for(const id of connection.accounts){if(!/^\d+$/.test(id))throw new MirrorError('ASSET_ID_INVALID','GA4 property identifiers must be numeric.',{},400);
+       const rows=await this.pages(connection,credentials,'/v1beta/properties/'+id+'/dataStreams',{pageSize:200},d=>d.dataStreams??[],'https://analyticsadmin.googleapis.com');
+       for(const row of rows){if(typeof row.name!=='string'||!new RegExp('^properties/'+id+'/dataStreams/\\d+$').test(row.name))throw new MirrorError('ASSET_ID_INVALID','GA4 returned a data stream outside the selected property.',{},502);assets.push(this.asset({id:row.name,name:row.displayName},kind,id));}
+      }
+     }
+    }else if(p.id==='gtm'){
+     if(kind==='tag_accounts'){
+      const rows=await this.pages(connection,credentials,'/tagmanager/v2/accounts',{includeGoogleTags:true},d=>d.account??[]);
+      assets=rows.map(row=>{if(typeof row.accountId!=='string'||!/^\d+$/.test(row.accountId))throw new MirrorError('ASSET_ID_INVALID','Tag Manager returned an invalid account identifier.',{},502);return this.asset({id:row.accountId,name:row.name},kind);});
+     }else{
+      if(!connection.accounts.length)throw new MirrorError('SELECT_ACCOUNT_FIRST','Select Tag Manager accounts before syncing their containers.',{},409);
+      for(const id of connection.accounts){if(!/^\d+$/.test(id))throw new MirrorError('ASSET_ID_INVALID','Tag Manager account identifiers must be numeric.',{},400);
+       const rows=await this.pages(connection,credentials,'/tagmanager/v2/accounts/'+id+'/containers',{},d=>d.container??[]);
+       for(const row of rows){if(row.accountId!==id||typeof row.containerId!=='string'||!/^\d+$/.test(row.containerId))throw new MirrorError('ASSET_ID_INVALID','Tag Manager returned a container outside the selected account.',{},502);assets.push(this.asset({id:'accounts/'+id+'/containers/'+row.containerId,name:row.name??row.publicId},kind,id));}
+      }
+     }
+    }else if(p.id==='gsc'){
+     if(kind==='sites'){
+      const rows=await this.pages(connection,credentials,'/webmasters/v3/sites',{},d=>d.siteEntry??[],'https://www.googleapis.com');
+      assets=rows.filter(row=>row.permissionLevel!=='siteUnverifiedUser').map(row=>{if(typeof row.siteUrl!=='string'||!validSearchConsoleSite(row.siteUrl)||!['siteOwner','siteFullUser','siteRestrictedUser'].includes(row.permissionLevel))throw new MirrorError('ASSET_ID_INVALID','Search Console returned an invalid site or permission level.',{},502);return this.asset({id:row.siteUrl,name:row.siteUrl,status:row.permissionLevel},kind);});
+     }else{
+      if(!connection.accounts.length)throw new MirrorError('SELECT_ACCOUNT_FIRST','Select Search Console sites before syncing their sitemaps.',{},409);
+      for(const id of connection.accounts){if(!validSearchConsoleSite(id))throw new MirrorError('ASSET_ID_INVALID','Search Console site identifier is invalid.',{},400);
+       const rows=await this.pages(connection,credentials,'/webmasters/v3/sites/'+encodeURIComponent(id)+'/sitemaps',{},d=>d.sitemap??[],'https://www.googleapis.com');
+       for(const row of rows){if(typeof row.path!=='string'||!/^https?:\/\//.test(row.path))throw new MirrorError('ASSET_ID_INVALID','Search Console returned an invalid sitemap path.',{},502);assets.push(this.asset({id:row.path,name:row.path},kind,id));}
+      }
+     }
+    }else if(p.id==='apple'){
+     const rows=await this.pages(connection,credentials,'/v1/acls',{},d=>d.result?.acls,'https://api.ads.apple.com');
+     assets=rows.map(row=>{const account=row.adAccount,id=account?.id;if((typeof id!=='string'&&typeof id!=='number')||!/^\d+$/.test(String(id))||!Array.isArray(row.roles)||row.roles.some((role:unknown)=>typeof role!=='string'))throw new MirrorError('ASSET_ID_INVALID','Apple Ads returned an invalid ad-account ACL.',{},502);return this.asset({id,name:account.name,status:row.roles.join(', ')},kind,account.orgId===undefined?undefined:String(account.orgId));});
     }else if(p.id==='tiktok'){
      if(kind==='ad_accounts'){
       if(!credentials.clientId||!credentials.clientSecret)throw new MirrorError('PROVIDER_SETUP_REQUIRED','TikTok account discovery requires its app credentials.',{},409);
@@ -90,10 +132,14 @@ export class AssetDiscovery {
       const edge=kind==='profiles'?'promotable_users':kind==='pixels'?'website_tags':'app_lists';
       for(const id of connection.accounts){const rows=await this.pages(connection,credentials,'/12/accounts/'+encodeURIComponent(id)+'/'+edge,{count:200},d=>d.data);assets.push(...rows.map(r=>this.asset({...r,id:r.id??r.user_id,name:r.name??r.screen_name},kind,id)));}
      }
-    }
+    }else throw new MirrorError('ASSET_DISCOVERY_UNAVAILABLE','Asset discovery has not been implemented for this provider.',{},501);
     const unique=new Map(assets.map(a=>[a.kind+':'+a.id,a]));groups.push({kind,assets:[...unique.values()],complete:true});
    }catch(e){groups.push({kind,assets:[],complete:false,error:e instanceof MirrorError?e.message:'Asset sync failed. Reconnect or check the provider permissions.'});}
   }
   return {groups,label};
  }
+}
+function validSearchConsoleSite(value:string):boolean{
+ if(value.startsWith('sc-domain:')){const domain=value.slice(10);return domain.length>0&&domain.length<=253&&/^[a-z0-9.-]+$/i.test(domain)&&!domain.includes('..');}
+ try{const url=new URL(value);return ['http:','https:'].includes(url.protocol)&&!url.username&&!url.password&&!url.search&&!url.hash;}catch{return false;}
 }
