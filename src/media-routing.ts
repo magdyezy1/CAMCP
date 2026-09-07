@@ -1,0 +1,88 @@
+import {MirrorError} from './errors.js';
+import {driveDownloadUrl,downloadDriveMedia} from './drive-media.js';
+import {sha256,stable} from './security.js';
+import type {CompiledRequest,JsonObject} from './types.js';
+
+export const mediaPlatforms=['meta','tiktok','snapchat','google_ads','linkedin','x_ads','dv360'];
+export const mediaInstructions='AMCP server-side Drive imports: never download media in the MCP client. Put the public Google Drive share link in payload.url on a native upload action, or use whathead_native_action platform_media_upload with action UPLOAD_FROM_URL. amcp_write prepare returns the frozen upload review; amcp_write execute accepts it. A native dry_run:false import prepares only; follow its returned next_call after review. Meta creative creation is supported. Returned image hashes, video IDs, URNs and asset resource names can be used in creative/ad payloads. Missing Page IDs, destinations and account write grants remain explicit prerequisites.';
+export function mediaDiscovery(gateway?:string):JsonObject|undefined {
+ if(!gateway)return;
+ if(gateway!=='whathead_native_action'&&!mediaPlatforms.includes(gateway.replace(/_native_action$/,'')))return;
+ return {instructions:mediaInstructions,platforms:mediaPlatforms,source:'Publicly downloadable Google Drive file',client_download_required:false,maximum_bytes:33554432,review_tool:'amcp_write',workflow_actions:['UPLOAD_FROM_URL','UPLOAD_FROM_URL_VIA_SESSION','QUEUE_GOOGLE_DRIVE_IMPORT','FINALIZE_UPLOAD_SESSION'],limitations:['One selected account per review','Private files and folders require sharing changes; AMCP does not read the client filesystem','Provider dimensions, duration, codecs, permissions and app approvals still apply','Google videos create UNLISTED videos on the account Google-managed YouTube channel','LinkedIn organization/person owners require an exact administrator resource binding','Binary upload APIs for other catalog providers are not implemented']};
+}
+export function mediaPlatform(value:unknown):string {
+ const p=({google:'google_ads',x:'x_ads',twitter:'x_ads'} as Record<string,string>)[String(value)]??String(value);
+ if(!mediaPlatforms.includes(p))throw new MirrorError('MEDIA_PLATFORM_UNSUPPORTED','This platform has no qualified binary advertising-media upload API in AMCP.',{supported_platforms:mediaPlatforms});
+ return p;
+}
+export function mediaRoute(plan:CompiledRequest):{platform:string;media_type?:string;existing_media_id?:string}|undefined {
+ if(plan.method!=='POST')return;
+ const path=plan.path,p=plan.gateway.replace(/_native_action$/,'');
+ if(p==='meta'&&/^\/v\d+\.0\/act_[^/]+\/ad(images|videos)$/.test(path))return {platform:p,media_type:path.endsWith('adimages')?'image':'video'};
+ if(p==='tiktok'&&/^\/v1\.3\/file\/(image|video)\/ad\/upload\/$/.test(path))return {platform:p,media_type:path.includes('/image/')?'image':'video'};
+ if(p==='snapchat'){
+  const existing=/^\/v1\/media\/([\w-]+)\/upload$/.exec(path);
+  if(existing)return {platform:p,existing_media_id:existing[1]};
+  if(/^\/v1\/adaccounts\/[^/]+\/media$/.test(path))return {platform:p};
+ }
+ if(p==='x_ads'&&path==='/1.1/media/upload.json')return {platform:p};
+ if(p==='linkedin'&&['/rest/images','/rest/videos'].includes(path)&&plan.query.action==='initializeUpload')return {platform:p,media_type:path.endsWith('images')?'image':'video'};
+ if(p==='google_ads'&&/^\/v23\/customers\/[^/]+\/assets:mutate$/.test(path))return {platform:p,media_type:'image'};
+ if(p==='google_ads'&&/^\/v23\/customers\/[^/]+\/youTubeVideoUploads:create$/.test(path))return {platform:p,media_type:'video'};
+ if(p==='dv360'&&/^\/(?:upload\/)?v4\/advertisers\/[^/]+\/assets$/.test(path))return {platform:p};
+}
+const sourceKeys=['drive_url','url','image_url','video_url','file_url','source'];
+/** Only explicit import inputs are consumed. Never silently drop native mutations. */
+export function nativeMediaInput(plan:CompiledRequest,connectionId?:string):JsonObject|undefined {
+ const route=mediaRoute(plan);if(!route)return;
+ const body=plan.body as JsonObject??{};
+ // Normal Google asset mutations continue through their own contract.
+ if(route.platform==='google_ads'&&route.media_type==='image'&&!sourceKeys.some(k=>body[k]!==undefined))return;
+ const sources=sourceKeys.filter(k=>body[k]!==undefined).map(k=>body[k]);
+ if(!sources.length)throw new MirrorError('MEDIA_SOURCE_REQUIRED','Put the public Google Drive share link in payload.url. AMCP downloads and transfers it on the server; do not download it in the MCP client.',{example:{action:plan.action,account_id:plan.accountId,payload:{url:'https://drive.google.com/file/d/FILE_ID/view'}},review_tool:'amcp_write'});
+ if(sources.some(v=>typeof v!=='string'||v!==sources[0]))throw new MirrorError('CONFLICTING_PARAMETER','Media source URL aliases must identify the same file.');
+ const allowed=new Set([...sourceKeys,'name','title','file_name','filename','upload_type','media_type','type','advertiser_id','ad_account_id','account_id','owner_urn']);
+ for(const k of Object.keys(body))if(!allowed.has(k))throw new MirrorError('UNSUPPORTED_MEDIA_PARAMETER','This server-side import does not consume this native field. Remove it or use its dedicated native contract.',{parameter:k});
+ if(Object.keys(plan.query).some(k=>!(route.platform==='linkedin'&&k==='action'))||plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['ACTION','CREATE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))throw new MirrorError('UNSUPPORTED_MEDIA_PARAMETER','Media imports cannot contain query mutations or method overrides.');
+ if(body.upload_type!==undefined&&!['UPLOAD_BY_URL','UPLOAD_BY_FILE'].includes(body.upload_type))throw new MirrorError('INVALID_ARGUMENT','Unsupported media upload type.');
+ const names=['name','title','file_name','filename'].filter(k=>body[k]!==undefined).map(k=>body[k]);
+ if(names.some(n=>typeof n!=='string'||n!==names[0]))throw new MirrorError('CONFLICTING_PARAMETER','Media name aliases must agree.');
+ const declared=body.media_type??(typeof body.type==='string'?body.type.toLowerCase():undefined);
+ if(route.media_type&&declared&&route.media_type!==declared)throw new MirrorError('MEDIA_TYPE_MISMATCH','The requested media type conflicts with the native upload route.');
+ return {action:'prepare',platform:route.platform,account_id:plan.accountId,drive_url:sources[0],...(connectionId?{connection_id:connectionId}:{}),...(names.length?{name:names[0]}:{}),...(route.media_type??declared?{media_type:route.media_type??declared}:{}),...(route.existing_media_id?{existing_media_id:route.existing_media_id}:{}),...(body.owner_urn?{owner_urn:body.owner_urn}:{})};
+}
+export function workflowMediaInput(args:JsonObject,connectionId?:string):JsonObject {
+ const targets=args.target_platforms;
+ if(targets!==undefined&&(!Array.isArray(targets)||targets.length!==1))throw new MirrorError('MEDIA_TARGET_REQUIRED','Prepare one account per review. Repeat the same Drive link for each desired platform; no client download is needed.');
+ const target=targets?.[0];
+ if(target&&((args.platform!==undefined&&mediaPlatform(args.platform)!==mediaPlatform(target.platform))||(args.account_id!==undefined&&args.account_id!==target.account_id)))throw new MirrorError('CONFLICTING_PARAMETER','Media target aliases must agree.');
+ const platform=mediaPlatform(target?.platform??args.platform),account=args.account_id??target?.account_id;
+ if(typeof account!=='string'||!account)throw new MirrorError('ACCOUNT_REQUIRED','Select an advertising account for the upload.');
+ const supported=new Set(['action','platform','account_id','target_platforms','url','google_drive_file_id','google_drive_resource_key','file_name','file_type','file_size_bytes','media_type','owner_urn','dry_run','confirmed','idempotency_key','wait_for_completion','timeout_ms']);
+ for(const k of Object.keys(args))if(!supported.has(k))throw new MirrorError('UNSUPPORTED_MEDIA_PARAMETER','This URL import does not consume this parameter.',{parameter:k});
+ if(!['UPLOAD_FROM_URL','UPLOAD_FROM_URL_VIA_SESSION','QUEUE_GOOGLE_DRIVE_IMPORT'].includes(args.action))throw new MirrorError('MEDIA_ACTION_UNSUPPORTED','Use UPLOAD_FROM_URL with a public Drive file link, then execute the returned review with amcp_write. The MCP client does not need a local file or signed upload URL.');
+ let url=args.url;
+ if(args.google_drive_file_id!==undefined){
+  if(typeof args.google_drive_file_id!=='string'||!/^[A-Za-z0-9_-]{10,200}$/.test(args.google_drive_file_id))throw new MirrorError('INVALID_DRIVE_LINK','Invalid Drive file ID.');
+  const share=new URL('https://drive.google.com/file/d/'+args.google_drive_file_id+'/view');
+  if(args.google_drive_resource_key!==undefined)share.searchParams.set('resourcekey',args.google_drive_resource_key);
+  if(url!==undefined&&stable(driveDownloadUrl(url).href)!==stable(driveDownloadUrl(share.href).href))throw new MirrorError('CONFLICTING_PARAMETER','Drive file ID and URL must identify the same file and resource key.');
+  url=share.href;
+ }else if(args.google_drive_resource_key!==undefined)throw new MirrorError('INVALID_DRIVE_LINK','Provide google_drive_file_id with google_drive_resource_key.');
+ if(typeof url!=='string')throw new MirrorError('MEDIA_SOURCE_REQUIRED','Provide url with the public Google Drive share link. AMCP performs the transfer.');
+ driveDownloadUrl(url);
+ if(args.owner_urn&&target?.owner_urn&&args.owner_urn!==target.owner_urn)throw new MirrorError('CONFLICTING_PARAMETER','Owner URNs must agree.');
+ return {action:'prepare',platform,account_id:account,drive_url:url,...(connectionId?{connection_id:connectionId}:{}),...(args.file_name?{name:args.file_name}:{}),...(args.media_type?{media_type:args.media_type}:{}),...(args.file_type?{expected_mime:args.file_type}:{}),...(args.file_size_bytes?{expected_size:args.file_size_bytes}:{}),...(args.owner_urn??target?.owner_urn?{owner_urn:args.owner_urn??target.owner_urn}:{})};
+}
+export function mediaPreview(input:JsonObject):JsonObject {
+ driveDownloadUrl(input.drive_url);
+ return {success:true,dry_run:true,executed:false,client_download_required:false,transfer:'AMCP server downloads the Drive file, freezes its bytes for review, and uses the platform upload API.',request:input,next_call:{tool:'amcp_media',arguments:input},confirmation_required:true};
+}
+export function mediaNext(result:JsonObject):JsonObject {
+ if(!result.review_id||result.executed||result.already_in_library||result.confirmation_required!==true)return result;
+ return {...result,client_download_required:false,next_call:{tool:'amcp_write',arguments:{action:'execute',review_id:result.review_id,idempotency_key:result.idempotency_key,confirmed:true}}};
+}
+export async function inspectDrive(link:string,fetcher:typeof fetch):Promise<JsonObject> {
+ const url=driveDownloadUrl(link),file=await downloadDriveMedia(link,fetcher);
+ return {files:[{google_drive_file_id:url.searchParams.get('id'),...(url.searchParams.has('resourcekey')?{google_drive_resource_key:url.searchParams.get('resourcekey')}:{ }),url:link,media_type:file.kind,mime_type:file.mime,size_bytes:file.bytes.length,sha256:sha256(file.bytes)}],client_download_required:false,next_operation:'platform_media_upload',supported_platforms:mediaPlatforms};
+}

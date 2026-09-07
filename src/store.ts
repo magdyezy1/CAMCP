@@ -14,7 +14,16 @@ export class Store {
   if(filename!==':memory:')fs.mkdirSync(path.dirname(filename),{recursive:true});
   this.db=new DatabaseSync(filename);
   try{
-  this.db.exec('PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;');
+  this.db.exec('PRAGMA busy_timeout=5000;');
+  // SQLite may skip its busy handler when concurrent journal-mode changes would
+  // deadlock. Retry only this idempotent bootstrap step, before any application work.
+  const journalDeadline=Date.now()+5000,pause=new Int32Array(new SharedArrayBuffer(4));
+  for(;;){try{this.db.exec('PRAGMA journal_mode=WAL;');break;}catch(e){
+   const code=(e as {errcode?:number}).errcode;
+   if(code===undefined||![5,6].includes(code&255)||Date.now()>=journalDeadline)throw e;
+   Atomics.wait(pause,0,0,Math.min(25,journalDeadline-Date.now()));
+  }}
+  this.db.exec('PRAGMA foreign_keys=ON;');
   // Serialize bootstrap and migration together so two starting processes cannot
   // both observe an old schema and attempt the same ALTER TABLE.
   this.transaction(()=>{this.db.exec(`

@@ -55,8 +55,8 @@ Budget, bid, spend or activation changes additionally require `spend_change_conf
 
 | Provider | Reviewed routes |
 | --- | --- |
-| Google Ads | Homogeneous campaign, ad group, ad group ad, ad, asset group and campaign budget mutate endpoints; 1–25 operations. Explicit field masks for updates. Partial failure and validate-only modes are excluded from execution. |
-| Meta | Campaign, ad set and ad collection creates; individual updates and deletes. |
+| Google Ads | Homogeneous campaign, ad group, ad group ad, ad, asset, asset group and campaign budget mutate endpoints; 1–25 operations. Explicit field masks for updates. Partial failure and validate-only modes are excluded from execution. |
+| Meta | Campaign, ad set, ad and creative collection creates; individual campaign/ad set/ad updates and deletes. Creative identity and link prerequisites are checked. |
 | TikTok | Standard campaign, ad group and ad create/update/status endpoints. Smart+ and other specialty routes are excluded. |
 | Snapchat | Campaign, ad squad and ad creates, account collection replacements, single-entity JSON Patch updates and deletes. PUT replaces the full entity; supply the complete intended record. |
 | LinkedIn | Account-scoped campaign groups, campaigns and creatives; entity POST updates require `restli_method: "PARTIAL_UPDATE"` and a native patch. |
@@ -67,7 +67,7 @@ Budget, bid, spend or activation changes additionally require `spend_change_conf
 | Search Console | Add/remove a selected site; submit/remove its sitemaps. |
 | Apple Ads | Platform API v1 campaign create/update/delete; paused creation, native account header and exact target checks. |
 
-An action also needs an implemented target-state read. Unsupported contracts return a precise error before mutation egress. [Google Drive media imports](MEDIA-UPLOADS.md) use the separate `amcp_media` review tool. Arbitrary binary transports, batch/tunnel requests, unqualified delegated workflows and other catalog routes remain unavailable for live execution. Catalog presence describes an interface, not live execution qualification.
+An action also needs an implemented target-state read. Unsupported contracts return a precise error before mutation egress. [Google Drive media imports](MEDIA-UPLOADS.md) integrate with normal upload actions and `platform_media_upload`; their reviews execute through `amcp_write` or `amcp_media`. Meta/Snapchat creative creation and native Google asset mutations are included. Arbitrary binary transports, batch/tunnel requests, unqualified delegated workflows and other catalog routes remain unavailable for live execution. Catalog presence describes an interface, not live execution qualification.
 
 ## Outcomes and recovery
 
@@ -80,3 +80,5 @@ Protect the SQLite volume and backups: they retain account information, review p
 ## Verification boundary
 
 Automated tests cover native campaign CRUD requests for all six primary platforms and DV360, response validation, expired/stale reviews, tenant/user binding, grants, paused creation, duplicate submissions, lost responses, credential revocation and restart persistence using synthetic provider responses. The container CI workflow exercises both runtime modes. New tests exercise all four measurement/Apple providers with synthetic state and responses, including every enabled Tag Manager action, required scopes, native fingerprints, optional target absence and cross-resource rejection. Live mutations were not executed against user advertising accounts during development. Production OAuth, app approvals and live endpoint qualification remain external acceptance work.
+
+Account write grants apply to campaigns, ad sets, ads, creatives and media equally. `WRITE_ACCOUNT_FORBIDDEN` reports the chosen connection ID and the selected account, plus whether other connections for that account have write grants. Set `connection_id` explicitly when selecting a different login; AMCP never silently chooses a more privileged one. Workspace context and account listings expose the same grant status. New connections default to reviewed write access when enabled; existing reader grants are preserved.

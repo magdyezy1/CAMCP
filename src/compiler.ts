@@ -79,6 +79,9 @@ export class Compiler {
   const required=new Set([...action.required,...(action.raw.required_path_params??[])]);
   if(gateway==='google_ads_native_action'||options.mode==='enhanced'&&options.flags.catalogPreflight)for(const key of required){
    if(typeof key!=='string')continue;const v=values[key];
+   // The AMCP Drive importer supplies the binary payload after review. Only its
+   // exact upload routes may omit their ordinary native content container.
+   if(gateway==='google_ads_native_action'&&['operations','you_tube_video_upload'].includes(key)&&/\/(?:assets:mutate|youTubeVideoUploads:create)$/.test(action.path)&&['drive_url','url','image_url','video_url','file_url','source'].some(k=>typeof values[k]==='string'))continue;
    if(v===undefined||v===null||v===''||Array.isArray(v)&&v.length===0){
     if(gateway==='google_ads_native_action')throw new MirrorError('INTERNAL_ERROR',action.name+" requires request field '"+key+"'. Pass path values in path_params and all other native request fields in params or payload.");
     throw new MirrorError('MISSING_PARAMETER','Missing required parameter: '+key,{parameter:key});

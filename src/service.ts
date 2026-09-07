@@ -19,27 +19,49 @@ import {projectResponse} from './projection.js';
 import {WriteReviewService,writeTool} from './write-review.js';
 import {validateAppleResponse} from './apple-native.js';
 import {MediaUploadService,mediaTool} from './media-upload.js';
+import {nativeMediaInput,workflowMediaInput,mediaPreview,mediaNext,inspectDrive,mediaDiscovery,mediaInstructions} from './media-routing.js';
 export const strictOptions:CallOptions={mode:'strict',flags:{}};
 export class MirrorService {
  readonly compiler:Compiler;readonly introspection:Introspection;readonly credentials:CredentialProvider;
  readonly delegatedCompiler=new DelegatedNativeCompiler();
- listTools(){return [...this.registry.listTools(this.options),...(this.policy.allowWrites?[writeTool,mediaTool]:[])];}
+ listTools(){return [...this.registry.listTools(this.options).map(t=>({...t,...(mediaDiscovery(t.name)?{description:t.description+' '+mediaInstructions}:{})})),...(this.policy.allowWrites?[writeTool,mediaTool]:[])];}
  constructor(readonly registry:Registry,readonly store:Store,readonly transport=new NativeTransport(),readonly options:CallOptions=strictOptions,readonly policy:ExecutionPolicy=readOnlyPolicy,private mediaFetcher:typeof fetch=fetch){this.compiler=new Compiler(registry);this.introspection=new Introspection(registry);this.credentials=new CredentialProvider(store);}
  async call(tool:string,input:JsonObject,actor:Actor):Promise<JsonObject>{
   const requestId=randomUUID(),start=Date.now();
   try{
-   if(tool===mediaTool.name)return this.wrap(await new MediaUploadService(this.registry,this.store,this.transport,this.credentials,this.policy,this.mediaFetcher).call(input,actor),requestId,start);
-   if(tool===writeTool.name){const result:any=await new WriteReviewService(this.registry,this.compiler,this.store,this.transport,this.credentials,this.options,this.policy,this.delegatedCompiler).call(input,actor);return {...this.wrap(result,requestId,start),...(result.success===false?{success:false,error:{code:'WRITE_PARTIAL_OR_FAILED',message:'Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.'}}:{})};}
+   if(tool===mediaTool.name)return this.wrap(mediaNext(await this.media().call(input,actor)),requestId,start);
+   if(tool===writeTool.name){const result:any=await this.reviewed(input,actor);return {...this.wrap(result,requestId,start),...(result.success===false?{success:false,error:{code:'WRITE_PARTIAL_OR_FAILED',message:'Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.'}}:{})};}
    this.registry.validate(tool,input,this.options);
-   if(tool==='whathead_tool_help')return this.registry.help(input,this.options);
+   if(tool==='whathead_tool_help'){const help=this.registry.help(input,this.options),media=mediaDiscovery(input.gateway);return {...help,...(media?{amcp_media_import:media}:{})};}
    if(input.action==='LIST_ACTIONS')return this.wrap(this.introspection.list(tool,input,this.options),requestId,start);
-   if(input.action==='DESCRIBE_ACTION')return this.wrap(this.introspection.describe(tool,input),requestId,start);
+   if(input.action==='DESCRIBE_ACTION'){const description=this.introspection.describe(tool,input),media=mediaDiscovery(tool);return this.wrap({...description,...(media?{amcp_media_import:media}:{})},requestId,start);}
    if(this.registry.tools.get(tool)?.mode==='delegated')return this.wrap(await this.delegated(tool,input.operation,input.arguments??{},actor,requestId),requestId,start);
    const plan=this.compiler.compile(tool,input,this.options);
+   const hasMediaSource=['drive_url','url','image_url','video_url','file_url','source'].some(k=>plan.body&&typeof plan.body==='object'&&(plan.body as JsonObject)[k]!==undefined);
+   const media=input.dry_run===false||hasMediaSource?nativeMediaInput(plan,this.connectionId(input)):undefined;
+   if(media)return this.wrap(input.dry_run===false?mediaNext(await this.media().call(media,actor)):mediaPreview(media),requestId,start);
    return this.wrap(await this.runPlan(plan,input,actor,requestId),requestId,start);
   }catch(e){const result=errorResult(e,requestId,Date.now()-start);this.store.appendAudit(actor.tenantId,requestId,{tool,input:redact(input),outcome:result});return result;}
  }
  private wrap(data:unknown,requestId:string,start:number){return {success:true,data,meta:{requestId,latencyMs:Date.now()-start}};}
+ private media(){return new MediaUploadService(this.registry,this.store,this.transport,this.credentials,this.policy,this.mediaFetcher);}
+ private connectionId(input:JsonObject,outer?:string){const ids=[outer,input.connection_id,input.connectionId].filter(v=>v!==undefined);if(ids.some(v=>typeof v!=='string'||v!==ids[0]))throw new MirrorError('CONFLICTING_PARAMETER','Connection ID aliases must identify the same connection.');return ids[0];}
+ private async reviewed(input:JsonObject,actor:Actor):Promise<unknown>{
+  for(const key of Object.keys(input))if(!Object.hasOwn(writeTool.inputSchema.properties,key))throw new MirrorError('INVALID_ARGUMENT','Unknown write-tool parameter.',{parameter:key});
+  if(input.action==='execute'&&typeof input.review_id==='string'&&this.store.db.prepare('SELECT 1 FROM documents WHERE tenant_id=? AND kind=? AND id=?').get(actor.tenantId,'media_review',input.review_id)){
+   if(input.gateway!==undefined||input.arguments!==undefined||input.connection_id!==undefined||input.spend_change_confirmed!==undefined)throw new MirrorError('INVALID_ARGUMENT','Media execution uses only its frozen review and confirmation.');
+   return this.media().call(input,actor);
+  }
+  if(input.action==='prepare'&&typeof input.gateway==='string'&&input.arguments&&typeof input.arguments==='object'&&!Array.isArray(input.arguments)){
+   const args=input.arguments;this.registry.validate(input.gateway,args,this.options);
+   if(input.gateway==='whathead_native_action'&&args.operation==='platform_media_upload')return mediaNext(await this.media().call(workflowMediaInput(args.arguments,input.connection_id),actor));
+   if(this.registry.tools.get(input.gateway)?.mode!=='delegated'){
+    const plan=this.compiler.compile(input.gateway,args,this.options),media=nativeMediaInput(plan,this.connectionId(args,input.connection_id));
+    if(media)return mediaNext(await this.media().call(media,actor));
+   }
+  }
+  return new WriteReviewService(this.registry,this.compiler,this.store,this.transport,this.credentials,this.options,this.policy,this.delegatedCompiler).call(input,actor);
+ }
  async runPlan(plan:CompiledRequest,input:JsonObject,actor:Actor,requestId:string=randomUUID()):Promise<unknown>{
   if(input.connection_id&&input.connectionId&&input.connection_id!==input.connectionId)throw new MirrorError('CONFLICTING_PARAMETER','Connection ID aliases must identify the same connection.',{},403);
   plan=applyExecutionRisk(plan);
@@ -60,12 +82,21 @@ export class MirrorService {
   }catch(e){this.store.appendAudit(actor.tenantId,requestId,{event:'request_failed',request:plan,error:e instanceof MirrorError?{code:e.code,message:e.message,details:e.details}:{code:'INTERNAL_ERROR'}});throw e;}
  }
  private async delegated(gateway:string,operation:string,args:JsonObject,actor:Actor,requestId:string):Promise<unknown>{
+  if(gateway==='whathead_native_action'&&operation==='inspect_google_drive_media'){this.store.assertActorActive(actor);return inspectDrive(args.link,this.mediaFetcher);}
+  if(gateway==='whathead_native_action'&&operation==='platform_media_upload'){
+   if(args.action==='FINALIZE_UPLOAD_SESSION'){
+    if(Object.keys(args).some(k=>!['action','upload_session_id','idempotency_key','confirmed','dry_run'].includes(k)))throw new MirrorError('INVALID_ARGUMENT','Finalize uses only the frozen review.');
+    if(args.dry_run!==false)return {dry_run:true,executed:false,next_call:{tool:'amcp_write',arguments:{action:'execute',review_id:args.upload_session_id,idempotency_key:args.idempotency_key,confirmed:true}}};
+    return this.media().call({action:'execute',review_id:args.upload_session_id,idempotency_key:args.idempotency_key,confirmed:args.confirmed},actor);
+   }
+   const media=workflowMediaInput(args);return args.dry_run===false?mediaNext(await this.media().call(media,actor)):mediaPreview(media);
+  }
   if(this.delegatedCompiler.isNativeOperation(gateway,operation))return this.runPlan(this.delegatedCompiler.compile(gateway,{operation,arguments:args}),args,actor,requestId);
   if(gateway==='whathead_native_action'&&reportingOperations.has(operation))return new ReportingService(this.store).handle(operation,args,actor);
   if(['get_workspace_context','list_accounts','list_workspace_assets'].includes(operation)){
    const connections=this.store.listConnections(actor.tenantId).filter(c=>c.enabled);
-   if(operation==='get_workspace_context')return {workspace:{id:actor.tenantId},actor:{id:actor.userId,role:actor.role},connections:connections.map(c=>({id:c.id,platform:c.gateway,accounts:c.accounts})),live_writes_enabled:this.policy.allowWrites};
-   if(operation==='list_accounts')return connections.filter(c=>!args.platform||c.gateway.startsWith(args.platform==='google'?'google_ads':String(args.platform))).flatMap(c=>c.accounts.map(id=>({id,platform:c.gateway,connection_id:c.id,name:c.label,source:'configured_binding',currency:null,timezone:null})));
+   if(operation==='get_workspace_context')return {workspace:{id:actor.tenantId},actor:{id:actor.userId,role:actor.role},connections:connections.map(c=>({id:c.id,platform:c.gateway,accounts:c.accounts,write_accounts:c.writeAccounts??[],is_default:c.isDefault===true})),live_writes_enabled:this.policy.allowWrites};
+   if(operation==='list_accounts')return connections.filter(c=>!args.platform||c.gateway.startsWith(args.platform==='google'?'google_ads':String(args.platform))).flatMap(c=>c.accounts.map(id=>({id,platform:c.gateway,connection_id:c.id,name:c.label,source:'configured_binding',currency:null,timezone:null,write_enabled:this.policy.allowWrites&&actor.role!=='reader'&&c.writeAccounts?.includes(id)===true,is_default:c.isDefault===true})));
    return this.store.documents(actor.tenantId,'workspace_asset');
   }
   if(operation==='get_creative_generation_job')return this.store.job(actor.tenantId,String(args.job_id));

@@ -12,6 +12,7 @@ import {guardInput,redact,sha256,stable} from './security.js';
 import type {Actor,CallOptions,CompiledRequest,Connection,JsonObject} from './types.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {normalizeReviewState,reviewStateHash,changedStateFields} from './review-state.js';
+import {assertAccountWrite} from './write-access.js';
 import {measurementWriteGateways,assertMeasurementWrite,assertMeasurementScopes,measurementSnapshots,optionalMissingState,validateMeasurementState,measurementOutcome} from './measurement-writes.js';
 
 export const writeTool={name:'amcp_write',description:'Prepare and execute an explicitly reviewed native advertising or measurement mutation. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request. Execution requires its review_id, idempotency_key and explicit confirmation. Operator role and administrator account write grants are required. This is an AMCP extension, not a captured WhatHead tool.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['prepare','execute']},gateway:{type:'string'},arguments:{type:'object'},connection_id:{type:'string'},review_id:{type:'string'},idempotency_key:{type:'string'},confirmed:{type:'boolean'},spend_change_confirmed:{type:'boolean'}},additionalProperties:false}};
@@ -47,7 +48,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult):bo
  }
  if(plan.gateway==='snapchat_native_action'){
   if(String(d.request_status).toUpperCase()!=='SUCCESS')return false;
-  const kind=[...segments].reverse().find(k=>['campaigns','adsquads','ads'].includes(k))!,rows=d[kind];
+  const kind=[...segments].reverse().find(k=>['campaigns','adsquads','ads','creatives'].includes(k))!,rows=d[kind];
   if(plan.method==='DELETE')return Array.isArray(rows)&&rows.length===0;
   const singular=kind==='adsquads'?'adsquad':kind.slice(0,-1),expected=Array.isArray(b[kind])?b[kind].length:1;
   return Array.isArray(rows)&&rows.length===expected&&rows.every((r,i)=>String(r.sub_request_status).toUpperCase()==='SUCCESS'&&hasId(r[singular]?.id)&&(plan.method==='POST'||String(r[singular].id)===String(plan.method==='PUT'?b[kind][i].id:last)));
@@ -89,7 +90,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
   if(String(read.query.fields).split(',').includes('status')&&!Object.hasOwn(data,'status'))fail('STATE_READ_FAILED','Meta did not return the requested target status.');return;
  }
  if(read.gateway==='snapchat_native_action'){
-  const kind=read.path.split('/').at(-2)!,rows=data[kind];if(!Array.isArray(rows)||rows.length!==1)fail('STATE_READ_FAILED','Snapchat must return one exact target record.');const singular=kind==='adsquads'?'adsquad':kind.slice(0,-1);sameIds(rows.map((r:JsonObject)=>(r[singular]??r).id),[target]);return;
+  const kind=read.path.split('/').at(-2)!,rows=data[kind];if(!Array.isArray(rows)||rows.length!==1)fail('STATE_READ_FAILED','Snapchat must return one exact target record.');const singular=kind==='adsquads'?'adsquad':kind==='media'?'media':kind.slice(0,-1);sameIds(rows.map((r:JsonObject)=>(r[singular]??r).id),[target]);return;
  }
  if(read.gateway==='x_ads_native_action'){sameIds([data.data?.id],[target]);return;}
  if(read.gateway==='linkedin_native_action'){sameIds([String(data.id??'').split(':').at(-1)],[target]);return;}
@@ -103,14 +104,21 @@ function assertWriteShape(plan:CompiledRequest){
  if(plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['CREATE','PARTIAL_UPDATE','DELETE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))fail('WRITE_CONTRACT_UNAVAILABLE','This REST.li method override is not qualified for reviewed execution.');
  const body=object(plan.body);
  const route=plan.path,method=plan.method;
- const supported=measurementWriteGateways.has(plan.gateway)?(assertMeasurementWrite(plan),true):plan.gateway==='meta_native_action'?method==='POST'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads)$/.test(route)||['POST','DELETE'].includes(method)&&/^meta_(campaign_id|ad_set_id|ad_id)_(update|delete)$/.test(plan.action):
-  plan.gateway==='snapchat_native_action'?method==='POST'&&/^\/v1\/(adaccounts\/[^/]+\/(campaigns|adsquads|ads)|campaigns\/[^/]+\/adsquads|adsquads\/[^/]+\/ads)$/.test(route)||method==='PUT'&&/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads)$/.test(route)||method==='PATCH'&&/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads)\/[^/]+$/.test(route)||method==='DELETE'&&/^\/v1\/(campaigns|adsquads|ads)\/[^/]+$/.test(route):
+ const supported=measurementWriteGateways.has(plan.gateway)?(assertMeasurementWrite(plan),true):plan.gateway==='meta_native_action'?method==='POST'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads|adcreatives)$/.test(route)||['POST','DELETE'].includes(method)&&/^meta_(campaign_id|ad_set_id|ad_id)_(update|delete)$/.test(plan.action):
+  plan.gateway==='snapchat_native_action'?method==='POST'&&/^\/v1\/(adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives)|campaigns\/[^/]+\/adsquads|adsquads\/[^/]+\/ads)$/.test(route)||method==='PUT'&&/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads)$/.test(route)||method==='PATCH'&&/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads)\/[^/]+$/.test(route)||method==='DELETE'&&/^\/v1\/(campaigns|adsquads|ads)\/[^/]+$/.test(route):
   plan.gateway==='tiktok_native_action'?method==='POST'&&/^\/v1\.3\/(campaign|adgroup|ad)\/(?:status\/)?(create|update|delete)\/$/.test(route):
   plan.gateway==='x_ads_native_action'?method==='POST'&&/^\/12\/accounts\/[^/]+\/(campaigns|line_items|promoted_tweets)$/.test(route)||['PUT','DELETE'].includes(method)&&/^\/12\/accounts\/[^/]+\/(campaigns|line_items|promoted_tweets)\/[^/]+$/.test(route):
   plan.gateway==='linkedin_native_action'?method==='POST'&&/^\/rest\/adAccounts\/[^/]+\/(adCampaigns|adCampaignGroups|creatives)$/.test(route)||['POST','PUT','PATCH','DELETE'].includes(method)&&/^\/rest\/adAccounts\/[^/]+\/(adCampaigns|adCampaignGroups|creatives)\/[^/]+$/.test(route):
   plan.gateway==='dv360_native_action'?method==='POST'&&/^\/v\d+\/advertisers\/[^/]+\/(campaigns|insertionOrders|lineItems|creatives)$/.test(route)||['PATCH','DELETE'].includes(method)&&/^\/v\d+\/advertisers\/[^/]+\/(campaigns|insertionOrders|lineItems|creatives)\/[^/]+$/.test(route):
-  plan.gateway==='google_ads_native_action'&&method==='POST'&&/^\/v23\/customers\/[^/]+\/(campaigns|adGroups|adGroupAds|campaignBudgets|ads|assetGroups):mutate$/.test(route);
+  plan.gateway==='google_ads_native_action'&&method==='POST'&&/^\/v23\/customers\/[^/]+\/(campaigns|adGroups|adGroupAds|campaignBudgets|ads|assetGroups|assets):mutate$/.test(route);
  if(!supported)fail('WRITE_CONTRACT_UNAVAILABLE','This route is outside the reviewed campaign-management execution contracts. Use a local dry run.');
+ if(plan.gateway==='meta_native_action'&&route.endsWith('/adcreatives')){
+  const story=object(body.object_story_spec),missing:string[]=[];
+  if(!body.object_story_id&&!Object.keys(story).length)missing.push('object_story_spec.page_id or object_story_id');
+  if(Object.keys(story).length&&!(typeof story.page_id==='string'&&/^\d+$/.test(story.page_id)))missing.push('object_story_spec.page_id');
+  if(story.link_data&&!object(story.link_data).link)missing.push('object_story_spec.link_data.link');
+  if(missing.length)fail('CREATIVE_INPUT_REQUIRED','A Meta creative needs an explicit Page identity and, for a link creative, a destination URL. AMCP cannot infer or invent these values.',{missing_fields:missing});
+ }
  if(Object.keys(plan.query).some(k=>!(plan.gateway==='dv360_native_action'&&k==='updateMask'||plan.gateway==='gtm_native_action'&&k==='fingerprint')))fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed writes accept body fields and qualified concurrency parameters only.');
  if(plan.gateway==='linkedin_native_action'&&method==='POST'&&/^\/rest\/adAccounts\/[^/]+\/[^/]+\/[^/]+$/.test(route)&&(!body.patch||plan.headers['X-RestLi-Method']?.toUpperCase()!=='PARTIAL_UPDATE'))fail('WRITE_CONTRACT_UNAVAILABLE','LinkedIn entity POST requires a native patch and restli_method PARTIAL_UPDATE.');
  if(['method','_method','http_method','method_override','batch','adbatch'].some(k=>plan.query[k]!==undefined||body[k]!==undefined)||/\/batch\//.test(plan.path))fail('WRITE_CONTRACT_UNAVAILABLE','Batch and method-tunneled writes require individual reviewed native requests.');
@@ -119,7 +127,7 @@ function assertWriteShape(plan:CompiledRequest){
  if(plan.gateway==='meta_native_action'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads)$/.test(plan.path)&&plan.method==='POST')expect(body,'status',['PAUSED']);
  if(plan.gateway==='tiktok_native_action'&&/^\/v1\.3\/(?:campaign|adgroup|ad)\/create\/$/.test(plan.path))expect(body,'operation_status',['DISABLE']);
  if(plan.gateway==='snapchat_native_action'&&plan.method==='POST'){
-  const kind=plan.path.split('/').at(-1)!;if(!Array.isArray(body[kind])||!body[kind].length||body[kind].length>25)fail('MISSING_PAYLOAD','Provide 1–25 native '+kind+' records.');for(const row of body[kind])expect(object(row),'status',['PAUSED']);
+  const kind=plan.path.split('/').at(-1)!;if(!Array.isArray(body[kind])||!body[kind].length||body[kind].length>25)fail('MISSING_PAYLOAD','Provide 1–25 native '+kind+' records.');if(kind!=='creatives')for(const row of body[kind])expect(object(row),'status',['PAUSED']);
  }
  if(plan.gateway==='snapchat_native_action'&&plan.method==='PATCH'){
   if(!Array.isArray(plan.body)||!plan.body.length||plan.body.length>25||plan.body.some(op=>!op||!['add','remove','replace','test'].includes(op.op)||typeof op.path!=='string'||!/^\/[a-zA-Z0-9_/-]+$/.test(op.path)||op.path.split('/').some((part:string)=>['__proto__','constructor','prototype'].includes(part))||op.op!=='remove'&&!Object.hasOwn(op,'value')))fail('INVALID_PATCH','Use 1–25 native JSON Patch add, remove, replace or test operations.');
@@ -142,13 +150,13 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  const base=(path:string,query:JsonObject={},body?:JsonObject,method='GET'):CompiledRequest=>applyExecutionRisk({...plan,action:'AMCP_STATE_READ',method,path,query,body,headers:plan.gateway==='linkedin_native_action'?Object.fromEntries(Object.entries(plan.headers).filter(([k])=>['LinkedIn-Version','X-Restli-Protocol-Version'].includes(k))):{},readOnly:true,destructive:false,requiresConfirmation:false,responseControls:undefined,specialTransport:undefined});
  const id=normalizeAccount(plan.gateway,plan.accountId!),body=object(plan.body);
  if(plan.gateway==='google_ads_native_action'){
-  const kind=plan.path.match(/\/([^/]+):mutate$/)?.[1],map:Record<string,string>={campaigns:'campaign',adGroups:'ad_group',adGroupAds:'ad_group_ad',campaignBudgets:'campaign_budget',ads:'ad',assetGroups:'asset_group',campaignCriteria:'campaign_criterion',adGroupCriteria:'ad_group_criterion'};
+  const kind=plan.path.match(/\/([^/]+):mutate$/)?.[1],map:Record<string,string>={assets:'asset',campaigns:'campaign',adGroups:'ad_group',adGroupAds:'ad_group_ad',campaignBudgets:'campaign_budget',ads:'ad',assetGroups:'asset_group',campaignCriteria:'campaign_criterion',adGroupCriteria:'ad_group_criterion'};
   if(!kind||!map[kind])fail('WRITE_CONTRACT_UNAVAILABLE','This Google mutation has no implemented state-read contract.');
   const resource=map[kind]!,snapshots:CompiledRequest[]=[],fields=new Set([resource+'.resource_name']),names:string[]=[];
   for(const op of body.operations){const record=object(op.update),name=op.remove??record.resource_name??record.resourceName;
    if(name!==undefined){if(typeof name!=='string'||!new RegExp('^customers/'+id+'/'+kind+'/[0-9~_-]+$').test(name))fail('ACCOUNT_SCOPE_MISMATCH','Google mutation resource does not match the selected customer/type.');names.push(name);}
    if(op.update){const mask=op.update_mask??op.updateMask;if(typeof mask!=='string'||!mask)fail('MISSING_UPDATE_MASK','Updates require an explicit field mask.');for(const f of mask.split(',')){if(!/^[A-Za-z][A-Za-z0-9_.]*$/.test(f))fail('INVALID_UPDATE_MASK','Invalid field mask.');fields.add(resource+'.'+snake(f));}}
-   if(op.remove){const deletionFields:Record<string,string[]>={campaign:['name','status','campaign_budget','advertising_channel_type'],ad_group:['name','status','campaign','cpc_bid_micros'],ad_group_ad:['status','ad.id','ad.final_urls'],campaign_budget:['name','amount_micros','delivery_method'],ad:['name','final_urls'],asset_group:['name','status','campaign']};for(const f of deletionFields[resource]??[])fields.add(resource+'.'+f);}
+   if(op.remove){const deletionFields:Record<string,string[]>={asset:['name','type'],campaign:['name','status','campaign_budget','advertising_channel_type'],ad_group:['name','status','campaign','cpc_bid_micros'],ad_group_ad:['status','ad.id','ad.final_urls'],campaign_budget:['name','amount_micros','delivery_method'],ad:['name','final_urls'],asset_group:['name','status','campaign']};for(const f of deletionFields[resource]??[])fields.add(resource+'.'+f);}
   }
   const search=(query:string)=>base('/v23/customers/'+id+'/googleAds:search',{}, {query},'POST');
   if(names.length)snapshots.push(search('SELECT '+[...fields].join(', ')+' FROM '+resource+' WHERE '+resource+'.resource_name IN ('+names.map(n=>"'"+n+"'").join(', ')+')'));
@@ -175,7 +183,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(plan.gateway==='meta_native_action'){
   const create=/^\/v[^/]+\/act_[^/]+\//.test(plan.path)&&plan.method==='POST';
   if(create){const reads=[base(plan.path.match(/^\/v[^/]+\/act_[^/]+/)![0],{fields:'id,account_status,currency'})];const parent=plan.path.endsWith('/adsets')?body.campaign_id:plan.path.endsWith('/ads')?body.adset_id:undefined;
-   if(!plan.path.endsWith('/campaigns')){if(typeof parent!=='string'||!/^\d+$/.test(parent))fail('MISSING_PARAMETER','Child creates require their exact parent ID.');reads.push(base(plan.path.split('/').slice(0,2).join('/')+'/'+parent,{fields:'id,name,status'}));}return reads;}
+   if(plan.path.endsWith('/adsets')||plan.path.endsWith('/ads')){if(typeof parent!=='string'||!/^\d+$/.test(parent))fail('MISSING_PARAMETER','Child creates require their exact parent ID.');reads.push(base(plan.path.split('/').slice(0,2).join('/')+'/'+parent,{fields:'id,name,status'}));}return reads;}
   if(/^\/v[^/]+\/\d+$/.test(plan.path)){const fields=new Set(['id','name','status']);for(const k of Object.keys(body))if(/^[a-z_]+$/.test(k)&&!['execution_options','fields'].includes(k))fields.add(k);return [base(plan.path,{fields:[...fields].join(',')})];}
  }
  if(plan.gateway==='snapchat_native_action'&&plan.method==='PUT'){
@@ -201,7 +209,7 @@ export class WriteReviewService {
   if(!this.policy.allowWrites)fail('LIVE_WRITES_DISABLED','Enable MIRROR_ALLOW_WRITES=true for reviewed write support.');
   if(actor.role==='reader')throw new MirrorError('FORBIDDEN','A writer connector and administrator account grant are required.',{},403);
   const c=this.store.resolveConnection(actor,plan.gateway,plan.accountId,connectionId),id=normalizeAccount(plan.gateway,plan.accountId??(c.accounts.length===1?c.accounts[0]:''));
-  if(!id||!c.writeAccounts?.some(a=>normalizeAccount(c.gateway,a)===id))throw new MirrorError('WRITE_ACCOUNT_FORBIDDEN','The administrator has not enabled writes for this account.',{},403);
+  assertAccountWrite(this.store,c,id);
   plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);assertMeasurementScopes(plan,c);return c;
  }
  private async state(actor:Actor,plan:CompiledRequest,connectionId:string,reads:CompiledRequest[]):Promise<unknown[]> {

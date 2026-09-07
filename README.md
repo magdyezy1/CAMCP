@@ -13,7 +13,7 @@ AMCP connects an advertising workspace to Codex and other MCP clients. It includ
 - MCP connector page with browser authorization, Codex/Cursor configurations, reader/operator access, expiring bearer tokens, and revocation.
 - Reviewed campaign mutations with five-minute state snapshots, explicit confirmation, account grants, and persistent duplicate-submission protection.
 - Configuration-only state guards ignore delivery telemetry and normalize unordered scalar arrays; failures identify changed fields and state hashes. Created Meta/Snapchat resources immediately receive account ownership bindings.
-- Google Drive media imports through the reviewed amcp_media extension, with encrypted frozen files and native uploads. See [formats, limits and examples](docs/MEDIA-UPLOADS.md).
+- Google Drive links work through native media actions, platform_media_upload and amcp_media, with a shared amcp_write review. The server transfers images and videos to Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360; MCP clients never download the file. Meta and Snapchat creative creation is supported. See [formats, limits and examples](docs/MEDIA-UPLOADS.md).
 - Evidence-linked campaign audits and deterministic optimization suggestions with explicit unknown coverage.
 - Session authentication, CSRF protection, encrypted OAuth state, PKCE where supported, and activity records. Claude-compatible dynamic registration supports encrypted client secrets with client_secret_post alongside public clients. See [OAuth and hardening decisions](docs/OAUTH-HARDENING.md).
 

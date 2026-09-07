@@ -34,7 +34,7 @@ function camelKeys(value:unknown):unknown{
  return value;
 }
 export interface TransportResult {data:unknown;status:number;headers:Record<string,string>}
-export interface BinaryUpload {field:string;bytes:Buffer;filename:string;mime:string}
+export interface BinaryUpload {field:string;bytes:Buffer;filename:string;mime:string;format?:'related'}
 export class NativeTransport {
  private circuits=new Map<string,{failures:number;until:number}>();private budgets=new Map<string,{tokens:number;at:number}>();
  readonly metrics={requests:0,retries:0,errors:0,totalLatencyMs:0};
@@ -51,9 +51,14 @@ export class NativeTransport {
   let body:BodyInit|undefined;let form:URLSearchParams|undefined;
   if(upload){
    if(plan.readOnly)throw new MirrorError('INVALID_UPLOAD','Binary uploads must be reviewed mutations.');
+   if(upload.format==='related'){
+    if(plan.gateway!=='dv360_native_action'||plan.method!=='POST'||!/^\/upload\/v4\/advertisers\/\d+\/assets$/.test(plan.path)||plan.query.uploadType!=='multipart')throw new MirrorError('INVALID_UPLOAD','Multipart-related is restricted to the DV360 advertiser asset contract.');
+    const boundary='amcp_'+randomUUID();body=new Uint8Array(Buffer.concat([Buffer.from('--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(plan.body)+'\r\n--'+boundary+'\r\nContent-Type: '+upload.mime+'\r\n\r\n'),upload.bytes,Buffer.from('\r\n--'+boundary+'--\r\n')]));headers['Content-Type']='multipart/related; boundary='+boundary;
+   }else{
    const multipart=new FormData();for(const [k,v]of Object.entries((plan.body??{}) as JsonObject))multipart.set(k,typeof v==='object'?JSON.stringify(v):String(v));
    multipart.set(upload.field,new Blob([new Uint8Array(upload.bytes)],{type:upload.mime}),upload.filename);body=multipart;
    for(const key of Object.keys(headers))if(key.toLowerCase()==='content-type')delete headers[key];
+   }
   }else if(plan.body!==undefined){
    if(plan.gateway==='meta_native_action'||plan.gateway==='x_ads_native_action'&&!plan.path.includes('/batch/')){form=new URLSearchParams();for(const [k,v]of Object.entries(plan.body as JsonObject))form.set(k,typeof v==='object'?JSON.stringify(v):String(v));body=form.toString();headers['Content-Type']='application/x-www-form-urlencoded';}
    else {body=JSON.stringify(plan.gateway==='google_ads_native_action'?camelKeys(plan.body):plan.body);headers['Content-Type']=plan.gateway==='snapchat_native_action'&&plan.method==='PATCH'?'application/json-patch+json':'application/json';}
@@ -74,7 +79,7 @@ export class NativeTransport {
    try{
     const response=await this.fetcher(url,{method:plan.method,headers,body,redirect:'error',signal:AbortSignal.timeout(this.timeoutMs)});
     if([429,502,503,504].includes(response.status)&&attempt+1<maxAttempts){await response.body?.cancel();this.metrics.retries++;const retry=Number(response.headers.get('retry-after'));await this.sleeper(Math.min(5000,Math.max(200*2**attempt,Number.isFinite(retry)?retry*1000:0)));continue;}
-    const documentedEmpty=response.status===200&&(plan.gateway==='google_search_console_native_action'&&['PUT','DELETE'].includes(plan.method)&&/^\/webmasters\/v3\/sites\//.test(plan.path)||plan.gateway==='gtm_native_action'&&plan.method==='DELETE'||plan.gateway==='linkedin_native_action'&&plan.method==='POST'&&plan.path==='/rest/videos'&&plan.query.action==='finalizeUpload');
+    const documentedEmpty=response.status===200&&(plan.gateway==='google_search_console_native_action'&&['PUT','DELETE'].includes(plan.method)&&/^\/webmasters\/v3\/sites\//.test(plan.path)||plan.gateway==='gtm_native_action'&&plan.method==='DELETE'||plan.gateway==='linkedin_native_action'&&plan.method==='POST'&&plan.path==='/rest/videos'&&plan.query.action==='finalizeUpload'||plan.gateway==='google_ads_native_action'&&plan.method==='POST'&&/^\/resumable\/upload\/v23\/customers\/\d+\/youTubeVideoUploads:create$/.test(plan.path)&&response.headers.has('x-goog-upload-url'));
     const data=await this.readBody(response,plan.method==='HEAD'||!plan.readOnly&&(documentedEmpty||[204,205].includes(response.status)||plan.gateway==='linkedin_native_action'&&response.status===201&&response.headers.has('x-restli-id')));
     if(!response.ok){const code=response.status===401?'AUTH_EXPIRED':response.status===403?'INSUFFICIENT_SCOPE':response.status===429?'PLATFORM_RATE_LIMIT':'UPSTREAM_ERROR';throw new MirrorError(code,'Platform returned HTTP '+response.status,{upstream:redact(data)},response.status,response.status===429||response.status>=500);}
     if(data&&typeof data==='object'){
@@ -82,7 +87,7 @@ export class NativeTransport {
      if((plan.gateway==='tiktok_native_action'&&d.code!==undefined&&d.code!==0)||d.request_status==='ERROR'||d.error)throw new MirrorError('PLATFORM_ERROR','Platform reported an unsuccessful result.',{upstream:redact(d)},502,false);
     }
     this.circuits.delete(key);this.metrics.totalLatencyMs+=Date.now()-start;
-    return {data,status:response.status,headers:Object.fromEntries(['request-id','x-request-id','x-fb-trace-id','x-restli-id','retry-after'].map(k=>[k,response.headers.get(k)]).filter((p):p is [string,string]=>p[1]!==null))};
+    return {data,status:response.status,headers:Object.fromEntries(['request-id','x-request-id','x-fb-trace-id','x-restli-id','retry-after',...(plan.gateway==='google_ads_native_action'&&plan.path.startsWith('/resumable/upload/')?['x-goog-upload-url']:[])].map(k=>[k,response.headers.get(k)]).filter((p):p is [string,string]=>p[1]!==null))};
    }catch(error){
     const e=error instanceof MirrorError?error:new MirrorError(plan.readOnly?'UPSTREAM_UNAVAILABLE':'WRITE_OUTCOME_UNCERTAIN',plan.readOnly?'Platform request failed or timed out.':'The write response was lost. Do not retry with a new key; inspect platform state.',{},502,plan.readOnly);
     if(plan.readOnly&&e.retryable&&attempt+1<maxAttempts){this.metrics.retries++;await this.sleeper(200*2**attempt);continue;}
@@ -90,6 +95,16 @@ export class NativeTransport {
    }
   }
   throw new MirrorError('UPSTREAM_UNAVAILABLE','Platform request failed.');
+ }
+ /** A Google-issued upload capability stays in memory and can only target Google's upload origin. */
+ async uploadGoogleVideo(raw:string,bytes:Buffer,accessToken:string):Promise<TransportResult>{
+  let url:URL;try{url=new URL(raw);}catch{throw new MirrorError('UNAPPROVED_UPLOAD_URL','Google returned an invalid upload URL.');}
+  if(url.origin!=='https://googleads.googleapis.com'||url.username||url.password||url.hash||!url.pathname.startsWith('/resumable/upload/'))throw new MirrorError('UNAPPROVED_UPLOAD_URL','Google upload URLs must stay on the Google Ads resumable upload endpoint.');
+  if(!accessToken)throw new MirrorError('CREDENTIALS_REQUIRED','Google video upload needs an authenticated connection.');
+  let response:Response;try{response=await this.fetcher(url,{method:'PUT',redirect:'error',signal:AbortSignal.timeout(this.timeoutMs),headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/octet-stream','X-Goog-Upload-Offset':'0','X-Goog-Upload-Command':'upload, finalize'},body:new Uint8Array(bytes)});}catch{throw new MirrorError('WRITE_OUTCOME_UNCERTAIN','Google video upload response was lost. Inspect uploads before any retry.');}
+  const data=await this.readBody(response,false);
+  if(!response.ok)throw new MirrorError('MEDIA_UPLOAD_FAILED','Google video upload returned HTTP '+response.status,{upstream:redact(data)},response.status);
+  return {data,status:response.status,headers:{}};
  }
  /** Only signed upload URLs returned by LinkedIn's initializeUpload response. */
  async uploadLinkedIn(raw:string,bytes:Buffer,mime:string,accessToken?:string):Promise<string|undefined>{
