@@ -19,9 +19,14 @@ const blocked:typeof fetch=async()=>{throw Error('Unexpected vendor egress');};
 async function site(fetcher:typeof fetch=blocked){
  const store=new Store(':memory:',master),service=new MirrorService(new Registry(),store),listener=createHttpApp(service,store,{website:{origin,masterKey:master,adminPassword:password,fetcher}}).listen(0,'127.0.0.1');
  await new Promise<void>(r=>listener.once('listening',r));const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
- const request=(url:string,method='GET',body?:unknown,headers:Record<string,string>={})=>fetch(base+url,{method,redirect:'manual',headers:{Origin:origin,...(body===undefined?{}:{'Content-Type':'application/json'}),...headers},body:body===undefined?undefined:JSON.stringify(body)});
+ // Consume each network body before fixture teardown; leaving it unread can race
+ // socket shutdown in Node's HTTP parser. Return a detached response to assertions.
+ const request=async(url:string,method='GET',body?:unknown,headers:Record<string,string>={})=>{
+  const response=await fetch(base+url,{method,redirect:'manual',headers:{Origin:origin,...(body===undefined?{}:{'Content-Type':'application/json'}),...headers},body:body===undefined?undefined:JSON.stringify(body)}),bytes=await response.arrayBuffer();
+  return new Response([204,205,304].includes(response.status)?null:bytes,{status:response.status,headers:response.headers});
+ };
  const login=await request('/api/session','POST',{password});assert.equal(login.status,200);const cookie=login.headers.get('set-cookie')!.split(';')[0]!,csrf=(await login.json()).csrf,headers={Cookie:cookie,'X-AMCP-CSRF':csrf};
- return {store,request,headers,base,close:async()=>{await new Promise<void>(r=>listener.close(()=>r()));store.close();}};
+ return {store,request,headers,base,close:async()=>{const closed=new Promise<void>(r=>listener.close(()=>r()));listener.closeAllConnections();await closed;store.close();}};
 }
 test('website passwords, session cookies, origin, CSRF, expiry and encrypted single-use OAuth state',()=>{
  const store=new Store(':memory:',master),web=new WebStore(store,{origin,masterKey:master,adminPassword:password});
@@ -51,7 +56,7 @@ test('website routes conceal connections, protect mutations, and issue revocable
   const tokenResult=await s.request('/api/connector-tokens','POST',{name:'Test MCP'},s.headers),token=await tokenResult.json();assert.equal(tokenResult.status,200);assert.equal(s.store.authenticate(token.token).role,'reader');
   const listing=await (await s.request('/api/connector-tokens','GET',undefined,s.headers)).json();assert.ok(!JSON.stringify(listing).includes(token.token));assert.ok(!JSON.stringify(listing).includes(sha256(token.token)));
   const mcp=await s.request('/mcp','POST',{jsonrpc:'2.0',id:1,method:'tools/list'},{Authorization:'Bearer '+token.token,Accept:'application/json, text/event-stream'}); // Browser origins are deliberately denied at MCP.
-  assert.equal(mcp.status,403);
+  assert.equal(mcp.status,403);await mcp.arrayBuffer();
   const native=await fetch(s.base+'/mcp',{method:'POST',headers:{Authorization:'Bearer '+token.token,Accept:'application/json, text/event-stream','Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list'})});assert.equal(native.status,200);assert.equal((await native.json()).result.tools.length,20);
   assert.equal((await s.request('/api/connector-tokens/'+token.id,'DELETE',undefined,s.headers)).status,200);assert.throws(()=>s.store.authenticate(token.token));
   const logout=await s.request('/api/session','DELETE',undefined,s.headers);assert.equal(logout.status,200);assert.equal((await s.request('/api/connector-tokens','GET',undefined,s.headers)).status,401);
@@ -98,7 +103,7 @@ test('LinkedIn offset pagination and unsafe Meta pagination fail or complete tru
 });
 test('MCP OAuth discovery, registration, consent, PKCE, one-use codes, refresh rotation and replay revocation work over HTTP',async()=>{
  const s=await site();try{
-  const missing=await fetch(s.base+'/mcp');assert.match(missing.headers.get('www-authenticate')!,/oauth-protected-resource\/mcp/);
+  const missing=await fetch(s.base+'/mcp');assert.match(missing.headers.get('www-authenticate')!,/oauth-protected-resource\/mcp/);await missing.arrayBuffer();
   const metadata=await (await s.request('/.well-known/oauth-protected-resource/mcp')).json();assert.equal(metadata.resource,origin+'/mcp');
   const register=await s.request('/register','POST',{client_name:'Synthetic MCP',redirect_uris:['http://127.0.0.1:8769/callback'],token_endpoint_auth_method:'none'});assert.equal(register.status,201);const client=await register.json();
   const verifier=randomBytes(48).toString('base64url'),params=new URLSearchParams({client_id:client.client_id,redirect_uri:client.redirect_uris[0],response_type:'code',code_challenge:createHash('sha256').update(verifier).digest('base64url'),code_challenge_method:'S256',scope:'mcp:read',state:'original-state',resource:origin+'/mcp'});
