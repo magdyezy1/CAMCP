@@ -19,7 +19,7 @@ Raw `amcp_write execute` also queues configuration verification. The HTTP/backgr
 
 ## Reusable media
 
-Private Drive files use `drive_connection_id` for a separate read-only Drive connection and a file selected in Connections. Do not send ad-platform tokens to Drive or ask the LLM to download bytes. Native upload payloads also accept drive_connection_id. Folders, Workspace document exports and arbitrary URL hosts are not supported.
+Private Drive files use a separate read-only Drive connection and a file selected in Connections. Supply `drive_connection_id` to choose a login explicitly; AMCP otherwise uses the uniquely matching selected login or its unambiguous default. Revoking that file selection blocks pending uploads. Do not send ad-platform tokens to Drive or ask the LLM to download bytes. Native upload payloads also accept drive_connection_id. Folders, Workspace document exports and arbitrary URL hosts are not supported.
 
 `amcp_media variant` accepts drive_url, optional drive_connection_id, preset (`square`, `portrait`, `vertical`, `landscape`) and fit (`contain` or `crop`). It creates an encrypted five-minute preview, not an upload. Contain pads the full frame; crop is a center crop that can remove text or important content. Review the preview at the returned authenticated website URL as the owning actor or workspace administrator, or inspect its dimensions and explicitly authorize the transformation from the client. Other operators cannot open another actor's private preview; administrators must still have the current Drive file selection. The server uses FFmpeg/ffprobe with bounded formats, CPU, time, pixel count, duration and output size. These aspect presets do not prove eligibility for a particular placement.
 
