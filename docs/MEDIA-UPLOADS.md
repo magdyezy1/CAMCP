@@ -39,7 +39,7 @@ Native upload calls with `dry_run:false` prepare a review and return the executi
 
 ## Shared workflow
 
-Call `whathead_native_action`:
+Call `amcp_native_action`:
 
 ```json
 {

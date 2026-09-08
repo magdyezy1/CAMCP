@@ -22,12 +22,12 @@ const results=process.argv.includes('--generate-only')?[]:await Promise.allSettl
  const file='.mirror/VENDOR/'+name+'.json';if(fs.existsSync(file))return {name,cached:true};
  const response=await fetch(url,{signal:AbortSignal.timeout(30000)});if(!response.ok)throw Error(name+' HTTP '+response.status);
  const document=await response.json();if(!document.resources&&!document.paths)throw Error(name+' unexpected schema');
- fs.writeFileSync(file,JSON.stringify({source:url,captured_at:new Date().toISOString(),evidence:'VENDOR_DOCUMENTED_NOT_WHATHEAD_OBSERVED',document},null,2)+'\n');return {name,version:document.version??document.info?.version};
+ fs.writeFileSync(file,JSON.stringify({source:url,captured_at:new Date().toISOString(),evidence:'VENDOR_DOCUMENTED_NOT_AMCP_OBSERVED',document},null,2)+'\n');return {name,version:document.version??document.info?.version};
 }));
 for(const r of results)console.log(r.status==='fulfilled'?r.value:String(r.reason));
 if(results.some(r=>r.status==='rejected'))process.exitCode=1;
 
-// These are vendor-documented request routes, not observed WhatHead execution envelopes.
+// These are vendor-documented request routes, not observed AMCP execution envelopes.
 const registry=JSON.parse(fs.readFileSync('generated/registry.json','utf8'));
 const docs=new Map(Object.keys(sources).filter(n=>fs.existsSync('.mirror/VENDOR/'+n+'.json')).map(n=>[n,JSON.parse(fs.readFileSync('.mirror/VENDOR/'+n+'.json','utf8'))]));
 const methods=new Map();
@@ -105,7 +105,7 @@ for(const op of registry.tools.find(t=>t.name==='reddit_native_action').operatio
  routes.push({gateway:'reddit_native_action',operation:op.operation,action,vendorMethod:m.op.operationId,source:reddit.source,sourceFile:'reddit-v3',origin:server.origin,path:server.pathname+m.path,method:m.method,readOnly:m.method==='GET'||m.op.operationId==='Get A Report',parameters:Object.fromEntries(m.parameters.map(p=>[p.name,{...p,...resolveReddit(p.schema),location:p.in}])),requestSchema:json?.schema,responseSchemas,bodyRequired:request?.required===true||!!json,scopes:m.op.security?.flatMap(s=>Object.values(s).flat())??[],evidence:'VENDOR_DOCUMENTED_INDEPENDENT_MAPPING'});
 }
 routes.sort((a,b)=>(a.gateway+'/'+a.operation+'/'+a.action).localeCompare(b.gateway+'/'+b.operation+'/'+b.action));
-const artifact=JSON.stringify({formatVersion:1,evidence:'VENDOR_DOCUMENTED_INDEPENDENT_MAPPING',description:'Method/path mapping is independently designed from official vendor discovery; WhatHead response or compiler parity has not been established.',routes,gaps,schemaComponents:{'reddit-v3':reddit.document.components}},null,2)+'\n';
+const artifact=JSON.stringify({formatVersion:1,evidence:'VENDOR_DOCUMENTED_INDEPENDENT_MAPPING',description:'Method/path mapping is independently designed from official vendor discovery; AMCP response or compiler parity has not been established.',routes,gaps,schemaComponents:{'reddit-v3':reddit.document.components}},null,2)+'\n';
 const output='generated/vendor-routes.json';
 if(process.argv.includes('--check')){if(!fs.existsSync(output)||fs.readFileSync(output,'utf8')!==artifact)throw Error('Vendor routes are stale; run node tools/fetch-vendor-specs.mjs --generate-only');}
 else fs.writeFileSync(output,artifact);

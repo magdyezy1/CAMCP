@@ -34,7 +34,7 @@ For `google_search_console_native_action`:
 {"operation":"gsc_analytics_ops","arguments":{"action":"QUERY_SEARCH_ANALYTICS","site_url":"sc-domain:example.com","payload":{"startDate":"2026-09-01","endDate":"2026-09-02"}}}}
 ```
 
-Use `whathead_tool_help` with the gateway and operation for additional native schemas. Not every captured delegated workflow is implemented; an unsupported workflow reports an error instead of fabricated success.
+Use `amcp_tool_help` with the gateway and operation for additional native schemas. Not every captured delegated workflow is implemented; an unsupported workflow reports an error instead of fabricated success.
 
 ## Apple Ads setup
 
@@ -51,7 +51,7 @@ Click Connect, then select an Apple **ad account ID** from the returned ACL inve
 
 The independent v1 adapter supports query/get operations for campaigns, ad groups, ads, creatives, keywords, negative keywords and shared budgets; ad-account get; and App Store campaign/ad-group/ad/keyword/search-term reports. Campaign create/update/delete support local previews and reviewed live execution through amcp_write. New campaigns must explicitly use status PAUSED; activation or budget changes require spend_change_confirmed=true. These 23 routes are documented AMCP extensions, separate from the unenumerated source catalog. Legacy v5 routing and other Apple mutation routes remain unavailable. Source: [Apple's official Platform API SDK](https://github.com/apple/apple-ads-platform-api-node).
 
-Call `whathead_tool_help` with `{"gateway":"apple_ads_native_action"}` to enumerate these local routes; pass an action name as `operation` for its route description. Example arguments for `apple_ads_native_action`:
+Call `amcp_tool_help` with `{"gateway":"apple_ads_native_action"}` to enumerate these local routes; pass an action name as `operation` for its route description. Example arguments for `apple_ads_native_action`:
 
 ```json
 {"action":"apple_ads_v1_campaigns_query","account_id":"77","payload":{"pagination":{"offset":0,"pageSize":100}},"aggregate_pages":true,"max_pages":25}

@@ -7,7 +7,7 @@ import {MirrorError} from '../src/errors.js';
 import type {Actor,JsonObject} from '../src/types.js';
 
 export interface WebSession {id:string;actor:Actor;csrf:string;expiresAt:number}
-export interface WebsiteOptions {origin:string;masterKey?:string;adminPassword?:string;adminPasswordHash?:string;tenantId?:string;fetcher?:typeof fetch;staticDirectory?:string;trustedProxyCidrs?:string[]}
+export interface WebsiteOptions {origin:string;masterKey?:string;adminPassword?:string;adminPasswordHash?:string;tenantId?:string;fetcher?:typeof fetch;staticDirectory?:string;trustedProxyCidrs?:string[];authEnv?:NodeJS.ProcessEnv}
 function canonicalIp(value:string):string|undefined{
  if(isIP(value)===4)return value;
  if(isIP(value)!==6||value.includes('%'))return;
@@ -60,6 +60,9 @@ export class WebStore {
    CREATE TABLE IF NOT EXISTS amcp_oauth_states(hash TEXT PRIMARY KEY,session_hash TEXT NOT NULL,platform TEXT NOT NULL,secret TEXT NOT NULL,expires_at INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS amcp_mcp_clients(id TEXT PRIMARY KEY,data TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS amcp_mcp_grants(hash TEXT PRIMARY KEY,kind TEXT NOT NULL,client_id TEXT NOT NULL,tenant_id TEXT NOT NULL,data TEXT NOT NULL,expires_at INTEGER NOT NULL,used INTEGER NOT NULL DEFAULT 0);
+   CREATE TABLE IF NOT EXISTS amcp_users(id TEXT PRIMARY KEY,email TEXT UNIQUE COLLATE NOCASE,name TEXT NOT NULL,tenant_id TEXT UNIQUE NOT NULL,password_hash TEXT,version INTEGER NOT NULL DEFAULT 1,disabled INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL);
+   CREATE TABLE IF NOT EXISTS amcp_identities(provider TEXT NOT NULL,subject TEXT NOT NULL,user_id TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(provider,subject),UNIQUE(user_id,provider));
+   CREATE TABLE IF NOT EXISTS amcp_account_challenges(hash TEXT PRIMARY KEY,kind TEXT NOT NULL,secret TEXT NOT NULL,expires_at INTEGER NOT NULL);
   `));
  }
  get configured(){return !!this.administratorHash;}
@@ -72,6 +75,14 @@ export class WebStore {
  }
  sealClientSecret(id:string,secret:string){if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Configure credential encryption before registering confidential MCP clients.',{},503);return this.box.seal(secret,scopeKey('mcp-client',this.tenantId,id));}
  openClientSecret(id:string,sealed:string){if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Credential encryption is unavailable.',{},503);return this.box.open<string>(sealed,scopeKey('mcp-client',this.tenantId,id));}
+ sealAccount(id:string,data:JsonObject){if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Account security is not configured.',{},503);return this.box.seal(data,scopeKey('account-auth',id));}
+ openAccount(id:string,data:string){if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Account security is not configured.',{},503);return this.box.open<JsonObject>(data,scopeKey('account-auth',id));}
+ createSession(actor:Actor):WebSession{
+  const now=Date.now(),s:WebSession={id:randomBytes(32).toString('base64url'),csrf:randomBytes(32).toString('base64url'),actor,expiresAt:now+8*3600000};
+  this.store.db.prepare('DELETE FROM amcp_web_sessions WHERE expires_at<=?').run(now);this.store.ensureTenant(actor.tenantId);
+  const user=this.store.db.prepare('SELECT version FROM amcp_users WHERE id=? AND tenant_id=? AND disabled=0').get(actor.userId,actor.tenantId) as JsonObject|undefined;
+  this.store.db.prepare('INSERT INTO amcp_web_sessions VALUES(?,?,?,?)').run(sha256(s.id),JSON.stringify({...actor,...(user?{accountVersion:user.version}:{}),signedInAt:now}),s.csrf,s.expiresAt);return s;
+ }
  signIn(password:string,address:string):WebSession{
   if(!this.administratorHash)throw new MirrorError('SETUP_REQUIRED','Configure the AMCP administrator password on the server before signing in.',{},503);
   const key=sha256(address),now=Date.now();this.store.db.prepare('DELETE FROM amcp_login_limits WHERE until_at<?').run(now);
@@ -90,7 +101,12 @@ export class WebStore {
  session(req:Request):WebSession|undefined{
   const id=cookieValue(req,this.cookieName);if(!id||!/^[\w-]{43}$/.test(id))return;
   const row=this.store.db.prepare('SELECT * FROM amcp_web_sessions WHERE hash=? AND expires_at>?').get(sha256(id),Date.now()) as JsonObject|undefined;
-  return row?{id,actor:JSON.parse(row.actor),csrf:row.csrf,expiresAt:row.expires_at}:undefined;
+  if(!row)return;const actor=JSON.parse(row.actor);
+  if(actor.userId!=='workspace-admin'){
+   const user=this.store.db.prepare('SELECT version FROM amcp_users WHERE id=? AND tenant_id=? AND disabled=0').get(actor.userId,actor.tenantId) as JsonObject|undefined;
+   if(!user||user.version!==actor.accountVersion)return;
+  }
+  return {id,actor,csrf:row.csrf,expiresAt:row.expires_at};
  }
  requireSession(req:Request):WebSession{const session=this.session(req);if(!session)throw new MirrorError('SIGN_IN_REQUIRED','Sign in to your AMCP workspace.',{},401);return session;}
  requireOrigin(req:Request){if(req.headers.origin!==this.origin||req.headers['sec-fetch-site']==='cross-site')throw new MirrorError('FORBIDDEN_ORIGIN','This request must come from your AMCP website.',{},403);}

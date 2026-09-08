@@ -6,6 +6,9 @@ AMCP connects an advertising workspace to Codex and other MCP clients. It includ
 
 ## Website
 
+- Independent member workspaces, verified email registration, password recovery, Google / Apple / Facebook sign-in, account linking, profile settings and browser-session revocation. See [user accounts setup](docs/USER-ACCOUNTS.md). Social sign-in credentials are separate from advertising OAuth credentials.
+- A new ink, iris and apricot visual identity, public homepage, responsive workspace navigation, keyboard page search and guided entry points. See [identity and interface migration](docs/AMCP-IDENTITY.md).
+
 - Campaign plans with verified dependencies, account readiness, private Drive and reviewed media variants, automatic write read-back, source-linked reporting, evidence-based suggestions, reusable client profiles and a capability dashboard. See [workspace operations](docs/WORKSPACE-OPERATIONS.md).
 
 - Connections: Google Ads, Meta, TikTok, Snapchat, LinkedIn, X, Microsoft Advertising, GA4, Google Tag Manager / Google tag, Search Console, and Apple Ads, plus a separate read-only Google Drive media source; each provider uses your own app credentials. See [measurement and Apple setup](docs/MEASUREMENT-AND-APPLE.md).
@@ -36,7 +39,7 @@ The default local URL is http://127.0.0.1:4317. Configure the variables in [.env
 
 ## MCP compatibility and verification
 
-The server preserves a captured compact-v1 compatibility surface with 20 tools, 19 gateways, and 112 nested operation schemas. Microsoft Advertising is a separately identified extension; it does not change the captured denominator. Generated route metadata and official vendor contracts are included for reproducible checks. AMCP is an independent implementation; it is not affiliated with WhatHead or any advertising platform.
+The server maintains a compact-v1 baseline with 20 tools, 19 gateways, and 112 nested operation schemas. Baseline metadata and fixtures are normalized to AMCP naming; the files are derived development inputs, not unmodified external transcripts. Microsoft Advertising is a separately identified extension. Generated route metadata and official vendor contracts are included for reproducible checks. AMCP is an independent implementation and is not affiliated with any advertising platform.
 
 This release supports reads, local dry runs, and **reviewed advertising writes** through amcp_write and amcp_media (24 runtime tools, or 26 when write support is enabled). Advertising connections and OAuth clients default to read + reviewed write access; explicit read-only choices and existing grants are preserved. The deployment write kill switch, account boundaries and per-change review remain enforced. See [write setup and supported contracts](docs/WRITE-OPERATIONS.md). OAuth, tenant isolation, account grants, native request compilation, credential refresh, reporting jobs, and MCP transports have automated tests. Captured action counts describe catalog coverage and do not prove live behavior.
 

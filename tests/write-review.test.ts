@@ -56,10 +56,10 @@ test('uncertain writes never retry; partial failures retain details and durable 
  }finally{x.store.close();}
 });
 test('receipt and idempotency survive process restart',async()=>{
- const dir=fs.mkdtempSync(path.join(os.tmpdir(),'whathead-write-')),file=path.join(dir,'test.sqlite');let store:Store|undefined;
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'amcp-write-')),file=path.join(dir,'test.sqlite');let store:Store|undefined;
  try{const x=setup(file),r=await prepare(x.service);x.store.close();store=new Store(file,key);let writes=0;const s=new MirrorService(registry,store,new NativeTransport((async(_url,init)=>new Response(JSON.stringify(init!.method==='GET'?{id:'act_123',currency:'USD',account_status:1}:(writes++,{id:'111'})))) as typeof fetch),undefined,policy);
   assert.equal((await s.call('amcp_write',execution(r),actor)).success,true);store.close();store=new Store(file,key);const again=new MirrorService(registry,store,new NativeTransport((async()=>{throw Error('unexpected egress');}) as typeof fetch),undefined,policy);assert.equal((await again.call('amcp_write',execution(r),actor)).data.replayed,true);assert.equal(writes,1);
- }finally{store?.close();removeTestDirectory(dir,'whathead-write-');}
+ }finally{store?.close();removeTestDirectory(dir,'amcp-write-');}
 });
 test('unsafe creation, batches, mutation pagination, query mutations and unsupported routes fail before reads',async()=>{
  const x=setup();try{for(const input of [

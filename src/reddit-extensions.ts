@@ -2,7 +2,7 @@ import type {VendorRoute} from './delegated-native.js';
 import type {ToolDefinition} from './types.js';
 
 // Independent AMCP extensions from Reddit's published v3 OpenAPI contract.
-// Keep the captured WhatHead registry and its denominators unchanged.
+// Keep the captured AMCP registry and its denominators unchanged.
 export const redditAudienceActions=['CREATE_SAVED_AUDIENCE','UPDATE_SAVED_AUDIENCE'];
 export function extendRedditTool(original:ToolDefinition):ToolDefinition{
  const tool=structuredClone(original),op=tool.operations?.find(o=>o.operation==='reddit_account_ops');

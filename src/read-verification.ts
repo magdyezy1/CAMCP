@@ -11,7 +11,7 @@ export function prepareReadProbes(service:MirrorService,probes:unknown):Prepared
  if(!Array.isArray(probes)||probes.length===0||probes.length>50)throw new MirrorError('INVALID_PROBES','Provide 1 to 50 explicit native read probes.');
  return probes.map((probe:ReadProbe)=>{
   if(!probe||typeof probe.gateway!=='string'||!probe.arguments||typeof probe.arguments!=='object'||Array.isArray(probe.arguments))throw new MirrorError('INVALID_PROBES','Each probe requires gateway and arguments.');
-  const definition=service.registry.tools.get(probe.gateway);if(!definition||probe.gateway==='whathead_tool_help'||probe.gateway==='whathead_workspace')throw new MirrorError('INVALID_PROBES','Probes must name native platform gateways.');
+  const definition=service.registry.tools.get(probe.gateway);if(!definition||probe.gateway==='amcp_tool_help'||probe.gateway==='amcp_platform_workspace')throw new MirrorError('INVALID_PROBES','Probes must name native platform gateways.');
   service.registry.validate(probe.gateway,probe.arguments,service.options);
   const delegated=definition.mode==='delegated';
   const plan=applyExecutionRisk(delegated?service.delegatedCompiler.compile(probe.gateway,probe.arguments):service.compiler.compile(probe.gateway,probe.arguments,service.options));

@@ -10,7 +10,7 @@ import {Store} from '../src/store.js';
 import {removeTestDirectory} from './temp.js';
 
 test('Meta provisioning accepts a hidden pipe and persists only encrypted credentials',async()=>{
- const directory=fs.mkdtempSync(path.join(os.tmpdir(),'whathead-meta-provision-'));
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'amcp-meta-provision-'));
  const database=path.join(directory,'mirror.sqlite'),key=randomBytes(32).toString('base64'),token='EAA'+randomBytes(100).toString('hex');
  const entry=fileURLToPath(new URL('../tools/meta-connection.js',import.meta.url));
  const run=(input:string,args:string[]=['provision'])=>new Promise<{code:number|null;output:string}>((resolve,reject)=>{
@@ -36,5 +36,5 @@ test('Meta provisioning accepts a hidden pipe and persists only encrypted creden
    assert.deepEqual(unchanged.listConnections('local')[0]!.accounts,['111111111111111','2222222222222222']);
    assert.equal(unchanged.verifyAudit(),true);
   }finally{unchanged.close();}
- }finally{removeTestDirectory(directory,'whathead-meta-provision-');}
+ }finally{removeTestDirectory(directory,'amcp-meta-provision-');}
 });

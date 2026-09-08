@@ -1,7 +1,7 @@
 {
   "source": "https://ads-api.reddit.com/api/v3/openapi.json",
   "captured_at": "2026-09-05T21:40:44.959Z",
-  "evidence": "VENDOR_DOCUMENTED_NOT_WHATHEAD_OBSERVED",
+  "evidence": "VENDOR_DOCUMENTED_NOT_AMCP_OBSERVED",
   "document": {
     "openapi": "3.1.0",
     "info": {

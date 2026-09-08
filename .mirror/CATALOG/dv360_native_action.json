@@ -2950,6 +2950,6 @@
     }
   ],
   "gaps": [
-    "Action enum captured; method/path/required-field catalog not exposed by WhatHead help."
+    "Action enum captured; method/path/required-field catalog not exposed by AMCP help."
   ]
 }

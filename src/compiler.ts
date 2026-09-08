@@ -138,6 +138,6 @@ export class Compiler {
   const query=object(n.query);let readOnly=n.method==='GET';
   for(const key of ['method','_method','http_method','method_override'])if(query[key]!==undefined){if(!['GET','HEAD','POST','PUT','PATCH','DELETE'].includes(String(query[key]).toUpperCase()))throw new MirrorError('INVALID_METHOD_OVERRIDE','Unsupported query method override.');readOnly=readOnly&&['GET','HEAD'].includes(String(query[key]).toUpperCase());}
   if(gateway==='meta_native_action'&&query.batch!==undefined)readOnly=false;
-  return {gateway,action:String(input.action??'NATIVE_REQUEST'),method:n.method,path,query,body:n.body,headers:{},readOnly,destructive:n.method==='DELETE',requiresConfirmation:!readOnly,accountId:account===undefined?undefined:String(account),evidence:'INDEPENDENT_DESIGN',warnings:['Native request extension is not a WhatHead parity claim.']};
+  return {gateway,action:String(input.action??'NATIVE_REQUEST'),method:n.method,path,query,body:n.body,headers:{},readOnly,destructive:n.method==='DELETE',requiresConfirmation:!readOnly,accountId:account===undefined?undefined:String(account),evidence:'INDEPENDENT_DESIGN',warnings:['Native request extension is not a AMCP parity claim.']};
  }
 }

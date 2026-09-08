@@ -11,7 +11,7 @@ import {ReportWorker} from '../src/worker.js';
 import type {Actor,Connection} from '../src/types.js';
 
 const actor:Actor={tenantId:'reddit-test',userId:'operator',role:'reader'};
-const connection:Connection={id:'00000000-0000-4000-8000-000000000001',tenantId:actor.tenantId,gateway:'reddit_native_action',accounts:['a2_111'],enabled:true,label:'test',scopes:['adsread'],userAgent:'server:whathead-mirror-test:0.1.0 (local mock)'};
+const connection:Connection={id:'00000000-0000-4000-8000-000000000001',tenantId:actor.tenantId,gateway:'reddit_native_action',accounts:['a2_111'],enabled:true,label:'test',scopes:['adsread'],userAgent:'server:amcp-mirror-test:0.1.0 (local mock)'};
 const registry=new Registry();
 const report={action:'GET_INSIGHTS',account_id:'a2_111',payload:{data:{starts_at:'2026-08-01T00:00:00Z',ends_at:'2026-08-02T00:00:00Z',fields:['IMPRESSIONS'],breakdowns:['DATE']}}};
 function setup(fetcher:typeof fetch){

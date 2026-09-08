@@ -12,6 +12,6 @@ For video stories, inspect the existing creative/thumbnail data and supply the r
 
 Inspect currency before expressing budgets in native minor units; account currency can have different decimal conventions. Determine whether the budget belongs to the campaign or the ad set. Preserve objective, optimization, billing event, conversion location and promoted-object compatibility. Do not silently replace an immutable campaign objective with a new campaign.
 
-The live WhatHead generic Meta `compile_entity_payload` probe returned `META_USE_NATIVE_TOOLS` on 2026-09-08. Use the native flow above. A historical manual describing generic form compilation is not current acceptance evidence.
+The live AMCP generic Meta `compile_entity_payload` probe returned `META_USE_NATIVE_TOOLS` on 2026-09-08. Use the native flow above. A historical manual describing generic form compilation is not current acceptance evidence.
 
 Primary field reference: [Meta's maintained SDK](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adaccount.py).

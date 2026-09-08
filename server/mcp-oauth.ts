@@ -52,9 +52,9 @@ export class McpOAuth implements OAuthServerProvider {
   return granted;
  }
  private validateResource(resource?:URL){if(resource&&resource.href!==this.resource.href)throw new InvalidTargetError('The resource must be the AMCP MCP endpoint.');}
- private put(token:string,kind:string,client:string,data:JsonObject,ttl:number){this.web.store.db.prepare('INSERT INTO amcp_mcp_grants VALUES(?,?,?,?,?,?,0)').run(sha256(token),kind,client,this.web.tenantId,JSON.stringify(data),Date.now()+ttl);}
+ private put(token:string,kind:string,client:string,data:JsonObject,ttl:number,tenant=this.web.tenantId){this.web.store.db.prepare('INSERT INTO amcp_mcp_grants VALUES(?,?,?,?,?,?,0)').run(sha256(token),kind,client,tenant,JSON.stringify(data),Date.now()+ttl);}
  private get(token:string,kind:string,client?:string,allowUsed=false):JsonObject{
-  const row=this.web.store.db.prepare('SELECT * FROM amcp_mcp_grants WHERE hash=? AND kind=? AND tenant_id=?').get(sha256(token),kind,this.web.tenantId) as JsonObject|undefined;
+  const row=this.web.store.db.prepare('SELECT * FROM amcp_mcp_grants WHERE hash=? AND kind=?').get(sha256(token),kind) as JsonObject|undefined;
   if(!row||client&&row.client_id!==client||row.expires_at<=Date.now()||row.used&&!allowUsed)throw new InvalidGrantError('This authorization has expired or was already used.');
   return {...row,data:JSON.parse(row.data)};
  }
@@ -68,21 +68,21 @@ export class McpOAuth implements OAuthServerProvider {
   res.redirect(303,this.web.origin+'/oauth/consent?request='+encodeURIComponent(request));
  }
  consent(request:string,session:WebSession){
-  if(session.actor.tenantId!==this.web.tenantId||session.actor.role!=='admin')throw new InvalidGrantError('Workspace administrator access is required.');
+  if(session.actor.role!=='admin')throw new InvalidGrantError('Workspace administrator access is required.');
   const row=this.get(request,'request'),scopes=this.validateScopes(row.data.scope?.split(' '));return {name:row.data.clientName,redirectUri:row.data.redirectUri,scope:scopes.join(' '),role:scopes.includes(writeScope)?'operator':'reader',writesEnabled:this.allowWrites};
  }
  decide(request:string,session:WebSession,approved:boolean){
   this.consent(request,session);
   return this.web.store.transaction(()=>{const row=this.get(request,'request');this.web.store.db.prepare('UPDATE amcp_mcp_grants SET used=1 WHERE hash=?').run(row.hash);
    const url=new URL(row.data.redirectUri);if(row.data.state!==undefined)url.searchParams.set('state',row.data.state);
-   if(approved){const code=opaque();this.put(code,'code',row.client_id,row.data,300000);url.searchParams.set('code',code);}else url.searchParams.set('error','access_denied');return url.href;
+   if(approved){const code=opaque();this.put(code,'code',row.client_id,row.data,300000,session.actor.tenantId);url.searchParams.set('code',code);}else url.searchParams.set('error','access_denied');return url.href;
   });
  }
  async challengeForAuthorizationCode(client:OAuthClientInformationFull,code:string){return this.get(code,'code',client.client_id).data.challenge as string;}
- private issue(client:string,data:JsonObject):OAuthTokens{
+ private issue(client:string,data:JsonObject,tenant:string):OAuthTokens{
   const scopes=this.validateScopes(data.scope?.split(' ')),scope=scopes.join(' '),role=scopes.includes(writeScope)?'operator':'reader';
-  const family=data.family??randomUUID(),access=this.web.store.createKey({tenantId:this.web.tenantId,userId:'oauth/'+client,role},3600000),refresh=opaque();
-  this.put(access,'access',client,{family,scope},3600000);this.put(refresh,'refresh',client,{family,scope},30*86400000);
+  const family=data.family??randomUUID(),access=this.web.store.createKey({tenantId:tenant,userId:'oauth/'+client,role},3600000),refresh=opaque();
+  this.put(access,'access',client,{family,scope},3600000,tenant);this.put(refresh,'refresh',client,{family,scope},30*86400000,tenant);
   return {access_token:access,token_type:'Bearer',expires_in:3600,refresh_token:refresh,scope};
  }
  async exchangeAuthorizationCode(client:OAuthClientInformationFull,code:string,verifier?:string,redirectUri?:string,resource?:URL){
@@ -90,32 +90,32 @@ export class McpOAuth implements OAuthServerProvider {
   return this.web.store.transaction(()=>{const row=this.get(code,'code',client.client_id);
    // The SDK validates PKCE before this method and omits verifier afterwards.
    if(redirectUri!==row.data.redirectUri||verifier!==undefined&&(!/^[A-Za-z0-9._~-]{43,128}$/.test(verifier)||!safeEqual(createHash('sha256').update(verifier).digest('base64url'),row.data.challenge)))throw new InvalidGrantError('The redirect URI or PKCE verifier does not match.');
-   this.web.store.db.prepare('UPDATE amcp_mcp_grants SET used=1 WHERE hash=?').run(row.hash);return this.issue(client.client_id,row.data);
+   this.web.store.db.prepare('UPDATE amcp_mcp_grants SET used=1 WHERE hash=?').run(row.hash);return this.issue(client.client_id,row.data,row.tenant_id);
   });
  }
- private revokeFamily(family:string){
-  const rows=this.web.store.db.prepare("SELECT hash,kind,data FROM amcp_mcp_grants WHERE tenant_id=? AND kind IN ('access','refresh')").all(this.web.tenantId) as JsonObject[];
-  for(const row of rows)if(JSON.parse(row.data).family===family){this.web.store.db.prepare('UPDATE amcp_mcp_grants SET used=1 WHERE hash=?').run(row.hash);if(row.kind==='access')this.web.store.db.prepare('UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash=?').run(this.web.tenantId,row.hash);}
+ private revokeFamily(family:string,tenant:string){
+  const rows=this.web.store.db.prepare("SELECT hash,kind,data FROM amcp_mcp_grants WHERE tenant_id=? AND kind IN ('access','refresh')").all(tenant) as JsonObject[];
+  for(const row of rows)if(JSON.parse(row.data).family===family){this.web.store.db.prepare('UPDATE amcp_mcp_grants SET used=1 WHERE hash=?').run(row.hash);if(row.kind==='access')this.web.store.db.prepare('UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash=?').run(tenant,row.hash);}
  }
  async exchangeRefreshToken(client:OAuthClientInformationFull,token:string,scopes?:string[],resource?:URL){
   this.validateResource(resource);
-  const result=this.web.store.transaction(()=>{const row=this.get(token,'refresh',client.client_id,true);if(row.used){this.revokeFamily(row.data.family);return undefined;}
+  const result=this.web.store.transaction(()=>{const row=this.get(token,'refresh',client.client_id,true);if(row.used){this.revokeFamily(row.data.family,row.tenant_id);return undefined;}
    const original=(row.data.scope??readScope).split(' ') as string[],requested=this.validateScopes(scopes??original);
    if(requested.some(s=>!original.includes(s)))throw new InvalidScopeError('Refresh cannot add access. Start a new authorization to request write access.');
-   this.web.store.db.prepare('UPDATE amcp_mcp_grants SET used=1 WHERE hash=?').run(row.hash);return this.issue(client.client_id,{...row.data,scope:requested.join(' ')});});
+   this.web.store.db.prepare('UPDATE amcp_mcp_grants SET used=1 WHERE hash=?').run(row.hash);return this.issue(client.client_id,{...row.data,scope:requested.join(' ')},row.tenant_id);});
   if(!result)throw new InvalidGrantError('Refresh token replay detected. Authorize the client again.');return result;
  }
  async verifyAccessToken(token:string){this.web.store.authenticate(token);const row=this.get(token,'access');return {token,clientId:row.client_id,scopes:this.validateScopes(row.data.scope?.split(' ')),expiresAt:Math.floor(row.expires_at/1000),resource:this.resource};}
  async revokeToken(client:OAuthClientInformationFull,request:OAuthTokenRevocationRequest){
-  const row=this.web.store.db.prepare('SELECT data FROM amcp_mcp_grants WHERE hash=? AND client_id=? AND tenant_id=?').get(sha256(request.token),client.client_id,this.web.tenantId) as {data:string}|undefined;
-  if(row){const data=JSON.parse(row.data);if(data.family)this.web.store.transaction(()=>this.revokeFamily(data.family));}
+  const row=this.web.store.db.prepare('SELECT data,tenant_id FROM amcp_mcp_grants WHERE hash=? AND client_id=?').get(sha256(request.token),client.client_id) as {data:string;tenant_id:string}|undefined;
+  if(row){const data=JSON.parse(row.data);if(data.family)this.web.store.transaction(()=>this.revokeFamily(data.family,row.tenant_id));}
  }
- authorizations(){
-  const rows=this.web.store.db.prepare("SELECT g.client_id,g.expires_at,g.data AS grant_data,c.data FROM amcp_mcp_grants g JOIN amcp_mcp_clients c ON c.id=g.client_id WHERE g.tenant_id=? AND g.kind='refresh' AND g.used=0 AND g.expires_at>?").all(this.web.tenantId,Date.now()) as JsonObject[];
+ authorizations(tenant=this.web.tenantId){
+  const rows=this.web.store.db.prepare("SELECT g.client_id,g.expires_at,g.data AS grant_data,c.data FROM amcp_mcp_grants g JOIN amcp_mcp_clients c ON c.id=g.client_id WHERE g.tenant_id=? AND g.kind='refresh' AND g.used=0 AND g.expires_at>?").all(tenant,Date.now()) as JsonObject[];
   const clients=new Map<string,JsonObject>();for(const row of rows){const scopes=(JSON.parse(row.grant_data).scope??readScope).split(' '),previous=clients.get(row.client_id);clients.set(row.client_id,{id:row.client_id,name:JSON.parse(row.data).client_name,expiresAt:Math.max(row.expires_at,previous?.expiresAt??0),role:scopes.includes(writeScope)||previous?.role==='operator'?'operator':'reader'});}return [...clients.values()];
  }
- revokeClient(id:string){this.web.store.transaction(()=>{
-  const rows=this.web.store.db.prepare('SELECT hash,kind FROM amcp_mcp_grants WHERE client_id=? AND tenant_id=?').all(id,this.web.tenantId) as JsonObject[];
-  for(const row of rows){this.web.store.db.prepare('UPDATE amcp_mcp_grants SET used=1 WHERE hash=?').run(row.hash);if(row.kind==='access')this.web.store.db.prepare('UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash=?').run(this.web.tenantId,row.hash);}
+ revokeClient(id:string,tenant=this.web.tenantId){this.web.store.transaction(()=>{
+  const rows=this.web.store.db.prepare('SELECT hash,kind FROM amcp_mcp_grants WHERE client_id=? AND tenant_id=?').all(id,tenant) as JsonObject[];
+  for(const row of rows){this.web.store.db.prepare('UPDATE amcp_mcp_grants SET used=1 WHERE hash=?').run(row.hash);if(row.kind==='access')this.web.store.db.prepare('UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash=?').run(tenant,row.hash);}
  });}
 }

@@ -1,7 +1,7 @@
 {
   "source": "https://displayvideo.googleapis.com/$discovery/rest?version=v4",
   "captured_at": "2026-09-04T23:31:45.399Z",
-  "evidence": "VENDOR_DOCUMENTED_NOT_WHATHEAD_OBSERVED",
+  "evidence": "VENDOR_DOCUMENTED_NOT_AMCP_OBSERVED",
   "document": {
     "baseUrl": "https://displayvideo.googleapis.com/",
     "revision": "20260902",

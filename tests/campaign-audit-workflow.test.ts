@@ -20,14 +20,14 @@ function fixture(mode='normal'){
 }
 const args={platform:'google',account_id:'123',campaign_id:'111'};
 test('campaign audit uses scoped native configuration and reporting reads and retains evidence and unknowns',async()=>{
- const f=fixture();try{const result=await f.service.call('whathead_native_action',{operation:'audit_campaign',arguments:{...args,date_range:{since:'2026-08-01',until:'2026-08-02'}}},f.actor);assert.equal(result.success,true,JSON.stringify(result));assert.equal(f.queries.length,2);const audit=result.data;
+ const f=fixture();try{const result=await f.service.call('amcp_native_action',{operation:'audit_campaign',arguments:{...args,date_range:{since:'2026-08-01',until:'2026-08-02'}}},f.actor);assert.equal(result.success,true,JSON.stringify(result));assert.equal(f.queries.length,2);const audit=result.data;
   assert.equal(audit.automated_changes,false);assert.equal(audit.findings.find((x:any)=>x.check==='budget').status,'warning');assert.ok(audit.findings.find((x:any)=>x.check==='budget').evidence.length);assert.equal(audit.coverage.complete,false);assert.equal(audit.observed_metrics.spend,5);
  }finally{f.store.close();}
 });
 test('optimization uses deterministic evidence and reports unavailable cross-campaign reallocation',async()=>{
- const f=fixture();try{const call={operation:'get_optimization_suggestions',arguments:args},one=await f.service.call('whathead_native_action',call,f.actor),two=await f.service.call('whathead_native_action',call,f.actor);assert.equal(one.success,true,JSON.stringify(one));assert.deepEqual(one.data,two.data);assert.equal(one.data.ai_generated,false);assert.equal(one.data.automated_changes,false);assert.equal(one.data.budget_reallocation.available,false);assert.ok(one.data.suggestions.some((s:any)=>s.id==='zero_reported_conversions'));assert.equal(f.queries.length,4);
+ const f=fixture();try{const call={operation:'get_optimization_suggestions',arguments:args},one=await f.service.call('amcp_native_action',call,f.actor),two=await f.service.call('amcp_native_action',call,f.actor);assert.equal(one.success,true,JSON.stringify(one));assert.deepEqual(one.data,two.data);assert.equal(one.data.ai_generated,false);assert.equal(one.data.automated_changes,false);assert.equal(one.data.budget_reallocation.available,false);assert.ok(one.data.suggestions.some((s:any)=>s.id==='zero_reported_conversions'));assert.equal(f.queries.length,4);
  }finally{f.store.close();}
 });
 test('missing, malformed, failed and wrong-campaign responses cannot produce a successful audit',async()=>{
- for(const mode of ['missing','malformed','error','wrong-report','wrong-campaign']){const f=fixture(mode);try{const result=await f.service.call('whathead_native_action',{operation:'audit_campaign',arguments:{...args,date_range:{since:'2026-08-01',until:'2026-08-02'}}},f.actor);assert.equal(result.success,false,mode);assert.ok(result.error.code);assert.ok(f.queries.length<=2);}finally{f.store.close();}}
+ for(const mode of ['missing','malformed','error','wrong-report','wrong-campaign']){const f=fixture(mode);try{const result=await f.service.call('amcp_native_action',{operation:'audit_campaign',arguments:{...args,date_range:{since:'2026-08-01',until:'2026-08-02'}}},f.actor);assert.equal(result.success,false,mode);assert.ok(result.error.code);assert.ok(f.queries.length<=2);}finally{f.store.close();}}
 });

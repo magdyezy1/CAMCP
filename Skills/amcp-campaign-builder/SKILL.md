@@ -7,13 +7,13 @@ description: Plan, create, inspect, and repair paid-media campaigns using AMCP M
 
 Start with the connected workspace and the user's existing account selection. Keep known account IDs as strings. Read account currency, timezone, existing parents and permissions before converting budgets or choosing identifiers. Request only missing business decisions: destination URL, Page/profile identity, budget, objective, placements, dates. Never invent these values.
 
-Read the relevant reference: [Meta](references/meta.md), [Google Ads](references/google-ads.md), [TikTok and Snapchat](references/tiktok-snapchat.md), [LinkedIn and X](references/linkedin-x.md), [Reddit](references/reddit.md), [Microsoft Advertising](references/microsoft-ads.md), or [media](references/media.md). MCP clients can read the same files at `amcp://guides/<name>`; the list is available through `resources/list` and `whathead_tool_help`.
+Read the relevant reference: [Meta](references/meta.md), [Google Ads](references/google-ads.md), [TikTok and Snapchat](references/tiktok-snapchat.md), [LinkedIn and X](references/linkedin-x.md), [Reddit](references/reddit.md), [Microsoft Advertising](references/microsoft-ads.md), or [media](references/media.md). MCP clients can read the same files at `amcp://guides/<name>`; the list is available through `resources/list` and `amcp_tool_help`.
 
 For multi-step briefs, approved profiles, media variants or source-linked reporting, read [workspace operations](references/workspace.md) (`amcp://guides/workspace`). Use `amcp_campaign` to retain dependent steps and verify their outputs; `amcp_workspace` checks readiness and stores client settings; `amcp_reporting` captures/reconciles native reports and proposes evidence-based changes.
 
 ## Discover before building
 
-1. Use `tools/list` and `whathead_tool_help`. Historical names in the supplied manuals describe a different connector surface. AMCP exposes compact native gateways; do not call an absent named tool.
+1. Use `tools/list` and `amcp_tool_help`. Historical names in the supplied manuals describe a different connector surface. AMCP exposes compact native gateways; do not call an absent named tool.
 2. Use the provider gateway with `action: LIST_ACTIONS`, a short search and a bounded limit. Use `DESCRIBE_ACTION` with `target_action` to inspect the exact action. Catalog presence proves discoverability, not live write qualification. Microsoft is an independent extension and has its own 24-action catalog.
 3. Native account reads establish current state and, for global Meta/Snapchat IDs, account ownership. A previously successful create already establishes ownership for the next child operation. An arbitrary ID or user-supplied snapshot does not establish ownership.
 4. Build a native payload for the correct hierarchy. Keep the user's supplied text and URLs; apply changes only within their instructions. Read a small relevant collection rather than an entire agency workspace.

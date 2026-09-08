@@ -193,7 +193,7 @@
       "raw": {
         "gateway": "ga4_native_action",
         "operation": "ga4_create_report_task",
-        "description": "Create an async GA4 report task for large report jobs. The task is retained by Google for a limited time and tracked in Whathead. Requires scope: write:exports.",
+        "description": "Create an async GA4 report task for large report jobs. The task is retained by Google for a limited time and tracked in AMCP. Requires scope: write:exports.",
         "argumentsSchema": {
           "type": "object",
           "properties": {
@@ -514,7 +514,7 @@
       "raw": {
         "gateway": "ga4_native_action",
         "operation": "ga4_sync_properties",
-        "description": "Discover accessible Google Analytics accounts/properties through the Analytics Admin API and persist them for the workspace. This does not change Google Analytics; it updates Whathead connection metadata. Requires scope: write:exports.",
+        "description": "Discover accessible Google Analytics accounts/properties through the Analytics Admin API and persist them for the workspace. This does not change Google Analytics; it updates AMCP connection metadata. Requires scope: write:exports.",
         "argumentsSchema": {
           "type": "object",
           "properties": {

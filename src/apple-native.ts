@@ -1,7 +1,7 @@
 import type {Action,CompiledRequest,JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 
-// AMCP extensions derived from Apple's own Platform API SDK, not captured WhatHead actions.
+// AMCP extensions derived from Apple's own Platform API SDK, not captured AMCP actions.
 // https://github.com/apple/apple-ads-platform-api-node/blob/main/src/api/apple-ads-api.ts
 // Native request/response model definitions live in the same repository's src/model directory.
 export const appleOrigin='https://api.ads.apple.com';

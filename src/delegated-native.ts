@@ -169,6 +169,6 @@ export class DelegatedNativeCompiler {
    }
   }
   const accountId=scopeFrom(route,args,path,body);
-  return {gateway,action:operation+(action?'/'+action:''),method:route.method,origin:route.origin,path,query,queryArrayEncoding:'repeat',...(bodyAllowed?{body}:{}),headers:{},readOnly:route.readOnly,destructive:route.method==='DELETE'||/(?:^|_)(?:DELETE|REMOVE|CLEAR)(?:_|$)/.test(action),requiresConfirmation:!route.readOnly,accountId,evidence:route.evidence,warnings:['This request uses an independently designed mapping to '+route.vendorMethod+'. WhatHead compiler and response-envelope parity are not asserted.','Credential account bindings and ownership of globally addressed resources must be checked before execution.']};
+  return {gateway,action:operation+(action?'/'+action:''),method:route.method,origin:route.origin,path,query,queryArrayEncoding:'repeat',...(bodyAllowed?{body}:{}),headers:{},readOnly:route.readOnly,destructive:route.method==='DELETE'||/(?:^|_)(?:DELETE|REMOVE|CLEAR)(?:_|$)/.test(action),requiresConfirmation:!route.readOnly,accountId,evidence:route.evidence,warnings:['This request uses an independently designed mapping to '+route.vendorMethod+'. AMCP compiler and response-envelope parity are not asserted.','Credential account bindings and ownership of globally addressed resources must be checked before execution.']};
  }
 }

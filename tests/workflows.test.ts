@@ -42,8 +42,8 @@ test('report normalization retains nulls, currency, exact IDs and protects CSV f
 test('generic mutation dry run passes through MCP service and central write gate',async()=>{
  const store=new Store(':memory:');let calls=0;try{const service=new MirrorService(registry,store,new NativeTransport((async()=>{calls++;throw Error('unexpected');}) as typeof fetch));
  const args={platform:'google',account_id:'111',entity_type:'campaign',entity_id:'222',updates:{name:'Draft'},dry_run:true};
- const response=await service.call('whathead_native_action',{operation:'update_entities',arguments:args},{tenantId:'t',userId:'r',role:'reader'});assert.equal(response.success,true);assert.equal(response.data.executed,false);
- const denied=await service.call('whathead_native_action',{operation:'update_entities',arguments:{...args,dry_run:false}},{tenantId:'t',userId:'r',role:'reader'});assert.equal(denied.error.code,'LIVE_WRITES_DISABLED');assert.equal(calls,0);
+ const response=await service.call('amcp_native_action',{operation:'update_entities',arguments:args},{tenantId:'t',userId:'r',role:'reader'});assert.equal(response.success,true);assert.equal(response.data.executed,false);
+ const denied=await service.call('amcp_native_action',{operation:'update_entities',arguments:{...args,dry_run:false}},{tenantId:'t',userId:'r',role:'reader'});assert.equal(denied.error.code,'LIVE_WRITES_DISABLED');assert.equal(calls,0);
  }finally{store.close();}
 });
 test('X report date boundaries follow account timezone and reject fractional-hour APIs',()=>{

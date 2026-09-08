@@ -1,10 +1,10 @@
 # AMCP capability review — 8 September 2026
 
-This review combines current WhatHead MCP reads and explicit dry-run previews, repository inspection, the five supplied creation manuals and five crosswalk JSON files, official vendor documentation, and synthetic regression tests. It does not certify complete WhatHead parity or every platform's production behavior. No live advertising mutation or Railway operation was performed.
+This historical review combines reference-connector reads and explicit dry-run previews, repository inspection, the five supplied creation manuals and five crosswalk JSON files, official vendor documentation, and synthetic regression tests. Reference metadata has since been normalized to AMCP naming. This is not proof of AMCP's live provider behavior. No live advertising mutation or Railway operation was performed during the review.
 
-## Fresh WhatHead comparison
+## Baseline interface comparison
 
-WhatHead still reports compact-v1 with 20 tools and 19 native gateways. AMCP preserves those captured contracts and adds an independent Microsoft gateway: 21 runtime tools, or 23 with its write/media extensions enabled. The captured 112 nested schemas remain a separate denominator.
+The reference compact-v1 interface reported 20 tools and 19 native gateways. At the time of this review AMCP added an independent Microsoft gateway for 21 runtime tools, or 23 with write/media extensions. Later workspace additions bring the runtime to 24 tools, or 26 with writes enabled; see [workspace operations](WORKSPACE-OPERATIONS.md). The baseline's 112 nested schemas remain a separate denominator.
 
 | Gateway | Distinct action records compared | Names present in AMCP | Declared HTTP route differences |
 | --- | ---: | ---: | ---: |
@@ -18,11 +18,11 @@ WhatHead still reports compact-v1 with 20 tools and 19 native gateways. AMCP pre
 
 These are sampled catalog records, not 184 executed API operations. Three fresh campaign-create previews—Meta, TikTok and Snapchat—matched AMCP's compiled **HTTP method, path, query and body**. Sanitized regression fixtures preserve those comparisons. Response envelopes, validation completeness and successful live writes are not implied by matching requests.
 
-Read-only campaign requests through WhatHead succeeded for Meta, TikTok, Snapchat and X. Google Ads returned HTTP 403 / FORBIDDEN for the supplied account. LinkedIn was not connected. A separate live read through AMCP's saved local Meta connection stopped at HTTP 401 / AUTH_EXPIRED; this connection needs OAuth renewal before direct live comparison. The four WhatHead successes are not reported as successes by AMCP against the same live data.
+Read-only campaign requests through the reference connector succeeded for Meta, TikTok, Snapchat and X. Google Ads returned HTTP 403 / FORBIDDEN for the supplied account. LinkedIn was not connected. A separate live read through AMCP's saved local Meta connection stopped at HTTP 401 / AUTH_EXPIRED; this connection needs OAuth renewal before direct live comparison. The four reference successes do not establish AMCP success against the same live data.
 
-Residual metadata differences remain: searching Google actions for `campaign` returned 123 in WhatHead versus 246 locally; searching TikTok for `creative` returned 41 versus 53, with a different first-page order. The mirror searches broader captured metadata. The source's exact search index is not exposed. No action was missing in the sampled sets, and query-specific counts were not hardcoded to manufacture parity. Use exact action names and DESCRIBE_ACTION when building.
+Residual metadata differences remain: searching Google actions for `campaign` returned 123 in the reference versus 246 locally; searching TikTok for `creative` returned 41 versus 53, with a different first-page order. AMCP searches broader baseline metadata. The reference's exact search index is not exposed. No action was missing in the sampled sets, and query-specific counts were not hardcoded to manufacture parity. Use exact action names and DESCRIBE_ACTION when building.
 
-A fresh generic Meta creative compile returned `META_USE_NATIVE_TOOLS` from WhatHead. AMCP likewise uses native Meta requests, with its own error envelope. Historical named tools and generic form examples must not be treated as current callable AMCP contracts.
+A generic Meta creative compile returned `META_USE_NATIVE_TOOLS` from the reference connector. AMCP likewise uses native Meta requests, with its own error envelope. Historical named tools and generic form examples must not be treated as current callable AMCP contracts.
 
 ## Repository review and changes
 
@@ -54,7 +54,7 @@ Several source claims needed correction or qualification:
 - Performance Max does not use positive Search keywords, but campaign-level negative keyword criteria are supported. Guidance follows the [current Google Ads API documentation](https://developers.google.com/google-ads/api/performance-max/create-campaign-criteria).
 - A blanket instruction to delete/recreate every Google customizer binding is unsafe. Inspect the specific resource and supported operation; AMCP explicitly rejects its unsupported legacy customizer-attribute update.
 - LinkedIn creative/count limits, fixed X objective matrices and uncertain Reddit enums in dated notes are not hardcoded as current provider rules. Current action contracts and provider validation take precedence.
-- Historical WhatHead named tool calls are not directly callable through AMCP's compact gateways. Discovery and local write inspection now come before preparation.
+- Historical AMCP named tool calls are not directly callable through AMCP's compact gateways. Discovery and local write inspection now come before preparation.
 - Reddit now has reviewed classic campaign/ad-group/existing-post ad and saved targeting-audience contracts, verified against the official schema and local chain tests. Media/post publication and live acceptance remain separate.
 
 ## Verification and remaining work

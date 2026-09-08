@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "evidence": "VENDOR_DOCUMENTED_INDEPENDENT_MAPPING",
-  "description": "Method/path mapping is independently designed from official vendor discovery; WhatHead response or compiler parity has not been established.",
+  "description": "Method/path mapping is independently designed from official vendor discovery; AMCP response or compiler parity has not been established.",
   "routes": [
     {
       "gateway": "criteo_native_action",

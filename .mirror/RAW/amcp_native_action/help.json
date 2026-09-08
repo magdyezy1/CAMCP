@@ -1,0 +1,22 @@
+{
+  "captured_at": "2026-09-04T23:23:33.608Z",
+  "model": "gpt-6-astra",
+  "session_role": "builder",
+  "gateway": "amcp_native_action",
+  "operation": "help",
+  "request": {
+    "gateway": "amcp_native_action",
+    "args": {}
+  },
+  "request_id": null,
+  "safety_mode": "metadata_only",
+  "evidence": "OBSERVED",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"gateway\": \"amcp_native_action\",\n  \"mode\": \"delegated\",\n  \"description\": \"Core AMCP gateway for campaign lifecycle, publishing, cross-platform transfer, audiences, creatives, OpenAI Ads utilities, AI generation, media, reporting, exports, Signals, and shared workflows.\",\n  \"operation_count\": 59,\n  \"operations\": [\n    \"audit_campaign\",\n    \"bind_reporting_workbook\",\n    \"compile_entity_payload\",\n    \"connect_google_reporting\",\n    \"create_ad\",\n    \"create_adset\",\n    \"create_campaign\",\n    \"create_creative\",\n    \"create_reporting_query\",\n    \"create_reporting_schedule\",\n    \"cross_platform_transfer\",\n    \"delete_entity\",\n    \"disconnect_google_reporting\",\n    \"download_creative_asset\",\n    \"estimate_audience_size\",\n    \"execute_reporting_run\",\n    \"export_report\",\n    \"fetch_ads\",\n    \"fetch_adsets\",\n    \"fetch_campaign\",\n    \"fetch_creatives\",\n    \"fetch_custom_audiences\",\n    \"fetch_meta_existing_posts\",\n    \"generate_ad_content\",\n    \"generate_creative_design\",\n    \"get_ad_preview\",\n    \"get_ads_with_creatives\",\n    \"get_campaign_details\",\n    \"get_creative_generation_job\",\n    \"get_creative_payload\",\n    \"get_entity_insights\",\n    \"get_optimization_suggestions\",\n    \"get_performance_report\",\n    \"get_reporting_bootstrap\",\n    \"get_reporting_run\",\n    \"get_reporting_run_status\",\n    \"get_reporting_storage_overview\",\n    \"get_reporting_workbook_bootstrap\",\n    \"get_search_terms\",\n    \"get_workspace_context\",\n    \"inspect_google_drive_media\",\n    \"list_accounts\",\n    \"list_audiences\",\n    \"list_campaigns\",\n    \"list_creatives\",\n    \"list_media_assets\",\n    \"list_reporting_templates\",\n    \"list_workspace_assets\",\n    \"openai_ads_ops\",\n    \"plan_campaign_structure\",\n    \"platform_media_upload\",\n    \"publish_campaign\",\n    \"save_workbook_preferences\",\n    \"search_ads_library\",\n    \"set_entity_status\",\n    \"suggest_targeting\",\n    \"update_entities\",\n    \"update_reporting_query\",\n    \"update_reporting_schedule\"\n  ]\n}"
+      }
+    ]
+  }
+}

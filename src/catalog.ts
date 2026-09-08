@@ -20,9 +20,9 @@ export class Registry {
   for(const catalog of this.data.catalogs){this.catalogs.set(catalog.gateway,catalog);for(const action of catalog.actions)this.register(catalog.gateway,action);}
   for(const action of this.data.supplemental)this.register(action.gateway!,action,false);
   if(this.tools.has('apple_ads_native_action'))for(const action of appleActions)this.register('apple_ads_native_action',action,false);
-  if(this.tools.has('whathead_tool_help')){
+  if(this.tools.has('amcp_tool_help')){
    this.tools.set(microsoftGateway,microsoftTool);this.validators.set(microsoftGateway,this.ajv.compile(microsoftTool.inputSchema));
-   this.catalogs.set(microsoftGateway,{gateway:microsoftGateway,mode:'direct',api_version:'v13',reported_total:null,captured:0,complete:false,denominator_kind:'LIST_ACTIONS',actions:microsoftActions,gaps:['Independent extension; not part of the captured WhatHead denominator.']});
+   this.catalogs.set(microsoftGateway,{gateway:microsoftGateway,mode:'direct',api_version:'v13',reported_total:null,captured:0,complete:false,denominator_kind:'LIST_ACTIONS',actions:microsoftActions,gaps:['Independent extension; not part of the captured AMCP denominator.']});
    for(const a of microsoftActions)this.register(microsoftGateway,a);
   }
  }
@@ -34,7 +34,7 @@ export class Registry {
  validate(tool:string,input:JsonObject,options:CallOptions){
   guardInput(input);const definition=this.tools.get(tool);if(!definition)throw new MirrorError('UNKNOWN_TOOL','Unknown MCP tool: '+tool);
   const checkInput=structuredClone(input);
-  if(tool==='whathead_tool_help'&&input.gateway===microsoftGateway){if(Object.keys(input).some(k=>!['gateway','operation'].includes(k))||input.operation!==undefined&&typeof input.operation!=='string')throw new MirrorError('INVALID_ARGUMENT','Invalid Microsoft help arguments.');return;}
+  if(tool==='amcp_tool_help'&&input.gateway===microsoftGateway){if(Object.keys(input).some(k=>!['gateway','operation'].includes(k))||input.operation!==undefined&&typeof input.operation!=='string')throw new MirrorError('INVALID_ARGUMENT','Invalid Microsoft help arguments.');return;}
   if(options.mode==='enhanced')for(const key of ['native_request',...(options.flags.uniformIdempotency?['idempotency_key']:[])])delete checkInput[key];
   const validator=this.validators.get(tool)!;
   if(!validator(checkInput))throw new MirrorError('INVALID_ARGUMENT','Arguments do not satisfy the captured gateway schema.',{errors:validator.errors});

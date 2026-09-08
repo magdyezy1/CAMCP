@@ -6,7 +6,7 @@ import {guardInput,stable} from './security.js';
 import {auditCampaign,optimizationSuggestions,type CampaignAuditInput} from './campaign-audit.js';
 
 /** Independently implemented workflow semantics. Captured action routes are evidence,
- * not evidence that these composite response envelopes match WhatHead byte-for-byte. */
+ * not evidence that these composite response envelopes match AMCP byte-for-byte. */
 export const workflowEvidence='INDEPENDENT_DESIGN';
 export interface NativeStep {gateway:string;input:JsonObject}
 export interface WorkflowDependencies {

@@ -1,6 +1,6 @@
 # Server media import
 
-The LLM does not download media. Pass a Google Drive file link to `amcp_media` with `action: prepare`, platform, account ID and the documented media fields. Use `DESCRIBE_ACTION` or `whathead_tool_help` for the exact native alias. Native media actions and `platform_media_upload` route into the same reviewed media flow.
+The LLM does not download media. Pass a Google Drive file link to `amcp_media` with `action: prepare`, platform, account ID and the documented media fields. Use `DESCRIBE_ACTION` or `amcp_tool_help` for the exact native alias. Native media actions and `platform_media_upload` route into the same reviewed media flow.
 
 For private files, connect Google Drive separately, select the file and supply drive_connection_id. Public files must expose the actual bytes without a login; a folder, document editor page, HTML warning, or unsupported file is not an image/video. AMCP resolves the link, restricts redirect hosts, applies byte/type limits and stages the exact encrypted bytes for the review. Clients receive identifiers and metadata, not the whole binary.
 

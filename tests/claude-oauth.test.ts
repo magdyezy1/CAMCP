@@ -54,8 +54,8 @@ test('Claude confidential DCR, S256 authorization, consent, code exchange, refre
   for(const invalid of [missingSecret,{...grant,client_secret:'incorrect'},{...grant,code_verifier:'x'.repeat(64)},{...grant,redirect_uri:redirect+'?changed=1'},{...grant,resource:'https://elsewhere.invalid/mcp'}])assert.equal((await token(invalid)).status,400);
   const exchanged=await token(grant);assert.equal(exchanged.status,200);const credentials=await exchanged.json();assert.equal(credentials.scope,'mcp:read');assert.equal((await token(grant)).status,400);
   await mcp.connect(new StreamableHTTPClientTransport(new URL(s.base+'/mcp'),{requestInit:{headers:{Authorization:'Bearer '+credentials.access_token}}}));
-  assert.ok((await mcp.listTools()).tools.some(t=>t.name==='whathead_tool_help'));
-  const help=await mcp.callTool({name:'whathead_tool_help',arguments:{}});assert.equal(help.isError,undefined);
+  assert.ok((await mcp.listTools()).tools.some(t=>t.name==='amcp_tool_help'));
+  const help=await mcp.callTool({name:'amcp_tool_help',arguments:{}});assert.equal(help.isError,undefined);
   const refresh={grant_type:'refresh_token',client_id:client.client_id,client_secret:client.client_secret,refresh_token:credentials.refresh_token,resource:origin+'/mcp'};
   assert.equal((await token({...refresh,client_secret:'incorrect'})).status,400);assert.equal((await token({...refresh,scope:'mcp:read mcp:write'})).status,400);
   const rotatedResponse=await token(refresh);assert.equal(rotatedResponse.status,200);const rotated=await rotatedResponse.json();assert.notEqual(rotated.refresh_token,credentials.refresh_token);
@@ -81,7 +81,7 @@ test('registration and authorization preserve public clients, redirect, scope, r
 });
 
 test('confidential secrets persist encrypted across restart and are bound to client and encryption key',async()=>{
- const directory=fs.mkdtempSync(path.join(os.tmpdir(),'whathead-client-secret-')),file=path.join(directory,'db.sqlite');let store=new Store(file,master);
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'amcp-client-secret-')),file=path.join(directory,'db.sqlite');let store=new Store(file,master);
  try{
   let oauth=new McpOAuth(new WebStore(store,{origin,masterKey:master}));
   const first=await oauth.clientsStore.registerClient(registration),second=await oauth.clientsStore.registerClient(registration);assert.notEqual(first.client_secret,second.client_secret);
@@ -90,7 +90,7 @@ test('confidential secrets persist encrypted across restart and are bound to cli
   const wrongKey=new McpOAuth(new WebStore(store,{origin,masterKey:Buffer.alloc(32,82).toString('base64')}));await assert.rejects(wrongKey.clientsStore.getClient(first.client_id));
   const row=(store.db.prepare('SELECT data FROM amcp_mcp_clients WHERE id=?').get(first.client_id) as {data:string}).data;
   store.db.prepare('UPDATE amcp_mcp_clients SET data=? WHERE id=?').run(row,second.client_id);await assert.rejects(oauth.clientsStore.getClient(second.client_id));
- }finally{store.close();removeTestDirectory(directory,'whathead-client-secret-');}
+ }finally{store.close();removeTestDirectory(directory,'amcp-client-secret-');}
 });
 
 test('invalid confidential authentication retains a rate limit and never emits secrets',async()=>{

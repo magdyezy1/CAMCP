@@ -16,6 +16,7 @@ jobs:
       - run: AMCP_REQUIRE_FFMPEG=true npm run check
       - run: node --check web/app.js
       - run: node --check web/workspace.js
+      - run: node --check web/identity.js
       - run: node deploy/check-railway.mjs
       - run: docker build -t amcp:check .
       - run: node deploy/smoke.mjs

@@ -2,7 +2,7 @@
 
 The Railway build rejected Dockerfile `VOLUME`. The image now leaves persistence to a Railway service volume mounted at `/data`. CI rejects reintroduction of that Dockerfile instruction, builds the image, and exercises the website, MCP authorization, persistent sessions, token revocation and non-root volume access. Configure `PORT=4317` and domain target port `4317`.
 
-The external review was assessed against the implementation and captured evidence. Its abbreviated examples are not complete response fixtures. This release does not assert complete WhatHead or live-provider equivalence.
+The external review was assessed against the implementation and captured evidence. Its abbreviated examples are not complete response fixtures. This release does not assert complete AMCP or live-provider equivalence.
 
 | Review topic | Decision and implementation |
 |---|---|

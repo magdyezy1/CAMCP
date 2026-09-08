@@ -34,12 +34,12 @@
             "connection_id": {
               "type": "string",
               "format": "uuid",
-              "description": "Optional Whathead Meta OAuth connection ID used to resolve the correct user/Page Access Token"
+              "description": "Optional AMCP Meta OAuth connection ID used to resolve the correct user/Page Access Token"
             },
             "connectionId": {
               "type": "string",
               "format": "uuid",
-              "description": "Optional Whathead Meta OAuth connection ID alias"
+              "description": "Optional AMCP Meta OAuth connection ID alias"
             },
             "action": {
               "type": "string",
@@ -964,12 +964,12 @@
             "connection_id": {
               "type": "string",
               "format": "uuid",
-              "description": "Optional Whathead Meta OAuth connection ID used to resolve the correct user/Page Access Token"
+              "description": "Optional AMCP Meta OAuth connection ID used to resolve the correct user/Page Access Token"
             },
             "connectionId": {
               "type": "string",
               "format": "uuid",
-              "description": "Optional Whathead Meta OAuth connection ID alias"
+              "description": "Optional AMCP Meta OAuth connection ID alias"
             },
             "action": {
               "type": "string",
@@ -1881,12 +1881,12 @@
             "connection_id": {
               "type": "string",
               "format": "uuid",
-              "description": "Optional Whathead Meta OAuth connection ID used to resolve the correct user/Page Access Token"
+              "description": "Optional AMCP Meta OAuth connection ID used to resolve the correct user/Page Access Token"
             },
             "connectionId": {
               "type": "string",
               "format": "uuid",
-              "description": "Optional Whathead Meta OAuth connection ID alias"
+              "description": "Optional AMCP Meta OAuth connection ID alias"
             },
             "action": {
               "type": "string",
@@ -2812,12 +2812,12 @@
             "connection_id": {
               "type": "string",
               "format": "uuid",
-              "description": "Optional Whathead Meta OAuth connection ID used to resolve the correct user/Page Access Token"
+              "description": "Optional AMCP Meta OAuth connection ID used to resolve the correct user/Page Access Token"
             },
             "connectionId": {
               "type": "string",
               "format": "uuid",
-              "description": "Optional Whathead Meta OAuth connection ID alias"
+              "description": "Optional AMCP Meta OAuth connection ID alias"
             },
             "action": {
               "type": "string",
@@ -3728,12 +3728,12 @@
             "connection_id": {
               "type": "string",
               "format": "uuid",
-              "description": "Optional Whathead Meta OAuth connection ID used to resolve the correct user/Page Access Token"
+              "description": "Optional AMCP Meta OAuth connection ID used to resolve the correct user/Page Access Token"
             },
             "connectionId": {
               "type": "string",
               "format": "uuid",
-              "description": "Optional Whathead Meta OAuth connection ID alias"
+              "description": "Optional AMCP Meta OAuth connection ID alias"
             },
             "action": {
               "type": "string",
@@ -4646,12 +4646,12 @@
             "connection_id": {
               "type": "string",
               "format": "uuid",
-              "description": "Optional Whathead Meta OAuth connection ID used to resolve the correct user/Page Access Token"
+              "description": "Optional AMCP Meta OAuth connection ID used to resolve the correct user/Page Access Token"
             },
             "connectionId": {
               "type": "string",
               "format": "uuid",
-              "description": "Optional Whathead Meta OAuth connection ID alias"
+              "description": "Optional AMCP Meta OAuth connection ID alias"
             },
             "action": {
               "type": "string",
@@ -5572,12 +5572,12 @@
             "connection_id": {
               "type": "string",
               "format": "uuid",
-              "description": "Optional Whathead Meta OAuth connection ID used to resolve the correct user/Page Access Token"
+              "description": "Optional AMCP Meta OAuth connection ID used to resolve the correct user/Page Access Token"
             },
             "connectionId": {
               "type": "string",
               "format": "uuid",
-              "description": "Optional Whathead Meta OAuth connection ID alias"
+              "description": "Optional AMCP Meta OAuth connection ID alias"
             },
             "action": {
               "type": "string",

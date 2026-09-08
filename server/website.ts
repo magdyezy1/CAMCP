@@ -13,12 +13,18 @@ import {sha256,redact} from '../src/security.js';
 import type {Connection,JsonObject} from '../src/types.js';
 import {McpOAuth} from './mcp-oauth.js';
 import {microsoftGateway} from '../src/microsoft-native.js';
+import {UserAccounts} from './user-accounts.js';
+import {SocialSignIn} from './social-signin.js';
+import {accountRoutes} from './account-routes.js';
 import {mcpAuthRouter} from '@modelcontextprotocol/sdk/server/auth/router.js';
 
 export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=false,service?:MirrorService){
  const web=new WebStore(store,options),oauth=new PlatformOAuth(web,process.env,options.fetcher,allowWrites),discovery=new AssetDiscovery(store,options.fetcher),router=express.Router();
  router.use((_req,res,next)=>{res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Frame-Options','DENY');res.setHeader('Permissions-Policy','camera=(), microphone=(), geolocation=()');next();});
  const mcpOAuth=new McpOAuth(web,allowWrites);
+ const accounts=new UserAccounts(web),social=new SocialSignIn(accounts);
+ router.use(accountRoutes(web,accounts,social));
+ router.use('/api',(_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
  router.use(['/token','/revoke'],express.urlencoded({extended:false,limit:'16kb'}),async(req,res,next)=>{
   res.setHeader('Cache-Control','no-store');if(req.method!=='POST'){next();return;}
   try{web.consumeMcpAttempt(req);}catch{res.status(429).setHeader('Retry-After','900').json({error:'too_many_requests'});return;}
@@ -57,19 +63,20 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
    if(sha256(bytes)!==v.sha256||mediaType(bytes).mime!==v.mime)throw new MirrorError('MEDIA_CHANGED','Preview integrity check failed.');res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');res.type(v.mime).send(bytes);
   }));
  }
- router.get('/api/session',handler((req,res)=>{const session=web.session(req);res.json({authenticated:!!session,configured:web.configured,csrf:session?.csrf??null,name:session?'Workspace administrator':null,origin:web.origin,readOnly:!allowWrites,writesEnabled:allowWrites});}));
+ router.get('/api/session',handler((req,res)=>{const session=web.session(req);res.json({authenticated:!!session,configured:web.configured,csrf:session?.csrf??null,...(session?accounts.profile(session):{name:null}),origin:web.origin,readOnly:!allowWrites,writesEnabled:allowWrites});}));
  router.post('/api/session',express.json({limit:'4kb'}),handler((req,res)=>{web.requireOrigin(req);if(typeof req.body?.password!=='string')throw new MirrorError('INVALID_LOGIN','Enter your workspace password.',{},400);const old=web.session(req),session=web.signIn(req.body.password,web.clientAddress(req));if(old)web.signOut(old.id);res.setHeader('Set-Cookie',web.cookie(session.id));res.json({authenticated:true,csrf:session.csrf,name:'Workspace administrator'});}));
- router.delete('/api/session',handler((req,res)=>{const session=web.requireMutation(req);web.signOut(session.id);res.setHeader('Set-Cookie',web.cookie('',0));res.json({success:true});}));
+ router.delete('/api/session',handler((req,res)=>{const session=web.requireMutation(req);web.signOut(session.id);res.setHeader('Set-Cookie',[web.cookie('',0),social.cookie('',0)]);res.json({success:true});}));
  router.get('/api/mcp/consent',handler((req,res)=>{const s=web.requireSession(req);if(typeof req.query.request!=='string')throw new MirrorError('INVALID_CONSENT','Start authorization from your MCP client.');res.json(mcpOAuth.consent(req.query.request,s));}));
  router.post('/api/mcp/consent',express.json({limit:'4kb'}),handler((req,res)=>{const s=web.requireMutation(req);if(typeof req.body?.request!=='string'||typeof req.body?.approved!=='boolean')throw new MirrorError('INVALID_CONSENT','Invalid authorization decision.');const consent=mcpOAuth.consent(req.body.request,s),url=mcpOAuth.decide(req.body.request,s,req.body.approved);store.appendAudit(s.actor.tenantId,randomUUID(),{event:req.body.approved?'mcp_oauth_approved':'mcp_oauth_denied',scope:consent.scope,role:consent.role});res.json({url});}));
- router.get('/api/mcp/authorizations',handler((req,res)=>{web.requireSession(req);res.json({clients:mcpOAuth.authorizations()});}));
- router.delete('/api/mcp/authorizations/:id',handler((req,res)=>{const s=web.requireMutation(req);mcpOAuth.revokeClient(String(req.params.id));store.appendAudit(s.actor.tenantId,randomUUID(),{event:'mcp_oauth_revoked',client_id:String(req.params.id)});res.json({success:true});}));
+ router.get('/api/mcp/authorizations',handler((req,res)=>{const s=web.requireSession(req);res.json({clients:mcpOAuth.authorizations(s.actor.tenantId)});}));
+ router.delete('/api/mcp/authorizations/:id',handler((req,res)=>{const s=web.requireMutation(req);mcpOAuth.revokeClient(String(req.params.id),s.actor.tenantId);store.appendAudit(s.actor.tenantId,randomUUID(),{event:'mcp_oauth_revoked',client_id:String(req.params.id)});res.json({success:true});}));
  router.get('/api/platforms',handler((req,res)=>{const session=web.session(req),connections=session?store.listConnections(session.actor.tenantId):[];
   res.json({platforms:oauth.publicConfig().map(p=>({...p,connections:connections.filter(c=>c.gateway===p.gateway).map(c=>publicConnection(session!.actor.tenantId,c))})),authenticated:!!session});
  }));
  router.post('/api/auth/:platform/start',express.json({limit:'4kb'}),handler(async(req,res)=>{
   const session=web.requireMutation(req),id=String(req.params.platform),p=platform(id);
   if(!p.authType){res.json(await oauth.start(session,id));return;}
+  if(session.actor.tenantId!==web.tenantId)throw new MirrorError('SERVICE_CONNECTION_RESTRICTED','This server-owned API connection is available only in the deployment administrator workspace.',{},403);
   const result=await oauth.connectService(id),connectionId=randomUUID(),attemptId=randomUUID(),tenant=session.actor.tenantId;
   // Browser sessions may be revoked while the token service is responding.
   web.requireMutation(req);
@@ -161,6 +168,6 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
  router.get('/api/activity',handler((req,res)=>{const s=web.requireSession(req);res.json({events:store.audit(s.actor.tenantId,100).map((r:any)=>({id:r.seq,at:r.created_at,event:redact(JSON.parse(r.event))})).reverse()});}));
  const directory=path.resolve(options.staticDirectory??'web');router.use('/assets',express.static(directory,{dotfiles:'deny',index:false,fallthrough:false,maxAge:0}));
  router.get('/tiktok94H3oMGQTvC0GEzgKcmffbz8W0CAHhan.txt',(_req,res)=>res.type('text/plain').sendFile('tiktok94H3oMGQTvC0GEzgKcmffbz8W0CAHhan.txt',{root:directory}));
- for(const route of ['/dashboard','/campaigns','/media','/reports','/profiles','/','/connectors','/activity','/settings','/login','/oauth/result','/oauth/consent','/privacy','/terms','/data-deletion'])router.get(route,(_req,res)=>res.sendFile('index.html',{root:directory}));
+ for(const route of ['/dashboard','/campaigns','/media','/reports','/profiles','/','/connections','/connectors','/activity','/settings','/login','/signup','/forgot-password','/reset-password','/verify-email','/account','/auth/complete','/oauth/result','/oauth/consent','/privacy','/terms','/data-deletion'])router.get(route,(_req,res)=>res.sendFile('index.html',{root:directory}));
  return {router,web,oauth,discovery,mcpOAuth};
 }

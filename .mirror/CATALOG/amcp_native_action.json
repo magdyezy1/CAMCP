@@ -1,5 +1,5 @@
 {
-  "gateway": "whathead_native_action",
+  "gateway": "amcp_native_action",
   "mode": "delegated",
   "api_version": null,
   "reported_total": 59,
@@ -23,7 +23,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "audit_campaign",
         "description": "Run a comprehensive health check on a campaign. Checks budget efficiency (minimum spend, utilization), creative fatigue (frequency thresholds), targeting quality, scheduling, and bid strategy. Returns a score from 0-100, detailed findings per check, and actionable recommendations. Frequency > 3.5 = warning; frequency > 6 = critical. Budget < $5/day = warning. Requires scope: read:reports.",
         "argumentsSchema": {
@@ -103,7 +103,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "bind_reporting_workbook",
         "description": "Bind a Google Sheets workbook to reporting workflows.",
         "argumentsSchema": {
@@ -157,7 +157,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "compile_entity_payload",
         "description": "Compile and validate an entity payload using the platform source-of-truth compiler when available. Reddit, OpenAI, Google, X, LinkedIn, and DV360 are wired to shared adapter/builders/validators layers where available; Google also supports Performance Max asset_group, asset_group_asset, asset_group_signal, and asset_group_listing_group_filter compilation. Meta, Snapchat, and TikTok are native-only on MCP for campaign/report/launch work. Use this before create/update calls when you want the MCP to reason from form-style data instead of hand-writing raw API payloads.",
         "argumentsSchema": {
@@ -262,7 +262,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "connect_google_reporting",
         "description": "Start or complete the Google Sheets reporting connection flow.",
         "argumentsSchema": {
@@ -312,7 +312,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "create_ad",
         "description": "Create an ad under an existing ad set/ad group across the supported platforms. Meta, Snapchat, and TikTok are native-only on MCP: use native preflight/create/media tools. For supported generic platforms, pass the full platform-specific ad payload under payload, or shared compiler form-style ad data via payload_mode=\"form\". Raw API payload mode is the default unless payload_mode=\"form\" is set explicitly. dry_run defaults to true.",
         "argumentsSchema": {
@@ -404,7 +404,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "create_adset",
         "description": "Create an ad set/ad group on supported generic platforms. Meta, Snapchat, and TikTok are native-only. Hybrid parity tool for supported generic platforms: accepts platform-specific API payloads, or shared compiler form-style data via payload_mode=\"form\", while preserving MCP safety defaults. Raw API payload mode is the default; set payload_mode=\"form\" explicitly to use the shared compiler/system form path. DV360 create_adset maps to lineItems.create, so parent_id must be the insertionOrderId. Create insertion orders first with dv360_native_action DV360_ADVERTISERS_INSERTION_ORDERS_CREATE. dry_run defaults to true and returns the exact backend request preview.",
         "argumentsSchema": {
@@ -498,7 +498,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "create_campaign",
         "description": "Create a new ad campaign on any supported platform. SAFETY: dry_run defaults to true — always preview the payload before executing. Campaigns are ALWAYS created in PAUSED status regardless of input. Use publish_campaign to activate. Before calling create_campaign, first run plan_campaign_structure for supported generic platforms so the MCP inspects workspace assets, recent campaign patterns, and likely structure. Set idempotency_key (UUID) to prevent duplicate creation on retries. You can pass source_campaign_id plus autofill_from_history=true to reuse safe defaults from a historical campaign snapshot. Meta, Snapchat, and TikTok campaign launch is native-only on MCP; use meta_*, snapchat_*, and tiktok_* native create/update/report tools. \n\nObjective values by platform:\n  X: REACH, ENGAGEMENTS, WEBSITE_CLICKS, VIDEO_VIEWS, APP_INSTALLS, WEBSITE_CONVERSIONS, APP_ENGAGEMENTS, FOLLOWERS, PREROLL_VIEWS. X app line-item goals include APP_CLICKS, APP_INSTALLS, and APP_PURCHASES.\n  DV360: AWARENESS, TRAFFIC, SALES, LEADS, APP_INSTALLS, VIDEO, DEMAND_GEN\n\nBudget units: USD for DV360 campaign planned spend only; serving budget is set on insertion orders and line items.\nDV360 note: create_campaign creates the paused campaign shell only. Create insertion orders with dv360_native_action DV360_ADVERTISERS_INSERTION_ORDERS_CREATE, line items with create_adset or DV360_ADVERTISERS_LINE_ITEMS_CREATE, then upload/create/assign creatives before activation.\nRequires scope: write:campaigns.",
         "argumentsSchema": {
@@ -602,7 +602,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "create_creative",
         "description": "Create a standalone creative asset when the target platform supports it. DV360 guardrail: upload creative files first with dv360_native_action action DV360_ADVERTISERS_ASSETS_UPLOAD, then create the creative with DV360-native assets, exitEvents, creativeType, hostingSource, and dimensions in payload_mode=\"api\". Currently supports DV360 directly. Meta, Snapchat, and TikTok creative creation is native-only; for Google, use platform-specific media/asset tools or create_ad flows.",
         "argumentsSchema": {
@@ -693,7 +693,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "create_reporting_query",
         "description": "Persist a reusable reporting query against a workbook binding.",
         "argumentsSchema": {
@@ -748,7 +748,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "create_reporting_schedule",
         "description": "Create a scheduled reporting job for an existing workbook binding.",
         "argumentsSchema": {
@@ -842,9 +842,9 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "cross_platform_transfer",
-        "description": "Transfer a campaign from one advertising platform to another using the same Whathead cross-transfer workflow as the main system. The backend fetches the full source tree (campaign, ad sets, ads), maps entities to the destination platform, migrates media first, then creates destination campaign/ad sets/ads in the requested safe execution mode. Supports Builder-equivalent partial transfers (campaign-only, selected ad sets, selected ads), multi-asset expansion, and destination-side field overrides such as objective or budget before publish. Production-safe flow: dry_run defaults to true for preview; when dry_run is false the backend rebuilds the current migration plan inline and executes only if the plan is ready. Meta to Snapchat/TikTok guardrail: only story-compatible vertical assets are uploaded; ads without a compatible vertical asset are flagged and skipped instead of forcing a bad 1:1 or landscape creative. SAFETY: dry_run defaults to true. dry_run=false with execution_mode=create_paused creates destination entities paused; no separate migration_plan_id or confirmed flag is required. Supported production platforms are Meta, Snapchat, TikTok, and Google. Google is supported as a transfer target (Search/Display/Video/Demand Gen via the standard tree; Performance Max via the asset-group orchestrator). Do not use this tool for DV360, Adjust, LinkedIn, X, Reddit, or OpenAI Ads until a platform-specific mapper exists. Use destination_credentials when the destination platform needs page/profile/identity context for ad creation, such as Meta Page, Snapchat Public Profile, or TikTok Identity. Requires scope: write:campaigns.",
+        "description": "Transfer a campaign from one advertising platform to another using the same AMCP cross-transfer workflow as the main system. The backend fetches the full source tree (campaign, ad sets, ads), maps entities to the destination platform, migrates media first, then creates destination campaign/ad sets/ads in the requested safe execution mode. Supports Builder-equivalent partial transfers (campaign-only, selected ad sets, selected ads), multi-asset expansion, and destination-side field overrides such as objective or budget before publish. Production-safe flow: dry_run defaults to true for preview; when dry_run is false the backend rebuilds the current migration plan inline and executes only if the plan is ready. Meta to Snapchat/TikTok guardrail: only story-compatible vertical assets are uploaded; ads without a compatible vertical asset are flagged and skipped instead of forcing a bad 1:1 or landscape creative. SAFETY: dry_run defaults to true. dry_run=false with execution_mode=create_paused creates destination entities paused; no separate migration_plan_id or confirmed flag is required. Supported production platforms are Meta, Snapchat, TikTok, and Google. Google is supported as a transfer target (Search/Display/Video/Demand Gen via the standard tree; Performance Max via the asset-group orchestrator). Do not use this tool for DV360, Adjust, LinkedIn, X, Reddit, or OpenAI Ads until a platform-specific mapper exists. Use destination_credentials when the destination platform needs page/profile/identity context for ad creation, such as Meta Page, Snapchat Public Profile, or TikTok Identity. Requires scope: write:campaigns.",
         "argumentsSchema": {
           "type": "object",
           "properties": {
@@ -1006,7 +1006,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "delete_entity",
         "description": "Delete a supported entity on platforms that expose explicit delete/remove actions. This is a high-risk operation. dry_run defaults to true and confirmed: true is required for execution.",
         "argumentsSchema": {
@@ -1069,7 +1069,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "disconnect_google_reporting",
         "description": "Disconnect the current Google Sheets reporting connection.",
         "argumentsSchema": {
@@ -1099,7 +1099,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "download_creative_asset",
         "description": "Download a creative asset server-side and return encoded content plus content type.",
         "argumentsSchema": {
@@ -1147,7 +1147,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "estimate_audience_size",
         "description": "Estimate the potential reach of a targeting configuration before creating a campaign. Available on LinkedIn through the generic MCP surface. Meta, Snapchat, and TikTok reach/audience work is native-only. Reddit is intentionally excluded from this normalized MCP surface because its reach planner is not a drop-in equivalent to the other platform audience estimators. Use this to validate that your targeting is not too narrow (< 1,000) or too broad before spending. Not cached — always returns fresh estimates. Requires scope: read:campaigns.",
         "argumentsSchema": {
@@ -1192,7 +1192,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "execute_reporting_run",
         "description": "Queue execution for an already-created reporting run.",
         "argumentsSchema": {
@@ -1233,7 +1233,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "export_report",
         "description": "Export campaign performance data to CSV or Google Sheets. For CSV: returns base64-encoded content that can be decoded and saved as a .csv file. For Google Sheets: exports directly into an existing spreadsheet and returns the URL. Rate limited: 3 exports per minute. Requires scope: write:exports.",
         "argumentsSchema": {
@@ -1322,7 +1322,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "fetch_ads",
         "description": "Fetch ads only, scoped by campaign_id, adset_id, or ad_id. Requires scope: read:campaigns.",
         "argumentsSchema": {
@@ -1385,7 +1385,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "fetch_adsets",
         "description": "Fetch only the children under one campaign: Meta ad sets, OpenAI/Google/Reddit ad groups, Snapchat ad squads, LinkedIn campaign-equivalent rows, or X line items. Does not fetch ads. Requires scope: read:campaigns.",
         "argumentsSchema": {
@@ -1436,7 +1436,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "fetch_campaign",
         "description": "Fetch one campaign only. Does not fetch ad sets, ads, or creatives, so it stays fast on large accounts. Use fetch_adsets, fetch_ads, and fetch_creatives for explicit drill-down steps. Requires scope: read:campaigns.",
         "argumentsSchema": {
@@ -1503,7 +1503,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "fetch_creatives",
         "description": "Fetch creatives only. When campaign_id, adset_id, or ad_id is provided, creatives are derived from scoped ads. For account-level creative inventory, prefer list_creatives directly; this tool keeps the old no-scope fallback for non-native-only platforms. For Meta, Snapchat, and TikTok creative reads, use native tools. Requires scope: read:campaigns.",
         "argumentsSchema": {
@@ -1575,7 +1575,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "fetch_custom_audiences",
         "description": "Compatibility shortcut for reusable custom-audience style assets on Reddit. Meta, Snapchat, and TikTok audience work is native-only on MCP. Use this when you specifically need reusable audience IDs before build, targeting, or transfer work. Cached for 10 minutes unless force_refresh is true. Requires scope: read:campaigns.",
         "argumentsSchema": {
@@ -1631,7 +1631,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "fetch_meta_existing_posts",
         "description": "Compatibility shortcut for Meta existing-post discovery: list Facebook page posts, list Instagram media, resolve post URLs, and resolve Instagram permalinks/shortcodes into the IG-native identifiers needed for creative creation. Prefer meta_page_post_ops for new page/IG post workflows; this name is kept for older clients.",
         "argumentsSchema": {
@@ -1644,12 +1644,12 @@
             "connection_id": {
               "type": "string",
               "format": "uuid",
-              "description": "Optional Whathead Meta OAuth connection ID used to resolve the correct user/Page Access Token"
+              "description": "Optional AMCP Meta OAuth connection ID used to resolve the correct user/Page Access Token"
             },
             "connectionId": {
               "type": "string",
               "format": "uuid",
-              "description": "Optional Whathead Meta OAuth connection ID alias"
+              "description": "Optional AMCP Meta OAuth connection ID alias"
             },
             "action": {
               "type": "string",
@@ -2552,7 +2552,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "generate_ad_content",
         "description": "Generate AI-powered ad copy including headlines, descriptions, primary text, and CTAs. Supports tone control (professional, casual, urgent, playful) and platform-specific optimization. IMPORTANT: Always review generated content before applying to campaigns. AI-generated content is a starting point — it should be human-reviewed and edited. Rate limited: 5 requests per minute. Requires scope: read:campaigns.",
         "argumentsSchema": {
@@ -2625,9 +2625,9 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "generate_creative_design",
-        "description": "Generate AI image creatives from an existing ad, preview context, product catalog context, or a plain prompt. The generated assets are saved to the Whathead media library and can optionally be uploaded to a connected platform account. This consumes AI/image generation credits and writes workspace assets, so it requires write:campaigns. Always review generated assets before launching campaigns.",
+        "description": "Generate AI image creatives from an existing ad, preview context, product catalog context, or a plain prompt. The generated assets are saved to the AMCP media library and can optionally be uploaded to a connected platform account. This consumes AI/image generation credits and writes workspace assets, so it requires write:campaigns. Always review generated assets before launching campaigns.",
         "argumentsSchema": {
           "type": "object",
           "properties": {
@@ -2780,7 +2780,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "get_ad_preview",
         "description": "Preview how an ad will look before publishing. Supports LinkedIn accurate/live ad previews, Reddit ad/post preview links, and OpenAI chat-card payload preview fallback. Meta, Snapchat, and TikTok previews are native-only. Returns the richest preview URL or iframe/html payload the backend can resolve. Preview URLs may expire — re-fetch if the link stops working. Requires scope: read:campaigns.",
         "argumentsSchema": {
@@ -2874,7 +2874,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "get_ads_with_creatives",
         "description": "Fetch ads with attached creative details through the consolidated backend route, with a Meta campaigns fallback when the proxy is unavailable.",
         "argumentsSchema": {
@@ -2926,7 +2926,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "get_campaign_details",
         "description": "Legacy combined campaign drill-down for a specific campaign. It can fetch campaign, ad sets, ads, and insights in one call. For large accounts, prefer fetch_campaign -> fetch_adsets -> fetch_ads -> fetch_creatives to avoid backend timeouts. For Meta, Snapchat, and TikTok, use native read tools. Returns campaign settings, targeting, ad creatives, and performance metrics. Use this before update_entities to understand current settings. Requires scope: read:campaigns.",
         "argumentsSchema": {
@@ -3002,7 +3002,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "get_creative_generation_job",
         "description": "Get the status and generated asset URLs for an AI creative generation job.",
         "argumentsSchema": {
@@ -3036,7 +3036,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "get_creative_payload",
         "description": "Fetch the richest creative/media payload available for a specific Reddit or OpenAI ad/creative/media context. Meta, Snapchat, and TikTok creative payload work is native-only. Uses the platform-native full creative, media preview, thumbnail, image/video lookup, and Smart Creative actions that the main system already relies on for reporting and transfer workflows. Use this before cloning/adapting an existing ad on supported generic platforms. For Meta, Snapchat, and TikTok, use native creative/media tools. Useful when you need raw creative payloads, ordered carousel cards, resolved download/preview URLs, thumbnails, or ACO materials inside MCP.",
         "argumentsSchema": {
@@ -3175,7 +3175,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "get_entity_insights",
         "description": "Fetch stats/insights for a specific campaign, ad set/ad group, or ad using the most specific backend action available per platform.",
         "argumentsSchema": {
@@ -3255,7 +3255,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "get_optimization_suggestions",
         "description": "Get data-driven optimization recommendations for a campaign. Analyzes performance trends to suggest budget reallocations, bid adjustments, creative refreshes, and targeting improvements. Runs audit_campaign internally, then generates AI-powered recommendations from the findings. Returns prioritized suggestions with rationale and specific action steps. Requires scope: read:reports.",
         "argumentsSchema": {
@@ -3304,7 +3304,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "get_performance_report",
         "description": "Fetch performance metrics for campaigns on a platform. Returns impressions, clicks, spend, CPM, CTR, CPC, conversions, and ROAS. Supports daily, monthly, or total granularity. Meta, Snapchat, and TikTok reporting is native-only on MCP; use this generic report tool for the remaining generic platforms. Can compare campaigns, attach historical context, and explain why one campaign performed better than another using real backend rows only. Data is always fresh — not cached. Requires scope: read:reports.",
         "argumentsSchema": {
@@ -3495,7 +3495,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "get_reporting_bootstrap",
         "description": "Fetch reporting bootstrap data for Google Sheets/reporting workflows, including workbook bootstrap state.",
         "argumentsSchema": {
@@ -3529,7 +3529,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "get_reporting_run",
         "description": "Fetch a reporting run by ID.",
         "argumentsSchema": {
@@ -3563,7 +3563,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "get_reporting_run_status",
         "description": "Fetch the live status payload for a reporting run by ID.",
         "argumentsSchema": {
@@ -3595,7 +3595,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "get_reporting_storage_overview",
         "description": "Get reporting storage health/usage overview for the workspace.",
         "argumentsSchema": {
@@ -3625,7 +3625,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "get_reporting_workbook_bootstrap",
         "description": "Fetch workbook-specific bootstrap data for reporting bindings, schedules, and latest run context.",
         "argumentsSchema": {
@@ -3660,7 +3660,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "get_search_terms",
         "description": "Get the Google Ads search terms report — real search queries that triggered your ads. Shows which search terms are driving impressions, clicks, and conversions. Use to identify high-performing keywords to add as exact match, or irrelevant terms to add as negative keywords. top_opportunities lists high-impression, low-CTR terms that may need negative keyword treatment. Requires scope: read:reports.",
         "argumentsSchema": {
@@ -3732,9 +3732,9 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "get_workspace_context",
-        "description": "Fetch a lightweight Whathead user/workspace context: user, company, billing summary, connected platform summary, and recommended defaults. Use this first to infer workspace defaults. Keep it lightweight by default; call list_accounts or list_workspace_assets only when exact account or asset IDs are needed.",
+        "description": "Fetch a lightweight AMCP user/workspace context: user, company, billing summary, connected platform summary, and recommended defaults. Use this first to infer workspace defaults. Keep it lightweight by default; call list_accounts or list_workspace_assets only when exact account or asset IDs are needed.",
         "argumentsSchema": {
           "type": "object",
           "properties": {
@@ -3780,7 +3780,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "inspect_google_drive_media",
         "description": "Inspect a shared Google Drive file or folder link and return media files that can be imported into creative storage or uploaded to platforms. Use the returned file ids/resource keys with platform_media_upload when you want a storage-backed Google Drive import.",
         "argumentsSchema": {
@@ -3812,7 +3812,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "list_accounts",
         "description": "List all connected ad accounts across Meta, TikTok, Snapchat, Reddit, LinkedIn, Google, OpenAI, X, DV360, and Criteo Retail Media. Returns account IDs, names, currency, and timezone. Use this first to discover which accounts are available before calling other tools. If a platform fails, other platforms still return results (graceful degradation). Requires scope: read:accounts.",
         "argumentsSchema": {
@@ -3847,7 +3847,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "list_audiences",
         "description": "Canonical audience and targeting discovery tool: list or search reusable audiences, lookalike audiences, interests, and targeting locations for an ad account. Use fetch_custom_audiences only when you specifically need the older custom-audience-only shape across Meta, Snapchat, and Reddit. When query is provided, this tool performs a real platform lookup for interests/locations instead of guessing IDs. Returns audience names, types, subtypes, and estimated sizes where available. Use this to find verified audience/location IDs before targeting them in campaigns. Cached for 10 minutes. Requires scope: read:campaigns.",
         "argumentsSchema": {
@@ -3931,7 +3931,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "list_campaigns",
         "description": "List campaigns for an ad account on a specific platform. Returns campaign names, IDs, status, objectives, and budgets. Optionally include 7-day performance insights. Use list_accounts first to get valid account_id values. Requires scope: read:campaigns.",
         "argumentsSchema": {
@@ -4010,7 +4010,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "list_creatives",
         "description": "Canonical account-level inventory for ad creatives (images, videos, carousel ads). Returns creative names, types, thumbnails, headlines, primary text, and call-to-action labels. Use this to audit creative/ad inventory; use fetch_creatives only when drilling down from a campaign/ad set/ad. Use list_media_assets when you need reusable platform media identifiers for new create payloads, and get_creative_payload when cloning an existing ad/creative. Cached for 5 minutes. Requires scope: read:campaigns.",
         "argumentsSchema": {
@@ -4062,7 +4062,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "list_media_assets",
         "description": "Canonical reusable media browser for platform media libraries and uploaded creative assets in the same identifier shape the campaign builder media library uses. Returns uploaded assets and platform-specific asset IDs for supported generic platform libraries. Meta, Snapchat, and TikTok platform media libraries are native-only. Use list_creatives/fetch_creatives for ad creative inventory; use this tool when building new payloads from reusable media. Never reuse the generic uploaded asset id in create payloads when a platform-specific identifier is available.",
         "argumentsSchema": {
@@ -4151,7 +4151,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "list_reporting_templates",
         "description": "List reporting templates available to the authenticated actor/workspace.",
         "argumentsSchema": {
@@ -4174,7 +4174,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "list_workspace_assets",
         "description": "List workspace-selected assets across connected platforms in a normalized shape. Use this when you need pages, profiles, pixels, apps, catalogs, custom conversions, or advertiser/ad-account IDs before building payloads. The response preserves each asset's payload_value so the selected row can be reused directly in campaign/ad set/ad payloads.",
         "argumentsSchema": {
@@ -4213,7 +4213,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "openai_ads_ops",
         "description": "OpenAI Ads operations for geo-location lookup, conversion Pixel/API-key/event-setting setup, conversion-setting discovery, and Delta Feed product updates. PREVIEW_AD remains available through get_ad_preview.",
         "argumentsSchema": {
@@ -4226,12 +4226,12 @@
             "connection_id": {
               "type": "string",
               "format": "uuid",
-              "description": "Optional Whathead Meta OAuth connection ID used to resolve the correct user/Page Access Token"
+              "description": "Optional AMCP Meta OAuth connection ID used to resolve the correct user/Page Access Token"
             },
             "connectionId": {
               "type": "string",
               "format": "uuid",
-              "description": "Optional Whathead Meta OAuth connection ID alias"
+              "description": "Optional AMCP Meta OAuth connection ID alias"
             },
             "action": {
               "type": "string",
@@ -5137,7 +5137,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "plan_campaign_structure",
         "description": "Inspect the account, workspace assets, and recent campaign structure before creating anything. Returns a strategy recommendation for how many ad sets/ad groups and ads to launch, plus the likely missing or ambiguous assets. Use this before create_campaign and create_adset so the build flow matches the business model, account history, and platform constraints. This is a planning/preflight tool: it does not create anything and it does not replace verified taxonomy lookups. Requires scopes: read:accounts and read:campaigns.",
         "argumentsSchema": {
@@ -5212,7 +5212,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "platform_media_upload",
         "description": "Unified upload parity tool for both the legacy direct platform upload routes and the system-backed creative-assets upload flow. Use UPLOAD_LOCAL_FILE or UPLOAD_FROM_URL_VIA_SESSION when you want the same storage + Inngest + creative_assets lineage used by the main app. GET_SIGNED_URL / CONFIRM_UPLOAD and direct UPLOAD_FROM_URL remain available for low-level parity workflows. Storage-backed upload sessions support Meta, Snapchat, TikTok, google, openai, x (Twitter Ads), reddit, linkedin, DV360, and Criteo targets. Direct UPLOAD_FROM_URL uses the platform upload adapter where available. Google images are registered through Google Ads AssetService and return uploaded_asset / google_asset_resource_name; Google videos require a YouTube URL or 11-character video ID and return a YouTube video asset. DV360 uploads use dv360_native_action because they require advertiser-scoped DV360 asset/adAsset endpoints. For X, the call returns x_media_key — bind it to a tweet via x_creative_ops CREATE_TWEET (with media_keys) before promoting. After upload/import completes, call list_media_assets to pick up the final platform-specific IDs used by create payloads. dry_run defaults to true for mutating upload flows.",
         "argumentsSchema": {
@@ -5370,7 +5370,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "publish_campaign",
         "description": "Campaign-only convenience tool for activating a paused or draft campaign by setting its status to ACTIVE. For any other status change, or for ad set/ad group/ad/ad-squad/line-item status work, use set_entity_status. SAFETY: Requires confirmed: true — this is a double-confirmation tier action. Without confirmed: true, this tool returns a preview of what would happen and explains the consequences. WARNING: Publishing may immediately begin spending budget. Always run audit_campaign before publishing. Requires scope: write:campaigns.",
         "argumentsSchema": {
@@ -5430,7 +5430,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "save_workbook_preferences",
         "description": "Persist workbook rendering/preferences for a reporting workbook binding.",
         "argumentsSchema": {
@@ -5512,7 +5512,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "search_ads_library",
         "description": "Search the Meta Ads Library for competitor ads. Find active ads from any brand or page, including creative format, messaging, and running duration. Use for competitive intelligence, understanding what is working in your industry, and creative inspiration. Results cached for 15 minutes per query. Requires scope: read:campaigns.",
         "argumentsSchema": {
@@ -5576,7 +5576,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "set_entity_status",
         "description": "Canonical cross-platform status tool for campaigns, ad sets/ad groups/ad squads/line items, and ads. Prefer this for explicit enable/pause/disable changes; publish_campaign remains a campaign-only convenience for activating one paused/draft campaign. Supports cross-platform status actions for generic platforms and Google dedicated set-status actions. Meta, Snapchat, and TikTok status changes are native-only.",
         "argumentsSchema": {
@@ -5648,7 +5648,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "suggest_targeting",
         "description": "Get AI-powered targeting recommendations for a product or service. Returns suggested interests, demographics, locations, and behaviors based on the product description. This tool is for brainstorming only and does not resolve verified platform IDs. Use list_audiences with query or platform-prefixed search tools to fetch real interest/location IDs before building campaigns. Rate limited: 5 requests per minute. Requires scope: read:campaigns.",
         "argumentsSchema": {
@@ -5700,7 +5700,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "update_entities",
         "description": "Update a campaign, ad set, or ad on any platform. SAFETY: dry_run defaults to true — always preview the diff before executing. Immutable fields are automatically blocked with workaround instructions. Read the field-rules resource before calling to know which fields are editable. When an upstream validation error mentions a missing parent context or unsupported field combination, re-check platform-capabilities and the platform’s official docs before retrying; do not blindly repeat the same payload. Meta, Snapchat, and TikTok updates are native-only on MCP; use their native update/status tools. \n\nCommon editable fields:\n  Campaign: name, status, daily_budget, lifetime_budget, bid_strategy\n  Ad Set: name, status, targeting, bid_amount, daily_budget, end_time\n  Ad: name, status, creative\n\nStatus values: Google uses ENABLED/PAUSED. Meta, Snapchat, and TikTok status updates are native-only.\nRequires scope: write:campaigns.",
         "argumentsSchema": {
@@ -5797,7 +5797,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "update_reporting_query",
         "description": "Update a saved reporting query by ID.",
         "argumentsSchema": {
@@ -5853,7 +5853,7 @@
       "path_parameters": [],
       "evidence": "OBSERVED",
       "raw": {
-        "gateway": "whathead_native_action",
+        "gateway": "amcp_native_action",
         "operation": "update_reporting_schedule",
         "description": "Update an existing scheduled reporting job.",
         "argumentsSchema": {

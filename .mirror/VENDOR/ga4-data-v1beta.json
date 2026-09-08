@@ -1,7 +1,7 @@
 {
   "source": "https://analyticsdata.googleapis.com/$discovery/rest?version=v1beta",
   "captured_at": "2026-09-05T11:07:56.364Z",
-  "evidence": "VENDOR_DOCUMENTED_NOT_WHATHEAD_OBSERVED",
+  "evidence": "VENDOR_DOCUMENTED_NOT_AMCP_OBSERVED",
   "document": {
     "batchPath": "batch",
     "resources": {

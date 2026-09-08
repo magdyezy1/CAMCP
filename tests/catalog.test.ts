@@ -35,6 +35,6 @@ test('each improvement is individually flagged and has strict fallback',()=>{
  assert.equal(registry.schema(g,{mode:'enhanced',flags:{dryRunSchemaDefault:false}}).properties.dry_run.default,undefined);
 });
 test('invalid nested schema and unsafe large IDs fail without mutation',()=>{
- assert.throws(()=>registry.validate('whathead_native_action',{operation:'create_campaign',arguments:{}},strictOptions),/operation schema/);
+ assert.throws(()=>registry.validate('amcp_native_action',{operation:'create_campaign',arguments:{}},strictOptions),/operation schema/);
  assert.throws(()=>registry.validate('tiktok_native_action',{action:'tiktok_campaign_get',params:{advertiser_id:7999999999999999999}},strictOptions),/identifiers as strings/);
 });

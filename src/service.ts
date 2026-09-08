@@ -48,7 +48,7 @@ export class MirrorService {
    if(tool===mediaTool.name)return this.wrap(mediaNext(await this.media().call(input,actor)),requestId,start);
    if(tool===writeTool.name){const result:any=await this.reviewed(input,actor);return {...this.wrap(result,requestId,start),...(result.success===false?{success:false,error:{code:'WRITE_PARTIAL_OR_FAILED',message:'Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.'}}:{})};}
    this.registry.validate(tool,input,this.options);
-   if(tool==='whathead_tool_help'){const help=this.registry.help(input,this.options),media=mediaDiscovery(input.gateway);return {...help,amcp_guidance:guidanceDiscovery,amcp_extensions:{gateways:[microsoftGateway]},...(media?{amcp_media_import:media}:{})};}
+   if(tool==='amcp_tool_help'){const help=this.registry.help(input,this.options),media=mediaDiscovery(input.gateway);return {...help,amcp_guidance:guidanceDiscovery,amcp_extensions:{gateways:[microsoftGateway]},...(media?{amcp_media_import:media}:{})};}
    if(input.action==='LIST_ACTIONS')return this.wrap(this.introspection.list(tool,input,this.options),requestId,start);
    if(input.action==='DESCRIBE_ACTION'){const description=this.introspection.describe(tool,input),media=mediaDiscovery(tool);return this.wrap({...description,amcp_write_inspection:{tool:'amcp_write',action:'inspect',gateway:tool,usage:'Supply the intended native arguments to check local review-contract support without provider calls. Media routes use amcp_media.'},...(media?{amcp_media_import:media}:{})},requestId,start);}
    if(this.registry.tools.get(tool)?.mode==='delegated')return this.wrap(await this.delegated(tool,input.operation,input.arguments??{},actor,requestId),requestId,start);
@@ -76,7 +76,7 @@ export class MirrorService {
   }
   if(input.action==='prepare'&&typeof input.gateway==='string'&&input.arguments&&typeof input.arguments==='object'&&!Array.isArray(input.arguments)){
    const args=input.arguments;this.registry.validate(input.gateway,args,this.options);
-   if(input.gateway==='whathead_native_action'&&args.operation==='platform_media_upload')return mediaNext(await this.media().call(workflowMediaInput(args.arguments,input.connection_id),actor));
+   if(input.gateway==='amcp_native_action'&&args.operation==='platform_media_upload')return mediaNext(await this.media().call(workflowMediaInput(args.arguments,input.connection_id),actor));
    if(this.registry.tools.get(input.gateway)?.mode!=='delegated'){
     const plan=this.compiler.compile(input.gateway,args,this.options),media=nativeMediaInput(plan,this.connectionId(args,input.connection_id));
     if(media)return mediaNext(await this.media().call(media,actor));
@@ -121,8 +121,8 @@ export class MirrorService {
   return {...parsed,rows,status:'Success',report_request_id:reportId,download_complete:true,offset,limit,has_more:hasMore,...(hasMore?{next_call:next(offset+rows.length)}:{})};
  }
  private async delegated(gateway:string,operation:string,args:JsonObject,actor:Actor,requestId:string):Promise<unknown>{
-  if(gateway==='whathead_native_action'&&operation==='inspect_google_drive_media'){this.store.assertActorActive(actor);return inspectDrive(args.link,this.mediaFetcher);}
-  if(gateway==='whathead_native_action'&&operation==='platform_media_upload'){
+  if(gateway==='amcp_native_action'&&operation==='inspect_google_drive_media'){this.store.assertActorActive(actor);return inspectDrive(args.link,this.mediaFetcher);}
+  if(gateway==='amcp_native_action'&&operation==='platform_media_upload'){
    if(args.action==='FINALIZE_UPLOAD_SESSION'){
     if(Object.keys(args).some(k=>!['action','upload_session_id','idempotency_key','confirmed','dry_run'].includes(k)))throw new MirrorError('INVALID_ARGUMENT','Finalize uses only the frozen review.');
     if(args.dry_run!==false)return {dry_run:true,executed:false,next_call:{tool:'amcp_write',arguments:{action:'execute',review_id:args.upload_session_id,idempotency_key:args.idempotency_key,confirmed:true}}};
@@ -131,7 +131,7 @@ export class MirrorService {
    const media=workflowMediaInput(args);return args.dry_run===false?mediaNext(await this.media().call(media,actor)):mediaPreview(media);
   }
   if(this.delegatedCompiler.isNativeOperation(gateway,operation))return this.runPlan(this.delegatedCompiler.compile(gateway,{operation,arguments:args}),args,actor,requestId);
-  if(gateway==='whathead_native_action'&&reportingOperations.has(operation))return new ReportingService(this.store).handle(operation,args,actor);
+  if(gateway==='amcp_native_action'&&reportingOperations.has(operation))return new ReportingService(this.store).handle(operation,args,actor);
   if(['get_workspace_context','list_accounts','list_workspace_assets'].includes(operation)){
    const connections=this.store.listConnections(actor.tenantId).filter(c=>c.enabled);
    if(operation==='get_workspace_context')return {workspace:{id:actor.tenantId},actor:{id:actor.userId,role:actor.role},connections:connections.map(c=>({id:c.id,platform:c.gateway,accounts:c.accounts,write_accounts:c.writeAccounts??[],is_default:c.isDefault===true})),live_writes_enabled:this.policy.allowWrites};
@@ -139,7 +139,7 @@ export class MirrorService {
    return this.store.documents(actor.tenantId,'workspace_asset');
   }
   if(operation==='get_creative_generation_job')return this.store.job(actor.tenantId,String(args.job_id));
-  if(gateway==='whathead_native_action')return new WorkflowEngine({registry:this.registry,store:this.store,runNative:async(g,input,a)=>this.runPlan(this.compiler.compile(g,input,this.options),input,a)}).handle(operation,args,actor);
+  if(gateway==='amcp_native_action')return new WorkflowEngine({registry:this.registry,store:this.store,runNative:async(g,input,a)=>this.runPlan(this.compiler.compile(g,input,this.options),input,a)}).handle(operation,args,actor);
   throw new MirrorError('WORKFLOW_ADAPTER_REQUIRED','This captured workflow still requires its independent implementation.',{gateway,operation});
  }
 }

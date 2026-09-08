@@ -21,7 +21,7 @@
       "raw": {
         "gateway": "commerce_native_action",
         "operation": "woocommerce_list_stores",
-        "description": "List connected WooCommerce stores in this Whathead workspace. Use this first to discover store labels before pulling products, orders, or sales reports. Requires scope: read:accounts.",
+        "description": "List connected WooCommerce stores in this AMCP workspace. Use this first to discover store labels before pulling products, orders, or sales reports. Requires scope: read:accounts.",
         "argumentsSchema": {
           "type": "object",
           "properties": {
@@ -96,7 +96,7 @@
             "label": {
               "type": "string",
               "minLength": 1,
-              "description": "WooCommerce connection label shown in Whathead integrations. Use woocommerce_list_stores first to discover labels."
+              "description": "WooCommerce connection label shown in AMCP integrations. Use woocommerce_list_stores first to discover labels."
             },
             "payload": {
               "type": "object",

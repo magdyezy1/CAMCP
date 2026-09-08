@@ -1,7 +1,7 @@
 {
   "source": "https://www.googleapis.com/discovery/v1/apis/searchconsole/v1/rest",
   "captured_at": "2026-09-04T23:58:43.369Z",
-  "evidence": "VENDOR_DOCUMENTED_NOT_WHATHEAD_OBSERVED",
+  "evidence": "VENDOR_DOCUMENTED_NOT_AMCP_OBSERVED",
   "document": {
     "canonicalName": "Search Console",
     "batchPath": "batch",

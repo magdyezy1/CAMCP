@@ -135,12 +135,12 @@ for(const platform of Object.keys(nativeUploads))for(const kind of ['image','vid
    let action=nativeUploads[platform]![kind==='video'&&nativeUploads[platform]!.length>1?1:0]!;
    if(platform==='snapchat')action=registry.catalogs.get('snapchat_native_action')!.actions.find(a=>a.method==='POST'&&a.path==='/v1/adaccounts/{ad_account_id}/media')!.name;
    const args:JsonObject={action,...(platform==='dv360'?{pathParams:{advertiserId:'123'}}:{account_id:'123'}),payload:{url:link,name:'Reviewed media'},...(platform==='linkedin'?{query:{action:'initializeUpload'}}:{})};
-   const prepared=mode==='native'?await f.service.call('amcp_write',{action:'prepare',gateway:platform+'_native_action',arguments:args},actor):await f.service.call('whathead_native_action',{operation:'platform_media_upload',arguments:{action:'UPLOAD_FROM_URL',platform:platform==='google_ads'?'google':platform==='x_ads'?'x':platform,account_id:'123',url:link,file_name:'Reviewed media',media_type:kind,dry_run:false}},actor);
+   const prepared=mode==='native'?await f.service.call('amcp_write',{action:'prepare',gateway:platform+'_native_action',arguments:args},actor):await f.service.call('amcp_native_action',{operation:'platform_media_upload',arguments:{action:'UPLOAD_FROM_URL',platform:platform==='google_ads'?'google':platform==='x_ads'?'x':platform,account_id:'123',url:link,file_name:'Reviewed media',media_type:kind,dry_run:false}},actor);
    assert.equal(prepared.success,true,JSON.stringify(prepared));assert.equal(prepared.data.client_download_required,false);assert.equal(f.downloads(),1);
    const next=prepared.data.next_call;assert.equal(next.tool,'amcp_write');const result=await f.service.call(next.tool,next.arguments,actor);
    assert.equal(result.success,true,JSON.stringify(result));assert.equal(result.data.connection_id,'c');assert.equal(f.downloads(),1);assert.equal(result.data.media_type,kind);
    const count=f.calls.length,replay=await f.service.call(next.tool,next.arguments,actor);assert.equal(replay.data.replayed,true);assert.equal(f.calls.length,count);
-   const listed=await f.service.call('whathead_native_action',{operation:'list_media_assets',arguments:{source:'uploaded',platform:platform==='google_ads'?'google':platform==='x_ads'?'x':platform,account_id:'123'}},actor);assert.equal(listed.success,true,JSON.stringify(listed));assert.equal(listed.data.uploaded[0].media_id,result.data.media_id);
+   const listed=await f.service.call('amcp_native_action',{operation:'list_media_assets',arguments:{source:'uploaded',platform:platform==='google_ads'?'google':platform==='x_ads'?'x':platform,account_id:'123'}},actor);assert.equal(listed.success,true,JSON.stringify(listed));assert.equal(listed.data.uploaded[0].media_id,result.data.media_id);
   }finally{f.close();}
  }
 });
@@ -149,7 +149,7 @@ test('native Drive preview and workflow preview do not download; native live cal
  const f=fixture('meta');try{
   const args={action:'meta_image_upload',account_id:'123',payload:{url:link,name:'Reviewed media'}};
   const preview=await f.service.call('meta_native_action',args,actor);assert.equal(preview.data.dry_run,true);assert.equal(f.downloads(),0);assert.equal(f.calls.length,0);
-  const workflow=await f.service.call('whathead_native_action',{operation:'platform_media_upload',arguments:{action:'UPLOAD_FROM_URL',platform:'meta',account_id:'123',url:link}},actor);assert.equal(workflow.data.dry_run,true);assert.equal(f.downloads(),0);
+  const workflow=await f.service.call('amcp_native_action',{operation:'platform_media_upload',arguments:{action:'UPLOAD_FROM_URL',platform:'meta',account_id:'123',url:link}},actor);assert.equal(workflow.data.dry_run,true);assert.equal(f.downloads(),0);
   const review=await f.service.call('meta_native_action',{...args,dry_run:false,confirmed:true},actor);assert.equal(review.data.executed,false);assert.equal(review.data.next_call.tool,'amcp_write');assert.equal(f.calls.filter(c=>c.method==='POST').length,0);
   const mutated=await f.service.call('amcp_write',{...review.data.next_call.arguments,arguments:{payload:{url:'changed'}}},actor);assert.equal(mutated.error.code,'INVALID_ARGUMENT');
  }finally{f.close();}
@@ -167,9 +167,9 @@ test('Google video processing returns a real YouTube ID and a reviewed AssetServ
 
 test('Drive inspection and file-ID import return metadata without exposing bytes to the MCP client',async()=>{
  const f=fixture('meta');try{
-  const inspected=await f.service.call('whathead_native_action',{operation:'inspect_google_drive_media',arguments:{link}},actor);assert.equal(inspected.success,true);assert.equal(inspected.data.files[0].size_bytes,png.length);assert.equal(JSON.stringify(inspected).includes(png.toString('base64')),false);
-  const prepared=await f.service.call('whathead_native_action',{operation:'platform_media_upload',arguments:{action:'QUEUE_GOOGLE_DRIVE_IMPORT',platform:'meta',account_id:'123',google_drive_file_id:'abcdefghijklmno',dry_run:false}},actor);assert.equal(prepared.success,true,JSON.stringify(prepared));
-  const final=await f.service.call('whathead_native_action',{operation:'platform_media_upload',arguments:{action:'FINALIZE_UPLOAD_SESSION',upload_session_id:prepared.data.review_id,idempotency_key:prepared.data.review_id,confirmed:true,dry_run:false}},actor);assert.equal(final.success,true,JSON.stringify(final));assert.equal(final.data.image_hash,'hash456');
+  const inspected=await f.service.call('amcp_native_action',{operation:'inspect_google_drive_media',arguments:{link}},actor);assert.equal(inspected.success,true);assert.equal(inspected.data.files[0].size_bytes,png.length);assert.equal(JSON.stringify(inspected).includes(png.toString('base64')),false);
+  const prepared=await f.service.call('amcp_native_action',{operation:'platform_media_upload',arguments:{action:'QUEUE_GOOGLE_DRIVE_IMPORT',platform:'meta',account_id:'123',google_drive_file_id:'abcdefghijklmno',dry_run:false}},actor);assert.equal(prepared.success,true,JSON.stringify(prepared));
+  const final=await f.service.call('amcp_native_action',{operation:'platform_media_upload',arguments:{action:'FINALIZE_UPLOAD_SESSION',upload_session_id:prepared.data.review_id,idempotency_key:prepared.data.review_id,confirmed:true,dry_run:false}},actor);assert.equal(final.success,true,JSON.stringify(final));assert.equal(final.data.image_hash,'hash456');
  }finally{f.close();}
 });
 
@@ -190,7 +190,7 @@ test('a read-only default login is diagnosed without silently switching to a wri
   f.store.putConnection(admin,{...f.c,id:'writer',isDefault:false},f.store.credentials('t','c'));
   const denied=await f.prepare();assert.equal(denied.error.code,'WRITE_ACCOUNT_FORBIDDEN');assert.equal(denied.error.details.connection_id,'c');assert.deepEqual(denied.error.details.connections.find((c:JsonObject)=>c.connection_id==='writer'),{connection_id:'writer',is_default:false,write_enabled:true});assert.equal(f.downloads(),0);
   const prepared=await f.call({action:'prepare',platform:'meta',account_id:'123',connection_id:'writer',drive_url:link});assert.equal(prepared.success,true);assert.equal(prepared.data.request.connection_id,'writer');
-  const context=await f.service.call('whathead_native_action',{operation:'get_workspace_context',arguments:{}},actor);assert.equal(context.data.connections.find((c:JsonObject)=>c.id==='c').write_accounts.length,0);
+  const context=await f.service.call('amcp_native_action',{operation:'get_workspace_context',arguments:{}},actor);assert.equal(context.data.connections.find((c:JsonObject)=>c.id==='c').write_accounts.length,0);
  }finally{f.close();}
 });
 
@@ -208,7 +208,7 @@ test('LinkedIn owner changes require explicit bindings and revoked bindings bloc
 test('MCP discovery directs native upload callers to the shared server transfer',async()=>{
  const f=fixture('meta');try{
   assert.match(f.service.listTools().find(t=>t.name==='meta_native_action')!.description,/never download media in the MCP client/);
-  const help=await f.service.call('whathead_tool_help',{gateway:'meta_native_action',operation:'meta_image_upload'},actor);assert.equal(help.amcp_media_import.client_download_required,false);
+  const help=await f.service.call('amcp_tool_help',{gateway:'meta_native_action',operation:'meta_image_upload'},actor);assert.equal(help.amcp_media_import.client_download_required,false);
   const description=await f.service.call('meta_native_action',{action:'DESCRIBE_ACTION',target_action:'meta_image_upload'},actor);assert.equal(description.data.amcp_media_import.review_tool,'amcp_write');
  }finally{f.close();}
 });

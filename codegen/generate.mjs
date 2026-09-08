@@ -22,7 +22,7 @@ if(fs.existsSync(vendorFile)){
   for(const [name,m] of Object.entries(node.methods??{})){
    const action='DV360_'+[...parts,name].map(snake).join('_');if(!allowed.has(action))continue;
    const raw={action,method:m.httpMethod,path:'/'+m.path,resource:parts.join('.'),rpc:name,parameters:m.parameters??{},request:m.request??null,response:m.response??null,scopes:m.scopes??[],mediaUpload:m.mediaUpload??null,source:vendor.source};
-   supplemental.push({gateway:'dv360_native_action',name:action,canonical_name:action,aliases:[action.replace(/^DV360_/,'')],method:m.httpMethod,path:'/'+m.path,read_only:['GET','HEAD'].includes(m.httpMethod),destructive:m.httpMethod==='DELETE',required:Object.entries(m.parameters??{}).filter(([,v])=>v.required).map(([k])=>k),path_parameters:Object.entries(m.parameters??{}).filter(([,v])=>v.location==='path').map(([k])=>k),evidence:'VENDOR_DOCUMENTED_NOT_WHATHEAD_VERIFIED',raw});
+   supplemental.push({gateway:'dv360_native_action',name:action,canonical_name:action,aliases:[action.replace(/^DV360_/,'')],method:m.httpMethod,path:'/'+m.path,read_only:['GET','HEAD'].includes(m.httpMethod),destructive:m.httpMethod==='DELETE',required:Object.entries(m.parameters??{}).filter(([,v])=>v.required).map(([k])=>k),path_parameters:Object.entries(m.parameters??{}).filter(([,v])=>v.location==='path').map(([k])=>k),evidence:'VENDOR_DOCUMENTED_NOT_AMCP_VERIFIED',raw});
   }
   for(const [name,res] of Object.entries(node.resources??{}))visit(res,[...parts,name]);
  }visit(doc);

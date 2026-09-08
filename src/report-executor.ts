@@ -15,7 +15,7 @@ export function createReportExecutor(service:MirrorService){
    if(result.truncated)throw new MirrorError('REPORT_TRUNCATED','Report exceeded the pagination limit. Split the query into smaller windows.');
    return result;
   }
-  const result=await service.call('whathead_native_action',{operation:'get_performance_report',arguments:config},actor);
+  const result=await service.call('amcp_native_action',{operation:'get_performance_report',arguments:config},actor);
   if(result.success===false)throw new MirrorError(result.error.code,result.error.message,result.error.details);return result.data;
  };
 }

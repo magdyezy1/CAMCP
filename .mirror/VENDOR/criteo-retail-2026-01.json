@@ -1,7 +1,7 @@
 {
   "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
   "captured_at": "2026-09-04T23:58:43.710Z",
-  "evidence": "VENDOR_DOCUMENTED_NOT_WHATHEAD_OBSERVED",
+  "evidence": "VENDOR_DOCUMENTED_NOT_AMCP_OBSERVED",
   "document": {
     "openapi": "3.0.1",
     "info": {

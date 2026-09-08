@@ -42,7 +42,7 @@ for(const gateway of discovery.gateways){
   const canonical=gateway==='dv360_native_action'?names.filter(x=>x.startsWith('DV360_')):names;
   total=canonical.length;
   for(const name of canonical)records.push({name,canonical_name:name,aliases:names.includes(name.replace(/^DV360_/,''))?[name.replace(/^DV360_/,'')]:[],method:null,path:null,read_only:null,destructive:null,required:[],path_parameters:[],evidence:'OBSERVED',raw:{action:name}});
-  gaps.push('Action enum captured; method/path/required-field catalog not exposed by WhatHead help.');
+  gaps.push('Action enum captured; method/path/required-field catalog not exposed by AMCP help.');
  }else gaps.push('LIST_ACTIONS unsupported; full action denominator unknown.');
  const inputSchema=help.inputSchema??{
   type:'object',properties:{operation:{type:'string',enum:help.operations,description:'Validated internal operation to execute.'},arguments:{type:'object',additionalProperties:{},description:"Exact arguments for the selected operation. The original operation schema is validated before execution."}},required:['operation'],additionalProperties:false,
@@ -53,7 +53,7 @@ for(const gateway of discovery.gateways){
  tools.push({name:gateway,description:help.description,inputSchema,schema_evidence:help.inputSchema?'OBSERVED':'INFERRED_OUTER_ENVELOPE',mode:help.mode,operations,help});
  summaries.push({gateway,mode:help.mode,actions:records.length,total,schemas:operations.length,gaps:gaps.length});
 }
-const helpTool={name:'whathead_tool_help',description:'Discover compact Whathead MCP gateways and inspect the exact nested schema for an operation. This is read-only metadata and does not call an advertising platform.',inputSchema:{type:'object',properties:{gateway:{type:'string',enum:discovery.gateways},operation:{type:'string'}},additionalProperties:false},schema_evidence:'INFERRED_OUTER_ENVELOPE',mode:'help',help:discovery};
+const helpTool={name:'amcp_tool_help',description:'Discover compact AMCP MCP gateways and inspect the exact nested schema for an operation. This is read-only metadata and does not call an advertising platform.',inputSchema:{type:'object',properties:{gateway:{type:'string',enum:discovery.gateways},operation:{type:'string'}},additionalProperties:false},schema_evidence:'INFERRED_OUTER_ENVELOPE',mode:'help',help:discovery};
 tools.push(helpTool);
 write(root+'/TOOLS.json',{surface:discovery.surface,tools,discovery});
 write(root+'/REPORTS/capture-summary.json',{gateways:summaries,known_actions:summaries.reduce((n,g)=>n+g.actions,0),unknown_denominators:summaries.filter(g=>g.total===null).map(g=>g.gateway)});

@@ -16,7 +16,7 @@ const actor:Actor={tenantId:'t',userId:'a',role:'admin'};
 test('captured reporting schemas bind, save, prepare, execute and fetch a run through MCP',async()=>{
  const store=new Store(':memory:');try{
   const service=new MirrorService(new Registry(),store);
-  const call=(operation:string,args:any)=>service.call('whathead_native_action',{operation,arguments:args},actor);
+  const call=(operation:string,args:any)=>service.call('amcp_native_action',{operation,arguments:args},actor);
   const preview=await call('bind_reporting_workbook',{spreadsheet_id:'test',dry_run:true});assert.equal(preview.data.executed,false);assert.equal(store.documents('t','workbook').length,0);
   const bind=await call('bind_reporting_workbook',{spreadsheet_id:'test',dry_run:false});assert.equal(bind.success,true);
   const query=await call('create_reporting_query',{workbook_binding_id:bind.data.workbook_binding_id,name:'Test',query_config:{platform:'google',account_id:'111',date_range:{since:'2026-08-01',until:'2026-08-31'}},dry_run:false});assert.equal(query.success,true);
@@ -53,10 +53,10 @@ test('rolling windows resolve complete local calendar days without modifying the
  assert.equal(config.date_range.preset,'last_complete_days');assert.throws(()=>resolveReportConfig({date_range:{preset:'last_complete_days',days:7}}),/timezone/);
 });
 test('queued jobs and completed results survive database close and reopen',async()=>{
- const directory=fs.mkdtempSync(path.join(os.tmpdir(),'whathead-persistence-')),file=path.join(directory,'test.sqlite');let store=new Store(file);
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'amcp-persistence-')),file=path.join(directory,'test.sqlite');let store=new Store(file);
  try{store.ensureTenant('t');const id=store.enqueue('t','report',{query_config:{test:true}});store.close();store=new Store(file);
   const worker=new ReportWorker(store,async()=>({value:42}));assert.equal(await worker.once(),true);store.close();store=new Store(file);assert.equal(store.job('t',id).state,'complete');assert.equal(store.job('t',id).result.value,42);
- }finally{store.close();removeTestDirectory(directory,'whathead-persistence-');}
+ }finally{store.close();removeTestDirectory(directory,'amcp-persistence-');}
 });
 test('worker failure is durable and never converted to an empty successful report',async()=>{
  const store=new Store(':memory:');try{const id=store.enqueue('t','report',{query_config:{}});const worker=new ReportWorker(store,async()=>{throw Error('do not expose internal credentials');});await worker.once();assert.equal(store.job('t',id).state,'failed');assert.equal(store.job('t',id).error.code,'REPORT_FAILED');assert.ok(!JSON.stringify(store.job('t',id)).includes('credentials'));}finally{store.close();}

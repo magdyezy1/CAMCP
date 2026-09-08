@@ -1,7 +1,7 @@
 {
   "source": "https://www.googleapis.com/discovery/v1/apis/tagmanager/v2/rest",
   "captured_at": "2026-09-04T23:58:43.863Z",
-  "evidence": "VENDOR_DOCUMENTED_NOT_WHATHEAD_OBSERVED",
+  "evidence": "VENDOR_DOCUMENTED_NOT_AMCP_OBSERVED",
   "document": {
     "icons": {
       "x16": "http://www.google.com/images/icons/product/search-16.gif",

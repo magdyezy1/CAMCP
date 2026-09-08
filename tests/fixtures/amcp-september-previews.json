@@ -2,7 +2,7 @@
   {
     "gateway": "meta_native_action",
     "captured_on": "2026-09-08",
-    "source": "Live WhatHead MCP dry_run=true; no provider mutation",
+    "source": "Live AMCP MCP dry_run=true; no provider mutation",
     "comparison": "request method/path/query/body",
     "input": {
       "action": "meta_campaign_create",
@@ -30,7 +30,7 @@
   {
     "gateway": "snapchat_native_action",
     "captured_on": "2026-09-08",
-    "source": "Live WhatHead MCP dry_run=true; no provider mutation",
+    "source": "Live AMCP MCP dry_run=true; no provider mutation",
     "comparison": "request method/path/query/body",
     "input": {
       "action": "snapchat_campaign_create",
@@ -66,7 +66,7 @@
   {
     "gateway": "tiktok_native_action",
     "captured_on": "2026-09-08",
-    "source": "Live WhatHead MCP dry_run=true; no provider mutation",
+    "source": "Live AMCP MCP dry_run=true; no provider mutation",
     "comparison": "request method/path/query/body",
     "input": {
       "action": "tiktok_campaign_create",
