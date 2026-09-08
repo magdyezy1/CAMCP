@@ -9,6 +9,8 @@ Start with the connected workspace and the user's existing account selection. Ke
 
 Read the relevant reference: [Meta](references/meta.md), [Google Ads](references/google-ads.md), [TikTok and Snapchat](references/tiktok-snapchat.md), [LinkedIn and X](references/linkedin-x.md), [Reddit](references/reddit.md), [Microsoft Advertising](references/microsoft-ads.md), or [media](references/media.md). MCP clients can read the same files at `amcp://guides/<name>`; the list is available through `resources/list` and `whathead_tool_help`.
 
+For multi-step briefs, approved profiles, media variants or source-linked reporting, read [workspace operations](references/workspace.md) (`amcp://guides/workspace`). Use `amcp_campaign` to retain dependent steps and verify their outputs; `amcp_workspace` checks readiness and stores client settings; `amcp_reporting` captures/reconciles native reports and proposes evidence-based changes.
+
 ## Discover before building
 
 1. Use `tools/list` and `whathead_tool_help`. Historical names in the supplied manuals describe a different connector surface. AMCP exposes compact native gateways; do not call an absent named tool.

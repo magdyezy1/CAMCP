@@ -1,6 +1,6 @@
 # Media from Google Drive
 
-Give AMCP a public Google Drive file link. **The AMCP server downloads and transfers the file; the MCP client/LLM never needs to download it or expose base64 bytes.** Normal native upload actions, `platform_media_upload` and `amcp_media` share the same reviewed uploader.
+Give AMCP a Google Drive file link. Private files require a separate selected Drive connection; see [workspace operations](WORKSPACE-OPERATIONS.md). **The AMCP server downloads and transfers the file; the MCP client/LLM never needs to download it or expose base64 bytes.** Normal native upload actions, `platform_media_upload` and `amcp_media` share the same reviewed uploader.
 
 ## Normal native flow
 
@@ -87,7 +87,7 @@ Call `amcp_media {"action":"status","review_id":"..."}` for processing reads and
 
 Deployment writes must be enabled; the connector must be operator/admin and the selected connection must grant account writes. This single grant covers campaigns, ad sets, ads, creatives and media equally. `WRITE_ACCOUNT_FORBIDDEN` identifies the chosen connection/account and whether another login has a write grant. Choose that connection explicitly or update the grant in Connections. New connections default to reviewed writes when enabled; existing reader grants are preserved.
 
-Drive files must be downloadable by anyone with the link. Private files, folders, Google Docs exports and permission/quota/confirmation HTML return an actionable error. Advertising credentials/cookies are never sent to Drive; redirects are restricted to approved download hosts. Arbitrary source URLs are rejected.
+Public Drive imports require a downloadable share link. Private files use drive_connection_id and an explicit file selection through Drive OAuth. Folders, Google Docs exports and permission/quota/confirmation HTML remain unsupported. Advertising credentials/cookies are never sent to Drive; redirects are restricted to approved download hosts. Arbitrary source URLs are rejected.
 
 Frozen bytes prevent later Drive edits from changing the reviewed upload. Temporary staging permits two pending files per tenant and eight application-wide, each ≤32 MiB. Expired files are removed on the next capacity reservation; submitted uploads delete bytes immediately on success/failure. `amcp_media cancel` discards an unsubmitted review. Receipts and audits remain.
 

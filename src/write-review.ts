@@ -105,7 +105,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  if(read.gateway==='dv360_native_action'){const key:Record<string,string>={advertisers:'advertiserId',campaigns:'campaignId',insertionOrders:'insertionOrderId',lineItems:'lineItemId',creatives:'creativeId'};sameIds([data[key[read.path.split('/').at(-2)!]!]], [target]);return;}
  fail('STATE_READ_FAILED','No response contract exists for this state read.');
 }
-function assertWriteShape(plan:CompiledRequest){
+export function assertWriteShape(plan:CompiledRequest){
  if(!gateways.has(plan.gateway))fail('WRITE_CONTRACT_UNAVAILABLE','This platform has no reviewed mutation contract.');
  if(plan.readOnly)fail('MUTATION_REQUIRED','Use the original native gateway to perform this read.');
  if(plan.gateway==='reddit_native_action'){assertRedditWrite(plan);return;}
@@ -270,13 +270,18 @@ export class WriteReviewService {
   if(actualHash!==expectedHash)fail('STATE_CHANGED','The provider configuration changed after preparation. Prepare and review a fresh request.',{expected_state_hash:expectedHash,actual_state_hash:actualHash,changed_fields:changedStateFields(review.state,current)});
   const c=this.access(actor,plan,review.connection_id),auth=await this.credentials.get(c);this.access(actor,plan,review.connection_id);
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Review expired during state verification.');
+  const actorBinding=this.store.bindJobActor(actor,input.review_id);
   const claim=this.store.claim(actor.tenantId,input.idempotency_key,fingerprint);if(!claim.fresh)return {...object(claim.result),replayed:true};
   try{
    this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_started',request:plan,fingerprint,before_state:current});
    const response=await this.transport.request(plan,c,auth);this.delegated.validateResponse(plan,response.data,response.status);const result=writeOutcome(response,plan);
-   const outcome={...result,review_id:input.review_id,action:plan.action,fingerprint};
+   const outcome:JsonObject={...result,review_id:input.review_id,action:plan.action,fingerprint};
    this.store.transaction(()=>{
     if(result.success===true)new ScopeGuard(this.registry,this.store).observeCreated(plan,c,response.data);
+    if(result.success===true){
+     const job=this.store.enqueue(actor.tenantId,'write_verification',{review_id:input.review_id,actor_binding:actorBinding});
+     outcome.verification={status:'queued',job_id:job,next_call:{tool:'amcp_campaign',arguments:{action:'verify',review_id:input.review_id}}};
+    }
     this.store.complete(actor.tenantId,input.idempotency_key,outcome);this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_completed',outcome});
    });return outcome;
   }catch(e){this.store.uncertain(actor.tenantId,input.idempotency_key);this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_uncertain',code:e instanceof MirrorError?e.code:'INTERNAL_ERROR'});throw e;}

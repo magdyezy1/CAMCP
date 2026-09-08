@@ -24,7 +24,8 @@ test('Meta provisioning accepts a hidden pipe and persists only encrypted creden
    assert.deepEqual(store.listConnections('local')[0]!.accounts,['111111111111111']);
    assert.equal(store.verifyAudit(),true);assert.ok(!JSON.stringify(store.audit('local')).includes(token));
   }finally{store.close();}
-  for(const filename of fs.readdirSync(directory))assert.ok(!fs.readFileSync(path.join(directory,filename)).includes(Buffer.from(token)),filename+' contains plaintext');
+  // Windows may remove transient SQLite shared-memory files between enumeration and reading.
+  for(const filename of fs.readdirSync(directory))try{assert.ok(!fs.readFileSync(path.join(directory,filename)).includes(Buffer.from(token)),filename+' contains plaintext');}catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT'||!/-shm(?:\.tmp)?$/i.test(filename))throw e;}
   const rejected=await run('invalid-'+token);assert.equal(rejected.code,1);assert.match(rejected.output,/INVALID_TOKEN_INPUT/);assert.ok(!rejected.output.includes(token));
   assert.equal((await run('',['bind'])).code,1);
   assert.equal((await run('',['bind','2222222222222222?method=POST'])).code,1);

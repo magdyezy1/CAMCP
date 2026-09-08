@@ -21,17 +21,30 @@ import {validateAppleResponse} from './apple-native.js';
 import {microsoftGateway,validateMicrosoftResponse} from './microsoft-native.js';
 import {downloadReportArchive,parseMicrosoftReport,microsoftReportKey,microsoftReportPage} from './microsoft-report-download.js';
 import {guidanceDiscovery} from './guidance.js';
+import {WorkspaceService,workspaceTool} from './workspace.js';
+import {CampaignRunner,campaignTool} from './campaign-runner.js';
+import {DecisionReporting,decisionTool} from './decision-reporting.js';
+import {WriteVerifier} from './write-verification.js';
+import {validateProviderRequest} from './provider-validation.js';
 import {MediaUploadService,mediaTool} from './media-upload.js';
 import {nativeMediaInput,workflowMediaInput,mediaPreview,mediaNext,inspectDrive,mediaDiscovery,mediaInstructions} from './media-routing.js';
 export const strictOptions:CallOptions={mode:'strict',flags:{}};
 export class MirrorService {
  readonly compiler:Compiler;readonly introspection:Introspection;readonly credentials:CredentialProvider;
  readonly delegatedCompiler=new DelegatedNativeCompiler();
- listTools(){return [...this.registry.listTools(this.options).map(t=>({...t,...(mediaDiscovery(t.name)?{description:t.description+' '+mediaInstructions}:{})})),...(this.policy.allowWrites?[writeTool,mediaTool]:[])];}
+ listTools(){return [...this.registry.listTools(this.options).map(t=>({...t,...(mediaDiscovery(t.name)?{description:t.description+' '+mediaInstructions}:{})})),workspaceTool,campaignTool,decisionTool,...(this.policy.allowWrites?[writeTool,mediaTool]:[])];}
  constructor(readonly registry:Registry,readonly store:Store,readonly transport=new NativeTransport(),readonly options:CallOptions=strictOptions,readonly policy:ExecutionPolicy=readOnlyPolicy,private mediaFetcher:typeof fetch=fetch){this.compiler=new Compiler(registry);this.introspection=new Introspection(registry);this.credentials=new CredentialProvider(store);}
  async call(tool:string,input:JsonObject,actor:Actor):Promise<JsonObject>{
   const requestId=randomUUID(),start=Date.now();
   try{
+   const call=(t:string,a:JsonObject,u:Actor)=>this.call(t,a,u);
+   if(tool===workspaceTool.name)return this.wrap(await new WorkspaceService(this.store,this.registry,this.transport,this.credentials,call,this.policy.allowWrites).handle(input,actor),requestId,start);
+   if(tool===campaignTool.name)return this.wrap(await new CampaignRunner(this.store,call,(a,id)=>this.verifyWrite(a,id), (a,i)=>validateProviderRequest(this,a,i)).handle(input,actor),requestId,start);
+   if(tool===decisionTool.name)return this.wrap(await new DecisionReporting(this.store,async(t,a,u)=>{
+    this.registry.validate(t,a,this.options);const p=this.registry.tools.get(t)?.mode==='delegated'?this.delegatedCompiler.compile(t,a):this.compiler.compile(t,a,this.options);
+    if(!applyExecutionRisk(p).readOnly)throw new MirrorError('REPORT_READ_REQUIRED','Reporting accepts independently qualified native reads only.');
+    return this.wrap(await this.runPlan(p,a.operation?a.arguments:a,u),requestId,start);
+   }).handle(input,actor),requestId,start);
    if(tool===mediaTool.name)return this.wrap(mediaNext(await this.media().call(input,actor)),requestId,start);
    if(tool===writeTool.name){const result:any=await this.reviewed(input,actor);return {...this.wrap(result,requestId,start),...(result.success===false?{success:false,error:{code:'WRITE_PARTIAL_OR_FAILED',message:'Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.'}}:{})};}
    this.registry.validate(tool,input,this.options);
@@ -47,6 +60,12 @@ export class MirrorService {
   }catch(e){const result=errorResult(e,requestId,Date.now()-start);this.store.appendAudit(actor.tenantId,requestId,{tool,input:redact(input),outcome:result});return result;}
  }
  private wrap(data:unknown,requestId:string,start:number){return {success:true,data,meta:{requestId,latencyMs:Date.now()-start}};}
+ async verifyWrite(actor:Actor,id:string){return new WriteVerifier(this.store,this.registry,this.transport,this.credentials).verify(actor,id);}
+ async verificationJob(tenant:string,kind:string,input:JsonObject){
+  if(kind!=='write_verification')throw new MirrorError('UNKNOWN_JOB_KIND','No worker handles this job.');
+  const actor=this.store.restoreJobActor(tenant,input.review_id,input.actor_binding);
+  return this.verifyWrite(actor,input.review_id);
+ }
  private media(){return new MediaUploadService(this.registry,this.store,this.transport,this.credentials,this.policy,this.mediaFetcher);}
  private connectionId(input:JsonObject,outer?:string){const ids=[outer,input.connection_id,input.connectionId].filter(v=>v!==undefined);if(ids.some(v=>typeof v!=='string'||v!==ids[0]))throw new MirrorError('CONFLICTING_PARAMETER','Connection ID aliases must identify the same connection.');return ids[0];}
  private async reviewed(input:JsonObject,actor:Actor):Promise<unknown>{

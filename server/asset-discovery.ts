@@ -7,7 +7,7 @@ import {platforms,selectionKind} from './platform-oauth.js';
 import {microsoftCustomerOrigin} from '../src/microsoft-native.js';
 
 export interface WorkspaceAsset {id:string;kind:string;name:string;parentId?:string;currency?:string;timezone?:string;status?:string;source:'vendor'|'configured_binding'}
-export interface AssetGroup {kind:string;assets:WorkspaceAsset[];complete:boolean;error?:string}
+export interface AssetGroup {checkedAt?:number;kind:string;assets:WorkspaceAsset[];complete:boolean;error?:string}
 export class AssetDiscovery {
  private transport:NativeTransport;private credentials:CredentialProvider;
  constructor(private store:Store,fetcher:typeof fetch=fetch){this.transport=new NativeTransport(fetcher);this.credentials=new CredentialProvider(store,fetcher);}
@@ -50,7 +50,10 @@ export class AssetDiscovery {
   for(const kind of selected){
    try{
     let assets:WorkspaceAsset[]=[];
-    if(p.id==='microsoft'){
+    if(p.id==='drive'){
+     const rows=await this.pages(connection,credentials,'/drive/v3/files',{q:"trashed = false and (mimeType = 'image/png' or mimeType = 'image/jpeg' or mimeType = 'video/mp4' or mimeType = 'video/quicktime')",pageSize:100,fields:'nextPageToken,incompleteSearch,files(id,name,mimeType,size,capabilities(canDownload))',supportsAllDrives:true,includeItemsFromAllDrives:true},d=>{if(d.incompleteSearch===true)throw new MirrorError('ASSET_SYNC_INCOMPLETE','Drive search was incomplete. Narrow the connected login.');return d.files??[];});
+     assets=rows.filter(r=>r.capabilities?.canDownload===true).map(r=>this.asset(r,kind));
+    }else if(p.id==='microsoft'){
      const read=async(path:string,body:JsonObject)=>{
       const plan={...this.plan(connection,path,{},'POST',body),action:'AMCP_MICROSOFT_DISCOVERY',origin:microsoftCustomerOrigin};
       const {data}=await this.transport.request(plan,connection,credentials);const d=data as JsonObject;

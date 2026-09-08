@@ -4,6 +4,9 @@ import {randomUUID} from 'node:crypto';
 import {WebStore,type WebsiteOptions} from './web-store.js';
 import {PlatformOAuth,platform,platforms,selectionKind} from './platform-oauth.js';
 import {AssetDiscovery,type AssetGroup} from './asset-discovery.js';
+import {MirrorService} from '../src/service.js';
+import {MediaUploadService} from '../src/media-upload.js';
+import {mediaType} from '../src/drive-media.js';
 import {Store} from '../src/store.js';
 import {MirrorError} from '../src/errors.js';
 import {sha256,redact} from '../src/security.js';
@@ -12,7 +15,7 @@ import {McpOAuth} from './mcp-oauth.js';
 import {microsoftGateway} from '../src/microsoft-native.js';
 import {mcpAuthRouter} from '@modelcontextprotocol/sdk/server/auth/router.js';
 
-export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=false){
+export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=false,service?:MirrorService){
  const web=new WebStore(store,options),oauth=new PlatformOAuth(web,process.env,options.fetcher,allowWrites),discovery=new AssetDiscovery(store,options.fetcher),router=express.Router();
  router.use((_req,res,next)=>{res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Frame-Options','DENY');res.setHeader('Permissions-Policy','camera=(), microphone=(), geolocation=()');next();});
  const mcpOAuth=new McpOAuth(web,allowWrites);
@@ -34,7 +37,7 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   const result=await discovery.sync(c,kinds);
   // A sync may overlap selection, default changes, or disconnect. Never restore its old grants.
   c=connection(tenant,c.id);const previous=savedAssets(tenant,c),groups:AssetGroup[]=[...(previous.groups??[])];
-  for(const group of result.groups){const old=groups.findIndex(g=>g.kind===group.kind);const replacement=!group.complete&&old>=0?{...group,assets:groups[old]!.assets}:group;if(old>=0)groups[old]=replacement;else groups.push(replacement);}
+  for(const group of result.groups){group.checkedAt=Date.now();const old=groups.findIndex(g=>g.kind===group.kind);const replacement=!group.complete&&old>=0?{...group,assets:groups[old]!.assets}:group;if(old>=0)groups[old]=replacement;else groups.push(replacement);}
   const failed=result.groups.filter(g=>!g.complete),prefix=selectionKind(c.gateway)+':';let selection=(previous.selected??c.accounts.map(id=>prefix+id)) as string[];
   const accountsGroup=result.groups.find(g=>g.kind===selectionKind(c.gateway)&&g.complete);
   if(accountsGroup){const visible=new Set(accountsGroup.assets.map(a=>a.id));selection=selection.filter(k=>!k.startsWith(prefix)||visible.has(k.slice(prefix.length)));const accounts=c.accounts.filter(id=>visible.has(id));const accountCustomers=c.gateway===microsoftGateway?Object.fromEntries(accountsGroup.assets.filter(a=>accounts.includes(a.id)).map(a=>[a.id,a.parentId!])):c.accountCustomers;if(accounts.length!==c.accounts.length||JSON.stringify(accountCustomers)!==JSON.stringify(c.accountCustomers)){c={...c,accounts,accountCustomers,writeAccounts:(c.writeAccounts??[]).filter(id=>accounts.includes(id)),enabled:c.enabled&&accounts.length>0};store.putConnection({tenantId:tenant,userId:'workspace-admin',role:'admin'},c,store.credentials(tenant,c.id));}}
@@ -43,6 +46,17 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   store.appendAudit(tenant,randomUUID(),{event:'website_asset_sync',connection_id:c.id,kinds:result.groups.map(g=>g.kind),complete:failed.length===0,vendor_writes:0});
   return publicConnection(tenant,c);
  };
+ if(service){
+  router.post('/api/workspace/:tool',express.json({limit:'512kb'}),handler(async(req,res)=>{
+   const session=web.requireMutation(req),tools:Record<string,string>={workspace:'amcp_workspace',campaign:'amcp_campaign',reporting:'amcp_reporting',media:'amcp_media',write:'amcp_write'};
+   const tool=tools[String(req.params.tool)];if(!tool)throw new MirrorError('NOT_FOUND','Unknown workspace operation.',{},404);
+   const actor={...session.actor};store.bindActorCheck(actor,()=>{web.requireMutation(req);});const result=await service.call(tool,req.body,actor);web.requireMutation(req);res.setHeader('Cache-Control','no-store');res.json(result);
+  }));
+  router.get('/api/media/variants/:id/preview',handler((req,res)=>{
+   const session=web.requireSession(req),media=new MediaUploadService(service.registry,store,service.transport,service.credentials,service.policy,options.fetcher),v=media.variant(session.actor,String(req.params.id)),bytes=store.stagedMedia(session.actor.tenantId,v.id);
+   if(sha256(bytes)!==v.sha256||mediaType(bytes).mime!==v.mime)throw new MirrorError('MEDIA_CHANGED','Preview integrity check failed.');res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');res.type(v.mime).send(bytes);
+  }));
+ }
  router.get('/api/session',handler((req,res)=>{const session=web.session(req);res.json({authenticated:!!session,configured:web.configured,csrf:session?.csrf??null,name:session?'Workspace administrator':null,origin:web.origin,readOnly:!allowWrites,writesEnabled:allowWrites});}));
  router.post('/api/session',express.json({limit:'4kb'}),handler((req,res)=>{web.requireOrigin(req);if(typeof req.body?.password!=='string')throw new MirrorError('INVALID_LOGIN','Enter your workspace password.',{},400);const old=web.session(req),session=web.signIn(req.body.password,web.clientAddress(req));if(old)web.signOut(old.id);res.setHeader('Set-Cookie',web.cookie(session.id));res.json({authenticated:true,csrf:session.csrf,name:'Workspace administrator'});}));
  router.delete('/api/session',handler((req,res)=>{const session=web.requireMutation(req);web.signOut(session.id);res.setHeader('Set-Cookie',web.cookie('',0));res.json({success:true});}));
@@ -78,7 +92,7 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
    const result=await oauth.exchange(id,pending,query),connectionId=randomUUID();
    // A completed token exchange must not restore access after the initiating session ended.
    web.requireSession(req);
-   const c:Connection={id:connectionId,tenantId:tenant,gateway:p.gateway,accounts:[],defaultWriteAccess:allowWrites&&pending.requestedWriteAccess===true,label:result.label,enabled:false,scopes:result.scopes,isDefault:!store.listConnections(tenant).some(c=>c.gateway===p.gateway&&c.isDefault)};
+   const c:Connection={id:connectionId,tenantId:tenant,gateway:p.gateway,accounts:[],defaultWriteAccess:p.reviewedWrites!==false&&allowWrites&&pending.requestedWriteAccess===true,label:result.label,enabled:false,scopes:result.scopes,isDefault:!store.listConnections(tenant).some(c=>c.gateway===p.gateway&&c.isDefault)};
    store.putConnection(session.actor,c,result.credentials);securedConnectionId=connectionId;store.putDocument(tenant,'website_connection',connectionId,{platform:id,expiresAt:result.credentials.expiresAt??null,providerId:result.providerId??null,createdAt:Date.now()});
    store.appendAudit(tenant,attemptId,{event:'website_oauth_connected',platform:id,connection_id:connectionId});progress({state:'sync',authorization:true,exchange:true,sync:false,connectionId});
    const synced=await sync(tenant,c);progress({state:synced.error?'sync_attention':'complete',authorization:true,exchange:true,sync:!synced.error,connectionId,message:synced.error??'Connection secured. Choose the assets AMCP can use.'});
@@ -101,9 +115,10 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   if(selected.some(k=>!k.startsWith(prefix)))throw new MirrorError('INVALID_ASSET_SELECTION','Select the platform’s primary accounts, properties or sites for MCP access. Other tabs show related inventory.');
   const accounts=selected.map(k=>k.slice(prefix.length));
   if(req.body?.write_access!==undefined&&typeof req.body.write_access!=='boolean')throw new MirrorError('INVALID_WRITE_ACCOUNTS','write_access must be a boolean.');
-  const defaultWriteAccess=req.body.write_access??c.defaultWriteAccess===true;
+  const sourceOnly=platforms.find(p=>p.gateway===c.gateway)?.reviewedWrites===false;if(sourceOnly&&req.body.write_access===true)throw new MirrorError('SOURCE_READ_ONLY','Drive is a read-only media source.');
+  const defaultWriteAccess=sourceOnly?false:req.body.write_access??c.defaultWriteAccess===true;
   if(req.body.write_access===true&&!allowWrites)throw new MirrorError('WRITES_DISABLED','Reviewed writes are disabled in this deployment.',{},403);
-  const writeAccounts=defaultWriteAccess&&allowWrites?accounts:req.body.write_access===false?[]:(c.writeAccounts??[]).filter(id=>accounts.includes(id));
+  const writeAccounts=sourceOnly?[]:defaultWriteAccess&&allowWrites?accounts:req.body.write_access===false?[]:(c.writeAccounts??[]).filter(id=>accounts.includes(id));
   const accountCustomers=c.gateway===microsoftGateway?Object.fromEntries((assets.groups as AssetGroup[]).flatMap(g=>g.assets).filter(a=>a.kind==='ad_accounts'&&accounts.includes(a.id)).map(a=>[a.id,a.parentId!])):c.accountCustomers;
   store.transaction(()=>{store.putConnection(s.actor,{...c,accounts,accountCustomers,writeAccounts,defaultWriteAccess,enabled:accounts.length>0},store.credentials(tenant,c.id));store.db.prepare('INSERT INTO documents(tenant_id,kind,id,data) VALUES(?,?,?,?) ON CONFLICT(tenant_id,kind,id) DO UPDATE SET data=excluded.data,revision=documents.revision+1').run(tenant,'website_assets',c.id,JSON.stringify({...assets,selected}));});
   store.appendAudit(tenant,randomUUID(),{event:'website_asset_selection',connection_id:c.id,selected_accounts:accounts,selected_assets:selected.length,vendor_writes:0});res.json(publicConnection(tenant,connection(tenant,c.id)));
@@ -112,6 +127,7 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   const s=web.requireMutation(req),tenant=s.actor.tenantId,c=connection(tenant,String(req.params.id)),accounts=req.body?.accounts;
   if(s.actor.role!=='admin')throw new MirrorError('FORBIDDEN','Only the workspace administrator can change write access.',{},403);
   if(!Array.isArray(accounts)||accounts.length>10000||accounts.some(id=>typeof id!=='string')||new Set(accounts).size!==accounts.length)throw new MirrorError('INVALID_WRITE_ACCOUNTS','Select valid, unique resources for write access.');
+  if(accounts.length&&platforms.find(p=>p.gateway===c.gateway)?.reviewedWrites===false)throw new MirrorError('SOURCE_READ_ONLY','Drive is a read-only media source.');
   if(accounts.length&&(!allowWrites||!c.enabled))throw new MirrorError('WRITES_DISABLED','Enable deployment write support and select resources before granting write access.',{},403);
   if(accounts.some(id=>!c.accounts.includes(id)))throw new MirrorError('WRITE_ACCOUNT_NOT_SELECTED','Write access is limited to this login’s selected resources.',{},403);
   if(accounts.length&&req.body?.confirmed!==true)throw new MirrorError('WRITE_ACCESS_CONFIRMATION_REQUIRED','Explicitly confirm that operator connectors may change these resources.',{},400);
@@ -145,6 +161,6 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
  router.get('/api/activity',handler((req,res)=>{const s=web.requireSession(req);res.json({events:store.audit(s.actor.tenantId,100).map((r:any)=>({id:r.seq,at:r.created_at,event:redact(JSON.parse(r.event))})).reverse()});}));
  const directory=path.resolve(options.staticDirectory??'web');router.use('/assets',express.static(directory,{dotfiles:'deny',index:false,fallthrough:false,maxAge:0}));
  router.get('/tiktok94H3oMGQTvC0GEzgKcmffbz8W0CAHhan.txt',(_req,res)=>res.type('text/plain').sendFile('tiktok94H3oMGQTvC0GEzgKcmffbz8W0CAHhan.txt',{root:directory}));
- for(const route of ['/','/connectors','/activity','/settings','/login','/oauth/result','/oauth/consent','/privacy','/terms','/data-deletion'])router.get(route,(_req,res)=>res.sendFile('index.html',{root:directory}));
+ for(const route of ['/dashboard','/campaigns','/media','/reports','/profiles','/','/connectors','/activity','/settings','/login','/oauth/result','/oauth/consent','/privacy','/terms','/data-deletion'])router.get(route,(_req,res)=>res.sendFile('index.html',{root:directory}));
  return {router,web,oauth,discovery,mcpOAuth};
 }

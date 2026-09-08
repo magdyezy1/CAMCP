@@ -7,6 +7,7 @@ import {SecretBox,sha256,stable,redact,scopeKey} from './security.js';
 import type {Actor,Connection,Credentials,JsonObject} from './types.js';
 export class Store {
  readonly db:DatabaseSync;private box?:SecretBox;
+ private actorChecks=new WeakMap<Actor,()=>void>();
  private authenticatedActors=new WeakMap<Actor,string>();
  private transactionDepth=0;
  constructor(filename:string,masterKey?:string){
@@ -92,12 +93,24 @@ export class Store {
   const actor:Actor={tenantId:row.tenant_id,userId:row.user_id,role:row.role};this.authenticatedActors.set(actor,sha256(token));return actor;
  }
  /** HTTP actors retain a process-local credential identity without exposing the token or hash. */
+ bindActorCheck(actor:Actor,check:()=>void){this.actorChecks.set(actor,check);}
  assertActorActive(actor:Actor):void{
+  this.actorChecks.get(actor)?.();
   const hash=this.authenticatedActors.get(actor);if(!hash)return; // Trusted local/stdio actors have no bearer credential.
   const row=this.db.prepare('SELECT tenant_id,user_id,role FROM api_keys WHERE hash=? AND revoked=0 AND (expires_at IS NULL OR expires_at>?)').get(hash,Date.now()) as JsonObject|undefined;
   if(!row||row.tenant_id!==actor.tenantId||row.user_id!==actor.userId||row.role!==actor.role)throw new MirrorError('UNAUTHORIZED','Connector access expired, changed or was revoked during this request.',{},401);
  }
  revokeKey(token:string){this.db.prepare('UPDATE api_keys SET revoked=1 WHERE hash=?').run(sha256(token));}
+ bindJobActor(actor:Actor,id:string):string{
+  this.assertActorActive(actor);if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Background verification requires encryption.');
+  return this.box.seal({actor,credential_hash:this.authenticatedActors.get(actor)??null},scopeKey(actor.tenantId,'job-actor',id));
+ }
+ restoreJobActor(tenant:string,id:string,binding:string):Actor{
+  if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Background verification requires encryption.');
+  const value=this.box.open<{actor:Actor;credential_hash:string|null}>(binding,scopeKey(tenant,'job-actor',id)),actor=value.actor;
+  if(actor.tenantId!==tenant)throw new MirrorError('FORBIDDEN','Invalid job tenant.');
+  if(value.credential_hash)this.authenticatedActors.set(actor,value.credential_hash);this.assertActorActive(actor);return actor;
+ }
  putConnection(actor:Actor,connection:Connection,credentials:Credentials){
   if(actor.role!=='admin'||actor.tenantId!==connection.tenantId)throw new MirrorError('FORBIDDEN','Only a tenant administrator can provision a connection.',{},403);
   if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Configure MIRROR_MASTER_KEY before storing credentials.',{},503);

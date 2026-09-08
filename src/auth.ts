@@ -4,7 +4,7 @@ import {MirrorError} from './errors.js';
 import {scopeKey} from './security.js';
 import {requestAppleAccessToken} from './apple-auth.js';
 import {microsoftGateway,microsoftScope} from './microsoft-native.js';
-const refreshEndpoints:Record<string,string>={google_ads_native_action:'https://oauth2.googleapis.com/token',dv360_native_action:'https://oauth2.googleapis.com/token',ga4_native_action:'https://oauth2.googleapis.com/token',gtm_native_action:'https://oauth2.googleapis.com/token',google_business_native_action:'https://oauth2.googleapis.com/token',google_search_console_native_action:'https://oauth2.googleapis.com/token',snapchat_native_action:'https://accounts.snapchat.com/login/oauth2/access_token',linkedin_native_action:'https://www.linkedin.com/oauth/v2/accessToken',amazon_native_action:'https://api.amazon.com/auth/o2/token'};
+const refreshEndpoints:Record<string,string>={google_drive_native_action:'https://oauth2.googleapis.com/token',google_ads_native_action:'https://oauth2.googleapis.com/token',dv360_native_action:'https://oauth2.googleapis.com/token',ga4_native_action:'https://oauth2.googleapis.com/token',gtm_native_action:'https://oauth2.googleapis.com/token',google_business_native_action:'https://oauth2.googleapis.com/token',google_search_console_native_action:'https://oauth2.googleapis.com/token',snapchat_native_action:'https://accounts.snapchat.com/login/oauth2/access_token',linkedin_native_action:'https://www.linkedin.com/oauth/v2/accessToken',amazon_native_action:'https://api.amazon.com/auth/o2/token'};
 export class CredentialProvider {
  private refreshes=new Map<string,Promise<Credentials>>();
  constructor(private store:Store,private fetcher:typeof fetch=fetch){}

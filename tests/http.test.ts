@@ -18,7 +18,7 @@ test('real HTTP MCP enforces bearer, origin and body limits and serves SDK tools
   assert.equal((await fetch(url,{method:'POST',body:JSON.stringify({padding:'x'.repeat(9000)}),headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'}})).status,413);
   assert.equal((await fetch(url,{method:'POST',body:'{',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'}})).status,400);
   await client.connect(new StreamableHTTPClientTransport(url,{requestInit:{headers:{Authorization:'Bearer '+key}}}));
-  assert.equal((await client.listTools()).tools.length,21);
+  assert.equal((await client.listTools()).tools.length,24);
   const result=await client.callTool({name:'whathead_tool_help',arguments:{}});assert.equal(JSON.parse((result.content as any)[0].text).surface,'compact-v1');
   store.revokeKey(key);assert.equal((await fetch(url,{headers:{Authorization:'Bearer '+key}})).status,401);
  }finally{await client.close();await new Promise<void>(r=>listener.close(()=>r()));store.close();}
