@@ -14,9 +14,10 @@ try{
  docker('volume','create',volume);volumeCreated=true;
  docker('run','-d','--name',container,'-p','127.0.0.1:14317:4317','-v',volume+':/data','-e','MIRROR_MASTER_KEY','-e','AMCP_ADMIN_PASSWORD','-e','AMCP_PUBLIC_ORIGIN','-e','MIRROR_ALLOW_WRITES','amcp:check');created=true;
  await ready();assert.equal(docker('exec',container,'stat','-c','%u','/data'),'1000');
- for(const path of ['/','/connectors','/assets/app.js','/assets/app.css'])assert.equal((await api(path)).status,200,path);
+ for(const path of ['/','/connectors','/dashboard','/campaigns','/media','/reports','/profiles','/assets/app.js','/assets/app.css','/assets/workspace.js'])assert.equal((await api(path)).status,200,path);
  const login=await api('/api/session','POST',{password},{Origin:origin});assert.equal(login.status,200);const cookie=login.headers.get('set-cookie').split(';')[0],csrf=(await login.json()).csrf,headers={Cookie:cookie,Origin:origin,'X-AMCP-CSRF':csrf};
- const configured=await (await api('/api/platforms','GET',undefined,headers)).json();assert.deepEqual(configured.platforms.map(p=>p.id).sort(),['google','meta','tiktok','snapchat','linkedin','x','ga4','gtm','gsc','apple','microsoft'].sort());assert.equal(configured.platforms.find(p=>p.id==='snapchat').callback,origin+'/api/auth/snapchat/callback');assert.equal(configured.platforms.find(p=>p.id==='microsoft').callback,origin+'/api/auth/microsoft/callback');
+ const configured=await (await api('/api/platforms','GET',undefined,headers)).json();assert.deepEqual(configured.platforms.map(p=>p.id).sort(),['google','meta','tiktok','snapchat','linkedin','x','ga4','gtm','gsc','apple','microsoft','drive'].sort());assert.equal(configured.platforms.find(p=>p.id==='snapchat').callback,origin+'/api/auth/snapchat/callback');assert.equal(configured.platforms.find(p=>p.id==='microsoft').callback,origin+'/api/auth/microsoft/callback');
+ const drive=configured.platforms.find(p=>p.id==='drive');assert.equal(drive.callback,origin+'/api/auth/drive/callback');assert.equal(drive.reviewedWrites,false);assert.deepEqual(drive.scopes,['https://www.googleapis.com/auth/drive.readonly']);
  for(const id of ['ga4','gtm','gsc','apple'])assert.equal(configured.platforms.find(p=>p.id===id).reviewedWrites,true);
  assert.equal(configured.platforms.find(p=>p.id==='gtm').scopes.includes('https://www.googleapis.com/auth/tagmanager.publish'),writes);
  assert.equal(configured.platforms.find(p=>p.id==='gsc').scopes.includes('https://www.googleapis.com/auth/webmasters'),writes);
