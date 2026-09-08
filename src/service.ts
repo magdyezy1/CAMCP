@@ -19,6 +19,7 @@ import {projectResponse} from './projection.js';
 import {WriteReviewService,writeTool} from './write-review.js';
 import {validateAppleResponse} from './apple-native.js';
 import {microsoftGateway,validateMicrosoftResponse} from './microsoft-native.js';
+import {downloadReportArchive,parseMicrosoftReport,microsoftReportKey,microsoftReportPage} from './microsoft-report-download.js';
 import {guidanceDiscovery} from './guidance.js';
 import {MediaUploadService,mediaTool} from './media-upload.js';
 import {nativeMediaInput,workflowMediaInput,mediaPreview,mediaNext,inspectDrive,mediaDiscovery,mediaInstructions} from './media-routing.js';
@@ -76,12 +77,29 @@ export class MirrorService {
   const credentials=await this.credentials.get(connection);
   this.store.appendAudit(actor.tenantId,requestId,{event:'request_started',actor:actor.userId,request:plan});
   try{
-   const fetchPage=async(p:CompiledRequest)=>{this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,p.gateway,p.accountId,connection.id);scope.authorize(p,current);const result=await this.transport.request(p,current,credentials),{data,status}=result;this.delegatedCompiler.validateResponse(p,data,status);validateAppleResponse(p,data);if(p.gateway===microsoftGateway)validateMicrosoftResponse(p,result);scope.observe(p,current,data);return data;};
+   const fetchPage=async(p:CompiledRequest)=>{this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,p.gateway,p.accountId,connection.id);scope.authorize(p,current);const result=await this.transport.request(p,current,credentials),{data,status}=result;this.delegatedCompiler.validateResponse(p,data,status);validateAppleResponse(p,data);if(p.gateway===microsoftGateway)validateMicrosoftResponse(p,result);scope.observe(p,current,data);if(p.gateway===microsoftGateway&&p.reportDownload)return this.microsoftDownload(p,data as JsonObject,actor,current.id);return data;};
    const result=input.aggregate_pages||input.paginate||input.allPages?await paginate(plan,fetchPage,Number(input.max_pages??25)):{data:await fetchPage(plan),pages:1,truncated:false};
    const projected=projectResponse(result.data,plan.responseControls);
    const outcome={success:true,action:plan.action,dry_run:false,...result,data:projected.data,truncated:result.truncated||projected.truncated,...(projected.truncated?{response_truncated:true}:{})};
    this.store.appendAudit(actor.tenantId,requestId,{event:'request_completed',request:plan,outcome});return outcome;
   }catch(e){this.store.appendAudit(actor.tenantId,requestId,{event:'request_failed',request:plan,error:e instanceof MirrorError?{code:e.code,message:e.message,details:e.details}:{code:'INTERNAL_ERROR'}});throw e;}
+ }
+ private async microsoftDownload(plan:CompiledRequest,data:JsonObject,actor:Actor,connectionId:string){
+  const access=()=>{this.store.assertActorActive(actor);const c=this.store.resolveConnection(actor,plan.gateway,plan.accountId,connectionId);new ScopeGuard(this.registry,this.store).authorize(plan,c);};access();
+  const reportId=(plan.body as JsonObject).ReportRequestId,status=data.ReportRequestStatus,key=microsoftReportKey(connectionId,plan.accountId!,reportId);
+  const next=(offset:number)=>({tool:microsoftGateway,arguments:{action:'PollGenerateReport',account_id:plan.accountId,connection_id:connectionId,payload:{ReportRequestId:reportId},download_report:true,offset,limit:plan.reportDownload!.limit}});
+  if(status.Status==='Pending')return {report_request_id:reportId,status:'Pending',complete:false,next_call:next(plan.reportDownload!.offset)};
+  if(status.Status==='Error')throw new MirrorError('REPORT_GENERATION_FAILED','Microsoft could not generate this report.',{},502);
+  let stored:JsonObject;try{stored=this.store.document(actor.tenantId,'microsoft_report',key);}catch{throw new MirrorError('REPORT_METADATA_REQUIRED','Submit this report through AMCP again to record the original format and columns.');}
+  if(stored.expires_at<=Date.now())throw new MirrorError('REPORT_EXPIRED','Submit a fresh Microsoft report.');
+  let parsed=stored.parsed;
+  if(!parsed){
+   if(status.ReportDownloadUrl==null||status.ReportDownloadUrl==='')parsed={columns:stored.request.Columns,rows:[],row_count:0,metadata:{},potentially_incomplete:stored.request.ReturnOnlyCompleteData===true?false:null,values:'native_strings',format:stored.request.Format??'Csv',empty_reason:'provider_returned_no_download_url'};
+   else{if(!['Csv','Tsv'].includes(stored.request.Format??'Csv'))throw new MirrorError('REPORT_FORMAT_UNSUPPORTED','Server parsing supports Csv and Tsv. Submit another report in one of those formats.');access();const bytes=await downloadReportArchive(status.ReportDownloadUrl,this.mediaFetcher===fetch?undefined:this.mediaFetcher);access();parsed=parseMicrosoftReport(bytes,stored.request,plan.accountId!);}
+   this.store.putDocument(actor.tenantId,'microsoft_report',key,{...stored,parsed});
+  }
+  access();const {offset,limit}=plan.reportDownload!,rows=microsoftReportPage(parsed.rows,offset,limit),hasMore=offset+rows.length<parsed.row_count;
+  return {...parsed,rows,status:'Success',report_request_id:reportId,download_complete:true,offset,limit,has_more:hasMore,...(hasMore?{next_call:next(offset+rows.length)}:{})};
  }
  private async delegated(gateway:string,operation:string,args:JsonObject,actor:Actor,requestId:string):Promise<unknown>{
   if(gateway==='whathead_native_action'&&operation==='inspect_google_drive_media'){this.store.assertActorActive(actor);return inspectDrive(args.link,this.mediaFetcher);}

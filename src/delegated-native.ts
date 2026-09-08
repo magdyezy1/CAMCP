@@ -5,6 +5,7 @@ import addFormatsModule from 'ajv-formats';
 import {MirrorError} from './errors.js';
 import {guardInput,stable as stableStringify} from './security.js';
 import type {CompiledRequest,JsonObject} from './types.js';
+import {redditAudienceRoutes} from './reddit-extensions.js';
 
 export interface VendorRoute {
  gateway:string;operation:string;action:string;vendorMethod:string;source:string;sourceFile:string;
@@ -100,6 +101,7 @@ export class DelegatedNativeCompiler {
   this.data=data??JSON.parse(fs.readFileSync(fileURLToPath(new URL('../../generated/vendor-routes.json',import.meta.url)),'utf8'));
   if(this.data.formatVersion!==1)throw new Error('Unsupported vendor routes format.');
   for(const r of this.data.routes){const key=this.key(r.gateway,r.operation,r.action);if(this.routes.has(key))throw new Error('Duplicate delegated route: '+key);this.routes.set(key,r);}
+  if(this.data.schemaComponents?.['reddit-v3'])for(const r of redditAudienceRoutes)this.routes.set(this.key(r.gateway,r.operation,r.action),r);
  }
  private key(gateway:string,operation:string,action:string){return gateway+'/'+operation+'/'+action;}
  canCompile(gateway:string,input:JsonObject):boolean{return this.routes.has(this.key(gateway,String(input.operation??''),String(input.arguments?.action??'')));}

@@ -38,6 +38,7 @@ export interface CompiledRequest {
   queryArrayEncoding?:'json'|'repeat';
   responseControls?:import('./projection.js').ResponseControls;
   scopeContext?:{campaignId:string};
+  reportDownload?:{offset:number;limit:number};
 }
 export interface EnhancementFlags {
   catalogEnvelope?:boolean; catalogPagination?:boolean; catalogFields?:boolean;

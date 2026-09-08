@@ -4,7 +4,7 @@ import {sha256,stable} from './security.js';
 // a new provider configuration field must remain protected by default.
 const volatile = new Set([
  'delivery_status','effective_status','secondary_status','updated_at','updated_time','last_modified_time',
- 'last_modified_at','last_modified','update_time','modification_time','modify_time','last_updated_at','last_update_time',
+ 'last_modified_at','last_modified','update_time','modification_time','modify_time','modified_at','modified_time','last_updated_at','last_update_time',
  'request_id','request_time','trace_id','sub_request_status','request_status',
  'stats','statistics','metrics','insights','reporting','pacing_stats','pacing_metrics','total_stats','timeseries_stats',
  'delivery_metrics','delivery_stats','delivery_pacing','spend_to_date','last_synced_at'

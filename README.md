@@ -7,15 +7,16 @@ AMCP connects an advertising workspace to Codex and other MCP clients. It includ
 ## Website
 
 - Connections: Google Ads, Meta, TikTok, Snapchat, LinkedIn, X, Microsoft Advertising, GA4, Google Tag Manager / Google tag, Search Console, and Apple Ads; each provider uses your own app credentials. See [measurement and Apple setup](docs/MEASUREMENT-AND-APPLE.md).
-- Microsoft Advertising v13: 24 native actions, account discovery, 12 reviewed Search mutation routes and account-bound report submission/polling. See [Microsoft setup and limits](docs/MICROSOFT-ADS.md).
+- Microsoft Advertising v13: 24 native actions, account discovery, 12 reviewed Search mutation routes and account-bound server CSV/TSV report download/parsing. See [Microsoft setup and limits](docs/MICROSOFT-ADS.md).
 - MCP clients can load eight campaign guides through resources/list and the amcp_build_campaign prompt. amcp_write inspect checks local write support without network calls. See the [fresh capability review](docs/CAPABILITY-REVIEW-2026-09-08.md).
 - Multiple encrypted logins per provider, default login, synchronization, searchable account selection, and local disconnect.
 - Asset tabs show related inventory. Selected ad accounts, GA4 properties, Tag Manager accounts and Search Console sites are the enforced MCP access boundaries; some standalone resources need explicit ownership bindings.
 - OAuth completion page with authorization, credential exchange, and asset sync results.
 - MCP connector page with browser authorization, Codex/Cursor configurations, reader/operator access, expiring bearer tokens, and revocation.
 - Reviewed campaign mutations with five-minute state snapshots, explicit confirmation, account grants, and persistent duplicate-submission protection.
-- Configuration-only state guards ignore delivery telemetry and normalize unordered scalar arrays; failures identify changed fields and state hashes. Created Meta/Snapchat resources immediately receive account ownership bindings.
+- Configuration-only state guards ignore delivery telemetry and normalize unordered scalar arrays; failures identify changed fields and state hashes. Created Meta/Snapchat/Reddit resources immediately receive account ownership bindings.
 - Google Drive links work through native media actions, platform_media_upload and amcp_media, with a shared amcp_write review. The server transfers images and videos to Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360; MCP clients never download the file. Meta and Snapchat creative creation is supported. See [formats, limits and examples](docs/MEDIA-UPLOADS.md).
+- Reviewed Google keyword/targeting/shared-exclusion-list mutations and Reddit classic campaigns, ad groups, existing-post ads and saved targeting audiences.
 - Evidence-linked campaign audits and deterministic optimization suggestions with explicit unknown coverage.
 - Session authentication, CSRF protection, encrypted OAuth state, PKCE where supported, and activity records. Claude-compatible dynamic registration supports encrypted client secrets with client_secret_post alongside public clients. See [OAuth and hardening decisions](docs/OAUTH-HARDENING.md).
 

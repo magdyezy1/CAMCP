@@ -96,10 +96,27 @@ Use returned campaign IDs in `payload.CampaignId` for ad groups. Ad and keyword 
 }
 ```
 
-Choose an Account, Campaign, AdGroup, Ad, Keyword or SearchQuery performance report and its valid native columns. Scope must be exactly the selected account. Submission creates a read-oriented report job; it does not change advertising configuration. AMCP does not automatically retry job creation after a lost response. Poll using its `ReportRequestId` on the same connection/account. Pending is incomplete; Success returns Microsoft's download URL. AMCP does not currently fetch/parse the ZIP or normalize Microsoft reports into the cross-platform reporting workflow. See [SubmitGenerateReport](https://learn.microsoft.com/en-us/advertising/reporting-service/submitgeneratereport?view=bingads-13).
+Choose an Account, Campaign, AdGroup, Ad, Keyword or SearchQuery performance report and its valid native columns. Scope must be exactly the selected account. Submission creates a read-oriented report job; it does not change advertising configuration. AMCP does not automatically retry job creation after a lost response. Poll using its `ReportRequestId` on the same connection/account. Pending is incomplete; by default Success returns Microsoft's download URL. Set `download_report: true` on PollGenerateReport to download and parse CSV/TSV on the AMCP server, with `offset` and `limit` (1–100). Follow `next_call` for pending jobs and additional rows. No client download is needed; parsed reports retain native string values rather than entering the cross-platform metrics model. See [SubmitGenerateReport](https://learn.microsoft.com/en-us/advertising/reporting-service/submitgeneratereport?view=bingads-13).
 
 ## Qualification limits
 
 This adapter does not implement the whole Microsoft API. Microsoft media imports, Bulk API, budget CRUD, targeting/criterion writes, negative keyword lists, Shopping, Performance Max, asset groups, Audience campaigns, billing and customer-wide UET/conversion management are not qualified execution contracts. A native read may support formats beyond the tested Search workflow; that does not extend the write contract. Provider-required fields and account eligibility still need Microsoft validation.
 
 No Microsoft production credential or live mutation was used for this release. Tests cover OAuth, rotating refresh tokens, paginated discovery, selection and customer mapping, all 12 qualified mutation routes, exact state reads, stale budgets, partial failures, no retry after uncertain submission, report scope, reader/operator grants and the website callback. Configure your app and use live reads before qualifying production execution.
+
+### Server download example
+
+```json
+{
+  "action": "PollGenerateReport",
+  "account_id": "123",
+  "payload": {"ReportRequestId": "REPLACE_WITH_RETURNED_ID"},
+  "download_report": true,
+  "offset": 0,
+  "limit": 100
+}
+```
+
+AMCP retains the original report specification and ownership for one day, scoped to the tenant, connection and account. Cached parsed pages avoid repeated downloads; every poll and page still checks current access. Advertising-resource ownership expiry is unchanged. Microsoft download URLs are short lived and their domains can change: downloads resolve and pin public IP addresses, require HTTPS, reject redirects, and send no advertising credentials or cookies. See [Microsoft report status](https://learn.microsoft.com/en-us/advertising/reporting-service/reportrequeststatus?view=bingads-13).
+
+Parsing supports a single CSV/TSV ZIP member, UTF-8 or BOM-marked UTF-16, quoted delimiters/newlines, ordered columns and optional metadata/footer. IDs, amounts and all cells remain strings. Row counts and an included AccountId column are checked; Pending is never called complete, and a successful null download URL becomes an explicitly empty result. Limits: 8 MiB compressed, 32 MiB expanded, 10,000 rows, 100 columns, 64 KiB per field, 256 KiB per row and 512 KiB of row data per MCP page. Narrow the report if it exceeds these bounds. XML and normalized cross-platform Microsoft reporting remain outside this parser. [Report formats](https://learn.microsoft.com/en-us/advertising/guides/reports?view=bingads-13).

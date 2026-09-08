@@ -10,7 +10,7 @@ import type {Actor,JsonObject} from '../src/types.js';
 const key=Buffer.alloc(32,19).toString('base64'),actor:Actor={tenantId:'t',userId:'u',role:'operator'},admin:Actor={...actor,role:'admin'},registry=new Registry();
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64');
 const mp4=Buffer.concat([Buffer.from([0,0,0,24]),Buffer.from('ftypisom'),Buffer.alloc(24)]),link='https://drive.google.com/file/d/abcdefghijklmno/view?usp=sharing';
-function fixture(platform:string,kind='image',options:{pending?:boolean;failUpload?:boolean;badUrl?:boolean;finalizeObject?:boolean}={}){
+function fixture(platform:string,kind='image',options:{pending?:boolean;failUpload?:boolean;badUrl?:boolean;finalizeObject?:boolean;statusResponse?:JsonObject}={}){
  const store=new Store(':memory:',key),gateway=platform+'_native_action',c={id:'c',tenantId:'t',gateway,accounts:['123'],writeAccounts:['123'],label:'Synthetic',enabled:true,scopes:[]};
  store.putConnection(admin,c,{accessToken:'synthetic',developerToken:'synthetic',consumerKey:'synthetic',consumerSecret:'synthetic',tokenSecret:'synthetic'});
  const file=kind==='image'?png:mp4,calls:{path:string;method:string;body:any;headers:Headers}[]=[];let downloads=0,stateChanged=false;
@@ -24,6 +24,7 @@ function fixture(platform:string,kind='image',options:{pending?:boolean;failUplo
   if(url.hostname==='www.linkedin.com'){assert.equal(headers.get('authorization'),kind==='image'?'Bearer synthetic':null);assert.equal(headers.get('content-type'),kind==='image'?'image/png':'application/octet-stream');assert.equal(method,'PUT');assert.deepEqual(Buffer.from(body as Uint8Array),file);return new Response(null,{status:201,headers:{etag:'"part-1"'}});}
   if(method==='GET'||path.endsWith('/googleAds:search')){
    const extra={name:stateChanged?'Changed':'Account'};
+   if(options.statusResponse&&['/v25.0/456','/v1/media/456','/rest/images/urn%3Ali%3Aimage%3A456','/rest/videos/urn%3Ali%3Avideo%3A456','/1.1/media/upload.json'].includes(path))return Response.json(options.statusResponse);
    if(platform==='meta')return Response.json({id:'act_123',account_status:1,currency:'USD',...extra});
    if(platform==='snapchat')return Response.json({request_status:'SUCCESS',adaccounts:[{sub_request_status:'SUCCESS',adaccount:{id:'123',...extra}}]});
    if(platform==='tiktok')return Response.json({code:0,data:{list:[{advertiser_id:'123',...extra}]}});
@@ -210,4 +211,22 @@ test('MCP discovery directs native upload callers to the shared server transfer'
   const help=await f.service.call('whathead_tool_help',{gateway:'meta_native_action',operation:'meta_image_upload'},actor);assert.equal(help.amcp_media_import.client_download_required,false);
   const description=await f.service.call('meta_native_action',{action:'DESCRIBE_ACTION',target_action:'meta_image_upload'},actor);assert.equal(description.data.amcp_media_import.review_tool,'amcp_write');
  }finally{f.close();}
+});
+
+test('Media status verifies identity, ends polling when ready and distinguishes terminal processing failures',async()=>{
+ const cases:[string,JsonObject,JsonObject][]=[
+  ['meta',{id:'456',status:{video_status:'ready'}},{id:'456',status:{video_status:'error'}}],
+  ['linkedin',{id:'urn:li:video:456',status:'AVAILABLE'},{id:'urn:li:video:456',status:'PROCESSING_FAILED'}],
+  ['snapchat',{request_status:'SUCCESS',media:[{sub_request_status:'SUCCESS',media:{id:'456',ad_account_id:'123',media_status:'READY'}}]},{request_status:'SUCCESS',media:[{sub_request_status:'SUCCESS',media:{id:'999',ad_account_id:'123',media_status:'READY'}}]}],
+  ['x_ads',{media_id_string:'456',processing_info:{state:'succeeded'}},{media_id_string:'456',processing_info:{state:'failed'}}]
+ ];
+ for(const [platform,ready,bad]of cases)for(const statusResponse of [ready,bad]){
+  const f=fixture(platform,'video',{pending:true,statusResponse});try{
+   const p=(await f.prepare()).data,e=await f.call({action:'execute',review_id:p.review_id,idempotency_key:p.idempotency_key,confirmed:true});assert.equal(e.success,true,JSON.stringify(e));
+   const count=f.calls.length,result=await f.call({action:'status',review_id:p.review_id});assert.equal(f.calls.length,count+1);assert.equal(f.downloads(),1);
+   if(statusResponse===ready){assert.equal(result.success,true,JSON.stringify(result));assert.equal(result.data.ready,platform!=='x_ads');if(platform==='x_ads')assert.equal(result.data.next_call.arguments.action,'prepare_library');else assert.equal(result.data.next_call,undefined);}
+   else if(platform==='snapchat')assert.equal(result.error.code,'MEDIA_RESPONSE_INVALID');
+   else {assert.equal(result.error.code,'MEDIA_PROCESSING_FAILED',JSON.stringify(result));assert.equal(result.error.details.retry_safe,false);const stored=f.store.document('t','workspace_asset',p.review_id);assert.equal(stored.processing_failed,true);assert.equal(stored.next_call,undefined);}
+  }finally{f.close();}
+ }
 });

@@ -4,6 +4,7 @@ import {Registry} from './catalog.js';
 import {Store} from './store.js';
 import {stable} from './security.js';
 import {microsoftGateway,microsoftCustomer,microsoftContracts} from './microsoft-native.js';
+import {microsoftReportKey} from './microsoft-report-download.js';
 
 export function normalizeAccount(gateway:string,id:unknown):string{
  const value=String(id);return gateway==='meta_native_action'?value.replace(/^act_/,''):gateway==='google_ads_native_action'?value.replaceAll('-',''):value;
@@ -87,7 +88,11 @@ export class ScopeGuard {
    microsoftCustomer(connection,id);
    const contract=microsoftContracts.get(plan.action);if(!contract||contract.path!==plan.path||contract.method!==plan.method)throw new MirrorError('RESOURCE_SCOPE_REQUIRED','Unqualified Microsoft request contract.',{},403);
    const body=plan.body as JsonObject;
-   if(plan.action==='PollGenerateReport'&&!this.store.ownsResource(connection,id,'report/'+body.ReportRequestId))throw new MirrorError('RESOURCE_SCOPE_REQUIRED','Submit the Microsoft report using this account and connection before polling.',{},403);
+   if(plan.action==='PollGenerateReport'){
+    let receipt:JsonObject|undefined;try{receipt=this.store.document(connection.tenantId,'microsoft_report',microsoftReportKey(connection.id,id,body.ReportRequestId));}catch(e){if(!(e instanceof MirrorError)||e.code!=='NOT_FOUND')throw e;}
+    const ownsReport=receipt?.connection_id===connection.id&&receipt.account_id===id&&receipt.expires_at>Date.now();
+    if(!ownsReport&&!this.store.ownsResource(connection,id,'report/'+body.ReportRequestId))throw new MirrorError('RESOURCE_SCOPE_REQUIRED','Submit the Microsoft report using this account and connection before polling.',{},403);
+   }
    // Mandatory CustomerAccountId header confines CampaignManagement resources;
    // report scope is additionally validated by the compiler and caller cannot override headers.
    return id;
@@ -112,7 +117,11 @@ export class ScopeGuard {
  observe(plan:CompiledRequest,connection:Connection,data:unknown):void{
   if(!plan.readOnly)return;
   const id=this.authorize(plan,connection),d=data as JsonObject;
-  if(plan.gateway===microsoftGateway&&plan.action==='SubmitGenerateReport'&&typeof d?.ReportRequestId==='string')this.store.rememberResource(connection,id,'report/'+d.ReportRequestId);
+  if(plan.gateway===microsoftGateway&&plan.action==='SubmitGenerateReport'&&typeof d?.ReportRequestId==='string'){
+   this.store.rememberResource(connection,id,'report/'+d.ReportRequestId);
+   this.store.db.prepare("DELETE FROM documents WHERE tenant_id=? AND kind='microsoft_report' AND json_extract(data,'$.expires_at')<=?").run(connection.tenantId,Date.now());
+   this.store.putDocument(connection.tenantId,'microsoft_report',microsoftReportKey(connection.id,id,d.ReportRequestId),{connection_id:connection.id,account_id:id,request:(plan.body as JsonObject).ReportRequest,expires_at:Date.now()+86400000});
+  }
   // Only named entity collections are ownership evidence; never learn from arbitrary
   // nested IDs, reports, user supplied state, search results or unscoped account lists.
   if(plan.gateway==='meta_native_action'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads|adcreatives)$/.test(plan.path)&&Array.isArray(d?.data)){
@@ -134,6 +143,10 @@ export class ScopeGuard {
  observeCreated(plan:CompiledRequest,connection:Connection,data:unknown):void{
   if(plan.readOnly||plan.method!=='POST')return;
   const id=normalizeAccount(plan.gateway,plan.accountId),d=data as JsonObject;
+  if(plan.gateway==='reddit_native_action'){
+   const kind=/^\/api\/v3\/ad_accounts\/[^/]+\/(campaigns|ad_groups|ads|saved_audiences)$/.exec(plan.path)?.[1],entity=d?.data;
+   if(kind&&typeof entity?.id==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(entity.id)&&entity.ad_account_id===id)this.store.rememberResource(connection,id,kind+'/'+entity.id);
+  }
   // Other qualified gateways carry the account in every child path/body. These two
   // use global IDs and therefore need this extra, connection-bound observation.
   if(plan.gateway==='meta_native_action'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads|adcreatives)$/.test(plan.path)&&typeof d?.id==='string'&&/^\d+$/.test(d.id)){

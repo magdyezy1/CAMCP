@@ -14,11 +14,13 @@ import {DelegatedNativeCompiler} from './delegated-native.js';
 import {normalizeReviewState,reviewStateHash,changedStateFields} from './review-state.js';
 import {assertAccountWrite} from './write-access.js';
 import {validateMetaCreative} from './creative-validation.js';
+import {googleTargetingKind,assertGoogleTargeting,googleTargetingSnapshots,validateGoogleTargetingState} from './google-targeting-writes.js';
+import {assertRedditWrite,assertRedditWriteScopes,redditSnapshots,validateRedditState,redditOutcome} from './reddit-writes.js';
 import {microsoftGateway,microsoftScope,assertMicrosoftWrite,microsoftSnapshots,validateMicrosoftResponse,microsoftOutcome} from './microsoft-native.js';
 import {measurementWriteGateways,assertMeasurementWrite,assertMeasurementScopes,measurementSnapshots,optionalMissingState,validateMeasurementState,measurementOutcome} from './measurement-writes.js';
 
 export const writeTool={name:'amcp_write',description:'Inspect, prepare and execute a reviewed native advertising or measurement mutation. inspect checks local write-contract support without credentials or network calls. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request. Execution requires its review_id, idempotency_key and explicit confirmation. Operator role and administrator account write grants are required. This is an AMCP extension, not a captured WhatHead tool.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['inspect','prepare','execute']},gateway:{type:'string'},arguments:{type:'object'},connection_id:{type:'string'},review_id:{type:'string'},idempotency_key:{type:'string'},confirmed:{type:'boolean'},spend_change_confirmed:{type:'boolean'}},additionalProperties:false}};
-const gateways=new Set(['meta_native_action','tiktok_native_action','snapchat_native_action','google_ads_native_action','linkedin_native_action','x_ads_native_action','dv360_native_action',microsoftGateway,...measurementWriteGateways]);
+const gateways=new Set(['meta_native_action','tiktok_native_action','snapchat_native_action','google_ads_native_action','linkedin_native_action','x_ads_native_action','dv360_native_action','reddit_native_action',microsoftGateway,...measurementWriteGateways]);
 const object=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?v as JsonObject:{};
 const snake=(s:string)=>s.replace(/([a-z0-9])([A-Z])/g,'$1_$2').toLowerCase();
 function fail(code:string,message:string,details:JsonObject={}):never{throw new MirrorError(code,message,details);}
@@ -38,6 +40,7 @@ export function writeOutcome(result:TransportResult,plan?:CompiledRequest):JsonO
  return {success:errors.length===0,executed:true,outcome:errors.length?'partial_or_failed':'succeeded',data:result.data,status:result.status,headers:result.headers,...(result.headers['x-restli-id']?{created_id:result.headers['x-restli-id']}:{ }),...(errors.length?{failures:errors,retry_safe:false}:{})};
 }
 function confirmedMutationResult(plan:CompiledRequest,result:TransportResult):boolean {
+ if(plan.gateway==='reddit_native_action')return redditOutcome(plan,result);
  if(plan.gateway===microsoftGateway)return microsoftOutcome(plan,result);
  if(measurementWriteGateways.has(plan.gateway))return measurementOutcome(plan,result);
  const d=object(result.data),b=object(plan.body),segments=plan.path.split('/'),last=segments.at(-1)!,hasId=(v:unknown)=>typeof v==='string'&&v.length>0||typeof v==='number'&&Number.isSafeInteger(v);
@@ -74,6 +77,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
   const r=object(v);if(r.has_more===true||r.hasMore===true||r.nextPageToken||r.next_page_token||r.next_cursor&&r.next_cursor!=='0'||r.next_link||r.paging?.next||r.page_info?.total_page>1||Array.isArray(r.links)&&r.links.some((l:JsonObject)=>l.rel==='next'))fail('INCOMPLETE_STATE','State read was paginated; narrow the mutation.');Object.values(r).forEach(inspect);
  };inspect(data);
  if(measurementWriteGateways.has(read.gateway)){validateMeasurementState(read,result);return;}
+ if(read.gateway==='reddit_native_action'){validateRedditState(read,result);return;}
  const sameIds=(actual:unknown[],expected:unknown[])=>{const clean=(ids:unknown[])=>ids.map(x=>String(x)).sort();if(actual.length!==expected.length||stable(clean(actual))!==stable(clean(expected)))fail('STATE_TARGET_MISMATCH','State read did not return every exact requested target.');};
  if(read.gateway==='google_ads_native_action'){
   if(!Array.isArray(data.results)||!data.results.length)fail('STATE_NOT_FOUND','Google state query returned no target rows.');
@@ -104,6 +108,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
 function assertWriteShape(plan:CompiledRequest){
  if(!gateways.has(plan.gateway))fail('WRITE_CONTRACT_UNAVAILABLE','This platform has no reviewed mutation contract.');
  if(plan.readOnly)fail('MUTATION_REQUIRED','Use the original native gateway to perform this read.');
+ if(plan.gateway==='reddit_native_action'){assertRedditWrite(plan);return;}
  if(plan.gateway===microsoftGateway){assertMicrosoftWrite(plan);return;}
  if(plan.specialTransport)fail('WRITE_CONTRACT_UNAVAILABLE','For Google Drive media imports, use amcp_media prepare and execute. Other binary transports need a dedicated upload contract.');
  if(plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['CREATE','PARTIAL_UPDATE','DELETE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))fail('WRITE_CONTRACT_UNAVAILABLE','This REST.li method override is not qualified for reviewed execution.');
@@ -115,7 +120,7 @@ function assertWriteShape(plan:CompiledRequest){
   plan.gateway==='x_ads_native_action'?method==='POST'&&/^\/12\/accounts\/[^/]+\/(campaigns|line_items|promoted_tweets)$/.test(route)||['PUT','DELETE'].includes(method)&&/^\/12\/accounts\/[^/]+\/(campaigns|line_items|promoted_tweets)\/[^/]+$/.test(route):
   plan.gateway==='linkedin_native_action'?method==='POST'&&/^\/rest\/adAccounts\/[^/]+\/(adCampaigns|adCampaignGroups|creatives)$/.test(route)||['POST','PUT','PATCH','DELETE'].includes(method)&&/^\/rest\/adAccounts\/[^/]+\/(adCampaigns|adCampaignGroups|creatives)\/[^/]+$/.test(route):
   plan.gateway==='dv360_native_action'?method==='POST'&&/^\/v\d+\/advertisers\/[^/]+\/(campaigns|insertionOrders|lineItems|creatives)$/.test(route)||['PATCH','DELETE'].includes(method)&&/^\/v\d+\/advertisers\/[^/]+\/(campaigns|insertionOrders|lineItems|creatives)\/[^/]+$/.test(route):
-  plan.gateway==='google_ads_native_action'&&method==='POST'&&/^\/v23\/customers\/[^/]+\/(campaigns|adGroups|adGroupAds|campaignBudgets|ads|assetGroups|assets):mutate$/.test(route);
+  plan.gateway==='google_ads_native_action'&&method==='POST'&&(/^\/v23\/customers\/[^/]+\/(campaigns|adGroups|adGroupAds|campaignBudgets|ads|assetGroups|assets):mutate$/.test(route)||!!googleTargetingKind(plan));
  if(!supported)fail('WRITE_CONTRACT_UNAVAILABLE','This route is outside the reviewed campaign-management execution contracts. Use a local dry run.');
  if(plan.gateway==='meta_native_action'&&route.endsWith('/adcreatives'))validateMetaCreative(body);
  if(Object.keys(plan.query).some(k=>!(plan.gateway==='dv360_native_action'&&k==='updateMask'||plan.gateway==='gtm_native_action'&&k==='fingerprint')))fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed writes accept body fields and qualified concurrency parameters only.');
@@ -140,11 +145,14 @@ function assertWriteShape(plan:CompiledRequest){
   if(body.partial_failure===true||body.partialFailure===true)fail('WRITE_CONTRACT_UNAVAILABLE','Execute homogeneous Google mutations atomically; partial_failure must be false.');
   if(body.validate_only===true||body.validateOnly===true)fail('WRITE_CONTRACT_UNAVAILABLE','This tool executes mutations; use a local dry run for validation-only plans.');
   for(const op of body.operations)if(!op||typeof op!=='object'||['create','update','remove'].filter(k=>op[k]!==undefined).length!==1)fail('INVALID_MUTATION','Each Google operation must contain exactly one create, update or remove.');
+  assertGoogleTargeting(plan);
  }
 }
 
 /** Reads are explicitly derived from the target, never supplied by the caller as proof. */
 export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRequest[]{
+ if(googleTargetingKind(plan))return googleTargetingSnapshots(plan);
+ if(plan.gateway==='reddit_native_action')return redditSnapshots(plan);
  if(plan.gateway===microsoftGateway)return microsoftSnapshots(plan);
  if(measurementWriteGateways.has(plan.gateway))return measurementSnapshots(plan);
  const base=(path:string,query:JsonObject={},body?:JsonObject,method='GET'):CompiledRequest=>applyExecutionRisk({...plan,action:'AMCP_STATE_READ',method,path,query,body,headers:plan.gateway==='linkedin_native_action'?Object.fromEntries(Object.entries(plan.headers).filter(([k])=>['LinkedIn-Version','X-Restli-Protocol-Version'].includes(k))):{},readOnly:true,destructive:false,requiresConfirmation:false,responseControls:undefined,specialTransport:undefined});
@@ -210,6 +218,7 @@ export class WriteReviewService {
   if(actor.role==='reader')throw new MirrorError('FORBIDDEN','A writer connector and administrator account grant are required.',{},403);
   const c=this.store.resolveConnection(actor,plan.gateway,plan.accountId,connectionId),id=normalizeAccount(plan.gateway,plan.accountId??(c.accounts.length===1?c.accounts[0]:''));
   assertAccountWrite(this.store,c,id);
+  if(plan.gateway==='reddit_native_action')assertRedditWriteScopes(c);
   if(plan.gateway===microsoftGateway&&!c.scopes.some(s=>s===microsoftScope||s==='msads.manage'))fail('INSUFFICIENT_SCOPE','Reconnect Microsoft Advertising with msads.manage permission.');
   plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);assertMeasurementScopes(plan,c);return c;
  }
@@ -218,7 +227,7 @@ export class WriteReviewService {
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
    try{result=await this.transport.request(read,c,auth);}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
    validateState(read,result);values.push(normalizeReviewState(result.data));
-  }return values;
+  }validateGoogleTargetingState(plan,values);return values;
  }
  async call(input:JsonObject,actor:Actor):Promise<unknown>{
   guardInput(input);for(const key of Object.keys(input))if(!Object.hasOwn(writeTool.inputSchema.properties,key))fail('INVALID_ARGUMENT','Unknown write-tool parameter.',{parameter:key});
