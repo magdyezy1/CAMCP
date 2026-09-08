@@ -6,6 +6,7 @@ import {adaptGoogleLegacy} from './google-legacy.js';
 import {accountAliases as aliases,parameterBag,nativeTopLevel,assertSameAlias} from './parameters.js';
 import {responseControls} from './projection.js';
 import {validateApplePlan} from './apple-native.js';
+import {microsoftGateway,compileMicrosoft} from './microsoft-native.js';
 const object=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?{...v}:{};
 export function expandPath(template:string,values:JsonObject):{path:string;consumed:string[]}{
  const consumed:string[]=[];
@@ -29,6 +30,7 @@ export class Compiler {
  constructor(private registry:Registry){}
  compile(gateway:string,input:JsonObject,options:CallOptions):CompiledRequest{
   guardInput(input);
+  if(gateway===microsoftGateway)return compileMicrosoft(input);
   if(gateway==='google_ads_native_action'&&!this.registry.action(gateway,String(input.action))?.path){
    const adapted=adaptGoogleLegacy(this.registry,input);
    if(adapted){const compiled=this.compile(gateway,adapted.input,options);return {...compiled,action:adapted.legacyAction,evidence:adapted.evidence,warnings:[...compiled.warnings,...adapted.warnings]};}

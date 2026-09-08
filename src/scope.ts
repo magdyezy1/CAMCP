@@ -3,11 +3,13 @@ import {MirrorError} from './errors.js';
 import {Registry} from './catalog.js';
 import {Store} from './store.js';
 import {stable} from './security.js';
+import {microsoftGateway,microsoftCustomer,microsoftContracts} from './microsoft-native.js';
 
 export function normalizeAccount(gateway:string,id:unknown):string{
  const value=String(id);return gateway==='meta_native_action'?value.replace(/^act_/,''):gateway==='google_ads_native_action'?value.replaceAll('-',''):value;
 }
 const accountFields:Record<string,Set<string>>={
+ microsoft_ads_native_action:new Set(['AccountId','AccountIds','CustomerAccountId']),
  meta_native_action:new Set(['account_id','ad_account_id']),
  google_ads_native_action:new Set(['customer_id','customerId']),
  tiktok_native_action:new Set(['advertiser_id','advertiser_ids']),
@@ -81,6 +83,15 @@ export class ScopeGuard {
    // advertiser parameters establish this automatic boundary.
    if(action?.required.includes('advertiser_id')&&((plan.query.advertiser_id===id)||(plan.body as JsonObject)?.advertiser_id===id))return id;
   }
+  if(plan.gateway===microsoftGateway){
+   microsoftCustomer(connection,id);
+   const contract=microsoftContracts.get(plan.action);if(!contract||contract.path!==plan.path||contract.method!==plan.method)throw new MirrorError('RESOURCE_SCOPE_REQUIRED','Unqualified Microsoft request contract.',{},403);
+   const body=plan.body as JsonObject;
+   if(plan.action==='PollGenerateReport'&&!this.store.ownsResource(connection,id,'report/'+body.ReportRequestId))throw new MirrorError('RESOURCE_SCOPE_REQUIRED','Submit the Microsoft report using this account and connection before polling.',{},403);
+   // Mandatory CustomerAccountId header confines CampaignManagement resources;
+   // report scope is additionally validated by the compiler and caller cannot override headers.
+   return id;
+  }
   if(['amazon_native_action','apple_ads_native_action'].includes(plan.gateway))return id; // account header scope is mandatory in transport
   if(plan.gateway==='reddit_native_action'){
    if(['/api/v3/time_zones','/api/v3/targeting/interests','/api/v3/targeting/geolocations','/api/v3/targeting/communities/search'].includes(decoded)&&plan.readOnly)return id;
@@ -101,6 +112,7 @@ export class ScopeGuard {
  observe(plan:CompiledRequest,connection:Connection,data:unknown):void{
   if(!plan.readOnly)return;
   const id=this.authorize(plan,connection),d=data as JsonObject;
+  if(plan.gateway===microsoftGateway&&plan.action==='SubmitGenerateReport'&&typeof d?.ReportRequestId==='string')this.store.rememberResource(connection,id,'report/'+d.ReportRequestId);
   // Only named entity collections are ownership evidence; never learn from arbitrary
   // nested IDs, reports, user supplied state, search results or unscoped account lists.
   if(plan.gateway==='meta_native_action'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads|adcreatives)$/.test(plan.path)&&Array.isArray(d?.data)){

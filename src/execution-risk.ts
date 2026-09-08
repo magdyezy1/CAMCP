@@ -1,4 +1,5 @@
 import type {CompiledRequest} from './types.js';
+import {microsoftGateway,microsoftRead} from './microsoft-native.js';
 
 // Read-only metadata is a compatibility observation, never sufficient execution
 // authorization. POST reads must match a separately maintained route allowlist.
@@ -6,6 +7,7 @@ const googleReadMethods=new Set(['search','searchStream','suggest','generateAudi
 const tiktokReads=new Set(['/v1.3/ad/audience_size/estimate/','/v1.3/audience/insight/info/','/v1.3/tool/bid/recommend/','/v1.3/tool/targeting/info/','/v1.3/tool/targeting/search/','/v1.3/tool/targeting_category/recommend/','/v1.3/business/message/auto_message/get/','/v1.3/business/message/media/download/','/v1.3/gmv_max/creation/custom_anchor_video_list/get/']);
 export function independentlyReadOnly(plan:CompiledRequest):boolean{
  if(!plan.readOnly)return false;
+ if(plan.gateway===microsoftGateway)return microsoftRead(plan);
  let pathname:string;try{pathname=decodeURIComponent(plan.path);}catch{return false;}
  // Search Console encodes full property/sitemap URLs as resource segments.
  // Their escaped query delimiters and path words are identifiers, not HTTP

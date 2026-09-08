@@ -3,16 +3,17 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,Credentials,JsonObject} from './types.js';
 import {redact,scopeKey} from './security.js';
+import {microsoftGateway,microsoftOrigin,microsoftCustomerOrigin,microsoftReportOrigin,microsoftCustomer} from './microsoft-native.js';
 export const vendorOrigins:Record<string,string>={
  meta_native_action:'https://graph.facebook.com',tiktok_native_action:'https://business-api.tiktok.com',snapchat_native_action:'https://adsapi.snapchat.com',google_ads_native_action:'https://googleads.googleapis.com',linkedin_native_action:'https://api.linkedin.com',x_ads_native_action:'https://ads-api.x.com',dv360_native_action:'https://displayvideo.googleapis.com',amazon_native_action:'https://advertising-api.amazon.com',apple_ads_native_action:'https://api.searchads.apple.com',reddit_native_action:'https://ads-api.reddit.com',criteo_native_action:'https://api.criteo.com',ga4_native_action:'https://analyticsdata.googleapis.com',gtm_native_action:'https://tagmanager.googleapis.com',google_business_native_action:'https://mybusinessbusinessinformation.googleapis.com',google_search_console_native_action:'https://searchconsole.googleapis.com',adjust_native_action:'https://automate.adjust.com'
 };
 const additionalOrigins:Record<string,string[]>={amazon_native_action:['https://advertising-api-eu.amazon.com','https://advertising-api-fe.amazon.com'],apple_ads_native_action:['https://api.ads.apple.com'],ga4_native_action:['https://analyticsadmin.googleapis.com'],google_business_native_action:['https://mybusinessaccountmanagement.googleapis.com','https://mybusiness.googleapis.com','https://businessprofileperformance.googleapis.com','https://mybusinessverifications.googleapis.com','https://mybusinessnotifications.googleapis.com','https://mybusinesslodging.googleapis.com'],x_ads_native_action:['https://upload.twitter.com','https://api.x.com','https://upload.x.com'],google_search_console_native_action:['https://www.googleapis.com'],adjust_native_action:['https://api.adjust.com','https://dash.adjust.com']};
 export function buildUrl(request:CompiledRequest,connection:Connection):URL{
  if(/[?#\r\n\\]/.test(request.path)||!request.path.startsWith('/')||request.path.startsWith('//'))throw new MirrorError('INVALID_PATH','Request paths cannot contain a query, fragment or authority. Supply query parameters separately.');
- const base=request.origin??connection.baseUrl??vendorOrigins[request.gateway];
+ const base=request.origin??connection.baseUrl??(request.gateway===microsoftGateway?microsoftOrigin:vendorOrigins[request.gateway]);
  if(!base)throw new MirrorError('CONNECTOR_CONFIGURATION_REQUIRED','Configure an approved upstream origin for this gateway.');
  const origin=new URL(base);
- const allowed=[vendorOrigins[request.gateway],...(additionalOrigins[request.gateway]??[]),...(request.gateway==='google_business_native_action'?['https://mybusinessplaceactions.googleapis.com']:[])];
+ const allowed=[vendorOrigins[request.gateway],...(additionalOrigins[request.gateway]??[]),...(request.gateway===microsoftGateway?[microsoftOrigin,microsoftCustomerOrigin,microsoftReportOrigin]:[]),...(request.gateway==='google_business_native_action'?['https://mybusinessplaceactions.googleapis.com']:[])];
  if(origin.protocol!=='https:'||origin.username||origin.password||origin.search||origin.hash||origin.pathname!=='/'||!allowed.includes(origin.origin))throw new MirrorError('UNAPPROVED_UPSTREAM','Upstream origin is not allowed for this gateway.',{},403);
  let path=request.path;if(request.gateway==='tiktok_native_action'&&!path.startsWith('/open_api/'))path='/open_api'+path;
  const url=new URL(path,origin);if(url.origin!==origin.origin)throw new MirrorError('UNAPPROVED_UPSTREAM','Request escaped the platform origin.',{},403);
@@ -68,12 +69,18 @@ export class NativeTransport {
    if(!credentials.developerToken)throw new MirrorError('DEVELOPER_TOKEN_REQUIRED','Google Ads requires its own developer token.');headers['developer-token']=credentials.developerToken;
    if(credentials.loginCustomerId)headers['login-customer-id']=credentials.loginCustomerId.replaceAll('-','');
   }
+  if(plan.gateway===microsoftGateway){
+   if(!credentials.developerToken)throw new MirrorError('DEVELOPER_TOKEN_REQUIRED','Microsoft Advertising requires its own developer token.');headers.DeveloperToken=credentials.developerToken;
+   if(plan.accountId){headers.CustomerAccountId=plan.accountId;headers.CustomerId=microsoftCustomer(connection,plan.accountId);}
+   else if(plan.action!=='AMCP_MICROSOFT_DISCOVERY'||![microsoftCustomerOrigin+'/CustomerManagement/v13/User/Query',microsoftCustomerOrigin+'/CustomerManagement/v13/Accounts/Search'].includes(url.href))throw new MirrorError('ACCOUNT_REQUIRED','Microsoft requests require an explicit selected account.');
+  }
   if(plan.gateway==='amazon_native_action'){if(!credentials.clientId)throw new MirrorError('CLIENT_ID_REQUIRED','Amazon Ads requires a client ID.');headers['Amazon-Advertising-API-ClientId']=credentials.clientId;if(plan.accountId)headers['Amazon-Advertising-API-Scope']=plan.accountId;}
   if(plan.gateway==='apple_ads_native_action'&&plan.accountId)headers['X-AP-Context']=(url.origin==='https://api.ads.apple.com'&&plan.path.startsWith('/v1/')?'adAccountId='+plan.accountId+';':'orgId='+plan.accountId);
   if(plan.gateway==='x_ads_native_action')headers.Authorization=oauth1(plan.method,url,credentials,form);
   if(credentials.apiKey&&!headers.Authorization)headers.Authorization='Bearer '+credentials.apiKey;
   if(!headers.Authorization&&!headers['Access-Token'])throw new MirrorError('CREDENTIALS_REQUIRED','An authenticated platform connection is required.',{},401);
-  const start=Date.now();const maxAttempts=plan.readOnly?3:1;
+  // Report submission creates a job even though it cannot mutate advertising configuration.
+  const start=Date.now();const maxAttempts=plan.readOnly&&!(plan.gateway===microsoftGateway&&plan.action==='SubmitGenerateReport')?3:1;
   for(let attempt=0;attempt<maxAttempts;attempt++){
    this.metrics.requests++;
    try{

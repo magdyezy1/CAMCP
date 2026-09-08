@@ -103,6 +103,7 @@ export class Store {
   if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Configure MIRROR_MASTER_KEY before storing credentials.',{},503);
   if(connection.enabled&&!connection.accounts.length||connection.accounts.some(x=>typeof x!=='string'||!x))throw new MirrorError('INVALID_ACCOUNT_BINDING','Enabled connections require explicit nonempty account bindings.');
   if(connection.writeAccounts!==undefined&&(!Array.isArray(connection.writeAccounts)||connection.writeAccounts.some(id=>typeof id!=='string'||!connection.accounts.includes(id))))throw new MirrorError('INVALID_WRITE_BINDING','Write grants must be a subset of the connection account grants.');
+  if(connection.accountCustomers!==undefined&&(typeof connection.accountCustomers!=='object'||Array.isArray(connection.accountCustomers)||Object.entries(connection.accountCustomers).some(([id,v])=>!connection.accounts.includes(id)||typeof v!=='string'||! /^[1-9][0-9]*$/.test(v))))throw new MirrorError('INVALID_ACCOUNT_BINDING','Microsoft parent customers must map selected accounts to decimal identifiers.');
   for(const binding of connection.resourceBindings??[])if(!connection.accounts.includes(binding.accountId)||!/^\/[a-zA-Z0-9]/.test(binding.pathPrefix)||binding.pathPrefix.endsWith('/')||/[?%#\\]|\/\.\.?($|\/)/.test(binding.pathPrefix))throw new MirrorError('INVALID_RESOURCE_BINDING','Resource bindings require an exact safe path prefix and a configured account.');
   this.ensureTenant(actor.tenantId);
   const secret='v2:'+this.box.seal(credentials,scopeKey(connection.tenantId,connection.id));

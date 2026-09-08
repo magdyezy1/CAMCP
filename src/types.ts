@@ -20,6 +20,8 @@ export interface Connection {
   writeAccounts?:string[];
   /** New OAuth logins opt into reviewed writes when resources are selected. */
   defaultWriteAccess?:boolean;
+  /** Verified Microsoft advertiser-account -> parent customer mapping from discovery. */
+  accountCustomers?:Record<string,string>;
 }
 export interface Credentials {
   accessToken?:string; refreshToken?:string; expiresAt?:number; clientId?:string; clientSecret?:string;
@@ -35,6 +37,7 @@ export interface CompiledRequest {
   accountId?:string; evidence:string; warnings:string[]; specialTransport?:string;
   queryArrayEncoding?:'json'|'repeat';
   responseControls?:import('./projection.js').ResponseControls;
+  scopeContext?:{campaignId:string};
 }
 export interface EnhancementFlags {
   catalogEnvelope?:boolean; catalogPagination?:boolean; catalogFields?:boolean;

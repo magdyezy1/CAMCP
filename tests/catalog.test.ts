@@ -5,8 +5,8 @@ import {Registry} from '../src/catalog.js';
 import {Introspection} from '../src/introspection.js';
 import {strictOptions} from '../src/service.js';
 const registry=new Registry(),introspection=new Introspection(registry);
-test('all 20 tools and 112 delegated schemas load and validate',()=>{
- assert.equal(registry.tools.size,20);assert.equal(registry.data.tools.flatMap(t=>t.operations??[]).length,112);
+test('20 captured tools, Microsoft extension and 112 delegated schemas load and validate',()=>{
+ assert.equal(registry.tools.size,21);assert.equal(registry.data.tools.flatMap(t=>t.operations??[]).length,112);
  assert.equal(registry.data.catalogs.length,19);
  assert.deepEqual(registry.help({},strictOptions),registry.data.discovery);
 });

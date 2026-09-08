@@ -13,10 +13,12 @@ import type {Actor,CallOptions,CompiledRequest,Connection,JsonObject} from './ty
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {normalizeReviewState,reviewStateHash,changedStateFields} from './review-state.js';
 import {assertAccountWrite} from './write-access.js';
+import {validateMetaCreative} from './creative-validation.js';
+import {microsoftGateway,microsoftScope,assertMicrosoftWrite,microsoftSnapshots,validateMicrosoftResponse,microsoftOutcome} from './microsoft-native.js';
 import {measurementWriteGateways,assertMeasurementWrite,assertMeasurementScopes,measurementSnapshots,optionalMissingState,validateMeasurementState,measurementOutcome} from './measurement-writes.js';
 
-export const writeTool={name:'amcp_write',description:'Prepare and execute an explicitly reviewed native advertising or measurement mutation. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request. Execution requires its review_id, idempotency_key and explicit confirmation. Operator role and administrator account write grants are required. This is an AMCP extension, not a captured WhatHead tool.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['prepare','execute']},gateway:{type:'string'},arguments:{type:'object'},connection_id:{type:'string'},review_id:{type:'string'},idempotency_key:{type:'string'},confirmed:{type:'boolean'},spend_change_confirmed:{type:'boolean'}},additionalProperties:false}};
-const gateways=new Set(['meta_native_action','tiktok_native_action','snapchat_native_action','google_ads_native_action','linkedin_native_action','x_ads_native_action','dv360_native_action',...measurementWriteGateways]);
+export const writeTool={name:'amcp_write',description:'Inspect, prepare and execute a reviewed native advertising or measurement mutation. inspect checks local write-contract support without credentials or network calls. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request. Execution requires its review_id, idempotency_key and explicit confirmation. Operator role and administrator account write grants are required. This is an AMCP extension, not a captured WhatHead tool.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['inspect','prepare','execute']},gateway:{type:'string'},arguments:{type:'object'},connection_id:{type:'string'},review_id:{type:'string'},idempotency_key:{type:'string'},confirmed:{type:'boolean'},spend_change_confirmed:{type:'boolean'}},additionalProperties:false}};
+const gateways=new Set(['meta_native_action','tiktok_native_action','snapchat_native_action','google_ads_native_action','linkedin_native_action','x_ads_native_action','dv360_native_action',microsoftGateway,...measurementWriteGateways]);
 const object=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?v as JsonObject:{};
 const snake=(s:string)=>s.replace(/([a-z0-9])([A-Z])/g,'$1_$2').toLowerCase();
 function fail(code:string,message:string,details:JsonObject={}):never{throw new MirrorError(code,message,details);}
@@ -36,6 +38,7 @@ export function writeOutcome(result:TransportResult,plan?:CompiledRequest):JsonO
  return {success:errors.length===0,executed:true,outcome:errors.length?'partial_or_failed':'succeeded',data:result.data,status:result.status,headers:result.headers,...(result.headers['x-restli-id']?{created_id:result.headers['x-restli-id']}:{ }),...(errors.length?{failures:errors,retry_safe:false}:{})};
 }
 function confirmedMutationResult(plan:CompiledRequest,result:TransportResult):boolean {
+ if(plan.gateway===microsoftGateway)return microsoftOutcome(plan,result);
  if(measurementWriteGateways.has(plan.gateway))return measurementOutcome(plan,result);
  const d=object(result.data),b=object(plan.body),segments=plan.path.split('/'),last=segments.at(-1)!,hasId=(v:unknown)=>typeof v==='string'&&v.length>0||typeof v==='number'&&Number.isSafeInteger(v);
  if(plan.gateway==='meta_native_action')return /^\/v[^/]+\/act_/.test(plan.path)?hasId(d.id):d.success===true;
@@ -62,6 +65,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult):bo
  return false;
 }
 export function validateState(read:CompiledRequest,result:TransportResult):void {
+ if(read.gateway===microsoftGateway){validateMicrosoftResponse(read,result,true);return;}
  if(result.status===404&&measurementWriteGateways.has(read.gateway)){validateMeasurementState(read,result);return;}
  if(read.gateway==='gtm_native_action'&&read.path.endsWith('/status')&&result.status===200){validateMeasurementState(read,result);return;}
  if(writeOutcome(result).success!==true)fail('STATE_READ_FAILED','Failed or partial provider responses cannot verify before-state.');
@@ -100,25 +104,20 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
 function assertWriteShape(plan:CompiledRequest){
  if(!gateways.has(plan.gateway))fail('WRITE_CONTRACT_UNAVAILABLE','This platform has no reviewed mutation contract.');
  if(plan.readOnly)fail('MUTATION_REQUIRED','Use the original native gateway to perform this read.');
+ if(plan.gateway===microsoftGateway){assertMicrosoftWrite(plan);return;}
  if(plan.specialTransport)fail('WRITE_CONTRACT_UNAVAILABLE','For Google Drive media imports, use amcp_media prepare and execute. Other binary transports need a dedicated upload contract.');
  if(plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['CREATE','PARTIAL_UPDATE','DELETE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))fail('WRITE_CONTRACT_UNAVAILABLE','This REST.li method override is not qualified for reviewed execution.');
  const body=object(plan.body);
  const route=plan.path,method=plan.method;
  const supported=measurementWriteGateways.has(plan.gateway)?(assertMeasurementWrite(plan),true):plan.gateway==='meta_native_action'?method==='POST'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads|adcreatives)$/.test(route)||['POST','DELETE'].includes(method)&&/^meta_(campaign_id|ad_set_id|ad_id)_(update|delete)$/.test(plan.action):
-  plan.gateway==='snapchat_native_action'?method==='POST'&&/^\/v1\/(adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives)|campaigns\/[^/]+\/adsquads|adsquads\/[^/]+\/ads)$/.test(route)||method==='PUT'&&/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads)$/.test(route)||method==='PATCH'&&/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads)\/[^/]+$/.test(route)||method==='DELETE'&&/^\/v1\/(campaigns|adsquads|ads)\/[^/]+$/.test(route):
+  plan.gateway==='snapchat_native_action'?method==='POST'&&/^\/v1\/(adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives)|campaigns\/[^/]+\/adsquads|adsquads\/[^/]+\/ads)$/.test(route)||method==='PUT'&&/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads)$/.test(route)||method==='PATCH'&&/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives)\/[^/]+$/.test(route)||method==='DELETE'&&/^\/v1\/(campaigns|adsquads|ads)\/[^/]+$/.test(route):
   plan.gateway==='tiktok_native_action'?method==='POST'&&/^\/v1\.3\/(campaign|adgroup|ad)\/(?:status\/)?(create|update|delete)\/$/.test(route):
   plan.gateway==='x_ads_native_action'?method==='POST'&&/^\/12\/accounts\/[^/]+\/(campaigns|line_items|promoted_tweets)$/.test(route)||['PUT','DELETE'].includes(method)&&/^\/12\/accounts\/[^/]+\/(campaigns|line_items|promoted_tweets)\/[^/]+$/.test(route):
   plan.gateway==='linkedin_native_action'?method==='POST'&&/^\/rest\/adAccounts\/[^/]+\/(adCampaigns|adCampaignGroups|creatives)$/.test(route)||['POST','PUT','PATCH','DELETE'].includes(method)&&/^\/rest\/adAccounts\/[^/]+\/(adCampaigns|adCampaignGroups|creatives)\/[^/]+$/.test(route):
   plan.gateway==='dv360_native_action'?method==='POST'&&/^\/v\d+\/advertisers\/[^/]+\/(campaigns|insertionOrders|lineItems|creatives)$/.test(route)||['PATCH','DELETE'].includes(method)&&/^\/v\d+\/advertisers\/[^/]+\/(campaigns|insertionOrders|lineItems|creatives)\/[^/]+$/.test(route):
   plan.gateway==='google_ads_native_action'&&method==='POST'&&/^\/v23\/customers\/[^/]+\/(campaigns|adGroups|adGroupAds|campaignBudgets|ads|assetGroups|assets):mutate$/.test(route);
  if(!supported)fail('WRITE_CONTRACT_UNAVAILABLE','This route is outside the reviewed campaign-management execution contracts. Use a local dry run.');
- if(plan.gateway==='meta_native_action'&&route.endsWith('/adcreatives')){
-  const story=object(body.object_story_spec),missing:string[]=[];
-  if(!body.object_story_id&&!Object.keys(story).length)missing.push('object_story_spec.page_id or object_story_id');
-  if(Object.keys(story).length&&!(typeof story.page_id==='string'&&/^\d+$/.test(story.page_id)))missing.push('object_story_spec.page_id');
-  if(story.link_data&&!object(story.link_data).link)missing.push('object_story_spec.link_data.link');
-  if(missing.length)fail('CREATIVE_INPUT_REQUIRED','A Meta creative needs an explicit Page identity and, for a link creative, a destination URL. AMCP cannot infer or invent these values.',{missing_fields:missing});
- }
+ if(plan.gateway==='meta_native_action'&&route.endsWith('/adcreatives'))validateMetaCreative(body);
  if(Object.keys(plan.query).some(k=>!(plan.gateway==='dv360_native_action'&&k==='updateMask'||plan.gateway==='gtm_native_action'&&k==='fingerprint')))fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed writes accept body fields and qualified concurrency parameters only.');
  if(plan.gateway==='linkedin_native_action'&&method==='POST'&&/^\/rest\/adAccounts\/[^/]+\/[^/]+\/[^/]+$/.test(route)&&(!body.patch||plan.headers['X-RestLi-Method']?.toUpperCase()!=='PARTIAL_UPDATE'))fail('WRITE_CONTRACT_UNAVAILABLE','LinkedIn entity POST requires a native patch and restli_method PARTIAL_UPDATE.');
  if(['method','_method','http_method','method_override','batch','adbatch'].some(k=>plan.query[k]!==undefined||body[k]!==undefined)||/\/batch\//.test(plan.path))fail('WRITE_CONTRACT_UNAVAILABLE','Batch and method-tunneled writes require individual reviewed native requests.');
@@ -146,6 +145,7 @@ function assertWriteShape(plan:CompiledRequest){
 
 /** Reads are explicitly derived from the target, never supplied by the caller as proof. */
 export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRequest[]{
+ if(plan.gateway===microsoftGateway)return microsoftSnapshots(plan);
  if(measurementWriteGateways.has(plan.gateway))return measurementSnapshots(plan);
  const base=(path:string,query:JsonObject={},body?:JsonObject,method='GET'):CompiledRequest=>applyExecutionRisk({...plan,action:'AMCP_STATE_READ',method,path,query,body,headers:plan.gateway==='linkedin_native_action'?Object.fromEntries(Object.entries(plan.headers).filter(([k])=>['LinkedIn-Version','X-Restli-Protocol-Version'].includes(k))):{},readOnly:true,destructive:false,requiresConfirmation:false,responseControls:undefined,specialTransport:undefined});
  const id=normalizeAccount(plan.gateway,plan.accountId!),body=object(plan.body);
@@ -190,7 +190,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
   const kind=plan.path.split('/').at(-1)!,rows=body[kind];if(!Array.isArray(rows)||!rows.length||rows.length>25)fail('MISSING_PAYLOAD','Provide 1–25 native update records.');
   return rows.map(row=>{if(typeof row.id!=='string'||!/^[-a-zA-Z0-9]+$/.test(row.id))fail('MISSING_PARAMETER','Each update record requires its exact ID.');return base('/v1/'+kind+'/'+row.id);});
  }
- if(plan.gateway==='snapchat_native_action'&&plan.method==='PATCH'){const match=/\/adaccounts\/[^/]+\/(campaigns|adsquads|ads)\/([^/]+)$/.exec(plan.path)!;return [base('/v1/'+match[1]+'/'+match[2])];}
+ if(plan.gateway==='snapchat_native_action'&&plan.method==='PATCH'){const match=/\/adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives)\/([^/]+)$/.exec(plan.path)!;return [base('/v1/'+match[1]+'/'+match[2])];}
  const catalog=registry.catalogs.get(plan.gateway);
  const samePath=[...(catalog?.actions??[]),...registry.data.supplemental.filter(a=>a.gateway===plan.gateway)].some(a=>a.method==='GET'&&a.path&&new RegExp('^'+a.path.split('?')[0]!.replace(/[.*+?^$()|[\]\\]/g,'\\$&').replace(/\{[^}]+\}/g,'[^/]+')+'$').test(plan.path));
  const accountPaths:Record<string,RegExp>={snapchat_native_action:/^\/v1\/adaccounts\/[^/]+/,x_ads_native_action:/^\/12\/accounts\/[^/]+/,linkedin_native_action:/^\/rest\/adAccounts\/[^/]+/,dv360_native_action:/^\/v\d+\/advertisers\/[^/]+/};
@@ -210,6 +210,7 @@ export class WriteReviewService {
   if(actor.role==='reader')throw new MirrorError('FORBIDDEN','A writer connector and administrator account grant are required.',{},403);
   const c=this.store.resolveConnection(actor,plan.gateway,plan.accountId,connectionId),id=normalizeAccount(plan.gateway,plan.accountId??(c.accounts.length===1?c.accounts[0]:''));
   assertAccountWrite(this.store,c,id);
+  if(plan.gateway===microsoftGateway&&!c.scopes.some(s=>s===microsoftScope||s==='msads.manage'))fail('INSUFFICIENT_SCOPE','Reconnect Microsoft Advertising with msads.manage permission.');
   plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);assertMeasurementScopes(plan,c);return c;
  }
  private async state(actor:Actor,plan:CompiledRequest,connectionId:string,reads:CompiledRequest[]):Promise<unknown[]> {
@@ -221,12 +222,16 @@ export class WriteReviewService {
  }
  async call(input:JsonObject,actor:Actor):Promise<unknown>{
   guardInput(input);for(const key of Object.keys(input))if(!Object.hasOwn(writeTool.inputSchema.properties,key))fail('INVALID_ARGUMENT','Unknown write-tool parameter.',{parameter:key});
-  if(input.action==='prepare'){
+  if(input.action==='prepare'||input.action==='inspect'){
    if(typeof input.gateway!=='string'||!input.arguments||typeof input.arguments!=='object'||Array.isArray(input.arguments))fail('INVALID_ARGUMENT','prepare requires gateway and arguments.');
    const isDelegated=this.registry.tools.get(input.gateway)?.mode==='delegated',nativeArgs=isDelegated?object(input.arguments.arguments):input.arguments;
    if(['aggregate_pages','paginate','allPages'].some(k=>input.arguments[k]||nativeArgs[k]))fail('MUTATION_PAGINATION_FORBIDDEN','A reviewed mutation executes exactly one request.');
    const args=isDelegated?{...input.arguments}:{...input.arguments,dry_run:true};this.registry.validate(input.gateway,args,this.options);const plan=applyExecutionRisk(isDelegated?this.delegated.compile(input.gateway,args):this.compiler.compile(input.gateway,args,this.options));
    if(input.connection_id&&nativeArgs.connection_id&&input.connection_id!==nativeArgs.connection_id)fail('CONFLICTING_PARAMETER','Connection IDs must agree.');
+   if(input.action==='inspect'){
+    try{assertWriteShape(plan);const reads=snapshotPlans(plan,this.registry);return {executed:false,network_requests:0,review_contract_supported:true,request:redact(plan),state_reads:reads.map(r=>({method:r.method,path:r.path})),live_permissions_verified:false,requirements:{deployment_writes_enabled:this.policy.allowWrites,operator_role:actor.role!=='reader',account_write_grant_required:true},next_step:'Use prepare to verify live state and account access.'};}
+    catch(e){if(!(e instanceof MirrorError))throw e;return {executed:false,network_requests:0,review_contract_supported:false,request:redact(plan),error:{code:e.code,message:e.message,details:e.details},live_permissions_verified:false};}
+   }
    assertWriteShape(plan);const c=this.access(actor,plan,input.connection_id??nativeArgs.connection_id),reads=snapshotPlans(plan,this.registry),state=await this.state(actor,plan,c.id,reads);
    if(plan.gateway==='gtm_native_action'){
     const route=this.delegated.data.routes.find(r=>r.gateway===plan.gateway&&r.operation+(r.action?'/'+r.action:'')===plan.action),fingerprint=object(state[0]).fingerprint;

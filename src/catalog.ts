@@ -6,6 +6,7 @@ import type {Action,CallOptions,Catalog,RegistryData,ToolDefinition,JsonObject} 
 import {MirrorError} from './errors.js';
 import {guardInput} from './security.js';
 import {appleActions} from './apple-native.js';
+import {microsoftActions,microsoftGateway,microsoftTool} from './microsoft-native.js';
 const addFormats=addFormatsModule as unknown as (ajv:Ajv)=>void;
 export class Registry {
  readonly data:RegistryData; readonly tools=new Map<string,ToolDefinition>(); readonly catalogs=new Map<string,Catalog>();
@@ -18,6 +19,11 @@ export class Registry {
   for(const catalog of this.data.catalogs){this.catalogs.set(catalog.gateway,catalog);for(const action of catalog.actions)this.register(catalog.gateway,action);}
   for(const action of this.data.supplemental)this.register(action.gateway!,action,false);
   if(this.tools.has('apple_ads_native_action'))for(const action of appleActions)this.register('apple_ads_native_action',action,false);
+  if(this.tools.has('whathead_tool_help')){
+   this.tools.set(microsoftGateway,microsoftTool);this.validators.set(microsoftGateway,this.ajv.compile(microsoftTool.inputSchema));
+   this.catalogs.set(microsoftGateway,{gateway:microsoftGateway,mode:'direct',api_version:'v13',reported_total:null,captured:0,complete:false,denominator_kind:'LIST_ACTIONS',actions:microsoftActions,gaps:['Independent extension; not part of the captured WhatHead denominator.']});
+   for(const a of microsoftActions)this.register(microsoftGateway,a);
+  }
  }
  private register(gateway:string,action:Action,strict=true){
   const names=new Set([action.name,action.canonical_name,...action.aliases]);
@@ -27,6 +33,7 @@ export class Registry {
  validate(tool:string,input:JsonObject,options:CallOptions){
   guardInput(input);const definition=this.tools.get(tool);if(!definition)throw new MirrorError('UNKNOWN_TOOL','Unknown MCP tool: '+tool);
   const checkInput=structuredClone(input);
+  if(tool==='whathead_tool_help'&&input.gateway===microsoftGateway){if(Object.keys(input).some(k=>!['gateway','operation'].includes(k))||input.operation!==undefined&&typeof input.operation!=='string')throw new MirrorError('INVALID_ARGUMENT','Invalid Microsoft help arguments.');return;}
   if(options.mode==='enhanced')for(const key of ['native_request',...(options.flags.uniformIdempotency?['idempotency_key']:[])])delete checkInput[key];
   const validator=this.validators.get(tool)!;
   if(!validator(checkInput))throw new MirrorError('INVALID_ARGUMENT','Arguments do not satisfy the captured gateway schema.',{errors:validator.errors});
@@ -48,6 +55,10 @@ export class Registry {
  help(input:JsonObject,options:CallOptions):JsonObject{
   if(!input.gateway)return structuredClone(this.data.discovery);
   const tool=this.tools.get(input.gateway);if(!tool)throw new MirrorError('UNKNOWN_GATEWAY','Unknown gateway.');
+  if(input.gateway===microsoftGateway){
+   if(input.operation){const action=microsoftActions.find(a=>a.name===input.operation);if(!action)throw new MirrorError('UNKNOWN_OPERATION','Unknown Microsoft operation. Use LIST_ACTIONS.');return structuredClone(action);}
+   return {...structuredClone(tool.help),inputSchema:this.schema(tool,options),amcp_actions:microsoftActions.map(a=>({action:a.name,method:a.method,path:a.path,read_only:a.read_only}))};
+  }
   if(input.gateway==='apple_ads_native_action'){
    const action=appleActions.find(a=>a.name===input.operation);
    if(action)return {...structuredClone(action),qualification:'Independent AMCP implementation; no live parity claim.'};

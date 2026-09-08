@@ -4,6 +4,7 @@ import {CredentialProvider} from '../src/auth.js';
 import type {Connection,Credentials,CompiledRequest,JsonObject} from '../src/types.js';
 import {Store} from '../src/store.js';
 import {platforms,selectionKind} from './platform-oauth.js';
+import {microsoftCustomerOrigin} from '../src/microsoft-native.js';
 
 export interface WorkspaceAsset {id:string;kind:string;name:string;parentId?:string;currency?:string;timezone?:string;status?:string;source:'vendor'|'configured_binding'}
 export interface AssetGroup {kind:string;assets:WorkspaceAsset[];complete:boolean;error?:string}
@@ -49,7 +50,23 @@ export class AssetDiscovery {
   for(const kind of selected){
    try{
     let assets:WorkspaceAsset[]=[];
-    if(p.id==='meta'){
+    if(p.id==='microsoft'){
+     const read=async(path:string,body:JsonObject)=>{
+      const plan={...this.plan(connection,path,{},'POST',body),action:'AMCP_MICROSOFT_DISCOVERY',origin:microsoftCustomerOrigin};
+      const {data}=await this.transport.request(plan,connection,credentials);const d=data as JsonObject;
+      if(d.Errors?.length||d.OperationErrors?.length)throw new MirrorError('ASSET_RESPONSE_INVALID','Microsoft account discovery failed.',{},502);return d;
+     };
+     const user=(await read('/CustomerManagement/v13/User/Query',{UserId:null})).User;
+     if(typeof user?.Id!=='string'||! /^[1-9][0-9]*$/.test(user.Id))throw new MirrorError('ASSET_RESPONSE_INVALID','Microsoft did not return an authenticated user ID.',{},502);
+     const seen=new Set<string>();let complete=false;
+     for(let page=0;page<25;page++){
+      const rows=(await read('/CustomerManagement/v13/Accounts/Search',{Predicates:[{Field:'UserId',Operator:'Equals',Value:user.Id}],Ordering:[{Field:'Id',Order:'Ascending'}],PageInfo:{Index:page,Size:100}})).Accounts;
+      if(!Array.isArray(rows))throw new MirrorError('ASSET_RESPONSE_INVALID','Microsoft did not return Accounts.',{},502);
+      for(const r of rows){if(typeof r?.Id!=='string'||! /^[1-9][0-9]*$/.test(r.Id)||typeof r.ParentCustomerId!=='string'||! /^[1-9][0-9]*$/.test(r.ParentCustomerId)||seen.has(r.Id))throw new MirrorError('ASSET_RESPONSE_INVALID','Microsoft returned an invalid or repeated account.',{},502);seen.add(r.Id);assets.push(this.asset({id:r.Id,name:r.Name,currency:r.CurrencyCode,timezone:r.TimeZone,status:r.AccountLifeCycleStatus},kind,r.ParentCustomerId));}
+      if(rows.length<100){complete=true;break;}
+     }
+     if(!complete)throw new MirrorError('ASSET_SYNC_LIMIT','Microsoft account discovery reached its page limit; narrow the login.',{},409);
+    }else if(p.id==='meta'){
      if(kind==='ad_accounts'){
       assets=(await this.pages(connection,credentials,'/v25.0/me/adaccounts',{fields:'id,account_id,name,account_status,currency,timezone_name',limit:100},d=>d.data)).map(r=>this.asset(r,kind));
       try{const identity=await this.transport.request(this.plan(connection,'/v25.0/me',{fields:'id,name'}),connection,credentials);if(typeof (identity.data as JsonObject).name==='string')label=(identity.data as JsonObject).name;}catch{/* Account discovery remains valid when identity profile access is unavailable. */}

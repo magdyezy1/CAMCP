@@ -1,0 +1,96 @@
+[
+  {
+    "gateway": "meta_native_action",
+    "captured_on": "2026-09-08",
+    "source": "Live WhatHead MCP dry_run=true; no provider mutation",
+    "comparison": "request method/path/query/body",
+    "input": {
+      "action": "meta_campaign_create",
+      "account_id": "2222222222222222",
+      "payload": {
+        "name": "AMCP contract comparison only",
+        "objective": "OUTCOME_TRAFFIC",
+        "status": "PAUSED",
+        "special_ad_categories": []
+      },
+      "dry_run": true
+    },
+    "expected": {
+      "method": "POST",
+      "path": "/v25.0/act_2222222222222222/campaigns",
+      "query": {},
+      "body": {
+        "name": "AMCP contract comparison only",
+        "objective": "OUTCOME_TRAFFIC",
+        "status": "PAUSED",
+        "special_ad_categories": []
+      }
+    }
+  },
+  {
+    "gateway": "snapchat_native_action",
+    "captured_on": "2026-09-08",
+    "source": "Live WhatHead MCP dry_run=true; no provider mutation",
+    "comparison": "request method/path/query/body",
+    "input": {
+      "action": "snapchat_campaign_create",
+      "account_id": "11111111-2222-4333-8444-555555555555",
+      "payload": {
+        "campaigns": [
+          {
+            "name": "AMCP contract comparison only",
+            "status": "PAUSED",
+            "objective": "WEB_CONVERSION",
+            "ad_account_id": "11111111-2222-4333-8444-555555555555"
+          }
+        ]
+      },
+      "dry_run": true
+    },
+    "expected": {
+      "method": "POST",
+      "path": "/v1/adaccounts/11111111-2222-4333-8444-555555555555/campaigns",
+      "query": {},
+      "body": {
+        "campaigns": [
+          {
+            "name": "AMCP contract comparison only",
+            "status": "PAUSED",
+            "objective": "WEB_CONVERSION",
+            "ad_account_id": "11111111-2222-4333-8444-555555555555"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "gateway": "tiktok_native_action",
+    "captured_on": "2026-09-08",
+    "source": "Live WhatHead MCP dry_run=true; no provider mutation",
+    "comparison": "request method/path/query/body",
+    "input": {
+      "action": "tiktok_campaign_create",
+      "account_id": "7999999999999999999",
+      "payload": {
+        "advertiser_id": "7999999999999999999",
+        "campaign_name": "AMCP contract comparison only",
+        "objective_type": "TRAFFIC",
+        "budget_mode": "BUDGET_MODE_INFINITE",
+        "operation_status": "DISABLE"
+      },
+      "dry_run": true
+    },
+    "expected": {
+      "method": "POST",
+      "path": "/v1.3/campaign/create/",
+      "query": {},
+      "body": {
+        "advertiser_id": "7999999999999999999",
+        "campaign_name": "AMCP contract comparison only",
+        "objective_type": "TRAFFIC",
+        "budget_mode": "BUDGET_MODE_INFINITE",
+        "operation_status": "DISABLE"
+      }
+    }
+  }
+]

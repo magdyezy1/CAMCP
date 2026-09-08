@@ -9,6 +9,7 @@ import {MirrorError} from '../src/errors.js';
 import {sha256,redact} from '../src/security.js';
 import type {Connection,JsonObject} from '../src/types.js';
 import {McpOAuth} from './mcp-oauth.js';
+import {microsoftGateway} from '../src/microsoft-native.js';
 import {mcpAuthRouter} from '@modelcontextprotocol/sdk/server/auth/router.js';
 
 export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=false){
@@ -36,7 +37,7 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   for(const group of result.groups){const old=groups.findIndex(g=>g.kind===group.kind);const replacement=!group.complete&&old>=0?{...group,assets:groups[old]!.assets}:group;if(old>=0)groups[old]=replacement;else groups.push(replacement);}
   const failed=result.groups.filter(g=>!g.complete),prefix=selectionKind(c.gateway)+':';let selection=(previous.selected??c.accounts.map(id=>prefix+id)) as string[];
   const accountsGroup=result.groups.find(g=>g.kind===selectionKind(c.gateway)&&g.complete);
-  if(accountsGroup){const visible=new Set(accountsGroup.assets.map(a=>a.id));selection=selection.filter(k=>!k.startsWith(prefix)||visible.has(k.slice(prefix.length)));const accounts=c.accounts.filter(id=>visible.has(id));if(accounts.length!==c.accounts.length){c={...c,accounts,writeAccounts:(c.writeAccounts??[]).filter(id=>accounts.includes(id)),enabled:c.enabled&&accounts.length>0};store.putConnection({tenantId:tenant,userId:'workspace-admin',role:'admin'},c,store.credentials(tenant,c.id));}}
+  if(accountsGroup){const visible=new Set(accountsGroup.assets.map(a=>a.id));selection=selection.filter(k=>!k.startsWith(prefix)||visible.has(k.slice(prefix.length)));const accounts=c.accounts.filter(id=>visible.has(id));const accountCustomers=c.gateway===microsoftGateway?Object.fromEntries(accountsGroup.assets.filter(a=>accounts.includes(a.id)).map(a=>[a.id,a.parentId!])):c.accountCustomers;if(accounts.length!==c.accounts.length||JSON.stringify(accountCustomers)!==JSON.stringify(c.accountCustomers)){c={...c,accounts,accountCustomers,writeAccounts:(c.writeAccounts??[]).filter(id=>accounts.includes(id)),enabled:c.enabled&&accounts.length>0};store.putConnection({tenantId:tenant,userId:'workspace-admin',role:'admin'},c,store.credentials(tenant,c.id));}}
   store.putDocument(tenant,'website_assets',c.id,{groups,selected:selection,lastSync:Date.now(),error:failed.length?failed.map(g=>g.error).join(' '):null});
   if(result.label){c={...c,label:result.label};store.db.prepare('UPDATE connections SET data=? WHERE tenant_id=? AND id=?').run(JSON.stringify(c),tenant,c.id);}
   store.appendAudit(tenant,randomUUID(),{event:'website_asset_sync',connection_id:c.id,kinds:result.groups.map(g=>g.kind),complete:failed.length===0,vendor_writes:0});
@@ -103,7 +104,8 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   const defaultWriteAccess=req.body.write_access??c.defaultWriteAccess===true;
   if(req.body.write_access===true&&!allowWrites)throw new MirrorError('WRITES_DISABLED','Reviewed writes are disabled in this deployment.',{},403);
   const writeAccounts=defaultWriteAccess&&allowWrites?accounts:req.body.write_access===false?[]:(c.writeAccounts??[]).filter(id=>accounts.includes(id));
-  store.transaction(()=>{store.putConnection(s.actor,{...c,accounts,writeAccounts,defaultWriteAccess,enabled:accounts.length>0},store.credentials(tenant,c.id));store.db.prepare('INSERT INTO documents(tenant_id,kind,id,data) VALUES(?,?,?,?) ON CONFLICT(tenant_id,kind,id) DO UPDATE SET data=excluded.data,revision=documents.revision+1').run(tenant,'website_assets',c.id,JSON.stringify({...assets,selected}));});
+  const accountCustomers=c.gateway===microsoftGateway?Object.fromEntries((assets.groups as AssetGroup[]).flatMap(g=>g.assets).filter(a=>a.kind==='ad_accounts'&&accounts.includes(a.id)).map(a=>[a.id,a.parentId!])):c.accountCustomers;
+  store.transaction(()=>{store.putConnection(s.actor,{...c,accounts,accountCustomers,writeAccounts,defaultWriteAccess,enabled:accounts.length>0},store.credentials(tenant,c.id));store.db.prepare('INSERT INTO documents(tenant_id,kind,id,data) VALUES(?,?,?,?) ON CONFLICT(tenant_id,kind,id) DO UPDATE SET data=excluded.data,revision=documents.revision+1').run(tenant,'website_assets',c.id,JSON.stringify({...assets,selected}));});
   store.appendAudit(tenant,randomUUID(),{event:'website_asset_selection',connection_id:c.id,selected_accounts:accounts,selected_assets:selected.length,vendor_writes:0});res.json(publicConnection(tenant,connection(tenant,c.id)));
  }));
  router.patch('/api/connections/:id/write-access',express.json({limit:'256kb'}),handler((req,res)=>{

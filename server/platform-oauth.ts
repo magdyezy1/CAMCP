@@ -4,9 +4,11 @@ import type {Credentials,JsonObject} from '../src/types.js';
 import {WebStore,type WebSession} from './web-store.js';
 import {requestAppleAccessToken} from '../src/apple-auth.js';
 import {gtmWriteScopes} from '../src/measurement-writes.js';
+import {microsoftGateway,microsoftScope} from '../src/microsoft-native.js';
 
 export interface PlatformDefinition {id:string;name:string;kind:string;description:string;logo:string;gateway:string;env:string;authorize:string;token:string;scopes:string[];pkce?:boolean;assetKinds:string[];selectionKind?:string;authType?:'client_credentials';reviewedWrites?:boolean}
 export const platforms:PlatformDefinition[]=[
+ {id:'microsoft',name:'Microsoft Advertising',kind:'Bing & Microsoft Ads',description:'Connect Microsoft advertising accounts, search campaigns and reports.',logo:'M',gateway:microsoftGateway,env:'MICROSOFT',authorize:'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',token:'https://login.microsoftonline.com/common/oauth2/v2.0/token',scopes:[microsoftScope,'offline_access'],pkce:true,assetKinds:['ad_accounts'],reviewedWrites:true},
  {id:'google',name:'Google Ads',kind:'Search & display',description:'Connect your Google advertising accounts.',logo:'G',gateway:'google_ads_native_action',env:'GOOGLE',authorize:'https://accounts.google.com/o/oauth2/v2/auth',token:'https://oauth2.googleapis.com/token',scopes:['https://www.googleapis.com/auth/adwords','openid','profile'],pkce:true,assetKinds:['ad_accounts']},
  {id:'meta',name:'Meta',kind:'Facebook & Instagram',description:'Bring your ad accounts, pages and Instagram together.',logo:'∞',gateway:'meta_native_action',env:'META',authorize:'https://www.facebook.com/v25.0/dialog/oauth',token:'https://graph.facebook.com/v25.0/oauth/access_token',scopes:['ads_read','pages_show_list','pages_read_engagement','business_management'],assetKinds:['ad_accounts','pages','instagram','catalogs','pixels','mobile_apps','custom_conversions']},
  {id:'tiktok',name:'TikTok',kind:'TikTok for Business',description:'Connect advertisers and discover your business assets.',logo:'♪',gateway:'tiktok_native_action',env:'TIKTOK',authorize:'https://ads.tiktok.com/marketing_api/auth',token:'https://business-api.tiktok.com/open_api/v1.3/oauth2/access_token/',scopes:[],assetKinds:['ad_accounts','pixels','identities']},
@@ -35,7 +37,7 @@ export class PlatformOAuth {
   const writeScope=this.allowWrites?(p.id==='meta'?'ads_management':p.id==='linkedin'?'rw_ads':undefined):undefined;
   const defaults=[...p.scopes,...(writeScope?[writeScope]:[]),...(this.allowWrites&&p.id==='gtm'?gtmWriteScopes:[]),...(this.allowWrites&&p.id==='gsc'?['https://www.googleapis.com/auth/webmasters']:[])];
   const appleKey=!!(this.env.AMCP_APPLE_TEAM_ID&&this.env.AMCP_APPLE_KEY_ID&&this.env.AMCP_APPLE_PRIVATE_KEY);
-  return {clientId,clientSecret,configured:!!(clientId&&(clientSecret||p.id==='apple'&&appleKey)),redirectUri:this.web.origin+'/api/auth/'+p.id+'/callback',scopes:p.id==='apple'?p.scopes:(this.env['AMCP_'+p.env+'_SCOPES']?.split(/[ ,]+/).filter(Boolean))??defaults};
+  return {clientId,clientSecret,configured:!!(clientId&&(clientSecret||p.id==='apple'&&appleKey)&&(p.id!=='microsoft'||this.env.AMCP_MICROSOFT_DEVELOPER_TOKEN)),redirectUri:this.web.origin+'/api/auth/'+p.id+'/callback',scopes:p.id==='apple'?p.scopes:(this.env['AMCP_'+p.env+'_SCOPES']?.split(/[ ,]+/).filter(Boolean))??defaults};
  }
  publicConfig(){return platforms.map(p=>{const c=this.config(p);return {...p,selectionKind:p.selectionKind??'ad_accounts',authorize:undefined,token:undefined,configured:c.configured,callback:p.authType?null:c.redirectUri,scopes:c.scopes};});}
  async connectService(id:string):Promise<{credentials:Credentials;label:string;scopes:string[]}>{
@@ -90,6 +92,7 @@ export class PlatformOAuth {
   }
   const code=query[id==='tiktok'?'auth_code':'code'];if(!code||code.length>8192)throw new MirrorError('OAUTH_CODE_REQUIRED','The provider did not return an authorization code.',{},400);
   const body=new URLSearchParams({client_id:c.clientId!,client_secret:c.clientSecret!,grant_type:'authorization_code',code,redirect_uri:stored.redirectUri});if(p.pkce)body.set('code_verifier',stored.verifier);
+  if(id==='microsoft')body.set('scope',microsoftScope+' offline_access');
   const tokenUrl=new URL(p.token);if(id==='meta'){body.delete('grant_type');tokenUrl.search=body.toString();}
   result=await this.readResponse(await this.fetcher(tokenUrl,{method:id==='meta'?'GET':'POST',body:id==='meta'?undefined:id==='tiktok'?JSON.stringify({app_id:c.clientId,secret:c.clientSecret,auth_code:code}):body,headers:id==='tiktok'?{'Content-Type':'application/json'}:{},redirect:'error',signal:AbortSignal.timeout(15000)}));
   if(id==='tiktok'){if(result.code!==0||!result.data)throw new MirrorError('OAUTH_EXCHANGE_FAILED','TikTok rejected the authorization code.',{},502);result=result.data;}
@@ -104,6 +107,7 @@ export class PlatformOAuth {
   if(typeof result.access_token!=='string'||!result.access_token||result.refresh_token!==undefined&&typeof result.refresh_token!=='string')throw new MirrorError('OAUTH_RESPONSE_INVALID','The provider did not return a usable access token.',{},502);
   const expires=result.expires_in===undefined?undefined:Number(result.expires_in);if(expires!==undefined&&(!Number.isFinite(expires)||expires<=0))throw new MirrorError('OAUTH_RESPONSE_INVALID','The provider returned an invalid token lifetime.',{},502);
   const credentials:Credentials={accessToken:result.access_token,refreshToken:result.refresh_token,clientId:c.clientId,clientSecret:c.clientSecret,redirectUri:stored.redirectUri,...(expires?{expiresAt:Date.now()+expires*1000}:{}),...(id==='google'?{developerToken:this.env.AMCP_GOOGLE_DEVELOPER_TOKEN,loginCustomerId:this.env.AMCP_GOOGLE_LOGIN_CUSTOMER_ID}:{})};
+  if(id==='microsoft'){credentials.developerToken=this.env.AMCP_MICROSOFT_DEVELOPER_TOKEN;if(!credentials.refreshToken||!expires)throw new MirrorError('OAUTH_RESPONSE_INVALID','Microsoft authorization must return offline access and a valid lifetime. Reconnect with offline_access.',{},502);}
   // Bind fallback scope metadata to the authorization that produced this code.
   // An in-flight or legacy read authorization must never inherit a later write configuration.
   const requestedScopes=Array.isArray(stored.requestedScopes)&&stored.requestedScopes.every((scope:unknown)=>typeof scope==='string')?stored.requestedScopes:[...p.scopes];

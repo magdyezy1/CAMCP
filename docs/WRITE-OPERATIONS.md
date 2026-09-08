@@ -13,7 +13,9 @@ For local stdio, `MIRROR_ALLOW_WRITES=true` defaults the role to operator; expli
 
 Provider permissions, account roles, app review and API access remain necessary. Broad provider permissions do not override AMCP's account grants. Stop future submissions by revoking the connector, removing account write grants, or disabling write support. Revocation is checked again after asynchronous state reads and credential refresh. Requests already received by a provider cannot be recalled.
 
-## Prepare, review, execute
+## Inspect, prepare, review, execute
+
+For an unfamiliar non-media operation, call `amcp_write` with `action: inspect`, `gateway` and the native `arguments`. This checks local execution-contract support, reports its state-read paths and makes no credential or network access. It does not verify live permissions or create a review. Media imports use their media preparation flow.
 
 Call `amcp_write` with a normal native gateway request. This example uses a synthetic account ID; replace it with an explicitly granted account.
 
@@ -56,9 +58,9 @@ Budget, bid, spend or activation changes additionally require `spend_change_conf
 | Provider | Reviewed routes |
 | --- | --- |
 | Google Ads | Homogeneous campaign, ad group, ad group ad, ad, asset, asset group and campaign budget mutate endpoints; 1–25 operations. Explicit field masks for updates. Partial failure and validate-only modes are excluded from execution. |
-| Meta | Campaign, ad set, ad and creative collection creates; individual campaign/ad set/ad updates and deletes. Creative identity and link prerequisites are checked. |
+| Meta | Campaign, ad set, ad and creative collection creates; individual campaign/ad set/ad updates and deletes. Creative identity and link prerequisites are checked, including existing Instagram media using source_instagram_media_id plus instagram_user_id. |
 | TikTok | Standard campaign, ad group and ad create/update/status endpoints. Smart+ and other specialty routes are excluded. |
-| Snapchat | Campaign, ad squad and ad creates, account collection replacements, single-entity JSON Patch updates and deletes. PUT replaces the full entity; supply the complete intended record. |
+| Snapchat | Campaign, ad squad, ad and creative creates; account collection replacements; single-entity JSON Patch updates (including creatives) and deletes. PUT replaces the full entity; supply the complete intended record. |
 | LinkedIn | Account-scoped campaign groups, campaigns and creatives; entity POST updates require `restli_method: "PARTIAL_UPDATE"` and a native patch. |
 | X | Account-scoped campaigns, line items and promoted tweets. |
 | DV360 | Advertiser-scoped campaigns, insertion orders, line items and creatives. |
@@ -66,6 +68,7 @@ Budget, bid, spend or activation changes additionally require `spend_change_conf
 | Tag Manager / Google tag | Container, workspace, tag, trigger, variable, Google tag config, template, folder, zone, client, transformation and environment CRUD; create/update/delete container versions and publish versions. |
 | Search Console | Add/remove a selected site; submit/remove its sitemaps. |
 | Apple Ads | Platform API v1 campaign create/update/delete; paused creation, native account header and exact target checks. |
+| Microsoft Advertising | Search campaign, ad group, responsive search ad and keyword Add/Update/Delete; exact parent and target reads, native decimal amounts, string IDs and indexed partial failures. See [setup and limits](MICROSOFT-ADS.md). |
 
 An action also needs an implemented target-state read. Unsupported contracts return a precise error before mutation egress. [Google Drive media imports](MEDIA-UPLOADS.md) integrate with normal upload actions and `platform_media_upload`; their reviews execute through `amcp_write` or `amcp_media`. Meta/Snapchat creative creation and native Google asset mutations are included. Arbitrary binary transports, batch/tunnel requests, unqualified delegated workflows and other catalog routes remain unavailable for live execution. Catalog presence describes an interface, not live execution qualification.
 

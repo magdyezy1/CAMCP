@@ -14,6 +14,7 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/generated ./generated
 COPY --from=build /app/web ./web
+COPY --from=build /app/Skills/amcp-campaign-builder ./Skills/amcp-campaign-builder
 COPY package.json ./
 COPY deploy/entrypoint.sh /usr/local/bin/amcp-entrypoint
 RUN chmod 755 /usr/local/bin/amcp-entrypoint
