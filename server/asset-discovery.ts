@@ -5,8 +5,9 @@ import type {Connection,Credentials,CompiledRequest,JsonObject} from '../src/typ
 import {Store} from '../src/store.js';
 import {platforms,selectionKind} from './platform-oauth.js';
 import {microsoftCustomerOrigin} from '../src/microsoft-native.js';
+import {googleAccountDiscovery} from './google-account-discovery.js';
 
-export interface WorkspaceAsset {id:string;kind:string;name:string;parentId?:string;currency?:string;timezone?:string;status?:string;source:'vendor'|'configured_binding'}
+export interface WorkspaceAsset {id:string;kind:string;name:string;parentId?:string;currency?:string;timezone?:string;status?:string;loginCustomerId?:string;manager?:boolean;hidden?:boolean;testAccount?:boolean;source:'vendor'|'configured_binding'}
 export interface AssetGroup {checkedAt?:number;kind:string;assets:WorkspaceAsset[];complete:boolean;error?:string}
 export class AssetDiscovery {
  private transport:NativeTransport;private credentials:CredentialProvider;
@@ -50,7 +51,15 @@ export class AssetDiscovery {
   for(const kind of selected){
    try{
     let assets:WorkspaceAsset[]=[];
-    if(p.id==='sheets'){const rows=await this.pages(connection,credentials,'/drive/v3/files',{q:"trashed = false and mimeType = 'application/vnd.google-apps.spreadsheet'",pageSize:100,fields:'nextPageToken,incompleteSearch,files(id,name,capabilities(canEdit))'},d=>{if(d.incompleteSearch)throw new MirrorError('ASSET_SYNC_INCOMPLETE','Spreadsheet discovery is incomplete.');return d.files??[];});assets=rows.filter(r=>r.capabilities?.canEdit===true).map(r=>this.asset(r,kind));}else if(p.id==='drive'){
+    if(p.id==='sheets'){const rows=await this.pages(connection,credentials,'/drive/v3/files',{q:"trashed = false and mimeType = 'application/vnd.google-apps.spreadsheet'",pageSize:100,fields:'nextPageToken,incompleteSearch,files(id,name,capabilities(canEdit))'},d=>{if(d.incompleteSearch)throw new MirrorError('ASSET_SYNC_INCOMPLETE','Spreadsheet discovery is incomplete.');return d.files??[];});assets=rows.filter(r=>r.capabilities?.canEdit===true).map(r=>this.asset(r,kind));
+     // URL-selected spreadsheets can be outside drive.file's listing but inside the Sheets grant.
+     if(connection.scopes.includes('https://www.googleapis.com/auth/spreadsheets'))for(const id of connection.accounts.filter(id=>!assets.some(a=>a.id===id))){
+      if(!/^[A-Za-z0-9_-]{5,180}$/.test(id))throw new MirrorError('ASSET_ID_INVALID','Invalid selected spreadsheet identifier.');
+      const {data}=await this.transport.request({...this.plan(connection,'/v4/spreadsheets/'+id,{fields:'spreadsheetId,properties(title)'}),origin:'https://sheets.googleapis.com'},connection,credentials);
+      const sheet=data as JsonObject;if(sheet.spreadsheetId!==id||typeof sheet.properties?.title!=='string')throw new MirrorError('ASSET_RESPONSE_INVALID','Google did not confirm a selected spreadsheet.',{},502);
+      assets.push(this.asset({id,name:sheet.properties.title},kind));
+     }
+    }else if(p.id==='drive'){
      const rows=await this.pages(connection,credentials,'/drive/v3/files',{q:"trashed = false and (mimeType = 'image/png' or mimeType = 'image/jpeg' or mimeType = 'video/mp4' or mimeType = 'video/quicktime')",pageSize:100,fields:'nextPageToken,incompleteSearch,files(id,name,mimeType,size,capabilities(canDownload))',supportsAllDrives:true,includeItemsFromAllDrives:true},d=>{if(d.incompleteSearch===true)throw new MirrorError('ASSET_SYNC_INCOMPLETE','Drive search was incomplete. Narrow the connected login.');return d.files??[];});
      assets=rows.filter(r=>r.capabilities?.canDownload===true).map(r=>this.asset(r,kind));
     }else if(p.id==='microsoft'){
@@ -82,9 +91,7 @@ export class AssetDiscovery {
       for(const id of connection.accounts){const rows=await this.pages(connection,credentials,'/v25.0/act_'+encodeURIComponent(id)+'/'+edge,{fields:'id,name',limit:100},d=>d.data);assets.push(...rows.map(r=>this.asset(r,kind,id)));}
      }
     }else if(p.id==='google'){
-     const response=await this.transport.request(this.plan(connection,'/v23/customers:listAccessibleCustomers'),connection,credentials),names=(response.data as JsonObject).resourceNames;
-     if(!Array.isArray(names)||names.some(n=>typeof n!=='string'||!/^customers\/\d+$/.test(n)))throw new MirrorError('ASSET_RESPONSE_INVALID','Google did not return a customer list.',{},502);
-     assets=names.map((name:string)=>this.asset({id:name.split('/')[1],name:'Google Ads '+name.split('/')[1]},kind));
+     groups.push(await googleAccountDiscovery(this.transport,connection,credentials));continue;
     }else if(p.id==='ga4'){
      if(kind==='properties'){
       const accounts=await this.pages(connection,credentials,'/v1beta/accountSummaries',{pageSize:200},d=>d.accountSummaries??[],'https://analyticsadmin.googleapis.com');

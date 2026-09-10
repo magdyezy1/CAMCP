@@ -50,16 +50,27 @@ Bounds: 30 selected sources, 366 days, 25 pages and 10,000 rows per source, with
 1. Enable **Google Drive API** and **Google Sheets API** in the Google Cloud project.
 2. Register the Web OAuth redirect URI exactly: https://amcp.shop/api/auth/sheets/callback.
 3. Set AMCP_SHEETS_CLIENT_ID and AMCP_SHEETS_CLIENT_SECRET. If both are absent, AMCP uses AMCP_GOOGLE_CLIENT_ID/SECRET; register this callback in that client too.
-4. Connections → Google Sheets requests drive.file permission independently from Ads or private-media Drive connections.
-5. In **Sheets & schedules**, create an AMCP spreadsheet or bind one already authorized and selected in the connection. An admin/owner creates spreadsheets; operators export to authorized destinations. An arbitrary file ID does not grant access. Google Picker is not included; creating a spreadsheet through AMCP is the supported first-use path.
+4. Connections → Google Sheets requests `drive.file` (AMCP-created files) and `spreadsheets` (existing spreadsheets supplied by URL), independently from Ads or private-media Drive connections. Configure both scopes on the Google consent screen. Existing connections with only `drive.file` may need to be connected again for pasted URLs; they continue working for previously authorized files.
+5. In **Sheets & schedules**, paste a `https://docs.google.com/spreadsheets/d/...` URL, choose a Sheets login, and name the report tab. **Use this Sheet & add a report tab** verifies the file through an authenticated Google API read and saves the destination. The first export creates an AMCP-owned tab with the requested name plus a short unique suffix; the URL's `gid` does not authorize overwriting an existing tab.
+6. Owners/admins can explicitly add a new spreadsheet through its URL. Operators can bind and export already selected spreadsheets. The selected Google login must have edit access for exports. Google authorization and AMCP's per-file account grants are both required; a URL alone is not access. Invalid hosts, denied files and malformed responses cannot add grants. No report data is written by destination setup alone.
+
+Existing selected spreadsheets and creating a new spreadsheet remain available under the alternative setup options. URL-selected spreadsheets are checked through the Sheets API on sync even when they are outside the `drive.file` discovery listing.
 
 AMCP marks its own destination tab and replaces its report cells; other tabs remain intact. Typed cells prevent text from becoming executable formulas. Exports are limited to 200,000 cells and an 8 MiB request. Split larger reports or reduce metrics. Retrying replaces the same cells, not appended duplicate rows. Interrupted file creation is reconciled by the app's creation marker; unknown results never trigger blind duplicate creation.
 
-CSV is also available. Both formats include selected/custom metrics, recommendations, attribution, currency/timezone and completeness.
+CSV is also available. Download links use the browser's download behavior and bypass the client page router; they do not navigate to Connections. Both formats include selected/custom metrics, recommendations, attribution, currency/timezone and completeness.
 
 ## Scheduled delivery
 
 Choose daily/weekly/hourly cadence, an IANA timezone, rolling complete days, recent-day exclusion and destination. Each occurrence collects fresh data and replaces the destination tab. DST is handled in the chosen timezone. The UI shows next run, pause state, report progress and delivery history, with retry for failed exports.
+
+**Save report & enable schedule** atomically saves a view and an independent schedule with its account selection, objectives, metrics, formulas and destination. Reopen it from **Saved views** or **Scheduled account reports → Open report setup**. Each report can use a separate spreadsheet or a separate AMCP tab in the same spreadsheet. Only one active schedule can use a destination tab, preventing different account reports from replacing one another. Stable creation keys make destination and schedule retries idempotent. Up to 50 schedules can coexist in a workspace.
+
+## Google Ads account discovery
+
+Sync the Google Ads connection to discover directly accessible accounts and all descendant accounts under each accessible manager. Discovery requests account status, name, currency and timezone without active-only or hidden-account filters; cancelled, suspended and closed accounts remain visible and selectable. Each selected child retains its verified login manager for subsequent API requests. This does not reactivate accounts, grant provider permissions or promise that Google permits every operation on an inactive account.
+
+Failures in one hierarchy show an incomplete-sync warning without discarding successful discoveries or existing selections. After a complete sync, accounts no longer visible to the login are removed from AMCP grants as before.
 
 Keep the HTTP worker enabled (AMCP_RUN_WORKER=true) or run `npm run worker` with the same persistent database and master key. A stopped worker cannot execute schedules. SQLite claims each occurrence once; leases coordinate workers and fence stale/cancelled jobs. Safe transient report/export failures retry with bounded backoff. Completed sources are checkpointed; unknown ad writes never become new retry submissions.
 

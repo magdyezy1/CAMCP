@@ -37,7 +37,7 @@ export async function checkApplication({base, origin, password, writes, restart}
  assert.deepEqual(drive.scopes,['https://www.googleapis.com/auth/drive.readonly']);
  const sheets=configured.platforms.find(p=>p.id==='sheets');
  assert.equal(sheets.reviewedWrites,false);
- assert.deepEqual(sheets.scopes,['https://www.googleapis.com/auth/drive.file']);
+ assert.deepEqual(sheets.scopes,['https://www.googleapis.com/auth/drive.file','https://www.googleapis.com/auth/spreadsheets']);
  for(const id of ['ga4','gtm','gsc','apple'])assert.equal(configured.platforms.find(p=>p.id===id).reviewedWrites,true);
  assert.equal(configured.platforms.find(p=>p.id==='gtm').scopes.includes('https://www.googleapis.com/auth/tagmanager.publish'),writes);
  assert.equal(configured.platforms.find(p=>p.id==='gsc').scopes.includes('https://www.googleapis.com/auth/webmasters'),writes);

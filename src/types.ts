@@ -22,6 +22,8 @@ export interface Connection {
   defaultWriteAccess?:boolean;
   /** Verified Microsoft advertiser-account -> parent customer mapping from discovery. */
   accountCustomers?:Record<string,string>;
+  /** Google account -> accessible login customer verified by account discovery. */
+  accountLoginCustomers?:Record<string,string>;
 }
 export interface Credentials {
   accessToken?:string; refreshToken?:string; expiresAt?:number; clientId?:string; clientSecret?:string;
