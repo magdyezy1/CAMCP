@@ -18,55 +18,38 @@ const connection:Connection={id:'google-sync',tenantId:'local',gateway:'google_a
 const credentials={accessToken:'synthetic-secret-token',loginCustomerId:'999'};
 const failure=(reason:string,message='Access denied')=>({error:{code:403,status:'PERMISSION_DENIED',message:'The caller does not have permission',details:[{'@type':'type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure',requestId:'synthetic-body-trace',errors:[{errorCode:{authorizationError:reason},message,trigger:{stringValue:'private-trigger'},access_token:'private-access-token'}]}]},refresh_token:'private-refresh-token'});
 const denied=(reason:string)=>Response.json(failure(reason,'Access denied access_token=private-inline-token'),{status:403,headers:{'request-id':'synthetic-header-trace'}});
-const account={id:'300',descriptiveName:'Synthetic manager',manager:true,status:'ENABLED',currencyCode:'USD',timeZone:'UTC'};
 function fixture(){
  const calls:JsonObject[]=[];
  const fetcher:typeof fetch=async(url,init)=>{
-  const path=new URL(String(url)).pathname,headers=new Headers(init?.headers),body=init?.body?JSON.parse(String(init.body)):{};
-  calls.push({path,headers,body});
-  if(path.endsWith(':listAccessibleCustomers')){assert.equal(headers.get('login-customer-id'),null);return Response.json({resourceNames:['customers/300','customers/400','customers/500']});}
-  assert.equal(init?.method,'POST');assert.match(body.query,/^SELECT .* FROM customer(?:_client)?$/);
-  if(path.includes('/400/'))return denied('USER_PERMISSION_DENIED');
-  if(path.includes('/500/'))return denied('ACTION_NOT_PERMITTED');
-  if(body.query.includes('FROM customer_client'))return Response.json({results:[{customerClient:{id:'301',clientCustomer:'customers/301',descriptiveName:'Cancelled account',status:'CANCELED',manager:false,currencyCode:'USD',timeZone:'UTC'}}]});
-  return Response.json({results:[{customer:account}]});
+  const path=new URL(String(url)).pathname,headers=new Headers(init?.headers);
+  calls.push({path,headers,method:init?.method,body:init?.body});
+  if(path==='/v23/customers:listAccessibleCustomers')return Response.json({resourceNames:['customers/300','customers/400','customers/500']});
+  return denied('AUTHORIZATION_ERROR');
  };
  return {calls,fetcher};
 }
 
-test('Google partial sync retains provider reasons and request context, without retrying 403 or losing successful accounts',async()=>{
+test('Google sync succeeds from the account list without the detail calls that previously produced 403s',async()=>{
  const store=new Store(':memory:',key),f=fixture();
  try{
   store.putConnection(actor,connection,credentials);
   const group=(await new AssetDiscovery(store,f.fetcher).sync(connection)).groups[0]!;
-  assert.equal(group.complete,false);assert.deepEqual(group.assets.map(a=>a.id).sort(),['300','301','400','500']);
-  assert.equal(group.assets.find(a=>a.id==='301')!.status,'CANCELED');
-  assert.equal(group.diagnostics!.length,2);
-  const deniedAccount=group.diagnostics![0]!;
-  assert.equal(deniedAccount.account_id,'400');assert.equal(deniedAccount.operation,'account_sync');
-  assert.equal(deniedAccount.provider.code,'USER_PERMISSION_DENIED');assert.equal(deniedAccount.http_status,403);
-  assert.equal(deniedAccount.request.stage,'account_lookup');assert.equal(deniedAccount.request.path,'/v23/customers/400/googleAds:search');
-  assert.equal(deniedAccount.login_customer_id,'400');assert.equal(deniedAccount.provider.request_id,'synthetic-header-trace');
-  assert.match(group.error!,/400: USER_PERMISSION_DENIED/);assert.match(group.error!,/500: ACTION_NOT_PERMITTED/);
-  assert.equal(f.calls.filter(c=>c.path.includes('/400/')).length,1);assert.equal(f.calls.filter(c=>c.path.includes('/500/')).length,1);
-  assert.ok(!JSON.stringify(group).includes('private-'));assert.ok(!JSON.stringify(group).includes(credentials.accessToken));
+  assert.equal(group.complete,true);assert.deepEqual(group.assets.map(a=>a.id),['300','400','500']);assert.equal(group.diagnostics,undefined);
+  assert.equal(f.calls.length,1);assert.equal(f.calls[0]!.method,'GET');assert.equal(f.calls[0]!.body,undefined);assert.equal(f.calls[0]!.headers.get('login-customer-id'),'999');
   assert.deepEqual(store.listConnections('local')[0]!.accounts,['300']);assert.deepEqual(store.listConnections('local')[0]!.writeAccounts,[]);
  }finally{store.close();}
 });
 
-test('Google failures at the account-list and hierarchy stages retain their distinct request paths',async()=>{
- for(const hierarchy of [false,true]){
-  const store=new Store(':memory:',key);
+test('Google account-list failures retain their provider reason and request path without retrying 403s',async()=>{
+ for(const reason of ['SERVICE_DISABLED','AUTHORIZATION_ERROR']){
+  const store=new Store(':memory:',key);let calls=0;
   try{
    store.putConnection(actor,connection,credentials);
-   const group=(await new AssetDiscovery(store,async(url,init)=>{
-    if(String(url).endsWith(':listAccessibleCustomers'))return hierarchy?Response.json({resourceNames:['customers/300']}):denied('SERVICE_DISABLED');
-    return String(init?.body).includes('FROM customer_client')?denied('CUSTOMER_NOT_ENABLED'):Response.json({results:[{customer:account}]});
-   }).sync(connection)).groups[0]!;
-   assert.equal(group.complete,false);
-   assert.equal(group.diagnostics![0]!.request.stage,hierarchy?'manager_hierarchy':'account_list');
-   assert.equal(group.diagnostics![0]!.request.path,hierarchy?'/v23/customers/300/googleAds:search':'/v23/customers:listAccessibleCustomers');
-   assert.equal(group.assets.length,hierarchy?1:0);
+   const group=(await new AssetDiscovery(store,async()=>{calls++;return denied(reason);}).sync(connection)).groups[0]!;
+   assert.equal(group.complete,false);assert.equal(group.assets.length,0);assert.equal(calls,1);
+   const d=group.diagnostics![0]!;assert.equal(d.provider.code,reason);assert.equal(d.provider.request_id,'synthetic-header-trace');
+   assert.equal(d.http_status,403);assert.equal(d.request.stage,'account_list');assert.equal(d.request.method,'GET');assert.equal(d.request.path,'/v23/customers:listAccessibleCustomers');assert.equal(d.login_customer_id,'999');
+   assert.ok(!JSON.stringify(group).includes('private-'));assert.ok(!JSON.stringify(group).includes(credentials.accessToken));
   }finally{store.close();}
  }
 });
@@ -102,20 +85,20 @@ test('Google diagnostics distinguish project approval, ambiguous v23 authorizati
 });
 
 test('Connections and Activity expose safe Google sync diagnostics behind authentication and preserve prior selection',async()=>{
- const store=new Store(':memory:',key),f=fixture(),origin='https://amcp.shop';
+ const store=new Store(':memory:',key),origin='https://amcp.shop';
  store.putConnection(actor,connection,credentials);
- const service=new MirrorService(new Registry(),store),app=createHttpApp(service,store,{website:{origin,masterKey:key,adminPassword:'synthetic-sync-password',fetcher:f.fetcher}}),server=app.listen(0,'127.0.0.1');
+ const service=new MirrorService(new Registry(),store),app=createHttpApp(service,store,{website:{origin,masterKey:key,adminPassword:'synthetic-sync-password',fetcher:async()=>denied('USER_PERMISSION_DENIED')}}),server=app.listen(0,'127.0.0.1');
  await new Promise<void>(r=>server.once('listening',r));const base='http://127.0.0.1:'+(server.address() as {port:number}).port;
  try{
   assert.equal((await fetch(base+'/api/activity')).status,401);
   const login=await fetch(base+'/api/session',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({password:'synthetic-sync-password'})});
   const data=await login.json() as JsonObject,headers={Origin:origin,'Content-Type':'application/json',Cookie:login.headers.get('set-cookie')!.split(';')[0]!,'X-AMCP-CSRF':data.csrf};
   const response=await fetch(base+'/api/connections/'+connection.id+'/sync',{method:'POST',headers,body:'{}'});assert.equal(response.status,200);
-  const result=await response.json() as JsonObject;assert.equal(result.status,'attention');assert.deepEqual(result.accounts,['300']);assert.equal(result.groups[0].diagnostics.length,2);
+  const result=await response.json() as JsonObject;assert.equal(result.status,'attention');assert.deepEqual(result.accounts,['300']);assert.equal(result.groups[0].diagnostics.length,1);
   const activity=await (await fetch(base+'/api/activity',{headers})).json() as JsonObject;
   const event=activity.events.find((e:JsonObject)=>e.event.event==='website_asset_sync');
   assert.equal(event.event.complete,false);assert.equal(event.event.error.code,'ASSET_SYNC_INCOMPLETE');
-  assert.equal(event.diagnostics[0].provider.code,'USER_PERMISSION_DENIED');assert.equal(event.diagnostics[1].provider.code,'ACTION_NOT_PERMITTED');
+  assert.equal(event.diagnostics[0].provider.code,'USER_PERMISSION_DENIED');assert.equal(event.diagnostics.length,1);
   assert.equal(event.event.vendor_writes,0);assert.ok(!JSON.stringify({result,activity}).includes('private-'));assert.ok(!JSON.stringify({result,activity}).includes(credentials.accessToken));
   const anonymous=await (await fetch(base+'/api/platforms')).json() as JsonObject;assert.ok(anonymous.platforms.every((p:JsonObject)=>!p.connections.length));
  }finally{await new Promise<void>(r=>{server.close(()=>r());server.closeAllConnections();});store.close();}

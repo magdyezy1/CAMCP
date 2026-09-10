@@ -22,7 +22,7 @@ export interface Connection {
   defaultWriteAccess?:boolean;
   /** Verified Microsoft advertiser-account -> parent customer mapping from discovery. */
   accountCustomers?:Record<string,string>;
-  /** Google account -> accessible login customer verified by account discovery. */
+  /** Legacy discovery metadata: ignored for routing and cleared by Google sync/reauthorization. */
   accountLoginCustomers?:Record<string,string>;
 }
 export interface Credentials {

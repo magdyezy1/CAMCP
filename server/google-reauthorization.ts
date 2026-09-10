@@ -20,7 +20,7 @@ export function googleAuthorizationInfo(store:Store,c:Connection,configuredClien
  return {clientId,matchesCurrentClient:saved&&configuredClientId?saved===configuredClientId:null,adsScopeRecorded:c.scopes.includes(googleAdsScope),reauthorizeAvailable:!!configuredClientId};
 }
 
-/** Replace authorization only after fresh, read-only discovery verifies every retained account. */
+/** Replace authorization only after the fresh account list includes every retained account. */
 export async function reauthorizeGoogleConnection(input:{store:Store;actor:Actor;connectionId:string;revision:string|null;credentials:Credentials;scopes:string[];allowWrites:boolean;assertActive:()=>void;fetcher?:typeof fetch}):Promise<Connection>{
  const {store,actor,connectionId,revision,credentials,scopes,assertActive}=input;
  const current=()=>{
@@ -37,7 +37,7 @@ export async function reauthorizeGoogleConnection(input:{store:Store;actor:Actor
  const transport=new NativeTransport(input.fetcher);if(!input.fetcher||input.fetcher===fetch)transport.coordination=store;
  let group:AssetGroup;
  try{group=await googleAccountDiscovery(transport,c,credentials);}catch(e){throw new MirrorError('REAUTHORIZATION_ACCESS_FAILED','Fresh Google authorization could not read the account list. Your existing connection was kept.',{diagnostics:[assetSyncDiagnostic(e,'google',c.id,'ad_accounts')]},e instanceof MirrorError?e.status:502,e instanceof MirrorError&&e.retryable);}
- if(!group.complete)throw new MirrorError('REAUTHORIZATION_ACCESS_FAILED','Fresh Google authorization still could not read all account details. Your existing connection was kept.',{diagnostics:group.diagnostics??[]},403);
+ if(!group.complete)throw new MirrorError('REAUTHORIZATION_ACCESS_FAILED','Fresh Google authorization could not read the complete account list. Your existing connection was kept.',{diagnostics:group.diagnostics??[]},403);
  const visible=new Map(group.assets.map(a=>[a.id,a]));
  // Use the same lock as token refresh, preventing a refresh started earlier from overwriting these credentials.
  const lock='refresh:'+scopeKey(actor.tenantId,connectionId),owner=randomUUID();
@@ -45,7 +45,7 @@ export async function reauthorizeGoogleConnection(input:{store:Store;actor:Actor
  try{return store.transaction(()=>{
   const latest=current(),missing=latest.accounts.filter(id=>!visible.has(id));
   if(missing.length)throw new MirrorError('REAUTHORIZATION_ACCOUNT_MISMATCH','The selected Google login cannot access every account selected on this connection. Choose the original Google login, or add a separate login. Your existing connection was kept.',{account_ids:missing},403);
-  const next:Connection={...latest,scopes,accountLoginCustomers:Object.fromEntries(latest.accounts.map(id=>[id,visible.get(id)!.loginCustomerId!])),writeAccounts:input.allowWrites?latest.writeAccounts:[],defaultWriteAccess:input.allowWrites&&latest.defaultWriteAccess===true};
+  const next:Connection={...latest,scopes,accountLoginCustomers:undefined,writeAccounts:input.allowWrites?latest.writeAccounts:[],defaultWriteAccess:input.allowWrites&&latest.defaultWriteAccess===true};
   let meta:JsonObject={};try{meta=store.document(actor.tenantId,'website_connection',connectionId);}catch(e){if(!(e instanceof MirrorError&&e.code==='NOT_FOUND'))throw e;}
   store.putConnection(actor,next,credentials);
   store.putDocument(actor.tenantId,'website_connection',connectionId,{...meta,platform:'google',expiresAt:credentials.expiresAt??null,createdAt:meta.createdAt??Date.now(),reauthorizedAt:Date.now(),authorizationRevision:randomUUID()});

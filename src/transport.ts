@@ -71,8 +71,7 @@ export class NativeTransport {
    // Google Cloud projects own API access after the September 9, 2026 migration.
    // Legacy developer tokens remain accepted but are no longer required.
    if(credentials.developerToken)headers['developer-token']=credentials.developerToken;
-   const loginCustomerId=(plan.action!=='AMCP_GOOGLE_DISCOVERY'&&plan.accountId?connection.accountLoginCustomers?.[plan.accountId]:undefined)??credentials.loginCustomerId;
-   if(loginCustomerId)headers['login-customer-id']=loginCustomerId.replaceAll('-','');
+   if(credentials.loginCustomerId)headers['login-customer-id']=credentials.loginCustomerId.replaceAll('-','');
   }
   if(plan.gateway===microsoftGateway){
    if(!credentials.developerToken)throw new MirrorError('DEVELOPER_TOKEN_REQUIRED','Microsoft Advertising requires its own developer token.');headers.DeveloperToken=credentials.developerToken;
