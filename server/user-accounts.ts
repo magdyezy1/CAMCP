@@ -7,19 +7,19 @@ import {WebStore,type WebSession} from './web-store.js';
 
 const opaque=()=>randomBytes(32).toString('base64url');
 let passwordWork=0;
-async function derive(password:string,salt:string):Promise<Buffer>{
+async function derive(password:string,salt:string,legacy=false):Promise<Buffer>{
  if(passwordWork>=4)throw new MirrorError('AUTH_BUSY','Sign-in is busy. Please try again shortly.',{},429);
- passwordWork++;try{return await new Promise((resolve,reject)=>scrypt(password,salt,32,{N:32768,r:8,p:1,maxmem:64*1024*1024},(e,b)=>e?reject(e):resolve(b)));}finally{passwordWork--;}
+ passwordWork++;try{return await new Promise((resolve,reject)=>scrypt(password,salt,32,{N:32768,r:8,p:legacy?1:3,maxmem:64*1024*1024},(e,b)=>e?reject(e):resolve(b)));}finally{passwordWork--;}
 }
 export async function hashUserPassword(password:unknown){
- if(typeof password!=='string'||password.length<12||password.length>128)throw new MirrorError('PASSWORD_LENGTH','Use a password between 12 and 128 characters.');
- const salt=randomBytes(16).toString('hex');return 'scrypt-v2$'+salt+'$'+(await derive(password,salt)).toString('hex');
+ if(typeof password!=='string'||password.length<15||password.length>128)throw new MirrorError('PASSWORD_LENGTH','Use a password between 15 and 128 characters.');
+ const salt=randomBytes(16).toString('hex');return 'scrypt-v3$'+salt+'$'+(await derive(password,salt)).toString('hex');
 }
-async function verifyPassword(password:unknown,hash?:string|null){
+export async function verifyPassword(password:unknown,hash?:string|null){
  if(typeof password!=='string'||password.length>128)return false;
- const [,salt,value]=(hash??'scrypt-v2$00000000000000000000000000000000$'+'0'.repeat(64)).split('$');
- if(!/^[a-f0-9]{32}$/.test(salt??'')||!/^[a-f0-9]{64}$/.test(value??''))return false;
- return timingSafeEqual(await derive(password,salt!),Buffer.from(value!,'hex'))&&!!hash;
+ const [algorithm,salt,value]=(hash??'scrypt-v3$00000000000000000000000000000000$'+'0'.repeat(64)).split('$');
+ if(!['scrypt-v2','scrypt-v3'].includes(algorithm??'')||!/^[a-f0-9]{32}$/.test(salt??'')||!/^[a-f0-9]{64}$/.test(value??''))return false;
+ return timingSafeEqual(await derive(password,salt!,algorithm==='scrypt-v2'),Buffer.from(value!,'hex'))&&!!hash;
 }
 export function accountEmail(value:unknown):string{
  if(typeof value!=='string'||value.length>254||!/^([^\s@<>]+)@([^\s@<>]+\.[^\s@<>]+)$/.test(value.trim()))throw new MirrorError('INVALID_EMAIL','Enter a valid email address.');
@@ -39,24 +39,34 @@ export class UserAccounts {
  }
  user(id:string):JsonObject{const user=this.web.store.db.prepare('SELECT * FROM amcp_users WHERE id=? AND disabled=0').get(id) as JsonObject|undefined;if(!user)throw new MirrorError('ACCOUNT_UNAVAILABLE','This account is unavailable.',{},401);return user;}
  profile(session:WebSession){
-  if(session.actor.userId==='workspace-admin')return {id:'workspace-admin',name:'Workspace administrator',email:null,hasPassword:true,identities:[],administrator:true,workspaceName:'AMCP workspace'};
+  if(session.actor.userId==='workspace-admin')return {id:'workspace-admin',name:'Workspace administrator',email:null,hasPassword:true,identities:[],administrator:true,workspaceName:'AMCP workspace',workspaceId:session.actor.tenantId,workspaceRole:'owner',mfaEnabled:false};
   const u=this.user(session.actor.userId),identities=this.web.store.db.prepare('SELECT provider,created_at FROM amcp_identities WHERE user_id=?').all(u.id);
-  let workspaceName=u.name+"’s workspace";try{workspaceName=this.web.store.document(u.tenant_id,'account_settings','workspace').name;}catch{}
-  return {id:u.id,name:u.name,email:u.email,hasPassword:!!u.password_hash,identities,administrator:false,workspaceName};
+  let workspaceName=u.name+"’s workspace";try{workspaceName=this.web.store.document(session.actor.tenantId,'account_settings','workspace').name;}catch{}
+  const membership=this.web.store.db.prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1').get(session.actor.tenantId,u.id) as JsonObject|undefined;
+  return {id:u.id,name:u.name,email:u.email,hasPassword:!!u.password_hash,identities,administrator:false,workspaceName,workspaceId:session.actor.tenantId,workspaceRole:membership?.role,mfaEnabled:this.hasMfa(u.id)};
  }
  newUser(name:string,email:string|null,passwordHash:string|null):JsonObject{
   const id=randomUUID(),tenant='user-'+randomUUID(),now=Date.now();this.web.store.ensureTenant(tenant);
   this.web.store.db.prepare('INSERT INTO amcp_users(id,email,name,tenant_id,password_hash,created_at) VALUES(?,?,?,?,?,?)').run(id,email,name,tenant,passwordHash,now);
+  this.web.store.db.prepare("INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,'owner',?)").run(tenant,id,now);
   this.web.store.putDocument(tenant,'account_settings','workspace',{name:name+"’s workspace"});this.web.store.appendAudit(tenant,randomUUID(),{event:'account_created',user_id:id});return this.user(id);
  }
- session(user:JsonObject){return this.web.createSession({userId:user.id,tenantId:user.tenant_id,role:'admin'});}
+ hasMfa(id:string){return !!this.web.store.db.prepare('SELECT 1 FROM amcp_mfa WHERE user_id=?').get(id);}
+ session(user:JsonObject,tenant=user.tenant_id,mfaVerified=false){
+  if(this.hasMfa(user.id)&&!mfaVerified)throw new MirrorError('MFA_REQUIRED','Complete two-step verification.',{},401);
+  const m=this.web.store.db.prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1').get(tenant,user.id) as JsonObject|undefined;
+  if(!m)throw new MirrorError('MEMBERSHIP_REQUIRED','You no longer have access to this workspace.',{},403);
+  return this.web.createSession({userId:user.id,ownerUserId:user.id,tenantId:tenant,membershipRole:m.role,role:m.role==='viewer'?'reader':m.role==='operator'?'operator':'admin'});
+ }
+ loginResult(user:JsonObject){if(this.hasMfa(user.id))return {mfaRequired:true,ticket:this.challenge('mfa_login',{userId:user.id,version:user.version},300000)};return this.session(user);}
  async login(req:Request,input:JsonObject){
   const email=accountEmail(input.email);this.limit(req,'login',email,10);
   const user=this.web.store.db.prepare('SELECT * FROM amcp_users WHERE email=? AND disabled=0').get(email) as JsonObject|undefined;
   if(!await verifyPassword(input.password,user?.password_hash))throw new MirrorError('INVALID_LOGIN','Email or password is incorrect.',{},401);
   // The password may have changed while the asynchronous KDF was running.
   const current=this.user(user!.id);if(current.version!==user!.version)throw new MirrorError('INVALID_LOGIN','Please sign in again.',{},401);
-  this.web.store.appendAudit(current.tenant_id,randomUUID(),{event:'account_sign_in',method:'password'});return this.session(current);
+  if(user!.password_hash?.startsWith('scrypt-v2$')&&typeof input.password==='string'&&input.password.length>=15){const hash=await hashUserPassword(input.password);const changed=this.web.store.db.prepare('UPDATE amcp_users SET password_hash=? WHERE id=? AND version=?').run(hash,current.id,current.version);if(!changed.changes)throw new MirrorError('INVALID_LOGIN','Please sign in again.',{},401);}
+  this.web.store.appendAudit(current.tenant_id,randomUUID(),{event:'account_sign_in',method:'password'});return this.loginResult(current);
  }
  challenge(kind:string,data:JsonObject,ttl=1800000){
   const token=opaque(),hash=sha256(token),db=this.web.store.db;db.prepare('DELETE FROM amcp_account_challenges WHERE expires_at<=?').run(Date.now());
@@ -73,7 +83,19 @@ export class UserAccounts {
   if(!this.emailConfigured)throw new MirrorError('EMAIL_SETUP_REQUIRED','Email sign-in is not available yet. Use a configured social account or contact the administrator.',{},503);
   const route=kind==='register'?'verify-email':kind==='reset'?'reset-password':'verify-email',link=this.web.origin+'/'+route+'#token='+encodeURIComponent(token)+'&kind='+kind;
   const title=kind==='register'?'Create your AMCP account':kind==='reset'?'Reset your AMCP password':'Verify your AMCP email';
-  try{const r=await this.fetcher('https://api.resend.com/emails',{method:'POST',redirect:'error',signal:AbortSignal.timeout(12000),headers:{Authorization:'Bearer '+this.env.AMCP_EMAIL_API_KEY,'Content-Type':'application/json','Idempotency-Key':'amcp-'+sha256(token)},body:JSON.stringify({from:this.env.AMCP_EMAIL_FROM,to:[email],subject:title,text:title+'\n\n'+link+'\n\nThis link expires in 30 minutes and can be used once. If you did not request it, ignore this email.'})});if(!r.ok)throw Error('delivery');await r.body?.cancel();}catch{this.web.store.db.prepare('DELETE FROM amcp_account_challenges WHERE hash=?').run(sha256(token));throw new MirrorError('EMAIL_DELIVERY_FAILED','We could not send the email. Please try again later.',{},503);}
+  const row=this.web.store.db.prepare('SELECT expires_at FROM amcp_account_challenges WHERE hash=?').get(sha256(token)) as JsonObject|undefined;if(!row)throw new MirrorError('LINK_EXPIRED','Request a fresh link.');
+  const pending=this.readChallenge(token,kind),tenant=pending.tenantId??(pending.userId?this.user(pending.userId).tenant_id:this.web.tenantId);
+  const id=sha256(token),now=Date.now(),secret=this.web.sealAccount('mail:'+id,{from:this.env.AMCP_EMAIL_FROM,to:[email],subject:title,text:title+'\n\n'+link+'\n\nThis link is single-use and expires at '+new Date(row.expires_at).toISOString()+'. If you did not request it, ignore this email.'});
+  this.web.store.db.prepare("INSERT OR IGNORE INTO amcp_email_outbox(id,tenant_id,secret,state,available_at,expires_at,created_at) VALUES(?,?,?,'queued',?,?,?)").run(id,tenant,secret,now,row.expires_at,now);
+  await this.deliverEmails(id);
+ }
+ async deliverEmails(onlyId?:string){
+  if(!this.emailConfigured)return false;const db=this.web.store.db,now=Date.now(),lease=randomUUID();
+  const row=this.web.store.transaction(()=>{db.prepare("UPDATE amcp_email_outbox SET state='expired',secret='',lease_token=NULL WHERE state IN ('queued','sending','failed') AND expires_at<=?").run(now+60000);const r=db.prepare("SELECT * FROM amcp_email_outbox WHERE expires_at>? AND available_at<=? AND (state='queued' OR (state='sending' AND lease_until<?)) AND (? IS NULL OR id=?) ORDER BY created_at LIMIT 1").get(now+60000,now,now,onlyId??null,onlyId??null) as JsonObject|undefined;if(r)db.prepare("UPDATE amcp_email_outbox SET state='sending',attempts=attempts+1,lease_token=?,lease_until=? WHERE id=?").run(lease,now+30000,r.id);return r;});
+  if(!row)return false;
+  try{const payload=this.web.openAccount('mail:'+row.id,row.secret);const r=await this.fetcher('https://api.resend.com/emails',{method:'POST',redirect:'error',signal:AbortSignal.timeout(12000),headers:{Authorization:'Bearer '+this.env.AMCP_EMAIL_API_KEY,'Content-Type':'application/json','Idempotency-Key':'amcp-'+row.id},body:JSON.stringify(payload)});await r.body?.cancel();if(!r.ok)throw new MirrorError('EMAIL_PROVIDER_REJECTED','Email provider returned '+r.status,{retryAfter:r.headers.get('retry-after')},r.status,r.status===429||r.status>=500);db.prepare("UPDATE amcp_email_outbox SET state='sent',secret='',lease_token=NULL,last_error=NULL WHERE id=? AND lease_token=?").run(row.id,lease);
+  }catch(e){const retry=!(e instanceof MirrorError)||e.retryable;const seconds=e instanceof MirrorError?Number(e.details.retryAfter):NaN,wait=Number.isFinite(seconds)&&seconds>0?Math.min(seconds*1000,1800000):Math.min(120000,10000*2**Math.min(row.attempts,5));db.prepare("UPDATE amcp_email_outbox SET state=?,available_at=?,lease_token=NULL,last_error=? WHERE id=? AND lease_token=?").run(retry?'queued':'failed',Date.now()+wait,e instanceof MirrorError?e.code:'EMAIL_NETWORK_ERROR',row.id,lease);}
+  return true;
  }
  async register(req:Request,input:JsonObject){
   if(!this.signupEnabled)throw new MirrorError('SIGNUP_DISABLED','New account registration is currently closed.',{},403);
@@ -89,7 +111,9 @@ export class UserAccounts {
  }
  revokeAccess(user:JsonObject){
   const db=this.web.store.db;db.prepare("DELETE FROM amcp_web_sessions WHERE json_extract(actor,'$.userId')=?").run(user.id);
-  db.prepare('UPDATE api_keys SET revoked=1 WHERE tenant_id=?').run(user.tenant_id);db.prepare('UPDATE amcp_mcp_grants SET used=1 WHERE tenant_id=?').run(user.tenant_id);
+  db.prepare('UPDATE api_keys SET revoked=1 WHERE hash IN (SELECT hash FROM credential_owners WHERE user_id=?)').run(user.id);db.prepare("UPDATE amcp_mcp_grants SET used=1 WHERE json_extract(data,'$.ownerUserId')=?").run(user.id);
+  // Legacy connectors belonged to the sole owner before memberships existed.
+  db.prepare('UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash NOT IN (SELECT hash FROM credential_owners)').run(user.tenant_id);db.prepare("UPDATE amcp_mcp_grants SET used=1 WHERE tenant_id=? AND json_extract(data,'$.ownerUserId') IS NULL").run(user.tenant_id);
  }
  async finishEmail(req:Request,input:JsonObject){
   this.limit(req,'verify','',15);const kind=input.kind;if(!['register','reset','email'].includes(kind))throw new MirrorError('LINK_EXPIRED','Use the complete link from your email.');
@@ -115,13 +139,13 @@ export class UserAccounts {
   await this.sendEmail(email,'email',this.challenge('email',{email,userId:u.id,version:u.version}));return {message:'Check your inbox to verify this email. Confirmation signs out existing sessions and revokes old MCP access.'};
  }
  fresh(s:WebSession){const data=this.web.store.db.prepare('SELECT actor FROM amcp_web_sessions WHERE hash=?').get(sha256(s.id)) as JsonObject|undefined;if(!data||Number(JSON.parse(data.actor).signedInAt??s.expiresAt-8*3600000)<Date.now()-900000)throw new MirrorError('REAUTH_REQUIRED','Sign out and sign in again before changing account security.',{},403);}
- update(req:Request,input:JsonObject){const s=this.web.requireMutation(req),u=this.user(s.actor.userId),name=accountName(input.name),workspace=accountName(input.workspaceName);this.web.store.transaction(()=>{this.web.store.db.prepare('UPDATE amcp_users SET name=? WHERE id=?').run(name,u.id);this.web.store.putDocument(u.tenant_id,'account_settings','workspace',{name:workspace});});return this.profile(s);}
+ update(req:Request,input:JsonObject){const s=this.web.requireMutation(req),u=this.user(s.actor.userId),name=accountName(input.name),workspace=accountName(input.workspaceName);const old=this.profile(s);if(s.actor.role!=='admin'&&workspace!==old.workspaceName)throw new MirrorError('FORBIDDEN','Only workspace administrators can rename the workspace.',{},403);this.web.store.transaction(()=>{this.web.store.db.prepare('UPDATE amcp_users SET name=? WHERE id=?').run(name,u.id);if(s.actor.role==='admin')this.web.store.putDocument(s.actor.tenantId,'account_settings','workspace',{name:workspace});});return this.profile(s);}
  async changePassword(req:Request,input:JsonObject){
   const s=this.web.requireMutation(req),u=this.user(s.actor.userId);this.limit(req,'password',u.id,8);this.fresh(s);
   if(u.password_hash&&!await verifyPassword(input.currentPassword,u.password_hash))throw new MirrorError('INVALID_LOGIN','Your current password is incorrect.',{},401);
   if(!u.email)throw new MirrorError('EMAIL_REQUIRED','Verify an email address before adding a password.');
   const hash=await hashUserPassword(input.password);this.web.requireMutation(req);
-  return this.web.store.transaction(()=>{if(this.user(u.id).version!==u.version)throw new MirrorError('ACCOUNT_CHANGED','Sign in again before retrying.');this.web.store.db.prepare('UPDATE amcp_users SET password_hash=?,version=version+1 WHERE id=?').run(hash,u.id);this.revokeAccess(u);return this.session(this.user(u.id));});
+  return this.web.store.transaction(()=>{if(this.user(u.id).version!==u.version)throw new MirrorError('ACCOUNT_CHANGED','Sign in again before retrying.');this.web.store.db.prepare('UPDATE amcp_users SET password_hash=?,version=version+1 WHERE id=?').run(hash,u.id);this.revokeAccess(u);return this.session(this.user(u.id),s.actor.tenantId,true);});
  }
  unlink(req:Request,provider:string){const s=this.web.requireMutation(req),u=this.user(s.actor.userId);this.fresh(s);this.web.store.transaction(()=>{const count=(this.web.store.db.prepare('SELECT count(*) AS n FROM amcp_identities WHERE user_id=?').get(u.id) as JsonObject).n;if(!u.password_hash&&count<=1)throw new MirrorError('LAST_SIGN_IN_METHOD','Add another sign-in method before removing this one.');this.web.store.db.prepare('DELETE FROM amcp_identities WHERE user_id=? AND provider=?').run(u.id,provider);this.web.store.appendAudit(u.tenant_id,randomUUID(),{event:'account_identity_removed',provider});});}
 }

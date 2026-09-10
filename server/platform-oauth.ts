@@ -8,6 +8,7 @@ import {microsoftGateway,microsoftScope} from '../src/microsoft-native.js';
 
 export interface PlatformDefinition {id:string;name:string;kind:string;description:string;logo:string;gateway:string;env:string;authorize:string;token:string;scopes:string[];pkce?:boolean;assetKinds:string[];selectionKind?:string;authType?:'client_credentials';reviewedWrites?:boolean}
 export const platforms:PlatformDefinition[]=[
+ {id:'sheets',name:'Google Sheets',kind:'Reporting destination',description:'Export campaign reports to a spreadsheet and keep scheduled reports up to date.',logo:'▦',gateway:'google_sheets_native_action',env:'SHEETS',authorize:'https://accounts.google.com/o/oauth2/v2/auth',token:'https://oauth2.googleapis.com/token',scopes:['https://www.googleapis.com/auth/drive.file'],pkce:true,assetKinds:['spreadsheets'],selectionKind:'spreadsheets',reviewedWrites:false},
  {id:'drive',name:'Google Drive',kind:'Private media source',description:'Select private media files for server-side imports and previews.',logo:'△',gateway:'google_drive_native_action',env:'DRIVE',authorize:'https://accounts.google.com/o/oauth2/v2/auth',token:'https://oauth2.googleapis.com/token',scopes:['https://www.googleapis.com/auth/drive.readonly'],pkce:true,assetKinds:['files'],selectionKind:'files',reviewedWrites:false},
  {id:'microsoft',name:'Microsoft Advertising',kind:'Bing & Microsoft Ads',description:'Connect Microsoft advertising accounts, search campaigns and reports.',logo:'M',gateway:microsoftGateway,env:'MICROSOFT',authorize:'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',token:'https://login.microsoftonline.com/common/oauth2/v2.0/token',scopes:[microsoftScope,'offline_access'],pkce:true,assetKinds:['ad_accounts'],reviewedWrites:true},
  {id:'google',name:'Google Ads',kind:'Search & display',description:'Connect your Google advertising accounts.',logo:'G',gateway:'google_ads_native_action',env:'GOOGLE',authorize:'https://accounts.google.com/o/oauth2/v2/auth',token:'https://oauth2.googleapis.com/token',scopes:['https://www.googleapis.com/auth/adwords','openid','profile'],pkce:true,assetKinds:['ad_accounts']},
@@ -33,7 +34,7 @@ export function signOAuth1(method:string,url:URL,consumerKey:string,consumerSecr
 export class PlatformOAuth {
  constructor(readonly web:WebStore,private env:NodeJS.ProcessEnv=process.env,private fetcher:typeof fetch=fetch,readonly allowWrites=false){}
  config(p:PlatformDefinition){
-  const sharedGoogle=['ga4','gtm','gsc','drive'].includes(p.id)&&!this.env['AMCP_'+p.env+'_CLIENT_ID']&&!this.env['AMCP_'+p.env+'_CLIENT_SECRET'];
+  const sharedGoogle=['ga4','gtm','gsc','drive','sheets'].includes(p.id)&&!this.env['AMCP_'+p.env+'_CLIENT_ID']&&!this.env['AMCP_'+p.env+'_CLIENT_SECRET'];
   const clientId=this.env['AMCP_'+(sharedGoogle?'GOOGLE':p.env)+'_CLIENT_ID'],clientSecret=this.env['AMCP_'+(sharedGoogle?'GOOGLE':p.env)+'_CLIENT_SECRET'];
   const writeScope=this.allowWrites?(p.id==='meta'?'ads_management':p.id==='linkedin'?'rw_ads':undefined):undefined;
   const defaults=[...p.scopes,...(writeScope?[writeScope]:[]),...(this.allowWrites&&p.id==='gtm'?gtmWriteScopes:[]),...(this.allowWrites&&p.id==='gsc'?['https://www.googleapis.com/auth/webmasters']:[])];

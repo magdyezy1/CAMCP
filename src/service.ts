@@ -1,3 +1,4 @@
+import {campaignPreflight} from './campaign-preflight.js';
 import {randomUUID} from 'node:crypto';
 import type {Actor,CallOptions,CompiledRequest,JsonObject} from './types.js';
 import {Registry} from './catalog.js';
@@ -24,6 +25,7 @@ import {guidanceDiscovery} from './guidance.js';
 import {WorkspaceService,workspaceTool} from './workspace.js';
 import {CampaignRunner,campaignTool} from './campaign-runner.js';
 import {DecisionReporting,decisionTool} from './decision-reporting.js';
+import {ReportingOverview,overviewTool} from './reporting-overview.js';
 import {WriteVerifier} from './write-verification.js';
 import {validateProviderRequest} from './provider-validation.js';
 import {MediaUploadService,mediaTool} from './media-upload.js';
@@ -32,14 +34,16 @@ export const strictOptions:CallOptions={mode:'strict',flags:{}};
 export class MirrorService {
  readonly compiler:Compiler;readonly introspection:Introspection;readonly credentials:CredentialProvider;
  readonly delegatedCompiler=new DelegatedNativeCompiler();
- listTools(){return [...this.registry.listTools(this.options).map(t=>({...t,...(mediaDiscovery(t.name)?{description:t.description+' '+mediaInstructions}:{})})),workspaceTool,campaignTool,decisionTool,...(this.policy.allowWrites?[writeTool,mediaTool]:[])];}
+ listTools(){return [...this.registry.listTools(this.options).map(t=>({...t,...(mediaDiscovery(t.name)?{description:t.description+' '+mediaInstructions}:{})})),workspaceTool,campaignTool,decisionTool,overviewTool,...(this.policy.allowWrites?[writeTool,mediaTool]:[])];}
  constructor(readonly registry:Registry,readonly store:Store,readonly transport=new NativeTransport(),readonly options:CallOptions=strictOptions,readonly policy:ExecutionPolicy=readOnlyPolicy,private mediaFetcher:typeof fetch=fetch){this.compiler=new Compiler(registry);this.introspection=new Introspection(registry);this.credentials=new CredentialProvider(store);}
  async call(tool:string,input:JsonObject,actor:Actor):Promise<JsonObject>{
   const requestId=randomUUID(),start=Date.now();
   try{
+   this.store.assertActorActive(actor);
+   if(tool===overviewTool.name)return this.wrap(await new ReportingOverview(this,this.mediaFetcher).handle(input,actor),requestId,start);
    const call=(t:string,a:JsonObject,u:Actor)=>this.call(t,a,u);
    if(tool===workspaceTool.name)return this.wrap(await new WorkspaceService(this.store,this.registry,this.transport,this.credentials,call,this.policy.allowWrites).handle(input,actor),requestId,start);
-   if(tool===campaignTool.name)return this.wrap(await new CampaignRunner(this.store,call,(a,id)=>this.verifyWrite(a,id), (a,i)=>validateProviderRequest(this,a,i)).handle(input,actor),requestId,start);
+   if(tool===campaignTool.name)return this.wrap(await new CampaignRunner(this.store,call,(a,id)=>this.verifyWrite(a,id), (a,i)=>validateProviderRequest(this,a,i),(a,steps)=>campaignPreflight(this,a,steps)).handle(input,actor),requestId,start);
    if(tool===decisionTool.name)return this.wrap(await new DecisionReporting(this.store,async(t,a,u)=>{
     this.registry.validate(t,a,this.options);const p=this.registry.tools.get(t)?.mode==='delegated'?this.delegatedCompiler.compile(t,a):this.compiler.compile(t,a,this.options);
     if(!applyExecutionRisk(p).readOnly)throw new MirrorError('REPORT_READ_REQUIRED','Reporting accepts independently qualified native reads only.');

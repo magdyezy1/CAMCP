@@ -8,7 +8,7 @@ import {ScopeGuard,normalizeAccount} from './scope.js';
 import {validateState,writeOutcome} from './write-review.js';
 import {normalizeReviewState,reviewStateHash,changedStateFields} from './review-state.js';
 import {downloadPrivateDrive,driveAccess} from './private-drive.js';
-import {createMediaVariant,variantPresets} from './media-variants.js';
+import {createMediaVariant,variantPresets,inspectMediaPlacement} from './media-variants.js';
 import {downloadDriveMedia,mediaType,driveDownloadUrl} from './drive-media.js';
 import {guardInput,sha256,stable} from './security.js';
 import type {ExecutionPolicy} from './preflight.js';
@@ -17,7 +17,7 @@ import {mediaPlatforms} from './media-routing.js';
 import {assertAccountWrite} from './write-access.js';
 
 const platforms=mediaPlatforms;
-export const mediaTool={name:'amcp_media',description:'Import a public or selected private Google Drive file into a selected advertising account. prepare downloads and encrypts the exact file for a five-minute review; execute uploads those frozen bytes after explicit confirmation. Supports PNG/JPEG and MP4/MOV across Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360 (X/LinkedIn video: MP4). Google videos are uploaded as UNLISTED on the account Google-managed YouTube channel. Normal native media actions and platform_media_upload use this same server transfer; the MCP client never downloads bytes. status reads provider processing state; prepare_library reviews adding an X video to its account library once processing succeeds. Never publishes ads or posts. Uses operator role, account write grants and durable idempotency. Files up to 32 MiB with lower platform image limits. Private files use a separate selected Google Drive connection. variant creates an encrypted, expiring preview with explicit contain/crop presets; prepare accepts variant_id. list and reuse expose account-scoped upload receipts; reuse does not claim a new provider availability check.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['prepare','prepare_library','execute','status','cancel','variant','list','reuse']},platform:{type:'string',enum:platforms},account_id:{type:'string'},connection_id:{type:'string'},drive_url:{type:'string'},drive_connection_id:{type:'string'},variant_id:{type:'string'},preset:{type:'string',enum:Object.keys(variantPresets)},fit:{type:'string',enum:['contain','crop']},reuse_existing:{type:'boolean'},asset_id:{type:'string'},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:100},name:{type:'string'},media_type:{type:'string',enum:['image','video']},expected_mime:{type:'string'},expected_size:{type:'integer',minimum:1},existing_media_id:{type:'string'},owner_urn:{type:'string'},review_id:{type:'string'},idempotency_key:{type:'string'},confirmed:{type:'boolean'}},additionalProperties:false}};
+export const mediaTool={name:'amcp_media',description:'Import a public or selected private Google Drive file into a selected advertising account. prepare downloads and encrypts the exact file for a five-minute review; execute uploads those frozen bytes after explicit confirmation. Supports PNG/JPEG and MP4/MOV across Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360 (X/LinkedIn video: MP4). Google videos are uploaded as UNLISTED on the account Google-managed YouTube channel. Normal native media actions and platform_media_upload use this same server transfer; the MCP client never downloads bytes. status reads provider processing state; prepare_library reviews adding an X video to its account library once processing succeeds. Never publishes ads or posts. Uses operator role, account write grants and durable idempotency. Files up to the configured media limit (128 MiB by default) with lower platform image limits. Private files use a separate selected Google Drive connection. variant creates an encrypted, expiring preview with explicit contain/crop presets; prepare accepts variant_id. execute_async queues the frozen confirmed review; job_status shows durable progress. list returns account-scoped receipts. reuse requires a fresh provider availability check. inspect_eligibility checks source dimensions, duration and codec against a placement preset before any provider upload; it does not certify provider policy approval.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['prepare','prepare_library','execute','execute_async','job_status','status','cancel','variant','inspect_eligibility','list','reuse']},platform:{type:'string',enum:platforms},account_id:{type:'string'},connection_id:{type:'string'},drive_url:{type:'string'},drive_connection_id:{type:'string'},variant_id:{type:'string'},preset:{type:'string',enum:Object.keys(variantPresets)},fit:{type:'string',enum:['contain','crop']},reuse_existing:{type:'boolean'},asset_id:{type:'string'},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:100},name:{type:'string'},media_type:{type:'string',enum:['image','video']},expected_mime:{type:'string'},expected_size:{type:'integer',minimum:1},existing_media_id:{type:'string'},owner_urn:{type:'string'},review_id:{type:'string'},idempotency_key:{type:'string'},confirmed:{type:'boolean'}},additionalProperties:false}};
 const fail=(code:string,message:string,details:JsonObject={}):never=>{throw new MirrorError(code,message,details);};
 const responseId=(value:unknown,pattern=/^[A-Za-z0-9_-]+$/)=>{if(typeof value!=='string'||!pattern.test(value))fail('MEDIA_RESPONSE_INVALID','The provider did not return a valid media identifier.');return value as string;};
 interface UploadPlan {platform:string;account_id:string;connection_id:string;name:string;mime:string;kind:'image'|'video';filename:string;size:number;sha256:string;read:CompiledRequest;source_drive?:{connection_id:string;url:string};existing_media_id?:string;owner_urn?:string;library_media?:{id:string;key:string;source_review_id:string}}
@@ -70,11 +70,20 @@ export class MediaUploadService {
   if(v.expires_at<=Date.now())fail('REVIEW_EXPIRED','The preview expired. Create another variant.');if(v.drive_connection_id)driveAccess(this.store,actor,v.drive_connection_id,v.drive_url);return v;
  }
  private assets(actor:Actor,input:JsonObject){return this.store.documents(actor.tenantId,'workspace_asset').filter(a=>{if(!a.platform||!a.connection_id||!a.account_id)return false;try{this.store.resolveConnection(actor,a.platform+'_native_action',a.account_id,a.connection_id);return (!input.platform||a.platform===input.platform)&&(!input.connection_id||a.connection_id===input.connection_id)&&(!input.account_id||a.account_id===normalizeAccount(a.platform+'_native_action',input.account_id));}catch{return false;}});}
+ private async reuse(actor:Actor,asset:JsonObject){
+  const review=this.store.document(actor.tenantId,'media_review',asset.review_id),plan=review.plan as UploadPlan;
+  this.access(actor,plan.platform,plan.account_id,plan.connection_id);
+  const fresh=await this.status(actor,plan,asset);
+  if(fresh.status_source!=='provider')fail('MEDIA_AVAILABILITY_UNVERIFIED','This provider has no qualified availability lookup for this media type. Prepare a reviewed fresh upload instead.',{platform:plan.platform,media_id:asset.media_id});
+  if(fresh.ready!==true)fail('MEDIA_NOT_READY','The provider has not confirmed that this media is ready.',{media_id:asset.media_id,processing_status:fresh.processing_status});
+  return {...fresh,reused:true,executed:false,availability_source:'provider',availability_checked_at:Date.now()};
+ }
  async call(input:JsonObject,actor:Actor):Promise<JsonObject>{
   guardInput(input);for(const key of Object.keys(input))if(!Object.hasOwn(mediaTool.inputSchema.properties,key))fail('INVALID_ARGUMENT','Unknown media parameter.',{parameter:key});
   this.store.assertActorActive(actor);
   if(input.action==='list'){const offset=input.offset??0,limit=input.limit??50;if(!Number.isInteger(offset)||offset<0||!Number.isInteger(limit)||limit<1||limit>100)fail('INVALID_ARGUMENT','Invalid media pagination.');const assets=this.assets(actor,input);return {assets:assets.slice(offset,offset+limit),total:assets.length,has_more:offset+limit<assets.length,variants:this.store.documents(actor.tenantId,'media_variant').filter(v=>(v.user_id===actor.userId||actor.role==='admin')&&v.expires_at>Date.now()).filter(v=>{try{this.variant(actor,v.id);return true;}catch{return false;}}).map(({drive_url,...v})=>v),presets:variantPresets};}
-  if(input.action==='reuse'){const asset=this.assets(actor,input).find(a=>a.id===input.asset_id);if(!asset||asset.ready!==true)fail('MEDIA_NOT_READY','Select an available upload receipt in an accessible account.');return {...asset,reused:true,executed:false,availability_source:'last upload/processing receipt; use status for a fresh provider check',next_call:{tool:'amcp_media',arguments:{action:'status',review_id:asset!.review_id}}};}
+  if(input.action==='reuse'){const asset=this.assets(actor,input).find(a=>a.id===input.asset_id);if(!asset)fail('MEDIA_NOT_READY','Select an upload receipt in an accessible account.');return this.reuse(actor,asset!);}
+  if(input.action==='inspect_eligibility'){if(actor.role==='reader')fail('FORBIDDEN','An operator is required to stage media.');const id=randomUUID();this.store.reserveMedia(actor.tenantId,id,Date.now()+300000);try{const file=await this.source(input,actor);return {...await inspectMediaPlacement(file.bytes,input.preset),sha256:sha256(file.bytes),size_bytes:file.bytes.length,executed:false};}finally{this.store.removeStagedMedia(actor.tenantId,id);}}
   if(input.action==='variant'){
    if(actor.role==='reader')fail('FORBIDDEN','An operator is required to stage media.');if(typeof input.drive_url!=='string'||input.variant_id)fail('INVALID_ARGUMENT','Provide the original Drive file URL.');
    const id=randomUUID(),expires=Date.now()+300000;this.store.reserveMedia(actor.tenantId,id,expires);
@@ -91,6 +100,7 @@ export class MediaUploadService {
    this.store.reserveMedia(actor.tenantId,reviewId,expires);
    try{
     const file=await this.source(input,actor);
+    if(input.preset){const eligibility=await inspectMediaPlacement(file.bytes,input.preset);if(!eligibility.eligible_for_preset)fail('MEDIA_PLACEMENT_MISMATCH','The source does not meet the selected placement preset.',eligibility);}
     if(input.media_type!==undefined&&input.media_type!==file.kind||input.expected_mime!==undefined&&input.expected_mime!==file.mime||input.expected_size!==undefined&&input.expected_size!==file.bytes.length)fail('MEDIA_TYPE_MISMATCH','The downloaded file does not match the declared type, MIME type or size.',{actual_type:file.kind,actual_mime:file.mime,actual_size:file.bytes.length});
     if(['x_ads','linkedin'].includes(input.platform)&&file.mime==='video/quicktime')fail('MEDIA_TYPE_UNSUPPORTED','Use MP4 video for X and LinkedIn.');
     const imageLimit=input.platform==='google_ads'?5*1024*1024:input.platform==='meta'?30*1024*1024:input.platform==='linkedin'?20*1024*1024:input.platform==='dv360'?10*1024*1024:5*1024*1024;
@@ -107,7 +117,7 @@ export class MediaUploadService {
     }
     if(p.platform==='dv360'&&Buffer.byteLength(p.filename)>240)fail('INVALID_ARGUMENT','DV360 filenames must fit in 240 UTF-8 bytes.');
     const matches=this.assets(actor,{platform:p.platform,account_id:p.account_id,connection_id:p.connection_id}).filter(a=>a.sha256===p.sha256&&a.ready===true&&(a.owner_urn??null)===(p.owner_urn??(p.platform==='linkedin'?'urn:li:sponsoredAccount:'+p.account_id:null)));
-    if(input.reuse_existing===true&&matches.length){this.store.removeStagedMedia(actor.tenantId,reviewId);return {...matches[0],reused:true,executed:false,availability_source:'last upload/processing receipt; provider availability not rechecked'};}
+    if(input.reuse_existing===true&&matches.length){const reused=await this.reuse(actor,matches[0]!);this.store.removeStagedMedia(actor.tenantId,reviewId);return reused;}
     const state=await this.state(actor,p),stateHash=reviewStateHash(state),fingerprint=sha256(stable({tenant:actor.tenantId,user:actor.userId,plan:p}));
     this.access(actor,p.platform,account,c.id);this.store.stageMedia(actor.tenantId,reviewId,file.bytes);
     this.store.putDocument(actor.tenantId,'media_review',reviewId,{user_id:actor.userId,plan:p,state,state_hash:stateHash,fingerprint,expires_at:expires});
@@ -115,7 +125,7 @@ export class MediaUploadService {
     return {success:true,executed:false,review_id:reviewId,upload_session_id:reviewId,idempotency_key:reviewId,expires_at:new Date(expires).toISOString(),request:p,before_state:state,state_hash:stateHash,fingerprint,matching_assets:matches.map(a=>({asset_id:a.id,media_id:a.media_id,sha256:a.sha256})),confirmation_required:true,steps:['Upload the reviewed file to '+p.platform,...(p.platform==='google_ads'&&p.kind==='video'?['Create an UNLISTED video on the Google-managed YouTube channel for this advertising account']:[]),...(p.platform==='x_ads'?['Register it in the selected account media library']:[])]};
    }catch(e){this.store.removeStagedMedia(actor.tenantId,reviewId);throw e;}
   }
-  if(!['prepare_library','execute','status','cancel'].includes(input.action)||typeof input.review_id!=='string')fail('INVALID_ARGUMENT','Use prepare, execute, status or cancel with a review_id.');
+  if(!['prepare_library','execute','execute_async','job_status','status','cancel'].includes(input.action)||typeof input.review_id!=='string')fail('INVALID_ARGUMENT','Use prepare, execute, status or cancel with a review_id.');
   if(['platform','account_id','connection_id','drive_url','name','media_type','expected_mime','expected_size','existing_media_id','owner_urn','drive_connection_id','variant_id','preset','fit','reuse_existing','asset_id','offset','limit'].some(k=>input[k]!==undefined))fail('INVALID_ARGUMENT','This action uses the frozen media review.');
   const review=this.store.document(actor.tenantId,'media_review',input.review_id),p=review.plan as UploadPlan;
   if(review.user_id!==actor.userId)throw new MirrorError('FORBIDDEN','This media review belongs to another actor.',{},403);
@@ -123,9 +133,10 @@ export class MediaUploadService {
   const fingerprint=sha256(stable({tenant:actor.tenantId,user:actor.userId,plan:p}));if(fingerprint!==review.fingerprint)fail('REVIEW_CHANGED','Media review failed its integrity check.');
   const previous=this.store.db.prepare('SELECT state,result,fingerprint FROM idempotency WHERE tenant_id=? AND key=?').get(actor.tenantId,input.review_id) as JsonObject|undefined;
   if(input.action==='prepare_library')return this.prepareLibrary(actor,p,review,input.review_id,previous);
+  if(input.action==='job_status'){if(!review.job_id)fail('NOT_FOUND','No background upload was queued for this review.');const job=this.store.job(actor.tenantId,review.job_id);return {review_id:input.review_id,job_id:job.id,state:job.state,error:job.error,result:job.result,progress:review.progress??{},expires_at:review.expires_at};}
   if(input.action==='cancel'){
    if(previous)fail('UPLOAD_ALREADY_SUBMITTED','An upload already submitted cannot be cancelled locally.');
-   this.store.removeStagedMedia(actor.tenantId,input.review_id);this.store.putDocument(actor.tenantId,'media_review',input.review_id,{...review,expires_at:0});return {success:true,cancelled:true};
+   if(review.job_id)this.store.db.prepare("UPDATE jobs SET state='cancelled',lease_token=NULL,lease_until=NULL WHERE tenant_id=? AND id=? AND state IN ('queued','running')").run(actor.tenantId,review.job_id);this.store.removeStagedMedia(actor.tenantId,input.review_id);this.store.putDocument(actor.tenantId,'media_review',input.review_id,{...review,expires_at:0});return {success:true,cancelled:true};
   }
   if(input.action==='status'){
    const receipt=previous?.result?JSON.parse(previous.result):undefined;
@@ -135,13 +146,14 @@ export class MediaUploadService {
   if(input.confirmed!==true||input.idempotency_key!==input.review_id)fail('CONFIRMATION_REQUIRED','Use the returned review_id and idempotency_key with confirmed:true.');
   if(previous){if(previous.fingerprint!==fingerprint)fail('IDEMPOTENCY_CONFLICT','This key is bound to a different request.');if(previous.state==='complete')return {...JSON.parse(previous.result),replayed:true};fail('WRITE_OUTCOME_UNCERTAIN','This upload was already submitted. Inspect its allocated media; never reupload with a new key automatically.');}
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Prepare and review the media again.');
+  if(input.action==='execute_async'){return this.store.transaction(()=>{const current=this.store.document(actor.tenantId,'media_review',input.review_id);if(current.job_id)return {review_id:input.review_id,job_id:current.job_id,state:this.store.job(actor.tenantId,current.job_id).state};const jobId=this.store.enqueue(actor.tenantId,'media_upload',{review_id:input.review_id});this.store.putDocument(actor.tenantId,'media_review',input.review_id,{...current,job_id:jobId,actor_binding:this.store.bindJobActor(actor,'media-job:'+input.review_id)});return {review_id:input.review_id,job_id:jobId,state:'queued',expires_at:new Date(review.expires_at).toISOString(),next_call:{tool:'amcp_media',arguments:{action:'job_status',review_id:input.review_id}}};});}
   const bytes=p.library_media?Buffer.alloc(0):this.store.stagedMedia(actor.tenantId,input.review_id);if(!p.library_media&&(bytes.length!==p.size||sha256(bytes)!==p.sha256||mediaType(bytes).mime!==p.mime))fail('REVIEW_CHANGED','The staged media failed its integrity check.');
   const current=await this.state(actor,p),actual=reviewStateHash(current),expected=reviewStateHash(review.state);
   if(actual!==expected)fail('STATE_CHANGED','Provider configuration changed. Prepare a new media review.',{expected_state_hash:expected,actual_state_hash:actual,changed_fields:changedStateFields(review.state,current)});
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Media review expired during verification.');
   const claim=this.store.claim(actor.tenantId,input.review_id,fingerprint);if(!claim.fresh)return {...(claim.result as JsonObject),replayed:true};
   let allocated:JsonObject={};
-  const record=(data:JsonObject)=>{allocated={...allocated,...data};this.store.appendAudit(actor.tenantId,input.review_id,{event:'media_allocated',...allocated});};
+  const record=(data:JsonObject)=>{allocated={...allocated,...data};const current=this.store.document(actor.tenantId,'media_review',input.review_id);this.store.putDocument(actor.tenantId,'media_review',input.review_id,{...current,progress:{...allocated,updated_at:Date.now()}});this.store.appendAudit(actor.tenantId,input.review_id,{event:'media_allocated',...allocated});};
   try{
    this.executionDeadline=review.expires_at;
    const out=await this.upload(actor,p,bytes,record),receipt={success:true,executed:true,...out,...this.references(p,out),review_id:input.review_id,fingerprint,sha256:p.sha256,platform:p.platform,account_id:p.account_id,connection_id:p.connection_id,media_type:p.kind,client_download_required:false,...(!out.ready?{next_call:{tool:'amcp_media',arguments:{action:'status',review_id:input.review_id}}}:{})};
@@ -174,7 +186,7 @@ export class MediaUploadService {
     record({upload_session_created:true});
     const c=this.access(actor,p.platform,p.account_id,p.connection_id),auth=await this.credentials.get(c);this.access(actor,p.platform,p.account_id,p.connection_id);
     if(this.executionDeadline!<=Date.now())fail('REVIEW_EXPIRED','Media review expired before Google video transfer.');
-    const finished=await this.transport.uploadGoogleVideo(started.headers['x-goog-upload-url']??'',bytes,auth.accessToken??'');
+    const finished=await this.transport.uploadGoogleVideo(started.headers['x-goog-upload-url']??'',bytes,auth.accessToken??'',{granularity:started.headers['x-goog-upload-chunk-granularity']?Number(started.headers['x-goog-upload-chunk-granularity']):undefined,beforeChunk:()=>{this.access(actor,p.platform,p.account_id,p.connection_id);if(this.executionDeadline!<=Date.now())fail('REVIEW_EXPIRED','The media review expired before the next chunk.');},progress:n=>record({bytes_confirmed:n,total_bytes:bytes.length})});
     const id=responseId((finished.data as JsonObject)?.resourceName,new RegExp('^customers/'+p.account_id+'/youTubeVideoUploads/[A-Za-z0-9_-]+$'));record({media_id:id});return {media_id:id,ready:false,processing_status:'UPLOADED'};
    }
    const d=(await send('/v23/customers/'+p.account_id+'/assets:mutate',{operations:[{create:{name:p.name,type:'IMAGE',imageAsset:{data:bytes.toString('base64')}}}],partialFailure:false})).data as JsonObject;
@@ -272,6 +284,21 @@ export class MediaUploadService {
   };
   const poll={tool:'amcp_media',arguments:{action:'status',review_id:receipt.review_id}};
   let r:TransportResult;
+  if(p.platform==='meta'&&p.kind==='image'){
+   const hash=responseId(receipt.media_id);const d=(await this.send(actor,p,'/v25.0/act_'+p.account_id+'/adimages',undefined,{method:'GET',readOnly:true,query:{hashes:[hash],fields:'hash',limit:100}})).data as JsonObject;
+   if(!Array.isArray(d.data)||!d.data.some((image:JsonObject)=>image.hash===hash))fail('MEDIA_NOT_AVAILABLE','The uploaded image is no longer accessible in the selected Meta account.');
+   return finish({...receipt,ready:true,executed:false,status_source:'provider',processing_status:'AVAILABLE',availability_checked_at:Date.now()});
+  }
+  if(p.platform==='google_ads'&&p.kind==='image'){
+   const resource=responseId(receipt.media_id,new RegExp('^customers/'+p.account_id+'/assets/[0-9]+$')),d=(await this.send(actor,p,'/v23/customers/'+p.account_id+'/googleAds:search',{query:"SELECT asset.resource_name, asset.type FROM asset WHERE asset.resource_name = '"+resource+"'"},{readOnly:true})).data as JsonObject;
+   if(d.results?.length!==1||d.results[0].asset?.resourceName!==resource||d.results[0].asset.type!=='IMAGE')fail('MEDIA_NOT_AVAILABLE','The uploaded image asset is no longer accessible.');
+   return finish({...receipt,ready:true,executed:false,status_source:'provider',processing_status:'AVAILABLE',availability_checked_at:Date.now()});
+  }
+  if(p.platform==='tiktok'){
+   const id=responseId(receipt.media_id,/^[A-Za-z0-9_\/-]{1,512}$/),d=(await this.send(actor,p,'/v1.3/file/'+p.kind+'/ad/info/',undefined,{method:'GET',readOnly:true,query:{advertiser_id:p.account_id,[p.kind+'_ids']:[id]}})).data as JsonObject;
+   if(d.code!==0||!Array.isArray(d.data?.list)||!d.data.list.some((v:JsonObject)=>v[p.kind+'_id']===id))fail('MEDIA_NOT_AVAILABLE','The uploaded file is no longer accessible in the selected TikTok account.');
+   return finish({...receipt,ready:true,executed:false,status_source:'provider',processing_status:'AVAILABLE',availability_checked_at:Date.now()});
+  }
   if(p.platform==='google_ads'&&p.kind==='video'){
    const resource=responseId(receipt.media_id,new RegExp('^customers/'+p.account_id+'/youTubeVideoUploads/[A-Za-z0-9_-]+$'));
    r=await this.send(actor,p,'/v23/customers/'+p.account_id+'/googleAds:search',{query:"SELECT you_tube_video_upload.resource_name, you_tube_video_upload.video_id, you_tube_video_upload.state FROM you_tube_video_upload WHERE you_tube_video_upload.resource_name = '"+resource+"'"},{readOnly:true});

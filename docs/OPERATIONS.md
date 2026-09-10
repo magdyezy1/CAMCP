@@ -37,3 +37,7 @@ Default bind is loopback. External bind requires MIRROR_PUBLIC_ORIGIN as an HTTP
 Claude remote clients can dynamically register with `client_secret_post`; public clients retain `none`. Both require S256 PKCE and administrator consent. Client secrets are encrypted at rest and must accompany token, refresh and revocation requests. Optional trusted proxy CIDRs affect rate-limit attribution only. See [OAuth hardening](OAUTH-HARDENING.md) for configuration and regression coverage.
 
 GitHub CI builds the Dockerfile and checks both read-only and write-enabled startup, volume ownership, authentication, MCP access, restart persistence and revocation using synthetic credentials. This does not qualify the TLS proxy, multi-host load, provider authorization, or recovery under production traffic. SQLite/WAL remains a single-host storage choice.
+
+## Accounts, reporting and operating controls
+
+See [account setup](USER-ACCOUNTS.md), [Reporting Overview](REPORTING-OVERVIEW.md) and [implementation/acceptance notes](RECOMMENDATIONS-IMPLEMENTED.md) for owner migration, team access, MFA, custom metrics, scheduled Sheets exports, campaign preflight/recovery, spending policies, asynchronous media and encrypted backups.

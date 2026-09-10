@@ -78,6 +78,7 @@ export class ScopeGuard {
    }
   }
   if(plan.gateway==='tiktok_native_action'){
+   if(plan.readOnly&&plan.method==='GET'&&['/v1.3/report/integrated/get/','/v1.3/campaign/get/'].includes(decoded)&&plan.query.advertiser_id===id)return id;
    if(plan.readOnly&&decoded==='/v1.3/advertiser/info/'&&Array.isArray(plan.query.advertiser_ids)&&plan.query.advertiser_ids.length===1){compare(plan.query.advertiser_ids,'advertiser_ids');return id;}
    const action=this.registry.action(plan.gateway,plan.action);
    // Some Business Center routes ignore advertiser_id. Only vendor-declared required

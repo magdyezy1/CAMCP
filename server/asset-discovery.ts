@@ -10,7 +10,7 @@ export interface WorkspaceAsset {id:string;kind:string;name:string;parentId?:str
 export interface AssetGroup {checkedAt?:number;kind:string;assets:WorkspaceAsset[];complete:boolean;error?:string}
 export class AssetDiscovery {
  private transport:NativeTransport;private credentials:CredentialProvider;
- constructor(private store:Store,fetcher:typeof fetch=fetch){this.transport=new NativeTransport(fetcher);this.credentials=new CredentialProvider(store,fetcher);}
+ constructor(private store:Store,fetcher:typeof fetch=fetch){this.transport=new NativeTransport(fetcher);if(fetcher===fetch)this.transport.coordination=store;this.credentials=new CredentialProvider(store,fetcher);}
  private plan(c:Connection,path:string,query:JsonObject={},method='GET',body?:unknown):CompiledRequest{return {gateway:c.gateway,action:'AMCP_ASSET_DISCOVERY',path,query,method,body,headers:c.gateway==='linkedin_native_action'?{'LinkedIn-Version':process.env.AMCP_LINKEDIN_API_VERSION??'202605','X-Restli-Protocol-Version':'2.0.0'}:{},readOnly:true,destructive:false,requiresConfirmation:false,evidence:'INDEPENDENT_ACCOUNT_DISCOVERY',warnings:[]};}
  private async pages(c:Connection,credentials:Credentials,path:string,query:JsonObject,extract:(data:JsonObject)=>unknown[],origin?:string):Promise<JsonObject[]>{
   const plan={...this.plan(c,path,query),...(origin?{origin}:{})},original=buildUrl(plan,c),items:JsonObject[]=[],seen=new Set<string>();
@@ -50,7 +50,7 @@ export class AssetDiscovery {
   for(const kind of selected){
    try{
     let assets:WorkspaceAsset[]=[];
-    if(p.id==='drive'){
+    if(p.id==='sheets'){const rows=await this.pages(connection,credentials,'/drive/v3/files',{q:"trashed = false and mimeType = 'application/vnd.google-apps.spreadsheet'",pageSize:100,fields:'nextPageToken,incompleteSearch,files(id,name,capabilities(canEdit))'},d=>{if(d.incompleteSearch)throw new MirrorError('ASSET_SYNC_INCOMPLETE','Spreadsheet discovery is incomplete.');return d.files??[];});assets=rows.filter(r=>r.capabilities?.canEdit===true).map(r=>this.asset(r,kind));}else if(p.id==='drive'){
      const rows=await this.pages(connection,credentials,'/drive/v3/files',{q:"trashed = false and (mimeType = 'image/png' or mimeType = 'image/jpeg' or mimeType = 'video/mp4' or mimeType = 'video/quicktime')",pageSize:100,fields:'nextPageToken,incompleteSearch,files(id,name,mimeType,size,capabilities(canDownload))',supportsAllDrives:true,includeItemsFromAllDrives:true},d=>{if(d.incompleteSearch===true)throw new MirrorError('ASSET_SYNC_INCOMPLETE','Drive search was incomplete. Narrow the connected login.');return d.files??[];});
      assets=rows.filter(r=>r.capabilities?.canDownload===true).map(r=>this.asset(r,kind));
     }else if(p.id==='microsoft'){

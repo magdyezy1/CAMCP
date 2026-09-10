@@ -14,6 +14,7 @@ function setup(){
  const records=new Map<string,JsonObject>(),calls:JsonObject[]=[];let rows:JsonObject[]=[{campaign_id:'111',spend:'12.01',impressions:'2000',clicks:'50',conversions:'0',value:'0',term:'irrelevant'}],lost=false,wrong=false,paging=false;
  const transport=new NativeTransport((async(url,init)=>{const u=new URL(String(url)),method=init!.method!,body=init!.body?Object.fromEntries([...new URLSearchParams(String(init!.body))].map(([k,v])=>{if(v.startsWith('{')||v.startsWith('['))return [k,JSON.parse(v)];return [k,v];})):undefined;calls.push({path:u.pathname,method,body});
   if(u.pathname.endsWith('/insights'))return new Response(JSON.stringify({data:rows,...(paging?{paging:{next:'https://graph.facebook.com/next'}}:{})}));
+  if(u.pathname.endsWith('/promote_pages'))return Response.json({data:[{id:'500'}]});
   if(method==='GET'){const id=u.pathname.split('/').at(-1)!;return new Response(JSON.stringify(id==='act_123'?{id:'act_123',currency:'USD',account_status:1}:records.get(id)??{id,name:'Synthetic',status:'PAUSED'}));}
   if(lost)throw Error('connection lost');const id=String(111+records.size);records.set(id,{id,...body,...(body?.creative?.creative_id?{creative:{id:body!.creative.creative_id}}:{}),...(wrong?{daily_budget:'999'}:{})});return new Response(JSON.stringify({id}));
  }) as typeof fetch);

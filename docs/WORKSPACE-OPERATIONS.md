@@ -31,3 +31,7 @@ No live advertising mutation is required to run these tests. Credentials, live-a
 ## Sources
 
 Provider behavior follows [Google Drive download documentation](https://developers.google.com/workspace/drive/api/guides/manage-downloads), [Drive search documentation](https://developers.google.com/workspace/drive/api/guides/search-files), [Google Ads validation semantics](https://developers.google.com/google-ads/api/docs/concepts/api-structure), and the [FFmpeg protocol documentation](https://ffmpeg.org/ffmpeg-protocols.html).
+
+## Accounts, reporting and operating controls
+
+See [account setup](USER-ACCOUNTS.md), [Reporting Overview](REPORTING-OVERVIEW.md) and [implementation/acceptance notes](RECOMMENDATIONS-IMPLEMENTED.md) for owner migration, team access, MFA, custom metrics, scheduled Sheets exports, campaign preflight/recovery, spending policies, asynchronous media and encrypted backups.

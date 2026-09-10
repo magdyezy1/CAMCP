@@ -3,8 +3,9 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,Credentials,JsonObject} from './types.js';
 import {redact,scopeKey} from './security.js';
+import type {Store} from './store.js';
 import {microsoftGateway,microsoftOrigin,microsoftCustomerOrigin,microsoftReportOrigin,microsoftCustomer} from './microsoft-native.js';
-export const vendorOrigins:Record<string,string>={google_drive_native_action:'https://www.googleapis.com',
+export const vendorOrigins:Record<string,string>={google_sheets_native_action:'https://www.googleapis.com',google_drive_native_action:'https://www.googleapis.com',
  meta_native_action:'https://graph.facebook.com',tiktok_native_action:'https://business-api.tiktok.com',snapchat_native_action:'https://adsapi.snapchat.com',google_ads_native_action:'https://googleads.googleapis.com',linkedin_native_action:'https://api.linkedin.com',x_ads_native_action:'https://ads-api.x.com',dv360_native_action:'https://displayvideo.googleapis.com',amazon_native_action:'https://advertising-api.amazon.com',apple_ads_native_action:'https://api.searchads.apple.com',reddit_native_action:'https://ads-api.reddit.com',criteo_native_action:'https://api.criteo.com',ga4_native_action:'https://analyticsdata.googleapis.com',gtm_native_action:'https://tagmanager.googleapis.com',google_business_native_action:'https://mybusinessbusinessinformation.googleapis.com',google_search_console_native_action:'https://searchconsole.googleapis.com',adjust_native_action:'https://automate.adjust.com'
 };
 const additionalOrigins:Record<string,string[]>={amazon_native_action:['https://advertising-api-eu.amazon.com','https://advertising-api-fe.amazon.com'],apple_ads_native_action:['https://api.ads.apple.com'],ga4_native_action:['https://analyticsadmin.googleapis.com'],google_business_native_action:['https://mybusinessaccountmanagement.googleapis.com','https://mybusiness.googleapis.com','https://businessprofileperformance.googleapis.com','https://mybusinessverifications.googleapis.com','https://mybusinessnotifications.googleapis.com','https://mybusinesslodging.googleapis.com'],x_ads_native_action:['https://upload.twitter.com','https://api.x.com','https://upload.x.com'],google_search_console_native_action:['https://www.googleapis.com'],adjust_native_action:['https://api.adjust.com','https://dash.adjust.com']};
@@ -37,6 +38,7 @@ function camelKeys(value:unknown):unknown{
 export interface TransportResult {data:unknown;status:number;headers:Record<string,string>}
 export interface BinaryUpload {field:string;bytes:Buffer;filename:string;mime:string;format?:'related'}
 export class NativeTransport {
+ coordination?:Store;
  private circuits=new Map<string,{failures:number;until:number}>();private budgets=new Map<string,{tokens:number;at:number}>();
  readonly metrics={requests:0,retries:0,errors:0,totalLatencyMs:0};
  constructor(private fetcher:typeof fetch=fetch,private sleeper:(ms:number)=>Promise<unknown>=delay,private timeoutMs=30000,private maximumBytes=8*1024*1024){}
@@ -82,9 +84,11 @@ export class NativeTransport {
   // Report submission creates a job even though it cannot mutate advertising configuration.
   const start=Date.now();const maxAttempts=plan.readOnly&&!(plan.gateway===microsoftGateway&&plan.action==='SubmitGenerateReport')?3:1;
   for(let attempt=0;attempt<maxAttempts;attempt++){
+   this.coordination?.providerPermit(key);
    this.metrics.requests++;
    try{
     const response=await this.fetcher(url,{method:plan.method,headers,body,redirect:'error',signal:AbortSignal.timeout(this.timeoutMs)});
+    if(response.status===429){const seconds=Number(response.headers.get('retry-after')??30);this.coordination?.providerCooldown(key,Number.isFinite(seconds)?seconds*1000:30000);}
     if([429,502,503,504].includes(response.status)&&attempt+1<maxAttempts){await response.body?.cancel();this.metrics.retries++;const retry=Number(response.headers.get('retry-after'));await this.sleeper(Math.min(5000,Math.max(200*2**attempt,Number.isFinite(retry)?retry*1000:0)));continue;}
     const documentedEmpty=response.status===200&&(plan.gateway==='google_search_console_native_action'&&['PUT','DELETE'].includes(plan.method)&&/^\/webmasters\/v3\/sites\//.test(plan.path)||plan.gateway==='gtm_native_action'&&plan.method==='DELETE'||plan.gateway==='linkedin_native_action'&&plan.method==='POST'&&plan.path==='/rest/videos'&&plan.query.action==='finalizeUpload'||plan.gateway==='google_ads_native_action'&&plan.method==='POST'&&/^\/resumable\/upload\/v23\/customers\/\d+\/youTubeVideoUploads:create$/.test(plan.path)&&response.headers.has('x-goog-upload-url'));
     const data=await this.readBody(response,plan.method==='HEAD'||!plan.readOnly&&(documentedEmpty||[204,205].includes(response.status)||plan.gateway==='linkedin_native_action'&&response.status===201&&response.headers.has('x-restli-id')));
@@ -94,7 +98,7 @@ export class NativeTransport {
      if((plan.gateway==='tiktok_native_action'&&d.code!==undefined&&d.code!==0)||d.request_status==='ERROR'||d.error)throw new MirrorError('PLATFORM_ERROR','Platform reported an unsuccessful result.',{upstream:redact(d)},502,false);
     }
     this.circuits.delete(key);this.metrics.totalLatencyMs+=Date.now()-start;
-    return {data,status:response.status,headers:Object.fromEntries(['request-id','x-request-id','x-fb-trace-id','x-restli-id','retry-after',...(plan.gateway==='google_ads_native_action'&&plan.path.startsWith('/resumable/upload/')?['x-goog-upload-url']:[])].map(k=>[k,response.headers.get(k)]).filter((p):p is [string,string]=>p[1]!==null))};
+    return {data,status:response.status,headers:Object.fromEntries(['request-id','x-request-id','x-fb-trace-id','x-restli-id','retry-after',...(plan.gateway==='google_ads_native_action'&&plan.path.startsWith('/resumable/upload/')?['x-goog-upload-url','x-goog-upload-chunk-granularity']:[])].map(k=>[k,response.headers.get(k)]).filter((p):p is [string,string]=>p[1]!==null))};
    }catch(error){
     const e=error instanceof MirrorError?error:new MirrorError(plan.readOnly?'UPSTREAM_UNAVAILABLE':'WRITE_OUTCOME_UNCERTAIN',plan.readOnly?'Platform request failed or timed out.':'The write response was lost. Do not retry with a new key; inspect platform state.',{},502,plan.readOnly);
     if(plan.readOnly&&e.retryable&&attempt+1<maxAttempts){this.metrics.retries++;await this.sleeper(200*2**attempt);continue;}
@@ -104,14 +108,31 @@ export class NativeTransport {
   throw new MirrorError('UPSTREAM_UNAVAILABLE','Platform request failed.');
  }
  /** A Google-issued upload capability stays in memory and can only target Google's upload origin. */
- async uploadGoogleVideo(raw:string,bytes:Buffer,accessToken:string):Promise<TransportResult>{
+ async uploadGoogleVideo(raw:string,bytes:Buffer,accessToken:string,options:{granularity?:number;beforeChunk?:()=>void;progress?:(bytes:number)=>void}={}):Promise<TransportResult>{
   let url:URL;try{url=new URL(raw);}catch{throw new MirrorError('UNAPPROVED_UPLOAD_URL','Google returned an invalid upload URL.');}
   if(url.origin!=='https://googleads.googleapis.com'||url.username||url.password||url.hash||!url.pathname.startsWith('/resumable/upload/'))throw new MirrorError('UNAPPROVED_UPLOAD_URL','Google upload URLs must stay on the Google Ads resumable upload endpoint.');
   if(!accessToken)throw new MirrorError('CREDENTIALS_REQUIRED','Google video upload needs an authenticated connection.');
-  let response:Response;try{response=await this.fetcher(url,{method:'PUT',redirect:'error',signal:AbortSignal.timeout(this.timeoutMs),headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/octet-stream','X-Goog-Upload-Offset':'0','X-Goog-Upload-Command':'upload, finalize'},body:new Uint8Array(bytes)});}catch{throw new MirrorError('WRITE_OUTCOME_UNCERTAIN','Google video upload response was lost. Inspect uploads before any retry.');}
-  const data=await this.readBody(response,false);
-  if(!response.ok)throw new MirrorError('MEDIA_UPLOAD_FAILED','Google video upload returned HTTP '+response.status,{upstream:redact(data)},response.status);
-  return {data,status:response.status,headers:{}};
+  const unit=options.granularity??262144;
+  if(!Number.isSafeInteger(unit)||unit<1||unit>16*1024*1024)throw new MirrorError('MEDIA_RESPONSE_INVALID','Google returned an unsupported upload chunk granularity.');
+  const chunkSize=Math.max(unit,Math.floor(4*1024*1024/unit)*unit);let offset=0,recoveries=0;
+  while(offset<bytes.length){
+   options.beforeChunk?.();const end=Math.min(bytes.length,offset+chunkSize),final=end===bytes.length;
+   let response:Response;
+   try{response=await this.fetcher(url,{method:'PUT',redirect:'error',signal:AbortSignal.timeout(this.timeoutMs),headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/octet-stream','X-Goog-Upload-Offset':String(offset),'X-Goog-Upload-Command':final?'upload, finalize':'upload'},body:new Uint8Array(bytes.subarray(offset,end))});
+    if(!response.ok){await response.body?.cancel();throw new MirrorError('MEDIA_UPLOAD_FAILED','Google video transfer returned HTTP '+response.status);}
+   }catch{
+    // A finalization may have created the asset. Never resubmit it on a lost reply.
+    if(final||recoveries++>=2)throw new MirrorError('WRITE_OUTCOME_UNCERTAIN','Google upload response was lost. Inspect the retained upload before any retry.',{bytes_confirmed:offset});
+    options.beforeChunk?.();let queried:Response;
+    try{queried=await this.fetcher(url,{method:'POST',redirect:'error',signal:AbortSignal.timeout(this.timeoutMs),headers:{Authorization:'Bearer '+accessToken,'X-Goog-Upload-Command':'query'}});}catch{throw new MirrorError('WRITE_OUTCOME_UNCERTAIN','The Google upload offset could not be confirmed.');}
+    const received=queried.headers.get('x-goog-upload-size-received');await queried.body?.cancel();const next=Number(received);
+    if(!queried.ok||received===null||!Number.isSafeInteger(next)||next<offset||next>end||next%unit!==0)throw new MirrorError('WRITE_OUTCOME_UNCERTAIN','Google returned an inconsistent resumable upload offset.');
+    offset=next;options.progress?.(offset);continue;
+   }
+   const data=await this.readBody(response,!final);offset=end;options.progress?.(offset);
+   if(final)return {data,status:response.status,headers:{}};
+  }
+  throw new MirrorError('MEDIA_RESPONSE_INVALID','The upload contained no media bytes.');
  }
  /** Only signed upload URLs returned by LinkedIn's initializeUpload response. */
  async uploadLinkedIn(raw:string,bytes:Buffer,mime:string,accessToken?:string):Promise<string|undefined>{

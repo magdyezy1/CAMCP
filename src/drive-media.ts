@@ -1,5 +1,7 @@
 import {MirrorError} from './errors.js';
-export const MAX_MEDIA_BYTES=32*1024*1024;
+const configuredMediaLimit=Number(process.env.AMCP_MAX_MEDIA_MB??128);
+if(!Number.isInteger(configuredMediaLimit)||configuredMediaLimit<32||configuredMediaLimit>512)throw new Error('AMCP_MAX_MEDIA_MB must be an integer from 32 to 512.');
+export const MAX_MEDIA_BYTES=configuredMediaLimit*1024*1024;
 const idPattern=/^[A-Za-z0-9_-]{10,200}$/;
 
 /** A file share link is an identifier, never an arbitrary download destination. */
@@ -38,10 +40,10 @@ export async function downloadDriveMedia(source:string,fetcher:typeof fetch=fetc
    try{url=new URL(location,url);}catch{throw new MirrorError('MEDIA_DOWNLOAD_FAILED','Drive returned an invalid redirect.');}continue;
   }
   if(!response.ok){await response.body?.cancel();throw new MirrorError('DRIVE_FILE_UNAVAILABLE','Make this Drive file downloadable by anyone with the link, then prepare again.',{http_status:response.status});}
-  if(Number(response.headers.get('content-length'))>MAX_MEDIA_BYTES){await response.body?.cancel();throw new MirrorError('MEDIA_TOO_LARGE','Media must be at most 32 MiB.');}
+  if(Number(response.headers.get('content-length'))>MAX_MEDIA_BYTES){await response.body?.cancel();throw new MirrorError('MEDIA_TOO_LARGE','Media must be at most the configured media limit.');}
   if(/text\/html|application\/json/i.test(response.headers.get('content-type')??'')){await response.body?.cancel();throw new MirrorError('DRIVE_FILE_UNAVAILABLE','Drive returned a permission or download confirmation page. Use a directly downloadable shared file.');}
   const reader=response.body?.getReader(),chunks:Uint8Array[]=[];let size=0;
-  try{if(reader)while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>MAX_MEDIA_BYTES){await reader.cancel();throw new MirrorError('MEDIA_TOO_LARGE','Media must be at most 32 MiB.');}chunks.push(value);}}
+  try{if(reader)while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>MAX_MEDIA_BYTES){await reader.cancel();throw new MirrorError('MEDIA_TOO_LARGE','Media must be at most the configured media limit.');}chunks.push(value);}}
   catch(e){if(e instanceof MirrorError)throw e;throw new MirrorError('MEDIA_DOWNLOAD_FAILED','The Drive download did not complete.',{},502);}
   finally{reader?.releaseLock();}
   const bytes=Buffer.concat(chunks);return {bytes,...mediaType(bytes)};

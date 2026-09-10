@@ -1,3 +1,4 @@
+import {MAX_MEDIA_BYTES} from './drive-media.js';
 import {DatabaseSync} from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -30,6 +31,10 @@ export class Store {
   this.transaction(()=>{this.db.exec(`
    CREATE TABLE IF NOT EXISTS schema_version(version INTEGER NOT NULL); INSERT INTO schema_version SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM schema_version);
    CREATE TABLE IF NOT EXISTS tenants(id TEXT PRIMARY KEY,name TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS workspace_memberships(tenant_id TEXT NOT NULL,user_id TEXT NOT NULL,role TEXT NOT NULL CHECK(role IN ('owner','admin','operator','viewer')),active INTEGER NOT NULL DEFAULT 1,created_at INTEGER NOT NULL,PRIMARY KEY(tenant_id,user_id));
+   CREATE TABLE IF NOT EXISTS credential_owners(hash TEXT PRIMARY KEY,user_id TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS service_locks(key TEXT PRIMARY KEY,owner TEXT NOT NULL,expires_at INTEGER NOT NULL);
+   CREATE TABLE IF NOT EXISTS provider_cooldowns(key TEXT PRIMARY KEY,until_at INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS api_keys(hash TEXT PRIMARY KEY,tenant_id TEXT NOT NULL REFERENCES tenants(id),user_id TEXT NOT NULL,role TEXT NOT NULL,expires_at INTEGER,revoked INTEGER NOT NULL DEFAULT 0);
    CREATE TABLE IF NOT EXISTS connections(id TEXT NOT NULL,tenant_id TEXT NOT NULL REFERENCES tenants(id),data TEXT NOT NULL,secret TEXT NOT NULL,PRIMARY KEY(tenant_id,id));
    CREATE TABLE IF NOT EXISTS audit(seq INTEGER PRIMARY KEY AUTOINCREMENT,tenant_id TEXT NOT NULL,request_id TEXT NOT NULL,event TEXT NOT NULL,previous_hash TEXT NOT NULL,hash TEXT NOT NULL,created_at INTEGER NOT NULL);
@@ -41,6 +46,7 @@ export class Store {
    CREATE INDEX IF NOT EXISTS jobs_ready ON jobs(state,available_at);
    CREATE INDEX IF NOT EXISTS audit_tenant ON audit(tenant_id,seq);
    CREATE TABLE IF NOT EXISTS resource_ownership(tenant_id TEXT NOT NULL,connection_id TEXT NOT NULL,account_id TEXT NOT NULL,resource TEXT NOT NULL,expires_at INTEGER NOT NULL,PRIMARY KEY(tenant_id,connection_id,account_id,resource));
+   CREATE TABLE IF NOT EXISTS media_chunks(tenant_id TEXT NOT NULL,id TEXT NOT NULL,chunk_index INTEGER NOT NULL,secret TEXT NOT NULL,PRIMARY KEY(tenant_id,id,chunk_index));
    CREATE TABLE IF NOT EXISTS media_staging(tenant_id TEXT NOT NULL,id TEXT NOT NULL,secret TEXT,expires_at INTEGER NOT NULL,PRIMARY KEY(tenant_id,id));
   `);
   const version=this.db.prepare('SELECT version FROM schema_version').get() as {version:number};
@@ -53,6 +59,7 @@ export class Store {
  reserveMedia(tenant:string,id:string,expiresAt:number){
   if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Media staging requires the configured master key.');
   this.transaction(()=>{
+   this.db.prepare('DELETE FROM media_chunks WHERE EXISTS(SELECT 1 FROM media_staging s WHERE s.tenant_id=media_chunks.tenant_id AND s.id=media_chunks.id AND s.expires_at<=?)').run(Date.now());
    this.db.prepare('DELETE FROM media_staging WHERE expires_at<=?').run(Date.now());
    const local=this.db.prepare('SELECT count(*) AS n FROM media_staging WHERE tenant_id=?').get(tenant) as {n:number};
    const total=this.db.prepare('SELECT count(*) AS n FROM media_staging').get() as {n:number};
@@ -61,16 +68,14 @@ export class Store {
   });
  }
  stageMedia(tenant:string,id:string,bytes:Buffer){
-  if(!this.box||bytes.length>32*1024*1024)throw new MirrorError('MEDIA_STAGING_INVALID','Media staging requires encryption and a file of at most 32 MiB.');
-  const updated=this.db.prepare('UPDATE media_staging SET secret=? WHERE tenant_id=? AND id=? AND expires_at>?').run(this.box.seal({bytes:bytes.toString('base64')},scopeKey(tenant,'media',id)),tenant,id,Date.now());
-  if(!updated.changes)throw new MirrorError('REVIEW_EXPIRED','Media preparation expired.');
+  if(!this.box||bytes.length>MAX_MEDIA_BYTES)throw new MirrorError('MEDIA_STAGING_INVALID','Media exceeds the configured encrypted staging limit.');
+  this.transaction(()=>{const row=this.db.prepare('SELECT expires_at FROM media_staging WHERE tenant_id=? AND id=? AND expires_at>?').get(tenant,id,Date.now());if(!row)throw new MirrorError('REVIEW_EXPIRED','Media preparation expired.');this.db.prepare('DELETE FROM media_chunks WHERE tenant_id=? AND id=?').run(tenant,id);const size=4*1024*1024;let chunks=0;for(let offset=0;offset<bytes.length;offset+=size){const secret=this.box!.seal({bytes:bytes.subarray(offset,offset+size).toString('base64')},scopeKey(tenant,'media-chunk',id,String(chunks)));this.db.prepare('INSERT INTO media_chunks VALUES(?,?,?,?)').run(tenant,id,chunks++,secret);}this.db.prepare('UPDATE media_staging SET secret=? WHERE tenant_id=? AND id=?').run(this.box!.seal({chunks,size:bytes.length,sha256:sha256(bytes)},scopeKey(tenant,'media',id)),tenant,id);});
  }
  stagedMedia(tenant:string,id:string):Buffer{
   const row=this.db.prepare('SELECT secret FROM media_staging WHERE tenant_id=? AND id=? AND expires_at>?').get(tenant,id,Date.now()) as {secret:string}|undefined;
-  if(!this.box||!row?.secret)throw new MirrorError('REVIEW_EXPIRED','The staged media expired or was removed.');
-  return Buffer.from(this.box.open<{bytes:string}>(row.secret,scopeKey(tenant,'media',id)).bytes,'base64');
+  if(!this.box||!row?.secret)throw new MirrorError('REVIEW_EXPIRED','The staged media expired or was removed.');const manifest=this.box.open<JsonObject>(row.secret,scopeKey(tenant,'media',id));if(manifest.bytes)return Buffer.from(manifest.bytes,'base64');const chunks=this.db.prepare('SELECT chunk_index,secret FROM media_chunks WHERE tenant_id=? AND id=? ORDER BY chunk_index').all(tenant,id) as JsonObject[];if(chunks.length!==manifest.chunks||manifest.size>MAX_MEDIA_BYTES)throw new MirrorError('MEDIA_STAGING_INVALID','Encrypted media chunks are incomplete.');const bytes=Buffer.concat(chunks.map((c,i)=>{if(c.chunk_index!==i)throw new MirrorError('MEDIA_STAGING_INVALID','Encrypted media chunk order is invalid.');return Buffer.from(this.box!.open<{bytes:string}>(c.secret,scopeKey(tenant,'media-chunk',id,String(i))).bytes,'base64');}));if(bytes.length!==manifest.size||sha256(bytes)!==manifest.sha256)throw new MirrorError('MEDIA_STAGING_INVALID','Staged media integrity check failed.');return bytes;
  }
- removeStagedMedia(tenant:string,id:string){this.db.prepare('DELETE FROM media_staging WHERE tenant_id=? AND id=?').run(tenant,id);}
+ removeStagedMedia(tenant:string,id:string){this.transaction(()=>{this.db.prepare('DELETE FROM media_chunks WHERE tenant_id=? AND id=?').run(tenant,id);this.db.prepare('DELETE FROM media_staging WHERE tenant_id=? AND id=?').run(tenant,id);});}
  transaction<T>(fn:()=>T):T{
   if(fn.constructor.name==='AsyncFunction')throw new MirrorError('ASYNC_TRANSACTION_UNSUPPORTED','SQLite transactions require synchronous callbacks.');
   const depth=this.transactionDepth,name='amcp_sp_'+depth;
@@ -86,16 +91,20 @@ export class Store {
   }finally{this.transactionDepth=depth;}
  }
  ensureTenant(id:string,name=id){if(!id)throw new MirrorError('INVALID_TENANT','Tenant ID is required.');this.db.prepare('INSERT INTO tenants(id,name) VALUES(?,?) ON CONFLICT(id) DO NOTHING').run(id,name);}
- createKey(actor:Actor,ttlMs:number=86400000*30):string{this.ensureTenant(actor.tenantId);const token='whm_'+randomUUID().replaceAll('-','')+randomUUID().replaceAll('-','');this.db.prepare('INSERT INTO api_keys(hash,tenant_id,user_id,role,expires_at) VALUES(?,?,?,?,?)').run(sha256(token),actor.tenantId,actor.userId,actor.role,Date.now()+ttlMs);return token;}
+ createKey(actor:Actor,ttlMs:number=86400000*30):string{this.assertActorActive(actor);this.ensureTenant(actor.tenantId);const token='whm_'+randomUUID().replaceAll('-','')+randomUUID().replaceAll('-','');this.transaction(()=>{this.db.prepare('INSERT INTO api_keys(hash,tenant_id,user_id,role,expires_at) VALUES(?,?,?,?,?)').run(sha256(token),actor.tenantId,actor.userId,actor.role,Date.now()+ttlMs);if(actor.ownerUserId)this.db.prepare('INSERT INTO credential_owners VALUES(?,?)').run(sha256(token),actor.ownerUserId);});return token;}
  authenticate(token:string):Actor{
   const row=this.db.prepare('SELECT * FROM api_keys WHERE hash=? AND revoked=0 AND (expires_at IS NULL OR expires_at>?)').get(sha256(token),Date.now()) as JsonObject|undefined;
   if(!row)throw new MirrorError('UNAUTHORIZED','A valid, unexpired API key is required.',{},401);
-  const actor:Actor={tenantId:row.tenant_id,userId:row.user_id,role:row.role};this.authenticatedActors.set(actor,sha256(token));return actor;
+  const owner=this.db.prepare('SELECT user_id FROM credential_owners WHERE hash=?').get(sha256(token)) as JsonObject|undefined;
+  const actor:Actor={tenantId:row.tenant_id,userId:row.user_id,role:row.role,...(owner?{ownerUserId:owner.user_id}:{})};this.authenticatedActors.set(actor,sha256(token));this.assertActorActive(actor);return actor;
  }
  /** HTTP actors retain a process-local credential identity without exposing the token or hash. */
  bindActorCheck(actor:Actor,check:()=>void){this.actorChecks.set(actor,check);}
  assertActorActive(actor:Actor):void{
   this.actorChecks.get(actor)?.();
+  if(actor.userId==='workspace-admin'&&this.db.prepare("SELECT 1 FROM documents WHERE tenant_id=? AND kind='account_settings' AND id='owner_migration'").get(actor.tenantId))throw new MirrorError('OWNER_LOGIN_REQUIRED','The administrator workspace was migrated. Sign in with the owner account and explicitly resume pending work.',{},401);
+   const version=(actor as JsonObject).accountVersion;if(actor.ownerUserId&&typeof version==='number'){const user=this.db.prepare('SELECT version FROM amcp_users WHERE id=?').get(actor.ownerUserId) as JsonObject|undefined;if(!user||user.version!==version)throw new MirrorError('ACCOUNT_ACCESS_REVOKED','Account security changed. Sign in again and explicitly resume this job or schedule.',{},401);}
+  if(actor.ownerUserId){const membership=this.db.prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1').get(actor.tenantId,actor.ownerUserId) as JsonObject|undefined;const rank:Record<string,number>={viewer:0,reader:0,operator:1,admin:2,owner:2};if(!membership||rank[membership.role]!<rank[actor.role]!)throw new MirrorError('MEMBERSHIP_REVOKED','Workspace access was removed or reduced. Sign in or authorize the connector again.',{},403);}
   const hash=this.authenticatedActors.get(actor);if(!hash)return; // Trusted local/stdio actors have no bearer credential.
   const row=this.db.prepare('SELECT tenant_id,user_id,role FROM api_keys WHERE hash=? AND revoked=0 AND (expires_at IS NULL OR expires_at>?)').get(hash,Date.now()) as JsonObject|undefined;
   if(!row||row.tenant_id!==actor.tenantId||row.user_id!==actor.userId||row.role!==actor.role)throw new MirrorError('UNAUTHORIZED','Connector access expired, changed or was revoked during this request.',{},401);
@@ -105,6 +114,11 @@ export class Store {
   this.assertActorActive(actor);if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Background verification requires encryption.');
   return this.box.seal({actor,credential_hash:this.authenticatedActors.get(actor)??null},scopeKey(actor.tenantId,'job-actor',id));
  }
+ acquireLock(key:string,owner:string,ttl=45000):boolean{return this.transaction(()=>{const now=Date.now();this.db.prepare('DELETE FROM service_locks WHERE key=? AND expires_at<=?').run(key,now);return this.db.prepare('INSERT OR IGNORE INTO service_locks(key,owner,expires_at) VALUES(?,?,?)').run(key,owner,now+ttl).changes===1;});}
+ releaseLock(key:string,owner:string){this.db.prepare('DELETE FROM service_locks WHERE key=? AND owner=?').run(key,owner);}
+ providerPermit(key:string){return this.transaction(()=>{const now=Date.now(),cooldown=this.db.prepare('SELECT until_at FROM provider_cooldowns WHERE key=?').get(key) as JsonObject|undefined;if(cooldown?.until_at>now)throw new MirrorError('PLATFORM_RATE_LIMIT','The shared provider cooldown is active.',{retry_after_ms:cooldown!.until_at-now},429,true);const record=this.db.prepare("SELECT data FROM documents WHERE tenant_id='__service_limits__' AND kind='provider_budget' AND id=?").get(sha256(key)) as JsonObject|undefined,old=record?JSON.parse(record.data):{tokens:30,at:now},tokens=Math.min(30,old.tokens+(now-old.at)/200);if(tokens<1)throw new MirrorError('TENANT_RATE_LIMIT','The shared platform request budget is exhausted.',{retry_after_ms:Math.ceil((1-tokens)*200)},429,true);this.putDocument('__service_limits__','provider_budget',sha256(key),{tokens:tokens-1,at:now});});}
+ providerCooldown(key:string,milliseconds:number){const until=Date.now()+Math.max(1000,Math.min(3600000,milliseconds));this.db.prepare('INSERT INTO provider_cooldowns VALUES(?,?) ON CONFLICT(key) DO UPDATE SET until_at=max(until_at,excluded.until_at)').run(key,until);}
+ retryJob(id:string,leaseToken:string,error:unknown,delayMs:number){const now=Date.now(),r=this.db.prepare("UPDATE jobs SET state='queued',error=?,available_at=?,lease_until=NULL,lease_token=NULL,updated_at=? WHERE id=? AND state='running' AND lease_token=? AND lease_until>?").run(JSON.stringify(redact(error)),now+Math.max(1000,Math.min(3600000,delayMs)),now,id,leaseToken,now);if(!r.changes)throw new MirrorError('STALE_JOB_LEASE','This worker no longer owns the job lease.',{},409);}
  restoreJobActor(tenant:string,id:string,binding:string):Actor{
   if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Background verification requires encryption.');
   const value=this.box.open<{actor:Actor;credential_hash:string|null}>(binding,scopeKey(tenant,'job-actor',id)),actor=value.actor;
@@ -138,6 +152,7 @@ export class Store {
  }
  ownsResource(connection:Connection,accountId:string,resource:string):boolean{return !!this.db.prepare('SELECT 1 FROM resource_ownership WHERE tenant_id=? AND connection_id=? AND account_id=? AND resource=? AND expires_at>?').get(connection.tenantId,connection.id,accountId,resource,Date.now());}
  resolveConnection(actor:Actor,gateway:string,accountId?:string,connectionId?:string):Connection{
+  this.assertActorActive(actor);
   const normalize=(id:string)=>gateway==='google_ads_native_action'?id.replaceAll('-',''):gateway==='meta_native_action'?id.replace(/^act_/,''):id;
   const available=this.listConnections(actor.tenantId).filter(c=>c.enabled&&c.gateway===gateway&&(!connectionId||c.id===connectionId)&&(!accountId||c.accounts.some(a=>normalize(a)===normalize(accountId))));
   if(!available.length)throw new MirrorError('CONNECTION_REQUIRED','No authorized connection is configured for this gateway/account.',{gateway,account_id:accountId??null},403);

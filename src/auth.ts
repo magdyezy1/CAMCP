@@ -4,15 +4,18 @@ import {MirrorError} from './errors.js';
 import {scopeKey} from './security.js';
 import {requestAppleAccessToken} from './apple-auth.js';
 import {microsoftGateway,microsoftScope} from './microsoft-native.js';
-const refreshEndpoints:Record<string,string>={google_drive_native_action:'https://oauth2.googleapis.com/token',google_ads_native_action:'https://oauth2.googleapis.com/token',dv360_native_action:'https://oauth2.googleapis.com/token',ga4_native_action:'https://oauth2.googleapis.com/token',gtm_native_action:'https://oauth2.googleapis.com/token',google_business_native_action:'https://oauth2.googleapis.com/token',google_search_console_native_action:'https://oauth2.googleapis.com/token',snapchat_native_action:'https://accounts.snapchat.com/login/oauth2/access_token',linkedin_native_action:'https://www.linkedin.com/oauth/v2/accessToken',amazon_native_action:'https://api.amazon.com/auth/o2/token'};
+import {randomUUID} from 'node:crypto';
+import {setTimeout as delay} from 'node:timers/promises';
+const refreshEndpoints:Record<string,string>={google_sheets_native_action:'https://oauth2.googleapis.com/token',google_drive_native_action:'https://oauth2.googleapis.com/token',google_ads_native_action:'https://oauth2.googleapis.com/token',dv360_native_action:'https://oauth2.googleapis.com/token',ga4_native_action:'https://oauth2.googleapis.com/token',gtm_native_action:'https://oauth2.googleapis.com/token',google_business_native_action:'https://oauth2.googleapis.com/token',google_search_console_native_action:'https://oauth2.googleapis.com/token',snapchat_native_action:'https://accounts.snapchat.com/login/oauth2/access_token',linkedin_native_action:'https://www.linkedin.com/oauth/v2/accessToken',amazon_native_action:'https://api.amazon.com/auth/o2/token'};
 export class CredentialProvider {
  private refreshes=new Map<string,Promise<Credentials>>();
  constructor(private store:Store,private fetcher:typeof fetch=fetch){}
  async get(connection:Connection):Promise<Credentials>{
   const c=this.store.credentials(connection.tenantId,connection.id);if(!c.expiresAt||c.expiresAt>Date.now()+120000)return c;
   const key=scopeKey(connection.tenantId,connection.id);const current=this.refreshes.get(key);if(current)return current;
-  const work=this.refresh(connection,c);this.refreshes.set(key,work);try{return await work;}finally{this.refreshes.delete(key);}
+  const work=this.lockedRefresh(connection);this.refreshes.set(key,work);try{return await work;}finally{this.refreshes.delete(key);}
  }
+ private async lockedRefresh(connection:Connection):Promise<Credentials>{const key='refresh:'+scopeKey(connection.tenantId,connection.id),owner=randomUUID();for(let attempt=0;attempt<80;attempt++){if(this.store.acquireLock(key,owner,45000)){try{const latest=this.store.credentials(connection.tenantId,connection.id);if(!latest.expiresAt||latest.expiresAt>Date.now()+120000)return latest;return await this.refresh(connection,latest);}finally{this.store.releaseLock(key,owner);}}await delay(250);}throw new MirrorError('REFRESH_IN_PROGRESS','Another worker is refreshing this connection. Retry shortly.',{connection_id:connection.id,retry_after_ms:5000},503,true);}
  private async refresh(connection:Connection,c:Credentials):Promise<Credentials>{
   if(connection.gateway==='apple_ads_native_action'){
    const next=await requestAppleAccessToken(c,this.fetcher);this.store.replaceCredentials(connection.tenantId,connection.id,next);return next;

@@ -20,7 +20,7 @@ export async function downloadPrivateDrive(store:Store,credentials:CredentialPro
  const options:RequestInit={method:'GET',headers,redirect:'error',signal:AbortSignal.timeout(45000)};
  const metadata=JSON.parse((await bounded(await fetcher(url,options),65536)).toString('utf8'));
  if(metadata.id!==fileId||metadata.capabilities?.canDownload!==true||!['image/png','image/jpeg','video/mp4','video/quicktime'].includes(metadata.mimeType))throw new MirrorError('DRIVE_DOWNLOAD_FORBIDDEN','Select a downloadable PNG, JPEG, MP4 or MOV file in the connected Drive account.');
- if(!/^\d+$/.test(metadata.size)||Number(metadata.size)>MAX_MEDIA_BYTES)throw new MirrorError('MEDIA_TOO_LARGE','Drive media must be at most 32 MiB.');
+ if(!/^\d+$/.test(metadata.size)||Number(metadata.size)>MAX_MEDIA_BYTES)throw new MirrorError('MEDIA_TOO_LARGE','Drive media must be at most the configured media limit (128 MiB by default).');
  driveAccess(store,actor,connection,source);url.searchParams.delete('fields');url.searchParams.set('alt','media');
  const bytes=await bounded(await fetcher(url,options),MAX_MEDIA_BYTES);driveAccess(store,actor,connection,source);const type=mediaType(bytes);
  if(bytes.length!==Number(metadata.size)||type.mime!==metadata.mimeType)throw new MirrorError('MEDIA_CHANGED','The file changed during download. Prepare it again.');return {bytes,...type};

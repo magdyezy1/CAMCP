@@ -60,19 +60,20 @@ export class SocialSignIn {
    return {subject:payload.sub,email,name:typeof payload.name==='string'?payload.name.slice(0,80):email?.split('@')[0]?.slice(0,80)??'AMCP member'};
   }catch(e){if(e instanceof MirrorError)throw e;throw new MirrorError('SIGNIN_IDENTITY_INVALID','The provider identity could not be verified. Start sign-in again.',{},400);}
  }
- async finish(req:Request,id:string,input:JsonObject):Promise<{session:WebSession;linked:boolean}>{
+ async finish(req:Request,id:string,input:JsonObject):Promise<{session:WebSession;linked:boolean}|{mfaRequired:true;ticket:string}>{
   this.accounts.limit(req,'social-callback','',30);const provider=this.provider(id),browser=cookieValue(req,this.flowCookie);
   const pending=this.web.store.transaction(()=>{const data=this.accounts.readChallenge(input.state,'social');if(data.provider!==provider||!browser||data.browserHash!==sha256(browser))throw new MirrorError('SIGNIN_STATE_INVALID','Sign-in must finish in the browser where it started. Please try again.');return this.accounts.readChallenge(input.state,'social',true);});
   if(input.error)throw new MirrorError('SIGNIN_CANCELLED','Sign-in was cancelled. You can try again.');
   if(typeof input.code!=='string'||input.code.length<1||input.code.length>8192)throw new MirrorError('SIGNIN_IDENTITY_INVALID','The provider did not return an authorization code.');
   const identity=await this.identity(provider,pending,input.code),db=this.web.store.db;
   return this.web.store.transaction(()=>{
-   let user:JsonObject;
+   let user:JsonObject,activeWorkspace:string|undefined;
    if(pending.sessionHash&&!db.prepare('SELECT hash FROM amcp_web_sessions WHERE hash=? AND expires_at>?').get(pending.sessionHash,Date.now()))throw new MirrorError('SIGN_IN_REQUIRED','The initiating session ended. Start sign-in again.',{},401);
    const existing=db.prepare('SELECT user_id FROM amcp_identities WHERE provider=? AND subject=?').get(provider,identity.subject) as JsonObject|undefined;
    if(pending.link){
     const previous=db.prepare('SELECT actor,expires_at FROM amcp_web_sessions WHERE hash=? AND expires_at>?').get(pending.sessionHash,Date.now()) as JsonObject|undefined;
     user=this.accounts.user(pending.userId);if(!previous||JSON.parse(previous.actor).userId!==user.id||JSON.parse(previous.actor).accountVersion!==user.version)throw new MirrorError('SIGN_IN_REQUIRED','Sign in again before linking an account.',{},401);
+    activeWorkspace=JSON.parse(previous.actor).tenantId;
     if(existing&&existing.user_id!==user.id)throw new MirrorError('IDENTITY_ALREADY_LINKED','That social account belongs to another AMCP account.');
     const sameProvider=db.prepare('SELECT subject FROM amcp_identities WHERE user_id=? AND provider=?').get(user.id,provider) as JsonObject|undefined;
     if(sameProvider&&sameProvider.subject!==identity.subject)throw new MirrorError('IDENTITY_ALREADY_LINKED','Remove your existing '+definitions[provider].name+' connection before linking another.');
@@ -84,7 +85,7 @@ export class SocialSignIn {
    }
    if(!existing)db.prepare('INSERT INTO amcp_identities VALUES(?,?,?,?)').run(provider,identity.subject,user.id,Date.now());
    if(pending.sessionHash)db.prepare('DELETE FROM amcp_web_sessions WHERE hash=?').run(pending.sessionHash);
-   this.web.store.appendAudit(user.tenant_id,randomUUID(),{event:pending.link?'account_identity_linked':'account_sign_in',method:provider});return {session:this.accounts.session(user),linked:pending.link};
+   this.web.store.appendAudit(activeWorkspace??user.tenant_id,randomUUID(),{event:pending.link?'account_identity_linked':'account_sign_in',method:provider});if(!pending.link&&this.accounts.hasMfa(user.id))return {mfaRequired:true as const,ticket:this.accounts.challenge('mfa_login',{userId:user.id,version:user.version},300000)};return {session:this.accounts.session(user,activeWorkspace,pending.link),linked:pending.link};
   });
  }
 }

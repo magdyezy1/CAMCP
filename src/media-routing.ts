@@ -1,5 +1,5 @@
 import {MirrorError} from './errors.js';
-import {driveDownloadUrl,downloadDriveMedia} from './drive-media.js';
+import {driveDownloadUrl,downloadDriveMedia,MAX_MEDIA_BYTES} from './drive-media.js';
 import {sha256,stable} from './security.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 
@@ -8,7 +8,7 @@ export const mediaInstructions='AMCP server-side Drive imports: never download m
 export function mediaDiscovery(gateway?:string):JsonObject|undefined {
  if(!gateway)return;
  if(gateway!=='amcp_native_action'&&!mediaPlatforms.includes(gateway.replace(/_native_action$/,'')))return;
- return {instructions:mediaInstructions,platforms:mediaPlatforms,source:'Public Drive URL or private file selected in a separate Drive connection',client_download_required:false,maximum_bytes:33554432,review_tool:'amcp_write',workflow_actions:['UPLOAD_FROM_URL','UPLOAD_FROM_URL_VIA_SESSION','QUEUE_GOOGLE_DRIVE_IMPORT','FINALIZE_UPLOAD_SESSION'],limitations:['One selected account per review','Private files require drive_connection_id and a selected Drive file; folders are not imported','Provider dimensions, duration, codecs, permissions and app approvals still apply','Google videos create UNLISTED videos on the account Google-managed YouTube channel','LinkedIn organization/person owners require an exact administrator resource binding','Binary upload APIs for other catalog providers are not implemented']};
+ return {instructions:mediaInstructions,platforms:mediaPlatforms,source:'Public Drive URL or private file selected in a separate Drive connection',client_download_required:false,maximum_bytes:MAX_MEDIA_BYTES,review_tool:'amcp_write',workflow_actions:['UPLOAD_FROM_URL','UPLOAD_FROM_URL_VIA_SESSION','QUEUE_GOOGLE_DRIVE_IMPORT','FINALIZE_UPLOAD_SESSION'],limitations:['One selected account per review','Private files require drive_connection_id and a selected Drive file; folders are not imported','Provider dimensions, duration, codecs, permissions and app approvals still apply','Google videos create UNLISTED videos on the account Google-managed YouTube channel','LinkedIn organization/person owners require an exact administrator resource binding','Binary upload APIs for other catalog providers are not implemented']};
 }
 export function mediaPlatform(value:unknown):string {
  const p=({google:'google_ads',x:'x_ads',twitter:'x_ads'} as Record<string,string>)[String(value)]??String(value);

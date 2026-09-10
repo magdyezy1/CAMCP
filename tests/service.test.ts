@@ -12,7 +12,7 @@ import type {Actor} from '../src/types.js';
 const actor:Actor={tenantId:'t',userId:'test',role:'admin'};
 test('MCP initialize, list tools and call help work through real SDK transports',async()=>{
  const store=new Store(':memory:');const service=new MirrorService(new Registry(),store);const server=createMcpServer(service,actor);const client=new Client({name:'test',version:'1'});const [c,s]=InMemoryTransport.createLinkedPair();
- try{await server.connect(s);await client.connect(c);const list=await client.listTools();assert.equal(list.tools.length,24);const response=await client.callTool({name:'amcp_tool_help',arguments:{}});const content=response.content as any[];assert.equal(JSON.parse(content[0].text).surface,'compact-v1');}finally{await client.close();await server.close();store.close();}
+ try{await server.connect(s);await client.connect(c);const list=await client.listTools();assert.equal(list.tools.length,25);const response=await client.callTool({name:'amcp_tool_help',arguments:{}});const content=response.content as any[];assert.equal(JSON.parse(content[0].text).surface,'compact-v1');}finally{await client.close();await server.close();store.close();}
 });
 test('dry run compiles without credentials or any network request',async()=>{
  let calls=0;const store=new Store(':memory:');const service=new MirrorService(new Registry(),store,new NativeTransport((async()=>{calls++;throw Error('unexpected network');}) as typeof fetch));

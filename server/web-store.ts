@@ -63,6 +63,9 @@ export class WebStore {
    CREATE TABLE IF NOT EXISTS amcp_users(id TEXT PRIMARY KEY,email TEXT UNIQUE COLLATE NOCASE,name TEXT NOT NULL,tenant_id TEXT UNIQUE NOT NULL,password_hash TEXT,version INTEGER NOT NULL DEFAULT 1,disabled INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS amcp_identities(provider TEXT NOT NULL,subject TEXT NOT NULL,user_id TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(provider,subject),UNIQUE(user_id,provider));
    CREATE TABLE IF NOT EXISTS amcp_account_challenges(hash TEXT PRIMARY KEY,kind TEXT NOT NULL,secret TEXT NOT NULL,expires_at INTEGER NOT NULL);
+   CREATE TABLE IF NOT EXISTS amcp_email_outbox(id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,secret TEXT NOT NULL,state TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,available_at INTEGER NOT NULL,lease_until INTEGER,lease_token TEXT,expires_at INTEGER NOT NULL,last_error TEXT,created_at INTEGER NOT NULL);
+   CREATE TABLE IF NOT EXISTS amcp_mfa(user_id TEXT PRIMARY KEY,secret TEXT NOT NULL,recovery TEXT NOT NULL,last_step INTEGER NOT NULL DEFAULT -1,enabled_at INTEGER NOT NULL);
+   INSERT OR IGNORE INTO workspace_memberships(tenant_id,user_id,role,created_at) SELECT tenant_id,id,'owner',created_at FROM amcp_users;
   `));
  }
  get configured(){return !!this.administratorHash;}
@@ -80,10 +83,11 @@ export class WebStore {
  createSession(actor:Actor):WebSession{
   const now=Date.now(),s:WebSession={id:randomBytes(32).toString('base64url'),csrf:randomBytes(32).toString('base64url'),actor,expiresAt:now+8*3600000};
   this.store.db.prepare('DELETE FROM amcp_web_sessions WHERE expires_at<=?').run(now);this.store.ensureTenant(actor.tenantId);
-  const user=this.store.db.prepare('SELECT version FROM amcp_users WHERE id=? AND tenant_id=? AND disabled=0').get(actor.userId,actor.tenantId) as JsonObject|undefined;
-  this.store.db.prepare('INSERT INTO amcp_web_sessions VALUES(?,?,?,?)').run(sha256(s.id),JSON.stringify({...actor,...(user?{accountVersion:user.version}:{}),signedInAt:now}),s.csrf,s.expiresAt);return s;
+  const user=this.store.db.prepare('SELECT version FROM amcp_users WHERE id=? AND disabled=0').get(actor.userId) as JsonObject|undefined;
+  this.store.db.prepare('INSERT INTO amcp_web_sessions VALUES(?,?,?,?)').run(sha256(s.id),JSON.stringify(Object.assign(actor,{...(user?{accountVersion:user.version}:{}),signedInAt:now})),s.csrf,s.expiresAt);return s;
  }
  signIn(password:string,address:string):WebSession{
+  if(this.store.db.prepare("SELECT 1 FROM documents WHERE tenant_id=? AND kind='account_settings' AND id='owner_migration'").get(this.tenantId))throw new MirrorError('OWNER_LOGIN_REQUIRED','This workspace now uses its owner email account. Use email sign-in or account recovery.',{},403);
   if(!this.administratorHash)throw new MirrorError('SETUP_REQUIRED','Configure the AMCP administrator password on the server before signing in.',{},503);
   const key=sha256(address),now=Date.now();this.store.db.prepare('DELETE FROM amcp_login_limits WHERE until_at<?').run(now);
   const row=this.store.db.prepare('SELECT attempts FROM amcp_login_limits WHERE key=?').get(key) as JsonObject|undefined;
@@ -103,14 +107,17 @@ export class WebStore {
   const row=this.store.db.prepare('SELECT * FROM amcp_web_sessions WHERE hash=? AND expires_at>?').get(sha256(id),Date.now()) as JsonObject|undefined;
   if(!row)return;const actor=JSON.parse(row.actor);
   if(actor.userId!=='workspace-admin'){
-   const user=this.store.db.prepare('SELECT version FROM amcp_users WHERE id=? AND tenant_id=? AND disabled=0').get(actor.userId,actor.tenantId) as JsonObject|undefined;
-   if(!user||user.version!==actor.accountVersion)return;
+   const user=this.store.db.prepare('SELECT version FROM amcp_users WHERE id=? AND disabled=0').get(actor.userId) as JsonObject|undefined;
+   const membership=this.store.db.prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1').get(actor.tenantId,actor.userId) as JsonObject|undefined;
+   if(!user||user.version!==actor.accountVersion||!membership)return;
+   actor.role=membership.role==='viewer'?'reader':membership.role==='operator'?'operator':'admin';actor.membershipRole=membership.role;actor.ownerUserId=actor.userId;
   }
   return {id,actor,csrf:row.csrf,expiresAt:row.expires_at};
  }
  requireSession(req:Request):WebSession{const session=this.session(req);if(!session)throw new MirrorError('SIGN_IN_REQUIRED','Sign in to your AMCP workspace.',{},401);return session;}
  requireOrigin(req:Request){if(req.headers.origin!==this.origin||req.headers['sec-fetch-site']==='cross-site')throw new MirrorError('FORBIDDEN_ORIGIN','This request must come from your AMCP website.',{},403);}
  requireMutation(req:Request):WebSession{this.requireOrigin(req);const session=this.requireSession(req),csrf=req.headers['x-amcp-csrf'];if(typeof csrf!=='string'||csrf!==session.csrf)throw new MirrorError('CSRF_INVALID','Refresh the page and try again.',{},403);return session;}
+ requireAdminMutation(req:Request):WebSession{const s=this.requireMutation(req);if(s.actor.role!=='admin')throw new MirrorError('FORBIDDEN','A workspace owner or administrator is required.',{},403);return s;}
  signOut(id:string){this.store.db.prepare('DELETE FROM amcp_web_sessions WHERE hash=?').run(sha256(id));this.store.db.prepare('DELETE FROM amcp_oauth_states WHERE session_hash=?').run(sha256(id));}
  cookie(id:string,maxAge=28800){return `${this.cookieName}=${id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${this.secure?'; Secure':''}`;}
  beginOAuth(session:WebSession,platform:string,data:JsonObject,state=randomBytes(32).toString('base64url')):string{

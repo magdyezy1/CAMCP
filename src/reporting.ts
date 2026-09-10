@@ -18,10 +18,11 @@ export function nextSchedule(schedule:JsonObject,after=Date.now()):number{
 export function resolveReportConfig(config:JsonObject,now=Date.now()):JsonObject{
  const result=structuredClone(config),range=result.date_range;
  if(!range?.preset)return result;
+ if(range.offset_days!==undefined&&(!Number.isInteger(range.offset_days)||range.offset_days<0||range.offset_days>90))throw new MirrorError('INVALID_ROLLING_WINDOW','Skip 0–90 recent days to allow conversion reporting to mature.');
  if(range.preset!=='last_complete_days'||!Number.isInteger(range.days)||range.days<1||range.days>366||typeof range.timezone!=='string')throw new MirrorError('INVALID_ROLLING_WINDOW','Use {preset:last_complete_days, days:1..366, timezone:IANA_timezone}.');
  let parts:Intl.DateTimeFormatPart[];try{parts=new Intl.DateTimeFormat('en-US',{timeZone:range.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);}catch{throw new MirrorError('INVALID_TIMEZONE','Rolling windows require an explicit IANA timezone.');}
  const part=(kind:string)=>Number(parts.find(p=>p.type===kind)!.value),today=Date.UTC(part('year'),part('month')-1,part('day'));
- result.date_range={since:new Date(today-range.days*86400000).toISOString().slice(0,10),until:new Date(today-86400000).toISOString().slice(0,10)};return result;
+ result.date_range={since:new Date(today-(range.days+(range.offset_days??0))*86400000).toISOString().slice(0,10),until:new Date(today-(1+(range.offset_days??0))*86400000).toISOString().slice(0,10)};return result;
 }
 export class ReportingService {
  constructor(readonly store:Store){}

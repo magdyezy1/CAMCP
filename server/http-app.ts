@@ -33,7 +33,7 @@ export function createHttpApp(service:MirrorService,store:Store,options:HttpOpti
   try{await server.connect(transport);await transport.handleRequest(req,res,req.body);}catch(e){next(e);}
  });
  app.all('/mcp',(_req,res)=>res.status(405).setHeader('Allow','POST').json({error:'Stateless MCP endpoint: use POST.'}));
- if(options.website)app.use(createWebsite(store,options.website,service.policy.allowWrites,service).router);
+ if(options.website){const website=createWebsite(store,options.website,service.policy.allowWrites,service);app.locals.website=website;app.use(website.router);}
  const errors:ErrorRequestHandler=(e,_req,res,_next)=>{
   if(res.headersSent)return;
   const error=e instanceof MirrorError?e:e instanceof OAuthError?new MirrorError('OAUTH_REQUEST_INVALID',e.message,{},400):e.status===404?new MirrorError('NOT_FOUND','This resource was not found.',{},404):e.type==='entity.too.large'?new MirrorError('REQUEST_TOO_LARGE','Request body exceeds the configured size limit.',{},413):e instanceof SyntaxError?new MirrorError('INVALID_JSON','Request body is not valid JSON.',{},400):new MirrorError('INTERNAL_ERROR','Request could not be processed.',{},500);

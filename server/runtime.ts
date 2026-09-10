@@ -12,5 +12,6 @@ export function createRuntime(){
  const flags=JSON.parse(process.env.MIRROR_FLAGS??'{}');
  const options:CallOptions={mode:enhanced?'enhanced':'strict',flags};
  const service=new MirrorService(registry,store,undefined,options,{allowWrites,maxBudgetChange:0,requireBeforeState:true});
+ service.transport.coordination=store;
  return {registry,store,service};
 }

@@ -1,54 +1,66 @@
-# User accounts and social sign-in
+# AMCP accounts and workspace access
 
-AMCP has individual member accounts with isolated workspaces, verified email registration, password sign-in and recovery, Google / Apple / Facebook sign-in, explicit account linking, profile editing and browser-session revocation. These use the existing persistent SQLite database and encryption key. The original deployment administrator password continues to open the original workspace.
+People sign in with a verified email/password or an explicitly linked Google, Apple or Facebook identity. A person can belong to multiple workspaces. Connections, selected accounts and reports belong to the workspace.
 
-New accounts never inherit the administrator's connected ad accounts or credentials. Each member owns their own workspace. MCP browser authorization and token creation use the member's workspace, including refresh and revocation. Server-owned Apple Ads client credentials remain restricted to the deployment administrator; Apple **Sign in** is a separate identity flow.
+## Claim the existing administrator workspace
 
-## Enable the login providers
+1. Configure the email sender below. Keep the existing database and master encryption key.
+2. Sign in through the administrator entry using the existing AMCP_ADMIN_PASSWORD or hash.
+3. In Account settings, choose the owner-account migration. Enter your name, an unused email address and the existing administrator password.
+4. Open the emailed verification link in the same browser and choose a password of 15–128 characters.
+5. Use the ordinary email/password form afterward. Migration attaches your owner identity to the existing workspace and preserves its connections, grants and reports. The legacy administrator password stops opening that workspace. Existing MCP clients must reauthorize and old administrator schedules must be explicitly resumed under the owner account.
 
-Use the site's actual HTTPS `AMCP_PUBLIC_ORIGIN` and register these exact callbacks. User sign-in app settings are independent of the existing `/api/auth/:platform/callback` advertising connections.
-
-| Provider | Callback | Server variables |
-|---|---|---|
-| Google | `https://amcp.shop/api/signin/google/callback` | `AMCP_SIGNIN_GOOGLE_CLIENT_ID`, `AMCP_SIGNIN_GOOGLE_CLIENT_SECRET` |
-| Apple | `https://amcp.shop/api/signin/apple/callback` | `AMCP_SIGNIN_APPLE_CLIENT_ID`, `AMCP_SIGNIN_APPLE_TEAM_ID`, `AMCP_SIGNIN_APPLE_KEY_ID`, `AMCP_SIGNIN_APPLE_PRIVATE_KEY` |
-| Facebook | `https://amcp.shop/api/signin/facebook/callback` | `AMCP_SIGNIN_FACEBOOK_CLIENT_ID`, `AMCP_SIGNIN_FACEBOOK_CLIENT_SECRET` |
-
-- Google: create a Web application OAuth client, configure the consent screen, and register the callback. The request uses `openid email profile`, authorization code, S256 PKCE and nonce.
-- Apple: use a Services ID associated with a primary App ID, register `amcp.shop` and the return URL, and configure a Sign in with Apple key. The server generates an ES256 client secret from the signing key. A pre-generated `AMCP_SIGNIN_APPLE_CLIENT_SECRET` is also supported and must be renewed before expiry. Apple requires the HTTPS callback; loopback HTTP does not enable this button. The callback accepts `form_post` with a separate ten-minute Secure/HttpOnly/SameSite=None browser-binding cookie. Normal AMCP sessions remain SameSite=Lax.
-- Facebook: configure Facebook Login for a website and the exact valid OAuth redirect URI. The request uses `public_profile,email`; the server exchanges the code using your app credentials, then fetches the stable account ID with an app-secret proof. AMCP does not assume Facebook email is a verified recovery address. Members can add and verify their email from Account settings.
-
-Unavailable providers are labeled and disabled on the sign-in page. Merely adding a button does not prove the provider app has been configured or approved. Complete a real round trip with each configured app before opening public registration.
+AMCP does not generate a universal owner email or password. Migration is single-use, browser-bound and requires verified email; it cannot silently take over an existing member identity. Keep an encrypted backup and its master key before production upgrades.
 
 ## Email registration and recovery
 
-Configure a verified sender in Resend:
+Configure a verified sender in Resend, outside Git:
 
 ```text
-AMCP_EMAIL_API_KEY=<sending-scoped Resend API key>
+AMCP_PUBLIC_ORIGIN=https://amcp.shop
+AMCP_EMAIL_API_KEY=<sending-scoped Resend key>
 AMCP_EMAIL_FROM=AMCP <accounts@your-verified-domain>
 AMCP_ALLOW_SIGNUP=true
+AMCP_RUN_WORKER=true
 ```
 
-Do not put real values in Git. Registration first emails an account setup link; the member chooses their password only after following that link. This prevents an attacker from pre-registering someone else's email with a password the attacker knows. Links expire after 30 minutes, are single-use, and contain their token in the URL fragment so it is not sent in the initial HTTP request or referrer. Tokens and recovery details are encrypted in storage, indexed by token hashes. Passwords use asynchronous scrypt with bounded concurrency and a 12–128 character policy.
+Verify the sender domain using Resend's exact DNS records. Registration follows name/email → email link → choose password → workspace. Existing members can reset a password or change their verified recovery address. Verification can be resent; expired links have a fresh-start path. Public screens show available choices; owner Settings holds infrastructure diagnostics.
 
-Resend is used only for account messages. The server sends plain-text emails with a unique idempotency key and fixed HTTPS destination. No emails are sent by the automated test suite. Without email configuration, password sign-in for existing members still works; email registration and recovery are disabled explicitly. Apple private-relay addresses require the sending domain to be configured with Apple as appropriate.
+Messages enter an encrypted SQLite outbox before delivery. Transient failures retry with an idempotency key, bounded timeout and worker lease. Single-use links expire after 30 minutes; retries do not extend them. Sent/expired queue payloads are cleared. Keep a worker running and the database persistent. Existing password sign-in continues without email configuration; registration and recovery require it.
 
-Setting `AMCP_ALLOW_SIGNUP=false` blocks new email and social accounts. Existing members can still sign in. Keep the persistent database volume: deleting it removes account and workspace state.
+Passwords use asynchronous scrypt (N=32768, r=8, p=3), bounded memory and at most four concurrent hashes. Existing supported hashes upgrade on successful login. Run `node dist/tools/password-benchmark.js` on the production-sized host. A local benchmark is not a capacity guarantee.
 
-## Linking, recovery and sessions
+## Social sign-in
 
-- `/account` provides name/workspace editing, social account linking, verified email changes, password changes, and browser-session revocation.
-- Existing social identities are identified by provider and immutable subject ID. Matching emails never automatically merge accounts. Sign in with the existing method and explicitly link another provider.
-- Linking, unlinking, password changes and recovery-address changes require a recent sign-in. A user cannot remove the last usable sign-in method.
-- Password reset and email changes revoke the member's existing browser sessions and MCP access. Changing a password from Account settings creates a fresh session in the current browser and revokes other access. Reauthorize MCP clients afterward.
-- Social access tokens are used transiently for identity verification, not stored as advertising connections. Google and Apple ID-token signatures, issuer, audience, expiry, nonce, subject and authorized-party claims are validated using `jose` and fixed provider JWKS endpoints.
-- Login attempts, email requests and social flows are rate-limited. All account mutations require the site's exact Origin; authenticated mutations also require the session CSRF token. Trusted-proxy configuration continues to govern client-address resolution.
+These credentials are separate from advertising OAuth:
 
-There is no cross-workspace invitation or team-sharing system in this release. A social member account does not automatically claim or migrate the original administrator workspace. Provider app approvals, email delivery setup, and real production sign-in acceptance remain operator setup work.
+| Provider | Exact callback | Variables |
+|---|---|---|
+| Google | https://amcp.shop/api/signin/google/callback | AMCP_SIGNIN_GOOGLE_CLIENT_ID, AMCP_SIGNIN_GOOGLE_CLIENT_SECRET |
+| Apple | https://amcp.shop/api/signin/apple/callback | AMCP_SIGNIN_APPLE_CLIENT_ID, AMCP_SIGNIN_APPLE_TEAM_ID, AMCP_SIGNIN_APPLE_KEY_ID, AMCP_SIGNIN_APPLE_PRIVATE_KEY |
+| Facebook | https://amcp.shop/api/signin/facebook/callback | AMCP_SIGNIN_FACEBOOK_CLIENT_ID, AMCP_SIGNIN_FACEBOOK_CLIENT_SECRET |
 
-## Verification
+Google uses a Web OAuth client. Apple uses a Services ID, registered HTTPS return URL and Sign in with Apple key; an externally maintained AMCP_SIGNIN_APPLE_CLIENT_SECRET can replace the signing-key configuration. Facebook needs Facebook Login and the exact valid redirect URI. Only configured providers appear publicly; configuration does not prove provider approval.
 
-`tests/user-accounts.test.ts` covers email registration/reset, encrypted one-use challenges, all three social flows including Apple's cross-site POST, rejected identity claims, same-email collision, explicit linking, session isolation, server-owned credential boundaries, and member-scoped MCP consent/refresh/revocation. Existing MCP OAuth and advertising OAuth tests remain required.
+Sign in first, then link additional identities from Account settings. Matching emails never merge accounts. Linking preserves the active shared workspace. Provider subject IDs identify accounts; Google/Apple signatures, issuer, audience, nonce and expiry are checked. Facebook email is not assumed to be a verified recovery address. Social identity tokens are not stored as advertising connections.
 
-Provider references: [Google OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect), [Sign in with Apple](https://developer.apple.com/documentation/signinwithapplerestapi), [Facebook Login manual flow](https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow/), [Resend send-email API](https://resend.com/docs/api-reference/emails/send-email), [jose](https://github.com/panva/jose).
+## MFA, memberships and revocation
+
+Account settings provides authenticator-app TOTP and ten one-use recovery codes. Store recovery codes privately outside AMCP. Copy the authenticator secret into your app; QR scanning is not required. MFA applies to both password and social sign-in once enabled. Password reset does not remove MFA. Passkeys are not included.
+
+| Role | Access |
+|---|---|
+| Owner | Workspace administration, memberships, owner-only spending/retention controls and reviewed operations |
+| Admin | Connections, permitted membership administration, reports and reviewed operations; cannot replace the owner or change owner-only policies |
+| Operator | Selected-account reporting, reviewed operations, exports and schedules |
+| Viewer | Read access; no writes, exports, invites or schedules |
+
+Invitations expire after 30 minutes and are bound to the invited email. Existing users accept while signed in as that identity; new users verify the invitation and choose a password. The inviter's current permission is checked again at acceptance. The owner cannot be demoted/removed through member editing.
+
+Password/email security changes, MFA changes and membership changes revoke the relevant browser/MCP access. Jobs recheck membership and credential/account version before requests. Revoked schedules pause; reauthorize explicitly. Recent sign-in, exact Origin and CSRF remain required for sensitive changes. Existing advertising and MCP OAuth redirect, PKCE, scope and resource controls remain in force.
+
+## Production acceptance
+
+Automated tests use synthetic identities and mail transport. Verify real inbox delivery, resend/recovery, a second browser, restart persistence, each configured social provider, owner migration on a backup copy, MFA/recovery and membership revocation before public registration. Credentials and provider approvals remain deployment setup work.
+
+References: [OWASP authentication](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html), [OWASP password storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html), [Google OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect), [Sign in with Apple](https://developer.apple.com/documentation/signinwithapplerestapi), [Facebook Login](https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow/), [Resend idempotency](https://resend.com/docs/dashboard/emails/idempotency-keys).

@@ -13,13 +13,15 @@ import {sha256,redact} from '../src/security.js';
 import type {Connection,JsonObject} from '../src/types.js';
 import {McpOAuth} from './mcp-oauth.js';
 import {microsoftGateway} from '../src/microsoft-native.js';
+import {ReportingOverview} from '../src/reporting-overview.js';
+import {exportCsv} from '../src/google-sheets.js';
 import {UserAccounts} from './user-accounts.js';
 import {SocialSignIn} from './social-signin.js';
 import {accountRoutes} from './account-routes.js';
 import {mcpAuthRouter} from '@modelcontextprotocol/sdk/server/auth/router.js';
 
 export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=false,service?:MirrorService){
- const web=new WebStore(store,options),oauth=new PlatformOAuth(web,process.env,options.fetcher,allowWrites),discovery=new AssetDiscovery(store,options.fetcher),router=express.Router();
+ const web=new WebStore(store,options),oauth=new PlatformOAuth(web,options.authEnv??process.env,options.fetcher,allowWrites),discovery=new AssetDiscovery(store,options.fetcher),router=express.Router();
  router.use((_req,res,next)=>{res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Frame-Options','DENY');res.setHeader('Permissions-Policy','camera=(), microphone=(), geolocation=()');next();});
  const mcpOAuth=new McpOAuth(web,allowWrites);
  const accounts=new UserAccounts(web),social=new SocialSignIn(accounts);
@@ -53,8 +55,9 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   return publicConnection(tenant,c);
  };
  if(service){
+  router.get('/api/reporting-overview/:id.csv',handler((req,res)=>{const session=web.requireSession(req),report=store.document(session.actor.tenantId,'overview_report',String(req.params.id));new ReportingOverview(service).access(session.actor,report.config);res.setHeader('Content-Disposition','attachment; filename=AMCP-campaign-report.csv');res.type('text/csv').send(exportCsv(report));}));
   router.post('/api/workspace/:tool',express.json({limit:'512kb'}),handler(async(req,res)=>{
-   const session=web.requireMutation(req),tools:Record<string,string>={workspace:'amcp_workspace',campaign:'amcp_campaign',reporting:'amcp_reporting',media:'amcp_media',write:'amcp_write'};
+   const session=web.requireMutation(req),tools:Record<string,string>={workspace:'amcp_workspace',campaign:'amcp_campaign',reporting:'amcp_reporting',overview:'amcp_reporting_overview',media:'amcp_media',write:'amcp_write'};
    const tool=tools[String(req.params.tool)];if(!tool)throw new MirrorError('NOT_FOUND','Unknown workspace operation.',{},404);
    const actor={...session.actor};store.bindActorCheck(actor,()=>{web.requireMutation(req);});const result=await service.call(tool,req.body,actor);web.requireMutation(req);res.setHeader('Cache-Control','no-store');res.json(result);
   }));
@@ -69,17 +72,17 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
  router.get('/api/mcp/consent',handler((req,res)=>{const s=web.requireSession(req);if(typeof req.query.request!=='string')throw new MirrorError('INVALID_CONSENT','Start authorization from your MCP client.');res.json(mcpOAuth.consent(req.query.request,s));}));
  router.post('/api/mcp/consent',express.json({limit:'4kb'}),handler((req,res)=>{const s=web.requireMutation(req);if(typeof req.body?.request!=='string'||typeof req.body?.approved!=='boolean')throw new MirrorError('INVALID_CONSENT','Invalid authorization decision.');const consent=mcpOAuth.consent(req.body.request,s),url=mcpOAuth.decide(req.body.request,s,req.body.approved);store.appendAudit(s.actor.tenantId,randomUUID(),{event:req.body.approved?'mcp_oauth_approved':'mcp_oauth_denied',scope:consent.scope,role:consent.role});res.json({url});}));
  router.get('/api/mcp/authorizations',handler((req,res)=>{const s=web.requireSession(req);res.json({clients:mcpOAuth.authorizations(s.actor.tenantId)});}));
- router.delete('/api/mcp/authorizations/:id',handler((req,res)=>{const s=web.requireMutation(req);mcpOAuth.revokeClient(String(req.params.id),s.actor.tenantId);store.appendAudit(s.actor.tenantId,randomUUID(),{event:'mcp_oauth_revoked',client_id:String(req.params.id)});res.json({success:true});}));
+ router.delete('/api/mcp/authorizations/:id',handler((req,res)=>{const s=web.requireAdminMutation(req);mcpOAuth.revokeClient(String(req.params.id),s.actor.tenantId);store.appendAudit(s.actor.tenantId,randomUUID(),{event:'mcp_oauth_revoked',client_id:String(req.params.id)});res.json({success:true});}));
  router.get('/api/platforms',handler((req,res)=>{const session=web.session(req),connections=session?store.listConnections(session.actor.tenantId):[];
   res.json({platforms:oauth.publicConfig().map(p=>({...p,connections:connections.filter(c=>c.gateway===p.gateway).map(c=>publicConnection(session!.actor.tenantId,c))})),authenticated:!!session});
  }));
  router.post('/api/auth/:platform/start',express.json({limit:'4kb'}),handler(async(req,res)=>{
-  const session=web.requireMutation(req),id=String(req.params.platform),p=platform(id);
+  const session=web.requireAdminMutation(req),id=String(req.params.platform),p=platform(id);
   if(!p.authType){res.json(await oauth.start(session,id));return;}
   if(session.actor.tenantId!==web.tenantId)throw new MirrorError('SERVICE_CONNECTION_RESTRICTED','This server-owned API connection is available only in the deployment administrator workspace.',{},403);
   const result=await oauth.connectService(id),connectionId=randomUUID(),attemptId=randomUUID(),tenant=session.actor.tenantId;
   // Browser sessions may be revoked while the token service is responding.
-  web.requireMutation(req);
+  web.requireAdminMutation(req);
   const c:Connection={id:connectionId,tenantId:tenant,gateway:p.gateway,accounts:[],defaultWriteAccess:allowWrites,label:result.label,enabled:false,scopes:result.scopes,isDefault:!store.listConnections(tenant).some(c=>c.gateway===p.gateway&&c.isDefault)};
   store.putConnection(session.actor,c,result.credentials);store.putDocument(tenant,'website_connection',connectionId,{platform:id,expiresAt:result.credentials.expiresAt??null,createdAt:Date.now()});
   store.appendAudit(tenant,attemptId,{event:'website_api_connected',platform:id,connection_id:connectionId,vendor_writes:0});
@@ -110,11 +113,11 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
  router.get('/api/oauth/progress/:id',handler((req,res)=>{const session=web.requireSession(req);res.json(store.document(session.actor.tenantId,'oauth_progress',String(req.params.id)));}));
  router.get('/api/connections/:id',handler((req,res)=>{const s=web.requireSession(req);res.json(publicConnection(s.actor.tenantId,connection(s.actor.tenantId,String(req.params.id))));}));
  router.post('/api/connections/:id/sync',express.json({limit:'8kb'}),handler(async(req,res)=>{
-  const s=web.requireMutation(req),c=connection(s.actor.tenantId,String(req.params.id));const kinds=req.body?.kinds;
+  const s=web.requireAdminMutation(req),c=connection(s.actor.tenantId,String(req.params.id));const kinds=req.body?.kinds;
   if(kinds!==undefined&&(!Array.isArray(kinds)||kinds.length>8||kinds.some((k:unknown)=>typeof k!=='string')))throw new MirrorError('INVALID_ARGUMENT','Select valid asset types.');res.json(await sync(s.actor.tenantId,c,kinds));
  }));
  router.patch('/api/connections/:id/assets',express.json({limit:'256kb'}),handler((req,res)=>{
-  const s=web.requireMutation(req),tenant=s.actor.tenantId,c=connection(tenant,String(req.params.id)),assets=savedAssets(tenant,c),selected=req.body?.selected;
+  const s=web.requireAdminMutation(req),tenant=s.actor.tenantId,c=connection(tenant,String(req.params.id)),assets=savedAssets(tenant,c),selected=req.body?.selected;
   if(!Array.isArray(selected)||selected.length>10000||selected.some(k=>typeof k!=='string')||new Set(selected).size!==selected.length)throw new MirrorError('INVALID_ASSET_SELECTION','Select valid, unique assets.');
   const known=new Set((assets.groups??[]).flatMap((g:AssetGroup)=>g.assets.map(a=>g.kind+':'+a.id)));
   if(selected.some(k=>!known.has(k)))throw new MirrorError('UNKNOWN_ASSET','Sync assets before selecting them.',{},409);
@@ -131,7 +134,7 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   store.appendAudit(tenant,randomUUID(),{event:'website_asset_selection',connection_id:c.id,selected_accounts:accounts,selected_assets:selected.length,vendor_writes:0});res.json(publicConnection(tenant,connection(tenant,c.id)));
  }));
  router.patch('/api/connections/:id/write-access',express.json({limit:'256kb'}),handler((req,res)=>{
-  const s=web.requireMutation(req),tenant=s.actor.tenantId,c=connection(tenant,String(req.params.id)),accounts=req.body?.accounts;
+  const s=web.requireAdminMutation(req),tenant=s.actor.tenantId,c=connection(tenant,String(req.params.id)),accounts=req.body?.accounts;
   if(s.actor.role!=='admin')throw new MirrorError('FORBIDDEN','Only the workspace administrator can change write access.',{},403);
   if(!Array.isArray(accounts)||accounts.length>10000||accounts.some(id=>typeof id!=='string')||new Set(accounts).size!==accounts.length)throw new MirrorError('INVALID_WRITE_ACCOUNTS','Select valid, unique resources for write access.');
   if(accounts.length&&platforms.find(p=>p.gateway===c.gateway)?.reviewedWrites===false)throw new MirrorError('SOURCE_READ_ONLY','Drive is a read-only media source.');
@@ -142,12 +145,12 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   store.appendAudit(tenant,randomUUID(),{event:'website_write_access_changed',connection_id:c.id,write_accounts:accounts,previous_write_accounts:c.writeAccounts??[],vendor_writes:0});res.json(publicConnection(tenant,connection(tenant,c.id)));
  }));
  router.post('/api/connections/:id/default',handler((req,res)=>{
-  const s=web.requireMutation(req),tenant=s.actor.tenantId,c=connection(tenant,String(req.params.id));
+  const s=web.requireAdminMutation(req),tenant=s.actor.tenantId,c=connection(tenant,String(req.params.id));
   store.transaction(()=>{for(const existing of store.listConnections(tenant).filter(x=>x.gateway===c.gateway))store.db.prepare('UPDATE connections SET data=? WHERE tenant_id=? AND id=?').run(JSON.stringify({...existing,isDefault:existing.id===c.id}),tenant,existing.id);});
   store.appendAudit(tenant,randomUUID(),{event:'website_default_connection',connection_id:c.id});res.json({success:true});
  }));
  router.delete('/api/connections/:id',handler((req,res)=>{
-  const s=web.requireMutation(req),tenant=s.actor.tenantId,c=connection(tenant,String(req.params.id));
+  const s=web.requireAdminMutation(req),tenant=s.actor.tenantId,c=connection(tenant,String(req.params.id));
   store.transaction(()=>{store.db.prepare('DELETE FROM connections WHERE tenant_id=? AND id=?').run(tenant,c.id);store.db.prepare('DELETE FROM resource_ownership WHERE tenant_id=? AND connection_id=?').run(tenant,c.id);store.db.prepare("DELETE FROM documents WHERE tenant_id=? AND id=? AND kind IN ('website_assets','website_connection')").run(tenant,c.id);});
   store.appendAudit(tenant,randomUUID(),{event:'website_local_disconnect',connection_id:c.id,vendor_writes:0});res.json({success:true});
  }));
@@ -168,6 +171,6 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
  router.get('/api/activity',handler((req,res)=>{const s=web.requireSession(req);res.json({events:store.audit(s.actor.tenantId,100).map((r:any)=>({id:r.seq,at:r.created_at,event:redact(JSON.parse(r.event))})).reverse()});}));
  const directory=path.resolve(options.staticDirectory??'web');router.use('/assets',express.static(directory,{dotfiles:'deny',index:false,fallthrough:false,maxAge:0}));
  router.get('/tiktok94H3oMGQTvC0GEzgKcmffbz8W0CAHhan.txt',(_req,res)=>res.type('text/plain').sendFile('tiktok94H3oMGQTvC0GEzgKcmffbz8W0CAHhan.txt',{root:directory}));
- for(const route of ['/dashboard','/campaigns','/media','/reports','/profiles','/','/connections','/connectors','/activity','/settings','/login','/signup','/forgot-password','/reset-password','/verify-email','/account','/auth/complete','/oauth/result','/oauth/consent','/privacy','/terms','/data-deletion'])router.get(route,(_req,res)=>res.sendFile('index.html',{root:directory}));
- return {router,web,oauth,discovery,mcpOAuth};
+ for(const route of ['/dashboard','/campaigns','/media','/reports','/reporting-overview','/profiles','/','/connections','/connectors','/activity','/settings','/login','/signup','/forgot-password','/reset-password','/verify-email','/account','/auth/complete','/oauth/result','/oauth/consent','/privacy','/terms','/data-deletion'])router.get(route,(_req,res)=>res.sendFile('index.html',{root:directory}));
+ return {router,web,oauth,discovery,mcpOAuth,accounts};
 }

@@ -12,11 +12,11 @@ export class ReportWorker {
   let lostLease=false;const heartbeat=setInterval(()=>{try{this.store.renewJob(job.id,job.lease_token);}catch{lostLease=true;}},15000);heartbeat.unref();
   try{
    if(job.kind!=='report'&&!this.auxiliary)throw new MirrorError('UNKNOWN_JOB_KIND','No worker is registered for this job kind.');
-   const result=job.kind==='report'?await this.execute(job.tenant_id,resolveReportConfig(job.input.query_config)):await this.auxiliary!(job.tenant_id,job.kind,job.input);
+   const result=job.kind==='report'?await this.execute(job.tenant_id,resolveReportConfig(job.input.query_config)):await this.auxiliary!(job.tenant_id,job.kind,{...job.input,__job_id:job.id,__lease_token:job.lease_token});
    if(!lostLease)this.store.finishJob(job.id,job.lease_token,result);
   }catch(e){
    const error=e instanceof MirrorError?{code:e.code,message:e.message,details:e.details}:{code:'REPORT_FAILED',message:'Report execution failed.'};
-   if(!lostLease)try{this.store.failJob(job.id,job.lease_token,error);}catch{lostLease=true;}
+   if(!lostLease)try{if(e instanceof MirrorError&&e.retryable&&['report_overview','sheets_export'].includes(job.kind)&&job.attempts<8)this.store.retryJob(job.id,job.lease_token,error,Number(e.details.retry_after_ms??Math.min(300000,5000*2**job.attempts)));else this.store.failJob(job.id,job.lease_token,error);}catch{lostLease=true;}
    this.store.appendAudit(job.tenant_id,job.id,{event:lostLease?'report_lease_lost':'report_failed',error});
   }finally{clearInterval(heartbeat);}
   return true;

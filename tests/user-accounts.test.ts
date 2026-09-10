@@ -107,7 +107,7 @@ test('account recovery and social signup fail closed without configured delivery
  const f=await fixture({AMCP_EMAIL_API_KEY:'',AMCP_ALLOW_SIGNUP:'false'});try{
   const options=await (await f.request('/api/account/options')).json();assert.equal(options.emailEnabled,false);assert.equal(options.signupEnabled,false);assert.ok(!JSON.stringify(options).includes('secret'));
   assert.equal((await f.request('/api/account/register','POST',{name:'Name',email:'test@example.test'})).status,403);assert.equal((await f.request('/api/account/forgot-password','POST',{email:'test@example.test'})).status,503);
-  assert.match((await f.callback('google',await f.begin('google'))).headers.get('location')!,/SIGNUP_DISABLED/);assert.equal(f.emails.length,0);await assert.rejects(()=>hashUserPassword('short'),/12 and 128/);
+  assert.match((await f.callback('google',await f.begin('google'))).headers.get('location')!,/SIGNUP_DISABLED/);assert.equal(f.emails.length,0);await assert.rejects(()=>hashUserPassword('short'),/15 and 128/);
  }finally{await f.close();}
 });
 test('closing registration invalidates outstanding signup links and signing out cancels a started member social flow',async()=>{

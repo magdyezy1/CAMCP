@@ -75,14 +75,14 @@ export class McpOAuth implements OAuthServerProvider {
   this.consent(request,session);
   return this.web.store.transaction(()=>{const row=this.get(request,'request');this.web.store.db.prepare('UPDATE amcp_mcp_grants SET used=1 WHERE hash=?').run(row.hash);
    const url=new URL(row.data.redirectUri);if(row.data.state!==undefined)url.searchParams.set('state',row.data.state);
-   if(approved){const code=opaque();this.put(code,'code',row.client_id,row.data,300000,session.actor.tenantId);url.searchParams.set('code',code);}else url.searchParams.set('error','access_denied');return url.href;
+   if(approved){const code=opaque();this.put(code,'code',row.client_id,{...row.data,...(session.actor.userId!=='workspace-admin'?{ownerUserId:session.actor.userId}:{})},300000,session.actor.tenantId);url.searchParams.set('code',code);}else url.searchParams.set('error','access_denied');return url.href;
   });
  }
  async challengeForAuthorizationCode(client:OAuthClientInformationFull,code:string){return this.get(code,'code',client.client_id).data.challenge as string;}
  private issue(client:string,data:JsonObject,tenant:string):OAuthTokens{
   const scopes=this.validateScopes(data.scope?.split(' ')),scope=scopes.join(' '),role=scopes.includes(writeScope)?'operator':'reader';
-  const family=data.family??randomUUID(),access=this.web.store.createKey({tenantId:tenant,userId:'oauth/'+client,role},3600000),refresh=opaque();
-  this.put(access,'access',client,{family,scope},3600000,tenant);this.put(refresh,'refresh',client,{family,scope},30*86400000,tenant);
+  const ownership=data.ownerUserId?{ownerUserId:data.ownerUserId}:{},family=data.family??randomUUID(),access=this.web.store.createKey({tenantId:tenant,userId:'oauth/'+client,role,...ownership},3600000),refresh=opaque();
+  this.put(access,'access',client,{family,scope,...ownership},3600000,tenant);this.put(refresh,'refresh',client,{family,scope,...ownership},30*86400000,tenant);
   return {access_token:access,token_type:'Bearer',expires_in:3600,refresh_token:refresh,scope};
  }
  async exchangeAuthorizationCode(client:OAuthClientInformationFull,code:string,verifier?:string,redirectUri?:string,resource?:URL){

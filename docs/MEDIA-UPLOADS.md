@@ -67,13 +67,13 @@ Prepare one selected account per review. Names: `meta`, `tiktok`, `snapchat`, `g
 
 | Platform | Import limits | Identifiers and processing |
 | --- | --- | --- |
-| Meta | PNG/JPEG ≤30 MiB; MP4/MOV ≤32 MiB | `image_hash` / `video_id`; videos may process |
-| TikTok | PNG/JPEG ≤5 MiB; MP4/MOV ≤32 MiB | `image_id` / `video_id`, native upload receipt |
-| Snapchat | PNG/JPEG ≤5 MiB; MP4/MOV ≤32 MiB | `media_id`; creative uses `top_snap_media_id`; native processing status |
-| Google Ads | PNG/JPEG ≤5 MiB; MP4/MOV ≤32 MiB | Image asset resource name; videos create UNLISTED uploads on the account's Google-managed YouTube channel |
-| LinkedIn | PNG/JPEG ≤20 MiB; MP4 ≤32 MiB | `linkedin_media_urn`, `image` / `video`; account media library, processing may continue |
-| X | PNG/JPEG ≤5 MiB; MP4 ≤32 MiB | `media_id`, `x_media_key`, library ID when attached |
-| DV360 | PNG/JPEG ≤10 MiB; MP4/MOV ≤32 MiB | `dv360_media_id` and native `asset` for creative creation |
+| Meta | PNG/JPEG ≤30 MiB; MP4/MOV within the configured limit (default 128 MiB) | `image_hash` / `video_id`; videos may process |
+| TikTok | PNG/JPEG ≤5 MiB; MP4/MOV within the configured limit (default 128 MiB) | `image_id` / `video_id`, native upload receipt |
+| Snapchat | PNG/JPEG ≤5 MiB; MP4/MOV within the configured limit (default 128 MiB) | `media_id`; creative uses `top_snap_media_id`; native processing status |
+| Google Ads | PNG/JPEG ≤5 MiB; MP4/MOV within the configured limit (default 128 MiB) | Image asset resource name; videos create UNLISTED uploads on the account's Google-managed YouTube channel |
+| LinkedIn | PNG/JPEG ≤20 MiB; MP4 within the configured limit (default 128 MiB) | `linkedin_media_urn`, `image` / `video`; account media library, processing may continue |
+| X | PNG/JPEG ≤5 MiB; MP4 within the configured limit (default 128 MiB) | `media_id`, `x_media_key`, library ID when attached |
+| DV360 | PNG/JPEG ≤10 MiB; MP4/MOV within the configured limit (default 128 MiB) | `dv360_media_id` and native `asset` for creative creation |
 
 Providers additionally enforce dimensions, duration, codecs, permissions and app approvals. AMCP preserves bytes without resizing/transcoding. Upload success does not establish ad approval. Binary upload APIs for other catalog providers are not implemented; measurement services and Apple Ads do not use this advertising-media flow.
 
@@ -89,7 +89,7 @@ Deployment writes must be enabled; the connector must be operator/admin and the 
 
 Public Drive imports require a downloadable share link. Private files use drive_connection_id and an explicit file selection through Drive OAuth. Folders, Google Docs exports and permission/quota/confirmation HTML remain unsupported. Advertising credentials/cookies are never sent to Drive; redirects are restricted to approved download hosts. Arbitrary source URLs are rejected.
 
-Frozen bytes prevent later Drive edits from changing the reviewed upload. Temporary staging permits two pending files per tenant and eight application-wide, each ≤32 MiB. Expired files are removed on the next capacity reservation; submitted uploads delete bytes immediately on success/failure. `amcp_media cancel` discards an unsubmitted review. Receipts and audits remain.
+Frozen bytes prevent later Drive edits from changing the reviewed upload. Temporary staging permits two pending files per tenant and eight application-wide, each within the configured limit (default 128 MiB). Expired files are removed on the next capacity reservation; submitted uploads delete bytes immediately on success/failure. `amcp_media cancel` discards an unsubmitted review. Receipts and audits remain.
 
 Uploads are never automatically retried. Known allocation IDs and `retry_safe:false` survive partial failure. Lost responses leave durable uncertain claims; inspect provider state before deciding to retry. Google session URLs remain in memory and are restricted to its HTTPS resumable-upload origin. LinkedIn URLs are restricted to its HTTPS upload host/path. Multi-step uploads cannot roll back atomically across providers.
 
@@ -100,3 +100,11 @@ Contracts: [Meta creative fields](https://github.com/facebook/facebook-python-bu
 Synthetic tests cover native/shared entry points, server transfer, encryption, review/grant controls, byte preservation, processing continuations, scope registration and Meta image → creative → paused-ad chaining. They do not prove live provider acceptance. No live advertising-account media or ads were created during development.
 
 Processing status now verifies the exact uploaded media identity (and returned account/owner when applicable). Ready Meta/LinkedIn/Snapchat responses stop suggesting status polls. Google returns the reviewed AssetService continuation; X returns the reviewed library-attachment continuation. A terminal provider processing failure returns MEDIA_PROCESSING_FAILED with the retained media ID and retry_safe:false, and records the failure in workspace assets. Do not repeat the upload automatically or prepare an ad from a failed asset. These behaviors are covered by synthetic provider responses, not new live uploads. [LinkedIn media status](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/images-api), [Snap media](https://developers.snap.com/marketing-api/Ads-API/media).
+
+## Durable transfer and eligibility
+
+AMCP_MAX_MEDIA_MB controls the staging bound (32–512 MiB, default 128); lower provider image/format limits still apply. Files are encrypted in 4 MiB SQLite chunks with a checked manifest. Transfers use bounded memory buffers. Google video uploads use resumable chunks and authoritative offset queries; unknown finalization is never blindly repeated.
+
+Use amcp_media inspect_eligibility with a Drive URL and square/portrait/vertical/landscape preset to inspect geometry and codec before upload. FFmpeg/ffprobe are required. These are AMCP preset checks, not a certificate of platform acceptance. A preset on prepare requires the frozen source to pass these checks.
+
+execute_async queues the confirmed frozen review; job_status exposes durable progress. Reviews still expire if execution does not begin in time. Cancellation prevents unsubmitted work; a provider request already sent can finish. Reuse performs a fresh account-scoped availability check; unsupported lookup paths require a fresh reviewed upload. No LLM file download is necessary.

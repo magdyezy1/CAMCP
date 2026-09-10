@@ -1,3 +1,4 @@
+import {ReportingOverview} from '../src/reporting-overview.js';
 import {createRuntime} from './runtime.js';
 import {createHttpApp} from './http-app.js';
 import {ReportWorker} from '../src/worker.js';
@@ -12,7 +13,8 @@ const app=createHttpApp(service,store,{host,publicOrigin,website:{origin:publicO
 const listener=app.listen(port,host,()=>process.stderr.write('AMCP listening on http://'+(host==='0.0.0.0'?'127.0.0.1':host)+':'+port+'\n'));
 listener.requestTimeout=45000;listener.headersTimeout=10000;
 let closing=false;
-const worker=new ReportWorker(store,createReportExecutor(service),(t,k,i)=>service.verificationJob(t,k,i));
-const workerDone=(async()=>{if(process.env.AMCP_RUN_WORKER==='false')return;while(!closing){try{if(await worker.once())continue;}catch{process.stderr.write('AMCP report worker encountered an error; retrying.\n');}await delay(1000);}})();
+const overview=new ReportingOverview(service);
+const worker=new ReportWorker(store,createReportExecutor(service),(t,k,i)=>overview.work(t,k,i));
+const workerDone=(async()=>{if(process.env.AMCP_RUN_WORKER==='false')return;while(!closing){try{overview.tick();await app.locals.website.accounts.deliverEmails();if(await worker.once())continue;}catch{process.stderr.write('AMCP report worker encountered an error; retrying.\n');}await delay(1000);}})();
 const stop=()=>{if(closing)return;closing=true;listener.close(()=>{void workerDone.then(()=>{store.close();process.exit(0);});});setTimeout(()=>{listener.closeAllConnections();process.exit(1);},10000).unref();};
 process.on('SIGTERM',stop);process.on('SIGINT',stop);

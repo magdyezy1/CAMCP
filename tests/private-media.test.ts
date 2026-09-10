@@ -9,7 +9,7 @@ import {MirrorService} from '../src/service.js';
 import {CredentialProvider} from '../src/auth.js';
 import {NativeTransport} from '../src/transport.js';
 import {downloadPrivateDrive,driveGateway} from '../src/private-drive.js';
-import {createMediaVariant,runMediaProcess} from '../src/media-variants.js';
+import {createMediaVariant,runMediaProcess,inspectMediaPlacement} from '../src/media-variants.js';
 import {PlatformOAuth,platform} from '../server/platform-oauth.js';
 import {WebStore} from '../server/web-store.js';
 import {AssetDiscovery} from '../server/asset-discovery.js';
@@ -37,7 +37,7 @@ test('Drive OAuth uses PKCE and separate read-only scopes, and discovery selects
 test('private server import shares the review gate, deduplicates receipts and never sends Drive credentials to Meta',async()=>{
  const {store}=setup();try{store.putConnection(admin,{id:'meta',tenantId:actor.tenantId,gateway:'meta_native_action',accounts:['123'],writeAccounts:['123'],enabled:true,label:'Meta',scopes:['ads_management']},{accessToken:'synthetic-meta'});let uploads=0,downloads=0;
   const mediaFetcher:typeof fetch=async u=>{downloads++;return new URL(String(u)).searchParams.get('alt')==='media'?new Response(png):response({id:fileId,size:String(png.length),mimeType:'image/png',capabilities:{canDownload:true}});};
-  const transport=new NativeTransport(async(_u,i)=>{assert.ok(!JSON.stringify(i?.headers).includes('synthetic-drive'));if(i?.method==='GET')return response({id:'act_123',account_status:1,currency:'USD'});uploads++;return response({images:{one:{hash:'synthetic_hash'}}});});
+  const transport=new NativeTransport(async(_u,i)=>{assert.ok(!JSON.stringify(i?.headers).includes('synthetic-drive'));if(i?.method==='GET'&&String(_u).includes('/adimages'))return response({data:[{hash:'synthetic_hash'}]});if(i?.method==='GET')return response({id:'act_123',account_status:1,currency:'USD'});uploads++;return response({images:{one:{hash:'synthetic_hash'}}});});
   const s=new MirrorService(new Registry(),store,transport,undefined,{allowWrites:true,maxBudgetChange:0,requireBeforeState:true},mediaFetcher),args={action:'prepare',platform:'meta',account_id:'123',connection_id:'meta',drive_connection_id:'drive',drive_url:url};
   const p=await s.call('amcp_media',args,actor);assert.equal(p.success,true,JSON.stringify(p));assert.equal(uploads,0);assert.equal(downloads,2);assert.ok(!JSON.stringify(store.db.prepare('SELECT secret FROM media_staging').all()).includes(png.toString('base64')));
   const execute=await s.call('amcp_write',{action:'execute',review_id:p.data.review_id,idempotency_key:p.data.idempotency_key,confirmed:true},actor);assert.equal(execute.success,true,JSON.stringify(execute));assert.equal(uploads,1);
@@ -59,8 +59,8 @@ test('real FFmpeg converts image and video variants with fixed dimensions; malfo
  const ffmpeg=process.env.AMCP_FFMPEG_PATH??'ffmpeg',ffprobe=process.env.AMCP_FFPROBE_PATH??'ffprobe';
  try{await runMediaProcess(ffmpeg,['-version']);await runMediaProcess(ffprobe,['-version']);}catch(e){if(process.env.AMCP_REQUIRE_FFMPEG==='true')throw e;t.skip('FFmpeg is required in release CI and Docker; this local host has no configured FFmpeg.');return;}
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'amcp-media-test-'));try{
-  const input=path.join(dir,'source.png');await runMediaProcess(ffmpeg,['-v','error','-f','lavfi','-i','color=c=blue:s=64x32','-frames:v','1','-threads','1',input]);const square=await createMediaVariant(await fs.readFile(input),'square','contain');assert.equal(square.width,1080);assert.equal(square.height,1080);assert.equal(square.mime,'image/png');
-  const video=path.join(dir,'source.mp4');await runMediaProcess(ffmpeg,['-v','error','-f','lavfi','-i','color=c=blue:s=64x32:r=5','-t','1','-c:v','libx264','-pix_fmt','yuv420p',video]);const vertical=await createMediaVariant(await fs.readFile(video),'vertical','crop');assert.equal(vertical.height,1920);assert.equal(vertical.mime,'video/mp4');assert.equal(vertical.fit,'crop');
+  const input=path.join(dir,'source.png');await runMediaProcess(ffmpeg,['-v','error','-f','lavfi','-i','color=c=blue:s=64x32','-frames:v','1','-threads','1',input]);const square=await createMediaVariant(await fs.readFile(input),'square','contain');assert.equal(square.width,1080);assert.equal(square.height,1080);assert.equal(square.mime,'image/png');assert.equal((await inspectMediaPlacement(square.bytes,'square')).eligible_for_preset,true);assert.equal((await inspectMediaPlacement(square.bytes,'vertical')).eligible_for_preset,false);
+  const video=path.join(dir,'source.mp4');await runMediaProcess(ffmpeg,['-v','error','-f','lavfi','-i','color=c=blue:s=64x32:r=5','-t','1','-c:v','libx264','-pix_fmt','yuv420p',video]);const vertical=await createMediaVariant(await fs.readFile(video),'vertical','crop');assert.equal(vertical.height,1920);assert.equal(vertical.mime,'video/mp4');assert.equal(vertical.fit,'crop');const eligible=await inspectMediaPlacement(vertical.bytes,'vertical');assert.equal(eligible.eligible_for_preset,true);assert.equal(eligible.provider_approved,false);
   await assert.rejects(createMediaVariant(Buffer.from([137,80,78,71,13,10,26,10]),'square'),{code:'MEDIA_CONVERSION_FAILED'});
  }finally{if(path.dirname(dir)!==path.resolve(os.tmpdir())||!path.basename(dir).startsWith('amcp-media-test-'))throw Error('Unsafe test directory');await fs.rm(dir,{recursive:true,force:true});}
 });

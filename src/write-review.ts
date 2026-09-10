@@ -1,3 +1,4 @@
+import {checkSpendPolicy} from './spend-policy.js';
 import {randomUUID} from 'node:crypto';
 import {MirrorError} from './errors.js';
 import {Registry} from './catalog.js';
@@ -238,7 +239,8 @@ export class WriteReviewService {
    const args=isDelegated?{...input.arguments}:{...input.arguments,dry_run:true};this.registry.validate(input.gateway,args,this.options);const plan=applyExecutionRisk(isDelegated?this.delegated.compile(input.gateway,args):this.compiler.compile(input.gateway,args,this.options));
    if(input.connection_id&&nativeArgs.connection_id&&input.connection_id!==nativeArgs.connection_id)fail('CONFLICTING_PARAMETER','Connection IDs must agree.');
    if(input.action==='inspect'){
-    try{assertWriteShape(plan);const reads=snapshotPlans(plan,this.registry);return {executed:false,network_requests:0,review_contract_supported:true,request:redact(plan),state_reads:reads.map(r=>({method:r.method,path:r.path})),live_permissions_verified:false,requirements:{deployment_writes_enabled:this.policy.allowWrites,operator_role:actor.role!=='reader',account_write_grant_required:true},next_step:'Use prepare to verify live state and account access.'};}
+    let accountCapability:JsonObject;try{const c=this.store.resolveConnection(actor,plan.gateway,plan.accountId,input.connection_id??nativeArgs.connection_id);accountCapability={connection_id:c.id,account_id:plan.accountId,selected:true,write_granted:c.writeAccounts?.includes(plan.accountId!)??false,granted_scopes:c.scopes,provider_access:'requires live preparation'};}catch(e){accountCapability={selected:false,error:e instanceof MirrorError?{code:e.code,message:e.message}:undefined};}
+    try{assertWriteShape(plan);const reads=snapshotPlans(plan,this.registry);return {executed:false,network_requests:0,review_contract_supported:true,request:redact(plan),state_reads:reads.map(r=>({method:r.method,path:r.path})),live_permissions_verified:false,account_capability:accountCapability,requirements:{deployment_writes_enabled:this.policy.allowWrites,operator_role:actor.role!=='reader',account_write_grant_required:true},next_step:'Use prepare to verify live state and account access.'};}
     catch(e){if(!(e instanceof MirrorError))throw e;return {executed:false,network_requests:0,review_contract_supported:false,request:redact(plan),error:{code:e.code,message:e.message,details:e.details},live_permissions_verified:false};}
    }
    assertWriteShape(plan);const c=this.access(actor,plan,input.connection_id??nativeArgs.connection_id),reads=snapshotPlans(plan,this.registry),state=await this.state(actor,plan,c.id,reads);
@@ -250,10 +252,10 @@ export class WriteReviewService {
     }
    }
    const reviewId=randomUUID(),fingerprint=sha256(stable({tenant:actor.tenantId,user:actor.userId,connection:c.id,plan})),expiresAt=Date.now()+300000;
-   const stateHash=reviewStateHash(state);
+   const stateHash=reviewStateHash(state),spendPolicy=checkSpendPolicy(this.store,actor,plan,state);
    this.store.putDocument(actor.tenantId,'write_review',reviewId,{user_id:actor.userId,connection_id:c.id,plan,reads,state,state_hash:stateHash,fingerprint,expires_at:expiresAt});
    this.store.appendAudit(actor.tenantId,reviewId,{event:'write_prepared',request:plan,fingerprint,expires_at:expiresAt});
-   return {success:true,executed:false,review_id:reviewId,idempotency_key:reviewId,expires_at:new Date(expiresAt).toISOString(),request:redact(plan),before_state:redact(state),state_hash:stateHash,state_reads:reads.map(r=>({method:r.method,path:r.path})),fingerprint,confirmation_required:true};
+   return {success:true,executed:false,review_id:reviewId,idempotency_key:reviewId,expires_at:new Date(expiresAt).toISOString(),request:redact(plan),before_state:redact(state),spend_policy:spendPolicy,state_hash:stateHash,state_reads:reads.map(r=>({method:r.method,path:r.path})),fingerprint,confirmation_required:true};
   }
   if(input.action!=='execute'||typeof input.review_id!=='string')fail('INVALID_ARGUMENT','Use prepare or execute with a review_id.');
   if(input.arguments!==undefined||input.gateway!==undefined||input.connection_id!==undefined)fail('INVALID_ARGUMENT','Execute uses the frozen reviewed request; prepare a new review to change it.');
@@ -271,7 +273,7 @@ export class WriteReviewService {
   const c=this.access(actor,plan,review.connection_id),auth=await this.credentials.get(c);this.access(actor,plan,review.connection_id);
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Review expired during state verification.');
   const actorBinding=this.store.bindJobActor(actor,input.review_id);
-  const claim=this.store.claim(actor.tenantId,input.idempotency_key,fingerprint);if(!claim.fresh)return {...object(claim.result),replayed:true};
+  const claim=this.store.transaction(()=>{checkSpendPolicy(this.store,actor,plan,current,input.review_id);return this.store.claim(actor.tenantId,input.idempotency_key,fingerprint);});if(!claim.fresh)return {...object(claim.result),replayed:true};
   try{
    this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_started',request:plan,fingerprint,before_state:current});
    const response=await this.transport.request(plan,c,auth);this.delegated.validateResponse(plan,response.data,response.status);const result=writeOutcome(response,plan);

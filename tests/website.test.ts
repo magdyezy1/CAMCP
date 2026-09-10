@@ -57,7 +57,7 @@ test('website routes conceal connections, protect mutations, and issue revocable
   const listing=await (await s.request('/api/connector-tokens','GET',undefined,s.headers)).json();assert.ok(!JSON.stringify(listing).includes(token.token));assert.ok(!JSON.stringify(listing).includes(sha256(token.token)));
   const mcp=await s.request('/mcp','POST',{jsonrpc:'2.0',id:1,method:'tools/list'},{Authorization:'Bearer '+token.token,Accept:'application/json, text/event-stream'}); // Browser origins are deliberately denied at MCP.
   assert.equal(mcp.status,403);await mcp.arrayBuffer();
-  const native=await fetch(s.base+'/mcp',{method:'POST',headers:{Authorization:'Bearer '+token.token,Accept:'application/json, text/event-stream','Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list'})});assert.equal(native.status,200);assert.equal((await native.json()).result.tools.length,24);
+  const native=await fetch(s.base+'/mcp',{method:'POST',headers:{Authorization:'Bearer '+token.token,Accept:'application/json, text/event-stream','Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list'})});assert.equal(native.status,200);assert.equal((await native.json()).result.tools.length,25);
   assert.equal((await s.request('/api/connector-tokens/'+token.id,'DELETE',undefined,s.headers)).status,200);assert.throws(()=>s.store.authenticate(token.token));
   const logout=await s.request('/api/session','DELETE',undefined,s.headers);assert.equal(logout.status,200);assert.equal((await s.request('/api/connector-tokens','GET',undefined,s.headers)).status,401);
  }finally{await s.close();}
