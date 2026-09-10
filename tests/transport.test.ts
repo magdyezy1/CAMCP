@@ -19,7 +19,7 @@ test('platform errors inside HTTP 200 are not successful responses',async()=>{
 });
 
 test('invalid JSON never hides HTTP failures and no-content reads cannot become successful data',async()=>{
- for(const [status,body,code] of [[401,'<html>expired</html>','AUTH_EXPIRED'],[403,'','INSUFFICIENT_SCOPE'],[204,null,'UPSTREAM_RESPONSE_INVALID']] as const){
+ for(const [status,body,code] of [[401,'<html>expired</html>','AUTH_EXPIRED'],[403,'','PROVIDER_ACCESS_DENIED'],[204,null,'UPSTREAM_RESPONSE_INVALID']] as const){
   const transport=new NativeTransport((async()=>new Response(body,{status})) as typeof fetch,async()=>{});
   await assert.rejects(transport.request(plan,connection,credentials),(error:any)=>error.code===code);
  }

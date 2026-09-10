@@ -19,6 +19,7 @@ import {exportCsv} from '../src/google-sheets.js';
 import {UserAccounts} from './user-accounts.js';
 import {SocialSignIn} from './social-signin.js';
 import {accountRoutes} from './account-routes.js';
+import {googleAuthorizationInfo,googleAuthorizationRevision,reauthorizeGoogleConnection} from './google-reauthorization.js';
 import {mcpAuthRouter} from '@modelcontextprotocol/sdk/server/auth/router.js';
 
 export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=false,service?:MirrorService){
@@ -40,10 +41,12 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
  const savedAssets=(tenant:string,c:Connection)=>{const kind=selectionKind(c.gateway);return readDocument(tenant,'website_assets',c.id,{groups:[{kind,complete:false,assets:c.accounts.map(id=>({id,kind,name:id,source:'configured_binding'}))}],selected:c.accounts.map(id=>kind+':'+id),lastSync:null});};
  const publicConnection=(tenant:string,c:Connection)=>{
   const assets=savedAssets(tenant,c),meta=readDocument(tenant,'website_connection',c.id);
-  return {id:c.id,name:c.label,enabled:c.enabled,isDefault:c.isDefault===true,defaultWriteAccess:c.defaultWriteAccess===true,accounts:c.accounts,writeAccounts:(c.writeAccounts??[]).filter(id=>c.accounts.includes(id)),expiresAt:meta.expiresAt??null,lastSync:assets.lastSync??null,error:assets.error??null,selected:assets.selected??[],groups:assets.groups??[],status:assets.error?'attention':c.enabled?'connected':'selection_required'};
+  return {id:c.id,name:c.label,enabled:c.enabled,isDefault:c.isDefault===true,defaultWriteAccess:c.defaultWriteAccess===true,accounts:c.accounts,writeAccounts:(c.writeAccounts??[]).filter(id=>c.accounts.includes(id)),expiresAt:meta.expiresAt??null,lastSync:assets.lastSync??null,error:assets.error??null,selected:assets.selected??[],groups:assets.groups??[],status:assets.error?'attention':c.enabled?'connected':'selection_required',...(c.gateway==='google_ads_native_action'?{authorization:googleAuthorizationInfo(store,c,oauth.config(platform('google')).clientId)}:{})};
  };
  const sync=async(tenant:string,c:Connection,kinds?:string[])=>{
+  const authorizationRevision=c.gateway==='google_ads_native_action'?googleAuthorizationRevision(store,tenant,c.id):null;
   const result=await discovery.sync(c,kinds);
+  if(c.gateway==='google_ads_native_action'&&googleAuthorizationRevision(store,tenant,c.id)!==authorizationRevision)throw new MirrorError('CONNECTION_CHANGED','Google was reauthorized while this sync was running. Refresh the connection to see its current assets.',{},409);
   // A sync may overlap selection, default changes, or disconnect. Never restore its old grants.
   c=connection(tenant,c.id);const previous=savedAssets(tenant,c),groups:AssetGroup[]=[...(previous.groups??[])];
   for(const group of result.groups){group.checkedAt=Date.now();const old=groups.findIndex(g=>g.kind===group.kind);const replacement=!group.complete&&old>=0?{...group,assets:[...new Map([...groups[old]!.assets,...group.assets].map(a=>[a.id,a])).values()]}:group;if(old>=0)groups[old]=replacement;else groups.push(replacement);}
@@ -100,19 +103,31 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   let securedConnectionId:string|undefined;
   try{
    progress({state:'exchange',authorization:true,exchange:false,sync:false});
-   const result=await oauth.exchange(id,pending,query),connectionId=randomUUID();
+   const result=await oauth.exchange(id,pending,query),connectionId=pending.reauthorization?.connectionId??randomUUID();
    // A completed token exchange must not restore access after the initiating session ended.
    web.requireSession(req);
+   if(pending.reauthorization){
+    if(id!=='google')throw new MirrorError('OAUTH_STATE_INVALID','This reauthorization does not match Google.',{},400);
+    progress({state:'sync',authorization:true,exchange:true,sync:false,connectionId});
+    await reauthorizeGoogleConnection({store,actor:session.actor,connectionId,revision:pending.reauthorization.revision??null,credentials:result.credentials,scopes:result.scopes,allowWrites:allowWrites&&pending.requestedWriteAccess===true,fetcher:options.fetcher,assertActive:()=>{if(web.requireSession(req).actor.role!=='admin')throw new MirrorError('FORBIDDEN','A workspace administrator is required.',{},403);}});
+    securedConnectionId=connectionId;progress({state:'complete',authorization:true,exchange:true,sync:true,connectionId,message:'Google authorization renewed and account access verified. Your account selections, saved reports and schedules are preserved.'});
+    res.redirect(303,'/oauth/result?attempt='+encodeURIComponent(attemptId));return;
+   }
    const c:Connection={id:connectionId,tenantId:tenant,gateway:p.gateway,accounts:[],defaultWriteAccess:p.reviewedWrites!==false&&allowWrites&&pending.requestedWriteAccess===true,label:result.label,enabled:false,scopes:result.scopes,isDefault:!store.listConnections(tenant).some(c=>c.gateway===p.gateway&&c.isDefault)};
    store.putConnection(session.actor,c,result.credentials);securedConnectionId=connectionId;store.putDocument(tenant,'website_connection',connectionId,{platform:id,expiresAt:result.credentials.expiresAt??null,providerId:result.providerId??null,createdAt:Date.now()});
    store.appendAudit(tenant,attemptId,{event:'website_oauth_connected',platform:id,connection_id:connectionId});progress({state:'sync',authorization:true,exchange:true,sync:false,connectionId});
    const synced=await sync(tenant,c);progress({state:synced.error?'sync_attention':'complete',authorization:true,exchange:true,sync:!synced.error,connectionId,message:synced.error??'Connection secured. Choose the assets AMCP can use.'});
-  }catch(e){progress({state:securedConnectionId?'sync_attention':'failed',authorization:!query.error&&!query.denied,exchange:!!securedConnectionId,sync:false,connectionId:securedConnectionId,message:e instanceof MirrorError?e.message:'The connection could not be completed. Start again from AMCP.'});}
+  }catch(e){const diagnostics=e instanceof MirrorError&&Array.isArray(e.details.diagnostics)?e.details.diagnostics:[];progress({state:securedConnectionId?'sync_attention':'failed',authorization:!query.error&&!query.denied,exchange:!!securedConnectionId,sync:false,connectionId:securedConnectionId??pending.reauthorization?.connectionId,message:e instanceof MirrorError?e.message:'The connection could not be completed. Start again from AMCP.',...(diagnostics.length?{diagnostics}:{})});if(pending.reauthorization)store.appendAudit(tenant,attemptId,{event:'website_oauth_reauthorization_failed',platform:id,connection_id:pending.reauthorization.connectionId,error:{code:e instanceof MirrorError?e.code:'REAUTHORIZATION_FAILED',message:e instanceof MirrorError?e.message:'Google reauthorization failed.'},diagnostics,vendor_writes:0});}
   res.redirect(303,'/oauth/result?attempt='+encodeURIComponent(attemptId));
  });
  router.get('/api/auth/:platform/callback',callback);router.get('/api/:platform/callback',callback);
  router.get('/api/oauth/progress/:id',handler((req,res)=>{const session=web.requireSession(req);res.json(store.document(session.actor.tenantId,'oauth_progress',String(req.params.id)));}));
  router.get('/api/connections/:id',handler((req,res)=>{const s=web.requireSession(req);res.json(publicConnection(s.actor.tenantId,connection(s.actor.tenantId,String(req.params.id))));}));
+ router.post('/api/connections/:id/reauthorize',handler(async(req,res)=>{
+  const s=web.requireAdminMutation(req),c=connection(s.actor.tenantId,String(req.params.id));
+  if(c.gateway!=='google_ads_native_action')throw new MirrorError('REAUTHORIZATION_UNAVAILABLE','Reauthorization in place is currently available for Google Ads. Use Connect another for this platform.',{},400);
+  res.json(await oauth.start(s,'google',{connectionId:c.id,revision:googleAuthorizationRevision(store,s.actor.tenantId,c.id)}));
+ }));
  router.post('/api/connections/:id/sync',express.json({limit:'8kb'}),handler(async(req,res)=>{
   const s=web.requireAdminMutation(req),c=connection(s.actor.tenantId,String(req.params.id));const kinds=req.body?.kinds;
   if(kinds!==undefined&&(!Array.isArray(kinds)||kinds.length>8||kinds.some((k:unknown)=>typeof k!=='string')))throw new MirrorError('INVALID_ARGUMENT','Select valid asset types.');res.json(await sync(s.actor.tenantId,c,kinds));

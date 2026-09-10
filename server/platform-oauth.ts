@@ -54,11 +54,12 @@ export class PlatformOAuth {
   if(!response.ok)throw new MirrorError('OAUTH_EXCHANGE_FAILED','The provider rejected authorization. Check app credentials and callback settings, then reconnect.',{http_status:response.status},502);
   try{const text=Buffer.concat(chunks).toString('utf8'),data=format==='form'?Object.fromEntries(new URLSearchParams(text)):JSON.parse(text);if(!data||typeof data!=='object'||Array.isArray(data)||data.error)throw Error();return data;}catch{throw new MirrorError('OAUTH_RESPONSE_INVALID','The provider returned an invalid authorization response.',{},502);}
  }
- async start(session:WebSession,id:string):Promise<{url:string;attemptId:string}>{
+ async start(session:WebSession,id:string,reauthorization?:{connectionId:string;revision:string|null}):Promise<{url:string;attemptId:string}>{
   const p=platform(id),c=this.config(p);if(!c.configured)throw new MirrorError('PROVIDER_SETUP_REQUIRED','Add the '+p.name+' app credentials in Railway before connecting.',{callback:c.redirectUri},409);
   if(p.authType)throw new MirrorError('SERVICE_CONNECTION_REQUIRED','This platform uses server-side API credentials, without a browser OAuth callback.');
   const state=randomBytes(32).toString('base64url'),attemptId=randomUUID(),verifier=randomBytes(48).toString('base64url');
-  let data:JsonObject={attemptId,redirectUri:c.redirectUri,verifier,requestedScopes:[...c.scopes],requestedWriteAccess:this.allowWrites&&p.reviewedWrites!==false},url=new URL(p.authorize);
+  if(reauthorization&&id!=='google')throw new MirrorError('REAUTHORIZATION_UNAVAILABLE','Use a new login for this platform.');
+  let data:JsonObject={attemptId,redirectUri:c.redirectUri,verifier,requestedScopes:[...c.scopes],requestedWriteAccess:this.allowWrites&&p.reviewedWrites!==false,...(reauthorization?{reauthorization}:{}),...(id==='google'?{oauthClientId:c.clientId}:{})},url=new URL(p.authorize);
   if(id==='x'){
    const requestedAccessType=this.allowWrites?'write':'read';
    const requestUrl=new URL('https://api.x.com/oauth/request_token');requestUrl.searchParams.set('x_auth_access_type',requestedAccessType);
@@ -72,7 +73,7 @@ export class PlatformOAuth {
    url.searchParams.set(id==='tiktok'?'app_id':'client_id',c.clientId!);url.searchParams.set(redirectParameter,c.redirectUri);url.searchParams.set('state',state);
    if(id!=='tiktok')url.searchParams.set('response_type','code');if(c.scopes.length)url.searchParams.set('scope',c.scopes.join(id==='meta'?',':' '));
    if(p.pkce){url.searchParams.set('code_challenge',createHash('sha256').update(verifier).digest('base64url'));url.searchParams.set('code_challenge_method','S256');}
-   if(p.token==='https://oauth2.googleapis.com/token'){url.searchParams.set('access_type','offline');url.searchParams.set('prompt','consent');}
+   if(p.token==='https://oauth2.googleapis.com/token'){url.searchParams.set('access_type','offline');url.searchParams.set('prompt',reauthorization?'consent select_account':'consent');}
    if(id==='meta'&&this.env.AMCP_META_CONFIG_ID){url.searchParams.set('config_id',this.env.AMCP_META_CONFIG_ID);url.searchParams.set('override_default_response_type','true');}
   }
   this.web.beginOAuth(session,id,data,state);this.web.store.putDocument(session.actor.tenantId,'oauth_progress',attemptId,{platform:id,state:'authorization',createdAt:Date.now(),authorization:false,exchange:false,sync:false});
@@ -82,6 +83,7 @@ export class PlatformOAuth {
   const p=platform(id),c=this.config(p);if(!c.configured)throw new MirrorError('PROVIDER_SETUP_REQUIRED','Provider credentials are unavailable.',{},503);
   if(p.authType)throw new MirrorError('SERVICE_CONNECTION_REQUIRED','Apple Ads does not use an authorization-code callback.');
   if(query.error||query.denied)throw new MirrorError('OAUTH_CANCELLED','Authorization was cancelled. Your existing connections were not changed.',{},400);
+  if(stored.oauthClientId&&stored.oauthClientId!==c.clientId)throw new MirrorError('OAUTH_CLIENT_CHANGED','The configured OAuth client changed during authorization. Start again from Connections.',{},409);
   let result:JsonObject;
   if(id==='x'){
    if(query.oauth_token!==stored.requestToken||!query.oauth_verifier)throw new MirrorError('OAUTH_TOKEN_MISMATCH','X returned a mismatched authorization token.',{},400);
