@@ -14,6 +14,7 @@ import type {Connection,JsonObject} from '../src/types.js';
 import {McpOAuth} from './mcp-oauth.js';
 import {microsoftGateway} from '../src/microsoft-native.js';
 import {ReportingOverview} from '../src/reporting-overview.js';
+import {activityReportErrors} from '../src/report-errors.js';
 import {exportCsv} from '../src/google-sheets.js';
 import {UserAccounts} from './user-accounts.js';
 import {SocialSignIn} from './social-signin.js';
@@ -168,7 +169,7 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   const s=web.requireMutation(req),record=store.document(s.actor.tenantId,'website_mcp_token',String(req.params.id));
   store.db.prepare('UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash=?').run(s.actor.tenantId,record.hash);store.putDocument(s.actor.tenantId,'website_mcp_token',record.id,{...record,revoked:true});store.appendAudit(s.actor.tenantId,randomUUID(),{event:'website_mcp_token_revoked',token_id:record.id});res.json({success:true});
  }));
- router.get('/api/activity',handler((req,res)=>{const s=web.requireSession(req);res.json({events:store.audit(s.actor.tenantId,100).map((r:any)=>({id:r.seq,at:r.created_at,event:redact(JSON.parse(r.event))})).reverse()});}));
+ router.get('/api/activity',handler((req,res)=>{const s=web.requireSession(req);res.json({events:store.audit(s.actor.tenantId,100).map((r:any)=>{const event=redact(JSON.parse(r.event));return {id:r.seq,at:r.created_at,event,diagnostics:activityReportErrors(event)};}).reverse()});}));
  const directory=path.resolve(options.staticDirectory??'web');router.use('/assets',express.static(directory,{dotfiles:'deny',index:false,fallthrough:false,maxAge:0}));
  router.get('/tiktok94H3oMGQTvC0GEzgKcmffbz8W0CAHhan.txt',(_req,res)=>res.type('text/plain').sendFile('tiktok94H3oMGQTvC0GEzgKcmffbz8W0CAHhan.txt',{root:directory}));
  for(const route of ['/dashboard','/campaigns','/media','/reports','/reporting-overview','/profiles','/','/connections','/connectors','/activity','/settings','/login','/signup','/forgot-password','/reset-password','/verify-email','/account','/auth/complete','/oauth/result','/oauth/consent','/privacy','/terms','/data-deletion'])router.get(route,(_req,res)=>res.sendFile('index.html',{root:directory}));
