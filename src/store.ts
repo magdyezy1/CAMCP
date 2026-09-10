@@ -165,6 +165,8 @@ export class Store {
   this.transaction(()=>{const prev=this.db.prepare('SELECT hash FROM audit ORDER BY seq DESC LIMIT 1').get() as {hash:string}|undefined;const previous=prev?.hash??'GENESIS';const at=Date.now();const hash=sha256(stable({tenantId,requestId,payload,previous,at}));this.db.prepare('INSERT INTO audit(tenant_id,request_id,event,previous_hash,hash,created_at) VALUES(?,?,?,?,?,?)').run(tenantId,requestId,payload,previous,hash,at);});
  }
  audit(tenantId:string,limit=100,after=0){return this.db.prepare('SELECT * FROM audit WHERE tenant_id=? AND seq>? ORDER BY seq LIMIT ?').all(tenantId,after,Math.min(1000,Math.max(1,limit)));}
+ // The activity feed needs the latest rows; forward audit cursors retain their existing ordering.
+ recentAudit(tenantId:string,limit=100){return this.db.prepare('SELECT * FROM audit WHERE tenant_id=? ORDER BY seq DESC LIMIT ?').all(tenantId,Math.min(1000,Math.max(1,limit)));}
  verifyAudit(){let previous='GENESIS';for(const row of this.db.prepare('SELECT * FROM audit ORDER BY seq').iterate() as Iterable<JsonObject>){const hash=sha256(stable({tenantId:row.tenant_id,requestId:row.request_id,payload:row.event,previous,at:row.created_at}));if(row.previous_hash!==previous||row.hash!==hash)return false;previous=hash;}return true;}
  claim(tenantId:string,key:string,fingerprint:string):{fresh:boolean;result?:unknown}{return this.transaction(()=>{
   const row=this.db.prepare('SELECT * FROM idempotency WHERE tenant_id=? AND key=?').get(tenantId,key) as JsonObject|undefined;

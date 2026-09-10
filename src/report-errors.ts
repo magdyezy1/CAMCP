@@ -65,7 +65,7 @@ export function assetSyncErrorMessage(diagnostic:JsonObject):string {
 // Existing audit events retain provider details even when older report records
 // discarded them. Project only diagnostic fields; never expose raw responses.
 export function activityReportErrors(event:JsonObject):JsonObject[]{
- if(event.event==='website_asset_sync'&&Array.isArray(event.diagnostics))return event.diagnostics.slice(0,100).filter(d=>object(d).operation==='account_sync').map(d=>redact(d));
+ if(['website_asset_sync','website_oauth_reauthorization_failed'].includes(event.event)&&Array.isArray(event.diagnostics))return event.diagnostics.slice(0,100).filter(d=>object(d).operation==='account_sync').map(d=>redact(d));
  const request=object(event.request),error=object(event.error),details=object(error.details);
  const platform=Object.entries(reportPlatforms).find(([,p])=>p.gateway===request.gateway)?.[0];
  if(!platform||typeof error.code!=='string')return [];
