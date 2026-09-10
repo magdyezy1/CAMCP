@@ -2,21 +2,25 @@ import {MirrorError} from '../src/errors.js';
 import type {CompiledRequest,Connection,Credentials,JsonObject} from '../src/types.js';
 import type {NativeTransport} from '../src/transport.js';
 import type {AssetGroup,WorkspaceAsset} from './asset-discovery.js';
+import {assetSyncDiagnostic,assetSyncErrorMessage} from '../src/report-errors.js';
 
 /** Discover every status beneath each directly accessible root, without granting account access. */
 export async function googleAccountDiscovery(transport:NativeTransport,connection:Connection,credentials:Credentials):Promise<AssetGroup>{
  const plan=(path:string,body?:JsonObject):CompiledRequest=>({gateway:connection.gateway,action:'AMCP_GOOGLE_DISCOVERY',path,query:{},method:body?'POST':'GET',body,headers:{},readOnly:true,destructive:false,requiresConfirmation:false,evidence:'INDEPENDENT_ACCOUNT_DISCOVERY',warnings:[]});
- const result=await transport.request(plan('/v23/customers:listAccessibleCustomers'),connection,{...credentials,loginCustomerId:undefined});
+ const request=async(p:CompiledRequest,c:Credentials,stage:string)=>{
+  try{return await transport.request(p,connection,c);}catch(e){if(e instanceof MirrorError)throw new MirrorError(e.code,e.message,{...e.details,report_request:{stage,method:p.method,path:p.path}},e.status,e.retryable);throw e;}
+ };
+ const result=await request(plan('/v23/customers:listAccessibleCustomers'),{...credentials,loginCustomerId:undefined},'account_list');
  const names=(result.data as JsonObject).resourceNames;
  if(!Array.isArray(names)||names.some(n=>typeof n!=='string'||!/^customers\/\d+$/.test(n)))throw new MirrorError('ASSET_RESPONSE_INVALID','Google did not return a customer list.',{},502);
  const roots=[...new Set<string>(names.map(n=>n.split('/')[1]))].sort();
  if(roots.length>100)throw new MirrorError('ASSET_SYNC_LIMIT','This login has more than 100 directly accessible Google accounts. Narrow the login.',{},409);
  const assets=new Map<string,WorkspaceAsset>(roots.map(id=>[id,{id,kind:'ad_accounts',name:'Google Ads '+id,loginCustomerId:id,source:'vendor'}]));
- const failures:string[]=[];
+ const failures:JsonObject[]=[];
  const search=async(root:string,query:string)=>{
   const rows:JsonObject[]=[],seen=new Set<string>();let token:string|undefined;
   for(let page=0;page<25;page++){
-   const response=await transport.request(plan('/v23/customers/'+root+'/googleAds:search',{query,...(token?{pageToken:token}:{})}),connection,{...credentials,loginCustomerId:root});
+   const response=await request(plan('/v23/customers/'+root+'/googleAds:search',{query,...(token?{pageToken:token}:{})}),{...credentials,loginCustomerId:root},query.includes('FROM customer_client')?'manager_hierarchy':'account_lookup');
    const data=response.data as JsonObject,items=data.results??[];
    if(!Array.isArray(items)||items.some(r=>!r||typeof r!=='object'||Array.isArray(r)))throw new MirrorError('ASSET_RESPONSE_INVALID','Google returned an invalid account hierarchy.',{},502);
    rows.push(...items);if(rows.length>10000)throw new MirrorError('ASSET_SYNC_LIMIT','Google account discovery exceeded 10,000 accounts.',{},409);
@@ -39,6 +43,6 @@ export async function googleAccountDiscovery(transport:NativeTransport,connectio
   const rows=await search(root,'SELECT customer_client.id, customer_client.client_customer, customer_client.descriptive_name, customer_client.currency_code, customer_client.time_zone, customer_client.status, customer_client.manager, customer_client.hidden, customer_client.test_account, customer_client.level FROM customer_client');
   for(const row of rows){const asset=account(row.customerClient,root,true);if(!assets.has(asset.id)||assets.get(asset.id)!.status===undefined)assets.set(asset.id,asset);}
   if(assets.size>10000)throw new MirrorError('ASSET_SYNC_LIMIT','Google account discovery exceeded 10,000 accounts.',{},409);
- }catch(e){failures.push(root+': '+(e instanceof MirrorError?e.message:'Account discovery failed.'));}
- return {kind:'ad_accounts',assets:[...assets.values()],complete:failures.length===0,...(failures.length?{error:'Some Google account details could not be synced. '+failures.join(' ')}:{})};
+ }catch(e){failures.push(assetSyncDiagnostic(e,'google',connection.id,'ad_accounts',root));}
+ return {kind:'ad_accounts',assets:[...assets.values()],complete:failures.length===0,...(failures.length?{error:'Some Google account details could not be synced. '+failures.map(assetSyncErrorMessage).join(' '),diagnostics:failures}:{})};
 }

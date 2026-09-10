@@ -68,7 +68,9 @@ export class NativeTransport {
   }
   if(credentials.accessToken){if(plan.gateway==='tiktok_native_action')headers['Access-Token']=credentials.accessToken;else headers.Authorization='Bearer '+credentials.accessToken;}
   if(plan.gateway==='google_ads_native_action'){
-   if(!credentials.developerToken)throw new MirrorError('DEVELOPER_TOKEN_REQUIRED','Google Ads requires its own developer token.');headers['developer-token']=credentials.developerToken;
+   // Google Cloud projects own API access after the September 9, 2026 migration.
+   // Legacy developer tokens remain accepted but are no longer required.
+   if(credentials.developerToken)headers['developer-token']=credentials.developerToken;
    const loginCustomerId=(plan.action!=='AMCP_GOOGLE_DISCOVERY'&&plan.accountId?connection.accountLoginCustomers?.[plan.accountId]:undefined)??credentials.loginCustomerId;
    if(loginCustomerId)headers['login-customer-id']=loginCustomerId.replaceAll('-','');
   }

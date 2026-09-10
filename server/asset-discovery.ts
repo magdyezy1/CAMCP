@@ -6,9 +6,10 @@ import {Store} from '../src/store.js';
 import {platforms,selectionKind} from './platform-oauth.js';
 import {microsoftCustomerOrigin} from '../src/microsoft-native.js';
 import {googleAccountDiscovery} from './google-account-discovery.js';
+import {assetSyncDiagnostic,assetSyncErrorMessage} from '../src/report-errors.js';
 
 export interface WorkspaceAsset {id:string;kind:string;name:string;parentId?:string;currency?:string;timezone?:string;status?:string;loginCustomerId?:string;manager?:boolean;hidden?:boolean;testAccount?:boolean;source:'vendor'|'configured_binding'}
-export interface AssetGroup {checkedAt?:number;kind:string;assets:WorkspaceAsset[];complete:boolean;error?:string}
+export interface AssetGroup {checkedAt?:number;kind:string;assets:WorkspaceAsset[];complete:boolean;error?:string;diagnostics?:JsonObject[]}
 export class AssetDiscovery {
  private transport:NativeTransport;private credentials:CredentialProvider;
  constructor(private store:Store,fetcher:typeof fetch=fetch){this.transport=new NativeTransport(fetcher);if(fetcher===fetch)this.transport.coordination=store;this.credentials=new CredentialProvider(store,fetcher);}
@@ -47,7 +48,9 @@ export class AssetDiscovery {
  async sync(connection:Connection,kinds?:string[]):Promise<{groups:AssetGroup[];label?:string}>{
   const p=platforms.find(p=>p.gateway===connection.gateway);if(!p)throw new MirrorError('PLATFORM_NOT_FOUND','This connection is not supported by the website.',{},404);
   const selected=kinds??[selectionKind(connection.gateway)];if(selected.some(k=>!p.assetKinds.includes(k)))throw new MirrorError('ASSET_KIND_INVALID','This asset type is not available for the platform.');
-  const credentials=await this.credentials.get(connection),groups:AssetGroup[]=[];let label:string|undefined;
+  const groups:AssetGroup[]=[];let label:string|undefined,credentials:Credentials;
+  const failure=(kind:string,error:unknown):AssetGroup=>{const diagnostic=assetSyncDiagnostic(error,p.id,connection.id,kind);return {kind,assets:[],complete:false,error:assetSyncErrorMessage(diagnostic),diagnostics:[diagnostic]};};
+  try{credentials=await this.credentials.get(connection);}catch(e){return {groups:selected.map(kind=>failure(kind,e))};}
   for(const kind of selected){
    try{
     let assets:WorkspaceAsset[]=[];
@@ -161,7 +164,7 @@ export class AssetDiscovery {
      }
     }else throw new MirrorError('ASSET_DISCOVERY_UNAVAILABLE','Asset discovery has not been implemented for this provider.',{},501);
     const unique=new Map(assets.map(a=>[a.kind+':'+a.id,a]));groups.push({kind,assets:[...unique.values()],complete:true});
-   }catch(e){groups.push({kind,assets:[],complete:false,error:e instanceof MirrorError?e.message:'Asset sync failed. Reconnect or check the provider permissions.'});}
+   }catch(e){groups.push(failure(kind,e));}
   }
   return {groups,label};
  }
