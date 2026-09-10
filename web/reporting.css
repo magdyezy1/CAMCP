@@ -6,3 +6,4 @@
 
 .report-actions > select { min-height:44px; padding:0 36px 0 14px; border:1px solid var(--line,#e6e1ed); border-radius:12px; color:var(--ink,#242031); background:var(--surface,#fff); font:inherit; max-width:100%; }
 .source-diagnostic{line-height:1.6;overflow-wrap:anywhere}.source-diagnostic>strong{display:block;color:#843e43}.source-diagnostic small{display:block;margin:7px 0}.source-next-action{padding:12px 14px;background:#fff6ed;border:1px solid #edd9c9;border-radius:10px;color:#6a4530}.source-health .report-actions{margin-top:14px}.activity-failure{padding:15px 20px;margin-bottom:18px;border:1px solid #e7d8dd;border-radius:12px;background:#fffcfd}.activity-failure>summary{cursor:pointer;font-weight:600;color:#843e43}
+.report-date-summary{flex-basis:100%;margin:0;color:#49326c;font-size:14px;font-weight:600;line-height:1.6}.report-empty h3{color:#49326c}.report-empty p{line-height:1.7}.report-empty .button{margin-top:10px}.report-date-fields{flex-wrap:wrap}

@@ -56,7 +56,7 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   return publicConnection(tenant,c);
  };
  if(service){
-  router.get('/api/reporting-overview/:id.csv',handler((req,res)=>{const session=web.requireSession(req),report=store.document(session.actor.tenantId,'overview_report',String(req.params.id));new ReportingOverview(service).access(session.actor,report.config);res.setHeader('Content-Disposition','attachment; filename=AMCP-campaign-report.csv');res.type('text/csv').send(exportCsv(report));}));
+  router.get('/api/reporting-overview/:id.csv',handler((req,res)=>{const session=web.requireSession(req),report=store.document(session.actor.tenantId,'overview_report',String(req.params.id));new ReportingOverview(service).access(session.actor,report.config);const csv=exportCsv(report);res.setHeader('Content-Disposition','attachment; filename=AMCP-campaign-report.csv');res.type('text/csv').send(csv);}));
   router.post('/api/workspace/:tool',express.json({limit:'512kb'}),handler(async(req,res)=>{
    const session=web.requireMutation(req),tools:Record<string,string>={workspace:'amcp_workspace',campaign:'amcp_campaign',reporting:'amcp_reporting',overview:'amcp_reporting_overview',media:'amcp_media',write:'amcp_write'};
    const tool=tools[String(req.params.tool)];if(!tool)throw new MirrorError('NOT_FOUND','Unknown workspace operation.',{},404);
