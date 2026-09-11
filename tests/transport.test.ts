@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {NativeTransport,oauth1,buildUrl} from '../src/transport.js';
 import type {CompiledRequest,Connection,Credentials} from '../src/types.js';
+import {setTimeout as delay} from 'node:timers/promises';
 const connection:Connection={id:'c',tenantId:'t',gateway:'meta_native_action',accounts:['123'],label:'test',enabled:true,scopes:[]};
 const plan:CompiledRequest={gateway:'meta_native_action',action:'list',method:'GET',path:'/v25.0/act_123/campaigns',query:{limit:1},headers:{},readOnly:true,destructive:false,requiresConfirmation:false,accountId:'123',evidence:'TEST',warnings:[]};
 const credentials:Credentials={accessToken:'TEST_CREDENTIAL_NOT_REAL'};
@@ -42,4 +43,17 @@ test('Meta writes use observed form encoding and TikTok adds open_api prefix',as
  await transport.request({...plan,method:'POST',readOnly:false,body:{name:'draft',targeting:{geo_locations:{countries:['US']}}}},connection,credentials);
  assert.equal(sent[0].headers['Content-Type'],'application/x-www-form-urlencoded');assert.equal(new URLSearchParams(sent[0].body).get('name'),'draft');
  await transport.request({...plan,gateway:'tiktok_native_action',path:'/v1.3/campaign/get/'},{...connection,gateway:'tiktok_native_action'},credentials);assert.ok(sent[1].url.startsWith('https://business-api.tiktok.com/open_api/v1.3/'));assert.equal(sent[1].headers['Access-Token'],credentials.accessToken);
+});
+test('a bounded burst is paced to the sustained tenant rate, and only a sustained overrun is rejected',async()=>{
+ const waits:number[]=[],sleeper=async(ms:number)=>{waits.push(ms);await delay(ms);};
+ // Burst 5, one refill every 10ms, shaping window 100ms: the same policy as production at test speed.
+ const transport=new NativeTransport((async()=>new Response('{}')) as typeof fetch,sleeper,30000,8*1024*1024,5,10,100);
+ // A bounded sequential batch past the burst is paced, not failed: this is what account discovery does.
+ for(let i=0;i<20;i++)await transport.request(plan,connection,credentials);
+ assert.equal(transport.metrics.requests,20);assert.ok(waits.length>0);assert.ok(waits.every(ms=>ms>0&&ms<=10));
+ // A caller that never yields owes more than the shaping window and is still rate limited.
+ const burst=new NativeTransport((async()=>new Response('{}')) as typeof fetch,sleeper,30000,8*1024*1024,5,10,100);
+ const outcomes=await Promise.allSettled(Array.from({length:80},()=>burst.request(plan,connection,credentials)));
+ const rejected=outcomes.filter(o=>o.status==='rejected') as PromiseRejectedResult[];
+ assert.ok(rejected.length>0);assert.ok(rejected.every(o=>o.reason.code==='TENANT_RATE_LIMIT'));assert.ok(rejected[0]!.reason.details.retry_after_ms>0);
 });

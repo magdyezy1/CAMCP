@@ -53,6 +53,8 @@ Submit the same review only after confirming its intended change:
 
 Budget, bid, spend or activation changes additionally require `spend_change_confirmed:true`. New serving entities must explicitly be paused or draft. Execute cannot replace the request, account or connection. Reviews expire after five minutes and belong to the same tenant and user that prepared them. Changed, incomplete, paginated or missing state prevents submission. Successful Meta and Snapchat creates register their returned resource IDs to the owning tenant, connection and selected account, immediately allowing child prepares. Other global resources require an account-scoped collection read or an administrator binding. Existing ownership expiry and revocation rules remain enforced.
 
+An owner spending policy separates creates from updates, because `max_budget_increase_percent` and the unambiguous-baseline rule only mean something against a prior budget. A create is recognised from an explicit REST.li `CREATE`, a `create` operation inside the payload, or a collection-scoped action name. A REST.li POST addressed to one resource — `…_{id}_post` or `…_{urn}_post`, which is how LinkedIn expresses `PARTIAL_UPDATE` — changes an existing budget and stays under the percentage and baseline rules. `max_budget_native` and `max_daily_increase_native` apply to both.
+
 ## Supported execution contracts
 
 | Provider | Reviewed routes |

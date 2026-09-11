@@ -41,12 +41,26 @@ export class NativeTransport {
  coordination?:Store;
  private circuits=new Map<string,{failures:number;until:number}>();private budgets=new Map<string,{tokens:number;at:number}>();
  readonly metrics={requests:0,retries:0,errors:0,totalLatencyMs:0};
- constructor(private fetcher:typeof fetch=fetch,private sleeper:(ms:number)=>Promise<unknown>=delay,private timeoutMs=30000,private maximumBytes=8*1024*1024){}
+ constructor(private fetcher:typeof fetch=fetch,private sleeper:(ms:number)=>Promise<unknown>=delay,private timeoutMs=30000,private maximumBytes=8*1024*1024,private budgetBurst=30,private budgetRefillMs=250,private budgetWaitMs=2000){}
+ /**
+  * Shape a burst down to the sustained per-tenant rate instead of failing a bounded batch outright.
+  * A bounded operation (account discovery, paged reads) may exceed the burst legitimately; only a
+  * caller that stays beyond the sustained rate long enough to owe more than budgetWaitMs is rejected.
+  * The refill is kept faster than Store.providerPermit's shared budget so shaping never starves it.
+  */
+ private async permit(key:string):Promise<void>{
+  const now=Date.now(),budget=this.budgets.get(key)??{tokens:this.budgetBurst,at:now};
+  budget.tokens=Math.min(this.budgetBurst,budget.tokens+(now-budget.at)/this.budgetRefillMs);budget.at=now;
+  const waitMs=budget.tokens>=1?0:Math.ceil((1-budget.tokens)*this.budgetRefillMs);
+  if(waitMs>this.budgetWaitMs){this.budgets.set(key,budget);throw new MirrorError('TENANT_RATE_LIMIT','Per-tenant platform request budget exhausted.',{retry_after_ms:waitMs},429,true);}
+  // Reserve before sleeping so concurrent callers queue behind each other instead of waking together.
+  budget.tokens--;this.budgets.set(key,budget);
+  if(waitMs)await this.sleeper(waitMs);
+ }
  async request(plan:CompiledRequest,connection:Connection,credentials:Credentials,upload?:BinaryUpload):Promise<TransportResult>{
   const key=scopeKey(connection.tenantId,connection.gateway);
   const circuit=this.circuits.get(key);if(circuit&&circuit.until>Date.now())throw new MirrorError('CIRCUIT_OPEN','Platform circuit is temporarily open.',{retry_after_ms:circuit.until-Date.now()},503,true);
-  const budget=this.budgets.get(key)??{tokens:30,at:Date.now()};budget.tokens=Math.min(30,budget.tokens+(Date.now()-budget.at)/1000);budget.at=Date.now();
-  if(budget.tokens<1)throw new MirrorError('TENANT_RATE_LIMIT','Per-tenant platform request budget exhausted.',{retry_after_ms:1000},429,true);budget.tokens--;this.budgets.set(key,budget);
+  await this.permit(key);
   const url=buildUrl(plan,connection);const headers:Record<string,string>={Accept:'application/json',...plan.headers};
   if(plan.gateway==='reddit_native_action'){
    if(!connection.userAgent||/[\r\n]/.test(connection.userAgent))throw new MirrorError('USER_AGENT_REQUIRED','Configure a descriptive Reddit application userAgent on the connection.');headers['User-Agent']=connection.userAgent;

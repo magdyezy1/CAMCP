@@ -47,3 +47,21 @@ test('native report collectors read Reddit metrics envelopes and GA4 property me
 test('Meta preflight requires the actual Page and conversion pixel using only account-scoped reads',async()=>{const store=new Store(':memory:',key);try{connection(store);const calls:CompiledRequest[]=[];const service=new MirrorService(registry,store,new NativeTransport(async()=>{throw Error('Unexpected egress');}),undefined,{allowWrites:true,requireBeforeState:true,maxBudgetChange:0});service.runPlan=async p=>{calls.push(p);return {data:{data:[]}};};await assert.rejects(()=>metaPrerequisites(service,actor,{...policyPlan,path:'/v25.0/act_123/adcreatives',body:{object_story_spec:{page_id:'456',link_data:{link:'https://example.test/'}}}},'meta_native_action'),/Facebook Page/);assert.equal(calls[0]!.path,'/v25.0/act_123/promote_pages');await assert.rejects(()=>metaPrerequisites(service,actor,{...policyPlan,path:'/v25.0/act_123/adsets',body:{optimization_goal:'OFFSITE_CONVERSIONS'}},'meta_native_action'),/pixel and conversion/);await assert.rejects(()=>metaPrerequisites(service,actor,{...policyPlan,path:'/v25.0/act_123/adsets',body:{optimization_goal:'VALUE',promoted_object:{pixel_id:'789',custom_event_type:'PURCHASE'}}},'meta_native_action'),/Meta pixel/);assert.ok(calls.every(p=>p.readOnly&&p.method==='GET'));}finally{store.close();}});
 
 test('spending policy interprets JSON Patch budgets and rejects unknown budget units',()=>{const store=new Store(':memory:',key);try{connection(store);saveSpendPolicy(store,actor,{gateway:policyPlan.gateway,account_id:'123',confirmed:true,policy:{max_budget_native:200,max_budget_increase_percent:25}});assert.equal(checkSpendPolicy(store,actor,{...policyPlan,body:[{op:'replace',path:'/daily_budget',value:120}]},[{daily_budget:100}]).requested_increase_native,20);assert.throws(()=>checkSpendPolicy(store,actor,{...policyPlan,body:[{op:'replace',path:'/daily_budget',value:140}]},[{daily_budget:100}]),/percentage/);assert.throws(()=>checkSpendPolicy(store,actor,{...policyPlan,body:{unmapped_budget_field:150}},[]),/unit mapping/);}finally{store.close();}});
+
+test('a resource-scoped REST.li POST is a budget update, not a create, and stays under the percentage policy',()=>{
+ const store=new Store(':memory:',key);
+ try{
+  connection(store,'linkedin_native_action');
+  saveSpendPolicy(store,actor,{gateway:'linkedin_native_action',account_id:'123',confirmed:true,policy:{max_budget_increase_percent:25}});
+  const update:CompiledRequest={gateway:'linkedin_native_action',accountId:'123',action:'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_campaign_id_post',method:'POST',path:'/rest/adAccounts/123/adCampaigns/456',query:{},body:{patch:{$set:{dailyBudget:{amount:'500',currencyCode:'USD'}}}},headers:{'X-RestLi-Method':'PARTIAL_UPDATE'},readOnly:false,destructive:false,requiresConfirmation:true,evidence:'fixture',warnings:[]};
+  const before=[{dailyBudget:{amount:'100',currencyCode:'USD'}}];
+  assert.throws(()=>checkSpendPolicy(store,actor,update,before),/percentage/);
+  // The same action name without the explicit REST.li header is still scoped to one campaign.
+  assert.throws(()=>checkSpendPolicy(store,actor,{...update,headers:{}},before),/percentage/);
+  // A change inside the limit still passes, proving the rule is applied rather than the write blocked.
+  assert.equal(checkSpendPolicy(store,actor,{...update,body:{patch:{$set:{dailyBudget:{amount:'120',currencyCode:'USD'}}}}},before).requested_increase_native,20);
+  // A collection POST remains a create: it has no baseline and must not be forced through the update path.
+  const create:CompiledRequest={...update,action:'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post',path:'/rest/adAccounts/123/adCampaigns',headers:{},body:{dailyBudget:{amount:'500',currencyCode:'USD'}}};
+  assert.equal(checkSpendPolicy(store,actor,create,[]).requested_increase_native,500);
+ }finally{store.close();}
+});
