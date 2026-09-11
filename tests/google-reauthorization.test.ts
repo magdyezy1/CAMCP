@@ -25,8 +25,9 @@ const failure={error:{code:403,status:'PERMISSION_DENIED',message:'The caller do
 function fixture(){const store=new Store(':memory:',key);store.putConnection(actor,{...connection},credentials);store.putDocument('local','overview_report','report',{config:{sources:[{connection_id:connection.id,account_id:'100'}]}});store.putDocument('local','overview_schedule','schedule',{connection_id:connection.id});return store;}
 const available=(id='100'):typeof fetch=>async(url,init)=>{
  const u=new URL(String(url));assert.equal(u.origin,'https://googleads.googleapis.com');assert.equal(new Headers(init?.headers).get('Authorization'),'Bearer fresh-access-token');
- assert.equal(u.pathname,'/v23/customers:listAccessibleCustomers');assert.equal(init?.method,'GET');assert.equal(init?.body,undefined);
- return Response.json({resourceNames:['customers/'+id]});
+ if(u.pathname.endsWith(':listAccessibleCustomers'))return Response.json({resourceNames:['customers/'+id]});
+ assert.equal(init?.method,'POST');assert.match(String(init?.body),/FROM customer"/);
+ return Response.json({results:[{customer:{id,descriptiveName:'Synthetic account',manager:false,status:'ENABLED',currencyCode:'USD',timeZone:'UTC'}}]});
 };
 const renew=(store:Store,fetcher:typeof fetch=available(),extra:Partial<Parameters<typeof reauthorizeGoogleConnection>[0]>={})=>reauthorizeGoogleConnection({store,actor,connectionId:connection.id,credentials:fresh,scopes:[googleAdsScope],revision:null,allowWrites:true,assertActive:()=>{},fetcher,...extra});
 
@@ -40,12 +41,11 @@ test('Google generic authorization failures and blank 403s are not mislabeled as
  assert.equal(reportSourceError(new MirrorError('INSUFFICIENT_SCOPE','Denied.',{upstream:{error:{status:'PERMISSION_DENIED'}},scope_denial:true},403),{platform:'google'}).code,'INSUFFICIENT_SCOPE');
 });
 
-test('reauthorization verifies the account list, clears legacy routing, and preserves the connection, grants and report references',async()=>{
+test('reauthorization verifies account reads, keeps the connection ID and grants, and preserves saved report/schedule references',async()=>{
  const store=fixture();try{
   const report=store.document('local','overview_report','report'),schedule=store.document('local','overview_schedule','schedule');
-  store.putConnection(actor,{...connection,accountLoginCustomers:{'100':'999'}},credentials);
   const next=await renew(store);assert.equal(store.listConnections('local').length,1);assert.equal(next.id,connection.id);assert.equal(next.isDefault,true);
-  assert.deepEqual(next.accounts,['100']);assert.deepEqual(next.writeAccounts,['100']);assert.equal(next.accountLoginCustomers,undefined);
+  assert.deepEqual(next.accounts,['100']);assert.deepEqual(next.writeAccounts,['100']);assert.deepEqual(next.accountLoginCustomers,{'100':'100'});
   assert.equal(store.credentials('local',next.id).refreshToken,fresh.refreshToken);assert.ok(googleAuthorizationRevision(store,'local',next.id));
   assert.deepEqual(store.document('local','overview_report','report'),report);assert.deepEqual(store.document('local','overview_schedule','schedule'),schedule);
   assert.deepEqual(store.document('local','website_assets',next.id).selected,['ad_accounts:100']);
@@ -56,10 +56,10 @@ test('reauthorization verifies the account list, clears legacy routing, and pres
 
 test('fresh Google denial preserves old credentials and exposes provider request IDs without retrying or changing grants',async()=>{
  const store=fixture();let calls=0;try{
-  await assert.rejects(()=>renew(store,async()=>{calls++;return Response.json(failure,{status:403});}),(e:MirrorError)=>{
+  await assert.rejects(()=>renew(store,async(url)=>{calls++;return String(url).endsWith(':listAccessibleCustomers')?Response.json({resourceNames:['customers/100']}):Response.json(failure,{status:403});}),(e:MirrorError)=>{
    assert.equal(e.code,'REAUTHORIZATION_ACCESS_FAILED');const d=(e.details.diagnostics as JsonObject[])[0]!;assert.equal(d.provider.request_id,'synthetic-google-request');assert.equal(d.code,'PROVIDER_ACCESS_DENIED');return true;
   });
-  assert.equal(calls,1);assert.deepEqual(store.credentials('local',connection.id),credentials);assert.deepEqual(store.listConnections('local')[0]!.accounts,['100']);assert.equal(googleAuthorizationRevision(store,'local',connection.id),null);
+  assert.equal(calls,2);assert.deepEqual(store.credentials('local',connection.id),credentials);assert.deepEqual(store.listConnections('local')[0]!.accounts,['100']);assert.equal(googleAuthorizationRevision(store,'local',connection.id),null);
  }finally{store.close();}
 });
 
@@ -101,6 +101,7 @@ async function website(denyFresh=false){
  const fetcher:typeof fetch=async(url,init)=>{
   const u=new URL(String(url));calls.push({url:String(url),method:init?.method,body:init?.body,authorization:new Headers(init?.headers).get('Authorization')});
   if(u.href==='https://oauth2.googleapis.com/token'){assert.equal(new URLSearchParams(String(init?.body)).get('client_id'),clientId);return Response.json({access_token:fresh.accessToken,refresh_token:fresh.refreshToken,expires_in:3600,scope:googleAdsScope});}
+  if(u.pathname.endsWith(':listAccessibleCustomers'))return Response.json({resourceNames:['customers/100']});
   if(denyFresh||new Headers(init?.headers).get('Authorization')==='Bearer old-access-token')return Response.json(failure,{status:403});
   return available()(url,init);
  };

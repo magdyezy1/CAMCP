@@ -19,62 +19,37 @@ const google:Connection={id:'google-test',tenantId:'local',gateway:'google_ads_n
 const sheet:Connection={id:'sheets-test',tenantId:'local',gateway:sheetsGateway,accounts:[],enabled:false,label:'Sheets login',scopes:['https://www.googleapis.com/auth/drive.file','https://www.googleapis.com/auth/spreadsheets']};
 const credentials={accessToken:'synthetic',developerToken:'synthetic',loginCustomerId:'999'};
 const json=(d:unknown,status=200)=>Response.json(d,{status});
+function rootRow(id:string,manager=false){return {id,descriptiveName:manager?'Manager '+id:'Account '+id,currencyCode:'EGP',timeZone:'Africa/Cairo',status:'ENABLED',manager};}
+const child=(id:string,status:string,root='300')=>({customerClient:{...rootRow(id),clientCustomer:'customers/'+id,resourceName:'customers/'+root+'/customerClients/'+id,status,level:'1'}});
 function googleFixture(){const calls:JsonObject[]=[];const fetcher:typeof fetch=async(url,init)=>{
- const u=new URL(String(url)),headers=new Headers(init?.headers);calls.push({path:u.pathname,headers,method:init?.method,body:init?.body});
- assert.equal(u.pathname,'/v23/customers:listAccessibleCustomers');assert.equal(init?.method,'GET');assert.equal(init?.body,undefined);
- assert.equal(headers.get('login-customer-id'),'999');
- return json({resourceNames:['customers/400','customers/300']});
+ const u=new URL(String(url)),headers=new Headers(init?.headers),body=init?.body?JSON.parse(String(init.body)):{};calls.push({path:u.pathname,headers,body});
+ if(u.pathname.endsWith(':listAccessibleCustomers')){assert.equal(headers.get('login-customer-id'),null);return json({resourceNames:['customers/300','customers/400']});}
+ assert.equal(init?.method,'POST');assert.ok(u.pathname.endsWith('/googleAds:search'));const root=u.pathname.split('/')[3]!;assert.equal(headers.get('login-customer-id'),root);
+ if(body.query.includes('FROM customer_client')){assert.ok(!/WHERE .*status|WHERE .*hidden|level\s*[<=]/i.test(body.query));return body.pageToken?json({results:[child('302','CANCELED'),child('303','SUSPENDED')]}):json({results:[child('301','CANCELED'),{customerClient:{...rootRow('300',true),level:'0'}}],nextPageToken:'page-two'});}
+ return json({results:[{customer:rootRow(root,root==='300')}]});
  };return {fetcher,calls};}
 
-test('Google discovery uses the original account-list request without account lookups or hierarchy traversal',async()=>{
- const store=new Store(':memory:',key),f=googleFixture();try{
-  store.putConnection(actor,google,credentials);const g=(await new AssetDiscovery(store,f.fetcher).sync(google)).groups[0]!;
-  assert.equal(g.complete,true);assert.deepEqual(g.assets,[{id:'400',kind:'ad_accounts',name:'Google Ads 400',source:'vendor'},{id:'300',kind:'ad_accounts',name:'Google Ads 300',source:'vendor'}]);
-  assert.equal(f.calls.length,1);assert.deepEqual(store.listConnections('local')[0]!.accounts,[]);
- }finally{store.close();}
+test('Google discovery includes cancelled and suspended descendants, names and routing across manager pages',async()=>{
+ const store=new Store(':memory:',key),f=googleFixture();try{store.putConnection(actor,google,credentials);const result=await new AssetDiscovery(store,f.fetcher).sync(google),g=result.groups[0]!;assert.equal(g.complete,true);assert.deepEqual(g.assets.map(a=>a.id).sort(),['300','301','302','303','400']);assert.equal(g.assets.find(a=>a.id==='302')!.status,'CANCELED');assert.equal(g.assets.find(a=>a.id==='302')!.loginCustomerId,'300');assert.equal(g.assets.find(a=>a.id==='302')!.currency,'EGP');assert.equal(f.calls.filter(c=>c.body.pageToken).length,1);assert.deepEqual(store.listConnections('local')[0]!.accounts,[]);}finally{store.close();}
 });
-
-test('Google account-list denial stays incomplete and does not change existing grants',async()=>{
- const store=new Store(':memory:',key),selected={...google,accounts:['300'],writeAccounts:['300'],enabled:true};let calls=0;
- try{
-  store.putConnection(actor,selected,credentials);const g=(await new AssetDiscovery(store,async()=>{calls++;return json({error:{message:'Permission denied'}},403);}).sync(selected)).groups[0]!;
-  assert.equal(g.complete,false);assert.deepEqual(g.assets,[]);assert.equal(calls,1);
-  assert.deepEqual(store.listConnections('local')[0]!.accounts,['300']);assert.deepEqual(store.listConnections('local')[0]!.writeAccounts,['300']);
- }finally{store.close();}
+test('Google partial discovery retains accessible roots and successful hierarchies when a different root fails',async()=>{
+ const store=new Store(':memory:',key),f=googleFixture();try{store.putConnection(actor,google,credentials);const discovery=new AssetDiscovery(store,async(url,init)=>String(url).includes('/customers/400/')?json({error:{message:'Permission denied'}},403):f.fetcher(url,init));const g=(await discovery.sync(google)).groups[0]!;assert.equal(g.complete,false);assert.match(g.error!,/400/);assert.ok(g.assets.some(a=>a.id==='302'&&a.status==='CANCELED'));assert.ok(g.assets.some(a=>a.id==='400'));}finally{store.close();}
 });
-
-test('Google account-list validation rejects malformed responses without any follow-up request',async()=>{
- for(const resourceNames of [undefined,null,['accounts/300'],['customers/not-a-number'],[300]]){
-  const store=new Store(':memory:',key);let calls=0;try{
-   store.putConnection(actor,google,credentials);
-   const g=(await new AssetDiscovery(store,async()=>{calls++;return json({resourceNames});}).sync(google)).groups[0]!;
-   assert.equal(g.complete,false);assert.equal(g.diagnostics![0]!.code,'ASSET_RESPONSE_INVALID');assert.equal(calls,1);
-  }finally{store.close();}
- }
+test('Google hierarchy repeated pagination is a visible incomplete sync, not a complete truncated list',async()=>{
+ const store=new Store(':memory:',key);try{store.putConnection(actor,google,credentials);const discovery=new AssetDiscovery(store,async(url,init)=>String(url).endsWith(':listAccessibleCustomers')?json({resourceNames:['customers/300']}):String(init?.body).includes('FROM customer_client')?json({results:[child('301','CANCELED')],nextPageToken:'repeat'}):json({results:[{customer:rootRow('300',true)}]}));const g=(await discovery.sync(google)).groups[0]!;assert.equal(g.complete,false);assert.match(g.error!,/page token/);}finally{store.close();}
 });
-
-test('successful Google sync clears hierarchy metadata and routing; CSV and Sheets selection remain independent',async()=>{
+test('website selection saves a cancelled Google account with its verified manager and transport uses that manager',async()=>{
  const store=new Store(':memory:',key),f=googleFixture(),service=new MirrorService(new Registry(),store),origin='https://amcp.shop',app=createHttpApp(service,store,{website:{origin,masterKey:key,adminPassword:'synthetic-test-password',fetcher:f.fetcher}}),server=app.listen(0,'127.0.0.1');
  await new Promise<void>(r=>server.once('listening',r));const base='http://127.0.0.1:'+(server.address() as {port:number}).port;
  try{
-  store.putConnection(actor,{...google,accounts:['300'],enabled:true,accountLoginCustomers:{'300':'888'}},credentials);
-  store.putDocument('local','website_assets',google.id,{groups:[{kind:'ad_accounts',complete:true,assets:[{id:'300',kind:'ad_accounts',name:'Old manager child',parentId:'888',loginCustomerId:'888',status:'CANCELED',source:'vendor'}]}],selected:['ad_accounts:300']});
-  const login=await fetch(base+'/api/session',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({password:'synthetic-test-password'})});const data=await login.json() as JsonObject,headers={Origin:origin,'Content-Type':'application/json',Cookie:login.headers.get('set-cookie')!.split(';')[0]!,'X-AMCP-CSRF':data.csrf};
-  const sync=await fetch(base+'/api/connections/google-test/sync',{method:'POST',headers,body:'{}'});assert.equal(sync.status,200);const synced=await sync.json() as JsonObject;
-  assert.equal(synced.error,null);assert.equal(store.listConnections('local')[0]!.accountLoginCustomers,undefined);assert.deepEqual(synced.selected,['ad_accounts:300']);
-  assert.ok(synced.groups[0].assets.every((a:JsonObject)=>!a.parentId&&!a.loginCustomerId&&!a.status));
-  const missing=await fetch(base+'/api/connections/google-test/assets',{method:'PATCH',headers,body:JSON.stringify({selected:['ad_accounts:302']})});assert.ok(missing.status>=400);await missing.arrayBuffer();
-  const select=await fetch(base+'/api/connections/google-test/assets',{method:'PATCH',headers,body:JSON.stringify({selected:['ad_accounts:400']})});assert.equal(select.status,200);await select.json();
-  const c=store.resolveConnection(actor,google.gateway,'400','google-test');assert.equal(c.accountLoginCustomers,undefined);
-  const sent:(string|null)[]=[];const transport=new NativeTransport(async(_u,init)=>{sent.push(new Headers(init?.headers).get('login-customer-id'));return json({results:[]});});
-  const plan:CompiledRequest={gateway:c.gateway,action:'report',accountId:'400',path:'/v23/customers/400/googleAds:search',method:'POST',query:{},body:{query:'SELECT campaign.id FROM campaign'},headers:{},readOnly:true,destructive:false,requiresConfirmation:false,evidence:'TEST',warnings:[]};
-  // Old persisted mappings must not override the configured credential or invent a login header.
-  await transport.request(plan,{...c,accountLoginCustomers:{'400':'300'}},credentials);
-  await transport.request(plan,{...c,accountLoginCustomers:{'400':'300'}},{...credentials,loginCustomerId:undefined});
-  assert.deepEqual(sent,['999',null]);assert.equal(f.calls.length,1);
+  store.putConnection(actor,google,credentials);const login=await fetch(base+'/api/session',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({password:'synthetic-test-password'})});const data=await login.json() as JsonObject,headers={Origin:origin,'Content-Type':'application/json',Cookie:login.headers.get('set-cookie')!.split(';')[0]!,'X-AMCP-CSRF':data.csrf};
+  const sync=await fetch(base+'/api/connections/google-test/sync',{method:'POST',headers,body:'{}'});assert.equal(sync.status,200);await sync.json();
+  const select=await fetch(base+'/api/connections/google-test/assets',{method:'PATCH',headers,body:JSON.stringify({selected:['ad_accounts:302']})});assert.equal(select.status,200);await select.json();
+  const c=store.resolveConnection(actor,google.gateway,'302','google-test');assert.deepEqual(c.accountLoginCustomers,{'302':'300'});
+  let sent:string|null=null;const transport=new NativeTransport(async(_u,init)=>{sent=new Headers(init?.headers).get('login-customer-id');return json({results:[]});});const plan:CompiledRequest={gateway:c.gateway,action:'report',accountId:'302',path:'/v23/customers/302/googleAds:search',method:'POST',query:{},body:{query:'SELECT campaign.id FROM campaign'},headers:{},readOnly:true,destructive:false,requiresConfirmation:false,evidence:'TEST',warnings:[]};await transport.request(plan,c,credentials);assert.equal(sent,'300');
+  assert.throws(()=>store.putConnection(actor,{...c,accountLoginCustomers:{'123':'300'}},credentials),/selected accounts/);
  }finally{await new Promise<void>(r=>{server.close(()=>r());server.closeAllConnections();});store.close();}
 });
-
 test('CSV download and API URLs bypass page routing; ordinary navigation and modifier keys retain browser behavior',()=>{
  const source=readFileSync('web/app.js','utf8'),start=source.indexOf('function clientNavigation('),end=source.indexOf('\n}',start)+2;
  const context=createContext({});new Script(source.slice(start,end)).runInContext(context);const run=(href:string,extra:JsonObject={},attrs:JsonObject={})=>{context.event={button:0,...extra};context.el={tagName:'A',getAttribute:(name:string)=>name==='href'?href:attrs[name]??null,hasAttribute:(name:string)=>Object.hasOwn(attrs,name)};return new Script('clientNavigation(event,el)').runInContext(context);};

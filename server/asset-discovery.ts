@@ -8,7 +8,7 @@ import {microsoftCustomerOrigin} from '../src/microsoft-native.js';
 import {googleAccountDiscovery} from './google-account-discovery.js';
 import {assetSyncDiagnostic,assetSyncErrorMessage} from '../src/report-errors.js';
 
-export interface WorkspaceAsset {id:string;kind:string;name:string;parentId?:string;currency?:string;timezone?:string;status?:string;source:'vendor'|'configured_binding'}
+export interface WorkspaceAsset {id:string;kind:string;name:string;parentId?:string;currency?:string;timezone?:string;status?:string;loginCustomerId?:string;manager?:boolean;hidden?:boolean;testAccount?:boolean;source:'vendor'|'configured_binding'}
 export interface AssetGroup {checkedAt?:number;kind:string;assets:WorkspaceAsset[];complete:boolean;error?:string;diagnostics?:JsonObject[]}
 export class AssetDiscovery {
  private transport:NativeTransport;private credentials:CredentialProvider;
