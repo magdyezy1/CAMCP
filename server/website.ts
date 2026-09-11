@@ -188,6 +188,8 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
  router.get('/api/activity',handler((req,res)=>{const s=web.requireSession(req);res.json({events:store.recentAudit(s.actor.tenantId,100).map((r:any)=>{const event=redact(JSON.parse(r.event));return {id:r.seq,at:r.created_at,event,diagnostics:activityReportErrors(event)};})});}));
  const directory=path.resolve(options.staticDirectory??'web');router.use('/assets',express.static(directory,{dotfiles:'deny',index:false,fallthrough:false,maxAge:0}));
  router.get('/tiktok94H3oMGQTvC0GEzgKcmffbz8W0CAHhan.txt',(_req,res)=>res.type('text/plain').sendFile('tiktok94H3oMGQTvC0GEzgKcmffbz8W0CAHhan.txt',{root:directory}));
- for(const route of ['/dashboard','/campaigns','/media','/reports','/reporting-overview','/profiles','/','/connections','/connectors','/activity','/settings','/login','/signup','/forgot-password','/reset-password','/verify-email','/account','/auth/complete','/oauth/result','/oauth/consent','/privacy','/terms','/data-deletion'])router.get(route,(_req,res)=>res.sendFile('index.html',{root:directory}));
+ // Reviewers and users must be able to read the entire policy without a session or JavaScript.
+ router.get('/privacy',(_req,res)=>res.type('html').sendFile('privacy.html',{root:directory,maxAge:0}));
+ for(const route of ['/dashboard','/campaigns','/media','/reports','/reporting-overview','/profiles','/','/connections','/connectors','/activity','/settings','/login','/signup','/forgot-password','/reset-password','/verify-email','/account','/auth/complete','/oauth/result','/oauth/consent','/terms','/data-deletion'])router.get(route,(_req,res)=>res.sendFile('index.html',{root:directory}));
  return {router,web,oauth,discovery,mcpOAuth,accounts};
 }

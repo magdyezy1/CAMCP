@@ -12,6 +12,8 @@ export async function checkApplication({base, origin, password, writes, restart}
  const json=async(path,method='GET',body,headers={})=>{const response=await api(path,method,body,headers);assert.equal(response.status,200,path);return response.json();};
  const paths=['/','/connections','/connectors','/dashboard','/campaigns','/media','/reports','/reporting-overview','/profiles','/login','/signup','/forgot-password','/verify-email','/reset-password','/account','/assets/app.js','/assets/app.css','/assets/workspace.js','/assets/identity.js','/assets/identity.css','/assets/account-security.js','/assets/reporting-overview.js','/assets/reporting.css','/assets/owner-operations.js'];
  for(const path of paths)assert.equal((await api(path)).status,200,path);
+ const privacy=await api('/privacy');assert.equal(privacy.status,200);assert.match(privacy.headers.get('content-type'),/^text\/html/);assert.match(await privacy.text(),/AES-256-GCM/);assert.equal(privacy.headers.get('location'),null);assert.equal(privacy.headers.get('set-cookie'),null);
+ assert.equal((await api('/assets/privacy.css')).status,200);
  const page=await (await api('/reporting-overview')).text();
  assert.match(page,/href="\/reporting-overview" data-route="reporting-overview"/,'Reporting Overview navigation is present');
  assert.match(page,/src="\/assets\/reporting-overview\.js"/,'Reporting Overview script is loaded');

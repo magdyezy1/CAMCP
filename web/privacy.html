@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="How AMCP accesses, uses, protects, shares, and retains your account, advertising, and Google Analytics data.">
+  <meta name="theme-color" content="#201c32">
+  <title>Privacy policy · AMCP</title>
+  <link rel="canonical" href="https://amcp.shop/privacy">
+  <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/privacy.css">
+</head>
+<body>
+  <a class="skip-link" href="#privacy">Skip to privacy policy</a>
+  <header class="site-header">
+    <a class="brand" href="/"><img src="/assets/mark.svg" alt="" width="38" height="38">AMCP</a>
+    <nav aria-label="Website"><a href="/">Home</a><a href="/login">Sign in <span aria-hidden="true">↗</span></a></nav>
+  </header>
+  <main id="privacy">
+    <div class="policy-heading"><p class="eyebrow">Your data, considered.</p><h1>Privacy policy<span aria-hidden="true">✳</span></h1><p>How we handle the information you entrust to AMCP.</p><p class="updated">Last updated: <time datetime="2026-09-11">11 September 2026</time></p></div>
+    <div class="policy-layout">
+      <nav class="contents" aria-label="Privacy policy sections"><strong>On this page</strong><a href="#data">Information we access</a><a href="#google">Google permissions</a><a href="#use">How we use data</a><a href="#protection">Data protection</a><a href="#sharing">Sharing and limited use</a><a href="#retention">Retention and deletion</a><a href="#choices">Your choices</a><a href="#contact">Contact and changes</a></nav>
+      <article>
+        <p class="intro">This policy applies to AMCP at <a href="https://amcp.shop/">amcp.shop</a>, including its reporting workspace, platform connections, and integrations. It explains how AMCP processes information you provide and data retrieved from accounts you authorize.</p>
+        <section id="data"><h2>1. Information we access and store</h2>
+          <ul><li><strong>Your AMCP account:</strong> your name, email address, verification status, linked sign-in provider identifiers, workspace memberships, and a password hash if you use password sign-in.</li>
+          <li><strong>Connected services:</strong> OAuth access and refresh tokens, granted permissions, selected account/property identifiers, and synchronized asset names and metadata. These credentials let AMCP perform the connected features you request.</li>
+          <li><strong>Reporting data:</strong> campaign identifiers and names, objectives, dates, account currency/timezone, and requested performance metrics. Google Ads reports may include spend, impressions, clicks, conversions, and conversion value. Google Analytics 4 reports may include sessions, users, key events, revenue, engagement, and purchase metrics, grouped by campaign.</li>
+          <li><strong>Saved work:</strong> report snapshots, custom metric formulas, saved report settings, export destinations, schedules, campaign plans, and assets you submit for connected workflows.</li>
+          <li><strong>Security and operation records:</strong> session information, connection and access changes, request outcomes, and diagnostic/audit records. Request IP information may be processed for abuse prevention and rate limiting.</li></ul>
+        </section>
+        <section id="google"><h2>2. Google permissions and property selection</h2>
+          <p>Google services are connected individually. AMCP requests the permissions for a service when you choose to connect it. Signing in to AMCP does not itself connect your Google Ads or Analytics accounts.</p>
+          <p><strong>Google Analytics:</strong> <code>analytics.readonly</code> lets AMCP list the accounts and properties your Google login can access, read selected property metadata such as currency and timezone, and retrieve reporting data. You select the properties to make available in AMCP. This connection does not request Analytics editing permission or change or delete your Analytics properties, settings, or source data.</p>
+          <p><strong>Google Ads:</strong> <code>adwords</code> enables Google Ads account discovery and reporting. Google supplies this scope for Ads access, including reporting. Where you separately enable advertising writes in AMCP, account grants and explicit review/confirmation controls govern changes.</p>
+          <p><strong>Optional Google services:</strong> Google Sheets exports, Drive media imports, Search Console, and Tag Manager have separate connection flows and permissions. An Analytics permission does not authorize writing to Sheets or reading Drive files. For Sheets exports, AMCP writes report data only to the destination bound for that feature.</p>
+        </section>
+        <section id="use"><h2>3. How AMCP uses the data</h2>
+          <p>We use the data to authenticate you, display your selected accounts, retrieve requested reports, calculate custom metrics, retain saved reports, and provide performance recommendations. Currency, timezone, attribution, date range, and source limitations provide context for those results. Reporting recommendations do not automatically change advertising campaigns.</p>
+          <p>When you enable a schedule, AMCP retrieves the configured report and sends it to the selected destination at the configured times while authorization remains valid. CSV downloads and Google Sheets exports contain the report data you request. Separately authorized platform operations use the relevant account data to complete your reviewed instructions.</p>
+        </section>
+        <section id="protection"><h2>4. How we protect sensitive data</h2>
+          <ul><li><strong>Encryption in transit:</strong> the public service uses HTTPS/TLS. AMCP sends Google API and OAuth requests over HTTPS.</li>
+          <li><strong>Credential encryption:</strong> OAuth credentials, including Google access and refresh tokens, are encrypted in server-side storage using AES-256-GCM. Encryption is bound to the connection and workspace so a credential cannot be decrypted under a different connection. The encryption key is supplied through server configuration and is not included in browser code.</li>
+          <li><strong>Password and session protection:</strong> AMCP stores salted scrypt password hashes instead of plaintext account passwords. Production session cookies use Secure, HttpOnly, and SameSite protections. Sessions expire and can be revoked; two-step verification is available for member accounts.</li>
+          <li><strong>Access controls:</strong> protected workspace data requires authentication. Membership roles and selected account/property grants restrict access. Browser changes require origin and cross-site request forgery checks. OAuth state validation and supported PKCE flows protect account linking.</li>
+          <li><strong>Reduced secret exposure:</strong> platform tokens are kept on the server and excluded from normal browser connection responses. Sensitive credential fields are redacted from application error and audit output. Rate limits and access records help detect and limit misuse.</li></ul>
+          <p>Report snapshots, account identifiers, and audit records are stored in the server database and protected by application access controls and restrictions on server access. The credential encryption described above does not mean that every report field is individually encrypted at rest. No system can guarantee absolute security.</p>
+        </section>
+        <section id="sharing"><h2>5. Sharing, service providers, and Google Limited Use</h2>
+          <p>Data is available to authorized members of your workspace according to their access. Hosting and network providers process data needed to operate and protect the service; on amcp.shop these include Railway and Cloudflare. The configured transactional email provider processes account verification, invitation, and recovery messages.</p>
+          <p>Google and other platforms receive the requests necessary for the service you connect. When you choose a Google Sheets destination, exported data is subject to that spreadsheet's sharing settings. When you authorize an MCP client or another connected tool, it can receive results within its granted access. That tool's processing is also governed by its own terms and privacy policy. AMCP does not send Google user data to an external tool simply because you connect a Google account.</p>
+          <p>AMCP does not sell Google user data, use it to serve targeted advertisements or build advertising audiences, or use it to train or improve generalized artificial intelligence or machine-learning models. This includes data obtained through Google Workspace APIs and data derived from Google API results.</p>
+          <p>AMCP's use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including its Limited Use requirements. Transfers are limited to delivering user-requested features with consent, security needs, applicable legal obligations, or a business transfer with prior explicit consent. Human access to Google data is limited to your affirmative agreement for specific data, necessary security investigation, legal obligations, or permitted internal operations using aggregated data.</p>
+        </section>
+        <section id="retention"><h2>6. Retention and deletion</h2>
+          <p>We retain connected credentials while the connection is maintained. Disconnecting a login removes its credentials, synchronized asset inventory, and selections from AMCP's active database. You can also revoke AMCP's access in the platform's account settings.</p>
+          <p>Saved reports, settings, export destinations, schedules, and audit history can remain after a connection is disconnected. AMCP does not currently apply an automatic age-based deletion period to all of these records. They are retained to provide saved reporting, scheduled work, security, and audit history until the relevant records or workspace are removed under the administrator's deletion process, subject to applicable legal retention requirements.</p>
+          <p>Request deletion of retained data or your workspace through your workspace administrator. Protected audit history may require administrative handling rather than an in-app delete button. Any retained backups are handled through the operator's backup retention and deletion process. We do not promise immediate erasure from all backups.</p>
+          <p>Disconnecting or deleting AMCP data does not delete source data in Google Analytics or Google Ads, downloaded CSV files, or reports already written to your Google Sheets. You control those copies and their sharing or deletion separately.</p>
+        </section>
+        <section id="choices"><h2>7. Your choices</h2>
+          <p>In <a href="/connections">Connections</a>, review or change selected accounts/properties, or disconnect a login. In Reporting overview, manage saved reports and pause schedules you no longer need. In Account, manage your sign-in methods, two-step verification, and sessions. Revoke external tool access in MCP connectors and review third-party access in your Google account at <a href="https://myaccount.google.com/connections">Google connections</a>.</p>
+          <p>For additional instructions, see <a href="/data-deletion">Data deletion</a>. Revoking a Google authorization prevents further authorized Google requests once the revocation takes effect; it does not itself remove data already saved in AMCP.</p>
+        </section>
+        <section id="contact"><h2>8. Contact and policy changes</h2>
+          <p>For privacy questions, access requests, or deletion of retained workspace data, contact the administrator who manages your AMCP workspace. Identify your workspace and the records concerned; do not include passwords, access tokens, or client secrets.</p>
+          <p>We publish changes on this page and update the date above. If we introduce a materially different use of Google user data, we will explain that use and obtain any required consent before the new use begins.</p>
+        </section>
+      </article>
+    </div>
+  </main>
+  <footer><span>AMCP · A little more possible.</span><nav aria-label="Legal"><a href="/privacy" aria-current="page">Privacy</a><a href="/terms">Terms</a><a href="/data-deletion">Data deletion</a></nav></footer>
+</body>
+</html>
