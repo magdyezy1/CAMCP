@@ -49,7 +49,9 @@ export class NativeTransport {
   * The refill is kept faster than Store.providerPermit's shared budget so shaping never starves it.
   */
  private async permit(key:string):Promise<void>{
-  const now=Date.now(),budget=this.budgets.get(key)??{tokens:this.budgetBurst,at:now};
+  // Refill against the monotonic clock. Wall-clock time steps backwards on an NTP correction,
+  // which would shrink the bucket instead of refilling it and reject a caller that owes nothing.
+  const now=performance.now(),budget=this.budgets.get(key)??{tokens:this.budgetBurst,at:now};
   budget.tokens=Math.min(this.budgetBurst,budget.tokens+(now-budget.at)/this.budgetRefillMs);budget.at=now;
   const waitMs=budget.tokens>=1?0:Math.ceil((1-budget.tokens)*this.budgetRefillMs);
   if(waitMs>this.budgetWaitMs){this.budgets.set(key,budget);throw new MirrorError('TENANT_RATE_LIMIT','Per-tenant platform request budget exhausted.',{retry_after_ms:waitMs},429,true);}

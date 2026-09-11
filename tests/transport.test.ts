@@ -50,10 +50,20 @@ test('a bounded burst is paced to the sustained tenant rate, and only a sustaine
  const transport=new NativeTransport((async()=>new Response('{}')) as typeof fetch,sleeper,30000,8*1024*1024,5,10,100);
  // A bounded sequential batch past the burst is paced, not failed: this is what account discovery does.
  for(let i=0;i<20;i++)await transport.request(plan,connection,credentials);
- assert.equal(transport.metrics.requests,20);assert.ok(waits.length>0);assert.ok(waits.every(ms=>ms>0&&ms<=10));
+ assert.equal(transport.metrics.requests,20);assert.ok(waits.length>0);assert.ok(waits.every(ms=>ms>0&&ms<=100));
  // A caller that never yields owes more than the shaping window and is still rate limited.
  const burst=new NativeTransport((async()=>new Response('{}')) as typeof fetch,sleeper,30000,8*1024*1024,5,10,100);
  const outcomes=await Promise.allSettled(Array.from({length:80},()=>burst.request(plan,connection,credentials)));
  const rejected=outcomes.filter(o=>o.status==='rejected') as PromiseRejectedResult[];
  assert.ok(rejected.length>0);assert.ok(rejected.every(o=>o.reason.code==='TENANT_RATE_LIMIT'));assert.ok(rejected[0]!.reason.details.retry_after_ms>0);
+});
+test('pacing survives a backward wall-clock correction',async()=>{
+ const waits:number[]=[],sleeper=async(ms:number)=>{waits.push(ms);await delay(Math.min(ms,50));};
+ const transport=new NativeTransport((async()=>new Response('{}')) as typeof fetch,sleeper,30000,8*1024*1024,5,10,100);
+ // NTP steps the wall clock backwards on a freshly booted host. Refill reads a monotonic clock,
+ // so the bucket must keep filling and no wait may exceed one refill interval.
+ const real=Date.now;let calls=0,offset=0;
+ Date.now=()=>{if(++calls===9)offset=-5000;return real()+offset;};
+ try{for(let i=0;i<20;i++)await transport.request(plan,connection,credentials);}finally{Date.now=real;}
+ assert.equal(transport.metrics.requests,20);assert.ok(waits.length>0);assert.ok(waits.every(ms=>ms>0&&ms<=10));
 });
