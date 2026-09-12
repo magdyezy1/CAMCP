@@ -33,3 +33,5 @@ Synthetic HTTP/backend: pending social approval for Google/Apple/Facebook; MCP a
 The maximum 128 MiB media fixture streamed to encrypted chunks and reconstructed its immutable bytes. In the latest candidate it added approximately 219 MiB RSS under a conservative 768 MiB shared reservation. This is a synthetic single-host observation, not a guarantee for live upload encoding, FFmpeg or arbitrary concurrent workloads.
 
 Live provider acceptance, permissions/approvals, account-specific quotas and routing, deployed proxy/volume behavior, production backup objectives and privacy operating commitments require the external evidence or owner decisions identified in OPERATIONS.md. Catalog counts and synthetic tests do not establish live readiness.
+
+A final computed-style browser check found muted helper text at 4.40:1 on the page background. The shared muted token was darkened from #747184 to #6c697b; the browser now reports 4.95:1 on that background. This small CSS correction is included in the final branch CI; it is not a claim of a complete accessibility certification.
