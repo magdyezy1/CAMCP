@@ -103,7 +103,7 @@ Processing status now verifies the exact uploaded media identity (and returned a
 
 ## Durable transfer and eligibility
 
-AMCP_MAX_MEDIA_MB controls the staging bound (32–512 MiB, default 128); lower provider image/format limits still apply. Files are encrypted in 4 MiB SQLite chunks with a checked manifest. Transfers use bounded memory buffers. Google video uploads use resumable chunks and authoritative offset queries; unknown finalization is never blindly repeated.
+AMCP_MAX_MEDIA_MB controls the staging bound (32–512 MiB, default 128); a value outside that range is rejected, the 128 MiB default applies, and the reason is written to stderr and reported by `amcp_workspace health` under `configuration_problems` rather than stopping the server; lower provider image/format limits still apply. Files are encrypted in 4 MiB SQLite chunks with a checked manifest. Transfers use bounded memory buffers. Google video uploads use resumable chunks and authoritative offset queries; unknown finalization is never blindly repeated.
 
 Use amcp_media inspect_eligibility with a Drive URL and square/portrait/vertical/landscape preset to inspect geometry and codec before upload. FFmpeg/ffprobe are required. These are AMCP preset checks, not a certificate of platform acceptance. A preset on prepare requires the frozen source to pass these checks.
 

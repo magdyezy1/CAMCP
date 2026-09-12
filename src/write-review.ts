@@ -12,16 +12,17 @@ import {authorizeExecution,type ExecutionPolicy} from './preflight.js';
 import {guardInput,redact,sha256,stable} from './security.js';
 import type {Actor,CallOptions,CompiledRequest,Connection,JsonObject} from './types.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
-import {normalizeReviewState,reviewStateHash,changedStateFields} from './review-state.js';
+import {normalizeSnapshot,reviewStateHash,changedStateFields} from './review-state.js';
 import {assertAccountWrite} from './write-access.js';
 import {validateMetaCreative} from './creative-validation.js';
 import {googleTargetingKind,assertGoogleTargeting,googleTargetingSnapshots,validateGoogleTargetingState} from './google-targeting-writes.js';
+import {xTargetingKind,assertXTargeting,xTargetingSnapshots,validateXTargetingState} from './x-targeting-writes.js';
 import {assertRedditWrite,assertRedditWriteScopes,redditSnapshots,validateRedditState,redditOutcome} from './reddit-writes.js';
 import {microsoftGateway,microsoftScope,assertMicrosoftWrite,microsoftSnapshots,validateMicrosoftResponse,microsoftOutcome} from './microsoft-native.js';
 import {measurementWriteGateways,assertMeasurementWrite,assertMeasurementScopes,measurementSnapshots,optionalMissingState,validateMeasurementState,measurementOutcome} from './measurement-writes.js';
 
 export const writeTool={name:'amcp_write',description:'Inspect, prepare and execute a reviewed native advertising or measurement mutation. inspect checks local write-contract support without credentials or network calls. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request. Execution requires its review_id, idempotency_key and explicit confirmation. Operator role and administrator account write grants are required. This is an AMCP extension, not a captured AMCP tool.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['inspect','prepare','execute']},gateway:{type:'string'},arguments:{type:'object'},connection_id:{type:'string'},review_id:{type:'string'},idempotency_key:{type:'string'},confirmed:{type:'boolean'},spend_change_confirmed:{type:'boolean'}},additionalProperties:false}};
-const gateways=new Set(['meta_native_action','tiktok_native_action','snapchat_native_action','google_ads_native_action','linkedin_native_action','x_ads_native_action','dv360_native_action','reddit_native_action',microsoftGateway,...measurementWriteGateways]);
+export const writeContractGateways=new Set(['meta_native_action','tiktok_native_action','snapchat_native_action','google_ads_native_action','linkedin_native_action','x_ads_native_action','dv360_native_action','reddit_native_action',microsoftGateway,...measurementWriteGateways]);
 const object=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?v as JsonObject:{};
 const snake=(s:string)=>s.replace(/([a-z0-9])([A-Z])/g,'$1_$2').toLowerCase();
 function fail(code:string,message:string,details:JsonObject={}):never{throw new MirrorError(code,message,details);}
@@ -107,7 +108,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  fail('STATE_READ_FAILED','No response contract exists for this state read.');
 }
 export function assertWriteShape(plan:CompiledRequest){
- if(!gateways.has(plan.gateway))fail('WRITE_CONTRACT_UNAVAILABLE','This platform has no reviewed mutation contract.');
+ if(!writeContractGateways.has(plan.gateway))fail('WRITE_CONTRACT_UNAVAILABLE','This platform has no reviewed mutation contract.');
  if(plan.readOnly)fail('MUTATION_REQUIRED','Use the original native gateway to perform this read.');
  if(plan.gateway==='reddit_native_action'){assertRedditWrite(plan);return;}
  if(plan.gateway===microsoftGateway){assertMicrosoftWrite(plan);return;}
@@ -118,7 +119,7 @@ export function assertWriteShape(plan:CompiledRequest){
  const supported=measurementWriteGateways.has(plan.gateway)?(assertMeasurementWrite(plan),true):plan.gateway==='meta_native_action'?method==='POST'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads|adcreatives)$/.test(route)||['POST','DELETE'].includes(method)&&/^meta_(campaign_id|ad_set_id|ad_id)_(update|delete)$/.test(plan.action):
   plan.gateway==='snapchat_native_action'?method==='POST'&&/^\/v1\/(adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives)|campaigns\/[^/]+\/adsquads|adsquads\/[^/]+\/ads)$/.test(route)||method==='PUT'&&/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads)$/.test(route)||method==='PATCH'&&/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives)\/[^/]+$/.test(route)||method==='DELETE'&&/^\/v1\/(campaigns|adsquads|ads)\/[^/]+$/.test(route):
   plan.gateway==='tiktok_native_action'?method==='POST'&&/^\/v1\.3\/(campaign|adgroup|ad)\/(?:status\/)?(create|update|delete)\/$/.test(route):
-  plan.gateway==='x_ads_native_action'?method==='POST'&&/^\/12\/accounts\/[^/]+\/(campaigns|line_items|promoted_tweets)$/.test(route)||['PUT','DELETE'].includes(method)&&/^\/12\/accounts\/[^/]+\/(campaigns|line_items|promoted_tweets)\/[^/]+$/.test(route):
+  plan.gateway==='x_ads_native_action'?method==='POST'&&/^\/12\/accounts\/[^/]+\/(campaigns|line_items|promoted_tweets|targeting_criteria)$/.test(route)||['PUT','DELETE'].includes(method)&&/^\/12\/accounts\/[^/]+\/(campaigns|line_items|promoted_tweets)\/[^/]+$/.test(route)||method==='DELETE'&&/^\/12\/accounts\/[^/]+\/targeting_criteria\/[^/]+$/.test(route):
   plan.gateway==='linkedin_native_action'?method==='POST'&&/^\/rest\/adAccounts\/[^/]+\/(adCampaigns|adCampaignGroups|creatives)$/.test(route)||['POST','PUT','PATCH','DELETE'].includes(method)&&/^\/rest\/adAccounts\/[^/]+\/(adCampaigns|adCampaignGroups|creatives)\/[^/]+$/.test(route):
   plan.gateway==='dv360_native_action'?method==='POST'&&/^\/v\d+\/advertisers\/[^/]+\/(campaigns|insertionOrders|lineItems|creatives)$/.test(route)||['PATCH','DELETE'].includes(method)&&/^\/v\d+\/advertisers\/[^/]+\/(campaigns|insertionOrders|lineItems|creatives)\/[^/]+$/.test(route):
   plan.gateway==='google_ads_native_action'&&method==='POST'&&(/^\/v23\/customers\/[^/]+\/(campaigns|adGroups|adGroupAds|campaignBudgets|ads|assetGroups|assets):mutate$/.test(route)||!!googleTargetingKind(plan));
@@ -138,6 +139,7 @@ export function assertWriteShape(plan:CompiledRequest){
   if(!Array.isArray(plan.body)||!plan.body.length||plan.body.length>25||plan.body.some(op=>!op||!['add','remove','replace','test'].includes(op.op)||typeof op.path!=='string'||!/^\/[a-zA-Z0-9_/-]+$/.test(op.path)||op.path.split('/').some((part:string)=>['__proto__','constructor','prototype'].includes(part))||op.op!=='remove'&&!Object.hasOwn(op,'value')))fail('INVALID_PATCH','Use 1–25 native JSON Patch add, remove, replace or test operations.');
  }
  if(plan.gateway==='x_ads_native_action'&&/^\/12\/accounts\/[^/]+\/(campaigns|line_items|promoted_tweets)$/.test(plan.path)&&plan.method==='POST')expect(body,'entity_status',['PAUSED']);
+ assertXTargeting(plan);
  if(plan.gateway==='linkedin_native_action'&&/^\/rest\/adAccounts\/[^/]+\/(adCampaigns|adCampaignGroups|creatives)$/.test(plan.path)&&plan.method==='POST')expect(body,'status',['PAUSED','DRAFT']);
  if(plan.gateway==='dv360_native_action'&&/^\/v\d+\/advertisers\/[^/]+\/(campaigns|insertionOrders|lineItems)$/.test(plan.path)&&plan.method==='POST')expect(body,'entityStatus',['ENTITY_STATUS_PAUSED','ENTITY_STATUS_DRAFT']);
  if(plan.gateway==='google_ads_native_action'){
@@ -153,6 +155,7 @@ export function assertWriteShape(plan:CompiledRequest){
 /** Reads are explicitly derived from the target, never supplied by the caller as proof. */
 export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRequest[]{
  if(googleTargetingKind(plan))return googleTargetingSnapshots(plan);
+ if(xTargetingKind(plan))return xTargetingSnapshots(plan);
  if(plan.gateway==='reddit_native_action')return redditSnapshots(plan);
  if(plan.gateway===microsoftGateway)return microsoftSnapshots(plan);
  if(measurementWriteGateways.has(plan.gateway))return measurementSnapshots(plan);
@@ -227,8 +230,8 @@ export class WriteReviewService {
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
    try{result=await this.transport.request(read,c,auth);}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
-   validateState(read,result);values.push(normalizeReviewState(result.data));
-  }validateGoogleTargetingState(plan,values);return values;
+   this.access(actor,plan,connectionId);validateState(read,result);values.push(normalizeSnapshot(read,result.data));
+  }validateGoogleTargetingState(plan,values);validateXTargetingState(plan,values);return values;
  }
  async call(input:JsonObject,actor:Actor):Promise<unknown>{
   guardInput(input);for(const key of Object.keys(input))if(!Object.hasOwn(writeTool.inputSchema.properties,key))fail('INVALID_ARGUMENT','Unknown write-tool parameter.',{parameter:key});
@@ -286,6 +289,12 @@ export class WriteReviewService {
     }
     this.store.complete(actor.tenantId,input.idempotency_key,outcome);this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_completed',outcome});
    });return outcome;
+  // The spend reservation taken above is deliberately NOT released here. A write that failed in
+  // transport may still have reached the provider — that is why the outcome is recorded as
+  // uncertain rather than failed — and releasing the reservation would let repeated "failures"
+  // walk past the owner's cumulative daily cap. The accepted cost is that a deterministic
+  // rejection, which certainly did not land, still consumes part of the day's allowance. Only
+  // release on errors provably raised before dispatch, never on transport-layer uncertainty.
   }catch(e){this.store.uncertain(actor.tenantId,input.idempotency_key);this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_uncertain',code:e instanceof MirrorError?e.code:'INTERNAL_ERROR'});throw e;}
  }
 }

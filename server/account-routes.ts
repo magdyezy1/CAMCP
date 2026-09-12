@@ -12,7 +12,7 @@ export function accountRoutes(web:WebStore,accounts:UserAccounts,social:SocialSi
  const security=new AccountSecurity(accounts);
  const signed=(res:Response,s:ReturnType<WebStore['createSession']>)=>{res.setHeader('Set-Cookie',web.cookie(s.id));return {authenticated:true,csrf:s.csrf,...accounts.profile(s)};};
  router.use(['/api/account','/api/signin'],(_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
- router.get('/api/account/options',(_req,res)=>res.json({providers:social.publicConfig().filter(p=>p.configured||web.session(_req)?.actor.role==='admin'),emailEnabled:accounts.emailConfigured,signupEnabled:accounts.signupEnabled,administratorEnabled:web.configured}));
+ router.get('/api/account/options',(_req,res)=>res.json({providers:social.publicConfig().filter(p=>p.configured||web.session(_req)?.actor.role==='admin'),emailEnabled:accounts.emailConfigured,signupEnabled:accounts.signupEnabled,administratorEnabled:web.configured,testEnabled:web.testConfigured}));
  const post=(route:string,fn:(req:Request,res:Response)=>unknown)=>router.post(route,express.json({limit:'8kb'}),handle((req,res)=>{web.requireOrigin(req);if(!req.body||typeof req.body!=='object'||Array.isArray(req.body))throw new MirrorError('INVALID_ARGUMENT','Enter valid account details.');return fn(req,res);}));
  post('/api/account/register',async(req,res)=>res.json(await accounts.register(req,req.body)));
  post('/api/account/login',async(req,res)=>{const old=web.session(req),s=await accounts.login(req,req.body);if(old)web.signOut(old.id);if('mfaRequired' in s){res.json(s);return;}res.json(signed(res,s));});
@@ -24,6 +24,9 @@ export function accountRoutes(web:WebStore,accounts:UserAccounts,social:SocialSi
  post('/api/account/mfa/enable',(req,res)=>{const r=security.enableMfa(req,req.body);res.json({...signed(res,r.session),recoveryCodes:r.recoveryCodes});});
  post('/api/account/mfa/login',(req,res)=>res.json(signed(res,security.finishMfa(req,req.body))));
  post('/api/account/mfa/disable',(req,res)=>res.json(signed(res,security.disableMfa(req,req.body))));
+ router.get('/api/owner/accounts',handle((req,res)=>res.json({...security.accessRequests(req),setup:accounts.setupGaps(),providers:social.publicConfig().map(p=>({id:p.id,name:p.name,configured:p.configured}))})));
+ post('/api/owner/accounts/access',(req,res)=>res.json(security.setAccess(req,req.body)));
+ post('/api/owner/accounts/test-invite',async(req,res)=>res.json(await security.inviteTestAccount(req,req.body)));
  router.get('/api/workspaces',handle((req,res)=>res.json(security.workspaces(req))));
  post('/api/workspaces/switch',(req,res)=>res.json(signed(res,security.switchWorkspace(req,req.body))));
  router.get('/api/workspaces/members',handle((req,res)=>res.json(security.members(req))));
@@ -42,7 +45,7 @@ export function accountRoutes(web:WebStore,accounts:UserAccounts,social:SocialSi
  const callback=handle(async(req,res)=>{
   try{const input=req.method==='POST'?req.body:req.query;if(!input||Object.values(input).some(v=>typeof v!=='string'||v.length>16384))throw new MirrorError('SIGNIN_IDENTITY_INVALID','Invalid sign-in callback.');
    const result=await social.finish(req,String(req.params.provider),input);if('mfaRequired' in result){res.setHeader('Set-Cookie',social.cookie('',0));res.redirect(303,'/login#mfa='+encodeURIComponent(result.ticket));return;}res.setHeader('Set-Cookie',[web.cookie(result.session.id),social.cookie('',0)]);res.redirect(303,result.linked?'/account?linked=true':'/auth/complete');
-  }catch(e){const allowed=['ACCOUNT_EXISTS','SIGNIN_CANCELLED','SIGNIN_STATE_INVALID','IDENTITY_ALREADY_LINKED','SIGNUP_DISABLED','SIGNIN_SETUP_REQUIRED'];const code=e instanceof MirrorError&&allowed.includes(e.code)?e.code:'SIGNIN_FAILED';res.setHeader('Set-Cookie',social.cookie('',0));res.redirect(303,'/login?error='+code);}
+  }catch(e){const allowed=['ACCOUNT_EXISTS','SIGNIN_CANCELLED','SIGNIN_STATE_INVALID','IDENTITY_ALREADY_LINKED','SIGNUP_DISABLED','SIGNIN_SETUP_REQUIRED','ACCOUNT_PENDING_APPROVAL'];const code=e instanceof MirrorError&&allowed.includes(e.code)?e.code:'SIGNIN_FAILED';res.setHeader('Set-Cookie',social.cookie('',0));res.redirect(303,'/login?error='+code);}
  });
  router.get('/api/signin/:provider/callback',callback);router.post('/api/signin/:provider/callback',express.urlencoded({extended:false,limit:'24kb'}),callback);
  return router;

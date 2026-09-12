@@ -10,7 +10,7 @@ export interface Catalog {
 }
 export interface ToolDefinition { name:string; description:string; inputSchema:JsonObject; schema_evidence:string; mode:string; operations?:JsonObject[]; help:JsonObject }
 export interface RegistryData { surface:string; discovery:JsonObject; tools:ToolDefinition[]; catalogs:Catalog[]; descriptions:Record<string,JsonObject>; supplemental:Action[]; provenance:JsonObject }
-export interface Actor { tenantId:string; userId:string; role:'reader'|'operator'|'admin'; ownerUserId?:string; membershipRole?:'owner'|'admin'|'operator'|'viewer' }
+export interface Actor { tenantId:string; userId:string; role:'reader'|'operator'|'admin'; ownerUserId?:string; accountVersion?:number; membershipRole?:'owner'|'admin'|'operator'|'viewer'; testAccount?:boolean }
 export interface Connection {
   id:string; tenantId:string; gateway:string; accounts:string[]; label:string; enabled:boolean;
   baseUrl?:string; apiVersion?:string; scopes:string[]; userAgent?:string;

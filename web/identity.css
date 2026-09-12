@@ -16,3 +16,10 @@ body.public-view{background:#fcfaf7}.public-view .sidebar,.public-view .topbar,.
 /* Keep the decorative orbits inside the mobile canvas without creating sideways scroll. */
 @media(max-width:850px){.landing-hero{overflow-x:clip}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+
+/* Owner setup is how a deployment is claimed, so it is a destination on this page, not a footnote. */
+.owner-entry{margin:26px 0 4px;padding:22px;border:1px solid rgba(123,97,160,.28);border-radius:16px;background:linear-gradient(180deg,rgba(148,124,190,.10),rgba(148,124,190,.03));text-align:left}
+.owner-entry .eyebrow{display:block;margin-bottom:8px}
+.owner-entry h2{margin:0 0 8px;font-size:26px;line-height:1.15;letter-spacing:-.02em}
+.owner-entry p{margin:0 0 16px;font-size:13px;line-height:1.5;color:#5d5470}
+@media (max-width:520px){.owner-entry{padding:18px}.owner-entry h2{font-size:22px}}

@@ -7,7 +7,7 @@ import {MirrorError} from '../src/errors.js';
 import type {Actor,JsonObject} from '../src/types.js';
 
 export interface WebSession {id:string;actor:Actor;csrf:string;expiresAt:number}
-export interface WebsiteOptions {origin:string;masterKey?:string;adminPassword?:string;adminPasswordHash?:string;tenantId?:string;fetcher?:typeof fetch;staticDirectory?:string;trustedProxyCidrs?:string[];authEnv?:NodeJS.ProcessEnv}
+export interface WebsiteOptions {origin:string;masterKey?:string;adminPassword?:string;adminPasswordHash?:string;testPassword?:string;testPasswordHash?:string;tenantId?:string;fetcher?:typeof fetch;staticDirectory?:string;trustedProxyCidrs?:string[];authEnv?:NodeJS.ProcessEnv}
 function canonicalIp(value:string):string|undefined{
  if(isIP(value)===4)return value;
  if(isIP(value)!==6||value.includes('%'))return;
@@ -46,7 +46,7 @@ export function cookieValue(req:Request,name:string):string|undefined{
 }
 export class WebStore {
  readonly clientAddress:(req:Request)=>string;
- readonly tenantId:string;readonly origin:string;readonly secure:boolean;readonly cookieName:string;readonly administratorHash?:string;private box?:SecretBox;
+ readonly tenantId:string;readonly origin:string;readonly secure:boolean;readonly cookieName:string;readonly administratorHash?:string;private reviewerHash?:string;readonly testPasswordProblem?:string;private box?:SecretBox;
  constructor(readonly store:Store,readonly options:WebsiteOptions){
   this.clientAddress=clientAddressResolver(options.trustedProxyCidrs);
   const origin=new URL(options.origin);if(origin.username||origin.password||origin.pathname!=='/'||origin.search||origin.hash||origin.protocol!=='https:'&&!(origin.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(origin.hostname)))throw Error('AMCP origin must be HTTPS, except for loopback development.');
@@ -54,21 +54,37 @@ export class WebStore {
   if(options.masterKey)this.box=new SecretBox(options.masterKey);
   if(options.adminPasswordHash){if(!/^scrypt\$[a-f0-9]{32}\$[a-f0-9]{64}$/.test(options.adminPasswordHash))throw Error('Invalid AMCP administrator password hash.');this.administratorHash=options.adminPasswordHash;}
   else if(options.adminPassword){if(options.adminPassword.length<16)throw Error('AMCP administrator password must contain at least 16 characters.');this.administratorHash=passwordHash(options.adminPassword);}
+  // The reviewer door is optional, so a bad value closes that one door and says why on stderr.
+  // Refusing to boot would take a working deployment down over a feature nobody must enable.
+  const testProblem=options.testPasswordHash!==undefined&&!/^scrypt\$[a-f0-9]{32}\$[a-f0-9]{64}$/.test(options.testPasswordHash)?'AMCP_TEST_PASSWORD_HASH is not a valid scrypt hash.'
+   :options.testPasswordHash===undefined&&options.testPassword!==undefined&&options.testPassword.length<16?'AMCP_TEST_PASSWORD must contain at least 16 characters.'
+   :undefined;
+  if(!testProblem&&options.testPasswordHash)this.reviewerHash=options.testPasswordHash;
+  else if(!testProblem&&options.testPassword)this.reviewerHash=passwordHash(options.testPassword);
+  const sharedPassword=!!this.reviewerHash&&!!this.administratorHash&&(this.administratorHash===this.reviewerHash||(options.testPassword!==undefined&&checkPassword(options.testPassword,this.administratorHash)));
+  if(sharedPassword)this.reviewerHash=undefined;
+  this.testPasswordProblem=testProblem??(sharedPassword?'AMCP_TEST_PASSWORD must differ from the administrator password.':undefined);
+  if(this.testPasswordProblem)process.stderr.write('AMCP: reviewer sign-in is disabled. '+this.testPasswordProblem+'\n');
   store.transaction(()=>store.db.exec(`
    CREATE TABLE IF NOT EXISTS amcp_web_sessions(hash TEXT PRIMARY KEY,actor TEXT NOT NULL,csrf TEXT NOT NULL,expires_at INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS amcp_login_limits(key TEXT PRIMARY KEY,attempts INTEGER NOT NULL,until_at INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS amcp_oauth_states(hash TEXT PRIMARY KEY,session_hash TEXT NOT NULL,platform TEXT NOT NULL,secret TEXT NOT NULL,expires_at INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS amcp_mcp_clients(id TEXT PRIMARY KEY,data TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS amcp_mcp_grants(hash TEXT PRIMARY KEY,kind TEXT NOT NULL,client_id TEXT NOT NULL,tenant_id TEXT NOT NULL,data TEXT NOT NULL,expires_at INTEGER NOT NULL,used INTEGER NOT NULL DEFAULT 0);
-   CREATE TABLE IF NOT EXISTS amcp_users(id TEXT PRIMARY KEY,email TEXT UNIQUE COLLATE NOCASE,name TEXT NOT NULL,tenant_id TEXT UNIQUE NOT NULL,password_hash TEXT,version INTEGER NOT NULL DEFAULT 1,disabled INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL);
+   CREATE TABLE IF NOT EXISTS amcp_users(id TEXT PRIMARY KEY,email TEXT UNIQUE COLLATE NOCASE,name TEXT NOT NULL,tenant_id TEXT UNIQUE NOT NULL,password_hash TEXT,version INTEGER NOT NULL DEFAULT 1,disabled INTEGER NOT NULL DEFAULT 0,approved INTEGER NOT NULL DEFAULT 1,test_account INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS amcp_identities(provider TEXT NOT NULL,subject TEXT NOT NULL,user_id TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(provider,subject),UNIQUE(user_id,provider));
    CREATE TABLE IF NOT EXISTS amcp_account_challenges(hash TEXT PRIMARY KEY,kind TEXT NOT NULL,secret TEXT NOT NULL,expires_at INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS amcp_email_outbox(id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,secret TEXT NOT NULL,state TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,available_at INTEGER NOT NULL,lease_until INTEGER,lease_token TEXT,expires_at INTEGER NOT NULL,last_error TEXT,created_at INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS amcp_mfa(user_id TEXT PRIMARY KEY,secret TEXT NOT NULL,recovery TEXT NOT NULL,last_step INTEGER NOT NULL DEFAULT -1,enabled_at INTEGER NOT NULL);
    INSERT OR IGNORE INTO workspace_memberships(tenant_id,user_id,role,created_at) SELECT tenant_id,id,'owner',created_at FROM amcp_users;
   `));
+  if(!this.store.db.prepare("SELECT 1 FROM pragma_table_info('amcp_users') WHERE name='approved'").get())this.store.db.exec('ALTER TABLE amcp_users ADD COLUMN approved INTEGER NOT NULL DEFAULT 1');
+  if(!this.store.db.prepare("SELECT 1 FROM pragma_table_info('amcp_users') WHERE name='test_account'").get())this.store.db.exec('ALTER TABLE amcp_users ADD COLUMN test_account INTEGER NOT NULL DEFAULT 0');
  }
  get configured(){return !!this.administratorHash;}
+ get testConfigured(){return !!this.reviewerHash;}
+ /** Reviewers share one workspace that is not the owner's, so no connection of yours is in reach. */
+ get testTenantId(){return this.tenantId+'-test';}
  consumeMcpAttempt(req:Request){
   const key=sha256('mcp-auth:'+this.clientAddress(req)),now=Date.now();
   this.store.db.prepare('DELETE FROM amcp_login_limits WHERE until_at<=?').run(now);
@@ -83,9 +99,29 @@ export class WebStore {
  createSession(actor:Actor):WebSession{
   const now=Date.now(),s:WebSession={id:randomBytes(32).toString('base64url'),csrf:randomBytes(32).toString('base64url'),actor,expiresAt:now+8*3600000};
   this.store.db.prepare('DELETE FROM amcp_web_sessions WHERE expires_at<=?').run(now);this.store.ensureTenant(actor.tenantId);
-  const user=this.store.db.prepare('SELECT version FROM amcp_users WHERE id=? AND disabled=0').get(actor.userId) as JsonObject|undefined;
+  const user=this.store.db.prepare('SELECT version FROM amcp_users WHERE id=? AND disabled=0 AND approved=1').get(actor.userId) as JsonObject|undefined;
   this.store.db.prepare('INSERT INTO amcp_web_sessions VALUES(?,?,?,?)').run(sha256(s.id),JSON.stringify(Object.assign(actor,{...(user?{accountVersion:user.version}:{}),signedInAt:now})),s.csrf,s.expiresAt);return s;
  }
+ /** Password sign-in for a reviewer. Mirrors the administrator door but lands in the test
+  * workspace with the evaluator scope, and never in the workspace that holds real accounts. */
+ signInTest(password:string,address:string):WebSession{
+  if(!this.reviewerHash)throw new MirrorError('SETUP_REQUIRED','Configure the AMCP test password on the server before signing in.',{},503);
+  this.bindAttempt('test:'+address);
+  if(!checkPassword(password,this.reviewerHash)){this.countAttempt('test:'+address);throw new MirrorError('INVALID_LOGIN','That password is incorrect.',{},401);}
+  const now=Date.now();this.store.db.prepare('DELETE FROM amcp_login_limits WHERE key=?').run(sha256('test:'+address));
+  this.store.ensureTenant(this.testTenantId,'AMCP test workspace');
+  const session:WebSession={id:randomBytes(32).toString('base64url'),csrf:randomBytes(32).toString('base64url'),actor:{tenantId:this.testTenantId,userId:'workspace-test',role:'admin',testAccount:true},expiresAt:now+8*3600000};
+  this.store.db.prepare('DELETE FROM amcp_web_sessions WHERE expires_at<=?').run(now);
+  this.store.db.prepare('INSERT INTO amcp_web_sessions VALUES(?,?,?,?)').run(sha256(session.id),JSON.stringify({...session.actor,signedInAt:now}),session.csrf,session.expiresAt);
+  this.store.appendAudit(this.testTenantId,randomUUID(),{event:'test_sign_in'});
+  return session;
+ }
+ private bindAttempt(key:string){
+  const hash=sha256(key),now=Date.now();this.store.db.prepare('DELETE FROM amcp_login_limits WHERE until_at<?').run(now);
+  const row=this.store.db.prepare('SELECT attempts FROM amcp_login_limits WHERE key=?').get(hash) as JsonObject|undefined;
+  if(row&&row.attempts>=8)throw new MirrorError('LOGIN_RATE_LIMIT','Too many sign-in attempts. Try again in 15 minutes.',{},429);
+ }
+ private countAttempt(key:string){this.store.db.prepare('INSERT INTO amcp_login_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET attempts=attempts+1').run(sha256(key),Date.now()+900000);}
  signIn(password:string,address:string):WebSession{
   if(this.store.db.prepare("SELECT 1 FROM documents WHERE tenant_id=? AND kind='account_settings' AND id='owner_migration'").get(this.tenantId))throw new MirrorError('OWNER_LOGIN_REQUIRED','This workspace now uses its owner email account. Use email sign-in or account recovery.',{},403);
   if(!this.administratorHash)throw new MirrorError('SETUP_REQUIRED','Configure the AMCP administrator password on the server before signing in.',{},503);
@@ -106,8 +142,9 @@ export class WebStore {
   const id=cookieValue(req,this.cookieName);if(!id||!/^[\w-]{43}$/.test(id))return;
   const row=this.store.db.prepare('SELECT * FROM amcp_web_sessions WHERE hash=? AND expires_at>?').get(sha256(id),Date.now()) as JsonObject|undefined;
   if(!row)return;const actor=JSON.parse(row.actor);
-  if(actor.userId!=='workspace-admin'){
-   const user=this.store.db.prepare('SELECT version FROM amcp_users WHERE id=? AND disabled=0').get(actor.userId) as JsonObject|undefined;
+  if(actor.userId!=='workspace-admin'&&actor.userId!=='workspace-test'){
+   const user=this.store.db.prepare('SELECT version,test_account FROM amcp_users WHERE id=? AND disabled=0 AND approved=1').get(actor.userId) as JsonObject|undefined;
+   if(user)actor.testAccount=!!user.test_account;
    const membership=this.store.db.prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1').get(actor.tenantId,actor.userId) as JsonObject|undefined;
    if(!user||user.version!==actor.accountVersion||!membership)return;
    actor.role=membership.role==='viewer'?'reader':membership.role==='operator'?'operator':'admin';actor.membershipRole=membership.role;actor.ownerUserId=actor.userId;

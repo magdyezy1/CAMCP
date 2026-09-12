@@ -1,3 +1,4 @@
+import {recommendationContext} from './recommendation-context.js';
 import {zonedMidnight} from './workflows.js';
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
@@ -22,11 +23,12 @@ export function calculateMetrics(metrics:JsonObject,custom:JsonObject[]=[]){cons
 export const objectiveGroups=['awareness','traffic','engagement','video_views','leads','sales','app_installs','unknown'];
 export function objectiveGroup(value:unknown):string{const s=String(value??'').toUpperCase();if(/LEAD/.test(s))return 'leads';if(/APP_INSTALL|APP_PROMOTION|APP_DOWNLOAD|MOBILE_APP/.test(s))return 'app_installs';if(/SALE|PURCHASE|CONVERSION|CATALOG|WEBSITE_CONVERSIONS/.test(s))return 'sales';if(/VIDEO/.test(s))return 'video_views';if(/TRAFFIC|CLICK|WEBSITE_VISIT/.test(s))return 'traffic';if(/ENGAGEMENT|INTERACTION|FOLLOWER/.test(s))return 'engagement';if(/AWARENESS|REACH|IMPRESSION|BRAND/.test(s))return 'awareness';return 'unknown';}
 export function campaignRecommendation(row:JsonObject,policy:JsonObject={},now=Date.now()):JsonObject{
- const result=(decision:string,reason:string,evidence:JsonObject={})=>({decision,reason,evidence,objective:row.objective_group,automatic_execution:false,requires_review:true});
+ const result=(decision:string,reason:string,evidence:JsonObject={})=>({decision,reason,evidence,confidence:['scale','maintain','pull_back'].includes(decision)?'moderate':'limited',limitations:['Observational evidence does not establish causality or adjust for seasonality.'],objective:row.objective_group,automatic_execution:false,requires_review:true});
  if(row.source_kind!=='paid')return result('observe','Measurement and organic reports provide context; they do not establish an advertising budget action.');
  if(!row.complete||!row.currency||!row.timezone||now-row.captured_at>48*3600000)return result('needs_review','Refresh complete data with verified currency and timezone before recommending a change.');
  if(row.objective_group==='unknown')return result('needs_review','Confirm this campaign’s objective and primary result metric.');
  const p=policy[row.campaign_key]??policy[row.objective_group]??{},metric=p.kpi??({awareness:'cpm',traffic:'cpc',engagement:'cost_per_engagement',video_views:'cpv',leads:'cpl',sales:'cpa',app_installs:'cpi'} as JsonObject)[row.objective_group];
+ const context= recommendationContext(row,p);if(context)return result(context.decision,context.reason,context.evidence);
  const m=row.metrics,actual=metric==='cost_per_engagement'?(m.spend!=null&&m.engagements>0?m.spend/m.engagements:null):m[metric],target=metricNumber(p.target);
  if(target===null||target<=0)return result('needs_target','Set a '+metric.toUpperCase()+' target in '+row.currency+' for this objective or campaign.',{kpi:metric});
  if(p.currency!==row.currency)return result('needs_review','The target currency must match the campaign account currency.',{target_currency:p.currency??null,currency:row.currency});
@@ -36,6 +38,7 @@ export function campaignRecommendation(row:JsonObject,policy:JsonObject={},now=D
  if(n===0&&m.spend>=target*3&&['cpa','cpl','cpi'].includes(metric))return result('reconsider_pause','Spend exceeded three target acquisition costs with no reported results. Check tracking and conversion lag, then consider pausing.',{spend:m.spend,target,results:n});
  if(n==null||n<minimum||actual==null)return result('insufficient_data','Wait for enough results to distinguish a signal from a small sample.',{results:n??null,minimum_results:minimum,kpi:metric});
  const higher=p.direction?p.direction==='higher':metric==='roas',relative=higher?target/actual:actual/target,evidence={kpi:metric,actual,target,currency:row.currency,results:n,maximum_budget_change_percent:Math.min(20,p.maximum_change_percent??10)};
+ if(relative<=0.85){const c=p.context??{};if(c.capacity_available===false||c.budget_available===false)return result('maintain','Performance supports growth, but a confirmed capacity or budget constraint prevents increasing delivery.',{...evidence,business_context:c});if(c.current_daily_budget!==undefined&&c.maximum_daily_budget!==undefined){const headroom=c.current_daily_budget>0?(c.maximum_daily_budget/c.current_daily_budget-1)*100:0;if(headroom<=0)return result('maintain','The supplied daily budget limit leaves no room for an increase.',{...evidence,business_context:c});evidence.maximum_budget_change_percent=Math.min(evidence.maximum_budget_change_percent,headroom);}}
  if(relative<=0.85)return result('scale','Performance is comfortably above target. Consider a bounded budget increase after checking capacity and recent changes.',evidence);
  if(relative>=1.5)return result('reconsider_pause','Performance is materially below target. Review tracking, targeting and creative before deciding whether to pause.',evidence);
  if(relative>=1.15)return result('pull_back','Performance is below target. Consider a bounded budget reduction and diagnose the cause.',evidence);

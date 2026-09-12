@@ -66,7 +66,7 @@ export class SocialSignIn {
   if(input.error)throw new MirrorError('SIGNIN_CANCELLED','Sign-in was cancelled. You can try again.');
   if(typeof input.code!=='string'||input.code.length<1||input.code.length>8192)throw new MirrorError('SIGNIN_IDENTITY_INVALID','The provider did not return an authorization code.');
   const identity=await this.identity(provider,pending,input.code),db=this.web.store.db;
-  return this.web.store.transaction(()=>{
+  const result=this.web.store.transaction(()=>{
    let user:JsonObject,activeWorkspace:string|undefined;
    if(pending.sessionHash&&!db.prepare('SELECT hash FROM amcp_web_sessions WHERE hash=? AND expires_at>?').get(pending.sessionHash,Date.now()))throw new MirrorError('SIGN_IN_REQUIRED','The initiating session ended. Start sign-in again.',{},401);
    const existing=db.prepare('SELECT user_id FROM amcp_identities WHERE provider=? AND subject=?').get(provider,identity.subject) as JsonObject|undefined;
@@ -81,11 +81,17 @@ export class SocialSignIn {
    else{
     if(!this.accounts.signupEnabled)throw new MirrorError('SIGNUP_DISABLED','New account registration is currently closed.',{},403);
     if(identity.email&&db.prepare('SELECT id FROM amcp_users WHERE email=?').get(identity.email))throw new MirrorError('ACCOUNT_EXISTS','Sign in to your existing AMCP account, then link this provider from Account settings.');
-    user=this.accounts.newUser(accountName(identity.name),identity.email,null);
+    user=this.accounts.newUser(accountName(identity.name),identity.email,null,this.accounts.autoApprove);
    }
+   if(pending.link)this.accounts.assertApproved(user);
    if(!existing)db.prepare('INSERT INTO amcp_identities VALUES(?,?,?,?)').run(provider,identity.subject,user.id,Date.now());
+   // Commit a new pending registration and its owner notice before returning the
+   // access error. Throwing here would roll back the request the owner must approve.
+   if(!user.approved)return {pendingUser:user};
    if(pending.sessionHash)db.prepare('DELETE FROM amcp_web_sessions WHERE hash=?').run(pending.sessionHash);
    this.web.store.appendAudit(activeWorkspace??user.tenant_id,randomUUID(),{event:pending.link?'account_identity_linked':'account_sign_in',method:provider});if(!pending.link&&this.accounts.hasMfa(user.id))return {mfaRequired:true as const,ticket:this.accounts.challenge('mfa_login',{userId:user.id,version:user.version},300000)};return {session:this.accounts.session(user,activeWorkspace,pending.link),linked:pending.link};
   });
+  if('pendingUser' in result){this.accounts.assertApproved(result.pendingUser!);throw new MirrorError('ACCOUNT_PENDING_APPROVAL','Your account is awaiting approval.',{},403);}
+  return result;
  }
 }

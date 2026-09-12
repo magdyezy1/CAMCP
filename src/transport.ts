@@ -39,8 +39,11 @@ export interface TransportResult {data:unknown;status:number;headers:Record<stri
 export interface BinaryUpload {field:string;bytes:Buffer;filename:string;mime:string;format?:'related'}
 export class NativeTransport {
  coordination?:Store;
- private circuits=new Map<string,{failures:number;until:number}>();private budgets=new Map<string,{tokens:number;at:number}>();
- readonly metrics={requests:0,retries:0,errors:0,totalLatencyMs:0};
+ private circuits=new Map<string,{failures:number;until:number;at:number}>();private budgets=new Map<string,{tokens:number;at:number}>();
+ readonly metrics={requests:0,retries:0,errors:0,rateLimits:0,totalLatencyMs:0};
+ diagnostics(){return {...this.metrics,budget_entries:this.budgets.size,circuit_entries:this.circuits.size,scope:'Current process only; shared rate enforcement uses SQLite.'};}
+ private prune(){const now=performance.now();for(const [key,b] of this.budgets)if(now-b.at>60000)this.budgets.delete(key);for(const [key,c] of this.circuits)if(now-c.at>60000&&c.until<=now)this.circuits.delete(key);if(this.budgets.size>=4096||this.circuits.size>=4096)throw new MirrorError('PROVIDER_COORDINATION_BUSY','Provider coordination is at capacity; retry after inactive entries expire.',{retry_after_ms:60000},503,true);}
+
  constructor(private fetcher:typeof fetch=fetch,private sleeper:(ms:number)=>Promise<unknown>=delay,private timeoutMs=30000,private maximumBytes=8*1024*1024,private budgetBurst=30,private budgetRefillMs=250,private budgetWaitMs=2000){}
  /**
   * Shape a burst down to the sustained per-tenant rate instead of failing a bounded batch outright.
@@ -60,8 +63,8 @@ export class NativeTransport {
   if(waitMs)await this.sleeper(waitMs);
  }
  async request(plan:CompiledRequest,connection:Connection,credentials:Credentials,upload?:BinaryUpload):Promise<TransportResult>{
-  const key=scopeKey(connection.tenantId,connection.gateway);
-  const circuit=this.circuits.get(key);if(circuit&&circuit.until>Date.now())throw new MirrorError('CIRCUIT_OPEN','Platform circuit is temporarily open.',{retry_after_ms:circuit.until-Date.now()},503,true);
+  this.prune();const key=scopeKey(connection.tenantId,connection.gateway);
+  const circuit=this.circuits.get(key);if(circuit&&circuit.until>performance.now())throw new MirrorError('CIRCUIT_OPEN','Platform circuit is temporarily open.',{retry_after_ms:circuit.until-performance.now()},503,true);
   await this.permit(key);
   const url=buildUrl(plan,connection);const headers:Record<string,string>={Accept:'application/json',...plan.headers};
   if(plan.gateway==='reddit_native_action'){
@@ -101,13 +104,13 @@ export class NativeTransport {
   if(credentials.apiKey&&!headers.Authorization)headers.Authorization='Bearer '+credentials.apiKey;
   if(!headers.Authorization&&!headers['Access-Token'])throw new MirrorError('CREDENTIALS_REQUIRED','An authenticated platform connection is required.',{},401);
   // Report submission creates a job even though it cannot mutate advertising configuration.
-  const start=Date.now();const maxAttempts=plan.readOnly&&!(plan.gateway===microsoftGateway&&plan.action==='SubmitGenerateReport')?3:1;
+  const start=performance.now();const maxAttempts=plan.readOnly&&!(plan.gateway===microsoftGateway&&plan.action==='SubmitGenerateReport')?3:1;
   for(let attempt=0;attempt<maxAttempts;attempt++){
    this.coordination?.providerPermit(key);
-   this.metrics.requests++;
+   this.metrics.requests++;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'requests');
    try{
     const response=await this.fetcher(url,{method:plan.method,headers,body,redirect:'error',signal:AbortSignal.timeout(this.timeoutMs)});
-    if(response.status===429){const seconds=Number(response.headers.get('retry-after')??30);this.coordination?.providerCooldown(key,Number.isFinite(seconds)?seconds*1000:30000);}
+    if(response.status===429){this.metrics.rateLimits++;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'rate_limits');const seconds=Number(response.headers.get('retry-after')??30);this.coordination?.providerCooldown(key,Number.isFinite(seconds)?seconds*1000:30000);}
     if([429,502,503,504].includes(response.status)&&attempt+1<maxAttempts){await response.body?.cancel();this.metrics.retries++;const retry=Number(response.headers.get('retry-after'));await this.sleeper(Math.min(5000,Math.max(200*2**attempt,Number.isFinite(retry)?retry*1000:0)));continue;}
     const documentedEmpty=response.status===200&&(plan.gateway==='google_search_console_native_action'&&['PUT','DELETE'].includes(plan.method)&&/^\/webmasters\/v3\/sites\//.test(plan.path)||plan.gateway==='gtm_native_action'&&plan.method==='DELETE'||plan.gateway==='linkedin_native_action'&&plan.method==='POST'&&plan.path==='/rest/videos'&&plan.query.action==='finalizeUpload'||plan.gateway==='google_ads_native_action'&&plan.method==='POST'&&/^\/resumable\/upload\/v23\/customers\/\d+\/youTubeVideoUploads:create$/.test(plan.path)&&response.headers.has('x-goog-upload-url'));
     const data=await this.readBody(response,plan.method==='HEAD'||!plan.readOnly&&(documentedEmpty||[204,205].includes(response.status)||plan.gateway==='linkedin_native_action'&&response.status===201&&response.headers.has('x-restli-id')));
@@ -117,28 +120,30 @@ export class NativeTransport {
      const d=data as JsonObject;
      if((plan.gateway==='tiktok_native_action'&&d.code!==undefined&&d.code!==0)||d.request_status==='ERROR'||d.error)throw new MirrorError('PLATFORM_ERROR','Platform reported an unsuccessful result.',errorDetails(),502,false);
     }
-    this.circuits.delete(key);this.metrics.totalLatencyMs+=Date.now()-start;
+    this.circuits.delete(key);this.metrics.totalLatencyMs+=performance.now()-start;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'latency_ms',performance.now()-start);
     return {data,status:response.status,headers:Object.fromEntries(['request-id','x-request-id','x-fb-trace-id','x-restli-id','retry-after',...(plan.gateway==='google_ads_native_action'&&plan.path.startsWith('/resumable/upload/')?['x-goog-upload-url','x-goog-upload-chunk-granularity']:[])].map(k=>[k,response.headers.get(k)]).filter((p):p is [string,string]=>p[1]!==null))};
    }catch(error){
     const e=error instanceof MirrorError?error:new MirrorError(plan.readOnly?'UPSTREAM_UNAVAILABLE':'WRITE_OUTCOME_UNCERTAIN',plan.readOnly?'Platform request failed or timed out.':'The write response was lost. Do not retry with a new key; inspect platform state.',{},502,plan.readOnly);
     if(plan.readOnly&&e.retryable&&attempt+1<maxAttempts){this.metrics.retries++;await this.sleeper(200*2**attempt);continue;}
-    this.metrics.errors++;const prior=this.circuits.get(key)?.failures??0;this.circuits.set(key,{failures:prior+1,until:prior>=4?Date.now()+30000:0});throw e;
+    this.metrics.errors++;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'errors');const prior=this.circuits.get(key)?.failures??0;this.circuits.set(key,{failures:prior+1,until:prior>=4?performance.now()+30000:0,at:performance.now()});throw e;
    }
   }
   throw new MirrorError('UPSTREAM_UNAVAILABLE','Platform request failed.');
  }
  /** A Google-issued upload capability stays in memory and can only target Google's upload origin. */
- async uploadGoogleVideo(raw:string,bytes:Buffer,accessToken:string,options:{granularity?:number;beforeChunk?:()=>void;progress?:(bytes:number)=>void}={}):Promise<TransportResult>{
+ async uploadGoogleVideo(raw:string,bytes:Buffer,accessToken:string,options:{granularity?:number;resume?:boolean;beforeFinalize?:()=>void;beforeChunk?:()=>void;progress?:(bytes:number)=>void}={}):Promise<TransportResult>{
   let url:URL;try{url=new URL(raw);}catch{throw new MirrorError('UNAPPROVED_UPLOAD_URL','Google returned an invalid upload URL.');}
   if(url.origin!=='https://googleads.googleapis.com'||url.username||url.password||url.hash||!url.pathname.startsWith('/resumable/upload/'))throw new MirrorError('UNAPPROVED_UPLOAD_URL','Google upload URLs must stay on the Google Ads resumable upload endpoint.');
   if(!accessToken)throw new MirrorError('CREDENTIALS_REQUIRED','Google video upload needs an authenticated connection.');
   const unit=options.granularity??262144;
   if(!Number.isSafeInteger(unit)||unit<1||unit>16*1024*1024)throw new MirrorError('MEDIA_RESPONSE_INVALID','Google returned an unsupported upload chunk granularity.');
   const chunkSize=Math.max(unit,Math.floor(4*1024*1024/unit)*unit);let offset=0,recoveries=0;
+  if(options.resume){options.beforeChunk?.();let queried:Response;try{queried=await this.fetcher(url,{method:'POST',redirect:'error',signal:AbortSignal.timeout(this.timeoutMs),headers:{Authorization:'Bearer '+accessToken,'X-Goog-Upload-Command':'query'}});}catch{throw new MirrorError('WRITE_OUTCOME_UNCERTAIN','The retained Google session could not be queried.');}const received=queried.headers.get('x-goog-upload-size-received');await queried.body?.cancel();offset=Number(received);if(!queried.ok||received===null||!Number.isSafeInteger(offset)||offset<0||offset>=bytes.length||offset%unit!==0)throw new MirrorError('WRITE_OUTCOME_UNCERTAIN','The retained upload offset is not safe to resume. Reconcile provider state.');options.progress?.(offset);}
+
   while(offset<bytes.length){
    options.beforeChunk?.();const end=Math.min(bytes.length,offset+chunkSize),final=end===bytes.length;
    let response:Response;
-   try{response=await this.fetcher(url,{method:'PUT',redirect:'error',signal:AbortSignal.timeout(this.timeoutMs),headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/octet-stream','X-Goog-Upload-Offset':String(offset),'X-Goog-Upload-Command':final?'upload, finalize':'upload'},body:new Uint8Array(bytes.subarray(offset,end))});
+   try{if(final)options.beforeFinalize?.();response=await this.fetcher(url,{method:'PUT',redirect:'error',signal:AbortSignal.timeout(this.timeoutMs),headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/octet-stream','X-Goog-Upload-Offset':String(offset),'X-Goog-Upload-Command':final?'upload, finalize':'upload'},body:new Uint8Array(bytes.subarray(offset,end))});
     if(!response.ok){await response.body?.cancel();throw new MirrorError('MEDIA_UPLOAD_FAILED','Google video transfer returned HTTP '+response.status);}
    }catch{
     // A finalization may have created the asset. Never resubmit it on a lost reply.

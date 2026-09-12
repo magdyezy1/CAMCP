@@ -1,3 +1,4 @@
+import {recipeContext,recipeInputs} from './recipe-context.js';
 import {assertAccountWrite} from './write-access.js';
 import {normalizeAccount} from './scope.js';
 import {campaignRecipe,campaignRecipes} from './campaign-recipes.js';
@@ -6,7 +7,7 @@ import {Store} from './store.js';
 import type {Actor,JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {audit,bad,field,fingerprint,noSecrets,obj,optional,pointer,read,tool,validate,writer,type ToolCall} from './workspace-core.js';
-export const campaignTool=tool('amcp_campaign','Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. No fabricated IDs, implicit launch, or review bypass.', ['create','get','list','prepare_next','execute_next','verify','cancel','validate_provider','preflight','recover_step','recipes','create_from_recipe'],{id:field.id,name:field.id,brief:field.id,profile_id:field.id,template:field.id,variables:field.object,steps:{type:'array',items:{type:'object'},minItems:1,maxItems:50},review_id:field.id,idempotency_key:field.id,confirmed:field.bool,spend_change_confirmed:field.bool,expected_revision:field.integer,recipe:field.id,business:field.object,step_id:field.id,gateway:field.id,arguments:field.object,connection_id:field.id});
+export const campaignTool=tool('amcp_campaign','Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. No fabricated IDs, implicit launch, or review bypass.', ['create','get','list','prepare_next','execute_next','verify','cancel','validate_provider','preflight','recover_step','reconcile_step','recipes','recipe_context','recipe_lookup','preview_recipe','create_from_recipe'],{id:field.id,name:field.id,brief:field.id,profile_id:field.id,template:field.id,variables:field.object,steps:{type:'array',items:{type:'object'},minItems:1,maxItems:50},review_id:field.id,idempotency_key:field.id,confirmed:field.bool,spend_change_confirmed:field.bool,expected_revision:field.integer,query:field.id,lookup_kind:{type:'string',enum:['country','language']},account_id:field.id,recipe:field.id,business:field.object,step_id:field.id,gateway:field.id,arguments:field.object,connection_id:field.id});
 function substitute(v:any,variables:JsonObject):any{
  if(typeof v==='string')return v.replace(/\{\{([A-Za-z0-9_.-]+)\}\}/g,(_,key)=>{const value=pointer(variables,'/'+key.split('.').join('/'));if(typeof value!=='string'&&typeof value!=='number')bad('Template variables must be scalar.');return String(value);});
  if(Array.isArray(v))return v.map(x=>substitute(x,variables));return obj(v)?Object.fromEntries(Object.entries(v).map(([k,x])=>[k,substitute(x,variables)])):v;
@@ -15,7 +16,7 @@ function references(v:any,results:Map<string,JsonObject>,deps:Set<string>):any{
  if(obj(v)&&Object.hasOwn(v,'$ref')){if(Object.keys(v).length!==1||typeof v.$ref!=='string')bad('Use {$ref:"step#/JSON/pointer"}.');const at=v.$ref.indexOf('#'),id=v.$ref.slice(0,at),path=v.$ref.slice(at+1);if(at<1||!deps.has(id))bad('A result reference must name a declared predecessor.');const result=results.get(id);if(!result)bad('The referenced step is not verified.','DEPENDENCY_PENDING');return structuredClone(pointer(result,path));}
  if(Array.isArray(v))return v.map(x=>references(x,results,deps));return obj(v)?Object.fromEntries(Object.entries(v).map(([k,x])=>[k,references(x,results,deps)])):v;
 }
-const structure=(steps:JsonObject[])=>steps.map(s=>Object.fromEntries(['id','kind','gateway','connection_id','account_id','arguments','depends_on','description'].filter(k=>s[k]!==undefined).map(k=>[k,s[k]])));
+const structure=(steps:JsonObject[])=>steps.map(s=>Object.fromEntries(['id','kind','gateway','connection_id','account_id','arguments','depends_on','description','expected_currency'].filter(k=>s[k]!==undefined).map(k=>[k,s[k]])));
 export class CampaignRunner{
  constructor(private store:Store,private call:ToolCall,private verifyWrite:(actor:Actor,id:string)=>Promise<JsonObject>,private providerValidation:(actor:Actor,input:JsonObject)=>Promise<JsonObject>,private preflight?:(actor:Actor,steps:JsonObject[])=>Promise<JsonObject>){}
  private owned(actor:Actor,id:string){const p=read(this.store,actor,'campaign_run',id);if(p.user_id!==actor.userId&&actor.role!=='admin')bad('Campaign plan belongs to another actor.','FORBIDDEN');if(p.plan_hash!==fingerprint(structure(p.steps)))bad('The saved plan failed its integrity check.','PLAN_CHANGED');return p;}
@@ -23,17 +24,32 @@ export class CampaignRunner{
  async handle(input:JsonObject,actor:Actor):Promise<JsonObject>{
   validate(input,Object.keys(campaignTool.inputSchema.properties),524288);this.store.assertActorActive(actor);
   if(input.action==='recipes')return {recipes:campaignRecipes};
-  if(input.action==='create_from_recipe'){const {recipe,...plan}=campaignRecipe(input.recipe,input.business);return {...await this.handle(plan,actor),recipe};}
+  if(input.action==='recipe_lookup'){
+   const query=String(input.query??'').trim();if(!/^[A-Za-z -]{2,60}$/.test(query)||!['country','language'].includes(input.lookup_kind))throw new MirrorError('INVALID_LOOKUP','Enter a country name/code or language name (2–60 letters).');
+   this.store.resolveConnection(actor,'google_ads_native_action',input.account_id,input.connection_id);
+   const country=input.lookup_kind==='country',gaql=country?"SELECT geo_target_constant.id, geo_target_constant.name, geo_target_constant.country_code FROM geo_target_constant WHERE geo_target_constant.target_type = 'Country' AND "+(query.length===2?"geo_target_constant.country_code = '"+query.toUpperCase()+"'":"geo_target_constant.name LIKE '%"+query+"%'")+" LIMIT 100":"SELECT language_constant.id, language_constant.name, language_constant.code FROM language_constant LIMIT 1000";
+   const out=await this.call('google_ads_native_action',{action:'google_ads_v23_google_ads_search',connection_id:input.connection_id,account_id:input.account_id,payload:{query:gaql}},actor);
+   if(!out.success)throw new MirrorError(out.error.code,out.error.message,out.error.details);if(out.data.truncated)throw new MirrorError('INCOMPLETE_LOOKUP','This lookup is incomplete. Narrow the search.');
+   const rows=out.data.data?.results;if(!Array.isArray(rows))throw new MirrorError('UPSTREAM_RESPONSE_INVALID','Google did not return targeting constants.');return {kind:input.lookup_kind,results:rows.map((r:JsonObject)=>country?r.geoTargetConstant:r.languageConstant).filter((r:JsonObject)=>r&&typeof r.id==='string'&&(country||String(r.name??'').toLowerCase().includes(query.toLowerCase())||String(r.code??'').toLowerCase()===query.toLowerCase())).slice(0,50).map((r:JsonObject)=>({id:r.id,name:r.name,code:r.code??r.countryCode})),provider_mutations:0};
+  }
+  if(input.action==='recipe_context')return recipeContext(this.store,actor,input.recipe,input.profile_id);
+  if(['preview_recipe','create_from_recipe'].includes(input.action)){
+   const context=recipeContext(this.store,actor,input.recipe,input.profile_id),{business,provenance}=recipeInputs(context,input.business??{});
+   const missing=context.recipe.required.filter((k:string)=>business[k]===undefined||business[k]==='');
+   if(input.action==='preview_recipe'&&missing.length)return {ready:false,missing_fields:missing,provenance,provider_mutations:0};
+   const {recipe,...plan}=campaignRecipe(input.recipe,business);if(input.action==='preview_recipe')return {ready:true,plan,recipe,provenance,provider_mutations:0,meaning:'Local compilation. Run preflight before preparing mutations.'};
+   writer(this.store,actor);const result=await this.handle({...plan,...(input.profile_id?{profile_id:input.profile_id}:{})},actor),run=this.owned(actor,result.id);run.recipe={...recipe,provenance};return this.save(actor,run);
+  }
   if(input.action==='verify')return this.verifyWrite(actor,input.review_id);
   if(input.action==='validate_provider')return this.providerValidation(actor,input);
   if(input.action==='list')return {campaigns:this.store.documents(actor.tenantId,'campaign_run').filter(r=>r.user_id===actor.userId||actor.role==='admin').map(r=>({id:r.id,name:r.name,state:r.state,updated_at:r.updated_at,step_count:r.steps.length}))};
-  if(input.action==='get')return this.owned(actor,input.id);
+  if(input.action==='get'){const run=this.owned(actor,input.id);return {...run,execution_journal:run.steps.filter((s:JsonObject)=>s.review_id).map((s:JsonObject)=>({step_id:s.id,status:s.status,review_id:s.review_id,...this.store.operationJournal(actor.tenantId,s.review_id)}))};}
   writer(this.store,actor);
   if(input.action==='create'){
    if(typeof input.name!=='string'||!input.name.trim()||input.name.length>100||typeof input.brief!=='string'||input.brief.length>12000)bad('Provide a campaign name and brief.');
    const profile=input.profile_id?read(this.store,actor,'client_profile',input.profile_id):undefined,variables={...(profile?.variables??{}),...(input.variables??{}),profile:profile??{}};noSecrets(variables);
    const raw=input.steps??profile?.templates?.[input.template];if(!Array.isArray(raw)||!raw.length||raw.length>50)bad('Provide 1–50 explicit steps, or choose an approved saved template.');const steps=substitute(raw,variables),seen=new Set<string>();
-   for(const s of steps){validate(s,['id','kind','gateway','connection_id','account_id','arguments','depends_on','description']);if(!/^[A-Za-z][A-Za-z0-9_-]{0,50}$/.test(s.id)||seen.has(s.id)||!['write','media'].includes(s.kind)||!obj(s.arguments)||typeof s.connection_id!=='string'||typeof s.account_id!=='string')bad('Each step needs a unique ID, kind, arguments and explicit connection/account.');
+   for(const s of steps){validate(s,['id','kind','gateway','connection_id','account_id','arguments','depends_on','description','expected_currency']);if(!/^[A-Za-z][A-Za-z0-9_-]{0,50}$/.test(s.id)||seen.has(s.id)||!['write','media'].includes(s.kind)||!obj(s.arguments)||typeof s.connection_id!=='string'||typeof s.account_id!=='string'||s.expected_currency!==undefined&&!/^[A-Z]{3}$/.test(s.expected_currency))bad('Each step needs a unique ID, kind, arguments, explicit connection/account and an optional ISO currency.');
     const deps=s.depends_on??[];if(!Array.isArray(deps)||new Set(deps).size!==deps.length||deps.some(d=>!seen.has(d)))bad('Dependencies must refer to earlier steps.');seen.add(s.id);noSecrets(s.arguments);
     const gateway=s.kind==='media'?s.arguments.platform+'_native_action':s.gateway;this.store.resolveConnection(actor,gateway,s.account_id,s.connection_id);
     if(s.kind==='media'&&(s.arguments.action!==undefined&&!['prepare','prepare_library'].includes(s.arguments.action)||s.arguments.confirmed!==undefined||s.arguments.idempotency_key!==undefined))bad('Media steps contain preparation inputs only.');
@@ -45,6 +61,12 @@ export class CampaignRunner{
   let run=this.owned(actor,input.id);if(input.expected_revision!==undefined&&input.expected_revision!==run.revision)bad('Reload the current campaign plan.','REVISION_CONFLICT');
   if(input.action==='cancel'){if(input.confirmed!==true)bad('Confirm cancellation.');run.state='cancelled';run=this.save(actor,run);return {...run,notice:'Already created provider resources remain intact.'};}
   if(run.state==='cancelled')bad('This campaign plan was cancelled.');
+  if(input.action==='reconcile_step'){
+   const step=run.steps.find((s:JsonObject)=>s.id===input.step_id);if(!step?.review_id||!['executing','uncertain','failed','verifying','mismatch','processing'].includes(step.status))bad('Choose a submitted step requiring reconciliation.','RECOVERY_NOT_SAFE');
+   const claim=this.store.db.prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?').get(actor.tenantId,step.review_id) as JsonObject|undefined;if(claim?.state!=='complete'||!claim.result)bad('No completed original receipt exists. Inspect provider state; reconciliation never submits a mutation.','RECOVERY_NOT_SAFE');
+   const receipt=JSON.parse(claim.result);if(step.kind==='media'){const status=await this.call('amcp_media',{action:'status',review_id:step.review_id},actor);if(!status.success)throw new MirrorError(status.error.code,status.error.message,status.error.details);step.result={...receipt,...status.data};step.status=status.data.ready?'verified':'processing';}else{const verification=await this.verifyWrite(actor,step.review_id);step.result=receipt;step.verification=verification;step.status=verification.status==='verified'?'verified':verification.status==='mismatch'?'mismatch':'verifying';}
+   this.store.assertActorActive(actor);delete step.error;run.state=run.steps.every((s:JsonObject)=>s.status==='verified')?'complete':step.status==='verified'?'in_progress':'attention';return this.save(actor,run);
+  }
   if(input.action==='recover_step'){
    if(input.confirmed!==true)bad('Confirm recovery of the failed step.');const step=run.steps.find((s:JsonObject)=>s.id===input.step_id),blockedBeforeSubmission=step?.status==='pending'&&run.preflight?.checks?.some((c:JsonObject)=>c.step===step.id&&c.status==='blocked');if(!step||step.status!=='failed'&&!blockedBeforeSubmission)bad('Only a definitively failed or unsubmitted blocked step can be recovered. Unknown, verifying and mismatched outcomes require investigation.','RECOVERY_NOT_SAFE');
    const submitted=step.review_id?this.store.db.prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?').get(actor.tenantId,step.review_id) as JsonObject|undefined:undefined;if(submitted)bad('This step reached the provider or has an unknown outcome. Reconcile its existing resource; do not issue another create.','RECOVERY_NOT_SAFE');

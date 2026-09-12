@@ -47,6 +47,9 @@ function literal(value:string){return "'"+value.replaceAll('\\','\\\\').replaceA
 function fieldsMask(data:JsonObject):string {const out:string[]=[];const walk=(v:JsonObject,prefix='')=>{for(const [key,value]of Object.entries(v)){if(!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(key))throw new MirrorError('INVALID_FIELD','Field names must be native identifiers.');if(['resource_name','resourceName'].includes(key))continue;const field=prefix+key;if(value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length)walk(value,field+'.');else out.push(field);}};walk(data);if(!out.length)throw new MirrorError('EMPTY_UPDATE','Provide at least one editable field.');return out.join(',');}
 function nonemptyPayload(value:unknown){const body=obj(value);if(!Object.keys(body).length)throw new MirrorError('MISSING_PAYLOAD','A complete platform-native payload is required.');return body;}
 function immutableUpdate(updates:JsonObject){for(const key of ['id','account','account_id','customer_id','advertiserId','campaign_id','campaign','campaignGroup','ad_group','adGroup','line_item_id','resource_name','resourceName','created_at','createdAt'])if(Object.hasOwn(updates,key))throw new MirrorError('IMMUTABLE_FIELD','Entity ownership and parent fields cannot be changed by generic updates.',{field:key,workaround:'Create a new paused entity under the intended parent.'});}
+/** X has no targeting field on any entity: targeting is the separate targeting_criteria
+ * resource, so a `targeting` object is accepted by the route and then dropped by X. */
+function assertNoPhantomTargeting(p:Platform,data:JsonObject){if(p==='x'&&Object.hasOwn(data,'targeting'))throw new MirrorError('UNSUPPORTED_FIELD','X entities have no targeting field; targeting is the separate targeting_criteria resource.',{field:'targeting',workaround:'Create each criterion against /12/accounts/{account_id}/targeting_criteria as its own reviewed write.'});}
 
 /** Form compilation is deliberately conservative: native fields remain available,
  * while ambiguous objectives, currencies and identifiers are never guessed. */
@@ -54,6 +57,7 @@ export function compileEntityPayload(pValue:unknown,type:string,dataValue:unknow
  const p=platform(pValue),data=nonemptyPayload(dataValue),acct=context.account_id?account(p,context.account_id):undefined;guardInput(data);
  if(context.merge_with_original){if(!context.original_data)throw new MirrorError('ORIGINAL_DATA_REQUIRED','Merging requires an explicit original_data snapshot.');Object.assign(data,{...obj(context.original_data),...data});}
  if(operation==='update')immutableUpdate(data);
+ assertNoPhantomTargeting(p,data);
  const aliases=p==='google'?{campaign_id:'campaign',adset_id:'ad_group',adgroup_id:'ad_group',start_date:'start_date',end_date:'end_date',bid_amount_micros:'cpc_bid_micros'}:p==='linkedin'?{objective:'objectiveType',targeting:'targetingCriteria',bid_strategy:'biddingStrategy'}:p==='dv360'?{name:'displayName',status:'entityStatus'}:{};
  for(const [from,to]of Object.entries(aliases))if(from!==to&&data[from]!==undefined){if(data[to]!==undefined&&stable(data[from])!==stable(data[to]))throw new MirrorError('CONFLICTING_FIELDS','Form alias and native field disagree.',{from,to});data[to]=data[from];delete data[from];}
  if(p==='google'&&acct){if(data.campaign)data.campaign=resource(acct,'campaigns',data.campaign);if(data.ad_group)data.ad_group=resource(acct,'adGroups',data.ad_group);}
@@ -103,6 +107,7 @@ export function compileEntityMutation(operation:string,args:JsonObject):NativeSt
  if(!remove&&!create)immutableUpdate(payload);
  if(!remove&&!Object.keys(payload).length)throw new MirrorError('EMPTY_UPDATE','Provide a nonempty native payload.');
  if(args.payload_mode==='form'||create)payload=compileEntityPayload(p,type,payload,{account_id:acct},create?'create':'update').payload;
+ assertNoPhantomTargeting(p,payload);
  const entityId=args.entity_id??args.campaign_id;
  if(p==='google'){
   const route=googleResource[type];if(!route)return unsupported('Use AssetService for standalone Google assets.');
@@ -155,7 +160,7 @@ export function compileEntityRead(operation:string,args:JsonObject):NativeStep {
   const query:JsonObject={count:n,with_deleted:false};if(children)query.campaign_ids=id(args.campaign_id);if(ads&&args.adset_id)query.line_item_ids=id(args.adset_id);if(ads&&args.campaign_id&&!args.adset_id)return unsupported('X promoted-tweet reads require adset_id (line item); fetch campaign children first.');if(args.status_filter&&args.status_filter!=='ALL')query.entity_status=args.status_filter;
   return step(p,`x_accounts_account_id_${base}${specific?'_'+specific:''}_get`,acct,args,{params:specific?{[specific]:id(args.ad_id??args.campaign_id)}:{},query,...(!specific?{aggregate_pages:true,max_pages:25}:{})});
  }
- const base=ads?'CREATIVES':children?'LINE_ITEMS':'CAMPAIGNS';const query:JsonObject={pageSize:n};if(children)query.filter=`campaignId="${numericId(args.campaign_id)}"`;if(args.status_filter&&args.status_filter!=='ALL')query.filter=`entityStatus="ENTITY_STATUS_${args.status_filter}"`;
+ const base=ads?'CREATIVES':children?'LINE_ITEMS':'CAMPAIGNS';const query:JsonObject={pageSize:n},filters:string[]=[];if(children)filters.push(`campaignId="${numericId(args.campaign_id)}"`);if(args.status_filter&&args.status_filter!=='ALL')filters.push(`entityStatus="ENTITY_STATUS_${args.status_filter}"`);if(filters.length)query.filter=filters.join(' AND ');
  if(ads&&(args.campaign_id||args.adset_id||args.ad_id))return unsupported('DV360 creative inventory is advertiser scoped; use native creative association reads for entity filters.');
  return step(p,`DV360_ADVERTISERS_${base}_${single?'GET':'LIST'}`,acct,args,{pathParams:single?{campaignId:numericId(args.campaign_id)}:{},query,...(!single?{aggregate_pages:true,max_pages:25}:{})});
 }

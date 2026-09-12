@@ -1,3 +1,4 @@
+import {effectiveProviderContract} from '../src/provider-contracts.js';
 import {createHmac,createHash,randomBytes,randomUUID} from 'node:crypto';
 import {MirrorError} from '../src/errors.js';
 import type {Credentials,JsonObject} from '../src/types.js';
@@ -20,7 +21,12 @@ export const platforms:PlatformDefinition[]=[
  {id:'ga4',name:'Google Analytics 4',kind:'Analytics & measurement',description:'Connect GA4 properties, reports and data streams.',logo:'A',gateway:'ga4_native_action',env:'GA4',authorize:'https://accounts.google.com/o/oauth2/v2/auth',token:'https://oauth2.googleapis.com/token',scopes:['https://www.googleapis.com/auth/analytics.readonly'],pkce:true,assetKinds:['properties','data_streams'],selectionKind:'properties',reviewedWrites:true},
  {id:'gtm',name:'Google Tag Manager',kind:'Google tag & containers',description:'Connect Tag Manager accounts and Google tag containers.',logo:'◇',gateway:'gtm_native_action',env:'GTM',authorize:'https://accounts.google.com/o/oauth2/v2/auth',token:'https://oauth2.googleapis.com/token',scopes:['https://www.googleapis.com/auth/tagmanager.readonly'],pkce:true,assetKinds:['tag_accounts','containers'],selectionKind:'tag_accounts',reviewedWrites:true},
  {id:'gsc',name:'Google Search Console',kind:'Organic search',description:'Connect verified sites, search performance and sitemaps.',logo:'⌕',gateway:'google_search_console_native_action',env:'GSC',authorize:'https://accounts.google.com/o/oauth2/v2/auth',token:'https://oauth2.googleapis.com/token',scopes:['https://www.googleapis.com/auth/webmasters.readonly'],pkce:true,assetKinds:['sites','sitemaps'],selectionKind:'sites',reviewedWrites:true},
- {id:'apple',name:'Apple Ads',kind:'App Store advertising',description:'Connect Apple Ads accounts using your API credentials.',logo:'●',gateway:'apple_ads_native_action',env:'APPLE',authorize:'',token:'https://appleid.apple.com/auth/oauth2/token',scopes:['searchadsorg'],assetKinds:['ad_accounts'],authType:'client_credentials',reviewedWrites:true}
+ {id:'apple',name:'Apple Ads',kind:'App Store advertising',description:'Connect Apple Ads accounts using your API credentials.',logo:'●',gateway:'apple_ads_native_action',env:'APPLE',authorize:'',token:'https://appleid.apple.com/auth/oauth2/token',scopes:['searchadsorg'],assetKinds:['ad_accounts'],authType:'client_credentials',reviewedWrites:true},
+ // Display & Video 360 reuses the shared Google OAuth client, like the other Google surfaces.
+ {id:'dv360',name:'Display & Video 360',kind:'Programmatic display & video',description:'Connect DV360 advertisers, insertion orders and line items.',logo:'▶',gateway:'dv360_native_action',env:'DV360',authorize:'https://accounts.google.com/o/oauth2/v2/auth',token:'https://oauth2.googleapis.com/token',scopes:['https://www.googleapis.com/auth/display-video'],pkce:true,assetKinds:['advertisers'],selectionKind:'advertisers',reviewedWrites:true},
+ // Reddit exchanges and refreshes with HTTP Basic authentication and requires a descriptive
+ // User-Agent on every token call; both are applied in exchange() and in src/auth.ts.
+ {id:'reddit',name:'Reddit',kind:'Reddit Ads',description:'Connect Reddit ad accounts, campaigns and saved audiences.',logo:'r',gateway:'reddit_native_action',env:'REDDIT',authorize:'https://www.reddit.com/api/v1/authorize',token:'https://www.reddit.com/api/v1/access_token',scopes:['adsread','adsedit'],assetKinds:['ad_accounts'],reviewedWrites:true}
 ];
 export function platform(id:string){const p=platforms.find(p=>p.id===id);if(!p)throw new MirrorError('PLATFORM_NOT_FOUND','Unknown advertising platform.',{},404);return p;}
 export function selectionKind(gateway:string){return platforms.find(p=>p.gateway===gateway)?.selectionKind??'ad_accounts';}
@@ -33,15 +39,26 @@ export function signOAuth1(method:string,url:URL,consumerKey:string,consumerSecr
 }
 export class PlatformOAuth {
  constructor(readonly web:WebStore,private env:NodeJS.ProcessEnv=process.env,private fetcher:typeof fetch=fetch,readonly allowWrites=false){}
+ /**
+  * Reddit requires a unique, descriptive User-Agent on every token call and throttles or
+  * rejects generic ones. Operators can set their own; the default identifies AMCP and is
+  * sanitised because the value becomes a request header.
+  */
+ redditUserAgent(){
+  const configured=this.env.AMCP_REDDIT_USER_AGENT;
+  const value=configured&&configured.trim()?configured.trim():'AMCP/0.1.0 (advertising campaign management)';
+  if(/[\r\n]/.test(value))throw new MirrorError('USER_AGENT_REQUIRED','AMCP_REDDIT_USER_AGENT must not contain line breaks.');
+  return value;
+ }
  config(p:PlatformDefinition){
-  const sharedGoogle=['ga4','gtm','gsc','drive','sheets'].includes(p.id)&&!this.env['AMCP_'+p.env+'_CLIENT_ID']&&!this.env['AMCP_'+p.env+'_CLIENT_SECRET'];
+  const sharedGoogle=['ga4','gtm','gsc','drive','sheets','dv360'].includes(p.id)&&!this.env['AMCP_'+p.env+'_CLIENT_ID']&&!this.env['AMCP_'+p.env+'_CLIENT_SECRET'];
   const clientId=this.env['AMCP_'+(sharedGoogle?'GOOGLE':p.env)+'_CLIENT_ID'],clientSecret=this.env['AMCP_'+(sharedGoogle?'GOOGLE':p.env)+'_CLIENT_SECRET'];
   const writeScope=this.allowWrites?(p.id==='meta'?'ads_management':p.id==='linkedin'?'rw_ads':undefined):undefined;
   const defaults=[...p.scopes,...(writeScope?[writeScope]:[]),...(this.allowWrites&&p.id==='gtm'?gtmWriteScopes:[]),...(this.allowWrites&&p.id==='gsc'?['https://www.googleapis.com/auth/webmasters']:[])];
   const appleKey=!!(this.env.AMCP_APPLE_TEAM_ID&&this.env.AMCP_APPLE_KEY_ID&&this.env.AMCP_APPLE_PRIVATE_KEY);
   return {clientId,clientSecret,configured:!!(clientId&&(clientSecret||p.id==='apple'&&appleKey)&&(p.id!=='microsoft'||this.env.AMCP_MICROSOFT_DEVELOPER_TOKEN)),redirectUri:this.web.origin+'/api/auth/'+p.id+'/callback',scopes:p.id==='apple'?p.scopes:(this.env['AMCP_'+p.env+'_SCOPES']?.split(/[ ,]+/).filter(Boolean))??defaults};
  }
- publicConfig(){return platforms.map(p=>{const c=this.config(p);return {...p,selectionKind:p.selectionKind??'ad_accounts',authorize:undefined,token:undefined,configured:c.configured,callback:p.authType?null:c.redirectUri,scopes:c.scopes};});}
+ publicConfig(){return platforms.map(p=>{const c=this.config(p);return {...p,contract:effectiveProviderContract(p.id),selectionKind:p.selectionKind??'ad_accounts',authorize:undefined,token:undefined,configured:c.configured,callback:p.authType?null:c.redirectUri,scopes:c.scopes};});}
  async connectService(id:string):Promise<{credentials:Credentials;label:string;scopes:string[]}>{
   const p=platform(id),c=this.config(p);if(p.id!=='apple')throw new MirrorError('OAUTH_FLOW_REQUIRED','Use browser authorization for this platform.');
   if(!c.configured)throw new MirrorError('PROVIDER_SETUP_REQUIRED','Configure Apple Ads API credentials in Railway before connecting.',{},409);
@@ -74,6 +91,7 @@ export class PlatformOAuth {
    if(id!=='tiktok')url.searchParams.set('response_type','code');if(c.scopes.length)url.searchParams.set('scope',c.scopes.join(id==='meta'?',':' '));
    if(p.pkce){url.searchParams.set('code_challenge',createHash('sha256').update(verifier).digest('base64url'));url.searchParams.set('code_challenge_method','S256');}
    if(p.token==='https://oauth2.googleapis.com/token'){url.searchParams.set('access_type','offline');url.searchParams.set('prompt',reauthorization?'consent select_account':'consent');}
+   if(id==='reddit')url.searchParams.set('duration','permanent');
    if(id==='meta'&&this.env.AMCP_META_CONFIG_ID){url.searchParams.set('config_id',this.env.AMCP_META_CONFIG_ID);url.searchParams.set('override_default_response_type','true');}
   }
   this.web.beginOAuth(session,id,data,state);this.web.store.putDocument(session.actor.tenantId,'oauth_progress',attemptId,{platform:id,state:'authorization',createdAt:Date.now(),authorization:false,exchange:false,sync:false});
@@ -97,8 +115,13 @@ export class PlatformOAuth {
   const code=query[id==='tiktok'?'auth_code':'code'];if(!code||code.length>8192)throw new MirrorError('OAUTH_CODE_REQUIRED','The provider did not return an authorization code.',{},400);
   const body=new URLSearchParams({client_id:c.clientId!,client_secret:c.clientSecret!,grant_type:'authorization_code',code,redirect_uri:stored.redirectUri});if(p.pkce)body.set('code_verifier',stored.verifier);
   if(id==='microsoft')body.set('scope',microsoftScope+' offline_access');
+  // Reddit authenticates the token call with HTTP Basic and rejects requests without a
+  // descriptive User-Agent. The same two rules apply on refresh (src/auth.ts), so the
+  // User-Agent is stored on the connection rather than recomputed there.
+  const redditHeaders=id==='reddit'?{Authorization:'Basic '+Buffer.from(c.clientId+':'+c.clientSecret).toString('base64'),'User-Agent':this.redditUserAgent()}:undefined;
+  if(redditHeaders){body.delete('client_id');body.delete('client_secret');}
   const tokenUrl=new URL(p.token);if(id==='meta'){body.delete('grant_type');tokenUrl.search=body.toString();}
-  result=await this.readResponse(await this.fetcher(tokenUrl,{method:id==='meta'?'GET':'POST',body:id==='meta'?undefined:id==='tiktok'?JSON.stringify({app_id:c.clientId,secret:c.clientSecret,auth_code:code}):body,headers:id==='tiktok'?{'Content-Type':'application/json'}:{},redirect:'error',signal:AbortSignal.timeout(15000)}));
+  result=await this.readResponse(await this.fetcher(tokenUrl,{method:id==='meta'?'GET':'POST',body:id==='meta'?undefined:id==='tiktok'?JSON.stringify({app_id:c.clientId,secret:c.clientSecret,auth_code:code}):body,headers:id==='tiktok'?{'Content-Type':'application/json'}:redditHeaders??{},redirect:'error',signal:AbortSignal.timeout(15000)}));
   if(id==='tiktok'){if(result.code!==0||!result.data)throw new MirrorError('OAUTH_EXCHANGE_FAILED','TikTok rejected the authorization code.',{},502);result=result.data;}
   if(id==='meta'&&this.env.AMCP_META_LONG_LIVED_TOKEN!=='false'){
    if(typeof result.access_token!=='string'||!result.access_token)throw new MirrorError('OAUTH_RESPONSE_INVALID','Meta did not return a usable short-lived token.',{},502);
@@ -110,6 +133,7 @@ export class PlatformOAuth {
   }
   if(typeof result.access_token!=='string'||!result.access_token||result.refresh_token!==undefined&&typeof result.refresh_token!=='string')throw new MirrorError('OAUTH_RESPONSE_INVALID','The provider did not return a usable access token.',{},502);
   const expires=result.expires_in===undefined?undefined:Number(result.expires_in);if(expires!==undefined&&(!Number.isFinite(expires)||expires<=0))throw new MirrorError('OAUTH_RESPONSE_INVALID','The provider returned an invalid token lifetime.',{},502);
+  if(id==='reddit'&&(!result.refresh_token||!expires))throw new MirrorError('OFFLINE_ACCESS_REQUIRED','Reddit did not grant renewable access. Start a new permanent authorization before saving this connection.',{},502);
   const credentials:Credentials={accessToken:result.access_token,refreshToken:result.refresh_token,clientId:c.clientId,clientSecret:c.clientSecret,redirectUri:stored.redirectUri,...(expires?{expiresAt:Date.now()+expires*1000}:{}),...(id==='google'?{developerToken:this.env.AMCP_GOOGLE_DEVELOPER_TOKEN,loginCustomerId:this.env.AMCP_GOOGLE_LOGIN_CUSTOMER_ID}:{})};
   if(id==='microsoft'){credentials.developerToken=this.env.AMCP_MICROSOFT_DEVELOPER_TOKEN;if(!credentials.refreshToken||!expires)throw new MirrorError('OAUTH_RESPONSE_INVALID','Microsoft authorization must return offline access and a valid lifetime. Reconnect with offline_access.',{},502);}
   // Bind fallback scope metadata to the authorization that produced this code.

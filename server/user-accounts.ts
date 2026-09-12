@@ -33,30 +33,43 @@ export class UserAccounts {
  constructor(readonly web:WebStore){this.env=web.options.authEnv??process.env;this.fetcher=web.options.fetcher??fetch;}
  get emailConfigured(){return !!(this.env.AMCP_EMAIL_API_KEY&&this.env.AMCP_EMAIL_FROM&&this.web.options.masterKey);}
  get signupEnabled(){return this.env.AMCP_ALLOW_SIGNUP!=='false'&&!!this.web.options.masterKey;}
+ /** Signups need an owner's approval unless a deployment opts out of the review step. */
+ get autoApprove(){return this.env.AMCP_AUTO_APPROVE_SIGNUPS==='true';}
  limit(req:Request,action:string,identity='',max=8){
   const now=Date.now(),db=this.web.store.db,keys=[sha256('user-auth:'+action+':'+this.web.clientAddress(req))];if(identity)keys.push(sha256('user-auth-identity:'+action+':'+identity));
   this.web.store.transaction(()=>{db.prepare('DELETE FROM amcp_login_limits WHERE until_at<=?').run(now);for(const key of keys){const row=db.prepare('SELECT attempts FROM amcp_login_limits WHERE key=?').get(key) as JsonObject|undefined;if(row&&row.attempts>=max)throw new MirrorError('LOGIN_RATE_LIMIT','Too many attempts. Please try again in 15 minutes.',{},429);}for(const key of keys)db.prepare('INSERT INTO amcp_login_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET attempts=attempts+1').run(key,now+900000);});
  }
  user(id:string):JsonObject{const user=this.web.store.db.prepare('SELECT * FROM amcp_users WHERE id=? AND disabled=0').get(id) as JsonObject|undefined;if(!user)throw new MirrorError('ACCOUNT_UNAVAILABLE','This account is unavailable.',{},401);return user;}
+ /** Sign-in and session paths must refuse an account that has not been granted access. */
+ assertApproved(user:JsonObject){if(!user.approved)throw new MirrorError('ACCOUNT_PENDING_APPROVAL','Your account is awaiting approval. You will be able to sign in once an administrator grants access.',{},403);}
  profile(session:WebSession){
+  if(session.actor.userId==='workspace-test')return {id:'workspace-test',name:'Test reviewer',email:null,hasPassword:true,identities:[],administrator:false,workspaceName:'AMCP test workspace',workspaceId:session.actor.tenantId,workspaceRole:'owner',mfaEnabled:false,testAccount:true};
   if(session.actor.userId==='workspace-admin')return {id:'workspace-admin',name:'Workspace administrator',email:null,hasPassword:true,identities:[],administrator:true,workspaceName:'AMCP workspace',workspaceId:session.actor.tenantId,workspaceRole:'owner',mfaEnabled:false};
   const u=this.user(session.actor.userId),identities=this.web.store.db.prepare('SELECT provider,created_at FROM amcp_identities WHERE user_id=?').all(u.id);
   let workspaceName=u.name+"’s workspace";try{workspaceName=this.web.store.document(session.actor.tenantId,'account_settings','workspace').name;}catch{}
   const membership=this.web.store.db.prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1').get(session.actor.tenantId,u.id) as JsonObject|undefined;
-  return {id:u.id,name:u.name,email:u.email,hasPassword:!!u.password_hash,identities,administrator:false,workspaceName,workspaceId:session.actor.tenantId,workspaceRole:membership?.role,mfaEnabled:this.hasMfa(u.id)};
+  return {id:u.id,name:u.name,email:u.email,hasPassword:!!u.password_hash,identities,administrator:false,workspaceName,workspaceId:session.actor.tenantId,workspaceRole:membership?.role,mfaEnabled:this.hasMfa(u.id),testAccount:!!u.test_account};
  }
- newUser(name:string,email:string|null,passwordHash:string|null):JsonObject{
+ /** Self-service signups are created unapproved: an owner grants access before first use.
+  * Invited members are already vetted by the workspace that invited them.
+  *
+  * `approved` is required rather than defaulting. A default of true meant a caller that simply
+  * omitted the argument would create an approved account, and the failure mode — access that
+  * works when it should not — is invisible. Callers must now state which case they are in. */
+ newUser(name:string,email:string|null,passwordHash:string|null,approved:boolean,testAccount=false):JsonObject{
   const id=randomUUID(),tenant='user-'+randomUUID(),now=Date.now();this.web.store.ensureTenant(tenant);
-  this.web.store.db.prepare('INSERT INTO amcp_users(id,email,name,tenant_id,password_hash,created_at) VALUES(?,?,?,?,?,?)').run(id,email,name,tenant,passwordHash,now);
+  this.web.store.db.prepare('INSERT INTO amcp_users(id,email,name,tenant_id,password_hash,approved,test_account,created_at) VALUES(?,?,?,?,?,?,?,?)').run(id,email,name,tenant,passwordHash,approved?1:0,testAccount?1:0,now);
   this.web.store.db.prepare("INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,'owner',?)").run(tenant,id,now);
-  this.web.store.putDocument(tenant,'account_settings','workspace',{name:name+"’s workspace"});this.web.store.appendAudit(tenant,randomUUID(),{event:'account_created',user_id:id});return this.user(id);
+  this.web.store.putDocument(tenant,'account_settings','workspace',{name:name+"’s workspace"});this.web.store.appendAudit(tenant,randomUUID(),{event:'account_created',user_id:id,approved});
+  if(!approved)this.queueNotice(this.web.tenantId,this.ownerEmail()??'','AMCP access request from '+(email??name),name+' ('+(email??'no email address')+') created an AMCP account and is waiting for access.\n\nReview pending requests in Settings:\n'+this.web.origin+'/settings\n\nNobody can sign in until you grant access.\n','signup:'+id);
+  return this.user(id);
  }
  hasMfa(id:string){return !!this.web.store.db.prepare('SELECT 1 FROM amcp_mfa WHERE user_id=?').get(id);}
  session(user:JsonObject,tenant=user.tenant_id,mfaVerified=false){
   if(this.hasMfa(user.id)&&!mfaVerified)throw new MirrorError('MFA_REQUIRED','Complete two-step verification.',{},401);
   const m=this.web.store.db.prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1').get(tenant,user.id) as JsonObject|undefined;
   if(!m)throw new MirrorError('MEMBERSHIP_REQUIRED','You no longer have access to this workspace.',{},403);
-  return this.web.createSession({userId:user.id,ownerUserId:user.id,tenantId:tenant,membershipRole:m.role,role:m.role==='viewer'?'reader':m.role==='operator'?'operator':'admin'});
+  return this.web.createSession({userId:user.id,ownerUserId:user.id,tenantId:tenant,membershipRole:m.role,role:m.role==='viewer'?'reader':m.role==='operator'?'operator':'admin',...(user.test_account?{testAccount:true}:{})});
  }
  loginResult(user:JsonObject){if(this.hasMfa(user.id))return {mfaRequired:true,ticket:this.challenge('mfa_login',{userId:user.id,version:user.version},300000)};return this.session(user);}
  async login(req:Request,input:JsonObject){
@@ -65,6 +78,7 @@ export class UserAccounts {
   if(!await verifyPassword(input.password,user?.password_hash))throw new MirrorError('INVALID_LOGIN','Email or password is incorrect.',{},401);
   // The password may have changed while the asynchronous KDF was running.
   const current=this.user(user!.id);if(current.version!==user!.version)throw new MirrorError('INVALID_LOGIN','Please sign in again.',{},401);
+  this.assertApproved(current);
   if(user!.password_hash?.startsWith('scrypt-v2$')&&typeof input.password==='string'&&input.password.length>=15){const hash=await hashUserPassword(input.password);const changed=this.web.store.db.prepare('UPDATE amcp_users SET password_hash=? WHERE id=? AND version=?').run(hash,current.id,current.version);if(!changed.changes)throw new MirrorError('INVALID_LOGIN','Please sign in again.',{},401);}
   this.web.store.appendAudit(current.tenant_id,randomUUID(),{event:'account_sign_in',method:'password'});return this.loginResult(current);
  }
@@ -88,6 +102,31 @@ export class UserAccounts {
   const id=sha256(token),now=Date.now(),secret=this.web.sealAccount('mail:'+id,{from:this.env.AMCP_EMAIL_FROM,to:[email],subject:title,text:title+'\n\n'+link+'\n\nThis link is single-use and expires at '+new Date(row.expires_at).toISOString()+'. If you did not request it, ignore this email.'});
   this.web.store.db.prepare("INSERT OR IGNORE INTO amcp_email_outbox(id,tenant_id,secret,state,available_at,expires_at,created_at) VALUES(?,?,?,'queued',?,?,?)").run(id,tenant,secret,now,row.expires_at,now);
   await this.deliverEmails(id);
+ }
+ /** Queues a notification that carries no single-use link. The worker drains the outbox
+  * every second, so callers need not await delivery inside a transaction. */
+ queueNotice(tenant:string,to:string,subject:string,text:string,key:string){
+  if(!this.emailConfigured||!to)return false;
+  const id=sha256('notice:'+key),now=Date.now();
+  const secret=this.web.sealAccount('mail:'+id,{from:this.env.AMCP_EMAIL_FROM,to:[to],subject,text});
+  // The deterministic id makes a repeated event idempotent at the outbox and at the provider.
+  this.web.store.db.prepare("INSERT OR IGNORE INTO amcp_email_outbox(id,tenant_id,secret,state,available_at,expires_at,created_at) VALUES(?,?,?,'queued',?,?,?)").run(id,tenant,secret,now,now+86400000,now);
+  return true;
+ }
+ /** Names the exact variables an operator must set. Owner-gated: never shown to a visitor,
+  * because "temporarily unavailable" tells neither the visitor nor the operator anything. */
+ setupGaps(){
+  return {
+   email:[...(this.web.options.masterKey?[]:['MIRROR_MASTER_KEY']),...(this.env.AMCP_EMAIL_API_KEY?[]:['AMCP_EMAIL_API_KEY']),...(this.env.AMCP_EMAIL_FROM?[]:['AMCP_EMAIL_FROM'])],
+   signup:this.signupEnabled?[]:[this.web.options.masterKey?'AMCP_ALLOW_SIGNUP':'MIRROR_MASTER_KEY'],
+   ownerNotice:this.ownerEmail()?[]:['AMCP_OWNER_EMAIL'],
+   reviewer:this.web.testPasswordProblem??(this.web.testConfigured?null:'Set AMCP_TEST_PASSWORD to give reviewers a sign-in button.')
+  };
+ }
+ /** Access requests go to the instance owner, or to an explicitly configured address. */
+ ownerEmail(){
+  const row=this.web.store.db.prepare("SELECT u.email AS email FROM amcp_users u JOIN workspace_memberships m ON m.user_id=u.id WHERE m.tenant_id=? AND m.role='owner' AND m.active=1 AND u.disabled=0 AND u.email IS NOT NULL LIMIT 1").get(this.web.tenantId) as JsonObject|undefined;
+  return (this.env.AMCP_OWNER_EMAIL??row?.email) as string|undefined;
  }
  async deliverEmails(onlyId?:string){
   if(!this.emailConfigured)return false;const db=this.web.store.db,now=Date.now(),lease=randomUUID();
@@ -123,7 +162,7 @@ export class UserAccounts {
    this.readChallenge(input.token,kind,true);
    if(kind==='register'){
     if(this.web.store.db.prepare('SELECT id FROM amcp_users WHERE email=?').get(data.email))throw new MirrorError('ACCOUNT_EXISTS','An account already uses this email. Sign in or reset your password.');
-    this.newUser(data.name,data.email,hash);
+    this.newUser(data.name,data.email,hash,this.autoApprove||data.test===true,data.test===true);
    }else{
     const user=this.user(data.userId);if(user.version!==data.version)throw new MirrorError('LINK_EXPIRED','Your account changed. Request a fresh link.');
     if(kind==='email'){
@@ -132,7 +171,7 @@ export class UserAccounts {
     }else this.web.store.db.prepare('UPDATE amcp_users SET password_hash=?,version=version+1 WHERE id=?').run(hash,user.id);
     this.revokeAccess(user);this.web.store.appendAudit(user.tenant_id,randomUUID(),{event:kind==='email'?'account_email_verified':'account_password_reset'});
    }
-  });return {message:kind==='register'?'Your account is ready. Sign in to open your workspace.':'Account updated. Sign in again; previous sessions and MCP access have been revoked.'};
+  });return {message:kind==='register'?this.autoApprove||data.test===true?'Your account is ready. Sign in to open your workspace.':'Your account has been created and is awaiting approval. You will be able to sign in once an administrator grants access.':'Account updated. Sign in again; previous sessions and MCP access have been revoked.'};
  }
  async requestEmail(req:Request,input:JsonObject){
   const s=this.web.requireMutation(req),u=this.user(s.actor.userId),email=accountEmail(input.email);this.limit(req,'email',email,5);this.fresh(s);

@@ -1,7 +1,24 @@
+import {readMediaBody,type MediaSink} from './media-buffer.js';
 import {MirrorError} from './errors.js';
-const configuredMediaLimit=Number(process.env.AMCP_MAX_MEDIA_MB??128);
-if(!Number.isInteger(configuredMediaLimit)||configuredMediaLimit<32||configuredMediaLimit>512)throw new Error('AMCP_MAX_MEDIA_MB must be an integer from 32 to 512.');
-export const MAX_MEDIA_BYTES=configuredMediaLimit*1024*1024;
+const defaultMediaLimit=128;
+/**
+ * AMCP_MAX_MEDIA_MB is optional, so a bad value must not stop the server from starting. This
+ * threw at module load, which aborts the process before anything can report why — the same
+ * failure that took a deployment down over an optional reviewer password. A rejected value
+ * falls back to the safe default and is surfaced instead: loudly on stderr at startup, and as
+ * `mediaLimitProblem` for the health surface to report.
+ */
+function configuredMediaLimit(raw=process.env.AMCP_MAX_MEDIA_MB){
+ if(raw===undefined||raw==='')return {limit:defaultMediaLimit};
+ const value=Number(raw);
+ if(!Number.isInteger(value)||value<32||value>512)
+  return {limit:defaultMediaLimit,problem:'AMCP_MAX_MEDIA_MB must be an integer from 32 to 512; the configured value was ignored and the '+defaultMediaLimit+' MB default applies.'};
+ return {limit:value};
+}
+const mediaLimit=configuredMediaLimit();
+export const mediaLimitProblem=mediaLimit.problem;
+if(mediaLimit.problem)process.stderr.write('AMCP: '+mediaLimit.problem+'\n');
+export const MAX_MEDIA_BYTES=mediaLimit.limit*1024*1024;
 const idPattern=/^[A-Za-z0-9_-]{10,200}$/;
 
 /** A file share link is an identifier, never an arbitrary download destination. */
@@ -30,7 +47,7 @@ export function mediaType(bytes:Buffer):{mime:string;kind:'image'|'video';extens
  }
  throw new MirrorError('MEDIA_TYPE_UNSUPPORTED','The download is not PNG, JPEG, MP4 or MOV. Private Drive links and download confirmation pages cannot be uploaded.');
 }
-export async function downloadDriveMedia(source:string,fetcher:typeof fetch=fetch){
+export async function downloadDriveMedia(source:string,fetcher:typeof fetch=fetch,sink?:MediaSink){
  let url=driveDownloadUrl(source);const signal=AbortSignal.timeout(45000);
  for(let redirects=0;redirects<=3;redirects++){
   if(!allowedDownload(url))throw new MirrorError('UNAPPROVED_MEDIA_SOURCE','Drive redirected outside its approved download hosts.');
@@ -42,11 +59,7 @@ export async function downloadDriveMedia(source:string,fetcher:typeof fetch=fetc
   if(!response.ok){await response.body?.cancel();throw new MirrorError('DRIVE_FILE_UNAVAILABLE','Make this Drive file downloadable by anyone with the link, then prepare again.',{http_status:response.status});}
   if(Number(response.headers.get('content-length'))>MAX_MEDIA_BYTES){await response.body?.cancel();throw new MirrorError('MEDIA_TOO_LARGE','Media must be at most the configured media limit.');}
   if(/text\/html|application\/json/i.test(response.headers.get('content-type')??'')){await response.body?.cancel();throw new MirrorError('DRIVE_FILE_UNAVAILABLE','Drive returned a permission or download confirmation page. Use a directly downloadable shared file.');}
-  const reader=response.body?.getReader(),chunks:Uint8Array[]=[];let size=0;
-  try{if(reader)while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>MAX_MEDIA_BYTES){await reader.cancel();throw new MirrorError('MEDIA_TOO_LARGE','Media must be at most the configured media limit.');}chunks.push(value);}}
-  catch(e){if(e instanceof MirrorError)throw e;throw new MirrorError('MEDIA_DOWNLOAD_FAILED','The Drive download did not complete.',{},502);}
-  finally{reader?.releaseLock();}
-  const bytes=Buffer.concat(chunks);return {bytes,...mediaType(bytes)};
+  const bytes=await readMediaBody(response,MAX_MEDIA_BYTES,sink);return {bytes,...mediaType(bytes)};
  }
  throw new MirrorError('MEDIA_DOWNLOAD_FAILED','Drive exceeded the download redirect limit.');
 }

@@ -15,13 +15,16 @@
     "admin": "node dist/tools/admin.js",
     "verify:reads": "node dist/tools/verify-reads.js",
     "test:capture": "node --test tools/catalog/core.test.mjs",
-    "test": "npm run build && node --test dist/tests/*.test.js",
+    "test": "npm run build && node --test --test-concurrency=1 dist/tests/*.test.js tests/*.test.mjs",
     "capture:normalize": "node tools/catalog/normalize.mjs",
     "generate": "node codegen/generate.mjs",
     "generate:check": "node codegen/generate.mjs --check",
     "generate:vendor:check": "node tools/fetch-vendor-specs.mjs --generate-only --check",
     "report": "node dist/tools/report.js",
-    "check": "npm run generate:check && npm run generate:vendor:check && npm test && npm run test:capture && npm run report"
+    "check:web": "node tools/check-web.mjs",
+    "providers:check": "node dist/tools/provider-drift.js",
+    "release:assemble": "node tools/prepare-public-release.mjs",
+    "check": "npm run generate:check && npm run generate:vendor:check && npm test && npm run test:capture && npm run report && npm run check:web && npm run providers:check"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

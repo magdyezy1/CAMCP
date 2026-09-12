@@ -14,7 +14,7 @@ import type {Actor} from '../src/types.js';
 import {removeTestDirectory} from './temp.js';
 const actor:Actor={tenantId:'t',userId:'a',role:'admin'};
 test('captured reporting schemas bind, save, prepare, execute and fetch a run through MCP',async()=>{
- const store=new Store(':memory:');try{
+ const store=new Store(':memory:',Buffer.alloc(32,9).toString('base64'));try{
   const service=new MirrorService(new Registry(),store);
   const call=(operation:string,args:any)=>service.call('amcp_native_action',{operation,arguments:args},actor);
   const preview=await call('bind_reporting_workbook',{spreadsheet_id:'test',dry_run:true});assert.equal(preview.data.executed,false);assert.equal(store.documents('t','workbook').length,0);
@@ -29,7 +29,7 @@ test('captured reporting schemas bind, save, prepare, execute and fetch a run th
  }finally{store.close();}
 });
 test('schedules enqueue atomically and keep one job per claimed occurrence',async()=>{
- const store=new Store(':memory:');try{
+ const store=new Store(':memory:',Buffer.alloc(32,9).toString('base64'));try{
   const reporting=new ReportingService(store);
   const binding=reporting.handle('bind_reporting_workbook',{spreadsheet_id:'test',dry_run:false},actor) as any;
   const query=reporting.handle('create_reporting_query',{workbook_binding_id:binding.id,name:'R',query_config:{platform:'google'},dry_run:false},actor) as any;
@@ -53,13 +53,13 @@ test('rolling windows resolve complete local calendar days without modifying the
  assert.equal(config.date_range.preset,'last_complete_days');assert.throws(()=>resolveReportConfig({date_range:{preset:'last_complete_days',days:7}}),/timezone/);
 });
 test('queued jobs and completed results survive database close and reopen',async()=>{
- const directory=fs.mkdtempSync(path.join(os.tmpdir(),'amcp-persistence-')),file=path.join(directory,'test.sqlite');let store=new Store(file);
- try{store.ensureTenant('t');const id=store.enqueue('t','report',{query_config:{test:true}});store.close();store=new Store(file);
-  const worker=new ReportWorker(store,async()=>({value:42}));assert.equal(await worker.once(),true);store.close();store=new Store(file);assert.equal(store.job('t',id).state,'complete');assert.equal(store.job('t',id).result.value,42);
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'amcp-persistence-')),file=path.join(directory,'test.sqlite');let store=new Store(file,Buffer.alloc(32,9).toString('base64'));
+ try{store.ensureTenant('t');const id=store.enqueueReport(actor,{query_config:{test:true}});store.close();store=new Store(file,Buffer.alloc(32,9).toString('base64'));
+  const worker=new ReportWorker(store,async()=>({value:42}));assert.equal(await worker.once(),true);store.close();store=new Store(file,Buffer.alloc(32,9).toString('base64'));assert.equal(store.job('t',id).state,'complete');assert.equal(store.job('t',id).result.value,42);
  }finally{store.close();removeTestDirectory(directory,'amcp-persistence-');}
 });
 test('worker failure is durable and never converted to an empty successful report',async()=>{
- const store=new Store(':memory:');try{const id=store.enqueue('t','report',{query_config:{}});const worker=new ReportWorker(store,async()=>{throw Error('do not expose internal credentials');});await worker.once();assert.equal(store.job('t',id).state,'failed');assert.equal(store.job('t',id).error.code,'REPORT_FAILED');assert.ok(!JSON.stringify(store.job('t',id)).includes('credentials'));}finally{store.close();}
+ const store=new Store(':memory:',Buffer.alloc(32,9).toString('base64'));try{const id=store.enqueueReport(actor,{query_config:{}});const worker=new ReportWorker(store,async()=>{throw Error('do not expose internal credentials');});await worker.once();assert.equal(store.job('t',id).state,'failed');assert.equal(store.job('t',id).error.code,'REPORT_FAILED');assert.ok(!JSON.stringify(store.job('t',id)).includes('credentials'));}finally{store.close();}
 });
 
 test('native reporting persists malformed responses as failures and accepts valid empty reports',async()=>{
@@ -69,7 +69,7 @@ test('native reporting persists malformed responses as failures and accepts vali
    store.putConnection(actor,{id:'mock',tenantId:'t',gateway:'google_ads_native_action',accounts:['111'],enabled:true,label:'mock',scopes:[]},{accessToken:'mock',developerToken:'mock'});
    let calls=0;const transport=new NativeTransport((async()=>{calls++;return new Response(body,{headers:{'content-type':'application/json'}});}) as typeof fetch,async()=>{});
    const service=new MirrorService(new Registry(),store,transport);
-   const id=store.enqueue('t','report',{query_config:{gateway:'google_ads_native_action',arguments:{action:'google_ads_v23_google_ads_search',account_id:'111',payload:{query:'SELECT campaign.id FROM campaign LIMIT 1'}}}});
+   const id=store.enqueueReport(actor,{query_config:{gateway:'google_ads_native_action',arguments:{action:'google_ads_v23_google_ads_search',account_id:'111',payload:{query:'SELECT campaign.id FROM campaign LIMIT 1'}}}});
    await new ReportWorker(store,createReportExecutor(service)).once();
    const job=store.job('t',id),valid=body==='{}'||body==='{"results":[]}';assert.equal(job.state,valid?'complete':'failed',body);assert.equal(calls,1);
    if(valid)assert.deepEqual(job.result.data,JSON.parse(body));else {assert.equal(job.error.code,'UPSTREAM_RESPONSE_INVALID');assert.equal(job.result,null);}

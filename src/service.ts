@@ -8,7 +8,7 @@ import {Store} from './store.js';
 import {CredentialProvider} from './auth.js';
 import {NativeTransport} from './transport.js';
 import {authorizeExecution,readOnlyPolicy,type ExecutionPolicy} from './preflight.js';
-import {errorResult,MirrorError} from './errors.js';
+import {errorResult,MirrorError,untrustedProviderContent} from './errors.js';
 import {redact} from './security.js';
 import {paginate} from './pagination.js';
 import {ScopeGuard} from './scope.js';
@@ -31,6 +31,13 @@ import {validateProviderRequest} from './provider-validation.js';
 import {MediaUploadService,mediaTool} from './media-upload.js';
 import {nativeMediaInput,workflowMediaInput,mediaPreview,mediaNext,inspectDrive,mediaDiscovery,mediaInstructions} from './media-routing.js';
 export const strictOptions:CallOptions={mode:'strict',flags:{}};
+/**
+ * Tools whose results are composed entirely on this server from the static catalog, and so
+ * cannot carry provider-authored text. Everything else is labelled, which means a tool added
+ * later is labelled by default rather than silently exempt.
+ */
+const localOnlyTools=new Set(['amcp_tool_help']);
+export const carriesProviderContent=(tool:string)=>!localOnlyTools.has(tool);
 export class MirrorService {
  readonly compiler:Compiler;readonly introspection:Introspection;readonly credentials:CredentialProvider;
  readonly delegatedCompiler=new DelegatedNativeCompiler();
@@ -40,30 +47,47 @@ export class MirrorService {
   const requestId=randomUUID(),start=Date.now();
   try{
    this.store.assertActorActive(actor);
-   if(tool===overviewTool.name)return this.wrap(await new ReportingOverview(this,this.mediaFetcher).handle(input,actor),requestId,start);
+   if(tool===overviewTool.name)return this.wrap(await new ReportingOverview(this,this.mediaFetcher).handle(input,actor),requestId,start,tool);
    const call=(t:string,a:JsonObject,u:Actor)=>this.call(t,a,u);
-   if(tool===workspaceTool.name)return this.wrap(await new WorkspaceService(this.store,this.registry,this.transport,this.credentials,call,this.policy.allowWrites).handle(input,actor),requestId,start);
-   if(tool===campaignTool.name)return this.wrap(await new CampaignRunner(this.store,call,(a,id)=>this.verifyWrite(a,id), (a,i)=>validateProviderRequest(this,a,i),(a,steps)=>campaignPreflight(this,a,steps)).handle(input,actor),requestId,start);
+   if(tool===workspaceTool.name)return this.wrap(await new WorkspaceService(this.store,this.registry,this.transport,this.credentials,call,this.policy.allowWrites).handle(input,actor),requestId,start,tool);
+   if(tool===campaignTool.name)return this.wrap(await new CampaignRunner(this.store,call,(a,id)=>this.verifyWrite(a,id), (a,i)=>validateProviderRequest(this,a,i),(a,steps)=>campaignPreflight(this,a,steps)).handle(input,actor),requestId,start,tool);
    if(tool===decisionTool.name)return this.wrap(await new DecisionReporting(this.store,async(t,a,u)=>{
     this.registry.validate(t,a,this.options);const p=this.registry.tools.get(t)?.mode==='delegated'?this.delegatedCompiler.compile(t,a):this.compiler.compile(t,a,this.options);
     if(!applyExecutionRisk(p).readOnly)throw new MirrorError('REPORT_READ_REQUIRED','Reporting accepts independently qualified native reads only.');
-    return this.wrap(await this.runPlan(p,a.operation?a.arguments:a,u),requestId,start);
-   }).handle(input,actor),requestId,start);
-   if(tool===mediaTool.name)return this.wrap(mediaNext(await this.media().call(input,actor)),requestId,start);
-   if(tool===writeTool.name){const result:any=await this.reviewed(input,actor);return {...this.wrap(result,requestId,start),...(result.success===false?{success:false,error:{code:'WRITE_PARTIAL_OR_FAILED',message:'Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.'}}:{})};}
+    return this.wrap(await this.runPlan(p,a.operation?a.arguments:a,u),requestId,start,tool);
+   }).handle(input,actor),requestId,start,tool);
+   if(tool===mediaTool.name)return this.wrap(mediaNext(await this.media().call(input,actor)),requestId,start,tool);
+   if(tool===writeTool.name){const result:any=await this.reviewed(input,actor);return {...this.wrap(result,requestId,start,tool),...(result.success===false?{success:false,error:{code:'WRITE_PARTIAL_OR_FAILED',message:'Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.'}}:{})};}
    this.registry.validate(tool,input,this.options);
    if(tool==='amcp_tool_help'){const help=this.registry.help(input,this.options),media=mediaDiscovery(input.gateway);return {...help,amcp_guidance:guidanceDiscovery,amcp_extensions:{gateways:[microsoftGateway]},...(media?{amcp_media_import:media}:{})};}
-   if(input.action==='LIST_ACTIONS')return this.wrap(this.introspection.list(tool,input,this.options),requestId,start);
-   if(input.action==='DESCRIBE_ACTION'){const description=this.introspection.describe(tool,input),media=mediaDiscovery(tool);return this.wrap({...description,amcp_write_inspection:{tool:'amcp_write',action:'inspect',gateway:tool,usage:'Supply the intended native arguments to check local review-contract support without provider calls. Media routes use amcp_media.'},...(media?{amcp_media_import:media}:{})},requestId,start);}
-   if(this.registry.tools.get(tool)?.mode==='delegated')return this.wrap(await this.delegated(tool,input.operation,input.arguments??{},actor,requestId),requestId,start);
+   if(input.action==='LIST_ACTIONS')return this.wrap(this.introspection.list(tool,input,this.options),requestId,start,tool);
+   if(input.action==='DESCRIBE_ACTION'){const description=this.introspection.describe(tool,input),media=mediaDiscovery(tool);return this.wrap({...description,amcp_write_inspection:{tool:'amcp_write',action:'inspect',gateway:tool,usage:'Supply the intended native arguments to check local review-contract support without provider calls. Media routes use amcp_media.'},...(media?{amcp_media_import:media}:{})},requestId,start,tool);}
+   if(this.registry.tools.get(tool)?.mode==='delegated')return this.wrap(await this.delegated(tool,input.operation,input.arguments??{},actor,requestId),requestId,start,tool);
    const plan=this.compiler.compile(tool,input,this.options);
    const hasMediaSource=['drive_url','url','image_url','video_url','file_url','source'].some(k=>plan.body&&typeof plan.body==='object'&&(plan.body as JsonObject)[k]!==undefined);
    const media=input.dry_run===false||hasMediaSource?nativeMediaInput(plan,this.connectionId(input)):undefined;
-   if(media)return this.wrap(input.dry_run===false?mediaNext(await this.media().call(media,actor)):mediaPreview(media),requestId,start);
-   return this.wrap(await this.runPlan(plan,input,actor,requestId),requestId,start);
+   if(media)return this.wrap(input.dry_run===false?mediaNext(await this.media().call(media,actor)):mediaPreview(media),requestId,start,tool);
+   return this.wrap(await this.runPlan(plan,input,actor,requestId),requestId,start,tool);
   }catch(e){const result=errorResult(e,requestId,Date.now()-start);this.store.appendAudit(actor.tenantId,requestId,{tool,input:redact(input),outcome:result});return result;}
  }
- private wrap(data:unknown,requestId:string,start:number){return {success:true,data,meta:{requestId,latencyMs:Date.now()-start}};}
+ /**
+  * Campaign names, ad copy, creative and media metadata, report rows and account labels are
+  * written by whoever can edit the advertising account — agency staff, clients, and on Reddit
+  * and X the wider public. They arrive here as data and are handed to a language model that can
+  * go on to prepare provider mutations, which is the shape of a prompt-injection channel.
+  *
+  * Nothing is rewritten or stripped: altering a campaign name would corrupt the reporting it
+  * feeds. Responses that can carry third-party text are labelled instead, so the model is told
+  * at the point of use that the content is data rather than instruction. The reviewed-write
+  * protocol remains the control that stops an injected instruction from reaching a provider;
+  * this makes the risk legible to the model and to the person approving a plan.
+  */
+
+ private wrap(data:unknown,requestId:string,start:number,tool?:string){
+  const meta:JsonObject={requestId,latencyMs:Date.now()-start};
+  if(tool&&carriesProviderContent(tool))meta.untrusted_provider_content=untrustedProviderContent;
+  return {success:true,data,meta};
+ }
  async verifyWrite(actor:Actor,id:string){return new WriteVerifier(this.store,this.registry,this.transport,this.credentials).verify(actor,id);}
  async verificationJob(tenant:string,kind:string,input:JsonObject){
   if(kind!=='write_verification')throw new MirrorError('UNKNOWN_JOB_KIND','No worker handles this job.');
@@ -100,7 +124,7 @@ export class MirrorService {
   const credentials=await this.credentials.get(connection);
   this.store.appendAudit(actor.tenantId,requestId,{event:'request_started',actor:actor.userId,request:plan});
   try{
-   const fetchPage=async(p:CompiledRequest)=>{this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,p.gateway,p.accountId,connection.id);scope.authorize(p,current);const result=await this.transport.request(p,current,credentials),{data,status}=result;this.delegatedCompiler.validateResponse(p,data,status);validateAppleResponse(p,data);if(p.gateway===microsoftGateway)validateMicrosoftResponse(p,result);scope.observe(p,current,data);if(p.gateway===microsoftGateway&&p.reportDownload)return this.microsoftDownload(p,data as JsonObject,actor,current.id);return data;};
+   const fetchPage=async(p:CompiledRequest)=>{const current=this.store.resolveConnection(actor,p.gateway,p.accountId,connection.id);scope.authorize(p,current);const result=await this.transport.request(p,current,credentials),{data,status}=result;const active=this.store.resolveConnection(actor,p.gateway,p.accountId,current.id);scope.authorize(p,active);this.delegatedCompiler.validateResponse(p,data,status);validateAppleResponse(p,data);if(p.gateway===microsoftGateway)validateMicrosoftResponse(p,result);scope.observe(p,active,data);if(p.gateway===microsoftGateway&&p.reportDownload)return this.microsoftDownload(p,data as JsonObject,actor,active.id);return data;};
    const result=input.aggregate_pages||input.paginate||input.allPages?await paginate(plan,fetchPage,Number(input.max_pages??25)):{data:await fetchPage(plan),pages:1,truncated:false};
    const projected=projectResponse(result.data,plan.responseControls);
    const outcome={success:true,action:plan.action,dry_run:false,...result,data:projected.data,truncated:result.truncated||projected.truncated,...(projected.truncated?{response_truncated:true}:{})};

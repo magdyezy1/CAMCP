@@ -58,7 +58,7 @@ test('native Reddit reporting collects each page with the same body and fails on
  for(const endless of [false,true]){
   const calls:any[]=[];const x=setup((async(url,init)=>{calls.push({url:String(url),body:init?.body});return new Response(JSON.stringify({data:{metrics:[{date:'2026-08-01',impressions:calls.length}]},pagination:{next_url:endless||calls.length===1?'https://ads-api.reddit.com/api/v3/ad_accounts/a2_111/reports?page.token='+calls.length:null}}));}) as typeof fetch);
   try{
-   const id=x.store.enqueue(actor.tenantId,'report',{query_config:{gateway:'reddit_native_action',arguments:{operation:'reddit_reporting_ops',arguments:report}}});
+   const id=x.store.enqueueReport(actor,{query_config:{gateway:'reddit_native_action',arguments:{operation:'reddit_reporting_ops',arguments:report}}});
    await new ReportWorker(x.store,createReportExecutor(x.service)).once();const job=x.store.job(actor.tenantId,id);
    assert.equal(job.state,endless?'failed':'complete');assert.equal(calls.length,endless?25:2);assert.ok(calls.every(c=>c.body===JSON.stringify(report.payload)));
    if(endless)assert.equal(job.error.code,'REPORT_TRUNCATED');else {assert.equal(job.result.data.data.metrics.length,2);assert.equal(job.result.pages,2);}
@@ -80,7 +80,7 @@ test('valid JSON with an invalid Reddit report shape is a durable failure',async
  for(const response of [{},{data:[],pagination:{}},{data:{metrics:'not rows'},pagination:{}},{data:{metrics:[{impressions:'not a number'}]},pagination:{}}]){
   const x=setup((async()=>new Response(JSON.stringify(response))) as typeof fetch);
   try{
-   const id=x.store.enqueue(actor.tenantId,'report',{query_config:{gateway:'reddit_native_action',arguments:{operation:'reddit_reporting_ops',arguments:report}}});
+   const id=x.store.enqueueReport(actor,{query_config:{gateway:'reddit_native_action',arguments:{operation:'reddit_reporting_ops',arguments:report}}});
    await new ReportWorker(x.store,createReportExecutor(x.service)).once();const job=x.store.job(actor.tenantId,id);assert.equal(job.state,'failed');assert.equal(job.error.code,'UPSTREAM_RESPONSE_INVALID');
   }finally{x.store.close();}
  }

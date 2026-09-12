@@ -14,7 +14,7 @@ async function hashFile(file:string){const hash=createHash('sha256');for await(c
 
 /** Verify a disposable restored copy; never restore over the running database. */
 export async function verifyEncryptedBackup(file:string,key:string|undefined){
- const secret=backupKey(key),size=fs.statSync(file).size,header=Buffer.alloc(magic.length+12),tag=Buffer.alloc(16),fd=fs.openSync(file,'r');
+ const restoreStarted=performance.now();const secret=backupKey(key),size=fs.statSync(file).size,header=Buffer.alloc(magic.length+12),tag=Buffer.alloc(16),fd=fs.openSync(file,'r');
  try{if(size<header.length+16)throw new MirrorError('BACKUP_INVALID','The encrypted backup is truncated.');fs.readSync(fd,header,0,header.length,0);fs.readSync(fd,tag,0,16,size-16);}finally{fs.closeSync(fd);}
  if(!header.subarray(0,magic.length).equals(magic))throw new MirrorError('BACKUP_INVALID','This is not an AMCP encrypted backup.');
  const temp=temporary();let output:number|undefined;
@@ -24,7 +24,7 @@ export async function verifyEncryptedBackup(file:string,key:string|undefined){
   fs.writeSync(output,decrypt.final());fs.closeSync(output);output=undefined;
   const db=new DatabaseSync(temp.file,{readOnly:true});try{const result=db.prepare('PRAGMA integrity_check').all() as JsonObject[];if(result.length!==1||result[0]!.integrity_check!=='ok')throw new MirrorError('BACKUP_INTEGRITY_FAILED','The restored SQLite copy failed its integrity check.');}finally{db.close();}
   const restored=new Store(temp.file,key);try{if(!restored.verifyAudit())throw new MirrorError('BACKUP_AUDIT_FAILED','The restored audit chain is invalid.');for(const tenant of restored.listTenants())for(const connection of restored.listConnections(tenant))restored.credentials(tenant,connection.id);}finally{restored.close();}
-  return {status:'verified',verified_at:Date.now(),encrypted_bytes:size,sha256:await hashFile(file),message:'Disposable restoration passed SQLite integrity, audit-chain and connection decryption checks. Store a copy off-host and keep its master key separately.'};
+  return {status:'verified',restore_duration_ms:Math.ceil(performance.now()-restoreStarted),restore_scope:'Disposable local copy; production RPO/RTO and remote-write reconciliation are not established.',verified_at:Date.now(),encrypted_bytes:size,sha256:await hashFile(file),message:'Disposable restoration passed SQLite integrity, audit-chain and connection decryption checks. Store a copy off-host and keep its master key separately.'};
  }catch(e){if(e instanceof MirrorError)throw e;throw new MirrorError('BACKUP_DECRYPT_FAILED','Backup authentication or restoration failed. Check the matching master key and file.');}
  finally{if(output!==undefined)fs.closeSync(output);temp.clean();}
 }

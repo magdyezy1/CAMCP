@@ -1,3 +1,6 @@
+import type {MediaSink} from './media-buffer.js';
+import {operationRecovery,type OperationPhase} from './operation-journal.js';
+import {createHash} from 'node:crypto';
 import {MAX_MEDIA_BYTES} from './drive-media.js';
 import {DatabaseSync} from 'node:sqlite';
 import fs from 'node:fs';
@@ -46,6 +49,7 @@ export class Store {
    CREATE INDEX IF NOT EXISTS jobs_ready ON jobs(state,available_at);
    CREATE INDEX IF NOT EXISTS audit_tenant ON audit(tenant_id,seq);
    CREATE TABLE IF NOT EXISTS resource_ownership(tenant_id TEXT NOT NULL,connection_id TEXT NOT NULL,account_id TEXT NOT NULL,resource TEXT NOT NULL,expires_at INTEGER NOT NULL,PRIMARY KEY(tenant_id,connection_id,account_id,resource));
+   CREATE TABLE IF NOT EXISTS media_admissions(id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,bytes INTEGER NOT NULL,expires_at INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS media_chunks(tenant_id TEXT NOT NULL,id TEXT NOT NULL,chunk_index INTEGER NOT NULL,secret TEXT NOT NULL,PRIMARY KEY(tenant_id,id,chunk_index));
    CREATE TABLE IF NOT EXISTS media_staging(tenant_id TEXT NOT NULL,id TEXT NOT NULL,secret TEXT,expires_at INTEGER NOT NULL,PRIMARY KEY(tenant_id,id));
   `);
@@ -56,6 +60,32 @@ export class Store {
   }catch(e){this.db.close();throw e;}
  }
  close(){this.db.close();}
+ saveUploadSession(tenant:string,id:string,value:JsonObject,expiresAt:number){if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Upload sessions require encryption.');this.putDocument(tenant,'upload_session',id,{secret:this.box.seal(value,scopeKey(tenant,'upload-session',id)),expires_at:expiresAt});}
+ uploadSession(tenant:string,id:string):JsonObject|undefined{const row=this.db.prepare("SELECT data FROM documents WHERE tenant_id=? AND kind='upload_session' AND id=?").get(tenant,id) as JsonObject|undefined;if(!row)return;const data=JSON.parse(row.data);if(data.expires_at<=Date.now())return;return this.box!.open<JsonObject>(data.secret,scopeKey(tenant,'upload-session',id));}
+ mediaAdmission(tenant:string){
+  const id=randomUUID(),bytes=6*MAX_MEDIA_BYTES,now=Date.now();
+  // One maximum-sized operation by default, shared by all workers. Covers upload/base64/FFmpeg copies.
+  const raw=Number(process.env.AMCP_MEDIA_MEMORY_MB??bytes/1048576),limit=Number.isSafeInteger(raw)&&raw>=bytes/1048576&&raw<=8192?raw*1048576:bytes;
+  this.transaction(()=>{this.db.prepare('DELETE FROM media_admissions WHERE expires_at<=?').run(now);const used=this.db.prepare('SELECT coalesce(sum(bytes),0) AS n FROM media_admissions').get() as JsonObject;if(used.n+bytes>limit)throw new MirrorError('MEDIA_MEMORY_BUSY','Another media operation is using the shared byte budget. Wait for it to finish, then retry preparation or the same unsubmitted review.',{retry_after_ms:5000,reserved_bytes:used.n,limit_bytes:limit},429,true);this.db.prepare('INSERT INTO media_admissions VALUES(?,?,?,?)').run(id,tenant,bytes,now+300000);});
+  return {id,bytes,limit,check:()=>{const r=this.db.prepare('UPDATE media_admissions SET expires_at=? WHERE id=? AND expires_at>?').run(Date.now()+300000,id,Date.now());if(!r.changes)throw new MirrorError('MEDIA_ADMISSION_LOST','This media operation lost its byte reservation. Inspect any submitted upload before further action.');},release:()=>{this.db.prepare('DELETE FROM media_admissions WHERE id=?').run(id);}};
+ }
+ mediaSink(tenant:string,id:string,check:()=>void):MediaSink{
+  if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Encrypted staging is required.');
+  let pending=Buffer.alloc(4*1024*1024),filled=0,index=0,size=0;const hash=createHash('sha256');
+  const flush=()=>{if(!filled)return;check();this.transaction(()=>{if(!this.db.prepare('SELECT id FROM media_staging WHERE tenant_id=? AND id=? AND expires_at>?').get(tenant,id,Date.now()))throw new MirrorError('REVIEW_EXPIRED','Media staging expired or was cancelled.');this.db.prepare('INSERT INTO media_chunks VALUES(?,?,?,?)').run(tenant,id,index,this.box!.seal({bytes:pending.subarray(0,filled).toString('base64')},scopeKey(tenant,'media-chunk',id,String(index))));});index++;filled=0;};
+  return {write:(part)=>{check();size+=part.length;if(size>MAX_MEDIA_BYTES)throw new MirrorError('MEDIA_TOO_LARGE','Media exceeds its reservation.');hash.update(part);for(let offset=0;offset<part.length;){const take=Math.min(pending.length-filled,part.length-offset);pending.set(part.subarray(offset,offset+take),filled);filled+=take;offset+=take;if(filled===pending.length)flush();}},finish:()=>{flush();check();this.db.prepare('UPDATE media_staging SET secret=? WHERE tenant_id=? AND id=?').run(this.box!.seal({chunks:index,size,sha256:hash.digest('hex')},scopeKey(tenant,'media',id)),tenant,id);pending=Buffer.alloc(0);return this.stagedMedia(tenant,id);}};
+ }
+ journal(tenant:string,id:string,phase:OperationPhase,details:JsonObject={}){
+  this.transaction(()=>{const prior=this.db.prepare("SELECT data FROM documents WHERE tenant_id=? AND kind='operation_journal' AND id=?").get(tenant,id) as JsonObject|undefined,old=prior?JSON.parse(prior.data):{sequence:0,events:[]};
+   // Only explicit diagnostic fields; no URLs, credentials, request bodies or actor bindings.
+   const safe=Object.fromEntries(['media_id','bytes_confirmed','total_bytes','upload_session_created','code','step_id','report_id','rows'].filter(k=>details[k]!==undefined).map(k=>[k,details[k]])),event={sequence:old.sequence+1,phase,at:Date.now(),...safe};
+   this.putDocument(tenant,'operation_journal',id,{version:1,sequence:event.sequence,phase,updated_at:event.at,events:[...old.events,event].slice(-100),...operationRecovery(phase)});
+  });
+ }
+ providerMetric(tenant:string,gateway:string,metric:'requests'|'errors'|'rate_limits'|'latency_ms',value=1){this.transaction(()=>{const r=this.db.prepare("SELECT data FROM documents WHERE tenant_id=? AND kind='provider_metrics' AND id=?").get(tenant,gateway) as JsonObject|undefined,data=r?JSON.parse(r.data):{};this.putDocument(tenant,'provider_metrics',gateway,{...data,[metric]:(data[metric]??0)+value,at:Date.now()});});}
+ operationJournal(tenant:string,id:string){try{return this.document(tenant,'operation_journal',id);}catch(e){if(!(e instanceof MirrorError&&e.code==='NOT_FOUND'))throw e;return {version:1,phase:'unknown',events:[],...operationRecovery('unknown')};}}
+ cleanupTransient(){const now=Date.now();this.transaction(()=>{this.db.prepare('DELETE FROM media_chunks WHERE EXISTS(SELECT 1 FROM media_staging s WHERE s.tenant_id=media_chunks.tenant_id AND s.id=media_chunks.id AND s.expires_at<=?)').run(now);this.db.prepare('DELETE FROM media_staging WHERE expires_at<=?').run(now);this.db.prepare('DELETE FROM media_admissions WHERE expires_at<=?').run(now);this.db.prepare("DELETE FROM documents WHERE kind='upload_session' AND json_extract(data,'$.expires_at')<=?").run(now);this.db.prepare('DELETE FROM provider_cooldowns WHERE until_at<=?').run(now);this.db.prepare("DELETE FROM documents WHERE tenant_id='__service_limits__' AND kind IN ('provider_budget','worker_heartbeat') AND coalesce(json_extract(data,'$.at'),0)<?").run(now-86400000);});}
+
  reserveMedia(tenant:string,id:string,expiresAt:number){
   if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Media staging requires the configured master key.');
   this.transaction(()=>{
@@ -73,7 +103,7 @@ export class Store {
  }
  stagedMedia(tenant:string,id:string):Buffer{
   const row=this.db.prepare('SELECT secret FROM media_staging WHERE tenant_id=? AND id=? AND expires_at>?').get(tenant,id,Date.now()) as {secret:string}|undefined;
-  if(!this.box||!row?.secret)throw new MirrorError('REVIEW_EXPIRED','The staged media expired or was removed.');const manifest=this.box.open<JsonObject>(row.secret,scopeKey(tenant,'media',id));if(manifest.bytes)return Buffer.from(manifest.bytes,'base64');const chunks=this.db.prepare('SELECT chunk_index,secret FROM media_chunks WHERE tenant_id=? AND id=? ORDER BY chunk_index').all(tenant,id) as JsonObject[];if(chunks.length!==manifest.chunks||manifest.size>MAX_MEDIA_BYTES)throw new MirrorError('MEDIA_STAGING_INVALID','Encrypted media chunks are incomplete.');const bytes=Buffer.concat(chunks.map((c,i)=>{if(c.chunk_index!==i)throw new MirrorError('MEDIA_STAGING_INVALID','Encrypted media chunk order is invalid.');return Buffer.from(this.box!.open<{bytes:string}>(c.secret,scopeKey(tenant,'media-chunk',id,String(i))).bytes,'base64');}));if(bytes.length!==manifest.size||sha256(bytes)!==manifest.sha256)throw new MirrorError('MEDIA_STAGING_INVALID','Staged media integrity check failed.');return bytes;
+  if(!this.box||!row?.secret)throw new MirrorError('REVIEW_EXPIRED','The staged media expired or was removed.');const manifest=this.box.open<JsonObject>(row.secret,scopeKey(tenant,'media',id));if(manifest.bytes)return Buffer.from(manifest.bytes,'base64');if(!Number.isSafeInteger(manifest.size)||manifest.size<0||manifest.size>MAX_MEDIA_BYTES)throw new MirrorError('MEDIA_STAGING_INVALID','Invalid staged size.');const bytes=Buffer.alloc(manifest.size);let offset=0,index=0;for(const c of this.db.prepare('SELECT chunk_index,secret FROM media_chunks WHERE tenant_id=? AND id=? ORDER BY chunk_index').iterate(tenant,id) as Iterable<JsonObject>){if(c.chunk_index!==index)throw new MirrorError('MEDIA_STAGING_INVALID','Encrypted media chunk order is invalid.');const part=Buffer.from(this.box!.open<{bytes:string}>(c.secret,scopeKey(tenant,'media-chunk',id,String(index++))).bytes,'base64');if(offset+part.length>bytes.length)throw new MirrorError('MEDIA_STAGING_INVALID','Encrypted chunks exceed the manifest.');part.copy(bytes,offset);offset+=part.length;}if(index!==manifest.chunks||offset!==bytes.length)throw new MirrorError('MEDIA_STAGING_INVALID','Encrypted media chunks are incomplete.');if(bytes.length!==manifest.size||sha256(bytes)!==manifest.sha256)throw new MirrorError('MEDIA_STAGING_INVALID','Staged media integrity check failed.');return bytes;
  }
  removeStagedMedia(tenant:string,id:string){this.transaction(()=>{this.db.prepare('DELETE FROM media_chunks WHERE tenant_id=? AND id=?').run(tenant,id);this.db.prepare('DELETE FROM media_staging WHERE tenant_id=? AND id=?').run(tenant,id);});}
  transaction<T>(fn:()=>T):T{
@@ -99,11 +129,15 @@ export class Store {
   const actor:Actor={tenantId:row.tenant_id,userId:row.user_id,role:row.role,...(owner?{ownerUserId:owner.user_id}:{})};this.authenticatedActors.set(actor,sha256(token));this.assertActorActive(actor);return actor;
  }
  /** HTTP actors retain a process-local credential identity without exposing the token or hash. */
- bindActorCheck(actor:Actor,check:()=>void){this.actorChecks.set(actor,check);}
+ bindActorCheck(actor:Actor,check:()=>void){const previous=this.actorChecks.get(actor);this.actorChecks.set(actor,previous?()=>{previous();check();}:check);}
  assertActorActive(actor:Actor):void{
   this.actorChecks.get(actor)?.();
   if(actor.userId==='workspace-admin'&&this.db.prepare("SELECT 1 FROM documents WHERE tenant_id=? AND kind='account_settings' AND id='owner_migration'").get(actor.tenantId))throw new MirrorError('OWNER_LOGIN_REQUIRED','The administrator workspace was migrated. Sign in with the owner account and explicitly resume pending work.',{},401);
-   const version=(actor as JsonObject).accountVersion;if(actor.ownerUserId&&typeof version==='number'){const user=this.db.prepare('SELECT version FROM amcp_users WHERE id=?').get(actor.ownerUserId) as JsonObject|undefined;if(!user||user.version!==version)throw new MirrorError('ACCOUNT_ACCESS_REVOKED','Account security changed. Sign in again and explicitly resume this job or schedule.',{},401);}
+  if(actor.ownerUserId){
+   const hasUsers=this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='amcp_users'").get();
+   const user=hasUsers?this.db.prepare('SELECT version,approved,disabled FROM amcp_users WHERE id=?').get(actor.ownerUserId) as JsonObject|undefined:undefined;
+   if(!user||!user.approved||user.disabled||actor.accountVersion!==undefined&&user.version!==actor.accountVersion)throw new MirrorError('ACCOUNT_ACCESS_REVOKED','Account access or security changed. Sign in again and explicitly resume this job or schedule.',{},401);
+  }
   if(actor.ownerUserId){const membership=this.db.prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1').get(actor.tenantId,actor.ownerUserId) as JsonObject|undefined;const rank:Record<string,number>={viewer:0,reader:0,operator:1,admin:2,owner:2};if(!membership||rank[membership.role]!<rank[actor.role]!)throw new MirrorError('MEMBERSHIP_REVOKED','Workspace access was removed or reduced. Sign in or authorize the connector again.',{},403);}
   const hash=this.authenticatedActors.get(actor);if(!hash)return; // Trusted local/stdio actors have no bearer credential.
   const row=this.db.prepare('SELECT tenant_id,user_id,role FROM api_keys WHERE hash=? AND revoked=0 AND (expires_at IS NULL OR expires_at>?)').get(hash,Date.now()) as JsonObject|undefined;
@@ -112,18 +146,21 @@ export class Store {
  revokeKey(token:string){this.db.prepare('UPDATE api_keys SET revoked=1 WHERE hash=?').run(sha256(token));}
  bindJobActor(actor:Actor,id:string):string{
   this.assertActorActive(actor);if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Background verification requires encryption.');
-  return this.box.seal({actor,credential_hash:this.authenticatedActors.get(actor)??null},scopeKey(actor.tenantId,'job-actor',id));
+  const bound={...actor};if(bound.ownerUserId&&bound.accountVersion===undefined)bound.accountVersion=Number((this.db.prepare('SELECT version FROM amcp_users WHERE id=?').get(bound.ownerUserId) as JsonObject).version);
+  return this.box.seal({version:1,actor:bound,credential_hash:this.authenticatedActors.get(actor)??null},scopeKey(actor.tenantId,'job-actor',id));
  }
  acquireLock(key:string,owner:string,ttl=45000):boolean{return this.transaction(()=>{const now=Date.now();this.db.prepare('DELETE FROM service_locks WHERE key=? AND expires_at<=?').run(key,now);return this.db.prepare('INSERT OR IGNORE INTO service_locks(key,owner,expires_at) VALUES(?,?,?)').run(key,owner,now+ttl).changes===1;});}
  releaseLock(key:string,owner:string){this.db.prepare('DELETE FROM service_locks WHERE key=? AND owner=?').run(key,owner);}
  // Shared across processes, so this bucket must use wall-clock time; never let a backward
  // clock correction subtract tokens. Refill pauses until the clock catches up, which is the safe direction.
- providerPermit(key:string){return this.transaction(()=>{const now=Date.now(),cooldown=this.db.prepare('SELECT until_at FROM provider_cooldowns WHERE key=?').get(key) as JsonObject|undefined;if(cooldown?.until_at>now)throw new MirrorError('PLATFORM_RATE_LIMIT','The shared provider cooldown is active.',{retry_after_ms:cooldown!.until_at-now},429,true);const record=this.db.prepare("SELECT data FROM documents WHERE tenant_id='__service_limits__' AND kind='provider_budget' AND id=?").get(sha256(key)) as JsonObject|undefined,old=record?JSON.parse(record.data):{tokens:30,at:now},tokens=Math.min(30,old.tokens+Math.max(0,now-old.at)/200);if(tokens<1)throw new MirrorError('TENANT_RATE_LIMIT','The shared platform request budget is exhausted.',{retry_after_ms:Math.ceil((1-tokens)*200)},429,true);this.putDocument('__service_limits__','provider_budget',sha256(key),{tokens:tokens-1,at:now});});}
+ providerPermit(key:string){return this.transaction(()=>{const now=Date.now(),cooldown=this.db.prepare('SELECT until_at FROM provider_cooldowns WHERE key=?').get(key) as JsonObject|undefined;if(cooldown?.until_at>now)throw new MirrorError('PLATFORM_RATE_LIMIT','The shared provider cooldown is active.',{retry_after_ms:cooldown!.until_at-now},429,true);const record=this.db.prepare("SELECT data FROM documents WHERE tenant_id='__service_limits__' AND kind='provider_budget' AND id=?").get(sha256(key)) as JsonObject|undefined,old=record?JSON.parse(record.data):{tokens:30,at:now},tokens=Math.min(30,old.tokens+Math.max(0,now-old.at)/200);if(tokens<1)throw new MirrorError('TENANT_RATE_LIMIT','The shared platform request budget is exhausted.',{retry_after_ms:Math.ceil((1-tokens)*200)},429,true);this.putDocument('__service_limits__','provider_budget',sha256(key),{tokens:tokens-1,at:Math.max(now,old.at)});});}
  providerCooldown(key:string,milliseconds:number){const until=Date.now()+Math.max(1000,Math.min(3600000,milliseconds));this.db.prepare('INSERT INTO provider_cooldowns VALUES(?,?) ON CONFLICT(key) DO UPDATE SET until_at=max(until_at,excluded.until_at)').run(key,until);}
  retryJob(id:string,leaseToken:string,error:unknown,delayMs:number){const now=Date.now(),r=this.db.prepare("UPDATE jobs SET state='queued',error=?,available_at=?,lease_until=NULL,lease_token=NULL,updated_at=? WHERE id=? AND state='running' AND lease_token=? AND lease_until>?").run(JSON.stringify(redact(error)),now+Math.max(1000,Math.min(3600000,delayMs)),now,id,leaseToken,now);if(!r.changes)throw new MirrorError('STALE_JOB_LEASE','This worker no longer owns the job lease.',{},409);}
  restoreJobActor(tenant:string,id:string,binding:string):Actor{
+  if(typeof binding!=='string'||!binding)throw new MirrorError('JOB_REAUTHORIZATION_REQUIRED','This job has no verified creator. An authorized member must explicitly resume it.',{},403);
   if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Background verification requires encryption.');
-  const value=this.box.open<{actor:Actor;credential_hash:string|null}>(binding,scopeKey(tenant,'job-actor',id)),actor=value.actor;
+  const value=this.box.open<{version?:number;actor:Actor;credential_hash:string|null}>(binding,scopeKey(tenant,'job-actor',id)),actor=value.actor;
+  if(value.version!==undefined&&value.version!==1)throw new MirrorError('JOB_REAUTHORIZATION_REQUIRED','This job authority version is unsupported. Explicitly resume it with the current application.',{},403);
   if(actor.tenantId!==tenant)throw new MirrorError('FORBIDDEN','Invalid job tenant.');
   if(value.credential_hash)this.authenticatedActors.set(actor,value.credential_hash);this.assertActorActive(actor);return actor;
  }
@@ -173,10 +210,10 @@ export class Store {
  claim(tenantId:string,key:string,fingerprint:string):{fresh:boolean;result?:unknown}{return this.transaction(()=>{
   const row=this.db.prepare('SELECT * FROM idempotency WHERE tenant_id=? AND key=?').get(tenantId,key) as JsonObject|undefined;
   if(row){if(row.fingerprint!==fingerprint)throw new MirrorError('IDEMPOTENCY_CONFLICT','The same key was used for a different request.',{},409);if(row.state==='complete')return {fresh:false,result:JSON.parse(row.result)};throw new MirrorError('WRITE_OUTCOME_UNCERTAIN','This key is pending or has an uncertain outcome. Read back the platform state before resolving it.',{},409);}
-  this.db.prepare("INSERT INTO idempotency(tenant_id,key,fingerprint,state,created_at) VALUES(?,?,?,'pending',?)").run(tenantId,key,fingerprint,Date.now());return {fresh:true};
+  this.db.prepare("INSERT INTO idempotency(tenant_id,key,fingerprint,state,created_at) VALUES(?,?,?,'pending',?)").run(tenantId,key,fingerprint,Date.now());this.journal(tenantId,key,'claimed');return {fresh:true};
  });}
- complete(tenantId:string,key:string,result:unknown){this.db.prepare("UPDATE idempotency SET state='complete',result=? WHERE tenant_id=? AND key=?").run(JSON.stringify(redact(result)),tenantId,key);}
- uncertain(tenantId:string,key:string){this.db.prepare("UPDATE idempotency SET state='uncertain' WHERE tenant_id=? AND key=?").run(tenantId,key);}
+ complete(tenantId:string,key:string,result:unknown){this.transaction(()=>{this.db.prepare("UPDATE idempotency SET state='complete',result=? WHERE tenant_id=? AND key=?").run(JSON.stringify(redact(result)),tenantId,key);this.journal(tenantId,key,'responded');});}
+ uncertain(tenantId:string,key:string){this.transaction(()=>{this.db.prepare("UPDATE idempotency SET state='uncertain' WHERE tenant_id=? AND key=?").run(tenantId,key);this.journal(tenantId,key,'uncertain');});}
  putDocument(tenantId:string,kind:string,id:string,data:unknown,expectedRevision?:number){return this.transaction(()=>{
   const old=this.db.prepare('SELECT revision FROM documents WHERE tenant_id=? AND kind=? AND id=?').get(tenantId,kind,id) as {revision:number}|undefined;
   if(expectedRevision!==undefined&&old?.revision!==expectedRevision)throw new MirrorError('REVISION_CONFLICT','The document changed since it was read.',{},409);
@@ -185,23 +222,26 @@ export class Store {
  document(tenantId:string,kind:string,id:string):JsonObject{const row=this.db.prepare('SELECT data,revision FROM documents WHERE tenant_id=? AND kind=? AND id=?').get(tenantId,kind,id) as {data:string;revision:number}|undefined;if(!row)throw new MirrorError('NOT_FOUND','Document not found in this tenant.',{},404);return {...JSON.parse(row.data),id,revision:row.revision};}
  documents(tenantId:string,kind:string):JsonObject[]{return (this.db.prepare('SELECT id,data,revision FROM documents WHERE tenant_id=? AND kind=? ORDER BY id').all(tenantId,kind) as JsonObject[]).map(r=>({...JSON.parse(r.data),id:r.id,revision:r.revision}));}
  enqueue(tenantId:string,kind:string,input:unknown,availableAt=Date.now()):string{const id=randomUUID(),at=Date.now();this.db.prepare("INSERT INTO jobs(id,tenant_id,kind,input,state,available_at,created_at,updated_at) VALUES(?,?,?,?,'queued',?,?,?)").run(id,tenantId,kind,JSON.stringify(input),availableAt,at,at);return id;}
+ enqueueReport(actor:Actor,input:JsonObject,availableAt=Date.now()):string{return this.transaction(()=>{this.assertActorActive(actor);const id=this.enqueue(actor.tenantId,'report',input,availableAt);this.db.prepare('UPDATE jobs SET input=? WHERE id=?').run(JSON.stringify({...input,authority:{version:1,binding:this.bindJobActor(actor,'job:'+id)}}),id);return id;});}
+ resumeReport(actor:Actor,id:string):void{this.transaction(()=>{this.assertActorActive(actor);if(actor.role==='reader')throw new MirrorError('FORBIDDEN','An operator must resume report authority.',{},403);const job=this.job(actor.tenantId,id);if(job.kind!=='report')throw new MirrorError('INVALID_REPORT_RUN','Only reporting runs can use this recovery flow.');if(['running','complete'].includes(job.state))return;if(!['queued','failed','cancelled'].includes(job.state))throw new MirrorError('INVALID_JOB_STATE','This report cannot be resumed.',{},409);this.db.prepare("UPDATE jobs SET state='queued',input=?,error=NULL,available_at=?,lease_token=NULL,lease_until=NULL,updated_at=? WHERE tenant_id=? AND id=?").run(JSON.stringify({...job.input,authority:{version:1,binding:this.bindJobActor(actor,'job:'+id)}}),Date.now(),Date.now(),actor.tenantId,id);this.appendAudit(actor.tenantId,id,{event:'report_authority_resumed',actor:actor.userId});});}
  activateJob(tenantId:string,id:string){const result=this.db.prepare("UPDATE jobs SET available_at=?,updated_at=? WHERE tenant_id=? AND id=? AND state='queued'").run(Date.now(),Date.now(),tenantId,id);if(!result.changes){const job=this.job(tenantId,id);if(!['running','complete'].includes(job.state))throw new MirrorError('INVALID_JOB_STATE','Only a queued run can be executed.',{},409);}}
  listTenants():string[]{return (this.db.prepare('SELECT id FROM tenants ORDER BY id').all() as {id:string}[]).map(r=>r.id);}
  enqueueSchedule(tenantId:string,scheduleId:string,revision:number,nextRunAt:number):string|undefined{return this.transaction(()=>{
   const schedule=this.document(tenantId,'reporting_schedule',scheduleId),now=Date.now();
   if(schedule.revision!==revision||!schedule.is_active||schedule.next_run_at>now)return;
   const query=this.document(tenantId,'reporting_query',schedule.schedule_config.query_id),{id,revision:oldRevision,...data}=schedule;
-  const job=this.enqueue(tenantId,'report',{query_id:query.id,query_revision:query.revision,query_config:query.query_config,schedule_id:scheduleId});
+  const actor=this.restoreJobActor(tenantId,'reporting-schedule:'+scheduleId,schedule.actor_binding);
+  const job=this.enqueueReport(actor,{query_id:query.id,query_revision:query.revision,query_config:query.query_config,schedule_id:scheduleId});
   this.db.prepare('UPDATE documents SET data=?,revision=revision+1 WHERE tenant_id=? AND kind=? AND id=?').run(JSON.stringify({...data,next_run_at:nextRunAt,last_run_id:job,last_run_at:new Date(now).toISOString()}),tenantId,'reporting_schedule',scheduleId);return job;
  });}
  leaseJob(leaseMs=60000):JsonObject|undefined{return this.transaction(()=>{
   if(!Number.isInteger(leaseMs)||leaseMs<1||leaseMs>3600000)throw new MirrorError('INVALID_LEASE','Lease duration must be between 1 ms and 1 hour.');
   const now=Date.now();this.db.prepare("UPDATE jobs SET state='queued',lease_until=NULL,lease_token=NULL WHERE state='running' AND lease_until<=?").run(now);
-  const row=this.db.prepare("SELECT * FROM jobs WHERE state='queued' AND available_at<=? ORDER BY available_at,created_at LIMIT 1").get(now) as JsonObject|undefined;
-  if(!row)return;const token=randomUUID();this.db.prepare("UPDATE jobs SET state='running',attempts=attempts+1,lease_until=?,lease_token=?,updated_at=? WHERE id=?").run(now+leaseMs,token,now,row.id);return {...row,input:JSON.parse(row.input),attempts:row.attempts+1,lease_token:token,lease_until:now+leaseMs};
+  const row=this.db.prepare("SELECT * FROM jobs WHERE state='queued' AND available_at<=? ORDER BY coalesce((SELECT json_extract(data,'$.ordinal') FROM documents WHERE tenant_id='__service_limits__' AND kind='tenant_dispatch' AND id=jobs.tenant_id),0),available_at,created_at LIMIT 1").get(now) as JsonObject|undefined;
+  if(!row)return;const cursor=this.db.prepare("SELECT data FROM documents WHERE tenant_id='__service_limits__' AND kind='queue_cursor' AND id='dispatch'").get() as JsonObject|undefined,ordinal=(cursor?JSON.parse(cursor.data).ordinal:0)+1;this.putDocument('__service_limits__','queue_cursor','dispatch',{ordinal});this.putDocument('__service_limits__','tenant_dispatch',row.tenant_id,{ordinal,at:now});const token=randomUUID();this.db.prepare("UPDATE jobs SET state='running',attempts=attempts+1,lease_until=?,lease_token=?,updated_at=? WHERE id=?").run(now+leaseMs,token,now,row.id);return {...row,input:JSON.parse(row.input),attempts:row.attempts+1,lease_token:token,lease_until:now+leaseMs};
  });}
  finishJob(id:string,leaseToken:string,result:unknown){const now=Date.now();const r=this.db.prepare("UPDATE jobs SET state='complete',result=?,lease_until=NULL,lease_token=NULL,updated_at=? WHERE id=? AND state='running' AND lease_token=? AND lease_until>?").run(JSON.stringify(redact(result)),now,id,leaseToken,now);if(!r.changes)throw new MirrorError('STALE_JOB_LEASE','This worker no longer owns the job lease.',{},409);}
  failJob(id:string,leaseToken:string,error:unknown){const now=Date.now();const r=this.db.prepare("UPDATE jobs SET state='failed',error=?,lease_until=NULL,lease_token=NULL,updated_at=? WHERE id=? AND state='running' AND lease_token=? AND lease_until>?").run(JSON.stringify(redact(error)),now,id,leaseToken,now);if(!r.changes)throw new MirrorError('STALE_JOB_LEASE','This worker no longer owns the job lease.',{},409);}
  renewJob(id:string,leaseToken:string,leaseMs=60000){if(!Number.isInteger(leaseMs)||leaseMs<1||leaseMs>3600000)throw new MirrorError('INVALID_LEASE','Invalid lease duration.');const now=Date.now();const r=this.db.prepare("UPDATE jobs SET lease_until=?,updated_at=? WHERE id=? AND state='running' AND lease_token=? AND lease_until>?").run(now+leaseMs,now,id,leaseToken,now);if(!r.changes)throw new MirrorError('STALE_JOB_LEASE','This worker no longer owns the job lease.',{},409);}
- job(tenantId:string,id:string):JsonObject{const row=this.db.prepare('SELECT * FROM jobs WHERE tenant_id=? AND id=?').get(tenantId,id) as JsonObject|undefined;if(!row)throw new MirrorError('NOT_FOUND','Job not found in this tenant.',{},404);const {lease_token,...publicRow}=row;return {...publicRow,input:JSON.parse(row.input),result:row.result?JSON.parse(row.result):null,error:row.error?JSON.parse(row.error):null};}
+ job(tenantId:string,id:string):JsonObject{const row=this.db.prepare('SELECT * FROM jobs WHERE tenant_id=? AND id=?').get(tenantId,id) as JsonObject|undefined;if(!row)throw new MirrorError('NOT_FOUND','Job not found in this tenant.',{},404);const {lease_token,...publicRow}=row,{authority,...input}=JSON.parse(row.input);return {...publicRow,input,result:row.result?JSON.parse(row.result):null,error:row.error?JSON.parse(row.error):null};}
 }

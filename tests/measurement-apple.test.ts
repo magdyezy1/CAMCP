@@ -123,7 +123,7 @@ test('website onboarding persists selectable properties/sites and Apple accounts
  const request=async(url:string,method='GET',body?:unknown,headers:Record<string,string>={})=>{const r=await fetch(base+url,{method,redirect:'manual',headers:{Origin:origin,'Content-Type':'application/json',...headers},body:body===undefined?undefined:JSON.stringify(body)});return new Response(await r.arrayBuffer(),{status:r.status,headers:r.headers});};
  try{
   const login=await request('/api/session','POST',{password}),headers={Cookie:login.headers.get('set-cookie')!.split(';')[0]!,'X-AMCP-CSRF':(await login.json()).csrf as string};
-  const config=await (await request('/api/platforms')).json();assert.equal(config.platforms.length,13);assert.equal(config.platforms.find((p:JsonObject)=>p.id==='apple').callback,null);assert.ok(!JSON.stringify(config).includes('synthetic'));
+  const config=await (await request('/api/platforms')).json();assert.equal(config.platforms.length,15);assert.equal(config.platforms.find((p:JsonObject)=>p.id==='apple').callback,null);assert.ok(!JSON.stringify(config).includes('synthetic'));
   for(const [id,selection]of [['ga4','properties:123'],['gtm','tag_accounts:44'],['gsc','sites:sc-domain:example.com'],['apple','ad_accounts:77']]){
    assert.equal((await request('/api/auth/'+id+'/start','POST',{})).status,401);const start=await request('/api/auth/'+id+'/start','POST',{},headers);assert.equal(start.status,200);const started=await start.json();
    if(id!=='apple'){const state=new URL(started.url).searchParams.get('state');assert.equal((await request('/api/auth/'+id+'/callback?code=synthetic&state='+state,'GET',undefined,headers)).status,303);}

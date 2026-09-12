@@ -15,8 +15,12 @@ export function createHttpApp(service:MirrorService,store:Store,options:HttpOpti
  if(origin&&(origin.protocol!=='https:'||origin.username||origin.password||origin.pathname!=='/'||origin.search||origin.hash))throw new Error('Public origin must be an HTTPS origin.');
  if(!['127.0.0.1','localhost','::1'].includes(host)&&!origin)throw new Error('External binding requires an HTTPS public origin and TLS reverse proxy.');
  const app=express();app.disable('x-powered-by');
- // Railway health probes need no workspace data and may use a platform host header.
- app.get('/healthz',(_req,res)=>res.setHeader('Cache-Control','no-store').json({status:'up',version:'0.1.0',live_writes:service.policy.allowWrites}));
+ // Railway health probes need no workspace data and may use a platform host header. This route
+ // is mounted before host validation so the platform probe can reach it, which makes it
+ // unauthenticated: it reports liveness only. Whether the instance can perform real provider
+ // mutations is operational detail an anonymous caller has no use for, and it is still reported
+ // on the authenticated health surface (amcp_workspace health).
+ app.get('/healthz',(_req,res)=>res.setHeader('Cache-Control','no-store').json({status:'up',version:'0.1.0'}));
  app.use(hostHeaderValidation(['127.0.0.1','localhost','[::1]',...(origin?[origin.hostname]:[])]));
  app.use((_req,res,next)=>{res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Cache-Control','no-store');next();});
  app.use('/mcp',(req,res,next)=>{

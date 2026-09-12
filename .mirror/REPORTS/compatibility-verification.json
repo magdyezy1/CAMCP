@@ -1,0 +1,252 @@
+{
+  "scope": "Frozen introspection payloads and four compiled route subsets; no full preview envelope or live equivalence claim.",
+  "gateways": [
+    {
+      "gateway": "adjust_native_action",
+      "tier0_schema_loaded": true,
+      "tier1": {
+        "catalog_pages": 0,
+        "descriptions": 0
+      },
+      "tier2": {
+        "full_preview_envelopes": 0,
+        "compiled_route_subsets": 0
+      },
+      "tier3_live_equivalence_comparisons": 0
+    },
+    {
+      "gateway": "amazon_native_action",
+      "tier0_schema_loaded": true,
+      "tier1": {
+        "catalog_pages": 0,
+        "descriptions": 0
+      },
+      "tier2": {
+        "full_preview_envelopes": 0,
+        "compiled_route_subsets": 0
+      },
+      "tier3_live_equivalence_comparisons": 0
+    },
+    {
+      "gateway": "amcp_native_action",
+      "tier0_schema_loaded": true,
+      "tier1": {
+        "catalog_pages": 0,
+        "descriptions": 0
+      },
+      "tier2": {
+        "full_preview_envelopes": 0,
+        "compiled_route_subsets": 0
+      },
+      "tier3_live_equivalence_comparisons": 0
+    },
+    {
+      "gateway": "amcp_platform_workspace",
+      "tier0_schema_loaded": true,
+      "tier1": {
+        "catalog_pages": 0,
+        "descriptions": 0
+      },
+      "tier2": {
+        "full_preview_envelopes": 0,
+        "compiled_route_subsets": 0
+      },
+      "tier3_live_equivalence_comparisons": 0
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "tier0_schema_loaded": true,
+      "tier1": {
+        "catalog_pages": 0,
+        "descriptions": 0
+      },
+      "tier2": {
+        "full_preview_envelopes": 0,
+        "compiled_route_subsets": 0
+      },
+      "tier3_live_equivalence_comparisons": 0
+    },
+    {
+      "gateway": "commerce_native_action",
+      "tier0_schema_loaded": true,
+      "tier1": {
+        "catalog_pages": 0,
+        "descriptions": 0
+      },
+      "tier2": {
+        "full_preview_envelopes": 0,
+        "compiled_route_subsets": 0
+      },
+      "tier3_live_equivalence_comparisons": 0
+    },
+    {
+      "gateway": "criteo_native_action",
+      "tier0_schema_loaded": true,
+      "tier1": {
+        "catalog_pages": 0,
+        "descriptions": 0
+      },
+      "tier2": {
+        "full_preview_envelopes": 0,
+        "compiled_route_subsets": 0
+      },
+      "tier3_live_equivalence_comparisons": 0
+    },
+    {
+      "gateway": "dv360_native_action",
+      "tier0_schema_loaded": true,
+      "tier1": {
+        "catalog_pages": 0,
+        "descriptions": 0
+      },
+      "tier2": {
+        "full_preview_envelopes": 0,
+        "compiled_route_subsets": 0
+      },
+      "tier3_live_equivalence_comparisons": 0
+    },
+    {
+      "gateway": "ga4_native_action",
+      "tier0_schema_loaded": true,
+      "tier1": {
+        "catalog_pages": 0,
+        "descriptions": 0
+      },
+      "tier2": {
+        "full_preview_envelopes": 0,
+        "compiled_route_subsets": 0
+      },
+      "tier3_live_equivalence_comparisons": 0
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "tier0_schema_loaded": true,
+      "tier1": {
+        "catalog_pages": 5,
+        "descriptions": 5
+      },
+      "tier2": {
+        "full_preview_envelopes": 0,
+        "compiled_route_subsets": 0
+      },
+      "tier3_live_equivalence_comparisons": 0
+    },
+    {
+      "gateway": "google_business_native_action",
+      "tier0_schema_loaded": true,
+      "tier1": {
+        "catalog_pages": 0,
+        "descriptions": 0
+      },
+      "tier2": {
+        "full_preview_envelopes": 0,
+        "compiled_route_subsets": 0
+      },
+      "tier3_live_equivalence_comparisons": 0
+    },
+    {
+      "gateway": "google_search_console_native_action",
+      "tier0_schema_loaded": true,
+      "tier1": {
+        "catalog_pages": 0,
+        "descriptions": 0
+      },
+      "tier2": {
+        "full_preview_envelopes": 0,
+        "compiled_route_subsets": 0
+      },
+      "tier3_live_equivalence_comparisons": 0
+    },
+    {
+      "gateway": "gtm_native_action",
+      "tier0_schema_loaded": true,
+      "tier1": {
+        "catalog_pages": 0,
+        "descriptions": 0
+      },
+      "tier2": {
+        "full_preview_envelopes": 0,
+        "compiled_route_subsets": 0
+      },
+      "tier3_live_equivalence_comparisons": 0
+    },
+    {
+      "gateway": "linkedin_native_action",
+      "tier0_schema_loaded": true,
+      "tier1": {
+        "catalog_pages": 3,
+        "descriptions": 3
+      },
+      "tier2": {
+        "full_preview_envelopes": 0,
+        "compiled_route_subsets": 0
+      },
+      "tier3_live_equivalence_comparisons": 0
+    },
+    {
+      "gateway": "meta_native_action",
+      "tier0_schema_loaded": true,
+      "tier1": {
+        "catalog_pages": 6,
+        "descriptions": 3
+      },
+      "tier2": {
+        "full_preview_envelopes": 0,
+        "compiled_route_subsets": 1
+      },
+      "tier3_live_equivalence_comparisons": 0
+    },
+    {
+      "gateway": "reddit_native_action",
+      "tier0_schema_loaded": true,
+      "tier1": {
+        "catalog_pages": 0,
+        "descriptions": 0
+      },
+      "tier2": {
+        "full_preview_envelopes": 0,
+        "compiled_route_subsets": 0
+      },
+      "tier3_live_equivalence_comparisons": 0
+    },
+    {
+      "gateway": "snapchat_native_action",
+      "tier0_schema_loaded": true,
+      "tier1": {
+        "catalog_pages": 5,
+        "descriptions": 3
+      },
+      "tier2": {
+        "full_preview_envelopes": 0,
+        "compiled_route_subsets": 1
+      },
+      "tier3_live_equivalence_comparisons": 0
+    },
+    {
+      "gateway": "tiktok_native_action",
+      "tier0_schema_loaded": true,
+      "tier1": {
+        "catalog_pages": 12,
+        "descriptions": 3
+      },
+      "tier2": {
+        "full_preview_envelopes": 0,
+        "compiled_route_subsets": 1
+      },
+      "tier3_live_equivalence_comparisons": 0
+    },
+    {
+      "gateway": "x_ads_native_action",
+      "tier0_schema_loaded": true,
+      "tier1": {
+        "catalog_pages": 2,
+        "descriptions": 3
+      },
+      "tier2": {
+        "full_preview_envelopes": 0,
+        "compiled_route_subsets": 1
+      },
+      "tier3_live_equivalence_comparisons": 0
+    }
+  ]
+}

@@ -99,8 +99,8 @@ test('the CSV endpoint rejects empty, failed and unfinished reports as JSON with
 test('date controls preserve historical years and empty reports render without download actions',async()=>{
  const esc=(v:unknown)=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
  const root={innerHTML:''},report={id:'empty',state:'complete',row_count:0,rows:[],sources:[{source,complete:true,row_count:0}],empty_reason:'no_provider_rows',config:{...config,custom_metrics:[]},job:{state:'complete'},summary:[],exports:[]};
- const context=createContext({Intl,URLSearchParams,esc,api:async()=>({success:true,data:report}),clearTimeout:()=>{},pollTimer:undefined,location:{pathname:'/reporting-overview'},authBind:()=>{},date:()=>'', $:(selector:string)=>selector==='#overview-results'?root:null});
- new Script(readFileSync('web/reporting-overview.js','utf8')).runInContext(context);
+ const context=createContext({document:{querySelector:()=>null},Intl,URLSearchParams,esc,api:async()=>({success:true,data:report}),clearTimeout:()=>{},pollTimer:undefined,location:{pathname:'/reporting-overview'},authBind:()=>{},date:()=>'', $:(selector:string)=>selector==='#overview-results'?root:null});
+ new Script(readFileSync('web/report-quality.js','utf8')).runInContext(context);new Script(readFileSync('web/reporting-overview.js','utf8')).runInContext(context);
  assert.deepEqual(JSON.parse(new Script("JSON.stringify(reportMonthRange('2025-01'))").runInContext(context)),range);
  assert.equal(new Script("reportMonthRange('2024-02').until").runInContext(context),'2024-02-29');
  assert.equal(new Script("overviewInitialConfig('?since=2025-01-01&until=2025-01-31').date_range.since").runInContext(context),'2025-01-01');

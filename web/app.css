@@ -7,3 +7,5 @@
 .sidebar nav{scrollbar-width:thin;scrollbar-color:#47634f #15201b}.sidebar nav a{padding-top:12px;padding-bottom:12px}
 
 .oauth-client-id{overflow-wrap:anywhere}.reauthorization-errors{padding:0 24px 24px}
+
+.recipe-builder{margin-block:1.5rem}.recipe-choice,.recipe-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.recipe-fields textarea{min-height:6rem}.recipe-builder label{display:flex;flex-direction:column;gap:.35rem}.recipe-builder select,.recipe-builder input,.recipe-builder textarea{max-width:100%;min-width:0}.recipe-builder details{margin-block:1rem}@media(max-width:680px){.recipe-choice,.recipe-fields{grid-template-columns:1fr}}

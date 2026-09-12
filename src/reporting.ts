@@ -26,20 +26,20 @@ export function resolveReportConfig(config:JsonObject,now=Date.now()):JsonObject
 }
 export class ReportingService {
  constructor(readonly store:Store){}
- prepareRun(tenantId:string,queryId:string):string{
-  const query=this.store.document(tenantId,'reporting_query',queryId);
-  return this.store.enqueue(tenantId,'report',{query_id:queryId,query_revision:query.revision,query_config:query.query_config},Number.MAX_SAFE_INTEGER);
+ prepareRun(actor:Actor,queryId:string):string{
+  const query=this.store.document(actor.tenantId,'reporting_query',queryId);
+  return this.store.enqueueReport(actor,{query_id:queryId,query_revision:query.revision,query_config:query.query_config},Number.MAX_SAFE_INTEGER);
  }
  handle(operation:string,args:JsonObject,actor:Actor):unknown{
-  const tenant=actor.tenantId;
+  this.store.assertActorActive(actor);const tenant=actor.tenantId;
   if(operation==='list_reporting_templates')return [{id:'00000000-0000-4000-8000-000000000001',name:'Campaign performance',output:'local JSON and CSV',required:['platform','account_id','date_range'],evidence:'INDEPENDENT_DESIGN'}];
   if(['get_reporting_run','get_reporting_run_status'].includes(operation))return this.store.job(tenant,args.run_id);
-  if(['get_reporting_bootstrap','get_reporting_workbook_bootstrap','get_reporting_storage_overview'].includes(operation))return {workspace_id:tenant,workbooks:this.store.documents(tenant,'workbook').filter(w=>!args.spreadsheet_id||w.spreadsheet_id===args.spreadsheet_id),queries:this.store.documents(tenant,'reporting_query'),schedules:this.store.documents(tenant,'reporting_schedule'),destination:'local',google_sheets_connected:false,external_writes:false};
+  if(['get_reporting_bootstrap','get_reporting_workbook_bootstrap','get_reporting_storage_overview'].includes(operation))return {workspace_id:tenant,workbooks:this.store.documents(tenant,'workbook').filter(w=>!args.spreadsheet_id||w.spreadsheet_id===args.spreadsheet_id),queries:this.store.documents(tenant,'reporting_query'),schedules:this.store.documents(tenant,'reporting_schedule').map(({actor_binding,...publicSchedule})=>publicSchedule),destination:'local',google_sheets_connected:false,external_writes:false};
   if(actor.role==='reader'&&args.dry_run===false)throw new MirrorError('FORBIDDEN','Reader role cannot change reporting configuration or enqueue jobs.',{},403);
   if(operation==='execute_reporting_run'){
    const job=this.store.job(tenant,args.run_id);if(job.kind!=='report')throw new MirrorError('INVALID_REPORT_RUN','The job is not a reporting run.');
    if(args.dry_run!==false)return {dry_run:true,executed:false,run_id:args.run_id,input:job.input};
-   this.store.activateJob(tenant,args.run_id);return {run_id:args.run_id,state:this.store.job(tenant,args.run_id).state};
+   this.store.resumeReport(actor,args.run_id);return {run_id:args.run_id,state:this.store.job(tenant,args.run_id).state};
   }
   const kind=operation.includes('schedule')?'reporting_schedule':operation.includes('query')?'reporting_query':'workbook';
   const oldId=args.query_id??args.schedule_id??args.workbook_binding_id;
@@ -55,10 +55,13 @@ export class ReportingService {
    const query=this.store.document(tenant,'reporting_query',queryId);if(query.workbook_binding_id!==value.workbook_binding_id)throw new MirrorError('REPORT_BINDING_MISMATCH','Query and schedule must use the same workbook binding.');
    value.is_active??=true;value.next_run_at=nextSchedule(value);
   }
-  if(args.dry_run!==false)return {dry_run:true,executed:false,kind,id,payload:value,destination:'local'};
-  this.store.ensureTenant(tenant);
-  const result=this.store.putDocument(tenant,kind,id,value,previous?.revision);
-  this.store.appendAudit(tenant,'reporting/'+id,{event:operation,id,revision:result.revision});
-  return {...result,...(kind==='workbook'?{workbook_binding_id:id}:kind==='reporting_query'?{query_id:id,prepared_run_id:this.prepareRun(tenant,id)}:{schedule_id:id}),destination:'local',external_writes:false};
+  if(args.dry_run!==false){const {actor_binding,...payload}=value;return {dry_run:true,executed:false,kind,id,payload,destination:'local'};}
+  return this.store.transaction(()=>{
+   this.store.ensureTenant(tenant);
+   if(kind==='reporting_schedule'){value.actor_binding=this.store.bindJobActor(actor,'reporting-schedule:'+id);value.authority_version=1;value.error=null;}
+   const result=this.store.putDocument(tenant,kind,id,value,previous?.revision);
+   this.store.appendAudit(tenant,'reporting/'+id,{event:operation,id,revision:result.revision,actor:actor.userId});
+   return {...result,...(kind==='workbook'?{workbook_binding_id:id}:kind==='reporting_query'?{query_id:id,prepared_run_id:this.prepareRun(actor,id)}:{schedule_id:id}),destination:'local',external_writes:false};
+  });
  }
 }

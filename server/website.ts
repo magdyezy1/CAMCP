@@ -1,5 +1,6 @@
 import express,{type Request,type Response,type NextFunction} from 'express';
 import path from 'node:path';
+import {reportEvidence} from '../src/report-quality.js';
 import {randomUUID} from 'node:crypto';
 import {WebStore,type WebsiteOptions} from './web-store.js';
 import {PlatformOAuth,platform,platforms,selectionKind} from './platform-oauth.js';
@@ -23,10 +24,50 @@ import {googleAuthorizationInfo,googleAuthorizationRevision,reauthorizeGoogleCon
 import {mcpAuthRouter} from '@modelcontextprotocol/sdk/server/auth/router.js';
 
 export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=false,service?:MirrorService){
- const web=new WebStore(store,options),oauth=new PlatformOAuth(web,options.authEnv??process.env,options.fetcher,allowWrites),discovery=new AssetDiscovery(store,options.fetcher),router=express.Router();
+ const web=new WebStore(store,options),oauth=new PlatformOAuth(web,options.authEnv??process.env,options.fetcher,allowWrites),discovery=new AssetDiscovery(store,options.fetcher),router=express.Router({caseSensitive:true});
  router.use((_req,res,next)=>{res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Frame-Options','DENY');res.setHeader('Permissions-Policy','camera=(), microphone=(), geolocation=()');next();});
  const mcpOAuth=new McpOAuth(web,allowWrites);
  const accounts=new UserAccounts(web),social=new SocialSignIn(accounts);
+ // A test account is limited to the tabs an evaluator needs. Hiding navigation is presentation
+ // only, so every API behind an excluded tab refuses it here, at one chokepoint.
+ //
+ // This is an allow-list, and deliberately so: listing what to block left every route added
+ // later reachable by default, which is how connection mutation and OAuth initiation became
+ // available to the reviewer door. A route absent from this table is refused, so a new endpoint
+ // is unreachable until someone decides it belongs in the reviewer scope.
+ const testAccountRoutes:[RegExp,string[]][]=[
+  [/^\/api\/session$/,['GET','DELETE']],          // read the session, sign out
+  [/^\/api\/session\/test$/,['POST']],            // the reviewer door itself
+  [/^\/api\/platforms$/,['GET']],                 // Connections tab: available platforms
+  [/^\/api\/connections\/[^/]+$/,['GET']],        // Connections tab: read one connection
+  [/^\/api\/activity$/,['GET']],                  // Activity tab
+  [/^\/api\/reporting-overview\/[^/]+$/,['GET']], // Reporting overview: CSV export
+  [/^\/api\/workspace\/[a-z]+$/,['POST']],        // narrowed further by testAccountTools below
+  [/^\/api\/account$/,['GET']],                   // Settings: read own profile
+  [/^\/api\/account\/(options|delivery|sessions)$/,['GET']],
+  [/^\/api\/account\/sessions\/[^/]+$/,['DELETE']], // Settings: end one's own sessions
+  [/^\/api\/workspaces(\/members)?$/,['GET']],    // Settings: the reviewer's own workspace
+ ];
+ // Deliberately absent, because the reviewer password is shared: changing the password, email,
+ // MFA or linked identities would let one evaluator lock every other one out, and owner
+ // administration is not part of an evaluation.
+ const testAccountTools=new Set(['workspace','overview']);
+ // The gate compares a lower-cased path, and the router above matches case-sensitively. Express
+ // routes case-insensitively by default, so a case-sensitive prefix test here let `/API/...`
+ // skip the gate while still reaching the handler — five endpoints, connector tokens among
+ // them, were reachable that way. Both halves matter: the router option stops odd spellings
+ // routing at all, and the lower-cased comparison means this gate never depends on that option
+ // still being set.
+ router.use((req,_res,next)=>{
+  let session;try{session=web.session(req);}catch{return next();}
+  const path=req.path.toLowerCase(),method=req.method.toUpperCase();
+  if(!session?.actor.testAccount||!path.startsWith('/api/'))return next();
+  const refuse=()=>next(new MirrorError('TEST_ACCOUNT_SCOPE','This test account does not include that area of AMCP.',{},403));
+  if(!testAccountRoutes.some(([route,methods])=>route.test(path)&&methods.includes(method)))return refuse();
+  const tool=/^\/api\/workspace\/([a-z]+)$/.exec(path)?.[1];
+  if(tool&&!testAccountTools.has(tool))return refuse();
+  next();
+ });
  router.use(accountRoutes(web,accounts,social));
  router.use('/api',(_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
  router.use(['/token','/revoke'],express.urlencoded({extended:false,limit:'16kb'}),async(req,res,next)=>{
@@ -59,6 +100,7 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   return publicConnection(tenant,c);
  };
  if(service){
+  router.get('/api/reporting-overview/:id.metadata.json',handler((req,res)=>{const session=web.requireSession(req),report=store.document(session.actor.tenantId,'overview_report',String(req.params.id));new ReportingOverview(service).access(session.actor,report.config);res.setHeader('Content-Disposition','attachment; filename=AMCP-report-evidence.json');res.json(reportEvidence(report));}));
   router.get('/api/reporting-overview/:id.csv',handler((req,res)=>{const session=web.requireSession(req),report=store.document(session.actor.tenantId,'overview_report',String(req.params.id));new ReportingOverview(service).access(session.actor,report.config);const csv=exportCsv(report);res.setHeader('Content-Disposition','attachment; filename=AMCP-campaign-report.csv');res.type('text/csv').send(csv);}));
   router.post('/api/workspace/:tool',express.json({limit:'512kb'}),handler(async(req,res)=>{
    const session=web.requireMutation(req),tools:Record<string,string>={workspace:'amcp_workspace',campaign:'amcp_campaign',reporting:'amcp_reporting',overview:'amcp_reporting_overview',media:'amcp_media',write:'amcp_write'};
@@ -70,8 +112,9 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
    if(sha256(bytes)!==v.sha256||mediaType(bytes).mime!==v.mime)throw new MirrorError('MEDIA_CHANGED','Preview integrity check failed.');res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');res.type(v.mime).send(bytes);
   }));
  }
- router.get('/api/session',handler((req,res)=>{const session=web.session(req);res.json({authenticated:!!session,configured:web.configured,csrf:session?.csrf??null,...(session?accounts.profile(session):{name:null}),origin:web.origin,readOnly:!allowWrites,writesEnabled:allowWrites});}));
+ router.get('/api/session',handler((req,res)=>{const session=web.session(req);res.json({authenticated:!!session,configured:web.configured,testConfigured:web.testConfigured,csrf:session?.csrf??null,...(session?accounts.profile(session):{name:null}),origin:web.origin,readOnly:!allowWrites,writesEnabled:allowWrites});}));
  router.post('/api/session',express.json({limit:'4kb'}),handler((req,res)=>{web.requireOrigin(req);if(typeof req.body?.password!=='string')throw new MirrorError('INVALID_LOGIN','Enter your workspace password.',{},400);const old=web.session(req),session=web.signIn(req.body.password,web.clientAddress(req));if(old)web.signOut(old.id);res.setHeader('Set-Cookie',web.cookie(session.id));res.json({authenticated:true,csrf:session.csrf,name:'Workspace administrator'});}));
+ router.post('/api/session/test',express.json({limit:'4kb'}),handler((req,res)=>{web.requireOrigin(req);if(typeof req.body?.password!=='string')throw new MirrorError('INVALID_LOGIN','Enter the test password.',{},400);const old=web.session(req),session=web.signInTest(req.body.password,web.clientAddress(req));if(old)web.signOut(old.id);res.setHeader('Set-Cookie',web.cookie(session.id));res.json({authenticated:true,csrf:session.csrf,name:'Test reviewer'});}));
  router.delete('/api/session',handler((req,res)=>{const session=web.requireMutation(req);web.signOut(session.id);res.setHeader('Set-Cookie',[web.cookie('',0),social.cookie('',0)]);res.json({success:true});}));
  router.get('/api/mcp/consent',handler((req,res)=>{const s=web.requireSession(req);if(typeof req.query.request!=='string')throw new MirrorError('INVALID_CONSENT','Start authorization from your MCP client.');res.json(mcpOAuth.consent(req.query.request,s));}));
  router.post('/api/mcp/consent',express.json({limit:'4kb'}),handler((req,res)=>{const s=web.requireMutation(req);if(typeof req.body?.request!=='string'||typeof req.body?.approved!=='boolean')throw new MirrorError('INVALID_CONSENT','Invalid authorization decision.');const consent=mcpOAuth.consent(req.body.request,s),url=mcpOAuth.decide(req.body.request,s,req.body.approved);store.appendAudit(s.actor.tenantId,randomUUID(),{event:req.body.approved?'mcp_oauth_approved':'mcp_oauth_denied',scope:consent.scope,role:consent.role});res.json({url});}));
@@ -87,7 +130,7 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   const result=await oauth.connectService(id),connectionId=randomUUID(),attemptId=randomUUID(),tenant=session.actor.tenantId;
   // Browser sessions may be revoked while the token service is responding.
   web.requireAdminMutation(req);
-  const c:Connection={id:connectionId,tenantId:tenant,gateway:p.gateway,accounts:[],defaultWriteAccess:allowWrites,label:result.label,enabled:false,scopes:result.scopes,isDefault:!store.listConnections(tenant).some(c=>c.gateway===p.gateway&&c.isDefault)};
+  const c:Connection={id:connectionId,tenantId:tenant,gateway:p.gateway,accounts:[],...(p.id==='reddit'?{userAgent:oauth.redditUserAgent()}:{}),defaultWriteAccess:allowWrites,label:result.label,enabled:false,scopes:result.scopes,isDefault:!store.listConnections(tenant).some(c=>c.gateway===p.gateway&&c.isDefault)};
   store.putConnection(session.actor,c,result.credentials);store.putDocument(tenant,'website_connection',connectionId,{platform:id,expiresAt:result.credentials.expiresAt??null,createdAt:Date.now()});
   store.appendAudit(tenant,attemptId,{event:'website_api_connected',platform:id,connection_id:connectionId,vendor_writes:0});
   let error:string|null=null;try{error=(await sync(tenant,c)).error;}catch(e){error=e instanceof MirrorError?e.message:'Asset sync could not be completed. Retry from the connection manager.';}
@@ -113,7 +156,7 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
     securedConnectionId=connectionId;progress({state:'complete',authorization:true,exchange:true,sync:true,connectionId,message:'Google authorization renewed and account access verified. Your account selections, saved reports and schedules are preserved.'});
     res.redirect(303,'/oauth/result?attempt='+encodeURIComponent(attemptId));return;
    }
-   const c:Connection={id:connectionId,tenantId:tenant,gateway:p.gateway,accounts:[],defaultWriteAccess:p.reviewedWrites!==false&&allowWrites&&pending.requestedWriteAccess===true,label:result.label,enabled:false,scopes:result.scopes,isDefault:!store.listConnections(tenant).some(c=>c.gateway===p.gateway&&c.isDefault)};
+   const c:Connection={id:connectionId,tenantId:tenant,gateway:p.gateway,accounts:[],...(p.id==='reddit'?{userAgent:oauth.redditUserAgent()}:{}),defaultWriteAccess:p.reviewedWrites!==false&&allowWrites&&pending.requestedWriteAccess===true,label:result.label,enabled:false,scopes:result.scopes,isDefault:!store.listConnections(tenant).some(c=>c.gateway===p.gateway&&c.isDefault)};
    store.putConnection(session.actor,c,result.credentials);securedConnectionId=connectionId;store.putDocument(tenant,'website_connection',connectionId,{platform:id,expiresAt:result.credentials.expiresAt??null,providerId:result.providerId??null,createdAt:Date.now()});
    store.appendAudit(tenant,attemptId,{event:'website_oauth_connected',platform:id,connection_id:connectionId});progress({state:'sync',authorization:true,exchange:true,sync:false,connectionId});
    const synced=await sync(tenant,c);progress({state:synced.error?'sync_attention':'complete',authorization:true,exchange:true,sync:!synced.error,connectionId,message:synced.error??'Connection secured. Choose the assets AMCP can use.'});
@@ -182,7 +225,7 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   store.putDocument(s.actor.tenantId,'website_mcp_token',id,{name,role,hash:sha256(token),createdAt:Date.now(),expiresAt,revoked:false});store.appendAudit(s.actor.tenantId,id,{event:'website_mcp_token_created',name,role});res.json({id,token,role,expiresAt});
  }));
  router.delete('/api/connector-tokens/:id',handler((req,res)=>{
-  const s=web.requireMutation(req),record=store.document(s.actor.tenantId,'website_mcp_token',String(req.params.id));
+  const s=web.requireAdminMutation(req),record=store.document(s.actor.tenantId,'website_mcp_token',String(req.params.id));
   store.db.prepare('UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash=?').run(s.actor.tenantId,record.hash);store.putDocument(s.actor.tenantId,'website_mcp_token',record.id,{...record,revoked:true});store.appendAudit(s.actor.tenantId,randomUUID(),{event:'website_mcp_token_revoked',token_id:record.id});res.json({success:true});
  }));
  router.get('/api/activity',handler((req,res)=>{const s=web.requireSession(req);res.json({events:store.recentAudit(s.actor.tenantId,100).map((r:any)=>{const event=redact(JSON.parse(r.event));return {id:r.seq,at:r.created_at,event,diagnostics:activityReportErrors(event)};})});}));

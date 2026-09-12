@@ -1,0 +1,23 @@
+name: Public provider contract drift
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-schema-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run build
+      - name: Compare approved public schemas without account credentials
+        run: node dist/tools/provider-drift.js --live > provider-drift.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-provider-drift
+          path: provider-drift.json

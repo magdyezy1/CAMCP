@@ -55,6 +55,12 @@ Budget, bid, spend or activation changes additionally require `spend_change_conf
 
 An owner spending policy separates creates from updates, because `max_budget_increase_percent` and the unambiguous-baseline rule only mean something against a prior budget. A create is recognised from an explicit REST.li `CREATE`, a `create` operation inside the payload, or a collection-scoped action name. A REST.li POST addressed to one resource — `…_{id}_post` or `…_{urn}_post`, which is how LinkedIn expresses `PARTIAL_UPDATE` — changes an existing budget and stays under the percentage and baseline rules. `max_budget_native` and `max_daily_increase_native` apply to both.
 
+A policy can be attached to one (gateway, account) pair or set once for the workspace with `scope: "workspace"`. The account-specific policy wins where one exists; otherwise the workspace default applies, so an account nobody configured individually is still protected. Each account keeps its own daily allowance under a shared default. `prepare` reports which applied as `spend_policy.scope`, and reports `configured:false` with `unprotected:true` when nothing protects the account. `amcp_workspace health` lists those accounts under `unprotected_accounts`.
+
+`allow_activation:false` is enforced against the payload structure using a per-gateway declaration of the field and values each provider uses to start delivery — Meta `status:ACTIVE`, Google Ads `status:ENABLED`, TikTok `operation_status:ENABLE`, X `entity_status:ACTIVE`, DV360 `entityStatus:ENTITY_STATUS_ACTIVE`, Reddit `configured_status:ACTIVE`, Microsoft `Status:Active`. JSON Patch operations are resolved by their `path` and `value` in either key order. Measurement gateways declare no serving-activation surface and are not constrained by it. A gateway with no declaration is refused outright while activation is forbidden, so adding a provider without declaring its vocabulary fails closed.
+
+The daily window is the UTC calendar day, and the cap counts requested positive budget increases rather than billed spend. A reservation taken for a write that then fails is deliberately not released: a transport failure may still have reached the provider, and releasing it would let repeated failures walk past the cap.
+
 ## Supported execution contracts
 
 | Provider | Reviewed routes |

@@ -8,7 +8,7 @@ import {microsoftCustomerOrigin} from '../src/microsoft-native.js';
 import {googleAccountDiscovery} from './google-account-discovery.js';
 import {assetSyncDiagnostic,assetSyncErrorMessage} from '../src/report-errors.js';
 
-export interface WorkspaceAsset {id:string;kind:string;name:string;parentId?:string;currency?:string;timezone?:string;status?:string;loginCustomerId?:string;manager?:boolean;hidden?:boolean;testAccount?:boolean;source:'vendor'|'configured_binding'}
+export interface WorkspaceAsset {id:string;kind:string;name:string;parentId?:string;currency?:string;timezone?:string;status?:string;loginCustomerId?:string;readVerified?:boolean;manager?:boolean;hidden?:boolean;testAccount?:boolean;source:'vendor'|'configured_binding'}
 export interface AssetGroup {checkedAt?:number;kind:string;assets:WorkspaceAsset[];complete:boolean;error?:string;diagnostics?:JsonObject[]}
 export class AssetDiscovery {
  private transport:NativeTransport;private credentials:CredentialProvider;
@@ -21,7 +21,7 @@ export class AssetDiscovery {
    if(!Array.isArray(rows))throw new MirrorError('ASSET_RESPONSE_INVALID','The provider returned an unexpected asset list.',{},502);
    if(rows.some(r=>!r||typeof r!=='object'||Array.isArray(r)))throw new MirrorError('ASSET_RESPONSE_INVALID','The provider returned an invalid asset record.',{},502);
    items.push(...rows as JsonObject[]);if(items.length>10000)throw new MirrorError('ASSET_SYNC_LIMIT','Too many assets for one sync; narrow the provider login.',{},409);
-   const next=data.paging?.next??data.paging?.next_link??data.paging?.links?.find((l:JsonObject)=>l.rel==='next')?.href;
+   const next=data.pagination?.next_url??data.paging?.next??data.paging?.next_link??data.paging?.links?.find((l:JsonObject)=>l.rel==='next')?.href;
    const cursor=data.next_cursor??data.cursor?.next??null;
    if(data.nextPageToken!==undefined&&data.nextPageToken!==''){
     if(typeof data.nextPageToken!=='string'||seen.has('pageToken'+data.nextPageToken))throw new MirrorError('PAGINATION_LOOP','Provider returned an invalid or repeated page token.',{},502);
@@ -29,6 +29,7 @@ export class AssetDiscovery {
    }else if(next){
     const nextUrl=new URL(next,original);if(nextUrl.origin!==original.origin||nextUrl.pathname!==original.pathname||nextUrl.username||nextUrl.password||nextUrl.hash)throw new MirrorError('UNSAFE_PAGINATION','Provider pagination changed the asset endpoint.',{},502);
     const cursorKey=['after','cursor','start','offset'].find(k=>nextUrl.searchParams.has(k));if(!cursorKey)throw new MirrorError('ASSET_SYNC_LIMIT','Provider paging does not expose a supported cursor.',{},409);
+    if(c.gateway==='reddit_native_action')for(const [k,v] of nextUrl.searchParams){if(nextUrl.searchParams.getAll(k).length!==1||k!==cursorKey&&original.searchParams.get(k)!==v)throw new MirrorError('UNSAFE_PAGINATION','Reddit pagination changed filters or supplied duplicate parameters.',{},502);}
     const value=nextUrl.searchParams.get(cursorKey)!;if(seen.has(cursorKey+value))throw new MirrorError('PAGINATION_LOOP','Provider repeated its pagination cursor.',{},502);seen.add(cursorKey+value);plan.query[cursorKey]=value;
    }else if(cursor!==null&&cursor!==''&&cursor!==0&&cursor!=='0'){
     if(seen.has(String(cursor)))throw new MirrorError('PAGINATION_LOOP','Provider repeated its pagination cursor.',{},502);seen.add(String(cursor));plan.query.cursor=String(cursor);
@@ -93,6 +94,29 @@ export class AssetDiscovery {
       const edge={pixels:'adspixels',catalogs:'product_catalogs',mobile_apps:'advertisable_applications',custom_conversions:'customconversions'}[kind];
       for(const id of connection.accounts){const rows=await this.pages(connection,credentials,'/v25.0/act_'+encodeURIComponent(id)+'/'+edge,{fields:'id,name',limit:100},d=>d.data);assets.push(...rows.map(r=>this.asset(r,kind,id)));}
      }
+    }else if(p.id==='reddit'||p.id==='dv360'){
+     // Parent visibility is discovery evidence, never an AMCP account grant or proof of write access.
+     const reddit=p.id==='reddit',diagnostics:JsonObject[]=[];
+     const parents=await this.pages(connection,credentials,reddit?'/api/v3/me/businesses':'/v4/partners',reddit?{}:{pageSize:200},d=>reddit?d.data:d.partners??[]);
+     if(parents.length>100)throw new MirrorError('ASSET_SYNC_LIMIT','This login has more than 100 businesses/partners. Use a narrower login.',{},409);
+     const seenParents=new Set<string>();
+     for(const parent of parents){
+      const id=String(reddit?parent.id??'':parent.partnerId??'');
+      if(!(reddit?/^[A-Za-z0-9_-]{1,100}$/:/^\d{1,20}$/).test(id)||seenParents.has(id))throw new MirrorError('ASSET_ID_INVALID','The provider returned an invalid or repeated discovery parent.',{},502);seenParents.add(id);
+      try{
+       const rows=await this.pages(connection,credentials,reddit?'/api/v3/businesses/'+id+'/ad_accounts':'/v4/advertisers',reddit?{}:{partnerId:id,pageSize:200},d=>reddit?d.data:d.advertisers??[]);
+       for(const row of rows){
+        const child=reddit?row.id:row.advertiserId,actualParent=reddit?row.business_id:row.partnerId;
+        if(typeof child!=='string'||!(reddit?/^a2_[A-Za-z0-9]+$/:/^\d{1,20}$/).test(child)||actualParent!==undefined&&actualParent!==id)throw new MirrorError('ASSET_ID_INVALID','The provider returned an account outside the requested business/partner.',{},502);
+        if(assets.length>=10000)throw new MirrorError('ASSET_SYNC_LIMIT','Discovery exceeds 10,000 accounts. Use a narrower login.',{},409);
+        assets.push(this.asset({...row,id:child,name:reddit?row.name:row.displayName,currency:reddit?row.currency:row.generalConfig?.currencyCode,timezone:reddit?row.timezone:row.generalConfig?.timeZone,status:reddit?row.status:row.entityStatus},kind,id));
+
+       }
+      }catch(e){diagnostics.push({...assetSyncDiagnostic(e,p.id,connection.id,kind),parent_id:id});}
+     }
+     if(diagnostics.length){groups.push({kind,assets:[...new Map(assets.map(a=>[a.id,a])).values()],complete:false,error:'Some businesses/partners could not be read. Available accounts are retained; inspect individual diagnostics.',diagnostics});continue;}
+     // Reddit's list-by-business intentionally omits ad accounts shared into a business.
+     if(reddit){groups.push({kind,assets:[...new Map(assets.map(a=>[a.id,a])).values()],complete:true,diagnostics:[{code:'DISCOVERY_COVERAGE',message:'Owned business ad accounts discovered. Reddit does not return shared-in accounts from this endpoint. Provider visibility does not establish write permission.'}]});continue;}
     }else if(p.id==='google'){
      groups.push(await googleAccountDiscovery(this.transport,connection,credentials));continue;
     }else if(p.id==='ga4'){

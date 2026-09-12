@@ -10,6 +10,8 @@ secrets
 *.key
 *.token
 *.pem
-
 .release
-.git
+.implementation
+coverage
+*.log
+release-image.txt

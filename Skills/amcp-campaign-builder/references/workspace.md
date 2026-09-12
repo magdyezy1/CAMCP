@@ -1,5 +1,13 @@
 # Durable campaign and decision workflows
 
+After a media session completes through its original safe resume path, use `amcp_campaign` with `action: reconcile_step`, the saved plan `id` and `step_id`. This accepts only a completed receipt under the original review/key and performs scoped read-back; it never resubmits a mutation or accepts an unverified resource ID. Dependent steps stay blocked until readiness is verified. `RECOVERY_NOT_SAFE` means no completed original receipt exists or the step cannot be reconciled this way. Unknown provider outcomes still require investigation. The Campaign page exposes this as “Reconcile completed step.”
+
+`JOB_REAUTHORIZATION_REQUIRED` means a legacy job has no trustworthy stored actor binding.
+It cannot run as a generic worker. An authorized operator must explicitly resume the report
+under current access, or save/resume its schedule. Account revocation invalidates queued and
+in-flight work; reapproving an account does not revive old authority. Discover current grants
+and retain the existing run ID. Never insert a credential or actor binding supplied by a client.
+
 Use these AMCP extensions when a brief spans multiple dependent writes or needs reusable client settings. They retain the native per-request review gate. The server does not infer business decisions from prose; the MCP client builds explicit native steps using the current platform schema and the user's authorized brief.
 
 ## Build a complete campaign
@@ -38,3 +46,99 @@ Semantics require currency, IANA timezone, date_from/date_to, attribution, conve
 `analyze` accepts an optional equal-duration earlier same-account baseline and options: planned_budget, total_days, elapsed_days, current_daily_budget, target_cpa, minimum_clicks, minimum_impressions, maximum_change_percent and stale_after_hours. It identifies pacing gaps, spend anomalies, possible CTR fatigue, zero-conversion search waste and CPA above target. Budget proposals are bounded by the supplied cap, require current budget verification and a fresh native review, and never execute automatically. Incomplete/stale data blocks action eligibility. These are explainable heuristics, not causal attribution or guaranteed performance improvements.
 
 The Overview page shows all eight capabilities and timestamped provider evidence. Local tests, account reads, provider validation, completed responses and verified configuration are separate evidence levels. A catalog count or green CI does not establish live qualification across every connected provider.
+
+## Owner spending policy
+
+An owner can attach a spending policy to a (gateway, account) pair through `amcp_workspace`
+`save_spend_policy`. When one exists, every reviewed write is checked against it twice — at
+`prepare` and again at `execute` — and a refusal is a deliberate owner decision, not a provider
+error. Do not retry a `POLICY_*` refusal, reshape the request to evade it, or split one change
+into smaller writes to fit under a limit. Report it to the user and ask them to change the
+policy if the spend is genuinely intended.
+
+The policy supports five independent settings, all optional:
+
+- `allow_activation: false` — refuses any write that would set a serving entity to its active
+  state, in that provider's own vocabulary (`ACTIVE`, `ENABLED`, `ENABLE`,
+  `ENTITY_STATUS_ACTIVE`, and Reddit's `configured_status`). Raises
+  `POLICY_ACTIVATION_FORBIDDEN`. A platform with no declared activation contract is refused
+  outright rather than assumed safe.
+- `allow_deletion: false` — refuses destructive writes. Raises `POLICY_DELETION_FORBIDDEN`.
+- `max_budget_native` — an absolute ceiling on any budget field, in native API units.
+  Raises `POLICY_BUDGET_LIMIT`.
+- `max_budget_increase_percent` — caps a single increase relative to the current budget.
+  Raises `POLICY_INCREASE_LIMIT`.
+- `max_daily_increase_native` — caps the **cumulative** requested increase per day. Raises
+  `POLICY_DAILY_INCREASE_LIMIT`. The window is the **UTC** calendar day, not the account
+  timezone, and it counts requested increases rather than billed spend.
+
+Two behaviours worth planning around. A percentage or daily rule needs exactly one unambiguous
+current budget: a mutation touching several resources at once raises `POLICY_BASELINE_REQUIRED`
+(409), so narrow it to one resource. And a budget field AMCP cannot map to a known native unit
+raises `POLICY_AMOUNT_UNSUPPORTED` rather than being ignored — surface that instead of dropping
+the field.
+
+A policy can be attached to one account, or set once for the whole workspace with
+`scope: 'workspace'` and no gateway or account. The account-specific policy wins where one
+exists; otherwise the workspace default applies, so an account nobody configured individually is
+still covered. Each account keeps its own daily allowance under a shared default — one busy
+account does not consume another's headroom. `prepare` reports which applied, as
+`spend_policy.scope: 'account' | 'workspace_default'`.
+
+`prepare` returns a `spend_policy` object on every reviewed write. `configured:false` with
+`unprotected:true` means **no policy protects that account at all**. Say so plainly when
+summarizing a plan — never imply a safeguard exists — and suggest the owner set either an
+account policy or a workspace default. `amcp_workspace health` lists every unprotected account
+under `unprotected_accounts`.
+
+## Refusals you will meet on the write path
+
+These are decisions, not faults. Report them and the condition that caused them; do not retry
+blindly, reshape a request to slip past one, or split a change into smaller pieces to avoid one.
+
+**Before a write is allowed to start**
+
+- `WRITE_REVIEW_REQUIRED` — a native gateway was asked to mutate directly. Mutations go through
+  `amcp_write` prepare/execute; there is no bypass.
+- `DRY_RUN_REQUIRED` — the deployment allows only local previews for this route.
+- `LIVE_WRITES_DISABLED` — reviewed writes are switched off for this deployment entirely. This
+  is a deployment setting, not something to work around.
+- `MUTATION_REQUIRED` — a read was sent to the write path. Use the native gateway instead.
+- `ACCOUNT_REQUIRED` / `CONNECTION_REQUIRED` / `AMBIGUOUS_CONNECTION` — the account or connection
+  could not be resolved, or more than one matched. Ask the user which account they mean rather
+  than guessing.
+- `PROVIDER_WRITE_SCOPE_REQUIRED` / `INSUFFICIENT_SCOPE` — the connection lacks a scope the write
+  needs. Reconnecting is the user's decision.
+- `PAUSED_CREATION_REQUIRED` — a new serving entity must be created paused. Set the provider's
+  paused value; do not create live and pause afterwards.
+
+**While the review is being confirmed**
+
+- `CONFIRMATION_REQUIRED` — execute needs `confirmed: true`.
+- `SPEND_CONFIRMATION_REQUIRED` — the change touches budget, bid or activation and additionally
+  needs `spend_change_confirmed: true`. Present the actual figures to the user first.
+- `REVIEW_EXPIRED` — the five-minute window elapsed. Prepare again; never reuse an old review.
+- `REVIEW_CHANGED` — the frozen request failed its integrity check. Prepare again.
+- `STATE_CHANGED` — the provider's configuration moved between prepare and execute. Read the
+  reported changed fields, then prepare and review again.
+- `POLICY_PAYLOAD_TOO_DEEP` — the body nests more deeply than the spending policy can inspect, so
+  it cannot be shown to leave entities paused. Flatten the request rather than retrying it.
+
+**After a write has been attempted**
+
+- `WRITE_OUTCOME_UNCERTAIN` — the result is unknown and the write may have landed. Stop. Keep the
+  review id and the original idempotency key, verify the resource by reading it, and never
+  resubmit under a new key.
+- `IDEMPOTENCY_CONFLICT` — the same key was reused for a different request. That is a bug in the
+  caller, not a transient condition.
+- `IDEMPOTENCY_REQUIRED` — execute needs the key returned by prepare.
+- `UPLOAD_ALREADY_SUBMITTED` — a media upload that has been submitted cannot be cancelled
+  locally; check its status instead.
+- `CREATIVE_IDENTITY_CONFLICT` — the creative's identity does not match the account or page it is
+  being attached to. Do not substitute a different identity to make it pass.
+
+### Guided recipes and diagnostic recovery
+
+The Campaigns website has forms for all three existing recipes. `amcp_campaign recipe_context` accepts `recipe` and optional `profile_id`; it returns explicit login/account choices, approved defaults and prerequisites. `preview_recipe` accepts the recipe, optional profile and business inputs, returning missing business fields or a locally compiled plan. It performs no mutation. `recipe_lookup` uses an explicit Google `connection_id`, `account_id`, `lookup_kind` (`country` or `language`) and plain-text `query` to discover targeting constants. Ask for business choices; discover native IDs where an authorized lookup exists. `create_from_recipe` freezes the recipe version and each field's user/profile provenance. Preflight verifies account currency. Never interpret an approved template as approval to execute its next review.
+
+Campaign `get` includes a diagnostic execution journal. A legacy unknown phase does not grant retry permission. `recover_step` edits only a definitively unsubmitted/failed step with no retained mutation claim; `RECOVERY_NOT_SAFE` means reconcile the existing request. Owner-only `amcp_workspace support_bundle` exposes aggregate queue age, worker liveness and scoped error codes. It must not include report rows, credential values, source URLs or actor bindings. Account revocation requires explicit rebinding of queued work by a currently authorized operator.

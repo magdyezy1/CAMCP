@@ -48,7 +48,9 @@ for(const c of cases)test('reviewed '+c.gateway+' campaign '+c.label+' validates
   if(c.gateway==='linkedin')d={id:Number(id),name:'Draft',status:'PAUSED'};
   if(c.gateway==='x_ads')d={data:{id,name:'Draft',entity_status:'PAUSED'}};
   if(c.gateway==='dv360')d=p.endsWith('/123')?{advertiserId:'123',displayName:'Account'}:{campaignId:'111',displayName:'Draft',entityStatus:'ENTITY_STATUS_PAUSED'};
-  d={...(d as JsonObject),request_id:String(reads),updated_at:String(reads),delivery_status:reads%2?['A','B']:['B','A'],target_labels:reads%2?['US','GB']:['GB','US'],stats:{spend:reads}};
+  // This fixture varies telemetry only. The old invented target_labels field assumed
+  // every scalar array was a set; ordered/unknown arrays have separate conflict tests.
+  d={...(d as JsonObject),request_id:String(reads),updated_at:String(reads),delivery_status:reads%2?['A','B']:['B','A'],stats:{spend:reads}};
   return new Response(JSON.stringify(d));
  }) as typeof fetch),undefined,policy);
  try{const prepared=await service.call('amcp_write',{action:'prepare',gateway,arguments:args},actor);assert.equal(prepared.success,true,JSON.stringify(prepared));assert.equal(writes,0);assert.ok(reads>0);const r=prepared.data;

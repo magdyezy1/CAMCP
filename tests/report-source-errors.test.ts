@@ -87,7 +87,7 @@ test('Activity exposes diagnostic fields for historical Google failures while pr
 });
 test('failed source panels open by default, explain the provider error, and escape untrusted error text',()=>{
  const esc=(value:unknown)=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
- const context=createContext({esc});new Script(readFileSync('web/reporting-overview.js','utf8')).runInContext(context);
+ const context=createContext({esc});new Script(readFileSync('web/report-quality.js','utf8')).runInContext(context);new Script(readFileSync('web/reporting-overview.js','utf8')).runInContext(context);
  context.input={source,complete:false,error:{code:'INSUFFICIENT_SCOPE',message:'Forbidden',http_status:403,provider:{code:'USER_PERMISSION_DENIED',message:'<img src=x onerror=alert(1)>'},next_action:'Reconnect the correct Google identity'}};
  const html=new Script('renderReportSourceHealth(input,[{id:"google",name:"Google Ads"}],0)').runInContext(context) as string;
  assert.match(html,/attention" open/);assert.match(html,/USER_PERMISSION_DENIED/);assert.match(html,/Reconnect the correct Google identity/);assert.match(html,/Copy error details/);assert.match(html,/&lt;img/);assert.ok(!html.includes('<img'));

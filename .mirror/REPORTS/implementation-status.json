@@ -1,0 +1,3710 @@
+{
+  "version": 2,
+  "production_ready": false,
+  "captured_tools": 20,
+  "independent_extensions": [
+    {
+      "gateway": "microsoft_ads_native_action",
+      "actions": 24,
+      "reviewed_mutation_actions": 12,
+      "write_scope": "Search campaigns, ad groups, responsive search ads and keywords",
+      "reporting": "Native account-bound submit/poll with optional server CSV/TSV ZIP parsing and cached bounded pages; campaign overview normalizes Spend, Impressions, Clicks, Conversions and Revenue while retaining native metrics",
+      "live_qualified": false
+    },
+    {
+      "gateway": "reddit_native_action",
+      "actions": 2,
+      "reviewed_mutation_actions": 8,
+      "write_scope": "Classic campaigns, ad groups, existing-post ads and saved Reddit targeting audiences",
+      "live_qualified": false
+    }
+  ],
+  "campaign_guidance": {
+    "resources": 11,
+    "prompt": "amcp_build_campaign",
+    "local_write_inspection": "amcp_write inspect",
+    "coverage": {
+      "guides": 11,
+      "reviewed_write_gateways": 13,
+      "modules": 36,
+      "write_path_codes": 172,
+      "documented_codes": 42,
+      "family_codes": 93,
+      "listed_codes": 37,
+      "missing_gateways": [],
+      "undeclared_codes": [],
+      "stale_allowlist": []
+    }
+  },
+  "live_writes_enabled_by_default": false,
+  "media_upload_extension": {
+    "tool": "amcp_media",
+    "available": true,
+    "platforms": [
+      "meta",
+      "tiktok",
+      "snapchat",
+      "google_ads",
+      "linkedin",
+      "x_ads",
+      "dv360"
+    ],
+    "native_routes_integrated": true,
+    "workflow_actions": [
+      "UPLOAD_FROM_URL",
+      "UPLOAD_FROM_URL_VIA_SESSION",
+      "QUEUE_GOOGLE_DRIVE_IMPORT",
+      "FINALIZE_UPLOAD_SESSION"
+    ],
+    "client_download_required": false,
+    "source": "public_or_selected_private_google_drive_file",
+    "maximum_bytes": 134217728,
+    "live_qualified": false
+  },
+  "new_connections_default_to_reviewed_writes_when_enabled": true,
+  "reviewed_write_extension": {
+    "tool": "amcp_write",
+    "available": true,
+    "gateways": [
+      "google_ads",
+      "meta",
+      "tiktok",
+      "snapchat",
+      "linkedin",
+      "x_ads",
+      "dv360",
+      "ga4",
+      "gtm",
+      "google_search_console",
+      "apple_ads",
+      "microsoft_ads",
+      "reddit"
+    ],
+    "live_qualified": false
+  },
+  "tools": 21,
+  "nested_schemas": 112,
+  "gateways": [
+    {
+      "gateway": "adjust_native_action",
+      "mode": "delegated",
+      "catalog_records": 6,
+      "known_denominator": 6,
+      "denominator_kind": "operation_count",
+      "catalog_complete": true,
+      "captured_http_routes": 0,
+      "vendor_documented_routes": 0,
+      "legacy_adapters": 0,
+      "live_mirror_verified": false,
+      "production_ready": false,
+      "gaps": []
+    },
+    {
+      "gateway": "amazon_native_action",
+      "mode": "direct",
+      "catalog_records": 0,
+      "known_denominator": null,
+      "denominator_kind": "unknown",
+      "catalog_complete": false,
+      "captured_http_routes": 0,
+      "vendor_documented_routes": 0,
+      "legacy_adapters": 0,
+      "live_mirror_verified": false,
+      "production_ready": false,
+      "gaps": [
+        "LIST_ACTIONS unsupported; full action denominator unknown."
+      ]
+    },
+    {
+      "gateway": "amcp_native_action",
+      "mode": "delegated",
+      "catalog_records": 59,
+      "known_denominator": 59,
+      "denominator_kind": "operation_count",
+      "catalog_complete": true,
+      "captured_http_routes": 0,
+      "vendor_documented_routes": 0,
+      "legacy_adapters": 0,
+      "live_mirror_verified": false,
+      "production_ready": false,
+      "gaps": []
+    },
+    {
+      "gateway": "amcp_platform_workspace",
+      "mode": "delegated",
+      "catalog_records": 3,
+      "known_denominator": 3,
+      "denominator_kind": "operation_count",
+      "catalog_complete": true,
+      "captured_http_routes": 0,
+      "vendor_documented_routes": 0,
+      "legacy_adapters": 0,
+      "live_mirror_verified": false,
+      "production_ready": false,
+      "gaps": []
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "mode": "direct",
+      "catalog_records": 0,
+      "known_denominator": null,
+      "denominator_kind": "unknown",
+      "catalog_complete": false,
+      "captured_http_routes": 0,
+      "vendor_documented_routes": 23,
+      "legacy_adapters": 0,
+      "live_mirror_verified": false,
+      "production_ready": false,
+      "gaps": [
+        "LIST_ACTIONS unsupported; full action denominator unknown."
+      ]
+    },
+    {
+      "gateway": "commerce_native_action",
+      "mode": "delegated",
+      "catalog_records": 2,
+      "known_denominator": 2,
+      "denominator_kind": "operation_count",
+      "catalog_complete": true,
+      "captured_http_routes": 0,
+      "vendor_documented_routes": 0,
+      "legacy_adapters": 0,
+      "live_mirror_verified": false,
+      "production_ready": false,
+      "gaps": []
+    },
+    {
+      "gateway": "criteo_native_action",
+      "mode": "delegated",
+      "catalog_records": 9,
+      "known_denominator": 9,
+      "denominator_kind": "operation_count",
+      "catalog_complete": true,
+      "captured_http_routes": 0,
+      "vendor_documented_routes": 104,
+      "legacy_adapters": 0,
+      "live_mirror_verified": false,
+      "production_ready": false,
+      "gaps": []
+    },
+    {
+      "gateway": "dv360_native_action",
+      "mode": "direct",
+      "catalog_records": 173,
+      "known_denominator": 173,
+      "denominator_kind": "action_enum",
+      "catalog_complete": true,
+      "captured_http_routes": 0,
+      "vendor_documented_routes": 173,
+      "legacy_adapters": 0,
+      "live_mirror_verified": false,
+      "production_ready": false,
+      "gaps": [
+        "Action enum captured; method/path/required-field catalog not exposed by AMCP help."
+      ]
+    },
+    {
+      "gateway": "ga4_native_action",
+      "mode": "delegated",
+      "catalog_records": 10,
+      "known_denominator": 10,
+      "denominator_kind": "operation_count",
+      "catalog_complete": true,
+      "captured_http_routes": 0,
+      "vendor_documented_routes": 18,
+      "legacy_adapters": 0,
+      "live_mirror_verified": false,
+      "production_ready": false,
+      "gaps": []
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "mode": "direct",
+      "catalog_records": 456,
+      "known_denominator": 456,
+      "denominator_kind": "LIST_ACTIONS",
+      "catalog_complete": true,
+      "captured_http_routes": 171,
+      "vendor_documented_routes": 0,
+      "legacy_adapters": 285,
+      "live_mirror_verified": false,
+      "production_ready": false,
+      "gaps": []
+    },
+    {
+      "gateway": "google_business_native_action",
+      "mode": "delegated",
+      "catalog_records": 10,
+      "known_denominator": 10,
+      "denominator_kind": "operation_count",
+      "catalog_complete": true,
+      "captured_http_routes": 0,
+      "vendor_documented_routes": 51,
+      "legacy_adapters": 0,
+      "live_mirror_verified": false,
+      "production_ready": false,
+      "gaps": []
+    },
+    {
+      "gateway": "google_search_console_native_action",
+      "mode": "delegated",
+      "catalog_records": 3,
+      "known_denominator": 3,
+      "denominator_kind": "operation_count",
+      "catalog_complete": true,
+      "captured_http_routes": 0,
+      "vendor_documented_routes": 10,
+      "legacy_adapters": 0,
+      "live_mirror_verified": false,
+      "production_ready": false,
+      "gaps": []
+    },
+    {
+      "gateway": "gtm_native_action",
+      "mode": "delegated",
+      "catalog_records": 3,
+      "known_denominator": 3,
+      "denominator_kind": "operation_count",
+      "catalog_complete": true,
+      "captured_http_routes": 0,
+      "vendor_documented_routes": 106,
+      "legacy_adapters": 0,
+      "live_mirror_verified": false,
+      "production_ready": false,
+      "gaps": []
+    },
+    {
+      "gateway": "linkedin_native_action",
+      "mode": "direct",
+      "catalog_records": 287,
+      "known_denominator": 287,
+      "denominator_kind": "LIST_ACTIONS",
+      "catalog_complete": true,
+      "captured_http_routes": 287,
+      "vendor_documented_routes": 0,
+      "legacy_adapters": 0,
+      "live_mirror_verified": false,
+      "production_ready": false,
+      "gaps": []
+    },
+    {
+      "gateway": "meta_native_action",
+      "mode": "direct",
+      "catalog_records": 591,
+      "known_denominator": 591,
+      "denominator_kind": "LIST_ACTIONS",
+      "catalog_complete": true,
+      "captured_http_routes": 591,
+      "vendor_documented_routes": 0,
+      "legacy_adapters": 0,
+      "live_mirror_verified": false,
+      "production_ready": false,
+      "gaps": []
+    },
+    {
+      "gateway": "reddit_native_action",
+      "mode": "delegated",
+      "catalog_records": 7,
+      "known_denominator": 7,
+      "denominator_kind": "operation_count",
+      "catalog_complete": true,
+      "captured_http_routes": 0,
+      "vendor_documented_routes": 49,
+      "legacy_adapters": 0,
+      "live_mirror_verified": false,
+      "production_ready": false,
+      "gaps": []
+    },
+    {
+      "gateway": "snapchat_native_action",
+      "mode": "direct",
+      "catalog_records": 412,
+      "known_denominator": 412,
+      "denominator_kind": "LIST_ACTIONS",
+      "catalog_complete": true,
+      "captured_http_routes": 412,
+      "vendor_documented_routes": 0,
+      "legacy_adapters": 0,
+      "live_mirror_verified": false,
+      "production_ready": false,
+      "gaps": []
+    },
+    {
+      "gateway": "tiktok_native_action",
+      "mode": "direct",
+      "catalog_records": 561,
+      "known_denominator": 561,
+      "denominator_kind": "LIST_ACTIONS",
+      "catalog_complete": true,
+      "captured_http_routes": 561,
+      "vendor_documented_routes": 0,
+      "legacy_adapters": 0,
+      "live_mirror_verified": false,
+      "production_ready": false,
+      "gaps": []
+    },
+    {
+      "gateway": "x_ads_native_action",
+      "mode": "direct",
+      "catalog_records": 186,
+      "known_denominator": 186,
+      "denominator_kind": "LIST_ACTIONS",
+      "catalog_complete": true,
+      "captured_http_routes": 186,
+      "vendor_documented_routes": 0,
+      "legacy_adapters": 0,
+      "live_mirror_verified": false,
+      "production_ready": false,
+      "gaps": []
+    }
+  ],
+  "live_read_samples": [],
+  "delegated_routes": {
+    "mapped": 339,
+    "independent_routes": 2,
+    "json_compilable": 338,
+    "gaps": [
+      {
+        "gateway": "criteo_native_action",
+        "operation": "criteo_reporting_ops",
+        "action": "GENERATE_ASYNC_ACCOUNTS_REPORT",
+        "reason": "No exact vendor operation ID; request shape is not inferred"
+      },
+      {
+        "gateway": "criteo_native_action",
+        "operation": "criteo_reporting_ops",
+        "action": "GENERATE_ASYNC_CAMPAIGNS_REPORT",
+        "reason": "No exact vendor operation ID; request shape is not inferred"
+      },
+      {
+        "gateway": "criteo_native_action",
+        "operation": "criteo_reporting_ops",
+        "action": "GENERATE_ASYNC_LINE_ITEMS_REPORT",
+        "reason": "No exact vendor operation ID; request shape is not inferred"
+      }
+    ]
+  },
+  "google_legacy": {
+    "total": 285,
+    "evidence": "INDEPENDENT_DESIGN",
+    "exactBehaviorParityVerified": 0,
+    "requestTypes": 171,
+    "sources": 726,
+    "entries": [
+      {
+        "action": "FETCH_CAMPAIGNS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "campaign",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_CAMPAIGN",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_mutate_campaigns",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_CAMPAIGN",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_mutate_campaigns",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "DELETE_CAMPAIGN",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_mutate_campaigns",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_CAMPAIGN",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_mutate_campaigns",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "SET_CAMPAIGN_STATUS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_mutate_campaigns",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "FETCH_CAMPAIGN_INSIGHTS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "campaign",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_CAMPAIGN_BUDGET",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_budget_mutate_campaign_budgets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_CAMPAIGN_BUDGET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_budget_mutate_campaign_budgets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "FETCH_AD_GROUPS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "ad_group",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_AD_GROUP",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_mutate_ad_groups",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_AD_GROUP",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_mutate_ad_groups",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "DELETE_AD_GROUP",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_mutate_ad_groups",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "SET_AD_GROUP_STATUS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_mutate_ad_groups",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "FETCH_ADS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "ad_group_ad",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_AD",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_ad_mutate_ad_group_ads",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_AD",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_mutate_ads",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "DELETE_AD",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_ad_mutate_ad_group_ads",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "SET_AD_STATUS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_ad_mutate_ad_group_ads",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "FETCH_ASSET_GROUPS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "asset_group",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_ASSET_GROUP",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_asset_group_mutate_asset_groups",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_ASSET_GROUP",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_asset_group_mutate_asset_groups",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_ASSET_GROUP_ASSETS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "asset_group_asset",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_ASSET_GROUP_SIGNALS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "asset_group_signal",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_ASSET_GROUP_LISTING_GROUP_FILTERS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "asset_group_listing_group_filter",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_ASSET_GROUP_TOP_COMBINATIONS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "asset_group_top_combination_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_ASSET_GROUP_PRODUCT_GROUPS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "asset_group_product_group_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_PERFORMANCE_MAX_PLACEMENTS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "performance_max_placement_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_FINAL_URL_EXPANSION_ASSETS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "final_url_expansion_asset_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "FETCH_KEYWORDS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "ad_group_criterion",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "FETCH_SEARCH_TERMS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "search_term_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_DISPLAY_KEYWORDS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "display_keyword_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "ADD_KEYWORDS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_criterion_mutate_ad_group_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "ADD_KEYWORD_CRITERIA",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_criterion_mutate_ad_group_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_KEYWORDS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_criterion_mutate_ad_group_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "ADD_NEGATIVE_KEYWORDS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "requires explicit scope",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_NEGATIVE_KEYWORD_LIST",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_shared_set_mutate_shared_sets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "ADD_SHARED_NEGATIVE_KEYWORDS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_shared_criterion_mutate_shared_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "ATTACH_NEGATIVE_KEYWORD_LIST",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_shared_set_mutate_campaign_shared_sets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_CAMPAIGN_CRITERION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_criterion_mutate_campaign_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_CAMPAIGN_CRITERION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_criterion_mutate_campaign_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_CAMPAIGN_CRITERION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_criterion_mutate_campaign_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_CUSTOMER_NEGATIVE_CRITERION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customer_negative_criterion_mutate_customer_negative_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_CUSTOMER_NEGATIVE_CRITERION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customer_negative_criterion_mutate_customer_negative_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_AD_GROUP_CRITERION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_criterion_mutate_ad_group_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_AD_GROUP_CRITERION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_criterion_mutate_ad_group_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_AD_GROUP_CRITERION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_criterion_mutate_ad_group_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_ASSET_GROUP_ASSET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_asset_group_asset_mutate_asset_group_assets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_ASSET_GROUP_ASSET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_asset_group_asset_mutate_asset_group_assets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_ASSET_GROUP_LISTING_GROUP_FILTER",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_asset_group_listing_group_filter_mutate_asset_group_listing_group_filters",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_ASSET_GROUP_LISTING_GROUP_FILTER",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_asset_group_listing_group_filter_mutate_asset_group_listing_group_filters",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_ASSET_GROUP_SIGNAL",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_asset_group_signal_mutate_asset_group_signals",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_ASSET_GROUP_SIGNAL",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_asset_group_signal_mutate_asset_group_signals",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "ENABLE_PMAX_BRAND_GUIDELINES",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_enable_p_max_brand_guidelines",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "SUGGEST_BRANDS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_brand_suggestion_suggest_brands",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_BRAND_LISTS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "shared_set",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_BRAND_LIST_BRANDS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "shared_criterion",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_BRAND_LIST",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_shared_set_mutate_shared_sets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "ADD_BRAND_TO_LIST",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_shared_criterion_mutate_shared_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_BRAND_FROM_LIST",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_shared_criterion_mutate_shared_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "ATTACH_BRAND_LIST_TO_CAMPAIGN",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "CampaignCriterionService.MutateCampaignCriteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "DETACH_BRAND_LIST_FROM_CAMPAIGN",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "CampaignCriterionService.MutateCampaignCriteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_AD_GROUP_NEGATIVE_KEYWORDS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "ad_group_criterion",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_CAMPAIGN_NEGATIVE_KEYWORDS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "campaign_criterion",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_ACCOUNT_NEGATIVE_KEYWORDS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "customer_negative_criterion",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_SHARED_NEGATIVE_KEYWORD_LISTS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "shared_set",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_SHARED_NEGATIVE_KEYWORDS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "shared_criterion",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "FETCH_EXTENSIONS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "requires explicit scope",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "ADD_EXTENSIONS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "requires explicit scope",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_ASSET_PERFORMANCE",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "requires explicit scope",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_CHANGE_EVENTS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "change_event",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_CHANGE_STATUSES",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "change_status",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_RECOMMENDATIONS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "recommendation",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_RECOMMENDATION_SUBSCRIPTIONS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "recommendation_subscription",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "GENERATE_RECOMMENDATIONS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_recommendation_generate_recommendations",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "APPLY_RECOMMENDATION",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_recommendation_apply_recommendation",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "DISMISS_RECOMMENDATION",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_recommendation_dismiss_recommendation",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "SUBSCRIBE_RECOMMENDATION",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_recommendation_subscription_mutate_recommendation_subscription",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UNSUBSCRIBE_RECOMMENDATION",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_recommendation_subscription_mutate_recommendation_subscription",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_RECOMMENDATION_SUBSCRIPTION",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_recommendation_subscription_mutate_recommendation_subscription",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "GENERATE_ASSETS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "requires explicit scope",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "SUGGEST_ASSETS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "requires explicit scope",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "GENERATE_TEXT_ASSETS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_asset_generation_generate_text",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "GENERATE_IMAGE_ASSETS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_asset_generation_generate_images",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_AUTO_CREATED_ASSET",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "requires explicit scope",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "GENERATE_SHAREABLE_PREVIEWS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_shareable_preview_generate_shareable_previews",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "SUGGEST_TRAVEL_ASSETS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_travel_asset_suggestion_suggest_travel_assets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_YOUTUBE_VIDEO_UPLOADS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "youtube_video_upload",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_YOUTUBE_VIDEO_UPLOAD",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_you_tube_video_upload_create_you_tube_video_upload",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_YOUTUBE_VIDEO_UPLOAD",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_you_tube_video_upload_update_you_tube_video_upload",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_YOUTUBE_VIDEO_UPLOAD",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_you_tube_video_upload_remove_you_tube_video_upload",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_MEDIA_FILES",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "media_file",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_DETAIL_PLACEMENTS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "detail_placement_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_GROUP_PLACEMENTS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "group_placement_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_DETAIL_CONTENT_SUITABILITY_PLACEMENTS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "detail_content_suitability_placement_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_GROUP_CONTENT_SUITABILITY_PLACEMENTS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "group_content_suitability_placement_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "SET_CAMPAIGN_BRAND_SAFETY",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "CampaignService.MutateCampaigns",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "SET_CAMPAIGN_CONTENT_LABEL_EXCLUSIONS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_criterion_mutate_campaign_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_DATA_LINKS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "data_link",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_DATA_LINK",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_data_link_create_data_link",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_DATA_LINK",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_data_link_update_data_link",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_DATA_LINK",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_data_link_remove_data_link",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_BENCHMARKS_AVAILABLE_DATES",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_benchmarks_list_benchmarks_available_dates",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_BENCHMARKS_LOCATIONS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_benchmarks_list_benchmarks_locations",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_BENCHMARKS_PRODUCTS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_benchmarks_list_benchmarks_products",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_BENCHMARKS_SOURCES",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_benchmarks_list_benchmarks_sources",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "GENERATE_BENCHMARKS_METRICS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_benchmarks_generate_benchmarks_metrics",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "GENERATE_CREATOR_INSIGHTS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_content_creator_insights_generate_creator_insights",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "GENERATE_TRENDING_INSIGHTS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_content_creator_insights_generate_trending_insights",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_CAMPAIGN_DRAFTS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "campaign_draft",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_CAMPAIGN_DRAFT",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_draft_mutate_campaign_drafts",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_CAMPAIGN_DRAFT",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_draft_mutate_campaign_drafts",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_CAMPAIGN_DRAFT",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_draft_mutate_campaign_drafts",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "PROMOTE_CAMPAIGN_DRAFT",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_draft_promote_campaign_draft",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_CAMPAIGN_DRAFT_ASYNC_ERRORS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_draft_list_campaign_draft_async_errors",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_EXPERIMENTS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "experiment",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_EXPERIMENT",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_experiment_mutate_experiments",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_EXPERIMENT",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_experiment_mutate_experiments",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_EXPERIMENT",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_experiment_mutate_experiments",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "END_EXPERIMENT",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_experiment_end_experiment",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "GRADUATE_EXPERIMENT",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_experiment_graduate_experiment",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "SCHEDULE_EXPERIMENT",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_experiment_schedule_experiment",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "PROMOTE_EXPERIMENT",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_experiment_promote_experiment",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_EXPERIMENT_ASYNC_ERRORS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_experiment_list_experiment_async_errors",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_EXPERIMENT_ARMS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "experiment_arm",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_EXPERIMENT_ARM",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_experiment_arm_mutate_experiment_arms",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_EXPERIMENT_ARM",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_experiment_arm_mutate_experiment_arms",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_EXPERIMENT_ARM",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_experiment_arm_mutate_experiment_arms",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_SEARCH_TERMS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "search_term_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_PAID_ORGANIC_SEARCH_TERMS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "paid_organic_search_term_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_DSA_SEARCH_TERMS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "dynamic_search_ads_search_term_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_CAMPAIGN_SEARCH_TERMS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "campaign_search_term_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_CUSTOMER_SEARCH_TERM_INSIGHTS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "customer_search_term_insight",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_CAMPAIGN_SEARCH_TERM_INSIGHTS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "campaign_search_term_insight",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_AUDIENCES",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "audience",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_AD_GROUP_AUDIENCE_PERFORMANCE",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "ad_group_audience_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_CAMPAIGN_AUDIENCE_PERFORMANCE",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "campaign_audience_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_CUSTOM_AUDIENCES",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "custom_audience",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_USER_LISTS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "user_list",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_COMBINED_AUDIENCES",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "combined_audience",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_USER_LIST",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_user_list_mutate_user_lists",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_USER_LIST",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_user_list_mutate_user_lists",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_USER_LIST",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_user_list_mutate_user_lists",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_CUSTOMER_MATCH_USER_LIST",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_user_list_mutate_user_lists",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_LOOKALIKE_USER_LIST",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_user_list_mutate_user_lists",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_OFFLINE_USER_DATA_JOBS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "offline_user_data_job",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_OFFLINE_USER_DATA_JOB",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_offline_user_data_job_create_offline_user_data_job",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "ADD_OFFLINE_USER_DATA_JOB_OPERATIONS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_offline_user_data_job_add_offline_user_data_job_operations",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "RUN_OFFLINE_USER_DATA_JOB",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_offline_user_data_job_run_offline_user_data_job",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_LANDING_PAGES",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "landing_page_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_EXPANDED_LANDING_PAGES",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "expanded_landing_page_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_GEO_PERFORMANCE",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "geographic_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_USER_LOCATIONS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "user_location_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_LOCATIONS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "location_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_DISTANCE_PERFORMANCE",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "distance_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_AGE_PERFORMANCE",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "age_range_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_GENDER_PERFORMANCE",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "gender_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_INCOME_PERFORMANCE",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "income_range_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_PARENTAL_STATUS_PERFORMANCE",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "parental_status_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "RUN_GAQL_QUERY",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_google_ads_search",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "FETCH_CUSTOMER_USER_ACCESSES",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "customer_user_access",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "FETCH_CUSTOMER_USER_ACCESS_INVITATIONS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "customer_user_access_invitation",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_CUSTOMER_USER_ACCESS_INVITATION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customer_user_access_invitation_mutate_customer_user_access_invitation",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_CUSTOMER_USER_ACCESS",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customer_user_access_mutate_customer_user_access",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_CUSTOMER_USER_ACCESS",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customer_user_access_mutate_customer_user_access",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_CUSTOMER_USER_ACCESS_INVITATION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customer_user_access_invitation_mutate_customer_user_access_invitation",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "SEARCH",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_google_ads_search",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "SEARCH_INTERESTS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "user_interest",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "SEARCH_LOCATIONS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_geo_target_constant_suggest_geo_target_constants",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "PAUSE_ENTITY",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "requires explicit scope",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "GENERATE_KEYWORD_IDEAS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_keyword_plan_idea_generate_keyword_ideas",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "GENERATE_KEYWORD_HISTORICAL_METRICS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_keyword_plan_idea_generate_keyword_historical_metrics",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "GENERATE_KEYWORD_FORECAST_METRICS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_keyword_plan_idea_generate_keyword_forecast_metrics",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "GENERATE_AD_GROUP_THEMES",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_keyword_plan_idea_generate_ad_group_themes",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_PLANNABLE_LOCATIONS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_reach_plan_list_plannable_locations",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_PLANNABLE_PRODUCTS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_reach_plan_list_plannable_products",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_PLANNABLE_USER_LISTS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_reach_plan_list_plannable_user_lists",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_PLANNABLE_USER_INTERESTS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_reach_plan_list_plannable_user_interests",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "GENERATE_REACH_FORECAST",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_reach_plan_generate_reach_forecast",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "GENERATE_CONVERSION_RATES",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_reach_plan_generate_conversion_rates",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_CONVERSION_ACTIONS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "conversion_action",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_CONVERSION_ACTION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_conversion_action_mutate_conversion_actions",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_CONVERSION_ACTION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_conversion_action_mutate_conversion_actions",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_CONVERSION_ACTION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_conversion_action_mutate_conversion_actions",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_CUSTOMER_CONVERSION_GOALS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "customer_conversion_goal",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_CAMPAIGN_CONVERSION_GOALS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "campaign_conversion_goal",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_CONVERSION_GOAL_CAMPAIGN_CONFIGS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "conversion_goal_campaign_config",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "LIST_CUSTOMER_LIFECYCLE_GOALS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "customer_lifecycle_goal",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CONFIGURE_CUSTOMER_LIFECYCLE_GOAL",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customer_lifecycle_goal_configure_customer_lifecycle_goals",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_CAMPAIGN_LIFECYCLE_GOALS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "campaign_lifecycle_goal",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CONFIGURE_CAMPAIGN_LIFECYCLE_GOAL",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_lifecycle_goal_configure_campaign_lifecycle_goals",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_CAMPAIGN_CONVERSION_GOAL",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_conversion_goal_mutate_campaign_conversion_goals",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_CONVERSION_GOAL_CAMPAIGN_CONFIG",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_conversion_goal_campaign_config_mutate_conversion_goal_campaign_configs",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPLOAD_CLICK_CONVERSIONS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_conversion_upload_upload_click_conversions",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPLOAD_CALL_CONVERSIONS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_conversion_upload_upload_call_conversions",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPLOAD_CONVERSION_ADJUSTMENTS",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_conversion_adjustment_upload_upload_conversion_adjustments",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_CAMPAIGN_BID_MODIFIERS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "campaign_bid_modifier",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_CAMPAIGN_BID_MODIFIER",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_bid_modifier_mutate_campaign_bid_modifiers",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_CAMPAIGN_BID_MODIFIER",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_bid_modifier_mutate_campaign_bid_modifiers",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_CAMPAIGN_BID_MODIFIER",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_bid_modifier_mutate_campaign_bid_modifiers",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_AD_GROUP_BID_MODIFIERS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "ad_group_bid_modifier",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_AD_GROUP_BID_MODIFIER",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_bid_modifier_mutate_ad_group_bid_modifiers",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_AD_GROUP_BID_MODIFIER",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_bid_modifier_mutate_ad_group_bid_modifiers",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_AD_GROUP_BID_MODIFIER",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_bid_modifier_mutate_ad_group_bid_modifiers",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_BIDDING_STRATEGIES",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "bidding_strategy",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_BIDDING_STRATEGY",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_bidding_strategy_mutate_bidding_strategies",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_BIDDING_STRATEGY",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_bidding_strategy_mutate_bidding_strategies",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_BIDDING_STRATEGY",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_bidding_strategy_mutate_bidding_strategies",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_CUSTOMIZER_ATTRIBUTES",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "customizer_attribute",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_CUSTOMIZER_ATTRIBUTE",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customizer_attribute_mutate_customizer_attributes",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_CUSTOMIZER_ATTRIBUTE",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customizer_attribute_mutate_customizer_attributes",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_CUSTOMIZER_ATTRIBUTE",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customizer_attribute_mutate_customizer_attributes",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_CUSTOMER_CUSTOMIZERS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "customer_customizer",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_CUSTOMER_CUSTOMIZER",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customer_customizer_mutate_customer_customizers",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_CUSTOMER_CUSTOMIZER",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customer_customizer_mutate_customer_customizers",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_CAMPAIGN_CUSTOMIZERS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "campaign_customizer",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_CAMPAIGN_CUSTOMIZER",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_customizer_mutate_campaign_customizers",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_CAMPAIGN_CUSTOMIZER",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_customizer_mutate_campaign_customizers",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_AD_GROUP_CUSTOMIZERS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "ad_group_customizer",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_AD_GROUP_CUSTOMIZER",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_customizer_mutate_ad_group_customizers",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_AD_GROUP_CUSTOMIZER",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_customizer_mutate_ad_group_customizers",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_AD_GROUP_CRITERION_CUSTOMIZERS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "ad_group_criterion_customizer",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_AD_GROUP_CRITERION_CUSTOMIZER",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_criterion_customizer_mutate_ad_group_criterion_customizers",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_AD_GROUP_CRITERION_CUSTOMIZER",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_criterion_customizer_mutate_ad_group_criterion_customizers",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_ASSETS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "asset",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_ASSET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_asset_mutate_assets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_ASSET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_asset_mutate_assets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_ASSET_SETS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "asset_set",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_ASSET_SET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_asset_set_mutate_asset_sets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_ASSET_SET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_asset_set_mutate_asset_sets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_ASSET_SET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_asset_set_mutate_asset_sets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_ASSET_SET_ASSETS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "asset_set_asset",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_ASSET_SET_ASSET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_asset_set_asset_mutate_asset_set_assets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_ASSET_SET_ASSET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_asset_set_asset_mutate_asset_set_assets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_CUSTOMER_ASSETS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "customer_asset",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_CUSTOMER_ASSET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customer_asset_mutate_customer_assets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_CUSTOMER_ASSET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customer_asset_mutate_customer_assets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_CUSTOMER_ASSET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customer_asset_mutate_customer_assets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_CUSTOMER_ASSET_SETS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "customer_asset_set",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_CUSTOMER_ASSET_SET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customer_asset_set_mutate_customer_asset_sets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_CUSTOMER_ASSET_SET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customer_asset_set_mutate_customer_asset_sets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_AD_GROUP_ASSETS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "ad_group_asset",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_AD_GROUP_ASSET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_asset_mutate_ad_group_assets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_AD_GROUP_ASSET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_asset_mutate_ad_group_assets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_AD_GROUP_ASSET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_asset_mutate_ad_group_assets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_AD_GROUP_ASSET_SETS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "ad_group_asset_set",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_AD_GROUP_ASSET_SET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_asset_set_mutate_ad_group_asset_sets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_AD_GROUP_ASSET_SET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_asset_set_mutate_ad_group_asset_sets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_CAMPAIGN_ASSETS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "campaign_asset",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_CAMPAIGN_ASSET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_asset_mutate_campaign_assets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_CAMPAIGN_ASSET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_asset_mutate_campaign_assets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_CAMPAIGN_ASSET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_asset_mutate_campaign_assets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_CAMPAIGN_ASSET_SETS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "campaign_asset_set",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_CAMPAIGN_ASSET_SET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_asset_set_mutate_campaign_asset_sets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_CAMPAIGN_ASSET_SET",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_asset_set_mutate_campaign_asset_sets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_APP_CAMPAIGNS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "campaign",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_APP_AD_GROUPS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "ad_group",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_APP_ADS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "ad_group_ad",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_APP_ASSET_PERFORMANCE",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "ad_group_ad_asset_view",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_APP_CONVERSION_ACTIONS",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "conversion_action",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_APP_SKAN_PERFORMANCE",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "campaign",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_APP_CAMPAIGN_CRITERIA",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "campaign_criterion",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_APP_AD_GROUP_CRITERIA",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "ad_group_criterion",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_APP_ACCOUNT_NEGATIVE_CRITERIA",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "customer_negative_criterion",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_APP_SHARED_CRITERIA",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "shared_criterion",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_APP_CAMPAIGN_CRITERION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_criterion_mutate_campaign_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_APP_CAMPAIGN_CRITERION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_campaign_criterion_mutate_campaign_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_APP_AD_GROUP_CRITERION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_criterion_mutate_ad_group_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_APP_AD_GROUP_CRITERION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_criterion_mutate_ad_group_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_APP_ACCOUNT_NEGATIVE_CRITERION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customer_negative_criterion_mutate_customer_negative_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_APP_ACCOUNT_NEGATIVE_CRITERION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customer_negative_criterion_mutate_customer_negative_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_APP_SHARED_CRITERION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_shared_criterion_mutate_shared_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_APP_SHARED_CRITERION",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_shared_criterion_mutate_shared_criteria",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_ACCOUNT_LINKS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "account_link",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_ACCOUNT_LINK",
+        "classification": "RPC",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_account_link_create_account_link",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "UPDATE_ACCOUNT_LINK",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_account_link_mutate_account_link",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "REMOVE_ACCOUNT_LINK",
+        "classification": "MUTATE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_account_link_mutate_account_link",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_THIRD_PARTY_APP_ANALYTICS_LINKS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "third_party_app_analytics_link",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "REGENERATE_THIRD_PARTY_APP_ANALYTICS_LINK",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_third_party_app_analytics_link_regenerate_shareable_link_id",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_SKAD_CONVERSION_VALUE_SCHEMAS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "customer_sk_ad_network_conversion_value_schema",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "MUTATE_SKAD_CONVERSION_VALUE_SCHEMA",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_customer_sk_ad_network_conversion_value_schema_mutate_customer_sk_ad_network_conversion_value_schema",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "LIST_MOBILE_APP_CATEGORY_CONSTANTS",
+        "classification": "GAQL",
+        "status": "explicit_adapter",
+        "destination": "mobile_app_category_constant",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified",
+          "Explicit projection or query required"
+        ]
+      },
+      {
+        "action": "CREATE_MOBILE_APP_ASSET",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_asset_mutate_assets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_APP_DEEP_LINK_ASSET",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_asset_mutate_assets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      },
+      {
+        "action": "CREATE_APP_AD_GROUP_ASSET",
+        "classification": "BESPOKE",
+        "status": "explicit_adapter",
+        "destination": "google_ads_v23_ad_group_asset_mutate_ad_group_assets",
+        "limitations": [
+          "Vendor business validation not performed",
+          "Legacy input/output compatibility unverified"
+        ]
+      }
+    ]
+  },
+  "workflow_gaps": [
+    {
+      "gateway": "amcp_native_action",
+      "operation": "connect_google_reporting",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "amcp_native_action",
+      "operation": "cross_platform_transfer",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "amcp_native_action",
+      "operation": "disconnect_google_reporting",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "amcp_native_action",
+      "operation": "download_creative_asset",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "amcp_native_action",
+      "operation": "fetch_meta_existing_posts",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "amcp_native_action",
+      "operation": "generate_ad_content",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "amcp_native_action",
+      "operation": "generate_creative_design",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "amcp_native_action",
+      "operation": "get_creative_payload",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "amcp_native_action",
+      "operation": "openai_ads_ops",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "amcp_native_action",
+      "operation": "platform_media_upload",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "amcp_native_action",
+      "operation": "search_ads_library",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "amcp_native_action",
+      "operation": "suggest_targeting",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "ga4_native_action",
+      "operation": "ga4_connection_ops",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "ga4_native_action",
+      "operation": "ga4_sync_properties",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "gtm_native_action",
+      "operation": "gtm_action_job_status",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "gtm_native_action",
+      "operation": "gtm_audit_ops",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "google_business_native_action",
+      "operation": "gmb_connection_ops",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "google_business_native_action",
+      "operation": "gmb_qanda_ops",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "google_search_console_native_action",
+      "operation": "gsc_connection_ops",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "adjust_native_action",
+      "operation": "adjust_ad_spend",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "adjust_native_action",
+      "operation": "adjust_app_automation",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "adjust_native_action",
+      "operation": "adjust_campaign_api",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "adjust_native_action",
+      "operation": "adjust_deeplinks",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "adjust_native_action",
+      "operation": "adjust_list_assets",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "adjust_native_action",
+      "operation": "adjust_reporting",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "commerce_native_action",
+      "operation": "woocommerce_list_stores",
+      "reason": "Workflow/provider implementation incomplete"
+    },
+    {
+      "gateway": "commerce_native_action",
+      "operation": "woocommerce_store_ops",
+      "reason": "Workflow/provider implementation incomplete"
+    }
+  ],
+  "limitations": [
+    "Routing and local contract tests do not prove vendor behavior.",
+    "This artifact contains no live account samples. Provider access, approvals, quotas and mutation qualification require current account-specific evidence.",
+    "Special media transports, several provider workflows and exact legacy response parity remain incomplete.",
+    "Writes are opt-in through amcp_write with operator role, account grants, expiring server-read reviews, explicit confirmation and durable idempotency. Campaign-management contracts have synthetic tests; no live mutation qualification is claimed.",
+    "No claim of total API operation coverage: delegated operation schemas may contain further action enums, and Amazon/Apple catalog denominators are unknown."
+  ],
+  "compatibility_verification": {
+    "scope": "Frozen introspection payloads and four compiled route subsets; no full preview envelope or live equivalence claim.",
+    "gateways": [
+      {
+        "gateway": "adjust_native_action",
+        "tier0_schema_loaded": true,
+        "tier1": {
+          "catalog_pages": 0,
+          "descriptions": 0
+        },
+        "tier2": {
+          "full_preview_envelopes": 0,
+          "compiled_route_subsets": 0
+        },
+        "tier3_live_equivalence_comparisons": 0
+      },
+      {
+        "gateway": "amazon_native_action",
+        "tier0_schema_loaded": true,
+        "tier1": {
+          "catalog_pages": 0,
+          "descriptions": 0
+        },
+        "tier2": {
+          "full_preview_envelopes": 0,
+          "compiled_route_subsets": 0
+        },
+        "tier3_live_equivalence_comparisons": 0
+      },
+      {
+        "gateway": "amcp_native_action",
+        "tier0_schema_loaded": true,
+        "tier1": {
+          "catalog_pages": 0,
+          "descriptions": 0
+        },
+        "tier2": {
+          "full_preview_envelopes": 0,
+          "compiled_route_subsets": 0
+        },
+        "tier3_live_equivalence_comparisons": 0
+      },
+      {
+        "gateway": "amcp_platform_workspace",
+        "tier0_schema_loaded": true,
+        "tier1": {
+          "catalog_pages": 0,
+          "descriptions": 0
+        },
+        "tier2": {
+          "full_preview_envelopes": 0,
+          "compiled_route_subsets": 0
+        },
+        "tier3_live_equivalence_comparisons": 0
+      },
+      {
+        "gateway": "apple_ads_native_action",
+        "tier0_schema_loaded": true,
+        "tier1": {
+          "catalog_pages": 0,
+          "descriptions": 0
+        },
+        "tier2": {
+          "full_preview_envelopes": 0,
+          "compiled_route_subsets": 0
+        },
+        "tier3_live_equivalence_comparisons": 0
+      },
+      {
+        "gateway": "commerce_native_action",
+        "tier0_schema_loaded": true,
+        "tier1": {
+          "catalog_pages": 0,
+          "descriptions": 0
+        },
+        "tier2": {
+          "full_preview_envelopes": 0,
+          "compiled_route_subsets": 0
+        },
+        "tier3_live_equivalence_comparisons": 0
+      },
+      {
+        "gateway": "criteo_native_action",
+        "tier0_schema_loaded": true,
+        "tier1": {
+          "catalog_pages": 0,
+          "descriptions": 0
+        },
+        "tier2": {
+          "full_preview_envelopes": 0,
+          "compiled_route_subsets": 0
+        },
+        "tier3_live_equivalence_comparisons": 0
+      },
+      {
+        "gateway": "dv360_native_action",
+        "tier0_schema_loaded": true,
+        "tier1": {
+          "catalog_pages": 0,
+          "descriptions": 0
+        },
+        "tier2": {
+          "full_preview_envelopes": 0,
+          "compiled_route_subsets": 0
+        },
+        "tier3_live_equivalence_comparisons": 0
+      },
+      {
+        "gateway": "ga4_native_action",
+        "tier0_schema_loaded": true,
+        "tier1": {
+          "catalog_pages": 0,
+          "descriptions": 0
+        },
+        "tier2": {
+          "full_preview_envelopes": 0,
+          "compiled_route_subsets": 0
+        },
+        "tier3_live_equivalence_comparisons": 0
+      },
+      {
+        "gateway": "google_ads_native_action",
+        "tier0_schema_loaded": true,
+        "tier1": {
+          "catalog_pages": 5,
+          "descriptions": 5
+        },
+        "tier2": {
+          "full_preview_envelopes": 0,
+          "compiled_route_subsets": 0
+        },
+        "tier3_live_equivalence_comparisons": 0
+      },
+      {
+        "gateway": "google_business_native_action",
+        "tier0_schema_loaded": true,
+        "tier1": {
+          "catalog_pages": 0,
+          "descriptions": 0
+        },
+        "tier2": {
+          "full_preview_envelopes": 0,
+          "compiled_route_subsets": 0
+        },
+        "tier3_live_equivalence_comparisons": 0
+      },
+      {
+        "gateway": "google_search_console_native_action",
+        "tier0_schema_loaded": true,
+        "tier1": {
+          "catalog_pages": 0,
+          "descriptions": 0
+        },
+        "tier2": {
+          "full_preview_envelopes": 0,
+          "compiled_route_subsets": 0
+        },
+        "tier3_live_equivalence_comparisons": 0
+      },
+      {
+        "gateway": "gtm_native_action",
+        "tier0_schema_loaded": true,
+        "tier1": {
+          "catalog_pages": 0,
+          "descriptions": 0
+        },
+        "tier2": {
+          "full_preview_envelopes": 0,
+          "compiled_route_subsets": 0
+        },
+        "tier3_live_equivalence_comparisons": 0
+      },
+      {
+        "gateway": "linkedin_native_action",
+        "tier0_schema_loaded": true,
+        "tier1": {
+          "catalog_pages": 3,
+          "descriptions": 3
+        },
+        "tier2": {
+          "full_preview_envelopes": 0,
+          "compiled_route_subsets": 0
+        },
+        "tier3_live_equivalence_comparisons": 0
+      },
+      {
+        "gateway": "meta_native_action",
+        "tier0_schema_loaded": true,
+        "tier1": {
+          "catalog_pages": 6,
+          "descriptions": 3
+        },
+        "tier2": {
+          "full_preview_envelopes": 0,
+          "compiled_route_subsets": 1
+        },
+        "tier3_live_equivalence_comparisons": 0
+      },
+      {
+        "gateway": "reddit_native_action",
+        "tier0_schema_loaded": true,
+        "tier1": {
+          "catalog_pages": 0,
+          "descriptions": 0
+        },
+        "tier2": {
+          "full_preview_envelopes": 0,
+          "compiled_route_subsets": 0
+        },
+        "tier3_live_equivalence_comparisons": 0
+      },
+      {
+        "gateway": "snapchat_native_action",
+        "tier0_schema_loaded": true,
+        "tier1": {
+          "catalog_pages": 5,
+          "descriptions": 3
+        },
+        "tier2": {
+          "full_preview_envelopes": 0,
+          "compiled_route_subsets": 1
+        },
+        "tier3_live_equivalence_comparisons": 0
+      },
+      {
+        "gateway": "tiktok_native_action",
+        "tier0_schema_loaded": true,
+        "tier1": {
+          "catalog_pages": 12,
+          "descriptions": 3
+        },
+        "tier2": {
+          "full_preview_envelopes": 0,
+          "compiled_route_subsets": 1
+        },
+        "tier3_live_equivalence_comparisons": 0
+      },
+      {
+        "gateway": "x_ads_native_action",
+        "tier0_schema_loaded": true,
+        "tier1": {
+          "catalog_pages": 2,
+          "descriptions": 3
+        },
+        "tier2": {
+          "full_preview_envelopes": 0,
+          "compiled_route_subsets": 1
+        },
+        "tier3_live_equivalence_comparisons": 0
+      }
+    ]
+  }
+}

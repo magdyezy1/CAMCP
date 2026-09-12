@@ -12,15 +12,28 @@ jobs:
           node-version: 24
           cache: npm
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - run: npm ci
-      - run: AMCP_REQUIRE_FFMPEG=true npm run check
-      - run: node --check web/app.js
-      - run: node --check web/workspace.js
-      - run: node --check web/identity.js
-      - run: node --check web/account-security.js
-      - run: node --check web/reporting-overview.js
-      - run: node --check web/owner-operations.js
+      - run: node tools/prepare-public-release.mjs .release/candidate
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: .release/candidate
+      - run: AMCP_REQUIRE_FFMPEG=true npm run check 2>&1 | tee release-check.log
+        working-directory: .release/candidate
       - run: node deploy/check-railway.mjs
-      - run: docker build -t amcp:check .
-      - run: node deploy/smoke.mjs
-      - run: node deploy/smoke.mjs --writes
+        working-directory: .release/candidate
+      - run: docker build -t amcp:check .release/candidate
+      - run: docker image inspect --format '{{.Id}}' amcp:check > .release/candidate/release-image.txt
+      - run: node deploy/smoke.mjs 2>&1 | tee release-smoke-read.log
+        working-directory: .release/candidate
+      - run: node deploy/smoke.mjs --writes 2>&1 | tee release-smoke-write.log
+        working-directory: .release/candidate
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-evidence
+          path: |
+            .release/candidate/release-manifest.json
+            .release/candidate/release-check.log
+            .release/candidate/release-smoke-*.log
+            .release/candidate/release-image.txt
+            .release/candidate/.mirror/REPORTS/implementation-status.json
+            .release/candidate/.mirror/REPORTS/compatibility-verification.json
+          include-hidden-files: true

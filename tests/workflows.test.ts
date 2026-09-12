@@ -5,7 +5,7 @@ import {Registry} from '../src/catalog.js';
 import {Store} from '../src/store.js';
 import {MirrorService,strictOptions} from '../src/service.js';
 import {NativeTransport,buildUrl} from '../src/transport.js';
-import {compileEntityMutation,compileEntityRead,compileReport,normalizeReport,reportCsv,WorkflowEngine,zonedMidnight} from '../src/workflows.js';
+import {compileEntityPayload,compileEntityMutation,compileEntityRead,compileReport,normalizeReport,reportCsv,WorkflowEngine,zonedMidnight} from '../src/workflows.js';
 const registry=new Registry(),compiler=new Compiler(registry);
 const compile=(s:{gateway:string;input:Record<string,unknown>})=>compiler.compile(s.gateway,s.input,strictOptions);
 test('generic campaign, child and ad creation resolves captured routes across Google, LinkedIn, X and DV360',()=>{
@@ -50,4 +50,18 @@ test('X report date boundaries follow account timezone and reject fractional-hou
  assert.equal(zonedMidnight('2026-03-08','America/New_York'),Date.parse('2026-03-08T05:00:00Z'));
  assert.equal(zonedMidnight('2026-03-09','America/New_York'),Date.parse('2026-03-09T04:00:00Z'));
  assert.throws(()=>zonedMidnight('2026-08-01','Asia/Kolkata'),/fractional-hour/);
+});
+
+test('X rejects a phantom targeting field on every generic mutation path, while LinkedIn still aliases it',()=>{
+ const targeting={locations:['01bf5c1e56ac186d'],languages:['ar']};
+ // X targeting lives only in the separate targeting_criteria resource. Accepting it here
+ // compiled a line-item body that X answered 200 and silently discarded.
+ assert.throws(()=>compileEntityPayload('x','adset',{name:'Line',targeting},{account_id:'111'},'update'),/separate targeting_criteria resource/);
+ assert.throws(()=>compileEntityMutation('create_adset',{platform:'x',account_id:'111',parent_id:'222',payload:{name:'Line',targeting}}),/separate targeting_criteria resource/);
+ // form mode and raw api mode both have to be closed; only form mode ran the compiler before.
+ for(const mode of ['form','api'])assert.throws(()=>compileEntityMutation('update_entities',{platform:'x',account_id:'111',entity_type:'adset',entity_id:'333',payload_mode:mode,updates:{targeting}}),/separate targeting_criteria resource/);
+ // LinkedIn's targeting IS a real native field reached through an alias; it must still compile.
+ assert.deepEqual(compileEntityPayload('linkedin','adset',{targeting},{account_id:'111'},'update').payload.targetingCriteria,targeting);
+ // An X mutation carrying no targeting is unaffected.
+ assert.equal(compile(compileEntityMutation('update_entities',{platform:'x',account_id:'111',entity_type:'adset',entity_id:'333',updates:{name:'Renamed'}})).readOnly,false);
 });

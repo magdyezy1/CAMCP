@@ -12,8 +12,6 @@ export async function checkApplication({base, origin, password, writes, restart}
  const json=async(path,method='GET',body,headers={})=>{const response=await api(path,method,body,headers);assert.equal(response.status,200,path);return response.json();};
  const paths=['/','/connections','/connectors','/dashboard','/campaigns','/media','/reports','/reporting-overview','/profiles','/login','/signup','/forgot-password','/verify-email','/reset-password','/account','/assets/app.js','/assets/app.css','/assets/workspace.js','/assets/identity.js','/assets/identity.css','/assets/account-security.js','/assets/reporting-overview.js','/assets/reporting.css','/assets/owner-operations.js'];
  for(const path of paths)assert.equal((await api(path)).status,200,path);
- const privacy=await api('/privacy');assert.equal(privacy.status,200);assert.match(privacy.headers.get('content-type'),/^text\/html/);assert.match(await privacy.text(),/AES-256-GCM/);assert.equal(privacy.headers.get('location'),null);assert.equal(privacy.headers.get('set-cookie'),null);
- assert.equal((await api('/assets/privacy.css')).status,200);
  const page=await (await api('/reporting-overview')).text();
  assert.match(page,/href="\/reporting-overview" data-route="reporting-overview"/,'Reporting Overview navigation is present');
  assert.match(page,/src="\/assets\/reporting-overview\.js"/,'Reporting Overview script is loaded');
@@ -27,12 +25,13 @@ export async function checkApplication({base, origin, password, writes, restart}
  const login=await api('/api/session','POST',{password},{Origin:origin});
  assert.equal(login.status,200);
  const cookie=login.headers.get('set-cookie').split(';')[0],csrf=(await login.json()).csrf,headers={Cookie:cookie,Origin:origin,'X-AMCP-CSRF':csrf};
+ const deployment=await json('/api/session','GET',undefined,headers);assert.equal(deployment.writesEnabled,writes,'Authenticated deployment write mode');
  const administratorOptions=await json('/api/account/options','GET',undefined,headers);
  assert.deepEqual(administratorOptions.providers.map(p=>p.id),['google','apple','facebook']);
  assert.ok(administratorOptions.providers.every(p=>p.configured===false),'Administrators can inspect unconfigured sign-in providers');
 
  const configured=await json('/api/platforms','GET',undefined,headers);
- assert.deepEqual(configured.platforms.map(p=>p.id).sort(),['google','meta','tiktok','snapchat','linkedin','x','ga4','gtm','gsc','apple','microsoft','drive','sheets'].sort());
+ assert.deepEqual(configured.platforms.map(p=>p.id).sort(),['google','meta','tiktok','snapchat','linkedin','x','ga4','gtm','gsc','apple','microsoft','drive','sheets','dv360','reddit'].sort());
  for(const id of ['snapchat','microsoft','drive','sheets'])assert.equal(configured.platforms.find(p=>p.id===id).callback,origin+'/api/auth/'+id+'/callback');
  const drive=configured.platforms.find(p=>p.id==='drive');
  assert.equal(drive.reviewedWrites,false);
@@ -63,7 +62,7 @@ export async function checkApplication({base, origin, password, writes, restart}
  assert.equal(tools.tools.length,writes?27:25);
  assert.ok(tools.tools.some(t=>t.name==='amcp_reporting_overview'));
  const guides=await mcp('resources/list');
- assert.equal(guides.resources.length,10);
+ assert.equal(guides.resources.length,11);
  assert.ok(guides.resources.some(r=>r.uri==='amcp://guides/reporting-overview'));
  // Read every advertised guide from the runtime image, not just its build stage.
  for(const resource of guides.resources){

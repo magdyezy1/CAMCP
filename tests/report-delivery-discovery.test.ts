@@ -55,7 +55,6 @@ test('CSV download and API URLs bypass page routing; ordinary navigation and mod
  const context=createContext({});new Script(source.slice(start,end)).runInContext(context);const run=(href:string,extra:JsonObject={},attrs:JsonObject={})=>{context.event={button:0,...extra};context.el={tagName:'A',getAttribute:(name:string)=>name==='href'?href:attrs[name]??null,hasAttribute:(name:string)=>Object.hasOwn(attrs,name)};return new Script('clientNavigation(event,el)').runInContext(context);};
  assert.equal(run('/api/reporting-overview/report.csv'),false);assert.equal(run('/reporting-overview',{}, {download:''}),false);assert.equal(run('/connections'),true);assert.equal(run('/connections',{ctrlKey:true}),false);assert.equal(run('/connections',{defaultPrevented:true}),false);assert.equal(run('//external.invalid/path'),false);assert.equal(run('/connections',{button:1}),false);
  assert.match(readFileSync('web/reporting-overview.js','utf8'),/\.csv" download="AMCP-campaign-report.csv"/);
- assert.equal(run('/privacy'),false,'Privacy opens the public HTML policy instead of the workspace renderer');
 });
 test('pasted Sheets URLs validate the Google host and parse IDs without following arbitrary URLs or gid tabs',()=>{
  for(const url of ['https://docs.google.com/spreadsheets/d/sheet123/edit#gid=0','https://docs.google.com/spreadsheets/u/1/d/sheet123/edit?usp=sharing'])assert.equal(spreadsheetIdFromUrl(url),'sheet123');

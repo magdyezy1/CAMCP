@@ -32,7 +32,7 @@ export async function googleAccountDiscovery(transport:NativeTransport,connectio
  };
  const account=(row:JsonObject,root:string,client=false):WorkspaceAsset=>{
   const id=String(row?.id??'');if(!/^\d+$/.test(id)||typeof row?.id==='number'&&!Number.isSafeInteger(row.id)||client&&row.clientCustomer!==undefined&&row.clientCustomer!=='customers/'+id)throw new MirrorError('ASSET_ID_INVALID','Google returned an invalid customer identifier.',{},502);
-  return {id,kind:'ad_accounts',name:row.descriptiveName||'Google Ads '+id,currency:row.currencyCode,timezone:row.timeZone,status:row.status,manager:row.manager===true,hidden:row.hidden===true,testAccount:row.testAccount===true,loginCustomerId:root,...(id!==root?{parentId:root}:{}),source:'vendor'};
+  return {id,kind:'ad_accounts',name:row.descriptiveName||'Google Ads '+id,currency:row.currencyCode,timezone:row.timeZone,status:row.status,manager:row.manager===true,hidden:row.hidden===true,testAccount:row.testAccount===true,loginCustomerId:root,readVerified:!client,...(id!==root?{parentId:root}:{}),source:'vendor'};
  };
  for(const root of roots)try{
   const self=(await search(root,'SELECT customer.id, customer.descriptive_name, customer.currency_code, customer.time_zone, customer.status, customer.manager, customer.test_account FROM customer'))[0]?.customer;
