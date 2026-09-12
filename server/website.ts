@@ -31,15 +31,21 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
  // A test account is limited to the tabs an evaluator needs. Hiding navigation is presentation
  // only, so every API behind an excluded tab refuses it here, at one chokepoint.
  //
- // This is an allow-list, and deliberately so: listing what to block left every route added
- // later reachable by default, which is how connection mutation and OAuth initiation became
- // available to the reviewer door. A route absent from this table is refused, so a new endpoint
- // is unreachable until someone decides it belongs in the reviewer scope.
+ // Evaluators can connect their own platform logins and manage their workspace's selections.
+ // Connection mutations retain session, administrator, CSRF and tenant checks; callbacks retain
+ // their session-bound OAuth state checks.
+ // Keep an allow-list so new APIs remain excluded until explicitly added to this scope.
  const testAccountRoutes:[RegExp,string[]][]=[
   [/^\/api\/session$/,['GET','DELETE']],          // read the session, sign out
   [/^\/api\/session\/test$/,['POST']],            // the reviewer door itself
   [/^\/api\/platforms$/,['GET']],                 // Connections tab: available platforms
-  [/^\/api\/connections\/[^/]+$/,['GET']],        // Connections tab: read one connection
+  [/^\/api\/auth\/[^/]+\/start$/,['POST']],       // Connections: initiate provider authorization
+  [/^\/api\/auth\/[^/]+\/callback$/,['GET']],     // Session-bound provider return
+  [/^\/api\/[^/]+\/callback$/,['GET']],           // Existing provider callback alias
+  [/^\/api\/oauth\/progress\/[^/]+$/,['GET']],    // Connections: authorization and discovery result
+  [/^\/api\/connections\/[^/]+$/,['GET','DELETE']],
+  [/^\/api\/connections\/[^/]+\/(reauthorize|sync|default)$/,['POST']],
+  [/^\/api\/connections\/[^/]+\/(assets|write-access)$/,['PATCH']],
   [/^\/api\/activity$/,['GET']],                  // Activity tab
   [/^\/api\/reporting-overview\/[^/]+$/,['GET']], // Reporting overview: CSV export
   [/^\/api\/workspace\/[a-z]+$/,['POST']],        // narrowed further by testAccountTools below

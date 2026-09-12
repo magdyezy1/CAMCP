@@ -37,3 +37,19 @@ The maximum 128 MiB media fixture streamed to encrypted chunks and reconstructed
 Live provider acceptance, permissions/approvals, account-specific quotas and routing, deployed proxy/volume behavior, production backup objectives and privacy operating commitments require the external evidence or owner decisions identified in OPERATIONS.md. Catalog counts and synthetic tests do not establish live readiness.
 
 A final computed-style browser check found muted helper text at 4.40:1 on the page background. The shared muted token was darkened from #747184 to #6c697b; the browser now reports 4.95:1 on that background. This small CSS correction is included in the final branch CI; it is not a claim of a complete accessibility certification.
+
+## Test-account connection follow-up, 2026-09-12
+
+Base: `6fcb5bcd4b0c557e16e38ead27f4d43643f0040d`, in the independent `implementation-Codex-branch` checkout on `Codex-branch`. Node 24.19.0, npm 11.17.0, Windows; in-memory test databases, synthetic provider credentials and injected provider responses. The local runner removes application environment variables and blocks unmocked non-loopback fetches. See [test-account scope](../TEST-ACCOUNTS.md) for the changed behavior and preserved boundaries.
+
+| Command | Result |
+|---|---|
+| `npm run build` | Passed |
+| `node --test --test-concurrency=1 dist/tests/test-account-connections.test.js dist/tests/test-account-scope.test.js dist/tests/user-accounts.test.js dist/tests/website.test.js dist/tests/google-reauthorization.test.js` | 51 passed, no failures or skips |
+| `npm run check` | 497 tests: 496 passed, no failures, one local FFmpeg skip; all 4 capture tests, generated catalogs/vendor metadata, guidance/report, 10 browser script syntax checks and 14 public-capture integrity checks passed |
+| `node deploy/check-railway.mjs` | Passed; configuration inspection only |
+| `git diff --check` | Passed |
+
+Exact invocations and original output are retained in the ignored local `.implementation/checks.jsonl` and `*-test-connections-*.log` files. Initial failures remain visible: the first build rejected a new fixture's inferred optional header values; the first focused run passed 50 of 51 tests because a saved-report expectation omitted the store-added ID and revision. The header fixture now has an explicit string-value type, and the report preservation test compares the complete persisted document before and after reauthorization, including its revision. No production assertion or safeguard was weakened.
+
+New HTTP journeys verify shared and named test accounts, complete Meta authorization and account selection, additional logins, sync, default switching, disconnect, all 14 browser OAuth initiation paths, Google reauthorization, partial-discovery recovery and rejected state replay/cross-session/cross-workspace/CSRF/role/revocation cases. The invited-user suite also verifies connection initiation after email setup and password login. No new live provider flow or browser consent was performed. The branch CI tests its exact assembled committed tree with FFmpeg required and both Docker smoke modes; its run and artifacts provide the commit-bound container evidence.

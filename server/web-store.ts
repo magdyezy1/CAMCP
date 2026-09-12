@@ -103,7 +103,7 @@ export class WebStore {
   this.store.db.prepare('INSERT INTO amcp_web_sessions VALUES(?,?,?,?)').run(sha256(s.id),JSON.stringify(Object.assign(actor,{...(user?{accountVersion:user.version}:{}),signedInAt:now})),s.csrf,s.expiresAt);return s;
  }
  /** Password sign-in for a reviewer. Mirrors the administrator door but lands in the test
-  * workspace with the evaluator scope, and never in the workspace that holds real accounts. */
+  * workspace with the evaluator scope, separate from the deployment owner's connections. */
  signInTest(password:string,address:string):WebSession{
   if(!this.reviewerHash)throw new MirrorError('SETUP_REQUIRED','Configure the AMCP test password on the server before signing in.',{},503);
   this.bindAttempt('test:'+address);

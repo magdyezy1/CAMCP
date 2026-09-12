@@ -221,7 +221,7 @@ test('the owner is told which variables are missing, and verification email can 
 });
 
 test('a test account is scoped to the evaluator tabs and inherits no owner connections',async()=>{
- const f=await fixture({AMCP_OWNER_EMAIL:'owner@example.test'});
+ const f=await fixture({AMCP_OWNER_EMAIL:'owner@example.test',AMCP_META_CLIENT_ID:'synthetic-meta-client',AMCP_META_CLIENT_SECRET:'synthetic-meta-secret'});
  try{
   const owner=f.credentials(f.web.createSession({tenantId:f.web.tenantId,userId:'workspace-admin',role:'admin'}));
 
@@ -239,6 +239,9 @@ test('a test account is scoped to the evaluator tabs and inherits no owner conne
   // Included tabs work.
   for(const path of ['/api/activity','/api/platforms'])assert.equal((await f.request(path,'GET',undefined,session)).status,200);
   assert.equal((await f.request('/api/workspace/overview','POST',{action:'list'},session)).status,200);
+  const connect=await f.request('/api/auth/meta/start','POST',{},session);
+  assert.equal(connect.status,200,'an invited test account can connect its own platform login');
+  assert.equal(new URL((await connect.json()).url).hostname,'www.facebook.com');
 
   // Excluded tabs are refused by the server, not merely hidden.
   for(const tool of ['campaign','reporting','media','write']){

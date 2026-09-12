@@ -29,21 +29,16 @@ async function site(){
 }
 
 /**
- * The reviewer scope is an allow-list. These are the routes that were reachable while it was
- * expressed as a deny-list of three path patterns: connection mutation and OAuth initiation
- * were never intended to be part of an evaluator's read-only tour.
+ * Reviewers can manage connections in their own workspace. Other restricted areas and unknown
+ * connection operations remain refused by default, even if navigation hides their entry points.
  */
 const refused:[string,string][]=[
- ['POST','/api/auth/meta/start'],
- ['GET','/api/auth/meta/callback'],
- ['GET','/api/meta/callback'],
- ['GET','/api/oauth/progress/abc'],
- ['POST','/api/connections/synthetic/reauthorize'],
- ['POST','/api/connections/synthetic/sync'],
- ['PATCH','/api/connections/synthetic/assets'],
- ['PATCH','/api/connections/synthetic/write-access'],
- ['POST','/api/connections/synthetic/default'],
- ['DELETE','/api/connections/synthetic'],
+ ['POST','/api/signin/google/start'],
+ ['POST','/api/account/password'],
+ ['POST','/api/owner/accounts/test-invite'],
+ ['POST','/api/mcp/consent'],
+ ['POST','/api/connections/synthetic/future-operation'],
+ ['PATCH','/api/connections/synthetic'],
  ['GET','/api/connector-tokens'],
  ['POST','/api/connector-tokens'],
  ['GET','/api/mcp/authorizations'],
@@ -109,10 +104,8 @@ test('the reviewer scope holds however the path is spelled',async()=>{
    ['POST','/Api/Workspace/write'],
    ['POST','/api/workspace/WRITE'],
    ['POST','/api/workspace/%77rite'],
-   ['PATCH','/API/connections/x/write-access'],
    ['POST','/api/workspace/write/'],
    ['POST','/api//workspace/write'],
-   ['POST','/API/auth/meta/start'],
    ['GET','/API/connector-tokens'],
    ['GET','/api/CONNECTOR-TOKENS'],
   ];
