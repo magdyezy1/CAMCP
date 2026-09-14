@@ -263,10 +263,12 @@ export class MediaUploadService {
   return fail('MEDIA_PLATFORM_UNSUPPORTED','Unsupported upload platform.');
  }
  private async attachLibrary(actor:Actor,p:UploadPlan,id:string,key:string):Promise<UploadResult>{
-  const library=(await this.send(actor,p,'/12/accounts/'+p.account_id+'/media_library',{media_key:key,media_category:p.kind==='image'?'TWEET_IMAGE':'AMPLIFY_VIDEO',name:p.name,file_name:p.filename})).data as JsonObject;
-  const libraryId=responseId(library.data?.media_key,/^(?:[0-9]+_)?[0-9]+$/);
-  if(libraryId.split('_').at(-1)!==id)fail('MEDIA_RESPONSE_INVALID','X registered a different media identifier.');
-  return {media_id:id,media_key:libraryId,library_id:libraryId,ready:true,processing_status:'AVAILABLE'};
+  responseId(key,/^[0-9]+_[0-9]+$/);
+  const library=(await this.send(actor,p,'/12/accounts/'+p.account_id+'/media_library',{media_key:key,name:p.name,file_name:p.filename})).data as JsonObject;
+  const libraryId=responseId(library.data?.media_key,/^[0-9]+_[0-9]+$/);
+  if(libraryId!==key||libraryId.split('_').at(-1)!==id||library.data.deleted===true)fail('MEDIA_RESPONSE_INVALID','X registered a different or deleted media identifier.');
+  const ready=library.data.media_status==='TRANSCODE_COMPLETED';
+  return {media_id:id,media_key:libraryId,library_id:libraryId,ready,processing_status:library.data.media_status??'UNKNOWN'};
  }
  private async prepareLibrary(actor:Actor,p:UploadPlan,source:JsonObject,sourceId:string,previous?:JsonObject):Promise<JsonObject>{
   if(p.platform!=='x_ads'||p.kind!=='video'||p.library_media||previous?.state!=='complete')fail('MEDIA_NOT_UPLOADED','This action requires a completed X video upload.');
@@ -302,6 +304,11 @@ export class MediaUploadService {
   };
   const poll={tool:'amcp_media',arguments:{action:'status',review_id:receipt.review_id}};
   let r:TransportResult;
+  if(p.platform==='x_ads'&&receipt.library_id){
+   const key=responseId(receipt.library_id,/^[0-9]+_[0-9]+$/),d=(await this.send(actor,p,'/12/accounts/'+p.account_id+'/media_library/'+key,undefined,{method:'GET',readOnly:true})).data as JsonObject;
+   if(d.data?.media_key!==key||d.data.deleted===true||d.data.account_id!==undefined&&d.data.account_id!==p.account_id)fail('MEDIA_NOT_AVAILABLE','The exact registered X media is no longer accessible in the selected account.');
+   const ready=d.data.media_status==='TRANSCODE_COMPLETED';return finish({...receipt,executed:false,ready,processing_status:d.data.media_status??'UNKNOWN',status_source:'provider',...(!ready?{next_call:poll}:{})});
+  }
   if(p.platform==='meta'&&p.kind==='image'){
    const hash=responseId(receipt.media_id);const d=(await this.send(actor,p,'/v25.0/act_'+p.account_id+'/adimages',undefined,{method:'GET',readOnly:true,query:{hashes:[hash],fields:'hash',limit:100}})).data as JsonObject;
    if(!Array.isArray(d.data)||!d.data.some((image:JsonObject)=>image.hash===hash))fail('MEDIA_NOT_AVAILABLE','The uploaded image is no longer accessible in the selected Meta account.');

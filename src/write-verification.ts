@@ -5,6 +5,8 @@ import {CredentialProvider} from './auth.js';
 import {ScopeGuard} from './scope.js';
 import {independentlyReadOnly} from './execution-risk.js';
 import {MirrorError} from './errors.js';
+import {setTimeout as delay} from 'node:timers/promises';
+import {xCreativeKind,xPromotion,verifyXCreative} from './x-creative-writes.js';
 import {normalizeReviewState} from './review-state.js';
 import {validateState,snapshotPlans} from './write-review.js';
 import {compileMicrosoft,microsoftGateway,microsoftContracts} from './microsoft-native.js';
@@ -33,7 +35,8 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
  if(gateway==='meta_native_action'){const id=String(d.id??plan.path.split('/').at(-1));if(!/^\d+$/.test(id))return [];const expected={...b};delete expected.execution_options;if(expected.creative?.creative_id)expected.creative={id:expected.creative.creative_id};return [{read:base('/v25.0/'+id,{fields:['id',...Object.keys(expected)].join(',')}),expected,id}];}
  if(gateway==='tiktok_native_action'){
   const kind=plan.path.split('/')[2]!,ids=d.data?.[kind+'_ids']??[d.data?.[kind+'_id']??b[kind+'_id']];if(ids.some((id:unknown)=>typeof id!=='string'))return [];
-  return ids.map((id:string)=>({read:{...base('/v1.3/'+kind+'/get/',{advertiser_id:plan.accountId,filtering:{[kind+'_ids']:[id]},page_size:100}),action:'tiktok_'+kind+'_get'},expected:Object.fromEntries(Object.entries(b).filter(([k])=>!['advertiser_id',kind+'_ids'].includes(k))),id}));
+  const expected=kind==='ad'&&plan.path==='/v1.3/ad/create/'?{...b.creatives[0],adgroup_id:b.adgroup_id}:Object.fromEntries(Object.entries(b).filter(([k])=>!['advertiser_id',kind+'_ids'].includes(k)));
+  return ids.map((id:string)=>({read:{...base('/v1.3/'+kind+'/get/',{advertiser_id:plan.accountId,filtering:{[kind+'_ids']:[id]},page_size:100}),action:'tiktok_'+kind+'_get'},expected,id}));
  }
  if(gateway==='snapchat_native_action'){
   const kind=Object.keys(d).find(k=>['campaigns','adsquads','ads','creatives'].includes(k));if(!kind)return [];const singular=kind==='adsquads'?'adsquad':kind.slice(0,-1);
@@ -65,13 +68,24 @@ export class WriteVerifier{
   if(result.success!==true)bad('Inspect the retained partial failure before recovery.','WRITE_PARTIAL_OR_FAILED');
   const cached=optional(this.store,actor.tenantId,'write_verification',reviewId);if(cached?.status==='verified'&&Date.now()-cached.checked_at<10000)return {...cached,cached:true};
   let reads:ReturnType<typeof verificationReads>=[],status='unverified',checks:JsonObject[]=[];
-  try{reads=verificationReads(plan,result,this.registry);for(const item of reads){
+  try{if(xCreativeKind(plan)){
+   for(let attempt=0;attempt<3;attempt++){
+    if(attempt)await delay(attempt*250);
+    const verified=await verifyXCreative(plan,result,async read=>{
+     if(!independentlyReadOnly(read))bad('X verification must remain read-only.','VERIFICATION_UNSUPPORTED');
+     this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(read,current);
+     const auth=await this.credentials.get(current);this.store.assertActorActive(actor);this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);
+     const response=await this.transport.request(read,current,auth);this.store.assertActorActive(actor);this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);return response;
+    });status=verified.status;checks=verified.checks;
+    if(!xPromotion(plan)||status!=='pending')break;
+   }
+  }else{reads=verificationReads(plan,result,this.registry);for(const item of reads){
    if(!obj(item.expected)||!Object.keys(item.expected).length||!independentlyReadOnly(item.read))bad('No complete configuration read contract exists for this write.','VERIFICATION_UNSUPPORTED');
    this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(item.read,current);const auth=await this.credentials.get(current);this.store.assertActorActive(actor);this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);const response=await this.transport.request(item.read,current,auth);validateState(item.read,response);this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);
    const actual=normalize(entity(item.read,response.data as JsonObject)),expected=normalize(item.expected),changed=differing(expected,actual);checks.push({resource_id:item.id,status:changed.length?'mismatch':'verified',changed_fields:changed,expected_hash:fingerprint(expected),actual_hash:fingerprint(actual),checked_fields:Object.keys(expected)});
-  }status=reads.length?(checks.every(c=>c.status==='verified')?'verified':'mismatch'):'unsupported';}
+  }status=reads.length?(checks.every(c=>c.status==='verified')?'verified':'mismatch'):'unsupported';}}
   catch(e){checks.push({status:'unverified',code:e instanceof MirrorError?e.code:'READ_FAILED',message:e instanceof MirrorError?e.message:'Verification read failed.'});}
-  this.store.assertActorActive(actor);const receipt={review_id:reviewId,connection_id:c.id,account_id:plan.accountId,action:plan.action,status,checks,checked_at:Date.now(),automatic_retry_of_mutation:false,recovery:'Preserve successful resources. Corrective writes need a new reviewed request; verification never resets idempotency.'};
+  this.store.assertActorActive(actor);const receipt={review_id:reviewId,connection_id:c.id,account_id:plan.accountId,action:plan.action,status,checks,checked_at:Date.now(),automatic_retry_of_mutation:false,recovery:'Preserve successful resources. Corrective writes need a new reviewed request; verification never resets idempotency.',...(status==='pending'?{retry_read_after_ms:1000,next_call:{tool:'amcp_campaign',arguments:{action:'verify',review_id:reviewId}}}:{})};
   this.store.putDocument(actor.tenantId,'write_verification',reviewId,receipt);audit(this.store,actor,'write_verification',{connection_id:c.id,account_id:plan.accountId,review_id:reviewId,status});return receipt;
  }
 }

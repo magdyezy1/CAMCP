@@ -63,7 +63,7 @@ export function compileEntityPayload(pValue:unknown,type:string,dataValue:unknow
  if(p==='google'&&acct){if(data.campaign)data.campaign=resource(acct,'campaigns',data.campaign);if(data.ad_group)data.ad_group=resource(acct,'adGroups',data.ad_group);}
  if(operation==='create'&&['campaign','adset','ad','asset_group'].includes(type)){
   if(p==='google')data.status='PAUSED';
-  if(p==='linkedin')data.status=type==='campaign'?'DRAFT':'PAUSED';
+  if(p==='linkedin'){if(type==='ad'){data.intendedStatus='PAUSED';delete data.status;}else data.status=type==='campaign'?'DRAFT':'PAUSED';}
   if(p==='x'){if(type==='ad')delete data.status;else data.entity_status='PAUSED';}
   if(p==='dv360')data.entityStatus='ENTITY_STATUS_PAUSED';
  }
@@ -120,6 +120,7 @@ export function compileEntityMutation(operation:string,args:JsonObject):NativeSt
  }
  if(p==='linkedin'){
   const base=type==='campaign'?'ad_campaign_groups':type==='adset'?'ad_campaigns':type==='ad'?'creatives':undefined;if(!base)return unsupported('LinkedIn creative creation is represented by create_ad.');
+  if(type==='ad'&&payload.status!==undefined){if(payload.intendedStatus!==undefined&&payload.intendedStatus!==payload.status)throw new MirrorError('CONFLICTING_FIELDS','LinkedIn status and intendedStatus disagree.');payload.intendedStatus=payload.status;delete payload.status;}
   const pathKey=type==='campaign'?'campaign_group_id':type==='adset'?'campaign_id':'creative_id';
   if(create){payload.account=urn('sponsoredAccount',acct);if(type==='adset')payload.campaignGroup=urn('sponsoredCampaignGroup',args.parent_id??payload.campaignGroup);if(type==='ad')payload.campaign=urn('sponsoredCampaign',args.parent_id??payload.campaign);}
   const action=`linkedin_rest_ad_accounts_ad_account_id_${base}${create?'':'_'+pathKey}_${remove?'delete':'post'}`;

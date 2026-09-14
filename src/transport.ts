@@ -82,7 +82,8 @@ export class NativeTransport {
    for(const key of Object.keys(headers))if(key.toLowerCase()==='content-type')delete headers[key];
    }
   }else if(plan.body!==undefined){
-   if(plan.gateway==='meta_native_action'||plan.gateway==='x_ads_native_action'&&!plan.path.includes('/batch/')){form=new URLSearchParams();for(const [k,v]of Object.entries(plan.body as JsonObject))form.set(k,typeof v==='object'?JSON.stringify(v):String(v));body=form.toString();headers['Content-Type']='application/x-www-form-urlencoded';}
+   const xJsonCard=plan.gateway==='x_ads_native_action'&&['POST','PUT'].includes(plan.method)&&/^\/12\/accounts\/[^/]+\/cards(?:\/[^/]+)?$/.test(plan.path);
+   if(plan.gateway==='meta_native_action'||plan.gateway==='x_ads_native_action'&&!plan.path.includes('/batch/')&&!xJsonCard){form=new URLSearchParams();for(const [k,v]of Object.entries(plan.body as JsonObject))form.set(k,typeof v==='object'?JSON.stringify(v):String(v));body=form.toString();headers['Content-Type']='application/x-www-form-urlencoded';}
    else {body=JSON.stringify(plan.gateway==='google_ads_native_action'?camelKeys(plan.body):plan.body);headers['Content-Type']=plan.gateway==='snapchat_native_action'&&plan.method==='PATCH'?'application/json-patch+json':'application/json';}
   }
   if(credentials.accessToken){if(plan.gateway==='tiktok_native_action')headers['Access-Token']=credentials.accessToken;else headers.Authorization='Bearer '+credentials.accessToken;}

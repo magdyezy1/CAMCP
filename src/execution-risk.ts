@@ -1,4 +1,5 @@
 import type {CompiledRequest} from './types.js';
+import {xCreativeEdit,xCreativeWarnings} from './x-creative-writes.js';
 import {microsoftGateway,microsoftRead} from './microsoft-native.js';
 
 // Read-only metadata is a compatibility observation, never sufficient execution
@@ -40,5 +41,6 @@ export function independentlyReadOnly(plan:CompiledRequest):boolean{
 }
 export function applyExecutionRisk(plan:CompiledRequest):CompiledRequest{
  const readOnly=independentlyReadOnly(plan);
- return {...plan,readOnly,requiresConfirmation:plan.requiresConfirmation||!readOnly,warnings:plan.readOnly&&!readOnly?[...plan.warnings,'Catalog read-only metadata is not sufficient for this route; execution is treated as a mutation or an unqualified operation.']:plan.warnings};
+ const warnings=[...plan.warnings,...xCreativeWarnings(plan),...(plan.readOnly&&!readOnly?['Catalog read-only metadata is not sufficient for this route; execution is treated as a mutation or an unqualified operation.']:[])];
+ return {...plan,readOnly,destructive:plan.destructive||xCreativeEdit(plan),requiresConfirmation:plan.requiresConfirmation||!readOnly,warnings:[...new Set(warnings)]};
 }

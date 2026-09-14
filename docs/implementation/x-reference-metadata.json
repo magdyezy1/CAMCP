@@ -1,0 +1,241 @@
+{
+  "observed_on": "2026-09-14",
+  "method": "WhatHead DESCRIBE_ACTION metadata only; no account ID, credentials or provider request",
+  "meaning": "Route metadata is not execution or safety evidence",
+  "responses": [
+    {
+      "success": true,
+      "data": {
+        "success": true,
+        "api_version": "12",
+        "action": "x_accounts_account_id_cards_post",
+        "aliases": [
+          "CREATE_CARD"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/cards",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null,
+        "docs_paths": [
+          "MDFILES/x-ads-api/creatives/reference.mdx"
+        ],
+        "invocation": {
+          "tool": "x_ads_native_action",
+          "arguments": {
+            "action": "x_accounts_account_id_cards_post",
+            "account_id": "<X Ads account id>",
+            "path_params": {},
+            "params": "<native query/form fields>",
+            "payload": "<native request body>"
+          }
+        }
+      },
+      "meta": {
+        "requestId": "4a516970-e8e1-439c-b6db-9d1b46dd88c5",
+        "latencyMs": 282
+      }
+    },
+    {
+      "success": true,
+      "data": {
+        "success": true,
+        "api_version": "12",
+        "action": "x_accounts_account_id_cards_card_id_put",
+        "aliases": [
+          "UPDATE_CARD"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}/cards/{card_id}",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "card_id"
+        ],
+        "special_transport": null,
+        "docs_paths": [
+          "MDFILES/x-ads-api/creatives/reference.mdx"
+        ],
+        "invocation": {
+          "tool": "x_ads_native_action",
+          "arguments": {
+            "action": "x_accounts_account_id_cards_card_id_put",
+            "account_id": "<X Ads account id>",
+            "path_params": {
+              "card_id": "<card_id>"
+            },
+            "params": "<native query/form fields>",
+            "payload": "<native request body>"
+          }
+        }
+      },
+      "meta": {
+        "requestId": "69ff6da8-c69c-4768-a81e-f4fe1dfbbc4a",
+        "latencyMs": 328
+      }
+    },
+    {
+      "success": true,
+      "data": {
+        "success": true,
+        "api_version": "12",
+        "action": "x_accounts_account_id_tweet_post",
+        "aliases": [
+          "CREATE_TWEET"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/tweet",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null,
+        "docs_paths": [
+          "MDFILES/x-ads-api/creatives/reference.mdx"
+        ],
+        "invocation": {
+          "tool": "x_ads_native_action",
+          "arguments": {
+            "action": "x_accounts_account_id_tweet_post",
+            "account_id": "<X Ads account id>",
+            "path_params": {},
+            "params": "<native query/form fields>",
+            "payload": "<native request body>"
+          }
+        }
+      },
+      "meta": {
+        "requestId": "d6dd4073-b69d-4a74-b762-0950455eaa4a",
+        "latencyMs": 324
+      }
+    },
+    {
+      "success": true,
+      "data": {
+        "success": true,
+        "api_version": "12",
+        "action": "x_accounts_account_id_tweets_tweet_id_name_put",
+        "aliases": [
+          "UPDATE_TWEET_NAME"
+        ],
+        "method": "PUT",
+        "endpoint": "/12/accounts/{account_id}/tweets/{tweet_id}/name",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id",
+          "tweet_id"
+        ],
+        "special_transport": null,
+        "docs_paths": [
+          "MDFILES/x-ads-api/creatives/reference.mdx"
+        ],
+        "invocation": {
+          "tool": "x_ads_native_action",
+          "arguments": {
+            "action": "x_accounts_account_id_tweets_tweet_id_name_put",
+            "account_id": "<X Ads account id>",
+            "path_params": {
+              "tweet_id": "<tweet_id>"
+            },
+            "params": "<native query/form fields>",
+            "payload": "<native request body>"
+          }
+        }
+      },
+      "meta": {
+        "requestId": "fee63974-e8c6-443c-b786-6f293d585dd9",
+        "latencyMs": 300
+      }
+    },
+    {
+      "success": true,
+      "data": {
+        "success": true,
+        "api_version": "12",
+        "action": "x_accounts_account_id_media_library_post",
+        "aliases": [
+          "CREATE_MEDIA_LIBRARY_ITEM"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/media_library",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null,
+        "docs_paths": [
+          "MDFILES/x-ads-api/creatives/reference.mdx"
+        ],
+        "invocation": {
+          "tool": "x_ads_native_action",
+          "arguments": {
+            "action": "x_accounts_account_id_media_library_post",
+            "account_id": "<X Ads account id>",
+            "path_params": {},
+            "params": "<native query/form fields>",
+            "payload": "<native request body>"
+          }
+        }
+      },
+      "meta": {
+        "requestId": "a0ad123f-d4d1-4426-bd02-8f7f202ab393",
+        "latencyMs": 286
+      }
+    },
+    {
+      "success": true,
+      "data": {
+        "success": true,
+        "api_version": "12",
+        "action": "x_accounts_account_id_promoted_tweets_post",
+        "aliases": [
+          "CREATE_PROMOTED_TWEET"
+        ],
+        "method": "POST",
+        "endpoint": "/12/accounts/{account_id}/promoted_tweets",
+        "category": "creative",
+        "read_only": false,
+        "destructive": false,
+        "deprecated": false,
+        "path_parameters": [
+          "account_id"
+        ],
+        "special_transport": null,
+        "docs_paths": [
+          "MDFILES/x-ads-api/creatives/reference.mdx"
+        ],
+        "invocation": {
+          "tool": "x_ads_native_action",
+          "arguments": {
+            "action": "x_accounts_account_id_promoted_tweets_post",
+            "account_id": "<X Ads account id>",
+            "path_params": {},
+            "params": "<native query/form fields>",
+            "payload": "<native request body>"
+          }
+        }
+      },
+      "meta": {
+        "requestId": "42820cf6-08a4-4874-a62e-f2498baf42c7",
+        "latencyMs": 275
+      }
+    }
+  ]
+}

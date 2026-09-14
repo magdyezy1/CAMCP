@@ -110,7 +110,10 @@ blindly, reshape a request to slip past one, or split a change into smaller piec
 - `PROVIDER_WRITE_SCOPE_REQUIRED` / `INSUFFICIENT_SCOPE` — the connection lacks a scope the write
   needs. Reconnecting is the user's decision.
 - `PAUSED_CREATION_REQUIRED` — a new serving entity must be created paused. Set the provider's
-  paused value; do not create live and pause afterwards.
+  paused value; do not create live and pause afterwards. X promoted Tweets are explicitly
+  modeled as activation: stage the nullcast Tweet without promotion and review the serving
+  consequences before promoting. TikTok ad status belongs inside its creative record;
+  LinkedIn creative status is intendedStatus.
 
 **While the review is being confirmed**
 

@@ -10,7 +10,7 @@ import type {Actor,JsonObject} from '../src/types.js';
 const key=Buffer.alloc(32,19).toString('base64'),actor:Actor={tenantId:'t',userId:'u',role:'operator'},admin:Actor={...actor,role:'admin'},registry=new Registry();
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64');
 const mp4=Buffer.concat([Buffer.from([0,0,0,24]),Buffer.from('ftypisom'),Buffer.alloc(24)]),link='https://drive.google.com/file/d/abcdefghijklmno/view?usp=sharing';
-function fixture(platform:string,kind='image',options:{pending?:boolean;failUpload?:boolean;badUrl?:boolean;finalizeObject?:boolean;statusResponse?:JsonObject}={}){
+function fixture(platform:string,kind='image',options:{pending?:boolean;failUpload?:boolean;badUrl?:boolean;finalizeObject?:boolean;statusResponse?:JsonObject;libraryResponse?:JsonObject}={}){
  const store=new Store(':memory:',key),gateway=platform+'_native_action',c={id:'c',tenantId:'t',gateway,accounts:['123'],writeAccounts:['123'],label:'Synthetic',enabled:true,scopes:[]};
  store.putConnection(admin,c,{accessToken:'synthetic',developerToken:'synthetic',consumerKey:'synthetic',consumerSecret:'synthetic',tokenSecret:'synthetic'});
  const file=kind==='image'?png:mp4,calls:{path:string;method:string;body:any;headers:Headers}[]=[];let downloads=0,stateChanged=false;
@@ -32,6 +32,7 @@ function fixture(platform:string,kind='image',options:{pending?:boolean;failUplo
    if(platform==='dv360')return Response.json({advertiserId:'123',...extra});
    if(platform==='linkedin')return Response.json({id:123,...extra});
    if(path==='/1.1/media/upload.json')return Response.json({media_id_string:'456',media_key:'13_456',processing_info:{state:'succeeded'}});
+   if(path.includes('/media_library/'))return Response.json(options.statusResponse??{data:{media_key:kind==='image'?'3_456':'13_456',media_status:'TRANSCODE_COMPLETED',deleted:false}});
    return Response.json({data:{id:'123',...extra}});
   }
   if(options.failUpload&&path.endsWith('/upload'))throw Error('Lost upload response');
@@ -54,7 +55,7 @@ function fixture(platform:string,kind='image',options:{pending?:boolean;failUplo
    const request=JSON.parse(String(body));assert.equal(request.initializeUploadRequest.owner,'urn:li:sponsoredAccount:123');
    return Response.json({value:{[kind]:'urn:li:'+kind+':456',uploadToken:'',uploadUrl:options.badUrl?'https://attacker.invalid/upload':'https://www.linkedin.com/dms-uploads/456/image',uploadInstructions:[{uploadUrl:'https://www.linkedin.com/dms-uploads/456/video',firstByte:0,lastByte:4*1024*1024-1}]}});
   }
-  if(path.endsWith('/media_library'))return Response.json({data:{media_key:kind==='image'?'3_456':'13_456'}});
+  if(path.endsWith('/media_library')){assert.equal(new URLSearchParams(String(body)).has('media_category'),false);return Response.json(options.libraryResponse??{data:{media_key:kind==='image'?'3_456':'13_456',media_status:'TRANSCODE_COMPLETED'}});}
   const command=body instanceof FormData?body.get('command'):new URLSearchParams(String(body)).get('command');
   if(command==='APPEND')return new Response(null,{status:204});
   return Response.json({media_id_string:'456',media_key:kind==='image'?'3_456':'13_456',...(command==='FINALIZE'&&options.pending?{processing_info:{state:'pending'}}:{})});
@@ -74,6 +75,16 @@ for(const platform of ['meta','snapchat','tiktok','google_ads','linkedin','x_ads
   assert.equal((await f.call(input)).data.replayed,true);assert.equal(f.calls.length,count);assert.equal(f.downloads(),1);assert.equal(f.store.db.prepare('SELECT count(*) AS n FROM media_staging').get()!.n,0);
   if(platform==='snapchat')assert.equal(f.store.ownsResource(f.c,'123','media/456'),true);
  }finally{f.close();}
+});
+
+test('X library registration preserves exact media keys and readiness comes from the account library',async()=>{
+ const f=fixture('x_ads','video',{libraryResponse:{data:{media_key:'13_456'}}});try{
+  const review=(await f.prepare()).data,result=await f.call({action:'execute',review_id:review.review_id,idempotency_key:review.review_id,confirmed:true});assert.equal(result.success,true,JSON.stringify(result));assert.equal(result.data.ready,false);assert.equal(result.data.processing_status,'UNKNOWN');
+  const status=await f.call({action:'status',review_id:review.review_id});assert.equal(status.success,true,JSON.stringify(status));assert.equal(status.data.ready,true);assert.ok(f.calls.at(-1)!.path.endsWith('/media_library/13_456'));assert.equal(f.calls.filter(c=>c.path.endsWith('/media_library')).length,1);
+ }finally{f.close();}
+ const wrong=fixture('x_ads','video',{libraryResponse:{data:{media_key:'3_456',media_status:'TRANSCODE_COMPLETED'}}});try{
+  const review=(await wrong.prepare()).data,input={action:'execute',review_id:review.review_id,idempotency_key:review.review_id,confirmed:true};assert.equal((await wrong.call(input)).error.code,'MEDIA_RESPONSE_INVALID');const count=wrong.calls.length;assert.equal((await wrong.call(input)).error.code,'WRITE_OUTCOME_UNCERTAIN');assert.equal(wrong.calls.length,count);
+ }finally{wrong.close();}
 });
 
 test('X asynchronous processing requires a fresh reviewed library attachment without reuploading bytes',async()=>{
