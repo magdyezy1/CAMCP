@@ -1,6 +1,8 @@
 name: Public provider contract drift
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '17 5 * * 1'
 permissions:
   contents: read
 jobs:
@@ -14,10 +16,18 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Compare approved public schemas without account credentials
         run: node dist/tools/provider-drift.js --live > provider-drift.json
+      - name: Watch public documentation without changing contract pins
+        if: always()
+        run: node dist/tools/provider-lifecycle.js --live > provider-lifecycle.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: public-provider-drift
-          path: provider-drift.json
+          path: |
+            provider-drift.json
+            provider-lifecycle.json

@@ -16,6 +16,8 @@ import type {ExecutionPolicy} from './preflight.js';
 import type {Actor,CompiledRequest,Connection,JsonObject} from './types.js';
 import {mediaPlatforms} from './media-routing.js';
 import {assertAccountWrite} from './write-access.js';
+import {linkedinVersion} from './linkedin-version.js';
+import {assertLinkedInOrganization} from './linkedin-posts.js';
 
 const platforms=mediaPlatforms;
 export const mediaTool={name:'amcp_media',description:'Import a public or selected private Google Drive file into a selected advertising account. prepare downloads and encrypts the exact file for a five-minute review; execute uploads those frozen bytes after explicit confirmation. Supports PNG/JPEG and MP4/MOV across Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360 (X/LinkedIn video: MP4). Google videos are uploaded as UNLISTED on the account Google-managed YouTube channel. Normal native media actions and platform_media_upload use this same server transfer; the MCP client never downloads bytes. status reads provider processing state; prepare_library reviews adding an X video to its account library once processing succeeds. Never publishes ads or posts. Uses operator role, account write grants and durable idempotency. Files up to the configured media limit (128 MiB by default) with lower platform image limits. Private files use a separate selected Google Drive connection. variant creates an encrypted, expiring preview with explicit contain/crop presets; prepare accepts variant_id. execute_async queues the frozen confirmed review; job_status shows durable progress. list returns account-scoped receipts. reuse requires a fresh provider availability check. inspect_eligibility checks source dimensions, duration and codec against a placement preset before any provider upload; it does not certify provider policy approval.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['prepare','prepare_library','execute','resume','execute_async','job_status','status','recovery','cancel','variant','inspect_eligibility','list','reuse']},platform:{type:'string',enum:platforms},account_id:{type:'string'},connection_id:{type:'string'},drive_url:{type:'string'},drive_connection_id:{type:'string'},variant_id:{type:'string'},preset:{type:'string',enum:Object.keys(variantPresets)},fit:{type:'string',enum:['contain','crop']},reuse_existing:{type:'boolean'},asset_id:{type:'string'},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:100},name:{type:'string'},media_type:{type:'string',enum:['image','video']},expected_mime:{type:'string'},expected_size:{type:'integer',minimum:1},existing_media_id:{type:'string'},owner_urn:{type:'string'},review_id:{type:'string'},idempotency_key:{type:'string'},confirmed:{type:'boolean'}},additionalProperties:false}};
@@ -42,7 +44,7 @@ export class MediaUploadService {
    case 'snapchat':p.path='/v1/adaccounts/'+account;break;
    case 'tiktok':p.path='/v1.3/advertiser/info/';p.query={advertiser_ids:[account]};break;
    case 'google_ads':p.path='/v23/customers/'+account+'/googleAds:search';p.method='POST';p.body={query:'SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1'};break;
-   case 'linkedin':p.path='/rest/adAccounts/'+account;p.headers={'LinkedIn-Version':this.registry.catalogs.get(p.gateway)?.api_version??'202605','X-Restli-Protocol-Version':'2.0.0'};break;
+   case 'linkedin':p.path='/rest/adAccounts/'+account;p.headers={'LinkedIn-Version':linkedinVersion(),'X-Restli-Protocol-Version':'2.0.0'};break;
    case 'x_ads':p.path='/12/accounts/'+account;break;
    case 'dv360':p.path='/v4/advertisers/'+account;break;
    default:fail('MEDIA_PLATFORM_UNSUPPORTED','Select a supported media platform.');
@@ -56,6 +58,8 @@ export class MediaUploadService {
   const r=await this.transport.request(p.read,current,auth);validateState(p.read,r);return normalizeReviewState(r.data);
  }
  private ownerScope(p:UploadPlan,c:Connection){
+  if(p.platform==='linkedin'&&p.kind==='video'&&!/^urn:li:(?:organization|person):[A-Za-z0-9_-]+$/.test(p.owner_urn??''))fail('LINKEDIN_VIDEO_OWNER_REQUIRED','Prepare LinkedIn video with an explicit organization/person owner and its exact binding.');
+  if(p.owner_urn?.startsWith('urn:li:organization:'))assertLinkedInOrganization(c,p.account_id,p.owner_urn);
   if(p.owner_urn&&p.owner_urn!=='urn:li:sponsoredAccount:'+p.account_id){const [,kind,id]=/^urn:li:([^:]+):(.+)$/.exec(p.owner_urn)!;new ScopeGuard(this.registry,this.store).authorize({...p.read,path:'/rest/'+(kind==='organization'?'organizations':kind==='person'?'people':'adAccounts')+'/'+id},c);}
  }
  private async source(input:JsonObject,actor:Actor,stageId:string){
@@ -112,6 +116,8 @@ export class MediaUploadService {
    if(input.review_id!==undefined||input.idempotency_key!==undefined||input.confirmed!==undefined)fail('INVALID_ARGUMENT','Preparation cannot execute an upload.');
    const account=normalizeAccount(input.platform+'_native_action',input.account_id);if(!/^[A-Za-z0-9_-]+$/.test(account))fail('INVALID_ARGUMENT','Invalid account ID.');
    const c=this.access(actor,input.platform,account,input.connection_id),reviewId=randomUUID(),expires=Date.now()+300000;
+   if(input.platform==='linkedin'&&typeof input.owner_urn==='string'&&input.owner_urn.startsWith('urn:li:organization:'))assertLinkedInOrganization(c,account,input.owner_urn);
+   if(input.platform==='linkedin'&&input.media_type==='video'&&!/^urn:li:(?:organization|person):[A-Za-z0-9_-]+$/.test(input.owner_urn??''))fail('LINKEDIN_VIDEO_OWNER_REQUIRED','LinkedIn video upload requires an explicitly bound organization or person owner; a sponsoredAccount URN is not a video owner.');
    if(input.name!==undefined&&(typeof input.name!=='string'||!input.name.trim()||input.name.length>80||/[\x00-\x1f\/\\]/.test(input.name)))fail('INVALID_ARGUMENT','Use a media name of 1–80 characters without paths or control characters.');
    this.store.reserveMedia(actor.tenantId,reviewId,expires);
    try{
@@ -119,6 +125,7 @@ export class MediaUploadService {
     if(input.preset){const eligibility=await inspectMediaPlacement(file.bytes,input.preset);if(!eligibility.eligible_for_preset)fail('MEDIA_PLACEMENT_MISMATCH','The source does not meet the selected placement preset.',eligibility);}
     if(input.media_type!==undefined&&input.media_type!==file.kind||input.expected_mime!==undefined&&input.expected_mime!==file.mime||input.expected_size!==undefined&&input.expected_size!==file.bytes.length)fail('MEDIA_TYPE_MISMATCH','The downloaded file does not match the declared type, MIME type or size.',{actual_type:file.kind,actual_mime:file.mime,actual_size:file.bytes.length});
     if(['x_ads','linkedin'].includes(input.platform)&&file.mime==='video/quicktime')fail('MEDIA_TYPE_UNSUPPORTED','Use MP4 video for X and LinkedIn.');
+    if(input.platform==='linkedin'&&file.kind==='video'&&!/^urn:li:(?:organization|person):[A-Za-z0-9_-]+$/.test(input.owner_urn??''))fail('LINKEDIN_VIDEO_OWNER_REQUIRED','Specify the organization/person owner and its administrator resource binding for this LinkedIn video.');
     const imageLimit=input.platform==='google_ads'?5*1024*1024:input.platform==='meta'?30*1024*1024:input.platform==='linkedin'?20*1024*1024:input.platform==='dv360'?10*1024*1024:5*1024*1024;
     if(file.kind==='image'&&file.bytes.length>imageLimit)fail('MEDIA_TOO_LARGE','Image exceeds the platform import limit.',{maximum_bytes:imageLimit});
     const name=input.name?.trim()??'AMCP media',p:UploadPlan={platform:input.platform,account_id:account,connection_id:c.id,name,mime:file.mime,kind:file.kind,filename:name+'.'+file.extension,size:file.bytes.length,sha256:sha256(file.bytes),read:this.accountRead(input.platform,account),...(file.source_drive?{source_drive:file.source_drive}:{})};
@@ -172,11 +179,21 @@ export class MediaUploadService {
   const claim=resuming?{fresh:true}:this.store.claim(actor.tenantId,input.review_id,fingerprint);if(!claim.fresh)return {...(claim.result as JsonObject),replayed:true};
   let allocated:JsonObject={};
   const record=(data:JsonObject)=>{if(data.session){this.store.saveUploadSession(actor.tenantId,input.review_id,data.session,review.expires_at);delete data.session;}if(data.finalization_started){const session=this.store.uploadSession(actor.tenantId,input.review_id);if(session)this.store.saveUploadSession(actor.tenantId,input.review_id,{...session,finalization_started:true},review.expires_at);}allocated={...allocated,...data};const current=this.store.document(actor.tenantId,'media_review',input.review_id);this.store.putDocument(actor.tenantId,'media_review',input.review_id,{...current,progress:{...allocated,updated_at:Date.now()}});this.store.journal(actor.tenantId,input.review_id,data.bytes_confirmed!==undefined?'transferring':'allocated',allocated);this.store.appendAudit(actor.tenantId,input.review_id,{event:'media_allocated',...allocated});};
+  let receipt:JsonObject;
   try{
-
-   const out=await this.executionContext.run(review.expires_at,()=>this.upload(actor,p,bytes,record,resuming?resumable:undefined)),receipt={success:true,executed:true,...out,...this.references(p,out),review_id:input.review_id,fingerprint,sha256:p.sha256,platform:p.platform,account_id:p.account_id,connection_id:p.connection_id,media_type:p.kind,client_download_required:false,...(!out.ready?{next_call:{tool:'amcp_media',arguments:{action:'status',review_id:input.review_id}}}:{})};
-   this.store.transaction(()=>{this.store.complete(actor.tenantId,input.review_id,receipt);this.store.putDocument(actor.tenantId,'workspace_asset',input.review_id,{...receipt,name:p.name,mime_type:p.mime,size_bytes:p.size,source:'server_drive_import',upload_session_id:input.review_id});this.store.removeStagedMedia(actor.tenantId,input.review_id);this.store.appendAudit(actor.tenantId,input.review_id,{event:'media_uploaded',receipt});});return receipt;
+   const out=await this.executionContext.run(review.expires_at,()=>this.upload(actor,p,bytes,record,resuming?resumable:undefined));
+   receipt={success:true,executed:true,...out,...this.references(p,out),ready:false,status_source:'upload_receipt',handoff_status:'pending_verification',review_id:input.review_id,fingerprint,sha256:p.sha256,platform:p.platform,account_id:p.account_id,connection_id:p.connection_id,media_type:p.kind,client_download_required:false,next_call:{tool:'amcp_media',arguments:{action:'status',review_id:input.review_id}}};
+   this.store.transaction(()=>{this.store.complete(actor.tenantId,input.review_id,receipt);this.store.putDocument(actor.tenantId,'workspace_asset',input.review_id,{...receipt,name:p.name,mime_type:p.mime,size_bytes:p.size,source:'server_drive_import',upload_session_id:input.review_id});this.store.removeStagedMedia(actor.tenantId,input.review_id);this.store.appendAudit(actor.tenantId,input.review_id,{event:'media_uploaded',receipt});});
   }catch(e){this.store.uncertain(actor.tenantId,input.review_id);const retained=this.store.uploadSession(actor.tenantId,input.review_id);if(!retained||retained.finalization_started)this.store.removeStagedMedia(actor.tenantId,input.review_id);const error=e instanceof MirrorError?e:new MirrorError('WRITE_OUTCOME_UNCERTAIN','Upload did not complete. Inspect the allocated media before any retry.',{},502);this.store.appendAudit(actor.tenantId,input.review_id,{event:'media_upload_incomplete',code:error.code,...allocated});throw new MirrorError(error.code,error.message,{...error.details,...allocated,review_id:input.review_id,retry_safe:false},error.status,false);}
+  // Commit the mutation receipt before this fallible read. A processing/read failure
+  // must never turn a completed upload into an uncertain, repeatable mutation.
+  try{const checked=await this.status(actor,p,receipt);return {...checked,executed:true};}
+  catch(e){
+   this.access(actor,p.platform,p.account_id,p.connection_id);
+   const failed=e instanceof MirrorError&&e.code==='MEDIA_PROCESSING_FAILED',out={...receipt,ready:false,handoff_status:failed?'processing_failed':'inconclusive',...(failed?{processing_failed:true,next_call:undefined}:{}),verification_error:{code:e instanceof MirrorError?e.code:'MEDIA_VERIFICATION_FAILED',retry_safe:false},automatic_retry_of_upload:false};
+   if(!failed)this.store.putDocument(actor.tenantId,'workspace_asset',input.review_id,{...this.store.document(actor.tenantId,'workspace_asset',input.review_id),...out});
+   return out;
+  }
  }
  private async send(actor:Actor,p:UploadPlan,path:string,body?:JsonObject,options:{method?:string;query?:JsonObject;origin?:string;upload?:BinaryUpload;readOnly?:boolean;headers?:Record<string,string>}={}):Promise<TransportResult>{
   if(!options.readOnly&&p.source_drive)driveAccess(this.store,actor,p.source_drive.connection_id,p.source_drive.url);
@@ -296,8 +313,9 @@ export class MediaUploadService {
  private async status(actor:Actor,p:UploadPlan,receipt:JsonObject):Promise<JsonObject>{
   receipt={...receipt};delete receipt.next_call;
   const finish=(out:JsonObject)=>{
+   out.availability_checked_at=Date.now();out.handoff_status=out.ready===true&&out.status_source==='provider'?'verified':'pending_processing';
    const failed=['ERROR','FAILED','PROCESSING_FAILED','REJECTED'].includes(String(out.processing_status).toUpperCase());
-   if(failed){delete out.next_call;out.ready=false;out.processing_failed=true;}
+   if(failed){delete out.next_call;out.ready=false;out.processing_failed=true;out.handoff_status='processing_failed';}
    this.store.putDocument(actor.tenantId,'workspace_asset',receipt.review_id,{...out,name:p.name,media_type:p.kind,mime_type:p.mime,size_bytes:p.size,source:'server_drive_import',upload_session_id:receipt.review_id});
    if(failed)fail('MEDIA_PROCESSING_FAILED','The platform rejected media processing. Inspect the retained upload before preparing a replacement.',{media_id:receipt.media_id,review_id:receipt.review_id,processing_status:out.processing_status,retry_safe:false});
    return out;
@@ -340,8 +358,8 @@ export class MediaUploadService {
   else return {...receipt,executed:false,status_source:'upload_receipt'};
   const d=r.data as JsonObject,state=p.platform==='meta'?d.status?.video_status:p.platform==='linkedin'?d.status:p.platform==='x_ads'?d.processing_info?.state:d.media?.[0]?.media?.media_status;
   const id=p.platform==='x_ads'?d.media_id_string:p.platform==='snapchat'?d.media?.[0]?.media?.id:d.id;
-  if(id!==receipt.media_id||p.platform==='snapchat'&&(d.request_status!=='SUCCESS'||d.media?.length!==1||d.media[0].sub_request_status!=='SUCCESS'||d.media[0].media.ad_account_id!==p.account_id)||p.platform==='linkedin'&&d.owner!==undefined&&d.owner!==(p.owner_urn??'urn:li:sponsoredAccount:'+p.account_id))fail('MEDIA_RESPONSE_INVALID','The platform did not return the exact uploaded media in the selected account.');
-  const ready=['ready','AVAILABLE','succeeded','READY'].includes(state),out={...receipt,executed:false,data:d,ready,processing_status:state??'UNKNOWN',status_source:'provider',...(!ready?{next_call:poll}:{}),...(p.platform==='x_ads'&&ready&&!receipt.library_id?{ready:false,next_call:{tool:'amcp_media',arguments:{action:'prepare_library',review_id:receipt.review_id}}}:{})};
+  if(id!==receipt.media_id||p.platform==='snapchat'&&(d.request_status!=='SUCCESS'||d.media?.length!==1||d.media[0].sub_request_status!=='SUCCESS'||d.media[0].media.ad_account_id!==p.account_id)||p.platform==='linkedin'&&(d.owner!==(p.owner_urn??'urn:li:sponsoredAccount:'+p.account_id)||d.mediaLibraryMetadata?.associatedAccount!==undefined&&d.mediaLibraryMetadata.associatedAccount!=='urn:li:sponsoredAccount:'+p.account_id))fail('MEDIA_RESPONSE_INVALID','The platform did not return the exact uploaded media in the selected account.');
+  const ready=['ready','AVAILABLE','succeeded','READY'].includes(state),out={...receipt,executed:false,ready,...(p.platform==='linkedin'?{owner_urn:d.owner}:{}),...(p.platform==='x_ads'?{data:{media_id_string:d.media_id_string,media_key:d.media_key,processing_info:{state:d.processing_info?.state}}}:{}),processing_status:state??'UNKNOWN',status_source:'provider',...(!ready?{next_call:poll}:{}),...(p.platform==='x_ads'&&ready&&!receipt.library_id?{ready:false,next_call:{tool:'amcp_media',arguments:{action:'prepare_library',review_id:receipt.review_id}}}:{})};
   return finish(out);
  }
  private references(p:UploadPlan,out:UploadResult):JsonObject {

@@ -7,6 +7,8 @@ import {accountAliases as aliases,parameterBag,nativeTopLevel,assertSameAlias} f
 import {responseControls} from './projection.js';
 import {validateApplePlan} from './apple-native.js';
 import {microsoftGateway,compileMicrosoft} from './microsoft-native.js';
+import {googleContractEvidence} from './google-contracts.js';
+import {linkedinVersion} from './linkedin-version.js';
 const object=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?{...v}:{};
 export function expandPath(template:string,values:JsonObject):{path:string;consumed:string[]}{
  const consumed:string[]=[];
@@ -111,7 +113,7 @@ export class Compiler {
    if(desc?.body_mapping&&desc.body_mapping!=='*')body=object(body)[desc.body_mapping]??body;
   }
   if(gateway==='linkedin_native_action'){
-   headers['LinkedIn-Version']=String(input.api_version??this.registry.catalogs.get(gateway)?.api_version??'202605');
+   headers['LinkedIn-Version']=linkedinVersion(input.api_version);
    headers['X-Restli-Protocol-Version']='2.0.0';
    if(input.restli_method){
     const restli=String(input.restli_method).toUpperCase();
@@ -130,7 +132,7 @@ export class Compiler {
    readOnly=readOnly&&['GET','HEAD'].includes(override);
   }
   if(gateway==='meta_native_action'&&query.batch!==undefined)readOnly=false;
-  return validateApplePlan({gateway,action:action.canonical_name||action.name,method,path,query,...(absolute?{origin:absolute.origin}:{}),...(body===undefined?{}:{body}),headers,readOnly,destructive:action.destructive===true||headers['X-HTTP-Method-Override']==='DELETE',requiresConfirmation:!readOnly,accountId,evidence:action.evidence,warnings:['Request routing compiled locally; live behavioral parity is tracked separately.'],specialTransport:action.raw.special_transport??undefined,...(projection?{responseControls:projection}:{})});
+  return googleContractEvidence(validateApplePlan({gateway,action:action.canonical_name||action.name,method,path,query,...(absolute?{origin:absolute.origin}:{}),...(body===undefined?{}:{body}),headers,readOnly,destructive:action.destructive===true||headers['X-HTTP-Method-Override']==='DELETE',requiresConfirmation:!readOnly,accountId,evidence:action.evidence,warnings:['Request routing compiled locally; live behavioral parity is tracked separately.'],specialTransport:action.raw.special_transport??undefined,...(projection?{responseControls:projection}:{})}));
  }
  private native(gateway:string,input:JsonObject):CompiledRequest{
   const n=input.native_request;if(!['GET','POST','PUT','PATCH','DELETE'].includes(n.method)||typeof n.path!=='string')throw new MirrorError('INVALID_NATIVE_REQUEST','Provide a supported HTTP method and a relative path.');

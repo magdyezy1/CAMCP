@@ -69,7 +69,7 @@ The daily window is the UTC calendar day, and the cap counts requested positive 
 | Meta | Campaign, ad set, ad and creative collection creates; individual campaign/ad set/ad updates and deletes. Creative identity and link prerequisites are checked, including existing Instagram media using source_instagram_media_id plus instagram_user_id. |
 | TikTok | Standard campaign, ad group and ad create/update/status endpoints. Smart+ and other specialty routes are excluded. |
 | Snapchat | Campaign, ad squad, ad and creative creates; account collection replacements; single-entity JSON Patch updates (including creatives) and deletes. PUT replaces the full entity; supply the complete intended record. |
-| LinkedIn | Account-scoped campaign groups, campaigns and creatives; entity POST updates require `restli_method: "PARTIAL_UPDATE"` and a native patch. |
+| LinkedIn | Account-scoped campaign groups, campaigns and creatives; entity POST updates require `restli_method: "PARTIAL_UPDATE"` and a native patch. Organization-authored non-feed single-media DSC creation uses the separate exact-binding contract described in the [operator guide](../Skills/amcp-campaign-builder/references/linkedin-x.md). |
 | X | Account-scoped campaigns, line items and promoted tweets. |
 | DV360 | Advertiser-scoped campaigns, insertion orders, line items and creatives. |
 | GA4 | Audience export and report task creation; exact selected property and audience scope. |
@@ -84,6 +84,8 @@ An action also needs an implemented target-state read. Unsupported contracts ret
 ## Outcomes and recovery
 
 The database claims the exact review immediately before submission. Concurrent execution of the same review cannot send duplicate mutations. Completed outcomes replay without vendor egress; idempotency survives process restart. Mutations are never automatically retried.
+
+`contract_evidence` distinguishes captured catalog metadata, official schemas and live qualification. Inspect/prepare do not infer provider permission from provenance. Exact read-back retries up to three times on propagation gaps or disagreement; `VERIFICATION_INCONCLUSIVE` retains hashes and changed-field diagnostics and suggests read-only continuation of the original review. Never use a new mutation key to resolve it. Snapchat creative PUT also requires explicit preservation of existing configuration, including nested defaults; use PATCH for a partial edit instead of accepting accidental resets.
 
 Provider response contracts must positively confirm success. Partial failures, missing operation results, target mismatches and malformed responses cannot be reported as successful writes. Native response details and supported request/created-ID headers are retained. A lost response leaves an uncertain durable claim: inspect the advertising platform before preparing any replacement. AMCP does not automatically undo mutations or guarantee a cross-system transaction. State may still change between the final read and the provider accepting a write; no universal provider conditional-write facility exists here.
 

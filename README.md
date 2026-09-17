@@ -4,6 +4,8 @@ AMCP connects an advertising workspace to Codex and other MCP clients. It includ
 
 **Deployment:** Railway runs the application; Cloudflare manages DNS for **amcp.shop**. Follow [the deployment guide](docs/DEPLOY-RAILWAY.md). The repository contains code, not an already deployed website.
 
+Provider versions, reviewed workflow boundaries and evidence are published in [contracts](docs/CONTRACTS.md). See the [September contract review](docs/implementation/PLATFORM-CONTRACTS-2026-09-18.md) for implementation decisions and validation limits. The optional [sandbox verifier](docs/SANDBOX-VERIFICATION.md) uses approved fixtures and isolated provider hosts. Development checks require Python 3.10+ (standard library only) for Microsoft WSDL regeneration; set `AMCP_SCHEMA_PYTHON` when Python is outside PATH. Production does not require Python.
+
 ## Website
 
 - Verified owner-account migration, email/password accounts, Google / Apple / Facebook linking, authenticator MFA, recovery codes, team memberships and revocable sessions. See [user accounts setup](docs/USER-ACCOUNTS.md). Social sign-in credentials are separate from advertising OAuth credentials.

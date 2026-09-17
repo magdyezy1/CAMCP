@@ -1,5 +1,7 @@
 # Microsoft Advertising / Bing Ads
 
+`amcp_tool_help` and reviewed inspect/prepare include first-party operation evidence from all six pinned Microsoft WSDL services. This documents SOAP structure and provenance, not unrestricted JSON field support. AMCP's separately tested JSON contracts still expose the 24 actions below; Bulk, Billing, media and additional WSDL operations are not enabled by ingestion. Development regeneration requires Python 3.10+ with only its standard library.
+
 Use the independent `microsoft_ads_native_action` gateway. Discover its 24 actions with LIST_ACTIONS / DESCRIBE_ACTION. This is Microsoft's v13 JSON API, not Google Ads GAQL or the Bing Webmaster API.
 
 Setup needs a Microsoft app client ID/secret, a Microsoft Advertising developer token and consent for `https://ads.microsoft.com/msads.manage offline_access`. Register `https://amcp.shop/api/auth/microsoft/callback`. The website discovers advertiser accounts and their parent customer IDs. Select accounts before use; token access alone is not an AMCP account grant. Refresh tokens rotate and are stored encrypted.

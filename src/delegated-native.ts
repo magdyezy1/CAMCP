@@ -98,7 +98,10 @@ export class DelegatedNativeCompiler {
  private ajv=new Ajv({strict:false,allErrors:true,useDefaults:false,coerceTypes:false,removeAdditional:false});
  constructor(data?:VendorRoutes){
   (addFormatsModule as unknown as (ajv:Ajv)=>void)(this.ajv);
-  this.data=data??JSON.parse(fs.readFileSync(fileURLToPath(new URL('../../generated/vendor-routes.json',import.meta.url)),'utf8'));
+  const source=data??JSON.parse(fs.readFileSync(fileURLToPath(new URL('../../generated/vendor-routes.json',import.meta.url)),'utf8'));
+  // Direct Google Ads compilation and ProtoJSON validation have their own entry
+  // point. A vendor snapshot must not accidentally create a second delegated API.
+  this.data={...source,routes:source.routes.filter((r:VendorRoute)=>r.gateway!=='google_ads_native_action')};
   if(this.data.formatVersion!==1)throw new Error('Unsupported vendor routes format.');
   for(const r of this.data.routes){const key=this.key(r.gateway,r.operation,r.action);if(this.routes.has(key))throw new Error('Duplicate delegated route: '+key);this.routes.set(key,r);}
   if(this.data.schemaComponents?.['reddit-v3'])for(const r of redditAudienceRoutes)this.routes.set(this.key(r.gateway,r.operation,r.action),r);

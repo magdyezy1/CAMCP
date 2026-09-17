@@ -1,3 +1,4 @@
+import {microsoftEvidence} from './microsoft-evidence.js';
 import type {Action,CompiledRequest,Connection,JsonObject,ToolDefinition} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
@@ -51,7 +52,7 @@ export function compileMicrosoft(input:JsonObject):CompiledRequest {
   if(r.Format!==undefined&&!['Csv','Tsv','Xml'].includes(r.Format))fail('Report Format must be Csv, Tsv or Xml.');
  }
  if(c.name==='PollGenerateReport'&&(typeof body.ReportRequestId!=='string'||!body.ReportRequestId||body.ReportRequestId.length>40))fail('ReportRequestId must be the provider-issued ID.');
- return {gateway:microsoftGateway,action:c.name,method:c.method,path:c.path,origin:c.origin??microsoftOrigin,query:{},body,headers:{},readOnly:/^(Get|Poll|Submit)/.test(c.name),destructive:c.method==='DELETE',requiresConfirmation:/^(Add|Update|Delete)/.test(c.name),accountId:input.account_id,evidence:'INDEPENDENT_MICROSOFT_V13_EXTENSION',warnings:['Microsoft amounts are decimal account-currency units. Provider approval and live contract acceptance remain required.'],...(input.campaign_id?{scopeContext:{campaignId:input.campaign_id}}:{}),...(input.download_report?{reportDownload:{offset:input.offset??0,limit:input.limit??100}}:{})};
+ return {gateway:microsoftGateway,action:c.name,method:c.method,path:c.path,origin:c.origin??microsoftOrigin,query:{},body,headers:{},readOnly:/^(Get|Poll|Submit)/.test(c.name),destructive:c.method==='DELETE',requiresConfirmation:/^(Add|Update|Delete)/.test(c.name),accountId:input.account_id,evidence:'INDEPENDENT_MICROSOFT_V13_EXTENSION',contractEvidence:microsoftEvidence(c.name,c.fields),warnings:['Microsoft amounts are decimal account-currency units. Provider approval and live contract acceptance remain required.'],...(input.campaign_id?{scopeContext:{campaignId:input.campaign_id}}:{}),...(input.download_report?{reportDownload:{offset:input.offset??0,limit:input.limit??100}}:{})};
 }
 /** Read classification comes from the independent exact method + path contract. */
 export function microsoftRead(plan:CompiledRequest){const c=microsoftContracts.get(plan.action);return !!c&&/^(Get|Poll|Submit)/.test(c.name)&&plan.method===c.method&&plan.path===c.path&&plan.origin===(c.origin??microsoftOrigin);}

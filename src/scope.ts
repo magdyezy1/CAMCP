@@ -5,6 +5,7 @@ import {Store} from './store.js';
 import {stable} from './security.js';
 import {microsoftGateway,microsoftCustomer,microsoftContracts} from './microsoft-native.js';
 import {microsoftReportKey} from './microsoft-report-download.js';
+import {authorizeLinkedInSpecial} from './linkedin-posts.js';
 
 export function normalizeAccount(gateway:string,id:unknown):string{
  const value=String(id);return gateway==='meta_native_action'?value.replace(/^act_/,''):gateway==='google_ads_native_action'?value.replaceAll('-',''):value;
@@ -49,6 +50,7 @@ export class ScopeGuard {
    }
   };
   walk(plan.query);walk(plan.body);walk(decoded,'path');
+  if(authorizeLinkedInSpecial(plan,connection,this.store,id))return id;
   const patterns:Record<string,RegExp>={
    google_ads_native_action:/\/customers\/([^/:]+)/,
    meta_native_action:/^\/v[^/]+\/act_([^/]+)/,

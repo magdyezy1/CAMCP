@@ -1,0 +1,71 @@
+{
+  "formatVersion": 1,
+  "pages": [
+    {
+      "source": "https://developers.google.com/google-ads/api/docs/release-notes",
+      "status": "fetch_failed",
+      "error": "fetch failed",
+      "checked_at": "2026-09-17T23:11:30.891Z"
+    },
+    {
+      "source": "https://developers.google.com/google-ads/api/docs/sunset-dates",
+      "sha256": "c95b7c072a22a8aa4af2ab0c6974b67e49613838f84656127c8963a75b28e44d",
+      "characters": 7370,
+      "status": "baseline_required",
+      "checked_at": "2026-09-17T23:11:31.697Z",
+      "qualification": "Public documentation change only; inspect the official page and relevant version before changing a contract. No account qualification."
+    },
+    {
+      "source": "https://learn.microsoft.com/en-us/advertising/guides/release-notes?view=bingads-13",
+      "sha256": "ee421273c22c64c70876491d4fe7462d74a2c6162e942fa2c9a38e5aa571a49c",
+      "characters": 64184,
+      "status": "unchanged",
+      "checked_at": "2026-09-17T23:11:32.375Z",
+      "qualification": "Public documentation change only; inspect the official page and relevant version before changing a contract. No account qualification."
+    },
+    {
+      "source": "https://developers.facebook.com/documentation/ads-commerce/marketing-api/marketing-api-changelog",
+      "sha256": "34033b4a307e60188a02e12a2533b5d06cd966fa3b5e6e69ff57395c964de053",
+      "characters": 2334,
+      "status": "baseline_required",
+      "checked_at": "2026-09-17T23:11:32.998Z",
+      "qualification": "Public documentation change only; inspect the official page and relevant version before changing a contract. No account qualification."
+    },
+    {
+      "source": "https://developers.facebook.com/docs/graph-api/changelog/",
+      "sha256": "aaa2cf04a6ccbf805899b87b9c045c5ff3d363c507f664c2c7f416db2109e907",
+      "characters": 2138,
+      "status": "unchanged",
+      "checked_at": "2026-09-17T23:11:36.076Z",
+      "qualification": "Public documentation change only; inspect the official page and relevant version before changing a contract. No account qualification."
+    },
+    {
+      "source": "https://business-api.tiktok.com/portal/docs",
+      "status": "fetch_failed",
+      "error": "Documentation content unavailable or blocked",
+      "checked_at": "2026-09-17T23:11:36.706Z"
+    },
+    {
+      "source": "https://developers.snap.com/marketing-api/Ads-API/changelog",
+      "sha256": "da94d135dcedfca3192bd09000bb72ff9f5855dd9896f50f4373c5331fe8458e",
+      "characters": 45092,
+      "status": "unchanged",
+      "checked_at": "2026-09-17T23:11:37.237Z",
+      "qualification": "Public documentation change only; inspect the official page and relevant version before changing a contract. No account qualification."
+    },
+    {
+      "source": "https://learn.microsoft.com/en-us/linkedin/marketing/integrations/recent-changes",
+      "status": "fetch_failed",
+      "error": "fetch failed",
+      "checked_at": "2026-09-17T23:11:37.548Z"
+    },
+    {
+      "source": "https://docs.x.com/x-ads-api/fundamentals/versioning",
+      "sha256": "7abc278d13afa36dd998c67a7f5b6521c8dfee32429c6101491f8a44f177a33c",
+      "characters": 10287,
+      "status": "baseline_required",
+      "checked_at": "2026-09-17T23:11:38.245Z",
+      "qualification": "Public documentation change only; inspect the official page and relevant version before changing a contract. No account qualification."
+    }
+  ]
+}

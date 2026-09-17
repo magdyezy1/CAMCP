@@ -113,10 +113,10 @@ test('TikTok existing-identity image handoff and exact ad read-back; identity pr
   const denied=await f.prepare({action:'tiktok_identity_create',payload:{advertiser_id:'123',identity_name:'Synthetic'}});assert.equal(denied.error.code,'WRITE_CONTRACT_UNAVAILABLE');
  }finally{f.store.close();}
 });
-test('LinkedIn image upload is separate from the missing Posts contract; existing-post creatives use intendedStatus and header IDs',async()=>{
+test('LinkedIn image upload and existing-post creatives use intendedStatus and header IDs; unsafe posts remain blocked',async()=>{
  const f=fixture('linkedin');try{
   const media=await f.media();assert.equal(media.ready,true);assert.equal(media.media_id,'urn:li:image:456');
-  const denied=await f.prepare({action:'linkedin_rest_posts_post',payload:{author:'urn:li:organization:500',commentary:'Synthetic',lifecycleState:'PUBLISHED',content:{media:{id:media.media_id}},adContext:{dscAdAccount:'urn:li:sponsoredAccount:123'}}});assert.equal(denied.error.code,'WRITE_CONTRACT_UNAVAILABLE');
+  const denied=await f.prepare({action:'linkedin_rest_posts_post',payload:{author:'urn:li:organization:500',commentary:'Synthetic',lifecycleState:'PUBLISHED',content:{media:{id:media.media_id}},adContext:{dscAdAccount:'urn:li:sponsoredAccount:123'}}});assert.equal(denied.error.code,'INVALID_LINKEDIN_DSC');
   const {result}=await f.mutate('linkedin_rest_ad_accounts_ad_account_id_creatives_post',{account:'urn:li:sponsoredAccount:123',campaign:'urn:li:sponsoredCampaign:200',intendedStatus:'PAUSED',content:{reference:'urn:li:ugcPost:600'}});assert.equal(result.created_id,'urn:li:sponsoredCreative:400');
   assert.equal((await f.prepare({action:'linkedin_rest_ad_accounts_ad_account_id_creatives_post',payload:{status:'PAUSED'}})).error.code,'INVALID_ARGUMENT');
   const args={action:'linkedin_rest_ad_accounts_ad_account_id_creatives_creative_id_post',path_params:{creative_id:'400'},restli_method:'PARTIAL_UPDATE',payload:{patch:{$set:{intendedStatus:'ACTIVE'}}}},r=ok(await f.prepare(args));

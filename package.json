@@ -20,11 +20,16 @@
     "generate": "node codegen/generate.mjs",
     "generate:check": "node codegen/generate.mjs --check",
     "generate:vendor:check": "node tools/fetch-vendor-specs.mjs --generate-only --check",
+    "generate:wsdl:check": "node tools/microsoft-specs.mjs --generate-only --check",
+    "contracts:generate": "npm run build && node dist/tools/generate-contracts.js",
+    "contracts:check": "node dist/tools/generate-contracts.js --check",
+    "providers:lifecycle": "node dist/tools/provider-lifecycle.js",
+    "test:sandbox": "node dist/tools/live-sandbox.js",
     "report": "node dist/tools/report.js",
     "check:web": "node tools/check-web.mjs",
     "providers:check": "node dist/tools/provider-drift.js",
     "release:assemble": "node tools/prepare-public-release.mjs",
-    "check": "npm run generate:check && npm run generate:vendor:check && npm test && npm run test:capture && npm run report && npm run check:web && npm run providers:check"
+    "check": "npm run generate:check && npm run generate:vendor:check && npm run generate:wsdl:check && npm test && npm run test:capture && npm run report && npm run check:web && npm run providers:check && npm run providers:lifecycle && npm run contracts:check"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

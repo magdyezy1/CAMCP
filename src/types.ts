@@ -39,8 +39,9 @@ export interface CompiledRequest {
   accountId?:string; evidence:string; warnings:string[]; specialTransport?:string;
   queryArrayEncoding?:'json'|'repeat';
   responseControls?:import('./projection.js').ResponseControls;
-  scopeContext?:{campaignId:string};
+  scopeContext?:{campaignId?:string;linkedinPostReviewId?:string};
   reportDownload?:{offset:number;limit:number};
+  contractEvidence?:JsonObject;
 }
 export interface EnhancementFlags {
   catalogEnvelope?:boolean; catalogPagination?:boolean; catalogFields?:boolean;

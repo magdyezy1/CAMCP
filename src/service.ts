@@ -30,6 +30,7 @@ import {WriteVerifier} from './write-verification.js';
 import {validateProviderRequest} from './provider-validation.js';
 import {MediaUploadService,mediaTool} from './media-upload.js';
 import {nativeMediaInput,workflowMediaInput,mediaPreview,mediaNext,inspectDrive,mediaDiscovery,mediaInstructions} from './media-routing.js';
+import {providerContractView} from './contract-evidence.js';
 export const strictOptions:CallOptions={mode:'strict',flags:{}};
 /**
  * Tools whose results are composed entirely on this server from the static catalog, and so
@@ -57,9 +58,9 @@ export class MirrorService {
     return this.wrap(await this.runPlan(p,a.operation?a.arguments:a,u),requestId,start,tool);
    }).handle(input,actor),requestId,start,tool);
    if(tool===mediaTool.name)return this.wrap(mediaNext(await this.media().call(input,actor)),requestId,start,tool);
-   if(tool===writeTool.name){const result:any=await this.reviewed(input,actor);return {...this.wrap(result,requestId,start,tool),...(result.success===false?{success:false,error:{code:'WRITE_PARTIAL_OR_FAILED',message:'Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.'}}:{})};}
+   if(tool===writeTool.name){const result:any=await this.reviewed(input,actor);return {...this.wrap(result,requestId,start,tool),...(result.success===false?{success:false,error:errorResult(new MirrorError('WRITE_PARTIAL_OR_FAILED','Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.'),requestId,Date.now()-start).error}:{})};}
    this.registry.validate(tool,input,this.options);
-   if(tool==='amcp_tool_help'){const help=this.registry.help(input,this.options),media=mediaDiscovery(input.gateway);return {...help,amcp_guidance:guidanceDiscovery,amcp_extensions:{gateways:[microsoftGateway]},...(media?{amcp_media_import:media}:{})};}
+   if(tool==='amcp_tool_help'){const help=this.registry.help(input,this.options),media=mediaDiscovery(input.gateway);return {...help,amcp_contract:providerContractView(input.gateway),amcp_guidance:guidanceDiscovery,amcp_extensions:{gateways:[microsoftGateway]},...(media?{amcp_media_import:media}:{})};}
    if(input.action==='LIST_ACTIONS')return this.wrap(this.introspection.list(tool,input,this.options),requestId,start,tool);
    if(input.action==='DESCRIBE_ACTION'){const description=this.introspection.describe(tool,input),media=mediaDiscovery(tool);return this.wrap({...description,amcp_write_inspection:{tool:'amcp_write',action:'inspect',gateway:tool,usage:'Supply the intended native arguments to check local review-contract support without provider calls. Media routes use amcp_media.'},...(media?{amcp_media_import:media}:{})},requestId,start,tool);}
    if(this.registry.tools.get(tool)?.mode==='delegated')return this.wrap(await this.delegated(tool,input.operation,input.arguments??{},actor,requestId),requestId,start,tool);

@@ -1,0 +1,2772 @@
+{
+  "formatVersion": 1,
+  "evidence": "VENDOR_DOCUMENTED_WSDL_NOT_JSON_PARITY",
+  "services": {
+    "campaign-management": {
+      "source": "https://campaign.api.bingads.microsoft.com/Api/Advertiser/CampaignManagement/v13/CampaignManagementService.svc?singleWsdl",
+      "xml_sha256": "f583914220f01284fea2e750bcfb0824c52aec34b92d9e3aecc9c4afc202014e",
+      "document_sha256": "d6657f1e97ce48d425205ea5798890363afbe8266df4a2a6d67a6c53cfb3899e",
+      "namespace": "https://bingads.microsoft.com/CampaignManagement/v13",
+      "wire_format": "SOAP/XML; JSON transport equivalence is not asserted",
+      "operations": {
+        "AddAdExtensions": {
+          "soap_actions": [
+            "AddAdExtensions"
+          ],
+          "request_fields": [
+            "AccountId",
+            "AdExtensions"
+          ]
+        },
+        "AddAdGroupCriterions": {
+          "soap_actions": [
+            "AddAdGroupCriterions"
+          ],
+          "request_fields": [
+            "AdGroupCriterions",
+            "CriterionType"
+          ]
+        },
+        "AddAdGroups": {
+          "soap_actions": [
+            "AddAdGroups"
+          ],
+          "request_fields": [
+            "CampaignId",
+            "AdGroups",
+            "ReturnInheritedBidStrategyTypes"
+          ]
+        },
+        "AddAds": {
+          "soap_actions": [
+            "AddAds"
+          ],
+          "request_fields": [
+            "AdGroupId",
+            "Ads"
+          ]
+        },
+        "AddAssetGroups": {
+          "soap_actions": [
+            "AddAssetGroups"
+          ],
+          "request_fields": [
+            "AssetGroups",
+            "CampaignId"
+          ]
+        },
+        "AddAudienceGroups": {
+          "soap_actions": [
+            "AddAudienceGroups"
+          ],
+          "request_fields": [
+            "AudienceGroups"
+          ]
+        },
+        "AddAudiences": {
+          "soap_actions": [
+            "AddAudiences"
+          ],
+          "request_fields": [
+            "Audiences"
+          ]
+        },
+        "AddBidStrategies": {
+          "soap_actions": [
+            "AddBidStrategies"
+          ],
+          "request_fields": [
+            "BidStrategies"
+          ]
+        },
+        "AddBrandKits": {
+          "soap_actions": [
+            "AddBrandKits"
+          ],
+          "request_fields": [
+            "AccountId",
+            "BrandKits"
+          ]
+        },
+        "AddBudgets": {
+          "soap_actions": [
+            "AddBudgets"
+          ],
+          "request_fields": [
+            "Budgets"
+          ]
+        },
+        "AddCampaignConversionGoals": {
+          "soap_actions": [
+            "AddCampaignConversionGoals"
+          ],
+          "request_fields": [
+            "CampaignConversionGoal"
+          ]
+        },
+        "AddCampaignCriterions": {
+          "soap_actions": [
+            "AddCampaignCriterions"
+          ],
+          "request_fields": [
+            "CampaignCriterions",
+            "CriterionType"
+          ]
+        },
+        "AddCampaigns": {
+          "soap_actions": [
+            "AddCampaigns"
+          ],
+          "request_fields": [
+            "AccountId",
+            "Campaigns"
+          ]
+        },
+        "AddConversionGoals": {
+          "soap_actions": [
+            "AddConversionGoals"
+          ],
+          "request_fields": [
+            "ConversionGoals"
+          ]
+        },
+        "AddConversionValueRules": {
+          "soap_actions": [
+            "AddConversionValueRules"
+          ],
+          "request_fields": [
+            "ConversionValueRules",
+            "Lcid"
+          ]
+        },
+        "AddDataExclusions": {
+          "soap_actions": [
+            "AddDataExclusions"
+          ],
+          "request_fields": [
+            "AccountId",
+            "DataExclusions"
+          ]
+        },
+        "AddExperiments": {
+          "soap_actions": [
+            "AddExperiments"
+          ],
+          "request_fields": [
+            "Experiments"
+          ]
+        },
+        "AddHTML5s": {
+          "soap_actions": [
+            "AddHTML5s"
+          ],
+          "request_fields": [
+            "HTML5Assets"
+          ]
+        },
+        "AddImportJobs": {
+          "soap_actions": [
+            "AddImportJobs"
+          ],
+          "request_fields": [
+            "ImportJobs"
+          ]
+        },
+        "AddKeywords": {
+          "soap_actions": [
+            "AddKeywords"
+          ],
+          "request_fields": [
+            "AdGroupId",
+            "Keywords",
+            "ReturnInheritedBidStrategyTypes",
+            "AssetGroupId"
+          ]
+        },
+        "AddLabels": {
+          "soap_actions": [
+            "AddLabels"
+          ],
+          "request_fields": [
+            "Labels"
+          ]
+        },
+        "AddLinkedInSegments": {
+          "soap_actions": [
+            "AddLinkedInSegments"
+          ],
+          "request_fields": [
+            "LinkedInSegments"
+          ]
+        },
+        "AddListItemsToSharedList": {
+          "soap_actions": [
+            "AddListItemsToSharedList"
+          ],
+          "request_fields": [
+            "ListItems",
+            "SharedList",
+            "SharedEntityScope"
+          ]
+        },
+        "AddMedia": {
+          "soap_actions": [
+            "AddMedia"
+          ],
+          "request_fields": [
+            "AccountId",
+            "Media"
+          ]
+        },
+        "AddNegativeKeywordsToEntities": {
+          "soap_actions": [
+            "AddNegativeKeywordsToEntities"
+          ],
+          "request_fields": [
+            "EntityNegativeKeywords"
+          ]
+        },
+        "AddNewCustomerAcquisitionGoals": {
+          "soap_actions": [
+            "AddNewCustomerAcquisitionGoals"
+          ],
+          "request_fields": [
+            "NewCustomerAcquisitionGoals"
+          ]
+        },
+        "AddSeasonalityAdjustments": {
+          "soap_actions": [
+            "AddSeasonalityAdjustments"
+          ],
+          "request_fields": [
+            "AccountId",
+            "SeasonalityAdjustments"
+          ]
+        },
+        "AddSharedEntity": {
+          "soap_actions": [
+            "AddSharedEntity"
+          ],
+          "request_fields": [
+            "SharedEntity",
+            "ListItems",
+            "SharedEntityScope"
+          ]
+        },
+        "AddUetTags": {
+          "soap_actions": [
+            "AddUetTags"
+          ],
+          "request_fields": [
+            "UetTags"
+          ]
+        },
+        "AddVideos": {
+          "soap_actions": [
+            "AddVideos"
+          ],
+          "request_fields": [
+            "Videos"
+          ]
+        },
+        "AppealEditorialRejections": {
+          "soap_actions": [
+            "AppealEditorialRejections"
+          ],
+          "request_fields": [
+            "EntityIdToParentIdAssociations",
+            "EntityType",
+            "JustificationText"
+          ]
+        },
+        "ApplyAssetGroupListingGroupActions": {
+          "soap_actions": [
+            "ApplyAssetGroupListingGroupActions"
+          ],
+          "request_fields": [
+            "ListingGroupActions"
+          ]
+        },
+        "ApplyCustomerListItems": {
+          "soap_actions": [
+            "ApplyCustomerListItems"
+          ],
+          "request_fields": [
+            "CustomerListAudience"
+          ]
+        },
+        "ApplyCustomerListUserData": {
+          "soap_actions": [
+            "ApplyCustomerListUserData"
+          ],
+          "request_fields": [
+            "CustomerListUserData"
+          ]
+        },
+        "ApplyHotelGroupActions": {
+          "soap_actions": [
+            "ApplyHotelGroupActions"
+          ],
+          "request_fields": [
+            "CriterionActions"
+          ]
+        },
+        "ApplyOfflineConversionAdjustments": {
+          "soap_actions": [
+            "ApplyOfflineConversionAdjustments"
+          ],
+          "request_fields": [
+            "OfflineConversionAdjustments"
+          ]
+        },
+        "ApplyOfflineConversions": {
+          "soap_actions": [
+            "ApplyOfflineConversions"
+          ],
+          "request_fields": [
+            "OfflineConversions"
+          ]
+        },
+        "ApplyOnlineConversionAdjustments": {
+          "soap_actions": [
+            "ApplyOnlineConversionAdjustments"
+          ],
+          "request_fields": [
+            "OnlineConversionAdjustments"
+          ]
+        },
+        "ApplyProductPartitionActions": {
+          "soap_actions": [
+            "ApplyProductPartitionActions"
+          ],
+          "request_fields": [
+            "CriterionActions"
+          ]
+        },
+        "CreateAssetGroupRecommendation": {
+          "soap_actions": [
+            "CreateAssetGroupRecommendation"
+          ],
+          "request_fields": [
+            "FinalUrls",
+            "Prompt",
+            "TextTone",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "CreateBrandKitRecommendation": {
+          "soap_actions": [
+            "CreateBrandKitRecommendation"
+          ],
+          "request_fields": [
+            "AccountId",
+            "FinalUrl"
+          ]
+        },
+        "CreateResponsiveAdRecommendation": {
+          "soap_actions": [
+            "CreateResponsiveAdRecommendation"
+          ],
+          "request_fields": [
+            "AdSubType",
+            "FinalUrls",
+            "Prompt",
+            "TextTone",
+            "VideoType",
+            "BrandKitId",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "CreateResponsiveSearchAdRecommendation": {
+          "soap_actions": [
+            "CreateResponsiveSearchAdRecommendation"
+          ],
+          "request_fields": [
+            "FinalUrls",
+            "Prompt",
+            "TextTone"
+          ]
+        },
+        "DeleteAdExtensions": {
+          "soap_actions": [
+            "DeleteAdExtensions"
+          ],
+          "request_fields": [
+            "AccountId",
+            "AdExtensionIds"
+          ]
+        },
+        "DeleteAdExtensionsAssociations": {
+          "soap_actions": [
+            "DeleteAdExtensionsAssociations"
+          ],
+          "request_fields": [
+            "AccountId",
+            "AdExtensionIdToEntityIdAssociations",
+            "AssociationType"
+          ]
+        },
+        "DeleteAdGroupCriterions": {
+          "soap_actions": [
+            "DeleteAdGroupCriterions"
+          ],
+          "request_fields": [
+            "AdGroupCriterionIds",
+            "AdGroupId",
+            "CriterionType"
+          ]
+        },
+        "DeleteAdGroups": {
+          "soap_actions": [
+            "DeleteAdGroups"
+          ],
+          "request_fields": [
+            "CampaignId",
+            "AdGroupIds"
+          ]
+        },
+        "DeleteAds": {
+          "soap_actions": [
+            "DeleteAds"
+          ],
+          "request_fields": [
+            "AdGroupId",
+            "AdIds"
+          ]
+        },
+        "DeleteAssetGroups": {
+          "soap_actions": [
+            "DeleteAssetGroups"
+          ],
+          "request_fields": [
+            "CampaignId",
+            "AssetGroupIds"
+          ]
+        },
+        "DeleteAudienceGroupAssetGroupAssociations": {
+          "soap_actions": [
+            "DeleteAudienceGroupAssetGroupAssociations"
+          ],
+          "request_fields": [
+            "AudienceGroupAssetGroupAssociations"
+          ]
+        },
+        "DeleteAudienceGroups": {
+          "soap_actions": [
+            "DeleteAudienceGroups"
+          ],
+          "request_fields": [
+            "AudienceGroupIds"
+          ]
+        },
+        "DeleteAudiences": {
+          "soap_actions": [
+            "DeleteAudiences"
+          ],
+          "request_fields": [
+            "AudienceIds"
+          ]
+        },
+        "DeleteBidStrategies": {
+          "soap_actions": [
+            "DeleteBidStrategies"
+          ],
+          "request_fields": [
+            "BidStrategyIds",
+            "Scope"
+          ]
+        },
+        "DeleteBrandKits": {
+          "soap_actions": [
+            "DeleteBrandKits"
+          ],
+          "request_fields": [
+            "AccountId",
+            "BrandKitIds"
+          ]
+        },
+        "DeleteBudgets": {
+          "soap_actions": [
+            "DeleteBudgets"
+          ],
+          "request_fields": [
+            "BudgetIds"
+          ]
+        },
+        "DeleteCampaignConversionGoals": {
+          "soap_actions": [
+            "DeleteCampaignConversionGoals"
+          ],
+          "request_fields": [
+            "CampaignConversionGoal"
+          ]
+        },
+        "DeleteCampaignCriterions": {
+          "soap_actions": [
+            "DeleteCampaignCriterions"
+          ],
+          "request_fields": [
+            "CampaignCriterionIds",
+            "CampaignId",
+            "CriterionType"
+          ]
+        },
+        "DeleteCampaigns": {
+          "soap_actions": [
+            "DeleteCampaigns"
+          ],
+          "request_fields": [
+            "AccountId",
+            "CampaignIds"
+          ]
+        },
+        "DeleteDataExclusions": {
+          "soap_actions": [
+            "DeleteDataExclusions"
+          ],
+          "request_fields": [
+            "AccountId",
+            "DataExclusionIds"
+          ]
+        },
+        "DeleteExperiments": {
+          "soap_actions": [
+            "DeleteExperiments"
+          ],
+          "request_fields": [
+            "ExperimentIds"
+          ]
+        },
+        "DeleteHTML5s": {
+          "soap_actions": [
+            "DeleteHTML5s"
+          ],
+          "request_fields": [
+            "HTML5AssetIds"
+          ]
+        },
+        "DeleteImportJobs": {
+          "soap_actions": [
+            "DeleteImportJobs"
+          ],
+          "request_fields": [
+            "ImportJobIds",
+            "ImportType"
+          ]
+        },
+        "DeleteKeywords": {
+          "soap_actions": [
+            "DeleteKeywords"
+          ],
+          "request_fields": [
+            "AdGroupId",
+            "KeywordIds",
+            "AssetGroupId"
+          ]
+        },
+        "DeleteLabelAssociations": {
+          "soap_actions": [
+            "DeleteLabelAssociations"
+          ],
+          "request_fields": [
+            "EntityType",
+            "LabelAssociations"
+          ]
+        },
+        "DeleteLabels": {
+          "soap_actions": [
+            "DeleteLabels"
+          ],
+          "request_fields": [
+            "LabelIds"
+          ]
+        },
+        "DeleteLinkedInSegments": {
+          "soap_actions": [
+            "DeleteLinkedInSegments"
+          ],
+          "request_fields": [
+            "LinkedInSegmentIds"
+          ]
+        },
+        "DeleteListItemsFromSharedList": {
+          "soap_actions": [
+            "DeleteListItemsFromSharedList"
+          ],
+          "request_fields": [
+            "ListItemIds",
+            "SharedList",
+            "SharedEntityScope"
+          ]
+        },
+        "DeleteMedia": {
+          "soap_actions": [
+            "DeleteMedia"
+          ],
+          "request_fields": [
+            "AccountId",
+            "MediaIds"
+          ]
+        },
+        "DeleteNegativeKeywordsFromEntities": {
+          "soap_actions": [
+            "DeleteNegativeKeywordsFromEntities"
+          ],
+          "request_fields": [
+            "EntityNegativeKeywords"
+          ]
+        },
+        "DeleteSeasonalityAdjustments": {
+          "soap_actions": [
+            "DeleteSeasonalityAdjustments"
+          ],
+          "request_fields": [
+            "AccountId",
+            "SeasonalityAdjustmentIds"
+          ]
+        },
+        "DeleteSharedEntities": {
+          "soap_actions": [
+            "DeleteSharedEntities"
+          ],
+          "request_fields": [
+            "SharedEntities",
+            "SharedEntityScope"
+          ]
+        },
+        "DeleteSharedEntityAssociations": {
+          "soap_actions": [
+            "DeleteSharedEntityAssociations"
+          ],
+          "request_fields": [
+            "Associations",
+            "SharedEntityScope"
+          ]
+        },
+        "DeleteVideos": {
+          "soap_actions": [
+            "DeleteVideos"
+          ],
+          "request_fields": [
+            "VideoIds"
+          ]
+        },
+        "GetAccountMigrationStatuses": {
+          "soap_actions": [
+            "GetAccountMigrationStatuses"
+          ],
+          "request_fields": [
+            "AccountIds",
+            "MigrationType"
+          ]
+        },
+        "GetAccountProperties": {
+          "soap_actions": [
+            "GetAccountProperties"
+          ],
+          "request_fields": [
+            "AccountPropertyNames"
+          ]
+        },
+        "GetAdExtensionIdsByAccountId": {
+          "soap_actions": [
+            "GetAdExtensionIdsByAccountId"
+          ],
+          "request_fields": [
+            "AccountId",
+            "AdExtensionType",
+            "AssociationType"
+          ]
+        },
+        "GetAdExtensionsAssociations": {
+          "soap_actions": [
+            "GetAdExtensionsAssociations"
+          ],
+          "request_fields": [
+            "AccountId",
+            "AdExtensionType",
+            "AssociationType",
+            "EntityIds",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetAdExtensionsByIds": {
+          "soap_actions": [
+            "GetAdExtensionsByIds"
+          ],
+          "request_fields": [
+            "AccountId",
+            "AdExtensionIds",
+            "AdExtensionType",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetAdExtensionsEditorialReasons": {
+          "soap_actions": [
+            "GetAdExtensionsEditorialReasons"
+          ],
+          "request_fields": [
+            "AccountId",
+            "AdExtensionIdToEntityIdAssociations",
+            "AssociationType"
+          ]
+        },
+        "GetAdGroupCriterionsByIds": {
+          "soap_actions": [
+            "GetAdGroupCriterionsByIds"
+          ],
+          "request_fields": [
+            "AdGroupCriterionIds",
+            "AdGroupId",
+            "CriterionType",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetAdGroupsByCampaignId": {
+          "soap_actions": [
+            "GetAdGroupsByCampaignId"
+          ],
+          "request_fields": [
+            "CampaignId",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetAdGroupsByIds": {
+          "soap_actions": [
+            "GetAdGroupsByIds"
+          ],
+          "request_fields": [
+            "CampaignId",
+            "AdGroupIds",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetAdsByAdGroupId": {
+          "soap_actions": [
+            "GetAdsByAdGroupId"
+          ],
+          "request_fields": [
+            "AdGroupId",
+            "AdTypes",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetAdsByEditorialStatus": {
+          "soap_actions": [
+            "GetAdsByEditorialStatus"
+          ],
+          "request_fields": [
+            "AdGroupId",
+            "EditorialStatus",
+            "AdTypes",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetAdsByIds": {
+          "soap_actions": [
+            "GetAdsByIds"
+          ],
+          "request_fields": [
+            "AdGroupId",
+            "AdIds",
+            "AdTypes",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetAnnotationOptOut": {
+          "soap_actions": [
+            "GetAnnotationOptOut"
+          ],
+          "request_fields": []
+        },
+        "GetAssetGroupListingGroupsByIds": {
+          "soap_actions": [
+            "GetAssetGroupListingGroupsByIds"
+          ],
+          "request_fields": [
+            "AssetGroupId",
+            "AssetGroupListingGroupIds",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetAssetGroupsByCampaignId": {
+          "soap_actions": [
+            "GetAssetGroupsByCampaignId"
+          ],
+          "request_fields": [
+            "CampaignId",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetAssetGroupsByIds": {
+          "soap_actions": [
+            "GetAssetGroupsByIds"
+          ],
+          "request_fields": [
+            "CampaignId",
+            "AssetGroupIds",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetAssetGroupsEditorialReasons": {
+          "soap_actions": [
+            "GetAssetGroupsEditorialReasons"
+          ],
+          "request_fields": [
+            "AccountId",
+            "AssetGroupIdToCampaignIdAssociations"
+          ]
+        },
+        "GetAudienceGroupAssetGroupAssociationsByAssetGroupIds": {
+          "soap_actions": [
+            "GetAudienceGroupAssetGroupAssociationsByAssetGroupIds"
+          ],
+          "request_fields": [
+            "AssetGroupIds"
+          ]
+        },
+        "GetAudienceGroupAssetGroupAssociationsByAudienceGroupIds": {
+          "soap_actions": [
+            "GetAudienceGroupAssetGroupAssociationsByAudienceGroupIds"
+          ],
+          "request_fields": [
+            "AudienceGroupIds"
+          ]
+        },
+        "GetAudienceGroupsByIds": {
+          "soap_actions": [
+            "GetAudienceGroupsByIds"
+          ],
+          "request_fields": [
+            "AudienceGroupIds",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetAudiencesByIds": {
+          "soap_actions": [
+            "GetAudiencesByIds"
+          ],
+          "request_fields": [
+            "AudienceIds",
+            "Type",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetBMCStoresByCustomerId": {
+          "soap_actions": [
+            "GetBMCStoresByCustomerId"
+          ],
+          "request_fields": [
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetBSCCountries": {
+          "soap_actions": [
+            "GetBSCCountries"
+          ],
+          "request_fields": []
+        },
+        "GetBidStrategiesByIds": {
+          "soap_actions": [
+            "GetBidStrategiesByIds"
+          ],
+          "request_fields": [
+            "BidStrategyIds",
+            "ReturnAdditionalFields",
+            "Scope"
+          ]
+        },
+        "GetBrandKitsByAccountId": {
+          "soap_actions": [
+            "GetBrandKitsByAccountId"
+          ],
+          "request_fields": [
+            "AccountId"
+          ]
+        },
+        "GetBrandKitsByIds": {
+          "soap_actions": [
+            "GetBrandKitsByIds"
+          ],
+          "request_fields": [
+            "AccountId",
+            "BrandKitIds"
+          ]
+        },
+        "GetBudgetsByIds": {
+          "soap_actions": [
+            "GetBudgetsByIds"
+          ],
+          "request_fields": [
+            "BudgetIds"
+          ]
+        },
+        "GetCampaignCriterionsByIds": {
+          "soap_actions": [
+            "GetCampaignCriterionsByIds"
+          ],
+          "request_fields": [
+            "CampaignCriterionIds",
+            "CampaignId",
+            "CriterionType",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetCampaignIdsByBidStrategyIds": {
+          "soap_actions": [
+            "GetCampaignIdsByBidStrategyIds"
+          ],
+          "request_fields": [
+            "BidStrategyIds",
+            "Scope"
+          ]
+        },
+        "GetCampaignIdsByBudgetIds": {
+          "soap_actions": [
+            "GetCampaignIdsByBudgetIds"
+          ],
+          "request_fields": [
+            "BudgetIds"
+          ]
+        },
+        "GetCampaignSizesByAccountId": {
+          "soap_actions": [
+            "GetCampaignSizesByAccountId"
+          ],
+          "request_fields": [
+            "AccountId",
+            "CampaignIds"
+          ]
+        },
+        "GetCampaignsByAccountId": {
+          "soap_actions": [
+            "GetCampaignsByAccountId"
+          ],
+          "request_fields": [
+            "AccountId",
+            "CampaignType",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetCampaignsByIds": {
+          "soap_actions": [
+            "GetCampaignsByIds"
+          ],
+          "request_fields": [
+            "AccountId",
+            "CampaignIds",
+            "CampaignType",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetClipchampTemplates": {
+          "soap_actions": [
+            "GetClipchampTemplates"
+          ],
+          "request_fields": [
+            "Mock",
+            "MaxAdsCount",
+            "TemplateFilter",
+            "Locale"
+          ]
+        },
+        "GetCompanyListDetails": {
+          "soap_actions": [
+            "GetCompanyListDetails"
+          ],
+          "request_fields": [
+            "CompanyListId"
+          ]
+        },
+        "GetConfigValue": {
+          "soap_actions": [
+            "GetConfigValue"
+          ],
+          "request_fields": [
+            "ConfigKey"
+          ]
+        },
+        "GetConversionGoalsByIds": {
+          "soap_actions": [
+            "GetConversionGoalsByIds"
+          ],
+          "request_fields": [
+            "ConversionGoalIds",
+            "ConversionGoalTypes",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetConversionGoalsByTagIds": {
+          "soap_actions": [
+            "GetConversionGoalsByTagIds"
+          ],
+          "request_fields": [
+            "TagIds",
+            "ConversionGoalTypes",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetConversionValueRulesByAccountId": {
+          "soap_actions": [
+            "GetConversionValueRulesByAccountId"
+          ],
+          "request_fields": [
+            "AccountId",
+            "Lcid"
+          ]
+        },
+        "GetConversionValueRulesByIds": {
+          "soap_actions": [
+            "GetConversionValueRulesByIds"
+          ],
+          "request_fields": [
+            "RuleIds",
+            "Lcid"
+          ]
+        },
+        "GetDataExclusionsByAccountId": {
+          "soap_actions": [
+            "GetDataExclusionsByAccountId"
+          ],
+          "request_fields": [
+            "AccountId"
+          ]
+        },
+        "GetDataExclusionsByIds": {
+          "soap_actions": [
+            "GetDataExclusionsByIds"
+          ],
+          "request_fields": [
+            "AccountId",
+            "DataExclusionIds"
+          ]
+        },
+        "GetDiagnostics": {
+          "soap_actions": [
+            "GetDiagnostics"
+          ],
+          "request_fields": [
+            "Entities",
+            "Checks",
+            "Settings",
+            "CallerName"
+          ]
+        },
+        "GetEditorialReasonsByIds": {
+          "soap_actions": [
+            "GetEditorialReasonsByIds"
+          ],
+          "request_fields": [
+            "AccountId",
+            "EntityIdToParentIdAssociations",
+            "EntityType"
+          ]
+        },
+        "GetExperimentsByIds": {
+          "soap_actions": [
+            "GetExperimentsByIds"
+          ],
+          "request_fields": [
+            "ExperimentIds",
+            "PageInfo",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetFileImportUploadUrl": {
+          "soap_actions": [
+            "GetFileImportUploadUrl"
+          ],
+          "request_fields": []
+        },
+        "GetGeoLocationsFileUrl": {
+          "soap_actions": [
+            "GetGeoLocationsFileUrl"
+          ],
+          "request_fields": [
+            "Version",
+            "LanguageLocale",
+            "CompressionType"
+          ]
+        },
+        "GetHTML5sByIds": {
+          "soap_actions": [
+            "GetHTML5sByIds"
+          ],
+          "request_fields": [
+            "HTML5AssetIds"
+          ]
+        },
+        "GetHealthCheck": {
+          "soap_actions": [
+            "GetHealthCheck"
+          ],
+          "request_fields": [
+            "HealthCheckEntities",
+            "HealthCheckTypes"
+          ]
+        },
+        "GetImportEntityIdsMapping": {
+          "soap_actions": [
+            "GetImportEntityIdsMapping"
+          ],
+          "request_fields": [
+            "ImportType",
+            "SourceEntityIds",
+            "ImportEntityType",
+            "SourceParentId"
+          ]
+        },
+        "GetImportJobsByIds": {
+          "soap_actions": [
+            "GetImportJobsByIds"
+          ],
+          "request_fields": [
+            "ImportJobIds",
+            "ImportType",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetImportResults": {
+          "soap_actions": [
+            "GetImportResults"
+          ],
+          "request_fields": [
+            "ImportType",
+            "PageInfo",
+            "ImportJobIds",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetKeywordsByAdGroupId": {
+          "soap_actions": [
+            "GetKeywordsByAdGroupId"
+          ],
+          "request_fields": [
+            "AdGroupId",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetKeywordsByAssetGroupId": {
+          "soap_actions": [
+            "GetKeywordsByAssetGroupId"
+          ],
+          "request_fields": [
+            "AssetGroupId",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetKeywordsByEditorialStatus": {
+          "soap_actions": [
+            "GetKeywordsByEditorialStatus"
+          ],
+          "request_fields": [
+            "AdGroupId",
+            "EditorialStatus",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetKeywordsByIds": {
+          "soap_actions": [
+            "GetKeywordsByIds"
+          ],
+          "request_fields": [
+            "AdGroupId",
+            "KeywordIds",
+            "ReturnAdditionalFields",
+            "AssetGroupId"
+          ]
+        },
+        "GetLabelAssociationsByEntityIds": {
+          "soap_actions": [
+            "GetLabelAssociationsByEntityIds"
+          ],
+          "request_fields": [
+            "EntityIds",
+            "EntityType"
+          ]
+        },
+        "GetLabelAssociationsByLabelIds": {
+          "soap_actions": [
+            "GetLabelAssociationsByLabelIds"
+          ],
+          "request_fields": [
+            "EntityType",
+            "LabelIds",
+            "PageInfo"
+          ]
+        },
+        "GetLabelsByIds": {
+          "soap_actions": [
+            "GetLabelsByIds"
+          ],
+          "request_fields": [
+            "LabelIds",
+            "PageInfo"
+          ]
+        },
+        "GetLinkedInSegments": {
+          "soap_actions": [
+            "GetLinkedInSegments"
+          ],
+          "request_fields": [
+            "LinkedInSegmentIds",
+            "Type"
+          ]
+        },
+        "GetListItemsBySharedList": {
+          "soap_actions": [
+            "GetListItemsBySharedList"
+          ],
+          "request_fields": [
+            "SharedList",
+            "SharedEntityScope"
+          ]
+        },
+        "GetMediaAssociations": {
+          "soap_actions": [
+            "GetMediaAssociations"
+          ],
+          "request_fields": [
+            "MediaEnabledEntities",
+            "MediaIds"
+          ]
+        },
+        "GetMediaMetaDataByAccountId": {
+          "soap_actions": [
+            "GetMediaMetaDataByAccountId"
+          ],
+          "request_fields": [
+            "MediaEnabledEntities",
+            "PageInfo",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetMediaMetaDataByIds": {
+          "soap_actions": [
+            "GetMediaMetaDataByIds"
+          ],
+          "request_fields": [
+            "MediaIds",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetNegativeKeywordsByEntityIds": {
+          "soap_actions": [
+            "GetNegativeKeywordsByEntityIds"
+          ],
+          "request_fields": [
+            "EntityIds",
+            "EntityType",
+            "ParentEntityId"
+          ]
+        },
+        "GetNegativeSitesByAdGroupIds": {
+          "soap_actions": [
+            "GetNegativeSitesByAdGroupIds"
+          ],
+          "request_fields": [
+            "CampaignId",
+            "AdGroupIds"
+          ]
+        },
+        "GetNegativeSitesByCampaignIds": {
+          "soap_actions": [
+            "GetNegativeSitesByCampaignIds"
+          ],
+          "request_fields": [
+            "AccountId",
+            "CampaignIds"
+          ]
+        },
+        "GetNewCustomerAcquisitionGoalsByAccountId": {
+          "soap_actions": [
+            "GetNewCustomerAcquisitionGoalsByAccountId"
+          ],
+          "request_fields": [
+            "AccountId"
+          ]
+        },
+        "GetOfflineConversionReportByGoalIds": {
+          "soap_actions": [
+            "GetOfflineConversionReportByGoalIds"
+          ],
+          "request_fields": [
+            "StartDateUtc",
+            "EndDateUtc",
+            "GoalIds",
+            "UploadChannelFilter"
+          ]
+        },
+        "GetOfflineConversionReports": {
+          "soap_actions": [
+            "GetOfflineConversionReports"
+          ],
+          "request_fields": [
+            "StartDateUtc",
+            "EndDateUtc"
+          ]
+        },
+        "GetProfileDataFileUrl": {
+          "soap_actions": [
+            "GetProfileDataFileUrl"
+          ],
+          "request_fields": [
+            "LanguageLocale",
+            "ProfileType"
+          ]
+        },
+        "GetResponsiveAdRecommendationJob": {
+          "soap_actions": [
+            "GetResponsiveAdRecommendationJob"
+          ],
+          "request_fields": [
+            "JobId"
+          ]
+        },
+        "GetSeasonalityAdjustmentsByAccountId": {
+          "soap_actions": [
+            "GetSeasonalityAdjustmentsByAccountId"
+          ],
+          "request_fields": [
+            "AccountId"
+          ]
+        },
+        "GetSeasonalityAdjustmentsByIds": {
+          "soap_actions": [
+            "GetSeasonalityAdjustmentsByIds"
+          ],
+          "request_fields": [
+            "AccountId",
+            "SeasonalityAdjustmentIds"
+          ]
+        },
+        "GetSharedEntities": {
+          "soap_actions": [
+            "GetSharedEntities"
+          ],
+          "request_fields": [
+            "SharedEntityType",
+            "SharedEntityScope"
+          ]
+        },
+        "GetSharedEntitiesByAccountId": {
+          "soap_actions": [
+            "GetSharedEntitiesByAccountId"
+          ],
+          "request_fields": [
+            "SharedEntityType"
+          ]
+        },
+        "GetSharedEntityAssociationsByEntityIds": {
+          "soap_actions": [
+            "GetSharedEntityAssociationsByEntityIds"
+          ],
+          "request_fields": [
+            "EntityIds",
+            "EntityType",
+            "SharedEntityType",
+            "SharedEntityScope",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetSharedEntityAssociationsBySharedEntityIds": {
+          "soap_actions": [
+            "GetSharedEntityAssociationsBySharedEntityIds"
+          ],
+          "request_fields": [
+            "EntityType",
+            "SharedEntityIds",
+            "SharedEntityType",
+            "SharedEntityScope",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetSupportedClipchampAudio": {
+          "soap_actions": [
+            "GetSupportedClipchampAudio"
+          ],
+          "request_fields": [
+            "AudioFilter"
+          ]
+        },
+        "GetSupportedFonts": {
+          "soap_actions": [
+            "GetSupportedFonts"
+          ],
+          "request_fields": [
+            "AdSubType"
+          ]
+        },
+        "GetUetTagAuthKey": {
+          "soap_actions": [
+            "GetUetTagAuthKey"
+          ],
+          "request_fields": [
+            "UetTagId"
+          ]
+        },
+        "GetUetTagsByIds": {
+          "soap_actions": [
+            "GetUetTagsByIds"
+          ],
+          "request_fields": [
+            "TagIds",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetVideosByIds": {
+          "soap_actions": [
+            "GetVideosByIds"
+          ],
+          "request_fields": [
+            "VideoIds",
+            "PageInfo"
+          ]
+        },
+        "RefineAssetGroupRecommendation": {
+          "soap_actions": [
+            "RefineAssetGroupRecommendation"
+          ],
+          "request_fields": [
+            "AssetGroup",
+            "TextRefineOperations",
+            "ImageSuggestions",
+            "ImageRefineOperations",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "RefineResponsiveAdRecommendation": {
+          "soap_actions": [
+            "RefineResponsiveAdRecommendation"
+          ],
+          "request_fields": [
+            "ResponsiveAd",
+            "TextRefineOperations",
+            "ImageRefineOperations",
+            "ImageSuggestions",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "RefineResponsiveSearchAdRecommendation": {
+          "soap_actions": [
+            "RefineResponsiveSearchAdRecommendation"
+          ],
+          "request_fields": [
+            "ResponsiveSearchAd",
+            "TextRefineOperations"
+          ]
+        },
+        "SearchCompanies": {
+          "soap_actions": [
+            "SearchCompanies"
+          ],
+          "request_fields": [
+            "CompanyNameFilter",
+            "LanguageLocale"
+          ]
+        },
+        "SetAccountProperties": {
+          "soap_actions": [
+            "SetAccountProperties"
+          ],
+          "request_fields": [
+            "AccountProperties"
+          ]
+        },
+        "SetAdExtensionsAssociations": {
+          "soap_actions": [
+            "SetAdExtensionsAssociations"
+          ],
+          "request_fields": [
+            "AccountId",
+            "AdExtensionIdToEntityIdAssociations",
+            "AssociationType"
+          ]
+        },
+        "SetAudienceGroupAssetGroupAssociations": {
+          "soap_actions": [
+            "SetAudienceGroupAssetGroupAssociations"
+          ],
+          "request_fields": [
+            "AudienceGroupAssetGroupAssociations"
+          ]
+        },
+        "SetLabelAssociations": {
+          "soap_actions": [
+            "SetLabelAssociations"
+          ],
+          "request_fields": [
+            "EntityType",
+            "LabelAssociations"
+          ]
+        },
+        "SetNegativeSitesToAdGroups": {
+          "soap_actions": [
+            "SetNegativeSitesToAdGroups"
+          ],
+          "request_fields": [
+            "CampaignId",
+            "AdGroupNegativeSites"
+          ]
+        },
+        "SetNegativeSitesToCampaigns": {
+          "soap_actions": [
+            "SetNegativeSitesToCampaigns"
+          ],
+          "request_fields": [
+            "AccountId",
+            "CampaignNegativeSites"
+          ]
+        },
+        "SetSharedEntityAssociations": {
+          "soap_actions": [
+            "SetSharedEntityAssociations"
+          ],
+          "request_fields": [
+            "Associations",
+            "SharedEntityScope"
+          ]
+        },
+        "UpdateAdExtensions": {
+          "soap_actions": [
+            "UpdateAdExtensions"
+          ],
+          "request_fields": [
+            "AccountId",
+            "AdExtensions"
+          ]
+        },
+        "UpdateAdGroupCriterions": {
+          "soap_actions": [
+            "UpdateAdGroupCriterions"
+          ],
+          "request_fields": [
+            "AdGroupCriterions",
+            "CriterionType"
+          ]
+        },
+        "UpdateAdGroups": {
+          "soap_actions": [
+            "UpdateAdGroups"
+          ],
+          "request_fields": [
+            "CampaignId",
+            "AdGroups",
+            "UpdateAudienceAdsBidAdjustment",
+            "ReturnInheritedBidStrategyTypes"
+          ]
+        },
+        "UpdateAds": {
+          "soap_actions": [
+            "UpdateAds"
+          ],
+          "request_fields": [
+            "AdGroupId",
+            "Ads"
+          ]
+        },
+        "UpdateAnnotationOptOut": {
+          "soap_actions": [
+            "UpdateAnnotationOptOut"
+          ],
+          "request_fields": [
+            "Justification",
+            "AnnotationOptOuts"
+          ]
+        },
+        "UpdateAssetGroups": {
+          "soap_actions": [
+            "UpdateAssetGroups"
+          ],
+          "request_fields": [
+            "CampaignId",
+            "AssetGroups"
+          ]
+        },
+        "UpdateAudienceGroups": {
+          "soap_actions": [
+            "UpdateAudienceGroups"
+          ],
+          "request_fields": [
+            "AudienceGroups"
+          ]
+        },
+        "UpdateAudiences": {
+          "soap_actions": [
+            "UpdateAudiences"
+          ],
+          "request_fields": [
+            "Audiences"
+          ]
+        },
+        "UpdateBidStrategies": {
+          "soap_actions": [
+            "UpdateBidStrategies"
+          ],
+          "request_fields": [
+            "BidStrategies"
+          ]
+        },
+        "UpdateBrandKits": {
+          "soap_actions": [
+            "UpdateBrandKits"
+          ],
+          "request_fields": [
+            "AccountId",
+            "BrandKits"
+          ]
+        },
+        "UpdateBudgets": {
+          "soap_actions": [
+            "UpdateBudgets"
+          ],
+          "request_fields": [
+            "Budgets"
+          ]
+        },
+        "UpdateCampaignCriterions": {
+          "soap_actions": [
+            "UpdateCampaignCriterions"
+          ],
+          "request_fields": [
+            "CampaignCriterions",
+            "CriterionType"
+          ]
+        },
+        "UpdateCampaigns": {
+          "soap_actions": [
+            "UpdateCampaigns"
+          ],
+          "request_fields": [
+            "AccountId",
+            "Campaigns"
+          ]
+        },
+        "UpdateConversionGoals": {
+          "soap_actions": [
+            "UpdateConversionGoals"
+          ],
+          "request_fields": [
+            "ConversionGoals"
+          ]
+        },
+        "UpdateConversionValueRules": {
+          "soap_actions": [
+            "UpdateConversionValueRules"
+          ],
+          "request_fields": [
+            "ConversionValueRules",
+            "Lcid"
+          ]
+        },
+        "UpdateConversionValueRulesStatus": {
+          "soap_actions": [
+            "UpdateConversionValueRulesStatus"
+          ],
+          "request_fields": [
+            "RuleIds",
+            "Status"
+          ]
+        },
+        "UpdateDataExclusions": {
+          "soap_actions": [
+            "UpdateDataExclusions"
+          ],
+          "request_fields": [
+            "AccountId",
+            "DataExclusions"
+          ]
+        },
+        "UpdateExperiments": {
+          "soap_actions": [
+            "UpdateExperiments"
+          ],
+          "request_fields": [
+            "Experiments"
+          ]
+        },
+        "UpdateImportJobs": {
+          "soap_actions": [
+            "UpdateImportJobs"
+          ],
+          "request_fields": [
+            "ImportJobs"
+          ]
+        },
+        "UpdateKeywords": {
+          "soap_actions": [
+            "UpdateKeywords"
+          ],
+          "request_fields": [
+            "AdGroupId",
+            "Keywords",
+            "ReturnInheritedBidStrategyTypes",
+            "AssetGroupId"
+          ]
+        },
+        "UpdateLabels": {
+          "soap_actions": [
+            "UpdateLabels"
+          ],
+          "request_fields": [
+            "Labels"
+          ]
+        },
+        "UpdateLinkedInSegments": {
+          "soap_actions": [
+            "UpdateLinkedInSegments"
+          ],
+          "request_fields": [
+            "LinkedInSegments"
+          ]
+        },
+        "UpdateNewCustomerAcquisitionGoals": {
+          "soap_actions": [
+            "UpdateNewCustomerAcquisitionGoals"
+          ],
+          "request_fields": [
+            "NewCustomerAcquisitionGoals"
+          ]
+        },
+        "UpdateSeasonalityAdjustments": {
+          "soap_actions": [
+            "UpdateSeasonalityAdjustments"
+          ],
+          "request_fields": [
+            "AccountId",
+            "SeasonalityAdjustments"
+          ]
+        },
+        "UpdateSharedEntities": {
+          "soap_actions": [
+            "UpdateSharedEntities"
+          ],
+          "request_fields": [
+            "SharedEntities",
+            "SharedEntityScope"
+          ]
+        },
+        "UpdateUetTags": {
+          "soap_actions": [
+            "UpdateUetTags"
+          ],
+          "request_fields": [
+            "UetTags"
+          ]
+        },
+        "UpdateVideos": {
+          "soap_actions": [
+            "UpdateVideos"
+          ],
+          "request_fields": [
+            "Videos"
+          ]
+        }
+      }
+    },
+    "bulk": {
+      "source": "https://bulk.api.bingads.microsoft.com/Api/Advertiser/CampaignManagement/v13/BulkService.svc?singleWsdl",
+      "xml_sha256": "f3140ea5172588b8cceba3ce2dfbeb666512b9ac843f4404fc7ab55f2eab69c8",
+      "document_sha256": "631bc11007897a212b324572f2b1311b75944533ae488e4137a524902f0a02e7",
+      "namespace": "https://bingads.microsoft.com/CampaignManagement/v13",
+      "wire_format": "SOAP/XML; JSON transport equivalence is not asserted",
+      "operations": {
+        "DownloadCampaignsByAccountIds": {
+          "soap_actions": [
+            "DownloadCampaignsByAccountIds"
+          ],
+          "request_fields": [
+            "AccountIds",
+            "CompressionType",
+            "DataScope",
+            "DownloadEntities",
+            "DownloadFileType",
+            "FormatVersion",
+            "LastSyncTimeInUTC"
+          ]
+        },
+        "DownloadCampaignsByCampaignIds": {
+          "soap_actions": [
+            "DownloadCampaignsByCampaignIds"
+          ],
+          "request_fields": [
+            "Campaigns",
+            "CompressionType",
+            "DataScope",
+            "DownloadEntities",
+            "DownloadFileType",
+            "FormatVersion",
+            "LastSyncTimeInUTC"
+          ]
+        },
+        "GetBulkDownloadStatus": {
+          "soap_actions": [
+            "GetBulkDownloadStatus"
+          ],
+          "request_fields": [
+            "RequestId"
+          ]
+        },
+        "GetBulkUploadStatus": {
+          "soap_actions": [
+            "GetBulkUploadStatus"
+          ],
+          "request_fields": [
+            "RequestId"
+          ]
+        },
+        "GetBulkUploadUrl": {
+          "soap_actions": [
+            "GetBulkUploadUrl"
+          ],
+          "request_fields": [
+            "ResponseMode",
+            "AccountId"
+          ]
+        },
+        "UploadEntityRecords": {
+          "soap_actions": [
+            "UploadEntityRecords"
+          ],
+          "request_fields": [
+            "EntityRecords",
+            "ResponseMode",
+            "AccountId"
+          ]
+        }
+      }
+    },
+    "reporting": {
+      "source": "https://reporting.api.bingads.microsoft.com/Api/Advertiser/Reporting/v13/ReportingService.svc?singleWsdl",
+      "xml_sha256": "7e614f3e235125db82c5f275e33f9a551661714ecc17c0afe4f4086ff40b5bc0",
+      "document_sha256": "55283a872164f235100e79c6d679d6840f3085ee950ad0a2c85465c5d369edb5",
+      "namespace": "https://bingads.microsoft.com/Reporting/v13",
+      "wire_format": "SOAP/XML; JSON transport equivalence is not asserted",
+      "operations": {
+        "PollGenerateReport": {
+          "soap_actions": [
+            "PollGenerateReport"
+          ],
+          "request_fields": [
+            "ReportRequestId"
+          ]
+        },
+        "SubmitGenerateReport": {
+          "soap_actions": [
+            "SubmitGenerateReport"
+          ],
+          "request_fields": [
+            "ReportRequest"
+          ]
+        }
+      }
+    },
+    "ad-insight": {
+      "source": "https://adinsight.api.bingads.microsoft.com/Api/Advertiser/AdInsight/v13/AdInsightService.svc?singleWsdl",
+      "xml_sha256": "6db77f62267ea3e582b9d168d52a5d787d2767e83cdea2b8bff5568dbbbaec65",
+      "document_sha256": "1ac16fa381e826e463111306e4b40dd4232da40bca7589a120be5231c3cce776",
+      "namespace": "https://bingads.microsoft.com/AdInsight/v13",
+      "wire_format": "SOAP/XML; JSON transport equivalence is not asserted",
+      "operations": {
+        "ApplyRecommendations": {
+          "soap_actions": [
+            "ApplyRecommendations"
+          ],
+          "request_fields": [
+            "Entities"
+          ]
+        },
+        "DismissRecommendations": {
+          "soap_actions": [
+            "DismissRecommendations"
+          ],
+          "request_fields": [
+            "Entities"
+          ]
+        },
+        "GetAuctionInsightData": {
+          "soap_actions": [
+            "GetAuctionInsightData"
+          ],
+          "request_fields": [
+            "EntityType",
+            "EntityIds",
+            "SearchParameters",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetAudienceBreakdown": {
+          "soap_actions": [
+            "GetAudienceBreakdown"
+          ],
+          "request_fields": [
+            "Age",
+            "Gender",
+            "Audience",
+            "Company",
+            "Industry",
+            "JobFunction",
+            "Location",
+            "Placement",
+            "Device",
+            "Topic",
+            "RadiusTargets",
+            "CampaignBiddingStrategy",
+            "CampaignSubType",
+            "Feed",
+            "Lcid",
+            "BreakdownReturnCategory",
+            "MultiAdTypes",
+            "JobSeniority",
+            "Genre",
+            "Channel",
+            "ChannelPlacement",
+            "SubChannel"
+          ]
+        },
+        "GetAudienceFullEstimation": {
+          "soap_actions": [
+            "GetAudienceFullEstimation"
+          ],
+          "request_fields": [
+            "Age",
+            "Gender",
+            "Audience",
+            "Company",
+            "Industry",
+            "JobFunction",
+            "Location",
+            "Placement",
+            "Device",
+            "Topic",
+            "RadiusTargets",
+            "CampaignBiddingStrategy",
+            "CampaignSubType",
+            "Feed",
+            "DailyBudget",
+            "Bid",
+            "Currency",
+            "MultiAdTypes",
+            "StartDate",
+            "EndDate",
+            "TotalBudget",
+            "IncludeImpressionsBreakdown",
+            "AutoTargeting",
+            "JobSeniority",
+            "Genre",
+            "Channel",
+            "ChannelPlacement",
+            "SubChannel"
+          ]
+        },
+        "GetAutoApplyOptInStatus": {
+          "soap_actions": [
+            "GetAutoApplyOptInStatus"
+          ],
+          "request_fields": [
+            "RecommendationTypesInputs"
+          ]
+        },
+        "GetBidLandscapeByAdGroupIds": {
+          "soap_actions": [
+            "GetBidLandscapeByAdGroupIds"
+          ],
+          "request_fields": [
+            "AdGroupBidLandscapeInputs"
+          ]
+        },
+        "GetBidLandscapeByCampaignIds": {
+          "soap_actions": [
+            "GetBidLandscapeByCampaignIds"
+          ],
+          "request_fields": [
+            "CampaignIds"
+          ]
+        },
+        "GetBidLandscapeByKeywordIds": {
+          "soap_actions": [
+            "GetBidLandscapeByKeywordIds"
+          ],
+          "request_fields": [
+            "KeywordIds",
+            "IncludeCurrentBid"
+          ]
+        },
+        "GetBidOpportunities": {
+          "soap_actions": [
+            "GetBidOpportunities"
+          ],
+          "request_fields": [
+            "AdGroupId",
+            "CampaignId",
+            "OpportunityType"
+          ]
+        },
+        "GetBudgetOpportunities": {
+          "soap_actions": [
+            "GetBudgetOpportunities"
+          ],
+          "request_fields": [
+            "CampaignId"
+          ]
+        },
+        "GetDomainCategories": {
+          "soap_actions": [
+            "GetDomainCategories"
+          ],
+          "request_fields": [
+            "CategoryName",
+            "DomainName",
+            "Language"
+          ]
+        },
+        "GetEstimatedBidByKeywordIds": {
+          "soap_actions": [
+            "GetEstimatedBidByKeywordIds"
+          ],
+          "request_fields": [
+            "KeywordIds",
+            "TargetPositionForAds"
+          ]
+        },
+        "GetEstimatedBidByKeywords": {
+          "soap_actions": [
+            "GetEstimatedBidByKeywords"
+          ],
+          "request_fields": [
+            "Keywords",
+            "TargetPositionForAds",
+            "Language",
+            "LocationIds",
+            "CurrencyCode",
+            "CampaignId",
+            "AdGroupId",
+            "EntityLevelBid"
+          ]
+        },
+        "GetEstimatedPositionByKeywordIds": {
+          "soap_actions": [
+            "GetEstimatedPositionByKeywordIds"
+          ],
+          "request_fields": [
+            "KeywordIds",
+            "MaxBid"
+          ]
+        },
+        "GetEstimatedPositionByKeywords": {
+          "soap_actions": [
+            "GetEstimatedPositionByKeywords"
+          ],
+          "request_fields": [
+            "Keywords",
+            "MaxBid",
+            "Language",
+            "LocationIds",
+            "CurrencyCode",
+            "MatchTypes",
+            "CampaignId",
+            "AdGroupId"
+          ]
+        },
+        "GetHistoricalKeywordPerformance": {
+          "soap_actions": [
+            "GetHistoricalKeywordPerformance"
+          ],
+          "request_fields": [
+            "Keywords",
+            "TimeInterval",
+            "TargetAdPosition",
+            "MatchTypes",
+            "Language",
+            "PublisherCountries",
+            "Devices"
+          ]
+        },
+        "GetHistoricalSearchCount": {
+          "soap_actions": [
+            "GetHistoricalSearchCount"
+          ],
+          "request_fields": [
+            "Keywords",
+            "Language",
+            "PublisherCountries",
+            "StartDate",
+            "EndDate",
+            "TimePeriodRollup",
+            "Devices"
+          ]
+        },
+        "GetKeywordCategories": {
+          "soap_actions": [
+            "GetKeywordCategories"
+          ],
+          "request_fields": [
+            "Keywords",
+            "Language",
+            "PublisherCountry",
+            "MaxCategories"
+          ]
+        },
+        "GetKeywordDemographics": {
+          "soap_actions": [
+            "GetKeywordDemographics"
+          ],
+          "request_fields": [
+            "Keywords",
+            "Language",
+            "PublisherCountry",
+            "Device"
+          ]
+        },
+        "GetKeywordIdeaCategories": {
+          "soap_actions": [
+            "GetKeywordIdeaCategories"
+          ],
+          "request_fields": []
+        },
+        "GetKeywordIdeas": {
+          "soap_actions": [
+            "GetKeywordIdeas"
+          ],
+          "request_fields": [
+            "ExpandIdeas",
+            "IdeaAttributes",
+            "SearchParameters"
+          ]
+        },
+        "GetKeywordLocations": {
+          "soap_actions": [
+            "GetKeywordLocations"
+          ],
+          "request_fields": [
+            "Keywords",
+            "Language",
+            "PublisherCountry",
+            "Device",
+            "Level",
+            "ParentCountry",
+            "MaxLocations"
+          ]
+        },
+        "GetKeywordOpportunities": {
+          "soap_actions": [
+            "GetKeywordOpportunities"
+          ],
+          "request_fields": [
+            "AdGroupId",
+            "CampaignId",
+            "OpportunityType"
+          ]
+        },
+        "GetKeywordTrafficEstimates": {
+          "soap_actions": [
+            "GetKeywordTrafficEstimates"
+          ],
+          "request_fields": [
+            "CampaignEstimators"
+          ]
+        },
+        "GetPerformanceInsightsDetailDataByAccountId": {
+          "soap_actions": [
+            "GetPerformanceInsightsDetailDataByAccountId"
+          ],
+          "request_fields": [
+            "EntityType",
+            "StartDate",
+            "EndDate"
+          ]
+        },
+        "GetRecommendations": {
+          "soap_actions": [
+            "GetRecommendations"
+          ],
+          "request_fields": [
+            "CampaignId",
+            "AdGroupId",
+            "RecommendationType"
+          ]
+        },
+        "GetTextAssetSuggestionsByFinalUrls": {
+          "soap_actions": [
+            "GetTextAssetSuggestionsByFinalUrls"
+          ],
+          "request_fields": [
+            "FinalUrls"
+          ]
+        },
+        "PutMetricData": {
+          "soap_actions": [
+            "PutMetricData"
+          ],
+          "request_fields": [
+            "Metrics"
+          ]
+        },
+        "RetrieveRecommendations": {
+          "soap_actions": [
+            "RetrieveRecommendations"
+          ],
+          "request_fields": [
+            "RecommendationTypes",
+            "MaxCount"
+          ]
+        },
+        "SetAutoApplyOptInStatus": {
+          "soap_actions": [
+            "SetAutoApplyOptInStatus"
+          ],
+          "request_fields": [
+            "AutoApplyOptInStatusInputs"
+          ]
+        },
+        "SuggestKeywordsForUrl": {
+          "soap_actions": [
+            "SuggestKeywordsForUrl"
+          ],
+          "request_fields": [
+            "Url",
+            "Language",
+            "MaxKeywords",
+            "MinConfidenceScore",
+            "ExcludeBrand"
+          ]
+        },
+        "SuggestKeywordsFromExistingKeywords": {
+          "soap_actions": [
+            "SuggestKeywordsFromExistingKeywords"
+          ],
+          "request_fields": [
+            "Keywords",
+            "Language",
+            "PublisherCountries",
+            "MaxSuggestionsPerKeyword",
+            "SuggestionType",
+            "RemoveDuplicates",
+            "ExcludeBrand",
+            "AdGroupId",
+            "CampaignId"
+          ]
+        },
+        "TagRecommendations": {
+          "soap_actions": [
+            "TagRecommendations"
+          ],
+          "request_fields": [
+            "RecommendationType",
+            "RecommendationsInfo",
+            "Lable"
+          ]
+        }
+      }
+    },
+    "customer-management": {
+      "source": "https://clientcenter.api.bingads.microsoft.com/Api/CustomerManagement/v13/CustomerManagementService.svc?singleWsdl",
+      "xml_sha256": "a09808d7578b44616e042107f013af998a77557815b88198d53f6f6d64d188e5",
+      "document_sha256": "fafe7f0df6fb6221660b9e9e45f3c51d00848f402720c36198315a24a02b28f0",
+      "namespace": "https://bingads.microsoft.com/Customer/v13",
+      "wire_format": "SOAP/XML; JSON transport equivalence is not asserted",
+      "operations": {
+        "AddAccount": {
+          "soap_actions": [
+            "AddAccount"
+          ],
+          "request_fields": [
+            "Account"
+          ]
+        },
+        "AddClientLinks": {
+          "soap_actions": [
+            "AddClientLinks"
+          ],
+          "request_fields": [
+            "ClientLinks"
+          ]
+        },
+        "AddPrepayAccount": {
+          "soap_actions": [
+            "AddPrepayAccount"
+          ],
+          "request_fields": [
+            "Account"
+          ]
+        },
+        "DeleteAccount": {
+          "soap_actions": [
+            "DeleteAccount"
+          ],
+          "request_fields": [
+            "AccountId",
+            "TimeStamp"
+          ]
+        },
+        "DeleteCustomer": {
+          "soap_actions": [
+            "DeleteCustomer"
+          ],
+          "request_fields": [
+            "CustomerId",
+            "TimeStamp"
+          ]
+        },
+        "DeleteUser": {
+          "soap_actions": [
+            "DeleteUser"
+          ],
+          "request_fields": [
+            "UserId",
+            "TimeStamp"
+          ]
+        },
+        "DismissNotifications": {
+          "soap_actions": [
+            "DismissNotifications"
+          ],
+          "request_fields": [
+            "UserId",
+            "NotificationTypePairs"
+          ]
+        },
+        "FindAccounts": {
+          "soap_actions": [
+            "FindAccounts"
+          ],
+          "request_fields": [
+            "CustomerId",
+            "AccountFilter",
+            "TopN"
+          ]
+        },
+        "FindAccountsOrCustomersInfo": {
+          "soap_actions": [
+            "FindAccountsOrCustomersInfo"
+          ],
+          "request_fields": [
+            "Filter",
+            "TopN",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetAccessibleCustomer": {
+          "soap_actions": [
+            "GetAccessibleCustomer"
+          ],
+          "request_fields": [
+            "CustomerId"
+          ]
+        },
+        "GetAccount": {
+          "soap_actions": [
+            "GetAccount"
+          ],
+          "request_fields": [
+            "AccountId",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "GetAccountPilotFeatures": {
+          "soap_actions": [
+            "GetAccountPilotFeatures"
+          ],
+          "request_fields": [
+            "AccountId"
+          ]
+        },
+        "GetAccountsInfo": {
+          "soap_actions": [
+            "GetAccountsInfo"
+          ],
+          "request_fields": [
+            "CustomerId",
+            "OnlyParentAccounts"
+          ]
+        },
+        "GetCurrentUser": {
+          "soap_actions": [
+            "GetCurrentUser"
+          ],
+          "request_fields": []
+        },
+        "GetCustomer": {
+          "soap_actions": [
+            "GetCustomer"
+          ],
+          "request_fields": [
+            "CustomerId"
+          ]
+        },
+        "GetCustomerPilotFeatures": {
+          "soap_actions": [
+            "GetCustomerPilotFeatures"
+          ],
+          "request_fields": [
+            "CustomerId"
+          ]
+        },
+        "GetCustomersInfo": {
+          "soap_actions": [
+            "GetCustomersInfo"
+          ],
+          "request_fields": [
+            "CustomerNameFilter",
+            "TopN"
+          ]
+        },
+        "GetLinkedAccountsAndCustomersInfo": {
+          "soap_actions": [
+            "GetLinkedAccountsAndCustomersInfo"
+          ],
+          "request_fields": [
+            "CustomerId",
+            "OnlyParentAccounts"
+          ]
+        },
+        "GetNotifications": {
+          "soap_actions": [
+            "GetNotifications"
+          ],
+          "request_fields": [
+            "Locale",
+            "UserId",
+            "TypeIds"
+          ]
+        },
+        "GetPilotFeaturesCountries": {
+          "soap_actions": [
+            "GetPilotFeaturesCountries"
+          ],
+          "request_fields": []
+        },
+        "GetUser": {
+          "soap_actions": [
+            "GetUser"
+          ],
+          "request_fields": [
+            "UserId"
+          ]
+        },
+        "GetUserMFAStatus": {
+          "soap_actions": [
+            "GetUserMFAStatus"
+          ],
+          "request_fields": []
+        },
+        "GetUsersInfo": {
+          "soap_actions": [
+            "GetUsersInfo"
+          ],
+          "request_fields": [
+            "CustomerId",
+            "StatusFilter"
+          ]
+        },
+        "MapAccountIdToExternalAccountIds": {
+          "soap_actions": [
+            "MapAccountIdToExternalAccountIds"
+          ],
+          "request_fields": [
+            "AccountId",
+            "ExternalAccountIds"
+          ]
+        },
+        "MapCustomerIdToExternalCustomerId": {
+          "soap_actions": [
+            "MapCustomerIdToExternalCustomerId"
+          ],
+          "request_fields": [
+            "CustomerId",
+            "ExternalCustomerId"
+          ]
+        },
+        "SearchAccounts": {
+          "soap_actions": [
+            "SearchAccounts"
+          ],
+          "request_fields": [
+            "Predicates",
+            "Ordering",
+            "PageInfo",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "SearchClientLinks": {
+          "soap_actions": [
+            "SearchClientLinks"
+          ],
+          "request_fields": [
+            "Predicates",
+            "Ordering",
+            "PageInfo"
+          ]
+        },
+        "SearchCustomers": {
+          "soap_actions": [
+            "SearchCustomers"
+          ],
+          "request_fields": [
+            "Predicates",
+            "DateRange",
+            "Ordering",
+            "PageInfo"
+          ]
+        },
+        "SearchUserInvitations": {
+          "soap_actions": [
+            "SearchUserInvitations"
+          ],
+          "request_fields": [
+            "Predicates"
+          ]
+        },
+        "SendUserInvitation": {
+          "soap_actions": [
+            "SendUserInvitation"
+          ],
+          "request_fields": [
+            "UserInvitation"
+          ]
+        },
+        "SignupCustomer": {
+          "soap_actions": [
+            "SignupCustomer"
+          ],
+          "request_fields": [
+            "Customer",
+            "Account",
+            "ParentCustomerId",
+            "UserInvitation",
+            "UserId",
+            "User"
+          ]
+        },
+        "UpdateAccount": {
+          "soap_actions": [
+            "UpdateAccount"
+          ],
+          "request_fields": [
+            "Account"
+          ]
+        },
+        "UpdateClientLinks": {
+          "soap_actions": [
+            "UpdateClientLinks"
+          ],
+          "request_fields": [
+            "ClientLinks"
+          ]
+        },
+        "UpdateCustomer": {
+          "soap_actions": [
+            "UpdateCustomer"
+          ],
+          "request_fields": [
+            "Customer"
+          ]
+        },
+        "UpdatePrepayAccount": {
+          "soap_actions": [
+            "UpdatePrepayAccount"
+          ],
+          "request_fields": [
+            "Account"
+          ]
+        },
+        "UpdateUser": {
+          "soap_actions": [
+            "UpdateUser"
+          ],
+          "request_fields": [
+            "User"
+          ]
+        },
+        "UpdateUserRoles": {
+          "soap_actions": [
+            "UpdateUserRoles"
+          ],
+          "request_fields": [
+            "CustomerId",
+            "UserId",
+            "NewRoleId",
+            "NewAccountIds",
+            "NewCustomerIds",
+            "DeleteRoleId",
+            "DeleteAccountIds",
+            "DeleteCustomerIds"
+          ]
+        },
+        "UpgradeCustomerToAgency": {
+          "soap_actions": [
+            "UpgradeCustomerToAgency"
+          ],
+          "request_fields": [
+            "CustomerId"
+          ]
+        },
+        "ValidateAddress": {
+          "soap_actions": [
+            "ValidateAddress"
+          ],
+          "request_fields": [
+            "Address"
+          ]
+        }
+      }
+    },
+    "customer-billing": {
+      "source": "https://clientcenter.api.bingads.microsoft.com/Api/Billing/v13/CustomerBillingService.svc?singleWsdl",
+      "xml_sha256": "bcf1c87017254a09b85c92da0dd1eb0582df9b0be641bffb22f895854c4d121a",
+      "document_sha256": "bf64d85c931b2c38a3d1a992c028e96bdcd77546686bd4a553f515aa662029f1",
+      "namespace": "https://bingads.microsoft.com/Billing/v13",
+      "wire_format": "SOAP/XML; JSON transport equivalence is not asserted",
+      "operations": {
+        "AddInsertionOrder": {
+          "soap_actions": [
+            "AddInsertionOrder"
+          ],
+          "request_fields": [
+            "InsertionOrder"
+          ]
+        },
+        "CheckFeatureAdoptionCouponEligibility": {
+          "soap_actions": [
+            "CheckFeatureAdoptionCouponEligibility"
+          ],
+          "request_fields": [
+            "FeatureId",
+            "AccountIds"
+          ]
+        },
+        "ClaimFeatureAdoptionCoupons": {
+          "soap_actions": [
+            "ClaimFeatureAdoptionCoupons"
+          ],
+          "request_fields": [
+            "AccountCouponPairs"
+          ]
+        },
+        "DispatchCoupons": {
+          "soap_actions": [
+            "DispatchCoupons"
+          ],
+          "request_fields": [
+            "SendToEmails",
+            "CustomerId",
+            "CouponClassName"
+          ]
+        },
+        "DistributeCoupons": {
+          "soap_actions": [
+            "DistributeCoupons"
+          ],
+          "request_fields": [
+            "AccountIds",
+            "ClassName",
+            "FeatureId",
+            "SendNotification"
+          ]
+        },
+        "GetAccountMonthlySpend": {
+          "soap_actions": [
+            "GetAccountMonthlySpend"
+          ],
+          "request_fields": [
+            "AccountId",
+            "MonthYear"
+          ]
+        },
+        "GetBillingDocuments": {
+          "soap_actions": [
+            "GetBillingDocuments"
+          ],
+          "request_fields": [
+            "BillingDocumentsInfo",
+            "Type"
+          ]
+        },
+        "GetBillingDocumentsInfo": {
+          "soap_actions": [
+            "GetBillingDocumentsInfo"
+          ],
+          "request_fields": [
+            "AccountIds",
+            "StartDate",
+            "EndDate",
+            "ReturnInvoiceNumber"
+          ]
+        },
+        "GetBillingGroups": {
+          "soap_actions": [
+            "GetBillingGroups"
+          ],
+          "request_fields": [
+            "CustomerId"
+          ]
+        },
+        "GetCouponInfo": {
+          "soap_actions": [
+            "GetCouponInfo"
+          ],
+          "request_fields": [
+            "CustomerId"
+          ]
+        },
+        "GetUngroupedAccounts": {
+          "soap_actions": [
+            "GetUngroupedAccounts"
+          ],
+          "request_fields": [
+            "CustomerId"
+          ]
+        },
+        "RedeemCoupon": {
+          "soap_actions": [
+            "RedeemCoupon"
+          ],
+          "request_fields": [
+            "AccountId",
+            "CouponCode"
+          ]
+        },
+        "SearchCoupons": {
+          "soap_actions": [
+            "SearchCoupons"
+          ],
+          "request_fields": [
+            "Predicates",
+            "Ordering",
+            "PageInfo",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "SearchInsertionOrders": {
+          "soap_actions": [
+            "SearchInsertionOrders"
+          ],
+          "request_fields": [
+            "Predicates",
+            "Ordering",
+            "PageInfo",
+            "ReturnAdditionalFields"
+          ]
+        },
+        "UpdateBillingGroupAccounts": {
+          "soap_actions": [
+            "UpdateBillingGroupAccounts"
+          ],
+          "request_fields": [
+            "CustomerId",
+            "BillingGroupId",
+            "AccountsToAdd"
+          ]
+        },
+        "UpdateInsertionOrder": {
+          "soap_actions": [
+            "UpdateInsertionOrder"
+          ],
+          "request_fields": [
+            "InsertionOrder"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -69,8 +69,11 @@ Read the resulting resource before describing it as complete. A created ID is no
 
 ## Troubleshooting
 
+`amcp_tool_help` exposes `amcp_contract`; reviewed inspect/prepare expose `contract_evidence` with official provenance when available. Keep catalog captures, vendor documentation, local tests and live account qualification separate. `VERIFICATION_INCONCLUSIVE` means bounded exact reads have not established the requested state. Continue the original read-only verification; never repeat the mutation under a new key. Error `category` and `remedy` identify contract, grant, provider and state failures without turning an HTTP status into a guessed permission diagnosis.
+
 - `WRITE_ACCOUNT_FORBIDDEN`: inspect the selected connection's grant and the error's next step. There is one per-account grant, not separate campaign/ad grants. Preserve an administrator's explicit reader-only choice.
 - `WRITE_CONTRACT_UNAVAILABLE`: the particular route lacks a reviewed execution contract. Report this accurately; a native alias cannot bypass it.
+- `SANDBOX_ROUTE_UNQUALIFIED`: the opt-in development sandbox runner refused an endpoint outside its isolated X/Microsoft host mapping. Use a qualified fixture or extend and test the mapping. Do not switch to production or upload media through a production endpoint to make a sandbox test pass.
 - `RESOURCE_SCOPE_REQUIRED`: read the account collection or use the provisioned exact Page/profile binding. Do not broaden the account boundary or forge ownership.
 - `CREATIVE_INPUT_REQUIRED`: return the actual missing fields; do not replace an Instagram source with a Facebook post ID.
 - Provider 401/403: distinguish credential expiry, app approval, asset ownership and account permissions. Catalog/dry-run success does not resolve these.

@@ -6,6 +6,8 @@ import {ScopeGuard} from './scope.js';
 import {independentlyReadOnly} from './execution-risk.js';
 import {MirrorError} from './errors.js';
 import {setTimeout as delay} from 'node:timers/promises';
+import {readConsistently} from './read-consistency.js';
+import {linkedinDSC,assertLinkedInDSCGrant,rememberLinkedInPost} from './linkedin-posts.js';
 import {xCreativeKind,xPromotion,verifyXCreative} from './x-creative-writes.js';
 import {normalizeReviewState} from './review-state.js';
 import {validateState,snapshotPlans} from './write-review.js';
@@ -21,7 +23,7 @@ function differing(expected:any,actual:any,path='',out:string[]=[]):string[]{
 }
 function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Registry):{read:CompiledRequest;expected:JsonObject;id:string}[]{
  const b=(plan.body??{}) as JsonObject,d=result.data??{},gateway=plan.gateway;
- const base=(path:string,query:JsonObject={}):CompiledRequest=>({...plan,path,method:'GET',query,body:undefined,headers:gateway==='linkedin_native_action'?{'LinkedIn-Version':'202605','X-Restli-Protocol-Version':'2.0.0'}:{},readOnly:true,destructive:false,requiresConfirmation:false,action:'AMCP_VERIFY_READ'});
+ const base=(path:string,query:JsonObject={}):CompiledRequest=>({...plan,path,method:'GET',query,body:undefined,headers:gateway==='linkedin_native_action'?Object.fromEntries(Object.entries(plan.headers).filter(([k])=>['LinkedIn-Version','X-Restli-Protocol-Version'].includes(k))):{},readOnly:true,destructive:false,requiresConfirmation:false,action:'AMCP_VERIFY_READ'});
  if(plan.method==='DELETE'||b.operations?.some((o:JsonObject)=>o.remove))return [];
  if(gateway==='google_ads_native_action'){
   const leaves=(value:JsonObject,prefix=''):string[]=>Object.entries(value).flatMap(([k,v])=>obj(v)?leaves(v,prefix+snake(k)+'.'):[prefix+snake(k)]);
@@ -65,6 +67,7 @@ export class WriteVerifier{
   const row=this.store.db.prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?').get(actor.tenantId,reviewId) as JsonObject|undefined;
   if(row?.state!=='complete'||!row.result)bad('The write outcome is uncertain or unavailable; verification cannot make it safe to resubmit.','WRITE_OUTCOME_UNCERTAIN');
   const result=JSON.parse(row.result),plan=review.plan as CompiledRequest,c=this.store.resolveConnection(actor,plan.gateway,plan.accountId,review.connection_id);
+  if(linkedinDSC(plan))assertLinkedInDSCGrant(plan,c,false);
   if(result.success!==true)bad('Inspect the retained partial failure before recovery.','WRITE_PARTIAL_OR_FAILED');
   const cached=optional(this.store,actor.tenantId,'write_verification',reviewId);if(cached?.status==='verified'&&Date.now()-cached.checked_at<10000)return {...cached,cached:true};
   let reads:ReturnType<typeof verificationReads>=[],status='unverified',checks:JsonObject[]=[];
@@ -80,12 +83,19 @@ export class WriteVerifier{
     if(!xPromotion(plan)||status!=='pending')break;
    }
   }else{reads=verificationReads(plan,result,this.registry);for(const item of reads){
+   if(linkedinDSC(plan)){item.read.scopeContext={linkedinPostReviewId:reviewId};item.read.query={viewContext:'AUTHOR'};}
    if(!obj(item.expected)||!Object.keys(item.expected).length||!independentlyReadOnly(item.read))bad('No complete configuration read contract exists for this write.','VERIFICATION_UNSUPPORTED');
-   this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(item.read,current);const auth=await this.credentials.get(current);this.store.assertActorActive(actor);this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);const response=await this.transport.request(item.read,current,auth);validateState(item.read,response);this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);
-   const actual=normalize(entity(item.read,response.data as JsonObject)),expected=normalize(item.expected),changed=differing(expected,actual);checks.push({resource_id:item.id,status:changed.length?'mismatch':'verified',changed_fields:changed,expected_hash:fingerprint(expected),actual_hash:fingerprint(actual),checked_fields:Object.keys(expected)});
-  }status=reads.length?(checks.every(c=>c.status==='verified')?'verified':'mismatch'):'unsupported';}}
+   const expected=normalize(item.expected),readback=await readConsistently(async()=>{
+    this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(item.read,current);
+    const auth=await this.credentials.get(current);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));
+    const response=await this.transport.request(item.read,current,auth);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
+    return normalize(entity(item.read,response.data as JsonObject));
+   },actual=>differing(expected,actual).length===0);
+   const actual=readback.value,changed=differing(expected,actual);checks.push({resource_id:item.id,status:readback.consistent?'verified':'inconclusive',code:readback.consistent?undefined:'VERIFICATION_INCONCLUSIVE',read_attempts:readback.attempts,changed_fields:changed,expected_hash:fingerprint(expected),actual_hash:fingerprint(actual??null),checked_fields:Object.keys(expected)});
+   if(linkedinDSC(plan)&&readback.consistent)rememberLinkedInPost(this.store,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id),plan,result.headers['x-restli-id']);
+  }status=reads.length?(checks.every(c=>c.status==='verified')?'verified':'inconclusive'):'unsupported';}}
   catch(e){checks.push({status:'unverified',code:e instanceof MirrorError?e.code:'READ_FAILED',message:e instanceof MirrorError?e.message:'Verification read failed.'});}
-  this.store.assertActorActive(actor);const receipt={review_id:reviewId,connection_id:c.id,account_id:plan.accountId,action:plan.action,status,checks,checked_at:Date.now(),automatic_retry_of_mutation:false,recovery:'Preserve successful resources. Corrective writes need a new reviewed request; verification never resets idempotency.',...(status==='pending'?{retry_read_after_ms:1000,next_call:{tool:'amcp_campaign',arguments:{action:'verify',review_id:reviewId}}}:{})};
+  this.store.assertActorActive(actor);const receipt={review_id:reviewId,connection_id:c.id,account_id:plan.accountId,action:plan.action,status,...(status==='inconclusive'?{code:'VERIFICATION_INCONCLUSIVE'}:{}),checks,checked_at:Date.now(),automatic_retry_of_mutation:false,recovery:'Preserve successful resources. Field disagreement after bounded reads is inconclusive, not permission to repeat a mutation. Corrective writes need a new review; verification never resets idempotency.',...(['pending','inconclusive'].includes(status)?{retry_read_after_ms:1000,next_call:{tool:'amcp_campaign',arguments:{action:'verify',review_id:reviewId}}}:{})};
   this.store.putDocument(actor.tenantId,'write_verification',reviewId,receipt);audit(this.store,actor,'write_verification',{connection_id:c.id,account_id:plan.accountId,review_id:reviewId,status});return receipt;
  }
 }

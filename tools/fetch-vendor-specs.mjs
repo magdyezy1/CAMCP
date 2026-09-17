@@ -1,7 +1,10 @@
 import fs from 'node:fs';
+import {createHash} from 'node:crypto';
+const hash=document=>createHash('sha256').update(JSON.stringify(document)).digest('hex');
 const google=(name,version)=>'https://www.googleapis.com/discovery/v1/apis/'+name+'/'+version+'/rest';
 const service=(name,version)=>'https://'+name+'.googleapis.com/$discovery/rest?version='+version;
 const sources={
+ 'google-ads-v23':service('googleads','v23'),
  'gtm-v2':google('tagmanager','v2'),
  'ga4-data-v1beta':service('analyticsdata','v1beta'),
  'ga4-data-v1alpha':service('analyticsdata','v1alpha'),
@@ -19,10 +22,10 @@ const sources={
 };
 fs.mkdirSync('.mirror/VENDOR',{recursive:true});
 const results=process.argv.includes('--generate-only')?[]:await Promise.allSettled(Object.entries(sources).map(async([name,url])=>{
- const file='.mirror/VENDOR/'+name+'.json';if(fs.existsSync(file))return {name,cached:true};
- const response=await fetch(url,{signal:AbortSignal.timeout(30000)});if(!response.ok)throw Error(name+' HTTP '+response.status);
+ const file='.mirror/VENDOR/'+name+'.json';if(fs.existsSync(file)&&!process.argv.includes('--refresh'))return {name,cached:true};
+ const response=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(30000)});if(!response.ok)throw Error(name+' HTTP '+response.status);
  const document=await response.json();if(!document.resources&&!document.paths)throw Error(name+' unexpected schema');
- fs.writeFileSync(file,JSON.stringify({source:url,captured_at:new Date().toISOString(),evidence:'VENDOR_DOCUMENTED_NOT_AMCP_OBSERVED',document},null,2)+'\n');return {name,version:document.version??document.info?.version};
+ fs.writeFileSync(file,JSON.stringify({source:url,captured_at:new Date().toISOString(),evidence:'VENDOR_DOCUMENTED_NOT_AMCP_OBSERVED',document_sha256:hash(document),document},null,2)+'\n');return {name,version:document.version??document.info?.version};
 }));
 for(const r of results)console.log(r.status==='fulfilled'?r.value:String(r.reason));
 if(results.some(r=>r.status==='rejected'))process.exitCode=1;
@@ -30,6 +33,10 @@ if(results.some(r=>r.status==='rejected'))process.exitCode=1;
 // These are vendor-documented request routes, not observed AMCP execution envelopes.
 const registry=JSON.parse(fs.readFileSync('generated/registry.json','utf8'));
 const docs=new Map(Object.keys(sources).filter(n=>fs.existsSync('.mirror/VENDOR/'+n+'.json')).map(n=>[n,JSON.parse(fs.readFileSync('.mirror/VENDOR/'+n+'.json','utf8'))]));
+for(const [name,envelope] of docs){
+ if(envelope.source!==sources[name])throw Error('Unexpected vendor source URL: '+name);
+ if(envelope.document_sha256&&envelope.document_sha256!==hash(envelope.document))throw Error('Vendor snapshot integrity mismatch: '+name);
+}
 const methods=new Map();
 for(const [file,envelope] of docs){
  const d=envelope.document,found=[];
@@ -41,7 +48,17 @@ function add(gateway,operation,action,file,id,readOnly){
  const envelope=docs.get(file),d=envelope?.document,m=methods.get(file)?.get(id);
  if(!m){gaps.push({gateway,operation,action,reason:'Vendor discovery method unavailable',vendorMethod:id});return;}
  const ref=m.request?.$ref,requestSchema=ref?d.schemas?.[ref]:undefined;
- routes.push({gateway,operation,action,vendorMethod:id,source:envelope.source,sourceFile:file,origin:new URL(d.rootUrl).origin,path:'/'+(d.servicePath??'')+m.path,method:m.httpMethod,readOnly:readOnly??['GET','HEAD'].includes(m.httpMethod),parameters:{...d.parameters,...m.parameters},requestSchema,requestRef:ref,bodyRequired:!!m.request,scopes:m.scopes??[],evidence:'VENDOR_DOCUMENTED_INDEPENDENT_MAPPING'});
+ routes.push({gateway,operation,action,vendorMethod:id,source:envelope.source,sourceFile:file,origin:new URL(d.rootUrl).origin,path:'/'+(d.servicePath??'')+m.path,...(gateway==='google_ads_native_action'?{routeKind:'native',flatPath:'/'+(m.flatPath??m.path)}:{}),method:m.httpMethod,readOnly:readOnly??['GET','HEAD'].includes(m.httpMethod),parameters:{...d.parameters,...m.parameters},requestSchema,requestRef:ref,bodyRequired:!!m.request,scopes:m.scopes??[],evidence:'VENDOR_DOCUMENTED_INDEPENDENT_MAPPING'});
+}
+// Bind only existing native RPC routes with an exact verb and normalized path.
+// Discovery does not automatically expose new methods or grant reviewed writes.
+const ads=docs.get('google-ads-v23');
+if(!ads||ads.document.name!=='googleads'||ads.document.version!=='v23')throw Error('Fetch the official Google Ads v23 Discovery document before generation.');
+const routeKey=(method,path)=>method.toUpperCase()+' /'+path.replace(/^\//,'').replace(/\{[^}=]+=([^}]+)\}/g,(_match,pattern)=>pattern.replaceAll('*','{}')).replace(/\{[^}]+\}/g,'{}');
+for(const action of registry.catalogs.find(c=>c.gateway==='google_ads_native_action').actions.filter(a=>a.raw.surface==='rpc')){
+ const found=[...methods.get('google-ads-v23').values()].filter(m=>routeKey(m.httpMethod,m.flatPath??m.path)===routeKey(action.method,action.path));
+ if(found.length!==1)throw Error('Google Ads native RPC must map to exactly one official method: '+action.name);
+ add('google_ads_native_action','',action.name,'google-ads-v23',found[0].id,action.read_only);
 }
 const gtm='gtm_native_action',gtmPrefix='tagmanager.accounts';
 const nounResources={ACCOUNT:'accounts',USER_PERMISSION:'accounts.user_permissions',CONTAINER:'accounts.containers',DESTINATION:'accounts.containers.destinations',WORKSPACE:'accounts.containers.workspaces',VARIABLE:'accounts.containers.workspaces.variables',TRIGGER:'accounts.containers.workspaces.triggers',TAG:'accounts.containers.workspaces.tags',GTAG_CONFIG:'accounts.containers.workspaces.gtag_config',TEMPLATE:'accounts.containers.workspaces.templates',FOLDER:'accounts.containers.workspaces.folders',ZONE:'accounts.containers.workspaces.zones',CLIENT:'accounts.containers.workspaces.clients',TRANSFORMATION:'accounts.containers.workspaces.transformations',CONTAINER_VERSION:'accounts.containers.versions',ENVIRONMENT:'accounts.containers.environments'};
@@ -105,7 +122,7 @@ for(const op of registry.tools.find(t=>t.name==='reddit_native_action').operatio
  routes.push({gateway:'reddit_native_action',operation:op.operation,action,vendorMethod:m.op.operationId,source:reddit.source,sourceFile:'reddit-v3',origin:server.origin,path:server.pathname+m.path,method:m.method,readOnly:m.method==='GET'||m.op.operationId==='Get A Report',parameters:Object.fromEntries(m.parameters.map(p=>[p.name,{...p,...resolveReddit(p.schema),location:p.in}])),requestSchema:json?.schema,responseSchemas,bodyRequired:request?.required===true||!!json,scopes:m.op.security?.flatMap(s=>Object.values(s).flat())??[],evidence:'VENDOR_DOCUMENTED_INDEPENDENT_MAPPING'});
 }
 routes.sort((a,b)=>(a.gateway+'/'+a.operation+'/'+a.action).localeCompare(b.gateway+'/'+b.operation+'/'+b.action));
-const artifact=JSON.stringify({formatVersion:1,evidence:'VENDOR_DOCUMENTED_INDEPENDENT_MAPPING',description:'Method/path mapping is independently designed from official vendor discovery; AMCP response or compiler parity has not been established.',routes,gaps,schemaComponents:{'reddit-v3':reddit.document.components}},null,2)+'\n';
+const artifact=JSON.stringify({formatVersion:1,evidence:'VENDOR_DOCUMENTED_INDEPENDENT_MAPPING',description:'Method/path mapping is independently designed from official vendor discovery; AMCP response or compiler parity has not been established.',sourceIntegrity:Object.fromEntries([...docs].map(([name,e])=>[name,{source:e.source,document_sha256:hash(e.document),revision:e.document.revision??null}])),routes,gaps,schemaComponents:{'reddit-v3':reddit.document.components,'google-ads-v23':{schemas:ads.document.schemas}}},null,2)+'\n';
 const output='generated/vendor-routes.json';
 if(process.argv.includes('--check')){if(!fs.existsSync(output)||fs.readFileSync(output,'utf8')!==artifact)throw Error('Vendor routes are stale; run node tools/fetch-vendor-specs.mjs --generate-only');}
 else fs.writeFileSync(output,artifact);

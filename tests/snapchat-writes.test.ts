@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {assertWriteShape} from '../src/write-review.js';
+import {assertWriteShape,snapshotPlans} from '../src/write-review.js';
+import {Registry} from '../src/catalog.js';
 import {MirrorError} from '../src/errors.js';
+import {Store} from '../src/store.js';
+import {MirrorService} from '../src/service.js';
+import {NativeTransport} from '../src/transport.js';
+import {WriteVerifier} from '../src/write-verification.js';
 import type {CompiledRequest,JsonObject} from '../src/types.js';
 
 /**
@@ -21,6 +26,37 @@ const refused=(p:CompiledRequest,code:string)=>{
  throw new Error('expected '+code+', but the contract accepted the request');
 };
 const accepted=(p:CompiledRequest)=>assert.doesNotThrow(()=>assertWriteShape(p));
+
+test('documented Snapchat collection PUT for creatives has exact resource state reads',()=>{
+ const request=plan({method:'PUT',path:'/v1/adaccounts/acc1/creatives',body:{creatives:[{id:'creative1',ad_account_id:'acc1',headline:'Updated'}]}});
+ accepted(request);
+ const reads=snapshotPlans(request,new Registry());
+ assert.deepEqual(reads.map(r=>[r.method,r.path]),[['GET','/v1/creatives/creative1']]);
+ assert.throws(()=>snapshotPlans({...request,body:{creatives:[{headline:'Missing ID'}]}},new Registry()),{code:'MISSING_PARAMETER'});
+ assert.throws(()=>snapshotPlans({...request,body:{creatives:[{id:'same'},{id:'same'}]}},new Registry()),{code:'INVALID_ARGUMENT'});
+});
+
+test('Snapchat creative PUT reviews impact, preserves exact account scope, executes once and verifies the changed creative',async()=>{
+ const store=new Store(':memory:',Buffer.alloc(32,43).toString('base64')),registry=new Registry(),actor={tenantId:'t',userId:'u',role:'admin' as const};
+ const connection={id:'c',tenantId:'t',gateway:'snapchat_native_action',accounts:['123'],writeAccounts:['123'],scopes:[],enabled:true,label:'Synthetic'};
+ store.putConnection(actor,connection,{accessToken:'synthetic'});store.rememberResource(connection,'123','creatives/creative1');
+ let row={id:'creative1',ad_account_id:'123',type:'WEB_VIEW',name:'Before',headline:'Before',brand_name:'Synthetic',call_to_action:'LEARN_MORE',shareable:false,top_snap_media_id:'media1',profile_properties:{profile_id:'profile1'},web_view_properties:{url:'https://example.test',block_preload:true}},mutations=0;
+ const transport=new NativeTransport(async(input,init)=>{
+  const url=new URL(String(input));if(init?.method==='PUT'){assert.equal(url.pathname,'/v1/adaccounts/123/creatives');mutations++;row={...row,...JSON.parse(String(init.body)).creatives[0]};}else assert.equal(url.pathname,'/v1/creatives/creative1');
+  return Response.json({request_status:'SUCCESS',creatives:[{sub_request_status:'SUCCESS',creative:row}]});
+ });
+ const service=new MirrorService(registry,store,transport,undefined,{allowWrites:true,requireBeforeState:true,maxBudgetChange:0});
+ const prepare=(creative:JsonObject)=>service.call('amcp_write',{action:'prepare',gateway:connection.gateway,arguments:{action:'snapchat_adaccounts_ad_account_id_creatives_update',account_id:'123',payload:{creatives:[creative]}}},actor);
+ try{
+  const sparse=await prepare({id:row.id,ad_account_id:row.ad_account_id,type:row.type,name:'After',headline:'After'});assert.equal(sparse.error.code,'INCOMPLETE_CREATIVE_REPLACEMENT');assert.ok(sparse.error.details.missing_fields.includes('/shareable'));assert.equal(mutations,0);
+  const nested=await prepare({...row,web_view_properties:{url:'https://example.test/changed'}});assert.equal(nested.error.code,'INCOMPLETE_CREATIVE_REPLACEMENT');assert.deepEqual(nested.error.details.missing_fields,['/web_view_properties/block_preload']);assert.equal(mutations,0);
+  const prepared=await prepare({...row,name:'After',headline:'After'});
+  assert.equal(prepared.success,true,JSON.stringify(prepared));assert.equal(prepared.data.creative_impact.provider,'snapchat');assert.equal(prepared.data.creative_impact.affected_ad_ids,null);
+  const input={action:'execute',review_id:prepared.data.review_id,idempotency_key:prepared.data.review_id,confirmed:true};assert.equal((await service.call('amcp_write',input,actor)).data.success,true);
+  assert.equal((await new WriteVerifier(store,registry,transport,service.credentials).verify(actor,prepared.data.review_id)).status,'verified');
+  assert.equal((await service.call('amcp_write',input,actor)).data.replayed,true);assert.equal(mutations,1);
+ }finally{store.close();}
+});
 
 test('Snapchat creates must be explicitly paused',()=>{
  accepted(plan({body:{campaigns:[{name:'Launch',status:'PAUSED'}]}}));

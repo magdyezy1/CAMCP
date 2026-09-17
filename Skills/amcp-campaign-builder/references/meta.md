@@ -4,6 +4,8 @@ Use `meta_native_action`. Resolve its current actions with LIST_ACTIONS / DESCRI
 
 Campaign → ad set → ad; the ad references a separately reusable creative. Native account paths have an `act_` prefix. AMCP accepts either numeric or prefixed account input. New campaign/ad set/ad writes require `status: PAUSED`; this is an AMCP contract, not a claim that Meta always overrides active input.
 
+`INVALID_META_CAMPAIGN` identifies the v25 legacy Advantage+ campaign inputs that need a new plan: `smart_promotion_type: AUTOMATED_SHOPPING_ADS` / `SMART_APP_PROMOTION`, or `existing_customer_budget_percentage` on creation. Advantage+ state fields are read-only. Follow the [current Advantage+ workflow](https://developers.facebook.com/documentation/ads-commerce/marketing-api/advantage-campaigns) and review audience/budget/placement choices; never silently migrate existing campaigns or redistribute budgets. Historical failures of `targeting_optimization` or `standard_enhancements` do not establish a ban across all endpoints/formats.
+
 For new link creatives, supply `object_story_spec.page_id` and `object_story_spec.link_data.link`, then the returned image hash or video ID. Discover a real Page through the selected login. An empty Page list is not permission to invent an ID. Ad-account access and Page/Instagram access are distinct.
 
 Existing Facebook post: `object_story_id: pageId_postId`. Existing Instagram post/Reel: `source_instagram_media_id` plus `instagram_user_id`; resolve the actual media through the authorized Instagram account first. AMCP now accepts this separate identity mode without forcing a new Facebook story. Do not combine identity modes. Provider eligibility and placements remain subject to live validation.

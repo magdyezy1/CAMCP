@@ -3,13 +3,15 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {MirrorError,providerHttpErrorCode} from './errors.js';
 import type {CompiledRequest,Connection,Credentials,JsonObject} from './types.js';
 import {redact,scopeKey} from './security.js';
+import {linkedinQuery} from './linkedin-restli.js';
+import {googleJson,validateGoogleRequest} from './google-contracts.js';
 import type {Store} from './store.js';
 import {microsoftGateway,microsoftOrigin,microsoftCustomerOrigin,microsoftReportOrigin,microsoftCustomer} from './microsoft-native.js';
 export const vendorOrigins:Record<string,string>={google_sheets_native_action:'https://www.googleapis.com',google_drive_native_action:'https://www.googleapis.com',
  meta_native_action:'https://graph.facebook.com',tiktok_native_action:'https://business-api.tiktok.com',snapchat_native_action:'https://adsapi.snapchat.com',google_ads_native_action:'https://googleads.googleapis.com',linkedin_native_action:'https://api.linkedin.com',x_ads_native_action:'https://ads-api.x.com',dv360_native_action:'https://displayvideo.googleapis.com',amazon_native_action:'https://advertising-api.amazon.com',apple_ads_native_action:'https://api.searchads.apple.com',reddit_native_action:'https://ads-api.reddit.com',criteo_native_action:'https://api.criteo.com',ga4_native_action:'https://analyticsdata.googleapis.com',gtm_native_action:'https://tagmanager.googleapis.com',google_business_native_action:'https://mybusinessbusinessinformation.googleapis.com',google_search_console_native_action:'https://searchconsole.googleapis.com',adjust_native_action:'https://automate.adjust.com'
 };
 const additionalOrigins:Record<string,string[]>={google_sheets_native_action:['https://sheets.googleapis.com'],amazon_native_action:['https://advertising-api-eu.amazon.com','https://advertising-api-fe.amazon.com'],apple_ads_native_action:['https://api.ads.apple.com'],ga4_native_action:['https://analyticsadmin.googleapis.com'],google_business_native_action:['https://mybusinessaccountmanagement.googleapis.com','https://mybusiness.googleapis.com','https://businessprofileperformance.googleapis.com','https://mybusinessverifications.googleapis.com','https://mybusinessnotifications.googleapis.com','https://mybusinesslodging.googleapis.com'],x_ads_native_action:['https://upload.twitter.com','https://api.x.com','https://upload.x.com'],google_search_console_native_action:['https://www.googleapis.com'],adjust_native_action:['https://api.adjust.com','https://dash.adjust.com']};
-export function buildUrl(request:CompiledRequest,connection:Connection):URL{
+export function buildUrl(request:CompiledRequest,connection:Connection,environment:'production'|'sandbox'='production'):URL{
  if(/[?#\r\n\\]/.test(request.path)||!request.path.startsWith('/')||request.path.startsWith('//'))throw new MirrorError('INVALID_PATH','Request paths cannot contain a query, fragment or authority. Supply query parameters separately.');
  const base=request.origin??connection.baseUrl??(request.gateway===microsoftGateway?microsoftOrigin:vendorOrigins[request.gateway]);
  if(!base)throw new MirrorError('CONNECTOR_CONFIGURATION_REQUIRED','Configure an approved upstream origin for this gateway.');
@@ -17,8 +19,15 @@ export function buildUrl(request:CompiledRequest,connection:Connection):URL{
  const allowed=[vendorOrigins[request.gateway],...(additionalOrigins[request.gateway]??[]),...(request.gateway===microsoftGateway?[microsoftOrigin,microsoftCustomerOrigin,microsoftReportOrigin]:[]),...(request.gateway==='google_business_native_action'?['https://mybusinessplaceactions.googleapis.com']:[])];
  if(origin.protocol!=='https:'||origin.username||origin.password||origin.search||origin.hash||origin.pathname!=='/'||!allowed.includes(origin.origin))throw new MirrorError('UNAPPROVED_UPSTREAM','Upstream origin is not allowed for this gateway.',{},403);
  let path=request.path;if(request.gateway==='tiktok_native_action'&&!path.startsWith('/open_api/'))path='/open_api'+path;
- const url=new URL(path,origin);if(url.origin!==origin.origin)throw new MirrorError('UNAPPROVED_UPSTREAM','Request escaped the platform origin.',{},403);
- for(const [key,value]of Object.entries(request.query)){if(value===undefined||value===null)continue;if(Array.isArray(value)&&request.queryArrayEncoding==='repeat'){for(const item of value)url.searchParams.append(key,String(item));}else url.searchParams.set(key,typeof value==='object'?JSON.stringify(value):String(value));}
+ let target=origin;
+ if(environment==='sandbox'){
+  const sandbox=request.gateway==='x_ads_native_action'&&origin.origin==='https://ads-api.x.com'?'https://ads-api-sandbox.x.com':request.gateway===microsoftGateway&&[microsoftOrigin,microsoftCustomerOrigin,microsoftReportOrigin].includes(origin.origin)?origin.origin.replace('.api.','.api.sandbox.'):undefined;
+  if(!sandbox)throw new MirrorError('SANDBOX_ROUTE_UNQUALIFIED','This endpoint has no qualified isolated sandbox origin. External media/social endpoints and production fallback are forbidden.');
+  target=new URL(sandbox);
+ }
+ const url=new URL(path,target);if(url.origin!==target.origin)throw new MirrorError('UNAPPROVED_UPSTREAM','Request escaped the platform origin.',{},403);
+ if(request.gateway==='linkedin_native_action')url.search=linkedinQuery(request.query);
+ else for(const [key,value]of Object.entries(request.query)){if(value===undefined||value===null)continue;if(Array.isArray(value)&&request.queryArrayEncoding==='repeat'){for(const item of value)url.searchParams.append(key,String(item));}else url.searchParams.set(key,typeof value==='object'?JSON.stringify(value):String(value));}
  return url;
 }
 const pct=(s:string)=>encodeURIComponent(s).replace(/[!'()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase());
@@ -30,11 +39,7 @@ export function oauth1(method:string,url:URL,credentials:Credentials,bodyParams?
  const signature=createHmac('sha1',pct(credentials.consumerSecret)+'&'+pct(credentials.tokenSecret)).update(method.toUpperCase()+'&'+pct(baseUrl)+'&'+pct(params)).digest('base64');
  return 'OAuth '+Object.entries({...oauth,oauth_signature:signature}).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>pct(k)+'="'+pct(v)+'"').join(', ');
 }
-function camelKeys(value:unknown):unknown{
- if(Array.isArray(value))return value.map(camelKeys);
- if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).map(([k,v])=>[k.replace(/_([a-z])/g,(_,c:string)=>c.toUpperCase()),/^(?:update_mask|updateMask|read_mask|readMask)$/.test(k)&&typeof v==='string'?v.replace(/_([a-z])/g,(_,c:string)=>c.toUpperCase()):camelKeys(v)]));
- return value;
-}
+const camelKeys=googleJson;
 export interface TransportResult {data:unknown;status:number;headers:Record<string,string>}
 export interface BinaryUpload {field:string;bytes:Buffer;filename:string;mime:string;format?:'related'}
 export class NativeTransport {
@@ -44,7 +49,7 @@ export class NativeTransport {
  diagnostics(){return {...this.metrics,budget_entries:this.budgets.size,circuit_entries:this.circuits.size,scope:'Current process only; shared rate enforcement uses SQLite.'};}
  private prune(){const now=performance.now();for(const [key,b] of this.budgets)if(now-b.at>60000)this.budgets.delete(key);for(const [key,c] of this.circuits)if(now-c.at>60000&&c.until<=now)this.circuits.delete(key);if(this.budgets.size>=4096||this.circuits.size>=4096)throw new MirrorError('PROVIDER_COORDINATION_BUSY','Provider coordination is at capacity; retry after inactive entries expire.',{retry_after_ms:60000},503,true);}
 
- constructor(private fetcher:typeof fetch=fetch,private sleeper:(ms:number)=>Promise<unknown>=delay,private timeoutMs=30000,private maximumBytes=8*1024*1024,private budgetBurst=30,private budgetRefillMs=250,private budgetWaitMs=2000){}
+ constructor(private fetcher:typeof fetch=fetch,private sleeper:(ms:number)=>Promise<unknown>=delay,private timeoutMs=30000,private maximumBytes=8*1024*1024,private budgetBurst=30,private budgetRefillMs=250,private budgetWaitMs=2000,private environment:'production'|'sandbox'='production'){}
  /**
   * Shape a burst down to the sustained per-tenant rate instead of failing a bounded batch outright.
   * A bounded operation (account discovery, paged reads) may exceed the burst legitimately; only a
@@ -63,10 +68,11 @@ export class NativeTransport {
   if(waitMs)await this.sleeper(waitMs);
  }
  async request(plan:CompiledRequest,connection:Connection,credentials:Credentials,upload?:BinaryUpload):Promise<TransportResult>{
+  validateGoogleRequest(plan);
   this.prune();const key=scopeKey(connection.tenantId,connection.gateway);
   const circuit=this.circuits.get(key);if(circuit&&circuit.until>performance.now())throw new MirrorError('CIRCUIT_OPEN','Platform circuit is temporarily open.',{retry_after_ms:circuit.until-performance.now()},503,true);
   await this.permit(key);
-  const url=buildUrl(plan,connection);const headers:Record<string,string>={Accept:'application/json',...plan.headers};
+  const url=buildUrl(plan,connection,this.environment);const headers:Record<string,string>={Accept:'application/json',...plan.headers};
   if(plan.gateway==='reddit_native_action'){
    if(!connection.userAgent||/[\r\n]/.test(connection.userAgent))throw new MirrorError('USER_AGENT_REQUIRED','Configure a descriptive Reddit application userAgent on the connection.');headers['User-Agent']=connection.userAgent;
   }

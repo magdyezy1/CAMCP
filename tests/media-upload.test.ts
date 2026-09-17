@@ -11,7 +11,7 @@ const key=Buffer.alloc(32,19).toString('base64'),actor:Actor={tenantId:'t',userI
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64');
 const mp4=Buffer.concat([Buffer.from([0,0,0,24]),Buffer.from('ftypisom'),Buffer.alloc(24)]),link='https://drive.google.com/file/d/abcdefghijklmno/view?usp=sharing';
 function fixture(platform:string,kind='image',options:{pending?:boolean;failUpload?:boolean;badUrl?:boolean;finalizeObject?:boolean;statusResponse?:JsonObject;libraryResponse?:JsonObject}={}){
- const store=new Store(':memory:',key),gateway=platform+'_native_action',c={id:'c',tenantId:'t',gateway,accounts:['123'],writeAccounts:['123'],label:'Synthetic',enabled:true,scopes:[]};
+ const store=new Store(':memory:',key),gateway=platform+'_native_action',c={id:'c',tenantId:'t',gateway,accounts:['123'],writeAccounts:['123'],label:'Synthetic',enabled:true,scopes:[],resourceBindings:platform==='linkedin'&&kind==='video'?[{accountId:'123',pathPrefix:'/rest/organizations/500'}]:[]};
  store.putConnection(admin,c,{accessToken:'synthetic',developerToken:'synthetic',consumerKey:'synthetic',consumerSecret:'synthetic',tokenSecret:'synthetic'});
  const file=kind==='image'?png:mp4,calls:{path:string;method:string;body:any;headers:Headers}[]=[];let downloads=0,stateChanged=false;
  const transport=new NativeTransport((async(input,init)=>{
@@ -25,12 +25,12 @@ function fixture(platform:string,kind='image',options:{pending?:boolean;failUplo
   if(method==='GET'||path.endsWith('/googleAds:search')){
    const extra={name:stateChanged?'Changed':'Account'};
    if(options.statusResponse&&['/v25.0/456','/v1/media/456','/rest/images/urn%3Ali%3Aimage%3A456','/rest/videos/urn%3Ali%3Avideo%3A456','/1.1/media/upload.json'].includes(path))return Response.json(options.statusResponse);
-   if(platform==='meta')return Response.json({id:'act_123',account_status:1,currency:'USD',...extra});
-   if(platform==='snapchat')return Response.json({request_status:'SUCCESS',adaccounts:[{sub_request_status:'SUCCESS',adaccount:{id:'123',...extra}}]});
-   if(platform==='tiktok')return Response.json({code:0,data:{list:[{advertiser_id:'123',...extra}]}});
-   if(platform==='google_ads'){if(String(body).includes('you_tube_video_upload.state'))return Response.json({results:[{youTubeVideoUpload:{resourceName:'customers/123/youTubeVideoUploads/456',state:'PROCESSED',videoId:'abcdefghijk'}}]});return Response.json({results:[{customer:{id:'123',...extra}}]});}
+   if(platform==='meta')return Response.json(path.endsWith('/adimages')?{data:[{hash:'hash456'}]}:path==='/v25.0/456'?{id:'456',status:{video_status:'ready'}}:{id:'act_123',account_status:1,currency:'USD',...extra});
+   if(platform==='snapchat')return Response.json(path==='/v1/media/456'?{request_status:'SUCCESS',media:[{sub_request_status:'SUCCESS',media:{id:'456',ad_account_id:'123',media_status:'READY'}}]}:{request_status:'SUCCESS',adaccounts:[{sub_request_status:'SUCCESS',adaccount:{id:'123',...extra}}]});
+   if(platform==='tiktok')return Response.json({code:0,data:{list:[path.includes('/file/')?{[kind+'_id']:kind==='image'?'ad-site/456':'456'}:{advertiser_id:'123',...extra}]}});
+   if(platform==='google_ads'){if(String(body).includes('you_tube_video_upload.state'))return Response.json({results:[{youTubeVideoUpload:{resourceName:'customers/123/youTubeVideoUploads/456',state:'PROCESSED',videoId:'abcdefghijk'}}]});if(String(body).includes('SELECT asset.resource_name'))return Response.json({results:[{asset:{resourceName:'customers/123/assets/456',type:'IMAGE'}}]});return Response.json({results:[{customer:{id:'123',...extra}}]});}
    if(platform==='dv360')return Response.json({advertiserId:'123',...extra});
-   if(platform==='linkedin')return Response.json({id:123,...extra});
+   if(platform==='linkedin')return path.startsWith('/rest/images/')||path.startsWith('/rest/videos/')?Response.json({id:'urn:li:'+kind+':456',owner:kind==='video'?'urn:li:organization:500':'urn:li:sponsoredAccount:123',status:'AVAILABLE',downloadUrl:'https://example.test/private?token=do-not-return'}):Response.json({id:123,...extra});
    if(path==='/1.1/media/upload.json')return Response.json({media_id_string:'456',media_key:'13_456',processing_info:{state:'succeeded'}});
    if(path.includes('/media_library/'))return Response.json(options.statusResponse??{data:{media_key:kind==='image'?'3_456':'13_456',media_status:'TRANSCODE_COMPLETED',deleted:false}});
    return Response.json({data:{id:'123',...extra}});
@@ -52,7 +52,7 @@ function fixture(platform:string,kind='image',options:{pending?:boolean;failUplo
   }
   if(platform==='linkedin'){
    if(url.searchParams.get('action')==='finalizeUpload'){assert.deepEqual(JSON.parse(String(body)).finalizeUploadRequest.uploadedPartIds,['part-1']);return options.finalizeObject?Response.json({}):new Response(null,{status:200});}
-   const request=JSON.parse(String(body));assert.equal(request.initializeUploadRequest.owner,'urn:li:sponsoredAccount:123');
+   const request=JSON.parse(String(body));assert.equal(request.initializeUploadRequest.owner,kind==='video'?'urn:li:organization:500':'urn:li:sponsoredAccount:123');
    return Response.json({value:{[kind]:'urn:li:'+kind+':456',uploadToken:'',uploadUrl:options.badUrl?'https://attacker.invalid/upload':'https://www.linkedin.com/dms-uploads/456/image',uploadInstructions:[{uploadUrl:'https://www.linkedin.com/dms-uploads/456/video',firstByte:0,lastByte:4*1024*1024-1}]}});
   }
   if(path.endsWith('/media_library')){assert.equal(new URLSearchParams(String(body)).has('media_category'),false);return Response.json(options.libraryResponse??{data:{media_key:kind==='image'?'3_456':'13_456',media_status:'TRANSCODE_COMPLETED'}});}
@@ -63,7 +63,7 @@ function fixture(platform:string,kind='image',options:{pending?:boolean;failUplo
  const source:typeof fetch=async(input,init)=>{downloads++;assert.equal(new URL(String(input)).hostname,'drive.usercontent.google.com');assert.equal(init?.redirect,'manual');assert.equal(new Headers(init?.headers).has('authorization'),false);return new Response(new Uint8Array(file),{headers:{'Content-Type':'application/octet-stream'}});};
  const service=new MirrorService(registry,store,transport,undefined,{allowWrites:true,requireBeforeState:true,maxBudgetChange:0},source);
  const call=(input:JsonObject,a=actor)=>service.call('amcp_media',input,a);
- const prepare=()=>call({action:'prepare',platform,account_id:'123',drive_url:link,name:'Reviewed media'});
+ const prepare=()=>call({action:'prepare',platform,account_id:'123',drive_url:link,name:'Reviewed media',...(platform==='linkedin'&&kind==='video'?{owner_urn:'urn:li:organization:500'}:{})});
  return {store,c,service,calls,prepare,call,file,downloads:()=>downloads,change:()=>{stateChanged=true;},close:()=>store.close()};
 }
 for(const platform of ['meta','snapchat','tiktok','google_ads','linkedin','x_ads','dv360'])for(const kind of ['image','video'])test(platform+' '+kind+' Drive prepare freezes bytes and reviewed execute performs the native upload once',async()=>{
@@ -72,6 +72,7 @@ for(const platform of ['meta','snapchat','tiktok','google_ads','linkedin','x_ads
   assert.equal(r.request.sha256,sha256(f.file));assert.equal(f.calls.length,1);assert.equal(f.downloads(),1);
   const staged=f.store.db.prepare('SELECT secret FROM media_staging').get() as {secret:string};assert.ok(staged.secret);assert.equal(staged.secret.includes(f.file.toString('base64')),false);
   const input={action:'execute',review_id:r.review_id,idempotency_key:r.idempotency_key,confirmed:true},out=await f.call(input);assert.equal(out.success,true,JSON.stringify(out));assert.ok(out.data.media_id);const count=f.calls.length;
+  assert.equal(out.data.ready,platform!=='dv360',JSON.stringify(out));assert.equal(out.data.status_source,platform==='dv360'?'upload_receipt':'provider');
   assert.equal((await f.call(input)).data.replayed,true);assert.equal(f.calls.length,count);assert.equal(f.downloads(),1);assert.equal(f.store.db.prepare('SELECT count(*) AS n FROM media_staging').get()!.n,0);
   if(platform==='snapchat')assert.equal(f.store.ownsResource(f.c,'123','media/456'),true);
  }finally{f.close();}
@@ -79,7 +80,7 @@ for(const platform of ['meta','snapchat','tiktok','google_ads','linkedin','x_ads
 
 test('X library registration preserves exact media keys and readiness comes from the account library',async()=>{
  const f=fixture('x_ads','video',{libraryResponse:{data:{media_key:'13_456'}}});try{
-  const review=(await f.prepare()).data,result=await f.call({action:'execute',review_id:review.review_id,idempotency_key:review.review_id,confirmed:true});assert.equal(result.success,true,JSON.stringify(result));assert.equal(result.data.ready,false);assert.equal(result.data.processing_status,'UNKNOWN');
+  const review=(await f.prepare()).data,result=await f.call({action:'execute',review_id:review.review_id,idempotency_key:review.review_id,confirmed:true});assert.equal(result.success,true,JSON.stringify(result));assert.equal(result.data.ready,true);assert.equal(result.data.status_source,'provider');assert.equal(result.data.processing_status,'TRANSCODE_COMPLETED');assert.ok(f.calls.at(-1)!.path.endsWith('/media_library/13_456'));
   const status=await f.call({action:'status',review_id:review.review_id});assert.equal(status.success,true,JSON.stringify(status));assert.equal(status.data.ready,true);assert.ok(f.calls.at(-1)!.path.endsWith('/media_library/13_456'));assert.equal(f.calls.filter(c=>c.path.endsWith('/media_library')).length,1);
  }finally{f.close();}
  const wrong=fixture('x_ads','video',{libraryResponse:{data:{media_key:'3_456',media_status:'TRANSCODE_COMPLETED'}}});try{
@@ -100,6 +101,19 @@ test('X asynchronous processing requires a fresh reviewed library attachment wit
 test('LinkedIn also accepts the documented empty JSON video-finalize success envelope',async()=>{
  const f=fixture('linkedin','video',{finalizeObject:true});try{const prepared=await f.prepare();assert.equal(prepared.success,true);const r=prepared.data;
   const result=await f.call({action:'execute',review_id:r.review_id,idempotency_key:r.review_id,confirmed:true});assert.equal(result.success,true,JSON.stringify(result));
+ }finally{f.close();}
+});
+
+test('a failed availability read preserves the completed upload and later status verifies without uploading twice or exposing signed URLs',async()=>{
+ const response:JsonObject={id:'urn:li:video:wrong',owner:'urn:li:organization:500',status:'AVAILABLE',downloadUrl:'https://example.test/private?token=do-not-return'},f=fixture('linkedin','video',{statusResponse:response});
+ try{
+  const r=(await f.prepare()).data,input={action:'execute',review_id:r.review_id,idempotency_key:r.review_id,confirmed:true},out=await f.call(input);
+  assert.equal(out.success,true,JSON.stringify(out));assert.equal(out.data.ready,false);assert.equal(out.data.handoff_status,'inconclusive');assert.equal(out.data.verification_error.code,'MEDIA_RESPONSE_INVALID');
+  assert.equal(f.store.db.prepare('SELECT state FROM idempotency WHERE key=?').get(r.review_id)!.state,'complete');
+  const mutations=f.calls.filter(c=>c.method!=='GET').length;assert.equal((await f.call(input)).data.replayed,true);assert.equal(f.calls.filter(c=>c.method!=='GET').length,mutations);
+  response.id='urn:li:video:456';const checked=await f.call({action:'status',review_id:r.review_id});assert.equal(checked.success,true);assert.equal(checked.data.ready,true);assert.equal(checked.data.handoff_status,'verified');
+  assert.equal(f.calls.filter(c=>c.method!=='GET').length,mutations);assert.equal(f.downloads(),1);
+  assert.equal(JSON.stringify([out,checked,f.store.document('t','workspace_asset',r.review_id)]).includes('do-not-return'),false);
  }finally{f.close();}
 });
 
@@ -145,8 +159,9 @@ for(const platform of Object.keys(nativeUploads))for(const kind of ['image','vid
   const f=fixture(platform,kind);try{
    let action=nativeUploads[platform]![kind==='video'&&nativeUploads[platform]!.length>1?1:0]!;
    if(platform==='snapchat')action=registry.catalogs.get('snapchat_native_action')!.actions.find(a=>a.method==='POST'&&a.path==='/v1/adaccounts/{ad_account_id}/media')!.name;
-   const args:JsonObject={action,...(platform==='dv360'?{pathParams:{advertiserId:'123'}}:{account_id:'123'}),payload:{url:link,name:'Reviewed media'},...(platform==='linkedin'?{query:{action:'initializeUpload'}}:{})};
-   const prepared=mode==='native'?await f.service.call('amcp_write',{action:'prepare',gateway:platform+'_native_action',arguments:args},actor):await f.service.call('amcp_native_action',{operation:'platform_media_upload',arguments:{action:'UPLOAD_FROM_URL',platform:platform==='google_ads'?'google':platform==='x_ads'?'x':platform,account_id:'123',url:link,file_name:'Reviewed media',media_type:kind,dry_run:false}},actor);
+   const owner=platform==='linkedin'&&kind==='video'?{owner_urn:'urn:li:organization:500'}:{};
+   const args:JsonObject={action,...(platform==='dv360'?{pathParams:{advertiserId:'123'}}:{account_id:'123'}),payload:{url:link,name:'Reviewed media',...owner},...(platform==='linkedin'?{query:{action:'initializeUpload'}}:{})};
+   const prepared=mode==='native'?await f.service.call('amcp_write',{action:'prepare',gateway:platform+'_native_action',arguments:args},actor):await f.service.call('amcp_native_action',{operation:'platform_media_upload',arguments:{action:'UPLOAD_FROM_URL',platform:platform==='google_ads'?'google':platform==='x_ads'?'x':platform,account_id:'123',url:link,file_name:'Reviewed media',media_type:kind,...owner,dry_run:false}},actor);
    assert.equal(prepared.success,true,JSON.stringify(prepared));assert.equal(prepared.data.client_download_required,false);assert.equal(f.downloads(),1);
    const next=prepared.data.next_call;assert.equal(next.tool,'amcp_write');const result=await f.service.call(next.tool,next.arguments,actor);
    assert.equal(result.success,true,JSON.stringify(result));assert.equal(result.data.connection_id,'c');assert.equal(f.downloads(),1);assert.equal(result.data.media_type,kind);
@@ -208,11 +223,11 @@ test('a read-only default login is diagnosed without silently switching to a wri
 test('LinkedIn owner changes require explicit bindings and revoked bindings block execution',async()=>{
  const f=fixture('linkedin');try{
   const input={action:'prepare',platform:'linkedin',account_id:'123',drive_url:link,owner_urn:'urn:li:organization:789'};
-  assert.equal((await f.call(input)).error.code,'RESOURCE_SCOPE_REQUIRED');
+  assert.equal((await f.call(input)).error.code,'LINKEDIN_ORGANIZATION_BINDING_REQUIRED');
   f.store.putConnection(admin,{...f.c,resourceBindings:[{accountId:'123',pathPrefix:'/rest/organizations/789'}]},f.store.credentials('t','c'));
   const prepared=await f.call(input);assert.equal(prepared.success,true,JSON.stringify(prepared));assert.equal(prepared.data.request.owner_urn,input.owner_urn);
   f.store.putConnection(admin,f.c,f.store.credentials('t','c'));
-  const denied=await f.service.call('amcp_write',prepared.data.next_call.arguments,actor);assert.equal(denied.error.code,'RESOURCE_SCOPE_REQUIRED');assert.equal(f.calls.some(c=>c.method==='POST'),false);
+  const denied=await f.service.call('amcp_write',prepared.data.next_call.arguments,actor);assert.equal(denied.error.code,'LINKEDIN_ORGANIZATION_BINDING_REQUIRED');assert.equal(f.calls.some(c=>c.method==='POST'),false);
  }finally{f.close();}
 });
 
@@ -227,7 +242,7 @@ test('MCP discovery directs native upload callers to the shared server transfer'
 test('Media status verifies identity, ends polling when ready and distinguishes terminal processing failures',async()=>{
  const cases:[string,JsonObject,JsonObject][]=[
   ['meta',{id:'456',status:{video_status:'ready'}},{id:'456',status:{video_status:'error'}}],
-  ['linkedin',{id:'urn:li:video:456',status:'AVAILABLE'},{id:'urn:li:video:456',status:'PROCESSING_FAILED'}],
+  ['linkedin',{id:'urn:li:video:456',owner:'urn:li:organization:500',status:'AVAILABLE'},{id:'urn:li:video:456',owner:'urn:li:organization:500',status:'PROCESSING_FAILED'}],
   ['snapchat',{request_status:'SUCCESS',media:[{sub_request_status:'SUCCESS',media:{id:'456',ad_account_id:'123',media_status:'READY'}}]},{request_status:'SUCCESS',media:[{sub_request_status:'SUCCESS',media:{id:'999',ad_account_id:'123',media_status:'READY'}}]}],
   ['x_ads',{media_id_string:'456',processing_info:{state:'succeeded'}},{media_id_string:'456',processing_info:{state:'failed'}}]
  ];

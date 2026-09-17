@@ -40,9 +40,9 @@ test('crash before receipt persistence returns the original execution key; uncer
   x.lose();const failed=await ok(x.service,'amcp_campaign',{...resume.next_call.arguments,spend_change_confirmed:true});assert.equal(failed.steps[0].status,'uncertain');const stopped=await ok(x.service,'amcp_campaign',{action:'prepare_next',id:r.id});assert.equal(stopped.blocked,true);assert.equal(x.calls.filter(c=>c.method==='POST').length,1);
  }finally{x.store.close();}
 });
-test('campaign review mismatch identifies budget field; plan tampering and unauthorized actors fail closed',async()=>{
+test('campaign read disagreement identifies budget field and stays in verification; plan tampering and unauthorized actors fail closed',async()=>{
  const x=setup();try{x.mismatch();const r=await ok(x.service,'amcp_campaign',plan([step('campaign',{...campaign,payload:{...campaign.payload,daily_budget:'200'}})])),p=await ok(x.service,'amcp_campaign',{action:'prepare_next',id:r.id});
-  const run=await ok(x.service,'amcp_campaign',{action:'execute_next',id:r.id,review_id:p.review.review_id,idempotency_key:p.review.idempotency_key,confirmed:true,spend_change_confirmed:true});assert.equal(run.steps[0].status,'mismatch');assert.deepEqual(run.steps[0].verification.checks[0].changed_fields,['/daily_budget']);
+  const run=await ok(x.service,'amcp_campaign',{action:'execute_next',id:r.id,review_id:p.review.review_id,idempotency_key:p.review.idempotency_key,confirmed:true,spend_change_confirmed:true});assert.equal(run.steps[0].status,'verifying');assert.equal(run.steps[0].verification.code,'VERIFICATION_INCONCLUSIVE');assert.equal(run.steps[0].verification.checks[0].read_attempts,3);assert.deepEqual(run.steps[0].verification.checks[0].changed_fields,['/daily_budget']);assert.equal(x.calls.filter(c=>c.method==='POST').length,1);
   assert.equal((await x.service.call('amcp_campaign',{action:'get',id:r.id},{...actor,userId:'other'})).error.code,'FORBIDDEN');
   const doc=x.store.document(actor.tenantId,'campaign_run',r.id);doc.steps[0].arguments.payload.name='changed';x.store.putDocument(actor.tenantId,'campaign_run',r.id,doc);assert.equal((await x.service.call('amcp_campaign',{action:'get',id:r.id},actor)).error.code,'PLAN_CHANGED');
  }finally{x.store.close();}
@@ -109,4 +109,3 @@ test('campaign runner verifies the full Meta creative and paused-ad chain using 
  assert.equal((await ok(x.service,'amcp_campaign',{action:'get',id:r.id})).state,'complete');assert.equal(x.calls.filter(c=>c.method==='POST').length,4);
  }finally{x.store.close();}
 });
-

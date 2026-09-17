@@ -341,6 +341,59 @@
           ]
         }
       }
+    },
+    {
+      "gateway": "linkedin_native_action",
+      "arguments": {
+        "action": "linkedin_rest_posts_post",
+        "account_id": "123",
+        "payload": {
+          "author": "urn:li:organization:500",
+          "commentary": "Synthetic DSC example",
+          "visibility": "PUBLIC",
+          "distribution": {
+            "feedDistribution": "NONE",
+            "targetEntities": [],
+            "thirdPartyDistributionChannels": []
+          },
+          "content": {
+            "media": {
+              "id": "urn:li:video:456",
+              "title": "Synthetic title"
+            }
+          },
+          "lifecycleState": "PUBLISHED",
+          "isReshareDisabledByAuthor": true,
+          "adContext": {
+            "dscAdAccount": "urn:li:sponsoredAccount:123",
+            "dscStatus": "ACTIVE"
+          }
+        }
+      }
+    },
+    {
+      "gateway": "snapchat_native_action",
+      "arguments": {
+        "action": "snapchat_adaccounts_ad_account_id_creatives_update",
+        "account_id": "123",
+        "payload": {
+          "creatives": [
+            {
+              "id": "456",
+              "ad_account_id": "123",
+              "type": "WEB_VIEW",
+              "name": "Synthetic creative",
+              "headline": "Synthetic edit",
+              "brand_name": "Synthetic",
+              "call_to_action": "LEARN_MORE",
+              "shareable": false,
+              "top_snap_media_id": "789",
+              "profile_properties": { "profile_id": "321" },
+              "web_view_properties": { "url": "https://example.test", "block_preload": true }
+            }
+          ]
+        }
+      }
     }
   ],
   "recipe_business": {
@@ -378,6 +431,8 @@
     "destination_url": "https://example.test/",
     "language": "English",
     "contains_eu_political_advertising": "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
-    "special_ad_categories": []
+    "special_ad_categories": [],
+    "start_date": "2026-10-01",
+    "end_date": "2026-10-31"
   }
 }
