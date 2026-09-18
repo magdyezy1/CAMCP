@@ -1,3 +1,4 @@
+import {reviewedWriteFamily} from './reviewed-routes.js';
 import {checkSpendPolicy} from './spend-policy.js';
 import {randomUUID} from 'node:crypto';
 import {MirrorError,errorRemedy} from './errors.js';
@@ -23,9 +24,11 @@ import {assertAccountWrite} from './write-access.js';
 import {assertXCreative,xCreativeKind,xCreativeEdit,xCreativeSnapshots,readXCreativeState,xCreativeOutcome} from './x-creative-writes.js';
 import {validateMetaCreative} from './creative-validation.js';
 import {googleTargetingKind,assertGoogleTargeting,googleTargetingSnapshots,validateGoogleTargetingState} from './google-targeting-writes.js';
+import {googleAssetLinkKind,assertGoogleAssetLinks,googleAssetLinkSnapshots,validateGoogleAssetLinkState,googleAssetLinkOutcome} from './google-asset-links.js';
 import {xTargetingKind,assertXTargeting,xTargetingSnapshots,validateXTargetingState} from './x-targeting-writes.js';
 import {assertRedditWrite,assertRedditWriteScopes,redditSnapshots,validateRedditState,redditOutcome} from './reddit-writes.js';
 import {microsoftGateway,microsoftScope,assertMicrosoftWrite,microsoftSnapshots,validateMicrosoftResponse,microsoftOutcome} from './microsoft-native.js';
+import {validateMicrosoftAssociationState} from './microsoft-associations.js';
 import {measurementWriteGateways,assertMeasurementWrite,assertMeasurementScopes,measurementSnapshots,optionalMissingState,validateMeasurementState,measurementOutcome} from './measurement-writes.js';
 
 export const writeTool={name:'amcp_write',description:'Inspect, prepare and execute a reviewed native advertising or measurement mutation. inspect checks local write-contract support without credentials or network calls. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request. Execution requires its review_id, idempotency_key and explicit confirmation. Operator role and administrator account write grants are required. This is an AMCP extension, not a captured AMCP tool.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['inspect','prepare','execute']},gateway:{type:'string'},arguments:{type:'object'},connection_id:{type:'string'},review_id:{type:'string'},idempotency_key:{type:'string'},confirmed:{type:'boolean'},spend_change_confirmed:{type:'boolean'},creative_edit_confirmed:{type:'boolean',description:'Explicitly acknowledge a reviewed X card edit/deletion or Tweet rename that may disrupt promoted ads. Freeze this choice during prepare and repeat it during execute.'}},additionalProperties:false}};
@@ -39,6 +42,9 @@ export function writeOutcome(result:TransportResult,plan?:CompiledRequest):JsonO
   if(Array.isArray(value)){value.forEach((v,i)=>walk(v,path+'['+i+']'));return;}
   if(!value||typeof value!=='object')return;
   for(const [key,v]of Object.entries(value)){
+   // Microsoft batch errors can align with request items using null success
+   // slots. This exception is exact and provider-specific; false/objects fail.
+   if(plan?.gateway===microsoftGateway&&path==='$'&&key==='PartialErrors'&&Array.isArray(v)&&v.every(item=>item===null))continue;
    const nonempty=v!==null&&v!==false&&v!==''&&v!==0&&(!Array.isArray(v)||v.length>0)&&(!v||typeof v!=='object'||Object.keys(v).length>0);
    if(nonempty&&/error|fail/i.test(key)||/^(?:is_)?success$/.test(key)&&v===false||/status$/i.test(key)&&(typeof v==='string'&&/ERROR|FAIL|PARTIAL/i.test(v)||typeof v==='number'&&v>=400))errors.push({path:path+'.'+key,value:v});
    else walk(v,path+'.'+key);
@@ -49,6 +55,7 @@ export function writeOutcome(result:TransportResult,plan?:CompiledRequest):JsonO
  return {success:errors.length===0,executed:true,outcome:errors.length?'partial_or_failed':'succeeded',data:result.data,status:result.status,headers:result.headers,...(result.headers['x-restli-id']?{created_id:result.headers['x-restli-id']}:{ }),...(errors.length?{failures:errors,retry_safe:false}:{})};
 }
 function confirmedMutationResult(plan:CompiledRequest,result:TransportResult):boolean {
+ if(googleAssetLinkKind(plan))return googleAssetLinkOutcome(plan,result);
  if(linkedinDSC(plan))return result.status===201&&linkedinPostId(result.headers['x-restli-id']);
  if(xCreativeKind(plan))return xCreativeOutcome(plan,result);
  if(plan.gateway==='reddit_native_action')return redditOutcome(plan,result);
@@ -90,7 +97,20 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  const sitemap=read.gateway==='google_search_console_native_action'&&read.path.includes('/sitemaps/');
  const sitemapCount=sitemap&&(typeof data.errors==='number'&&Number.isSafeInteger(data.errors)&&data.errors>=0||typeof data.errors==='string'&&/^\d+$/.test(data.errors));
  if(sitemap&&Object.hasOwn(data,'errors')&&!sitemapCount)fail('STATE_READ_FAILED','Search Console sitemap content-error counts must be nonnegative integers.');
- const statusResult=sitemapCount?{...result,data:{...data,errors:0}}:result;
+ // ProtoJSON omits an empty repeated `results` field. Only a server-derived
+ // optional association query can interpret that as absence, after raw errors
+ // and continuation fields have still been checked.
+ const optionalGoogle=read.gateway==='google_ads_native_action'&&read.googleState?.allowMissing===true;
+ const emptyGoogle=optionalGoogle&&result.status===200&&result.data!==null&&typeof result.data==='object'&&!Array.isArray(result.data)&&data.results===undefined&&(Object.keys(data).length===0||typeof data.fieldMask==='string'||typeof data.queryResourceConsumption==='string');
+ // A failed GA4 export is a readable job resource, not a failed HTTP read.
+ // Preserve its native errorMessage for verification while still rejecting
+ // API error envelopes, malformed errors and incomplete responses normally.
+ const ga4Job=read.gateway==='ga4_native_action'&&/^\/v1(?:alpha|beta)\/properties\/\d+\/(?:audienceExports|reportTasks)\/[^/]+$/.test(read.path);
+ let jobData=data;
+ const withoutJobError=(value:JsonObject)=>Object.fromEntries(Object.entries(value).filter(([key])=>key!=='errorMessage'));
+ if(ga4Job&&data.state==='FAILED'&&typeof data.errorMessage==='string')jobData=withoutJobError(jobData);
+ if(ga4Job&&data.reportMetadata?.state==='FAILED'&&typeof data.reportMetadata.errorMessage==='string')jobData={...jobData,reportMetadata:withoutJobError(data.reportMetadata)};
+ const statusResult=sitemapCount?{...result,data:{...data,errors:0}}:emptyGoogle?{...result,data:{...data,results:[]}}:jobData!==data?{...result,data:jobData}:result;
  if(read.gateway!==microsoftGateway&&writeOutcome(statusResult).success!==true)fail('STATE_READ_FAILED','Failed or partial provider responses cannot verify before-state.');
  // Reuse provider pagination contracts (including Reddit pagination.next_url)
  // before envelope projection; discarding cursors is never proof of completeness.
@@ -103,12 +123,14 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  if(read.gateway==='reddit_native_action'){validateRedditState(read,result);return;}
  const sameIds=(actual:unknown[],expected:unknown[])=>{const clean=(ids:unknown[])=>ids.map(x=>String(x)).sort();if(actual.length!==expected.length||stable(clean(actual))!==stable(clean(expected)))fail('STATE_TARGET_MISMATCH','State read did not return every exact requested target.');};
  if(read.gateway==='google_ads_native_action'){
-  if(!Array.isArray(data.results)||!data.results.length)fail('STATE_NOT_FOUND','Google state query returned no target rows.');
+  if(emptyGoogle)data.results=[];
+  if(!Array.isArray(data.results)||!data.results.length&&!optionalGoogle)fail('STATE_NOT_FOUND','Google state query returned no target rows.');
   const q=String(object(read.body).query),type=q.match(/ FROM ([a-z_]+)/)?.[1];
   if(type==='customer'){sameIds(data.results.map((r:JsonObject)=>r.customer?.id),[id]);return;}
   if(!type)fail('STATE_READ_FAILED','Unrecognized Google state query.');
-  const expected=[...q.matchAll(/'(customers\/[^']+)'/g)].map(m=>m[1]),camel=type.replace(/_([a-z])/g,(_,c:string)=>c.toUpperCase());
-  sameIds(data.results.map((r:JsonObject)=>(r[camel]??r[type])?.resourceName??(r[camel]??r[type])?.resource_name),expected);return;
+  const expected=[...q.matchAll(/'(customers\/[^']+)'/g)].map(m=>m[1]),camel=type.replace(/_([a-z])/g,(_,c:string)=>c.toUpperCase()),actual=data.results.map((r:JsonObject)=>(r[camel]??r[type])?.resourceName??(r[camel]??r[type])?.resource_name);
+  if(optionalGoogle){if(read.googleState!.resource!==type||stable(read.googleState!.names)!==stable(expected)||new Set(actual).size!==actual.length||actual.some((name:unknown)=>typeof name!=='string'||!expected.includes(name)))fail('STATE_TARGET_MISMATCH','Optional state must contain only unique, exactly requested association identities.');}
+  else sameIds(actual,expected);return;
  }
  if(read.gateway==='tiktok_native_action'){
   if(data.code!==0||!Array.isArray(data.data?.list))fail('STATE_READ_FAILED','TikTok state must confirm success and contain its native list.');
@@ -140,13 +162,8 @@ export function assertWriteShape(plan:CompiledRequest){
  if(linkedinDSC(plan)){if(Object.keys(plan.query).length)fail('WRITE_CONTRACT_UNAVAILABLE','DSC creation does not accept query actions or method overrides.');assertLinkedInDSC(plan);return;}
  const body=object(plan.body);
  const route=plan.path,method=plan.method;
- const supported=measurementWriteGateways.has(plan.gateway)?(assertMeasurementWrite(plan),true):plan.gateway==='meta_native_action'?method==='POST'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads|adcreatives)$/.test(route)||['POST','DELETE'].includes(method)&&/^meta_(campaign_id|ad_set_id|ad_id)_(update|delete)$/.test(plan.action):
-  plan.gateway==='snapchat_native_action'?method==='POST'&&/^\/v1\/(adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives)|campaigns\/[^/]+\/adsquads|adsquads\/[^/]+\/ads)$/.test(route)||method==='PUT'&&/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives)$/.test(route)||method==='PATCH'&&/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives)\/[^/]+$/.test(route)||method==='DELETE'&&/^\/v1\/(campaigns|adsquads|ads)\/[^/]+$/.test(route):
-  plan.gateway==='tiktok_native_action'?method==='POST'&&/^\/v1\.3\/(campaign|adgroup|ad)\/(?:status\/)?(create|update|delete)\/$/.test(route):
-  plan.gateway==='x_ads_native_action'?!!xCreativeKind(plan)||method==='POST'&&/^\/12\/accounts\/[^/]+\/(campaigns|line_items|targeting_criteria)$/.test(route)||['PUT','DELETE'].includes(method)&&/^\/12\/accounts\/[^/]+\/(campaigns|line_items)\/[^/]+$/.test(route)||method==='DELETE'&&/^\/12\/accounts\/[^/]+\/(targeting_criteria|promoted_tweets)\/[^/]+$/.test(route):
-  plan.gateway==='linkedin_native_action'?method==='POST'&&/^\/rest\/adAccounts\/[^/]+\/(adCampaigns|adCampaignGroups|creatives)$/.test(route)||['POST','PUT','PATCH','DELETE'].includes(method)&&/^\/rest\/adAccounts\/[^/]+\/(adCampaigns|adCampaignGroups|creatives)\/[^/]+$/.test(route):
-  plan.gateway==='dv360_native_action'?method==='POST'&&/^\/v\d+\/advertisers\/[^/]+\/(campaigns|insertionOrders|lineItems|creatives)$/.test(route)||['PATCH','DELETE'].includes(method)&&/^\/v\d+\/advertisers\/[^/]+\/(campaigns|insertionOrders|lineItems|creatives)\/[^/]+$/.test(route):
-  plan.gateway==='google_ads_native_action'&&method==='POST'&&(/^\/v23\/customers\/[^/]+\/(campaigns|adGroups|adGroupAds|campaignBudgets|ads|assetGroups|assets):mutate$/.test(route)||!!googleTargetingKind(plan));
+ if(measurementWriteGateways.has(plan.gateway))assertMeasurementWrite(plan);
+ const supported=reviewedWriteFamily(plan);
  if(!supported)fail('WRITE_CONTRACT_UNAVAILABLE','This route is outside the reviewed campaign-management execution contracts. Use a local dry run.');
  if(plan.gateway==='meta_native_action'&&route.endsWith('/adcreatives'))validateMetaCreative(body);
  if(Object.keys(plan.query).some(k=>!(plan.gateway==='dv360_native_action'&&k==='updateMask'||plan.gateway==='gtm_native_action'&&k==='fingerprint')))fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed writes accept body fields and qualified concurrency parameters only.');
@@ -182,11 +199,13 @@ export function assertWriteShape(plan:CompiledRequest){
   if(body.validate_only===true||body.validateOnly===true)fail('WRITE_CONTRACT_UNAVAILABLE','This tool executes mutations; use a local dry run for validation-only plans.');
   for(const op of body.operations)if(!op||typeof op!=='object'||['create','update','remove'].filter(k=>op[k]!==undefined).length!==1)fail('INVALID_MUTATION','Each Google operation must contain exactly one create, update or remove.');
   assertGoogleTargeting(plan);
+  assertGoogleAssetLinks(plan);
  }
 }
 
 /** Reads are explicitly derived from the target, never supplied by the caller as proof. */
 export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRequest[]{
+ if(googleAssetLinkKind(plan))return googleAssetLinkSnapshots(plan);
  if(linkedinDSC(plan))return linkedinDSCReads(plan);
  if(xCreativeKind(plan))return xCreativeSnapshots(plan);
  if(googleTargetingKind(plan))return googleTargetingSnapshots(plan);
@@ -272,7 +291,7 @@ export class WriteReviewService {
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
    try{result=await this.transport.request(read,c,auth);}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
    this.access(actor,plan,connectionId);validateState(read,result);values.push(linkedinDSC(plan)&&/^\/rest\/(images|videos)\//.test(read.path)?linkedinMediaProjection(plan,object(result.data)):normalizeSnapshot(read,result.data));
-  }validateGoogleTargetingState(plan,values);validateXTargetingState(plan,values);return values;
+  }validateGoogleTargetingState(plan,values);validateGoogleAssetLinkState(plan,values);validateMicrosoftAssociationState(plan,values);validateXTargetingState(plan,values);return values;
  }
  async call(input:JsonObject,actor:Actor):Promise<unknown>{
   guardInput(input);for(const key of Object.keys(input))if(!Object.hasOwn(writeTool.inputSchema.properties,key))fail('INVALID_ARGUMENT','Unknown write-tool parameter.',{parameter:key});
@@ -289,6 +308,8 @@ export class WriteReviewService {
     catch(e){if(!(e instanceof MirrorError))throw e;const remedy=errorRemedy(e);return {executed:false,network_requests:0,review_contract_supported:false,request:redact(plan),contract_evidence:executionEvidence(plan),error:{code:e.code,message:e.message,details:e.details,category:remedy.category,remedy},live_permissions_verified:false};}
    }
    assertWriteShape(plan);const c=this.access(actor,plan,input.connection_id??nativeArgs.connection_id),reads=snapshotPlans(plan,this.registry),state=await this.state(actor,plan,c.id,reads);
+   validateGoogleAssetLinkState(plan,state,true);
+   validateMicrosoftAssociationState(plan,state,true);
    if(plan.gateway==='gtm_native_action'){
     const route=this.delegated.data.routes.find(r=>r.gateway===plan.gateway&&r.operation+(r.action?'/'+r.action:'')===plan.action),fingerprint=object(state[0]).fingerprint;
     if(route?.parameters.fingerprint&&typeof fingerprint==='string'&&fingerprint){

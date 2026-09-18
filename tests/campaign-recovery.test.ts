@@ -45,3 +45,21 @@ test('preflight-blocked inputs can be corrected before any review or submission'
   assert.equal(store.db.prepare('SELECT count(*) AS n FROM idempotency').get()!.n,0);
  }finally{store.close();}
 });
+
+test('terminal provider processing failure blocks dependents and cannot reset the submitted review',async()=>{
+ const store=new Store(':memory:',Buffer.alloc(32,63).toString('base64'));let phase='pending',submissions=0,preparations=0;
+ store.putConnection({...actor,role:'admin'},{id:'fixture',tenantId:actor.tenantId,gateway:'ga4_native_action',accounts:['123'],writeAccounts:['123'],enabled:true,label:'Fixture',scopes:[]},{accessToken:'fixture'});
+ const runner=new CampaignRunner(store,async(_name,input)=>{
+  if(input.action==='prepare'){preparations++;return {success:true,data:{review_id:'job-review',idempotency_key:'job-review',expires_at:new Date(Date.now()+300000).toISOString()}};}
+  submissions++;store.claim(actor.tenantId,input.review_id,'request');const result={success:true,data:{name:'properties/123/reportTasks/1'}};store.complete(actor.tenantId,input.review_id,result);return {success:true,data:result};
+ },async()=>({status:phase}),async()=>({}),async()=>({status:'ready',checks:[]}));
+ try{
+  const run=await runner.handle({action:'create',name:'Async dependency',brief:'Synthetic jobs',steps:['job','child'].map((id,i)=>({id,kind:'write',gateway:'ga4_native_action',connection_id:'fixture',account_id:'123',arguments:{operation:'ga4_create_report_task',arguments:{property:'123',request:{reportDefinition:{}}}},depends_on:i?['job']:[]}))},actor);
+  const p=await runner.handle({action:'prepare_next',id:run.id},actor);
+  const done=await runner.handle({action:'execute_next',id:run.id,review_id:p.review.review_id,idempotency_key:p.review.idempotency_key,confirmed:true},actor);assert.equal(done.steps[0].status,'verifying');
+  phase='failed';const failed=await runner.handle({action:'prepare_next',id:run.id},actor);assert.equal(failed.steps[0].status,'failed');assert.equal(failed.steps[1].status,'pending');
+  assert.equal((await runner.handle({action:'prepare_next',id:run.id},actor)).blocked,true);
+  await assert.rejects(()=>runner.handle({action:'recover_step',id:run.id,step_id:'job',confirmed:true},actor),{code:'RECOVERY_NOT_SAFE'});
+  assert.equal((await runner.handle({action:'reconcile_step',id:run.id,step_id:'job'},actor)).steps[0].status,'failed');assert.equal(submissions,1);assert.equal(preparations,1);
+ }finally{store.close();}
+});

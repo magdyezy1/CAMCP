@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "owner_role": "AMCP integration maintainer",
   "qualification": "Synthetic local contract examples. Replace business facts and IDs with user-supplied or discovered values. These requests inspect contracts; none authorizes or executes a mutation.",
   "inspections": [
@@ -388,8 +388,132 @@
               "call_to_action": "LEARN_MORE",
               "shareable": false,
               "top_snap_media_id": "789",
-              "profile_properties": { "profile_id": "321" },
-              "web_view_properties": { "url": "https://example.test", "block_preload": true }
+              "profile_properties": {
+                "profile_id": "321"
+              },
+              "web_view_properties": {
+                "url": "https://example.test",
+                "block_preload": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "google_ads_v23_campaign_criterion_mutate_campaign_criteria",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "campaign": "customers/123/campaigns/456",
+                "negative": true,
+                "keyword": {
+                  "text": "free",
+                  "matchType": "BROAD"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "google_ads_v23_campaign_asset_mutate_campaign_assets",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "campaign": "customers/123/campaigns/456",
+                "asset": "customers/123/assets/789",
+                "fieldType": "SITELINK",
+                "status": "PAUSED"
+              }
+            }
+          ],
+          "partialFailure": false
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "google_ads_v23_ad_group_asset_mutate_ad_group_assets",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "adGroup": "customers/123/adGroups/456",
+                "asset": "customers/123/assets/789",
+                "fieldType": "CALLOUT",
+                "status": "PAUSED"
+              }
+            }
+          ],
+          "partialFailure": false
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "google_ads_v23_customer_asset_mutate_customer_assets",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "asset": "customers/123/assets/789",
+                "fieldType": "STRUCTURED_SNIPPET",
+                "status": "PAUSED"
+              }
+            }
+          ],
+          "partialFailure": false
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "google_ads_v23_asset_group_asset_mutate_asset_group_assets",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "assetGroup": "customers/123/assetGroups/456",
+                "asset": "customers/123/assets/789",
+                "fieldType": "HEADLINE",
+                "status": "PAUSED"
+              }
+            }
+          ],
+          "partialFailure": false
+        }
+      }
+    },
+    {
+      "gateway": "microsoft_ads_native_action",
+      "arguments": {
+        "action": "SetAdExtensionsAssociations",
+        "account_id": "123",
+        "ad_extension_types": [
+          "SitelinkAdExtension"
+        ],
+        "payload": {
+          "AssociationType": "Campaign",
+          "AdExtensionIdToEntityIdAssociations": [
+            {
+              "AdExtensionId": "789",
+              "EntityId": "456"
             }
           ]
         }

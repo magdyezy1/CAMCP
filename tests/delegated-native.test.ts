@@ -73,6 +73,8 @@ test('GA4 data reports keep JSON bodies, alpha-only methods and query paging exp
  p=compile('ga4_native_action','ga4_metadata_ops',{action:'get_metadata',property:'123'});assert.equal(p.path,'/v1beta/properties/123/metadata');
  p=compile('ga4_native_action','ga4_report_task_ops',{action:'list',property:'123',request:{pageSize:10,pageToken:'next'}});assert.equal(p.path,'/v1alpha/properties/123/reportTasks');assert.deepEqual(p.query,{pageSize:10,pageToken:'next'});assert.equal(p.body,undefined);
  p=compile('ga4_native_action','ga4_create_audience_export',{property:'123',request:{audience:'properties/123/audiences/4'}});assert.equal(p.readOnly,false);assert.equal(p.requiresConfirmation,true);
+ p=compile('ga4_native_action','ga4_report_task_ops',{action:'query',name:'properties/123/reportTasks/7',request:{offset:'0',limit:'100'}});assert.equal(p.path,'/v1alpha/properties/123/reportTasks/7:query');assert.equal(applyExecutionRisk(p).readOnly,true);
+ assert.equal(applyExecutionRisk({...p,path:p.path.replace(':query',':cancel')}).readOnly,false);
 });
 
 test('Search Console encodes complete property and sitemap URLs as single path components',()=>{
@@ -90,6 +92,9 @@ test('Business Profile routes preserve separate service origins and suffix resou
  p=compile('google_business_native_action','gmb_lodging_ops',{action:'GET_LODGING',location_id:'locations/456'});assert.equal(p.path,'/v1/locations/456/lodging');assert.equal(p.accountId,'locations/456');
  p=compile('google_business_native_action','gmb_engagement_ops',{action:'PATCH_PLACE_ACTION_LINK',location_id:'456',place_action_link_id:'7',payload:{uri:'https://example.com/'},query:{updateMask:'uri'}});assert.equal(p.origin,'https://mybusinessplaceactions.googleapis.com');assert.equal(p.path,'/v1/locations/456/placeActionLinks/7');assert.equal(p.readOnly,false);
  p=compile('google_business_native_action','gmb_location_ops',{action:'SEARCH_GOOGLE_LOCATIONS',payload:{query:'Example'}});assert.equal(p.method,'POST');assert.equal(p.readOnly,true);
+ assert.equal(applyExecutionRisk(p).readOnly,true);assert.equal(applyExecutionRisk({...p,origin:'https://mybusinessaccountmanagement.googleapis.com'}).readOnly,false);
+ p=compile('google_business_native_action','gmb_verification_ops',{action:'FETCH_VERIFICATION_OPTIONS',location_id:'456',payload:{languageCode:'en'}});assert.equal(applyExecutionRisk(p).readOnly,true);
+ assert.equal(applyExecutionRisk({...p,path:'/v1/locations/456:verify'}).readOnly,false);
 });
 
 test('Criteo request bodies and documented POST searches retain effective method semantics',()=>{
@@ -99,6 +104,9 @@ test('Criteo request bodies and documented POST searches retain effective method
  p=compile('criteo_native_action','criteo_account_ops',{action:'SEARCH_BRANDS',payload});assert.deepEqual(p.body,payload);assert.equal(p.readOnly,true);
  p=compile('criteo_native_action','criteo_reporting_ops',{action:'GENERATE_ASYNC_REVENUE_REPORT',payload:{data:{attributes:{startDate:'2026-01-01'}}}});assert.equal(p.readOnly,false);assert.equal(p.requiresConfirmation,true);
  p=compile('criteo_native_action','criteo_line_item_ops',{action:'GET_LINE_ITEMS_BY_CAMPAIGN_ID',account_id:'123',params:{'line-item-id':'456'}});assert.equal(p.path,'/2026-01/retail-media/line-items/456');
+ for(const [operation,action]of [['criteo_campaign_ops','GET_CPC_MIN_BIDS_BY_SKU_IDS_V1'],['criteo_campaign_ops','GET_RECOMMENDED_CATEGORIES'],['criteo_catalog_ops','RECOMMENDED_KEYWORDS']]){
+  p=compile('criteo_native_action',operation!,{action,params:{retailerId:'123'},payload:{}});assert.equal(applyExecutionRisk(p).readOnly,true);assert.equal(applyExecutionRisk({...p,query:{method:'DELETE'}}).readOnly,false);
+ }
  assert.throws(()=>compile('criteo_native_action','criteo_campaign_ops',{action:'GET_LINE_ITEMS_BY_CAMPAIGN_ID',params:{'line-item-id':'456'}}),code('DELEGATED_ROUTE_UNAVAILABLE'));
 });
 

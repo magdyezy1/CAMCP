@@ -1,4 +1,6 @@
+import {microsoftAssociationWrite,microsoftAssociationActivates} from './microsoft-associations.js';
 import {xCreativeImpact} from './x-creative-writes.js';
+import {googleAssetLinkKind,googleAssetLinkActivates} from './google-asset-links.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest,JsonObject} from './types.js';
@@ -22,6 +24,8 @@ function assertSnapchatReplacement(plan:CompiledRequest,state:unknown[]){
  }
 }
 export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolean,connectionId:string):JsonObject|undefined{
+ if(googleAssetLinkKind(plan))return {provider:'google',effect:'Changes associations of existing assets; it does not create new assets. Enabled links may serve under enabled parents. An omitted create status is treated as activation for owner policy checks.',may_activate:googleAssetLinkActivates(plan),scope:googleAssetLinkKind(plan),source:'https://developers.google.com/google-ads/api/docs/assets/working-with-assets',limits:'Provider policy approval, campaign-type rules and asset-count requirements remain provider checks. Link read-back proves configuration, not impressions or approval. Lead-form delivery credentials are never read by this contract.'};
+ if(microsoftAssociationWrite(plan))return {provider:'microsoft',effect:'Changes existing extension associations without modifying the asset library. Linking may serve immediately under an enabled parent.',may_activate:microsoftAssociationActivates(plan),limits:'Exact membership read-back does not establish editorial approval or delivery. Search parents only; ad-group associations require campaign_id. Review freezes the discovered extension types and asset content.'};
  const x=xCreativeImpact(plan,state,override,connectionId);
  if(x)return {provider:'x',...x};
  if(plan.gateway==='snapchat_native_action'&&['PUT','PATCH'].includes(plan.method)&&/\/creatives(?:\/[^/]+)?$/.test(plan.path)){

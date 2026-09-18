@@ -1,10 +1,15 @@
 # Audit recommendations implementation
 
+Current contract-expansion pass: [ALL-ACTIONS-2026-09-18.md](ALL-ACTIONS-2026-09-18.md).
+Its complete local-action and pinned-vendor-method ledgers supersede action-count assumptions
+in historical checkpoints below. The broad request to execute every provider action remains
+incomplete; blocked and unmapped contracts are explicitly retained in that pass's backlog.
+
 Only the Git branch `Codex-branch` is authorized. Base: `067871481d79fc59a6cb976d8a13b62d409e283a`. Development and the old release checkout stay untouched. This branch incorporates the sanitized audited development candidate before corrections so new account/security/provider capabilities are preserved. No provider mutation, production deployment or credential change is part of this work.
 
 Status values: pending, implementing, locally verified, external qualification required. A local implementation is not a live-provider qualification. Every recommendation is tracked below; no unfinished item may silently be declared complete.
 
-Current result: all locally implementable T01–T20 and M01–M12 changes are present. The final application candidate passed 486 tests with one local FFmpeg skip, plus all four capture tests. The chronological checkpoints below retain initial failures and subsequent corrections. Exact commands, candidate hash and browser boundaries are in [VERIFICATION.md](VERIFICATION.md); external qualification is in [OPERATIONS.md](OPERATIONS.md).
+Historical T01–T20 and M01–M12 checkpoint: the application candidate passed 486 tests with one local FFmpeg skip, plus all four capture tests. This is not the result or completeness claim for the later all-actions request. The chronological checkpoints below retain initial failures and subsequent corrections. Exact commands, candidate hash and browser boundaries are in [VERIFICATION.md](VERIFICATION.md); external qualification is in [OPERATIONS.md](OPERATIONS.md).
 
 ## Defects and engineering tickets
 

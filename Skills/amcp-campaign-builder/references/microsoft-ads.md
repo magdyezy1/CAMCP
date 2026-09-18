@@ -1,8 +1,36 @@
 # Microsoft Advertising / Bing Ads
 
-`amcp_tool_help` and reviewed inspect/prepare include first-party operation evidence from all six pinned Microsoft WSDL services. This documents SOAP structure and provenance, not unrestricted JSON field support. AMCP's separately tested JSON contracts still expose the 24 actions below; Bulk, Billing, media and additional WSDL operations are not enabled by ingestion. Development regeneration requires Python 3.10+ with only its standard library.
+## Existing extension associations
 
-Use the independent `microsoft_ads_native_action` gateway. Discover its 24 actions with LIST_ACTIONS / DESCRIBE_ACTION. This is Microsoft's v13 JSON API, not Google Ads GAQL or the Bing Webmaster API.
+Discover exact selected-account extension IDs and native types with
+`GetAdExtensionsByIds`, and current memberships with `GetAdExtensionsAssociations`.
+Use `amcp_write` inspect → prepare → execute for `SetAdExtensionsAssociations` or
+`DeleteAdExtensionsAssociations`. Native payload fields are `AccountId`,
+`AssociationType` (`Account`, `Campaign`, or `AdGroup`), and
+`AdExtensionIdToEntityIdAssociations: [{AdExtensionId, EntityId}]`.
+Keep IDs as strings. One review permits up to 100 unique pairs for one entity type.
+
+Supply `ad_extension_types` outside `payload`, using native type names from
+discovery (for example `SitelinkAdExtension`, `CalloutAdExtension`,
+`StructuredSnippetAdExtension`). This is AMCP review metadata used to read content;
+it is not a Microsoft mutation field. For ad groups also supply `campaign_id`.
+Parent campaign reads currently qualify Search campaigns. Account associations
+must use the selected account as `EntityId`. Call extensions are campaign-only;
+location extensions cannot attach to ad groups. Other vendor eligibility and
+editorial rules remain provider checks.
+
+Preparation checks the account, exact parent, existing extension content and exact
+membership. Linking may start serving under an enabled parent and respects the
+owner's activation restriction; it has no paused-link substitute. Execution also
+requires `spend_change_confirmed: true` for association changes. Deletion removes
+the association, not the extension from the asset library. Verify the original
+review with `amcp_campaign action=verify`; membership is not editorial approval or
+proof of impressions. On partial errors or a lost response, reconcile that review
+and read each pair; never repeat a mutation under a new key just to clear uncertainty.
+
+`amcp_tool_help` and reviewed inspect/prepare include first-party operation evidence from all six pinned Microsoft WSDL services. This documents SOAP structure and provenance, not unrestricted JSON field support. AMCP's separately tested JSON contracts still expose 28 actions; Bulk, Billing, media and additional WSDL operations are not enabled by ingestion. Development regeneration requires Python 3.10+ with only its standard library.
+
+Use the independent `microsoft_ads_native_action` gateway. Discover its 28 actions with LIST_ACTIONS / DESCRIBE_ACTION. This is Microsoft's v13 JSON API, not Google Ads GAQL or the Bing Webmaster API.
 
 Setup needs a Microsoft app client ID/secret, a Microsoft Advertising developer token and consent for `https://ads.microsoft.com/msads.manage offline_access`. Register `https://amcp.shop/api/auth/microsoft/callback`. The website discovers advertiser accounts and their parent customer IDs. Select accounts before use; token access alone is not an AMCP account grant. Refresh tokens rotate and are stored encrypted.
 
@@ -14,6 +42,6 @@ Reviewed Add/Update/Delete supports Search campaigns, their ad groups, responsiv
 
 Money is **decimal account currency**, e.g. DailyBudget 50 means 50 currency units, not 50 micros. Keep bidding schemes and campaign types native; old standalone Target CPA/ROAS schemes are deprecated. Do not claim unqualified PMax, Shopping, audience, media, bulk or billing workflows from a Search test. Microsoft batch APIs can partially fail: inspect indexed PartialErrors and retained outcomes; never retry the whole batch under a new key.
 
-Reporting: SubmitGenerateReport accepts a native derived ReportRequest with Type, Columns, Aggregation, explicit Time and Scope exactly `{"AccountIds":["123"]}`. PollGenerateReport uses the returned ReportRequestId on the same connection/account. Pending is not complete. Add `download_report: true`, `offset: 0`, and `limit: 100` to PollGenerateReport to have AMCP download and parse a CSV/TSV ZIP. Follow next_call until has_more is false. Pending is incomplete; IDs and amounts remain native strings. The original report/parsed rows are bound to the same account and connection for one day. This does not normalize Microsoft into the cross-platform metrics workflow. Report submission is read-oriented job creation, not an advertising mutation.
+Reporting: SubmitGenerateReport accepts a native derived ReportRequest with Type, Columns, Aggregation, explicit Time and Scope exactly `{"AccountIds":["123"]}`. PollGenerateReport uses the returned ReportRequestId on the same connection/account. Pending is not complete. Add `download_report: true`, `offset: 0`, and `limit: 100` to PollGenerateReport to have AMCP download and parse a CSV/TSV ZIP. Follow next_call until has_more is false. Pending is incomplete; IDs and amounts remain native strings. The original report/parsed rows are bound to the same account and connection for one day. These native query results remain native; the separate `amcp_reporting_overview` Microsoft adapter normalizes supported campaign metrics with provenance and quality metadata. Report submission is read-oriented job creation, not an advertising mutation.
 
 Contract sources and setup limits: [Microsoft Advertising setup](https://learn.microsoft.com/en-us/advertising/guides/get-started?view=bingads-13), [native campaign operations](https://learn.microsoft.com/en-us/advertising/campaign-management-service/addcampaigns?view=bingads-13), [asynchronous reporting](https://learn.microsoft.com/en-us/advertising/reporting-service/submitgeneratereport?view=bingads-13).

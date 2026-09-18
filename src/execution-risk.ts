@@ -6,6 +6,9 @@ import {microsoftGateway,microsoftRead} from './microsoft-native.js';
 // authorization. POST reads must match a separately maintained route allowlist.
 const googleReadMethods=new Set(['search','searchStream','suggest','generateAudienceCompositionInsights','generateAudienceDefinition','generateAudienceOverlapInsights','generateInsightsFinderReport','generateSuggestedTargetingInsights','generateTargetingSuggestionMetrics','searchAudienceInsightsAttributes','listInsightsEligibleDates','generateBenchmarksMetrics','listBenchmarksAvailableDates','listBenchmarksLocations','listBenchmarksProducts','listBenchmarksSources','suggestBrands','generateCreatorInsights','generateTrendingInsights','generateAdGroupThemes','generateKeywordForecastMetrics','generateKeywordHistoricalMetrics','generateKeywordIdeas','generateConversionRates','generateReachForecast','listPlannableLocations','listPlannableProducts','listPlannableUserInterests','listPlannableUserLists','quoteCampaigns','suggestKeywordThemes','suggestSmartCampaignAd','suggestSmartCampaignBudgetOptions','suggestTravelAssets']);
 const tiktokReads=new Set(['/v1.3/ad/audience_size/estimate/','/v1.3/audience/insight/info/','/v1.3/tool/bid/recommend/','/v1.3/tool/targeting/info/','/v1.3/tool/targeting/search/','/v1.3/tool/targeting_category/recommend/','/v1.3/business/message/auto_message/get/','/v1.3/business/message/media/download/','/v1.3/gmv_max/creation/custom_anchor_video_list/get/']);
+// Root-level RPCs are /v23:method, not /v23/customers/...:method. These
+// documented planning metadata reads create no customer-owned resources.
+export const googleGlobalReadMethods=new Set(['generateConversionRates','listBenchmarksAvailableDates','listBenchmarksLocations','listBenchmarksProducts','listBenchmarksSources','listPlannableLocations','listPlannableProducts','listPlannableUserInterests','listPlannableUserLists']);
 export function independentlyReadOnly(plan:CompiledRequest):boolean{
  if(!plan.readOnly)return false;
  if(plan.gateway===microsoftGateway)return microsoftRead(plan);
@@ -27,13 +30,14 @@ export function independentlyReadOnly(plan:CompiledRequest):boolean{
  const method=override??plan.method;if(['GET','HEAD'].includes(method))return true;
  if(method!=='POST')return false;
  switch(plan.gateway){
-  case 'google_ads_native_action':return /^\/v23\//.test(pathname)&&googleReadMethods.has(pathname.split(':').at(-1)!);
+  case 'google_ads_native_action':return /^\/v23\//.test(pathname)&&googleReadMethods.has(pathname.split(':').at(-1)!)||/^\/v23:[A-Za-z]+$/.test(pathname)&&googleGlobalReadMethods.has(pathname.slice(5));
   case 'tiktok_native_action':return tiktokReads.has(pathname.replace(/^\/open_api/,''));
   case 'snapchat_native_action':return /^\/v1\/adaccounts\/[^/]+\/(?:get_(?:campaigns|adsquads|ads|creatives|media)_by_ids|ad_squad_outcome_estimates_v2|audience_size(?:_v2)?|bid_estimate)$/.test(pathname)||/^\/v1\/(?:catalogs\/[^/]+\/(?:product_search|products\/search|flights\/search|hotels\/search|facets)|ads_library\/(?:ads|sponsored_content)\/search)$/.test(pathname);
-  case 'ga4_native_action':return /\/properties\/[^/:]+:(?:runReport|batchRunReports|runPivotReport|batchRunPivotReports|runRealtimeReport|checkCompatibility|runFunnelReport)$/.test(pathname)||/\/audienceExports\/[^/:]+:query$/.test(pathname);
+  case 'ga4_native_action':return /\/properties\/[^/:]+:(?:runReport|batchRunReports|runPivotReport|batchRunPivotReports|runRealtimeReport|checkCompatibility|runFunnelReport)$/.test(pathname)||/^\/v1beta\/properties\/[^/:]+\/audienceExports\/[^/:]+:query$/.test(pathname)||/^\/v1alpha\/properties\/[^/:]+\/reportTasks\/[^/:]+:query$/.test(pathname);
   case 'gtm_native_action':return /\/folders\/[^/:]+:entities$/.test(pathname);
   case 'google_search_console_native_action':return /\/searchAnalytics\/query$/.test(pathname)||pathname==='/v1/urlInspection/index:inspect';
-  case 'criteo_native_action':return /\/(?:search|preview)$/.test(pathname);
+  case 'criteo_native_action':return /\/(?:search|preview)$/.test(pathname)||/^\/2026-01\/retail-media\/retailers\/[^/:]+\/(?:cpc-min-bids|recommend-categories|recommend-keywords)$/.test(pathname);
+  case 'google_business_native_action':return plan.origin==='https://mybusinessbusinessinformation.googleapis.com'&&pathname==='/v1/googleLocations:search'||plan.origin==='https://mybusinessverifications.googleapis.com'&&/^\/v1\/locations\/[^/:]+:fetchVerificationOptions$/.test(pathname);
   case 'reddit_native_action':return /^\/api\/v3\/ad_accounts\/[^/]+\/reports$/.test(pathname);
   case 'apple_ads_native_action':return plan.origin==='https://api.ads.apple.com'&&/^\/v1\/(?:campaigns|adgroups|ads|creatives|keywords|negative-keywords|shared-budgets|reports\/apps\/(?:campaigns|adgroups|ads|keywords|searchterms))\/query$/.test(pathname);
   default:return false;
@@ -41,6 +45,9 @@ export function independentlyReadOnly(plan:CompiledRequest):boolean{
 }
 export function applyExecutionRisk(plan:CompiledRequest):CompiledRequest{
  const readOnly=independentlyReadOnly(plan);
+ // Google's RPC remains POST for remove operations. Catalog method/risk flags
+ // cannot decide whether the frozen operation deletes an association or entity.
+ const googleRemoval=plan.gateway==='google_ads_native_action'&&plan.method==='POST'&&plan.path.endsWith(':mutate')&&Array.isArray((plan.body as any)?.operations)&&(plan.body as any).operations.some((op:any)=>op&&typeof op.remove==='string');
  const warnings=[...plan.warnings,...xCreativeWarnings(plan),...(plan.readOnly&&!readOnly?['Catalog read-only metadata is not sufficient for this route; execution is treated as a mutation or an unqualified operation.']:[])];
- return {...plan,readOnly,destructive:plan.destructive||xCreativeEdit(plan),requiresConfirmation:plan.requiresConfirmation||!readOnly,warnings:[...new Set(warnings)]};
+ return {...plan,readOnly,destructive:plan.destructive||googleRemoval||xCreativeEdit(plan),requiresConfirmation:plan.requiresConfirmation||!readOnly,warnings:[...new Set(warnings)]};
 }

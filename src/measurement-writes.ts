@@ -84,7 +84,10 @@ export function validateMeasurementState(read:CompiledRequest,result:TransportRe
  const d=obj(result.data),failState=():never=>{throw new MirrorError('STATE_TARGET_MISMATCH','Provider state did not identify the exact selected resource.');};
  if(result.status===404){if(read.action!=='AMCP_STATE_OPTIONAL'||d.amcp_absent!==true||d.path!==read.path)failState();return;}
  if(read.gateway==='apple_ads_native_action'){if(String(d.result?.id)!==read.path.split('/').at(-1)||d.result?.adAccountId!==undefined&&String(d.result.adAccountId)!==read.accountId)failState();return;}
- if(read.gateway==='ga4_native_action'){if(d.name!=='properties/'+read.accountId)failState();return;}
+ if(read.gateway==='ga4_native_action'){
+  const target=read.path.replace(/^\/v1(?:alpha|beta)\//,'');
+  if(!new RegExp('^properties/'+read.accountId+'(?:/(audienceExports|reportTasks)/[A-Za-z0-9_-]+)?$').test(target)||d.name!==target)failState();return;
+ }
  if(read.gateway==='google_search_console_native_action'){
   if(read.path.includes('/sitemaps/')){if(d.path!==decodeURIComponent(read.path.split('/').at(-1)!))failState();}
   else if(d.siteUrl!==read.accountId||!['siteOwner','siteFullUser'].includes(d.permissionLevel))failState();return;
@@ -112,4 +115,40 @@ export function measurementOutcome(p:CompiledRequest,r:TransportResult):boolean{
   return r.status===200&&typeof version.path==='string'&&version.path.startsWith(base)&&!!version.containerVersionId&&(a==='CREATE_CONTAINER_VERSION'||version.path===resource)&&d.compilerError!==true&&!d.syncStatus?.syncError&&!d.syncStatus?.mergeConflict;
  }
  return [200,201].includes(r.status)&&typeof d.path==='string'&&(a.startsWith('CREATE_')?d.path.startsWith(resource+'/')&&d.path.slice(resource.length+1).length>0&&!d.path.slice(resource.length+1).includes('/'):d.path===resource);
+}
+
+/** Result identities come only from an already validated mutation receipt. A
+ * created export is not a completed export: the verifier preserves job state. */
+export function measurementVerification(plan:CompiledRequest,result:JsonObject):{read:CompiledRequest;expected:JsonObject;id:string}[]{
+ const d=obj(result.data),b=obj(plan.body),a=action(plan);
+ const read=(path:string,optional=false):CompiledRequest=>({...plan,action:optional?'AMCP_STATE_OPTIONAL':'AMCP_VERIFY_READ',method:'GET',path,query:{},body:undefined,headers:{},readOnly:true,destructive:false,requiresConfirmation:false,responseControls:undefined,specialTransport:undefined});
+ if(plan.method==='DELETE')return [{read:read(plan.path,true),expected:{amcp_absent:true,path:plan.path},id:plan.path}];
+ if(plan.gateway==='apple_ads_native_action'){
+  const id=String(d.result.id);return [{read:read('/v1/campaigns/'+id),expected:{...b,id},id}];
+ }
+ if(plan.gateway==='ga4_native_action'){
+  const name=d.response?.name??d.metadata?.name??d.name,version=plan.path.split('/')[1]!;
+  return [{read:read('/'+version+'/'+name),expected:{...b,name},id:name}];
+ }
+ if(plan.gateway==='google_search_console_native_action')return [{read:read(plan.path),expected:plan.path.includes('/sitemaps/')?{path:decodeURIComponent(plan.path.split('/').at(-1)!)}:{siteUrl:plan.accountId},id:plan.path}];
+ if(plan.gateway==='gtm_native_action'){
+  const version=d.containerVersion;
+  if(a==='CREATE_CONTAINER_VERSION'||a==='PUBLISH_CONTAINER_VERSION'){
+   // A publish must match the live version, not merely the immutable version we
+   // intended to publish. Creation verifies the server's resulting fingerprint.
+   const path=a==='PUBLISH_CONTAINER_VERSION'?version.path.replace(/\/versions\/[^/]+$/,'/versions:live'):version.path;
+   const expected={path:version.path,containerVersionId:version.containerVersionId,...(version.fingerprint?{fingerprint:version.fingerprint}:{})};
+   return [{read:read('/tagmanager/v2/'+path),expected,id:version.path}];
+  }
+  const expected=Object.fromEntries(Object.entries(b).filter(([key])=>key!=='fingerprint'));
+  return [{read:read('/tagmanager/v2/'+d.path),expected:{...expected,path:d.path},id:d.path}];
+ }
+ return [];
+}
+export function measurementVerificationPhase(plan:CompiledRequest,state:JsonObject):'verified'|'pending'|'failed'{
+ if(plan.gateway!=='ga4_native_action')return 'verified';
+ const phase=plan.path.includes('/reportTasks/')?state.report_metadata?.state:state.state;
+ if(phase==='FAILED'||state.error_message||state.report_metadata?.error_message)return 'failed';
+ if(phase==='ACTIVE')return 'verified';
+ return 'pending';
 }

@@ -58,6 +58,20 @@ const layouts:Layout[]=[
  ...['meta_native_action','linkedin_native_action','dv360_native_action','ga4_native_action','gtm_native_action','google_search_console_native_action'].map(gateway=>({gateway,path:'/resource/1',wrap:(r:JsonObject,n:number)=>({...r,requestId:String(n),updatedTime:String(n)})}))
 ];
 test('snapshot regression matrix explicitly covers every enabled write gateway',()=>assert.deepEqual(layouts.map(l=>l.gateway).sort(),[...writeContractGateways].sort()));
+
+for(const removed of ['absent','removed_row','still_present'])test('Google generic removal read-back distinguishes '+removed,async()=>{
+ const store=new Store(':memory:',key),name='customers/123/campaigns/333';let mutated=false,writes=0;
+ store.putConnection(admin,{id:'g',tenantId:actor.tenantId,gateway,accounts:['123'],writeAccounts:['123'],enabled:true,label:'Synthetic',scopes:[]},{accessToken:'synthetic',developerToken:'synthetic'});
+ const service=new MirrorService(registry,store,new NativeTransport(async(url)=>{
+  if(new URL(String(url)).pathname.endsWith('googleAds:search'))return Response.json(mutated&&removed==='absent'?{}:{results:[{campaign:{resourceName:name,name:'Synthetic campaign',status:mutated&&removed==='removed_row'?'REMOVED':'PAUSED'}}],queryResourceConsumption:mutated?'72':'62'});
+  mutated=true;writes++;return Response.json({results:[{resourceName:name}]});
+ }),undefined,{allowWrites:true,requireBeforeState:true,maxBudgetChange:0});
+ try{
+  const p=await service.call('amcp_write',{action:'prepare',gateway,arguments:{action:'google_ads_v23_campaign_mutate_campaigns',account_id:'123',payload:{operations:[{remove:name}]}}},actor);assert.equal(p.success,true,JSON.stringify(p));
+  assert.equal((await service.call('amcp_write',{action:'execute',review_id:p.data.review_id,idempotency_key:p.data.idempotency_key,confirmed:true,spend_change_confirmed:true},actor)).success,true);
+  const v=await service.call('amcp_campaign',{action:'verify',review_id:p.data.review_id},actor);assert.equal(v.data.status,removed==='still_present'?'inconclusive':'verified',JSON.stringify(v));assert.equal(writes,1);
+ }finally{store.close();}
+});
 for(const layout of layouts)test(layout.gateway+' snapshot ignores qualified metadata and retains resource configuration',()=>{
  const read={...layout,accountId:'123'} as unknown as CompiledRequest;
  const resource={name:'Draft',status:'PAUSED',budget:'100',bid:'2',schedule:{end:'2026-09-30'},targeting:{age:30},etag:'config-v1',orderedSteps:['first','second'],futureConfiguration:'initial'};

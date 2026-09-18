@@ -1,6 +1,7 @@
 import {sha256,stable} from './security.js';
 import {MirrorError} from './errors.js';
 import {microsoftContracts} from './microsoft-native.js';
+import {microsoftAssociationProjection} from './microsoft-associations.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 
 // Response envelopes are validated before projection. Within each resource keep
@@ -42,6 +43,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(['x_ads_native_action','reddit_native_action'].includes(read.gateway)&&Object.hasOwn(d,'data'))return normalizeReviewState({data:d.data});
  if(read.gateway==='apple_ads_native_action'&&Object.hasOwn(d,'result'))return normalizeReviewState({result:d.result});
  if(read.gateway==='microsoft_ads_native_action'){
+  if(read.action==='GetAdExtensionsAssociations')return normalizeReviewState(microsoftAssociationProjection(read,d));
   const field=microsoftContracts.get(read.action)?.result;
   if(field&&Object.hasOwn(d,field))return normalizeReviewState({[field]:d[field]});
  }
@@ -57,7 +59,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  }
  if(read.gateway!=='google_ads_native_action')return normalizeReviewState(data);
  const query=String((read.body as JsonObject)?.query??''),resource=/\bFROM\s+([a-z_]+)/i.exec(query)?.[1];
- const rows=d.results;if(!Array.isArray(rows))return normalizeReviewState(data);
+ const rows=d.results??(read.googleState?.allowMissing?[]:undefined);if(!Array.isArray(rows))return normalizeReviewState(data);
  // Even customer reads without resource_name must exclude query cost, field
  // masks, summary metrics and future envelope metadata. Never ignore a nonempty
  // nextPageToken here instead of rejecting the incomplete raw response first.
@@ -65,7 +67,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  const key=resource.replace(/_([a-z])/g,(_m,c)=>c.toUpperCase()),seen=new Set<string>();
  const items=rows.map((row:JsonObject)=>{const value=row[resource]??row[key],id=value?.resourceName??value?.resource_name;if(typeof id!=='string'||!id||seen.has(id))throw new MirrorError('STATE_RESOURCE_INVALID','The state response contains missing or duplicate resource identities.',{},502);seen.add(id);return {id,row};});
  const expected=[...new Set([...query.matchAll(/'(customers\/[^']+)'/g)].map(m=>m[1]!))];
- if(expected.length&&(expected.length!==seen.size||expected.some(id=>!seen.has(id))))throw new MirrorError('STATE_RESOURCE_MISMATCH','The state response does not cover exactly the requested resources.',{},409);
+ if(expected.length&&(read.googleState?.allowMissing?items.some(item=>!expected.includes(item.id)):expected.length!==seen.size||expected.some(id=>!seen.has(id))))throw new MirrorError('STATE_RESOURCE_MISMATCH','The state response does not cover exactly the requested resources.',{},409);
  items.sort((a,b)=>a.id.localeCompare(b.id,'en'));
  return normalizeReviewState({results:items.map(item=>item.row)});
 }

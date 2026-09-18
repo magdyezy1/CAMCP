@@ -36,8 +36,11 @@ with the most sessions. It never sums non-additive users across renamed campaign
 counts, thresholding, aggregation loss and restricted metrics remain in source quality.
 Restricted metrics become null, not zero. These reports cannot establish a budget action.
 Reviewed GA4 creates are audience exports and report tasks. They are measurement jobs, not
-ad campaign creation. Poll the returned operation using its qualified native read; an
-accepted job is not a completed export.
+ad campaign creation. Use `amcp_campaign verify` with the retained review ID to read the
+exact export/task resource. `CREATING` and unknown states remain pending, `FAILED` stays
+failed, and only `ACTIVE` verifies readiness. This does not verify report contents or
+completeness. Query a ready report through `ga4_report_task_ops` with `action: query`, its
+exact `name`, and explicit offset/limit. Do not create another job to retry verification.
 
 ## Google Tag Manager — gtm_native_action
 
@@ -47,6 +50,12 @@ a live site: confirm the exact version under the user's authorization. Pass the 
 fingerprint concurrency parameter when applicable. Never publish as a side effect of adding
 a conversion tag or use another workspace's version.
 
+Read-back checks the resulting entity, deletion absence, or the published live version.
+Publishing is not verified merely because the requested immutable version exists. Version
+creation verifies the returned version identity/fingerprint; it does not independently
+reconstruct every compiled tag. A mismatch remains inconclusive and cannot justify another
+publish. Continue read-only verification under the original review.
+
 ## Search Console — google_search_console_native_action
 
 Keep URL-prefix and domain properties distinct. Match the selected property exactly; URL
@@ -54,6 +63,7 @@ properties retain scheme and trailing slash. Reports contain organic page data, 
 possible privacy omissions. Freshness varies: state requested dates and returned coverage
 instead of promising a fixed two-day delay. Sitemap submission/deletion uses reviewed
 requests and does not grant property ownership.
+Read-back confirms the sitemap registration or deletion, not crawling or indexing success.
 
 ## Apple Ads — apple_ads_native_action
 
@@ -62,6 +72,8 @@ and reviewed campaign create/update/delete. These are advertising campaign write
 measurement configuration. Create campaigns PAUSED; inspect budget, account and promoted
 object prerequisites. The adapter does not complete an Apple ad-group/keyword/ad journey.
 Do not invent child operations from the incomplete historical catalog.
+Campaign read-back checks the requested fields, exact account and returned campaign ID;
+deletion verification requires absence. A permission denial is not proof of deletion.
 
 Reports decode metadata.id, metadata.name and totalMetrics. Spend uses Money.amount and
 Money.currency; total installs include tap and view installs. Authentication obtains an

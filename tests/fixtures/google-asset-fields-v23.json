@@ -1,0 +1,976 @@
+{
+  "source": "https://developers.google.com/google-ads/api/fields/v23/asset",
+  "checked_at": "2026-09-18",
+  "method": "Public documentation field-heading/table extraction; not a live account query",
+  "source_sha256": "0217323124785d6dd2b07ddc0fec8c28da24a0c9f6a8c2c404ef74662952a7c9",
+  "fields": {
+    "app_deep_link_asset.app_deep_link_uri": {
+      "selectable": true,
+      "repeated": false
+    },
+    "book_on_google_asset": {
+      "selectable": true,
+      "repeated": false
+    },
+    "business_message_asset.call_to_action.call_to_action_description": {
+      "selectable": true,
+      "repeated": false
+    },
+    "business_message_asset.call_to_action.call_to_action_selection": {
+      "selectable": true,
+      "repeated": false
+    },
+    "business_message_asset.facebook_messenger_info.page_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "business_message_asset.message_provider": {
+      "selectable": true,
+      "repeated": false
+    },
+    "business_message_asset.starter_message": {
+      "selectable": true,
+      "repeated": false
+    },
+    "business_message_asset.whatsapp_info.country_code": {
+      "selectable": true,
+      "repeated": false
+    },
+    "business_message_asset.whatsapp_info.phone_number": {
+      "selectable": true,
+      "repeated": false
+    },
+    "business_message_asset.zalo_info.custom_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "business_message_asset.zalo_info.oa_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "call_asset.ad_schedule_targets": {
+      "selectable": true,
+      "repeated": true
+    },
+    "call_asset.call_conversion_action": {
+      "selectable": true,
+      "repeated": false
+    },
+    "call_asset.call_conversion_reporting_state": {
+      "selectable": true,
+      "repeated": false
+    },
+    "call_asset.country_code": {
+      "selectable": true,
+      "repeated": false
+    },
+    "call_asset.phone_number": {
+      "selectable": true,
+      "repeated": false
+    },
+    "call_to_action_asset.call_to_action": {
+      "selectable": true,
+      "repeated": false
+    },
+    "callout_asset.ad_schedule_targets": {
+      "selectable": true,
+      "repeated": true
+    },
+    "callout_asset.callout_text": {
+      "selectable": true,
+      "repeated": false
+    },
+    "callout_asset.end_date": {
+      "selectable": true,
+      "repeated": false
+    },
+    "callout_asset.start_date": {
+      "selectable": true,
+      "repeated": false
+    },
+    "demand_gen_carousel_card_asset.call_to_action_text": {
+      "selectable": true,
+      "repeated": false
+    },
+    "demand_gen_carousel_card_asset.headline": {
+      "selectable": true,
+      "repeated": false
+    },
+    "demand_gen_carousel_card_asset.marketing_image_asset": {
+      "selectable": true,
+      "repeated": false
+    },
+    "demand_gen_carousel_card_asset.portrait_marketing_image_asset": {
+      "selectable": true,
+      "repeated": false
+    },
+    "demand_gen_carousel_card_asset.square_marketing_image_asset": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_custom_asset.android_app_link": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_custom_asset.contextual_keywords": {
+      "selectable": true,
+      "repeated": true
+    },
+    "dynamic_custom_asset.formatted_price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_custom_asset.formatted_sale_price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_custom_asset.id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_custom_asset.id2": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_custom_asset.image_url": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_custom_asset.ios_app_link": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_custom_asset.ios_app_store_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_custom_asset.item_address": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_custom_asset.item_category": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_custom_asset.item_description": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_custom_asset.item_subtitle": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_custom_asset.item_title": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_custom_asset.price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_custom_asset.sale_price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_custom_asset.similar_ids": {
+      "selectable": true,
+      "repeated": true
+    },
+    "dynamic_education_asset.address": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_education_asset.android_app_link": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_education_asset.contextual_keywords": {
+      "selectable": true,
+      "repeated": true
+    },
+    "dynamic_education_asset.image_url": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_education_asset.ios_app_link": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_education_asset.ios_app_store_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_education_asset.location_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_education_asset.program_description": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_education_asset.program_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_education_asset.program_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_education_asset.school_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_education_asset.similar_program_ids": {
+      "selectable": true,
+      "repeated": true
+    },
+    "dynamic_education_asset.subject": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_education_asset.thumbnail_image_url": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_flights_asset.android_app_link": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_flights_asset.custom_mapping": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_flights_asset.destination_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_flights_asset.destination_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_flights_asset.flight_description": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_flights_asset.flight_price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_flights_asset.flight_sale_price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_flights_asset.formatted_price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_flights_asset.formatted_sale_price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_flights_asset.image_url": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_flights_asset.ios_app_link": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_flights_asset.ios_app_store_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_flights_asset.origin_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_flights_asset.origin_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_flights_asset.similar_destination_ids": {
+      "selectable": true,
+      "repeated": true
+    },
+    "dynamic_hotels_and_rentals_asset.address": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_hotels_and_rentals_asset.android_app_link": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_hotels_and_rentals_asset.category": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_hotels_and_rentals_asset.contextual_keywords": {
+      "selectable": true,
+      "repeated": true
+    },
+    "dynamic_hotels_and_rentals_asset.description": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_hotels_and_rentals_asset.destination_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_hotels_and_rentals_asset.formatted_price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_hotels_and_rentals_asset.formatted_sale_price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_hotels_and_rentals_asset.image_url": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_hotels_and_rentals_asset.ios_app_link": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_hotels_and_rentals_asset.ios_app_store_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_hotels_and_rentals_asset.price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_hotels_and_rentals_asset.property_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_hotels_and_rentals_asset.property_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_hotels_and_rentals_asset.sale_price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_hotels_and_rentals_asset.similar_property_ids": {
+      "selectable": true,
+      "repeated": true
+    },
+    "dynamic_hotels_and_rentals_asset.star_rating": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_jobs_asset.address": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_jobs_asset.android_app_link": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_jobs_asset.contextual_keywords": {
+      "selectable": true,
+      "repeated": true
+    },
+    "dynamic_jobs_asset.description": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_jobs_asset.image_url": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_jobs_asset.ios_app_link": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_jobs_asset.ios_app_store_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_jobs_asset.job_category": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_jobs_asset.job_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_jobs_asset.job_subtitle": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_jobs_asset.job_title": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_jobs_asset.location_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_jobs_asset.salary": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_jobs_asset.similar_job_ids": {
+      "selectable": true,
+      "repeated": true
+    },
+    "dynamic_local_asset.address": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_local_asset.android_app_link": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_local_asset.category": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_local_asset.contextual_keywords": {
+      "selectable": true,
+      "repeated": true
+    },
+    "dynamic_local_asset.deal_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_local_asset.deal_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_local_asset.description": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_local_asset.formatted_price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_local_asset.formatted_sale_price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_local_asset.image_url": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_local_asset.ios_app_link": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_local_asset.ios_app_store_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_local_asset.price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_local_asset.sale_price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_local_asset.similar_deal_ids": {
+      "selectable": true,
+      "repeated": true
+    },
+    "dynamic_local_asset.subtitle": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_real_estate_asset.address": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_real_estate_asset.android_app_link": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_real_estate_asset.city_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_real_estate_asset.contextual_keywords": {
+      "selectable": true,
+      "repeated": true
+    },
+    "dynamic_real_estate_asset.description": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_real_estate_asset.formatted_price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_real_estate_asset.image_url": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_real_estate_asset.ios_app_link": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_real_estate_asset.ios_app_store_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_real_estate_asset.listing_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_real_estate_asset.listing_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_real_estate_asset.listing_type": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_real_estate_asset.price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_real_estate_asset.property_type": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_real_estate_asset.similar_listing_ids": {
+      "selectable": true,
+      "repeated": true
+    },
+    "dynamic_travel_asset.android_app_link": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_travel_asset.category": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_travel_asset.contextual_keywords": {
+      "selectable": true,
+      "repeated": true
+    },
+    "dynamic_travel_asset.destination_address": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_travel_asset.destination_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_travel_asset.destination_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_travel_asset.formatted_price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_travel_asset.formatted_sale_price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_travel_asset.image_url": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_travel_asset.ios_app_link": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_travel_asset.ios_app_store_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_travel_asset.origin_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_travel_asset.origin_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_travel_asset.price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_travel_asset.sale_price": {
+      "selectable": true,
+      "repeated": false
+    },
+    "dynamic_travel_asset.similar_destination_ids": {
+      "selectable": true,
+      "repeated": true
+    },
+    "dynamic_travel_asset.title": {
+      "selectable": true,
+      "repeated": false
+    },
+    "field_type_policy_summaries": {
+      "selectable": true,
+      "repeated": true
+    },
+    "final_mobile_urls": {
+      "selectable": true,
+      "repeated": true
+    },
+    "final_url_suffix": {
+      "selectable": true,
+      "repeated": false
+    },
+    "final_urls": {
+      "selectable": true,
+      "repeated": true
+    },
+    "hotel_callout_asset.language_code": {
+      "selectable": true,
+      "repeated": false
+    },
+    "hotel_callout_asset.text": {
+      "selectable": true,
+      "repeated": false
+    },
+    "hotel_property_asset.hotel_address": {
+      "selectable": true,
+      "repeated": false
+    },
+    "hotel_property_asset.hotel_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "hotel_property_asset.place_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "image_asset.file_size": {
+      "selectable": true,
+      "repeated": false
+    },
+    "image_asset.full_size.height_pixels": {
+      "selectable": true,
+      "repeated": false
+    },
+    "image_asset.full_size.url": {
+      "selectable": true,
+      "repeated": false
+    },
+    "image_asset.full_size.width_pixels": {
+      "selectable": true,
+      "repeated": false
+    },
+    "image_asset.mime_type": {
+      "selectable": true,
+      "repeated": false
+    },
+    "lead_form_asset.background_image_asset": {
+      "selectable": true,
+      "repeated": false
+    },
+    "lead_form_asset.business_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "lead_form_asset.call_to_action_description": {
+      "selectable": true,
+      "repeated": false
+    },
+    "lead_form_asset.call_to_action_type": {
+      "selectable": true,
+      "repeated": false
+    },
+    "lead_form_asset.custom_disclosure": {
+      "selectable": true,
+      "repeated": false
+    },
+    "lead_form_asset.custom_question_fields": {
+      "selectable": true,
+      "repeated": true
+    },
+    "lead_form_asset.delivery_methods": {
+      "selectable": true,
+      "repeated": true
+    },
+    "lead_form_asset.description": {
+      "selectable": true,
+      "repeated": false
+    },
+    "lead_form_asset.desired_intent": {
+      "selectable": true,
+      "repeated": false
+    },
+    "lead_form_asset.fields": {
+      "selectable": true,
+      "repeated": true
+    },
+    "lead_form_asset.headline": {
+      "selectable": true,
+      "repeated": false
+    },
+    "lead_form_asset.post_submit_call_to_action_type": {
+      "selectable": true,
+      "repeated": false
+    },
+    "lead_form_asset.post_submit_description": {
+      "selectable": true,
+      "repeated": false
+    },
+    "lead_form_asset.post_submit_headline": {
+      "selectable": true,
+      "repeated": false
+    },
+    "lead_form_asset.privacy_policy_url": {
+      "selectable": true,
+      "repeated": false
+    },
+    "location_asset.business_profile_locations": {
+      "selectable": true,
+      "repeated": true
+    },
+    "location_asset.location_ownership_type": {
+      "selectable": true,
+      "repeated": false
+    },
+    "location_asset.place_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "mobile_app_asset.app_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "mobile_app_asset.app_store": {
+      "selectable": true,
+      "repeated": false
+    },
+    "mobile_app_asset.end_date": {
+      "selectable": true,
+      "repeated": false
+    },
+    "mobile_app_asset.link_text": {
+      "selectable": true,
+      "repeated": false
+    },
+    "mobile_app_asset.start_date": {
+      "selectable": true,
+      "repeated": false
+    },
+    "name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "orientation": {
+      "selectable": true,
+      "repeated": false
+    },
+    "page_feed_asset.labels": {
+      "selectable": true,
+      "repeated": true
+    },
+    "page_feed_asset.page_url": {
+      "selectable": true,
+      "repeated": false
+    },
+    "policy_summary.approval_status": {
+      "selectable": true,
+      "repeated": false
+    },
+    "policy_summary.policy_topic_entries": {
+      "selectable": true,
+      "repeated": true
+    },
+    "policy_summary.review_status": {
+      "selectable": true,
+      "repeated": false
+    },
+    "price_asset.language_code": {
+      "selectable": true,
+      "repeated": false
+    },
+    "price_asset.price_offerings": {
+      "selectable": true,
+      "repeated": true
+    },
+    "price_asset.price_qualifier": {
+      "selectable": true,
+      "repeated": false
+    },
+    "price_asset.type": {
+      "selectable": true,
+      "repeated": false
+    },
+    "promotion_asset.ad_schedule_targets": {
+      "selectable": true,
+      "repeated": true
+    },
+    "promotion_asset.discount_modifier": {
+      "selectable": true,
+      "repeated": false
+    },
+    "promotion_asset.end_date": {
+      "selectable": true,
+      "repeated": false
+    },
+    "promotion_asset.language_code": {
+      "selectable": true,
+      "repeated": false
+    },
+    "promotion_asset.money_amount_off.amount_micros": {
+      "selectable": true,
+      "repeated": false
+    },
+    "promotion_asset.money_amount_off.currency_code": {
+      "selectable": true,
+      "repeated": false
+    },
+    "promotion_asset.occasion": {
+      "selectable": true,
+      "repeated": false
+    },
+    "promotion_asset.orders_over_amount.amount_micros": {
+      "selectable": true,
+      "repeated": false
+    },
+    "promotion_asset.orders_over_amount.currency_code": {
+      "selectable": true,
+      "repeated": false
+    },
+    "promotion_asset.percent_off": {
+      "selectable": true,
+      "repeated": false
+    },
+    "promotion_asset.promotion_barcode_info.barcode_content": {
+      "selectable": true,
+      "repeated": false
+    },
+    "promotion_asset.promotion_barcode_info.type": {
+      "selectable": true,
+      "repeated": false
+    },
+    "promotion_asset.promotion_code": {
+      "selectable": true,
+      "repeated": false
+    },
+    "promotion_asset.promotion_qr_code_info.qr_code_content": {
+      "selectable": true,
+      "repeated": false
+    },
+    "promotion_asset.promotion_target": {
+      "selectable": true,
+      "repeated": false
+    },
+    "promotion_asset.redemption_end_date": {
+      "selectable": true,
+      "repeated": false
+    },
+    "promotion_asset.redemption_start_date": {
+      "selectable": true,
+      "repeated": false
+    },
+    "promotion_asset.start_date": {
+      "selectable": true,
+      "repeated": false
+    },
+    "promotion_asset.terms_and_conditions_text": {
+      "selectable": true,
+      "repeated": false
+    },
+    "promotion_asset.terms_and_conditions_uri": {
+      "selectable": true,
+      "repeated": false
+    },
+    "resource_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "sitelink_asset.ad_schedule_targets": {
+      "selectable": true,
+      "repeated": true
+    },
+    "sitelink_asset.description1": {
+      "selectable": true,
+      "repeated": false
+    },
+    "sitelink_asset.description2": {
+      "selectable": true,
+      "repeated": false
+    },
+    "sitelink_asset.end_date": {
+      "selectable": true,
+      "repeated": false
+    },
+    "sitelink_asset.link_text": {
+      "selectable": true,
+      "repeated": false
+    },
+    "sitelink_asset.start_date": {
+      "selectable": true,
+      "repeated": false
+    },
+    "source": {
+      "selectable": true,
+      "repeated": false
+    },
+    "structured_snippet_asset.header": {
+      "selectable": true,
+      "repeated": false
+    },
+    "structured_snippet_asset.values": {
+      "selectable": true,
+      "repeated": true
+    },
+    "synthetic_content_info.advertiser_attestation.source": {
+      "selectable": true,
+      "repeated": false
+    },
+    "synthetic_content_info.advertiser_attestation.status": {
+      "selectable": true,
+      "repeated": false
+    },
+    "synthetic_content_info.system_attestation.source": {
+      "selectable": true,
+      "repeated": false
+    },
+    "synthetic_content_info.system_attestation.status": {
+      "selectable": true,
+      "repeated": false
+    },
+    "text_asset.text": {
+      "selectable": true,
+      "repeated": false
+    },
+    "tracking_url_template": {
+      "selectable": true,
+      "repeated": false
+    },
+    "type": {
+      "selectable": true,
+      "repeated": false
+    },
+    "url_custom_parameters": {
+      "selectable": true,
+      "repeated": true
+    },
+    "youtube_video_asset.youtube_video_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "youtube_video_asset.youtube_video_title": {
+      "selectable": true,
+      "repeated": false
+    },
+    "youtube_video_list_asset.youtube_videos": {
+      "selectable": true,
+      "repeated": true
+    },
+    "youtube_video_list_asset.youtube_videos.asset": {
+      "selectable": false,
+      "repeated": false
+    }
+  }
+}

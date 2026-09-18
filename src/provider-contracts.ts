@@ -3,13 +3,13 @@ import {linkedinVersion} from './linkedin-version.js';
 
 /** Maintained contract boundaries, not inferred from generated action counts. */
 export const providerContracts:JsonObject[]=[
- ['google','google_ads','v23','google-ads','google-ads','campaigns, budgets, targeting, ads','google-legacy','https://developers.google.com/google-ads/api/docs/start'],
+ ['google','google_ads','v23','google-ads','google-ads','campaigns, budgets, targeting, ads; campaign/ad-group/customer/asset-group asset links with exact existing assets and parents','google-legacy','https://developers.google.com/google-ads/api/docs/start'],
  ['meta','meta','v25.0','meta','meta','campaigns, ad sets, creatives, ads','meta-provision','https://developers.facebook.com/docs/marketing-apis/'],
  ['tiktok','tiktok','v1.3','tiktok-snapchat','tiktok-snapchat','campaigns, ad groups, ads','write-platforms','https://business-api.tiktok.com/portal/docs'],
  ['snapchat','snapchat','v1','tiktok-snapchat','tiktok-snapchat','campaigns, ad squads, creatives, ads; reviewed creative collection PUT and existing JSON Patch','snapchat-writes','https://developers.snap.com/marketing-api/Ads-API/introduction'],
  ['linkedin','linkedin','202605','linkedin-x','linkedin-x','campaign groups, campaigns, creatives; organization-authored non-feed single-media DSC posts with exact organization/media bindings','linkedin-posts','https://learn.microsoft.com/en-us/linkedin/marketing/'],
  ['x','x_ads','12','linkedin-x','linkedin-x','campaigns, line items, targeting; single website cards, nullcast Tweets, library registration and explicit active promotions','x-creative-writes','https://docs.x.com/x-ads-api/introduction'],
- ['microsoft','microsoft_ads','v13','microsoft-ads',null,'Search campaigns, ad groups, responsive search ads, keywords','microsoft','https://learn.microsoft.com/en-us/advertising/guides/'],
+ ['microsoft','microsoft_ads','v13','microsoft-ads',null,'Search campaigns, ad groups, responsive search ads, keywords; existing extension associations at account/campaign/ad-group levels','microsoft','https://learn.microsoft.com/en-us/advertising/guides/'],
  ['apple','apple_ads','v1','dv360-and-measurement',null,'campaigns only; child writes unsupported','measurement-apple','https://github.com/apple/apple-ads-platform-api-node'],
  ['reddit','reddit','v3','reddit',null,'classic campaigns, ad groups, existing-post ads, saved audiences','reddit-writes','https://ads-api.reddit.com/docs/v3/'],
  ['dv360','dv360','v4','dv360-and-measurement','dv360','campaigns, insertion orders, line items, creatives','write-platforms','https://developers.google.com/display-video/api/reference/rest/v4'],
@@ -24,15 +24,15 @@ export const providerContracts:JsonObject[]=[
  ['google_business','google_business','v1',null,null,null,'delegated-native','https://developers.google.com/my-business/reference/rest'],
 ].map(([id,gateway,version,guide,media,writes,test,docs])=>({
  id,gateway:gateway+'_native_action',
- contract_version:({google:2,meta:2,microsoft:2,snapchat:2,linkedin:3,x:2,tiktok:2} as Record<string,number>)[String(id)]??1,
+ contract_version:({google:3,meta:2,microsoft:3,snapchat:2,linkedin:3,x:2,tiktok:2,ga4:2,gtm:2,gsc:2,apple:2} as Record<string,number>)[String(id)]??1,
  api_version:version,owner_role:'AMCP integration maintainer',
- reviewed_at:['google','meta','microsoft','snapchat','linkedin'].includes(String(id))?'2026-09-18':['x','tiktok'].includes(String(id))?'2026-09-14':'2026-09-12',
+ reviewed_at:['google','meta','microsoft','snapchat','linkedin','ga4','gtm','gsc','apple'].includes(String(id))?'2026-09-18':['x','tiktok'].includes(String(id))?'2026-09-14':'2026-09-12',
  documentation:docs,guide:guide?'amcp://guides/'+guide:null,
  website_connection:!!guide,discovery:guide?'implemented':'unsupported',native_reads:guide?'implemented':'partial',
  overview_reporting:['google','meta','tiktok','snapchat','linkedin','x','microsoft','apple','reddit','ga4','gsc'].includes(String(id))?'implemented':'unsupported',
  reviewed_writes:writes?'partial':'unsupported',write_scope:writes,media_import:media?'implemented':'unsupported',
  media_platform:media?({google:'google_ads',x:'x_ads'} as Record<string,string>)[String(id)]??id:null,
- tests:[...new Set(['tests/'+test+'.test.ts',...(['linkedin','tiktok'].includes(String(id))?['tests/creative-chain-audit.test.ts']:id==='x'?['tests/x-targeting-writes.test.ts']:id==='google'?['tests/google-contracts.test.ts']:id==='microsoft'?['tests/wsdl-model.test.mjs']:id==='meta'?['tests/meta-contracts.test.ts']:[])])],
+ tests:[...new Set(['tests/'+test+'.test.ts',...(['linkedin','tiktok'].includes(String(id))?['tests/creative-chain-audit.test.ts']:id==='x'?['tests/x-targeting-writes.test.ts']:id==='google'?['tests/google-contracts.test.ts','tests/google-asset-links.test.ts']:id==='microsoft'?['tests/wsdl-model.test.mjs','tests/microsoft-associations.test.ts']:id==='meta'?['tests/meta-contracts.test.ts']:['ga4','gtm','gsc','apple'].includes(String(id))?['tests/measurement-writes.test.ts']:[])])],
  fixture_evidence:'Local fixtures validate the stated family only; inspect release test evidence.',live_qualification:'unverified',
  external_requirements:['provider account permission','configured app/identity','provider approval and quota as applicable'],
  recovery:'Read-only retries and durable local jobs; uncertain provider mutations require reconciliation with the original review.'

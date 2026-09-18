@@ -25,6 +25,13 @@ Media steps call `amcp_media prepare`. An X video needs a subsequent media step 
 
 Raw `amcp_write execute` also queues configuration verification. The HTTP/background worker processes these read-only jobs. `amcp_campaign verify` can explicitly read back a completed review in stdio or inspect it immediately. A successful mutation with unsupported read-back remains unsupported, not verified. Deletes and complex patches are not generically reversible; AMCP never promises automatic rollback or resets a possibly successful idempotency claim.
 
+`VERIFICATION_PENDING` schedules another read with backoff, preserving the same review and
+provider resource. The background worker attempts at most twelve reads/runs before
+`VERIFICATION_POLL_LIMIT` requires operator attention; `amcp_campaign verify` remains a
+read-only continuation. `VERIFICATION_FAILED` retains the provider job's failure and blocks
+dependent steps. These outcomes never reset the mutation's idempotency record. A revoked
+grant or lost worker lease prevents further scoped verification.
+
 ## Reusable media
 
 Private Drive files use a separate read-only Drive connection and a file selected in Connections. Supply `drive_connection_id` to choose a login explicitly; AMCP otherwise uses the uniquely matching selected login or its unambiguous default. Revoking that file selection blocks pending uploads. Do not send ad-platform tokens to Drive or ask the LLM to download bytes. Native upload payloads also accept drive_connection_id. Folders, Workspace document exports and arbitrary URL hosts are not supported.

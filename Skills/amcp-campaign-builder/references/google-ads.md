@@ -15,3 +15,39 @@ Native budget/bid amounts use micros of the account currency. AdCustomizer resou
 Use `amcp_media` for remote image/video import and pass the returned asset resource name to the appropriate field/link. A YouTube upload ID alone is not the completed Google Ads asset. Follow the returned continuation and processing status. An existing YouTube video may be registered by ID without uploading it again.
 
 AMCP reviewed execution covers the qualified campaign/ad-group/ad/budget/asset/asset-group contracts plus campaignCriteria, adGroupCriteria, sharedSets, sharedCriteria and campaignSharedSets mutations. Positive Search keywords belong to an ad group and start PAUSED; negative campaign keywords use negative:true. Existing user lists/audiences can be targeted where the criterion supports them; creating arbitrary audiences/customer lists is separate. Shared exclusion-list members must match their enabled parent list type. Keep parent~criterion composite resource names intact. Use native decimal-string micros for bids and explicit field masks for mutable fields; criterion identity/parent/negative changes require remove/create. All targeting executions require spend_change_confirmed. Other catalog routes can compile locally but must not be described as reviewed-write support merely because their RPC exists. A GAQL 403 is an account/app permission problem; it is not repaired by changing field names at random.
+
+## Link existing assets to their intended scope
+
+Reviewed `campaignAssets:mutate`, `adGroupAssets:mutate`, `customerAssets:mutate` and
+`assetGroupAssets:mutate` support create, status update and remove. Both RPC actions and
+their explicit legacy aliases use the same contract. For example, use
+`google_ads_v23_campaign_asset_mutate_campaign_assets` with a create containing
+`campaign`, `asset` and `fieldType`. Reuse the existing asset resource names; an uploaded
+or created asset is not attached until its association has succeeded.
+
+For a pack of six sitelinks, four callouts and one structured snippet, discover the eleven
+existing assets in the selected customer, read their text and URLs, and inspect one batch
+of eleven `create` operations with the appropriate `SITELINK`, `CALLOUT` or
+`STRUCTURED_SNIPPET` role. Each campaign link names the exact campaign. Do not infer the
+scope from an asset's name. A batch can contain 1–25 operations; larger packs need separate
+reviews. Check all eleven association receipts and use `amcp_campaign verify` with the
+original review ID. Provider approval, serving and impression delivery remain separate.
+
+Omitting create `status` is treated as enabling the association for spending-policy checks.
+Choose `PAUSED` if a paused association is intended; do not choose it merely to evade an
+owner's restriction. Updates permit only `status`, with `updateMask: "status"`. Keep the
+symbolic field type in composite IDs such as
+`customers/123/campaignAssets/456~789~SITELINK`. Legacy identity components also require
+`field_type: "SITELINK"`, not an enum number.
+
+`ASSET_LINK_EXISTS` means that exact parent/asset/role is already attached. Inspect its
+status instead of recreating it. `ASSET_TYPE_MISMATCH` requires choosing the correct asset
+type; `INVALID_ASSET_PARENT` requires an existing enabled or paused parent;
+`INVALID_ASSET_LINK` identifies an invalid role, identity or mutable field. Asset text,
+URLs, selected parent configuration and existing links are snapshotted. Pagination or
+missing prerequisite assets blocks preparation. Changed asset text or a concurrently
+created association blocks execution with `STATE_CHANGED`. Delivery credentials on lead
+forms are not retrieved or exposed by this link workflow.
+
+Asset association execution requires `spend_change_confirmed: true`, including an omitted
+create status: the link changes which creative may serve under the parent.

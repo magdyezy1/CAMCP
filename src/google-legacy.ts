@@ -61,6 +61,10 @@ function resourceName(type:string,data:JsonObject,account:string):string {
  return pattern.replace(/\{([^}]+)\}/g,(_,part:string)=>{
   if(part==='customer_id')return account;const value=data[part]??(nonCustomer.length===1?data.entity_id:undefined);
   if(value===undefined)error('MISSING_RESOURCE_IDENTITY','Provide resource_name or all identity parts; parent IDs are never guessed.',{pattern,missing:part});
+  if(part==='field_type'){
+   const field=schema(type).fields?.field_type,values=field?schema(typeName(field.type,type)).values:undefined;
+   if(typeof value!=='string'||!values?.includes(value)||['UNKNOWN','UNSPECIFIED'].includes(value))error('INVALID_RESOURCE_ID','field_type must be a documented symbolic asset role.');return value;
+  }
   if(part==='recommendation_type'){if(typeof value!=='string'||!/^[A-Z_]+$/.test(value))error('INVALID_RESOURCE_ID','recommendation_type must be a symbolic enum.');return value;}
   return id(value,part);
  });

@@ -10,8 +10,11 @@ import {readConsistently} from './read-consistency.js';
 import {linkedinDSC,assertLinkedInDSCGrant,rememberLinkedInPost} from './linkedin-posts.js';
 import {xCreativeKind,xPromotion,verifyXCreative} from './x-creative-writes.js';
 import {normalizeReviewState} from './review-state.js';
+import {googleAssetLinkKind,googleAssetLinkVerification} from './google-asset-links.js';
+import {measurementWriteGateways,measurementVerification,measurementVerificationPhase,optionalMissingState} from './measurement-writes.js';
 import {validateState,snapshotPlans} from './write-review.js';
 import {compileMicrosoft,microsoftGateway,microsoftContracts} from './microsoft-native.js';
+import {microsoftAssociationWrite,microsoftAssociationVerification,microsoftAssociationObserved} from './microsoft-associations.js';
 import {audit,bad,fingerprint,obj,optional,read} from './workspace-core.js';
 import type {Actor,CompiledRequest,JsonObject} from './types.js';
 const snake=(s:string)=>s.replace(/([a-z0-9])([A-Z])/g,'$1_$2').toLowerCase();
@@ -22,13 +25,16 @@ function differing(expected:any,actual:any,path='',out:string[]=[]):string[]{
  else if(fingerprint(expected)!==fingerprint(actual??null))out.push(path);return out;
 }
 function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Registry):{read:CompiledRequest;expected:JsonObject;id:string}[]{
+ if(googleAssetLinkKind(plan))return googleAssetLinkVerification(plan);
+ if(microsoftAssociationWrite(plan))return microsoftAssociationVerification(plan,compileMicrosoft);
+ if(measurementWriteGateways.has(plan.gateway))return measurementVerification(plan,result);
  const b=(plan.body??{}) as JsonObject,d=result.data??{},gateway=plan.gateway;
  const base=(path:string,query:JsonObject={}):CompiledRequest=>({...plan,path,method:'GET',query,body:undefined,headers:gateway==='linkedin_native_action'?Object.fromEntries(Object.entries(plan.headers).filter(([k])=>['LinkedIn-Version','X-Restli-Protocol-Version'].includes(k))):{},readOnly:true,destructive:false,requiresConfirmation:false,action:'AMCP_VERIFY_READ'});
- if(plan.method==='DELETE'||b.operations?.some((o:JsonObject)=>o.remove))return [];
+ if(plan.method==='DELETE')return [];
  if(gateway==='google_ads_native_action'){
   const leaves=(value:JsonObject,prefix=''):string[]=>Object.entries(value).flatMap(([k,v])=>obj(v)?leaves(v,prefix+snake(k)+'.'):[prefix+snake(k)]);
-  return (d.results??[]).map((r:JsonObject,i:number)=>{const record=b.operations[i].create??b.operations[i].update,expected=Object.fromEntries(Object.entries(record).filter(([k])=>!['resource_name','resourceName'].includes(k))),fake={...plan,body:{operations:[{update:{resource_name:r.resourceName,...expected},update_mask:leaves(expected).join(',')}]}};
-   const p=snapshotPlans(fake,registry)[0]!;return {read:p,expected,id:r.resourceName};});
+  return (d.results??[]).map((r:JsonObject,i:number)=>{const op=b.operations[i],record=op.create??op.update,expected=op.remove?{status:'REMOVED'}:Object.fromEntries(Object.entries(record).filter(([k])=>!['resource_name','resourceName'].includes(k))),fake={...plan,body:{operations:[op.remove?{remove:op.remove}:{update:{resource_name:r.resourceName,...expected},update_mask:leaves(expected).join(',')}]}};
+   const p=snapshotPlans(fake,registry)[0]!;if(op.remove){const resource=String((p.body as JsonObject).query).match(/ FROM ([a-z_]+)/)?.[1];if(!resource)bad('Removal has no exact state read.','VERIFICATION_UNSUPPORTED');p.googleState={resource,names:[r.resourceName],allowMissing:true,removedAsAbsent:true};}return {read:p,expected,id:r.resourceName};});
  }
  if(gateway===microsoftGateway){const contract=microsoftContracts.get(plan.action)!;if(!contract.kind)return [];
   const records=b[contract.kind]??[],ids=plan.action.startsWith('Add')?d[contract.result]:records.map((r:JsonObject)=>r.Id),idKey=contract.kind.slice(0,-1)+'Ids';
@@ -53,6 +59,10 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
  return [];
 }
 function entity(plan:CompiledRequest,data:JsonObject):JsonObject{
+ if(data.amcp_absent===true)return data;
+ if(plan.gateway===microsoftGateway&&plan.action==='GetAdExtensionsAssociations')return microsoftAssociationObserved(plan,data);
+ if(plan.gateway==='apple_ads_native_action')return data.result;
+ if(plan.googleState?.removedAsAbsent&&!data.results?.length)return {status:'REMOVED'};
  if(plan.gateway==='google_ads_native_action')return Object.values(data.results?.[0]??{})[0] as JsonObject;
  if(plan.gateway===microsoftGateway)return data[microsoftContracts.get(plan.action)!.result]?.[0];
  if(plan.gateway==='tiktok_native_action')return data.data?.list?.[0];
@@ -88,12 +98,12 @@ export class WriteVerifier{
    const expected=normalize(item.expected),readback=await readConsistently(async()=>{
     this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(item.read,current);
     const auth=await this.credentials.get(current);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));
-    const response=await this.transport.request(item.read,current,auth);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
+    let response;try{response=await this.transport.request(item.read,current,auth);}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
     return normalize(entity(item.read,response.data as JsonObject));
    },actual=>differing(expected,actual).length===0);
-   const actual=readback.value,changed=differing(expected,actual);checks.push({resource_id:item.id,status:readback.consistent?'verified':'inconclusive',code:readback.consistent?undefined:'VERIFICATION_INCONCLUSIVE',read_attempts:readback.attempts,changed_fields:changed,expected_hash:fingerprint(expected),actual_hash:fingerprint(actual??null),checked_fields:Object.keys(expected)});
+   const actual=readback.value,changed=differing(expected,actual),phase=readback.consistent?measurementVerificationPhase(item.read,actual):'inconclusive';checks.push({resource_id:item.id,status:phase,code:readback.consistent?undefined:'VERIFICATION_INCONCLUSIVE',read_attempts:readback.attempts,changed_fields:changed,expected_hash:fingerprint(expected),actual_hash:fingerprint(actual??null),checked_fields:Object.keys(expected)});
    if(linkedinDSC(plan)&&readback.consistent)rememberLinkedInPost(this.store,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id),plan,result.headers['x-restli-id']);
-  }status=reads.length?(checks.every(c=>c.status==='verified')?'verified':'inconclusive'):'unsupported';}}
+  }status=reads.length?(checks.some(c=>c.status==='failed')?'failed':checks.every(c=>c.status==='verified')?'verified':checks.some(c=>c.status==='pending')?'pending':'inconclusive'):'unsupported';}}
   catch(e){checks.push({status:'unverified',code:e instanceof MirrorError?e.code:'READ_FAILED',message:e instanceof MirrorError?e.message:'Verification read failed.'});}
   this.store.assertActorActive(actor);const receipt={review_id:reviewId,connection_id:c.id,account_id:plan.accountId,action:plan.action,status,...(status==='inconclusive'?{code:'VERIFICATION_INCONCLUSIVE'}:{}),checks,checked_at:Date.now(),automatic_retry_of_mutation:false,recovery:'Preserve successful resources. Field disagreement after bounded reads is inconclusive, not permission to repeat a mutation. Corrective writes need a new review; verification never resets idempotency.',...(['pending','inconclusive'].includes(status)?{retry_read_after_ms:1000,next_call:{tool:'amcp_campaign',arguments:{action:'verify',review_id:reviewId}}}:{})};
   this.store.putDocument(actor.tenantId,'write_verification',reviewId,receipt);audit(this.store,actor,'write_verification',{connection_id:c.id,account_id:plan.accountId,review_id:reviewId,status});return receipt;

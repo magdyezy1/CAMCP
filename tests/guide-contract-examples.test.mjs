@@ -6,6 +6,8 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {writeContractGateways} from '../dist/src/write-review.js';
+import {reviewedWriteFamily} from '../dist/src/reviewed-routes.js';
+import {actionContracts} from '../dist/src/action-contracts.js';
 import {campaignRecipe,campaignRecipes} from '../dist/src/campaign-recipes.js';
 import {campaignPreflight} from '../dist/src/campaign-preflight.js';
 import {providerContracts} from '../dist/src/provider-contracts.js';
@@ -17,6 +19,14 @@ const actor={tenantId:'guidance-examples',userId:'owner',role:'admin'},key=Buffe
 test('every guided write family has a machine-checked inspect example without credentials or egress',async()=>{
  const store=new Store(':memory:'),service=new MirrorService(new Registry(),store,new NativeTransport(async()=>{throw Error('Example attempted provider egress');}),undefined,{allowWrites:true,requireBeforeState:true,maxBudgetChange:0});
  try{assert.deepEqual(new Set(examples.inspections.map(x=>x.gateway)),writeContractGateways);for(const example of examples.inspections){const out=await service.call('amcp_write',{action:'inspect',...example},actor);assert.equal(out.success,true,example.gateway+': '+JSON.stringify(out));assert.equal(out.data.review_contract_supported,true,example.gateway+': '+JSON.stringify(out));assert.equal(out.data.network_requests,0);}assert.equal(store.listConnections(actor.tenantId).length,0);}finally{store.close();}
+});
+
+test('guide examples cover every declared reviewed route family, not only every gateway',async()=>{
+ const registry=new Registry(),store=new Store(':memory:'),service=new MirrorService(registry,store,new NativeTransport(async()=>{throw Error('No network');}));
+ try{
+  const found=new Set();for(const example of examples.inspections){const r=await service.call('amcp_write',{action:'inspect',...example},actor);assert.equal(r.data.review_contract_supported,true,JSON.stringify(r));found.add(reviewedWriteFamily(r.data.request));}
+  assert.deepEqual([...found].sort(),[...new Set(actionContracts(registry).map(a=>a.family).filter(Boolean))].sort());
+ }finally{store.close();}
 });
 test('all recipes validate their contracts, including the maximum 30 Google targeting criteria',async()=>{
  const store=new Store(':memory:',key),service=new MirrorService(new Registry(),store,new NativeTransport(async()=>{throw Error('Unexpected provider call');}),undefined,{allowWrites:true,requireBeforeState:true,maxBudgetChange:0});

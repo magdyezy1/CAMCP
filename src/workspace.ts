@@ -1,5 +1,6 @@
 import {ownerOperations} from './owner-operations.js';
 import {workspaceCapabilities} from './capabilities.js';
+import {actionContractPage} from './action-contracts.js';
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import {MirrorError} from './errors.js';
@@ -11,7 +12,7 @@ import {validateState} from './write-review.js';
 import {microsoftGateway,compileMicrosoft} from './microsoft-native.js';
 import {audit,bad,field,fingerprint,noSecrets,obj,optional,read,tool,update,validate,writer,type ToolCall} from './workspace-core.js';
 import type {Actor,CompiledRequest,JsonObject} from './types.js';
-export const workspaceTool=tool('amcp_workspace','Account readiness, capability evidence, approved client defaults/templates, and campaign change history. Profiles never grant account access. check performs only provider reads; unsupported/missing evidence stays explicit.', ['dashboard','check','profiles','save_profile','delete_profile','history','health','support_bundle','save_spend_policy','save_retention'],{gateway:field.id,policy:field.object,scope:{type:'string',enum:['workspace']},days:field.integer,connection_id:field.id,account_id:field.id,requirements:field.object,live:field.bool,id:field.id,profile:field.object,revision:field.integer,confirmed:field.bool,limit:{type:'integer',minimum:1,maximum:100}});
+export const workspaceTool=tool('amcp_workspace','Account readiness, capability evidence, approved client defaults/templates, and campaign change history. contracts lists every local action and its read/write/media/blocked contract classification without network calls; filter by gateway/search and paginate with offset/limit. Profiles never grant account access. check performs only provider reads; unsupported/missing evidence stays explicit.', ['dashboard','contracts','check','profiles','save_profile','delete_profile','history','health','support_bundle','save_spend_policy','save_retention'],{gateway:field.id,search:{type:'string',maxLength:200},offset:{type:'integer',minimum:0},policy:field.object,scope:{type:'string',enum:['workspace']},days:field.integer,connection_id:field.id,account_id:field.id,requirements:field.object,live:field.bool,id:field.id,profile:field.object,revision:field.integer,confirmed:field.bool,limit:{type:'integer',minimum:1,maximum:100}});
 export const accountPlan=(gateway:string,id:string):CompiledRequest=>{
  const p:CompiledRequest={gateway,accountId:id,action:'AMCP_READINESS',method:'GET',path:'',query:{},headers:{},readOnly:true,destructive:false,requiresConfirmation:false,evidence:'AMCP exact account readiness read',warnings:[]};
  switch(gateway){
@@ -32,6 +33,7 @@ export class WorkspaceService{
  constructor(private store:Store,private registry:Registry,private transport:NativeTransport,private credentials:CredentialProvider,private call:ToolCall,private allowWrites:boolean){}
  async handle(input:JsonObject,actor:Actor):Promise<JsonObject>{
   validate(input,Object.keys(workspaceTool.inputSchema.properties));this.store.assertActorActive(actor);
+  if(input.action==='contracts')return actionContractPage(this.registry,input);
   if(['health','support_bundle','save_spend_policy','save_retention'].includes(input.action))return ownerOperations(this.store,input,actor);
   if(input.action==='profiles')return {profiles:this.store.documents(actor.tenantId,'client_profile')};
   if(input.action==='save_profile'){

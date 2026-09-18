@@ -17,7 +17,7 @@ const connection:Connection={id:'ms',tenantId:'t',label:'Synthetic Microsoft',ga
 const policy={allowWrites:true,maxBudgetChange:0,requireBeforeState:true};
 
 test('Microsoft v13 catalog compiles exact native contracts, IDs and cross-account report scope',()=>{
- const registry=new Registry();assert.equal(microsoftActions.length,24);
+ const registry=new Registry();assert.equal(microsoftActions.length,28);
  assert.ok(registry.listTools({mode:'strict',flags:{}}).some(t=>t.name===gateway));
  for(const input of [{action:'GetCampaignsByAccountId',account_id:'123',payload:{AccountId:'999'}},{action:'GetCampaignsByAccountId',account_id:'123',payload:{CustomerId:'999'}},{action:'GetCampaignsByAccountId',account_id:123},{action:'GetCampaignsByIds',account_id:'123',payload:{CampaignIds:['1','1']}}])assert.throws(()=>compileMicrosoft(input));
  const p=compileMicrosoft({action:'GetCampaignsByAccountId',account_id:'123'});assert.equal(p.method,'POST');assert.equal(p.path,'/CampaignManagement/v13/Campaigns/QueryByAccountId');assert.deepEqual(p.body,{AccountId:'123'});assert.equal(p.readOnly,true);

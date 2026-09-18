@@ -60,7 +60,7 @@ export class MirrorService {
    if(tool===mediaTool.name)return this.wrap(mediaNext(await this.media().call(input,actor)),requestId,start,tool);
    if(tool===writeTool.name){const result:any=await this.reviewed(input,actor);return {...this.wrap(result,requestId,start,tool),...(result.success===false?{success:false,error:errorResult(new MirrorError('WRITE_PARTIAL_OR_FAILED','Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.'),requestId,Date.now()-start).error}:{})};}
    this.registry.validate(tool,input,this.options);
-   if(tool==='amcp_tool_help'){const help=this.registry.help(input,this.options),media=mediaDiscovery(input.gateway);return {...help,amcp_contract:providerContractView(input.gateway),amcp_guidance:guidanceDiscovery,amcp_extensions:{gateways:[microsoftGateway]},...(media?{amcp_media_import:media}:{})};}
+   if(tool==='amcp_tool_help'){const help=this.registry.help(input,this.options),media=mediaDiscovery(input.gateway);return {...help,amcp_contract:providerContractView(input.gateway),amcp_action_contracts:{tool:'amcp_workspace',arguments:{action:'contracts',...(input.gateway?{gateway:input.gateway}:{})},meaning:'Action-level route coverage; exact-payload inspect remains mandatory.'},amcp_guidance:guidanceDiscovery,amcp_extensions:{gateways:[microsoftGateway]},...(media?{amcp_media_import:media}:{})};}
    if(input.action==='LIST_ACTIONS')return this.wrap(this.introspection.list(tool,input,this.options),requestId,start,tool);
    if(input.action==='DESCRIBE_ACTION'){const description=this.introspection.describe(tool,input),media=mediaDiscovery(tool);return this.wrap({...description,amcp_write_inspection:{tool:'amcp_write',action:'inspect',gateway:tool,usage:'Supply the intended native arguments to check local review-contract support without provider calls. Media routes use amcp_media.'},...(media?{amcp_media_import:media}:{})},requestId,start,tool);}
    if(this.registry.tools.get(tool)?.mode==='delegated')return this.wrap(await this.delegated(tool,input.operation,input.arguments??{},actor,requestId),requestId,start,tool);
@@ -93,6 +93,7 @@ export class MirrorService {
  async verificationJob(tenant:string,kind:string,input:JsonObject){
   if(kind!=='write_verification')throw new MirrorError('UNKNOWN_JOB_KIND','No worker handles this job.');
   const actor=this.store.restoreJobActor(tenant,input.review_id,input.actor_binding);
+  if(input.__job_id)this.store.bindActorCheck(actor,()=>{const job=this.store.db.prepare('SELECT state,lease_token,lease_until FROM jobs WHERE tenant_id=? AND id=?').get(tenant,input.__job_id) as JsonObject|undefined;if(!job||job.state!=='running'||job.lease_token!==input.__lease_token||job.lease_until<=Date.now())throw new MirrorError('STALE_JOB_LEASE','This worker no longer owns the verification job.',{},409);});
   return this.verifyWrite(actor,input.review_id);
  }
  private media(){return new MediaUploadService(this.registry,this.store,this.transport,this.credentials,this.policy,this.mediaFetcher);}

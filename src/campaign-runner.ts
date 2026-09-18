@@ -17,6 +17,7 @@ function references(v:any,results:Map<string,JsonObject>,deps:Set<string>):any{
  if(Array.isArray(v))return v.map(x=>references(x,results,deps));return obj(v)?Object.fromEntries(Object.entries(v).map(([k,x])=>[k,references(x,results,deps)])):v;
 }
 const structure=(steps:JsonObject[])=>steps.map(s=>Object.fromEntries(['id','kind','gateway','connection_id','account_id','arguments','depends_on','description','expected_currency'].filter(k=>s[k]!==undefined).map(k=>[k,s[k]])));
+const verificationStepStatus=(status:string)=>['verified','failed','mismatch'].includes(status)?status:'verifying';
 export class CampaignRunner{
  constructor(private store:Store,private call:ToolCall,private verifyWrite:(actor:Actor,id:string)=>Promise<JsonObject>,private providerValidation:(actor:Actor,input:JsonObject)=>Promise<JsonObject>,private preflight?:(actor:Actor,steps:JsonObject[])=>Promise<JsonObject>){}
  private owned(actor:Actor,id:string){const p=read(this.store,actor,'campaign_run',id);if(p.user_id!==actor.userId&&actor.role!=='admin')bad('Campaign plan belongs to another actor.','FORBIDDEN');if(p.plan_hash!==fingerprint(structure(p.steps)))bad('The saved plan failed its integrity check.','PLAN_CHANGED');return p;}
@@ -64,7 +65,7 @@ export class CampaignRunner{
   if(input.action==='reconcile_step'){
    const step=run.steps.find((s:JsonObject)=>s.id===input.step_id);if(!step?.review_id||!['executing','uncertain','failed','verifying','mismatch','processing'].includes(step.status))bad('Choose a submitted step requiring reconciliation.','RECOVERY_NOT_SAFE');
    const claim=this.store.db.prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?').get(actor.tenantId,step.review_id) as JsonObject|undefined;if(claim?.state!=='complete'||!claim.result)bad('No completed original receipt exists. Inspect provider state; reconciliation never submits a mutation.','RECOVERY_NOT_SAFE');
-   const receipt=JSON.parse(claim.result);if(step.kind==='media'){const status=await this.call('amcp_media',{action:'status',review_id:step.review_id},actor);if(!status.success)throw new MirrorError(status.error.code,status.error.message,status.error.details);step.result={...receipt,...status.data};step.status=status.data.ready?'verified':'processing';}else{const verification=await this.verifyWrite(actor,step.review_id);step.result=receipt;step.verification=verification;step.status=verification.status==='verified'?'verified':verification.status==='mismatch'?'mismatch':'verifying';}
+   const receipt=JSON.parse(claim.result);if(step.kind==='media'){const status=await this.call('amcp_media',{action:'status',review_id:step.review_id},actor);if(!status.success)throw new MirrorError(status.error.code,status.error.message,status.error.details);step.result={...receipt,...status.data};step.status=status.data.ready?'verified':'processing';}else{const verification=await this.verifyWrite(actor,step.review_id);step.result=receipt;step.verification=verification;step.status=verificationStepStatus(verification.status);}
    this.store.assertActorActive(actor);delete step.error;run.state=run.steps.every((s:JsonObject)=>s.status==='verified')?'complete':step.status==='verified'?'in_progress':'attention';return this.save(actor,run);
   }
   if(input.action==='recover_step'){
@@ -84,7 +85,7 @@ export class CampaignRunner{
    if(!status.data.ready&&!(status.data.processing_status==='succeeded'&&run.steps.some((s:JsonObject)=>s.kind==='media'&&s.arguments.action==='prepare_library'&&s.depends_on.includes(next.id))))return {...run,next_call:status.data.next_call,blocked_by:'media_processing'};next.status='verified';run=this.save(actor,run);return {...run,next_call:{tool:'amcp_campaign',arguments:{action:'prepare_next',id:run.id}}};
   }
   if(next.status==='verifying'){
-   const v=await this.verifyWrite(actor,next.review_id);next.verification=v;next.status=v.status==='verified'?'verified':v.status==='mismatch'?'mismatch':'verifying';run.state=run.steps.every((s:JsonObject)=>s.status==='verified')?'complete':next.status==='verified'?'in_progress':'attention';return this.save(actor,run);
+   const v=await this.verifyWrite(actor,next.review_id);next.verification=v;next.status=verificationStepStatus(v.status);run.state=run.steps.every((s:JsonObject)=>s.status==='verified')?'complete':next.status==='verified'?'in_progress':'attention';return this.save(actor,run);
   }
   if(input.action==='prepare_next'){
    if(next.status==='executing')return {campaign_id:run.id,step_id:next.id,recovery:'Resume the original execution with the same idempotency key.',next_call:{tool:'amcp_campaign',arguments:{action:'execute_next',id:run.id,review_id:next.review_id,idempotency_key:next.review_id,confirmed:true}}};
@@ -103,7 +104,7 @@ export class CampaignRunner{
   const result=await this.call('amcp_write',{action:'execute',review_id:step.review_id,idempotency_key:step.review_id,confirmed:true,...(step.kind==='write'?{spend_change_confirmed:input.spend_change_confirmed}: {})},actor);
   this.store.assertActorActive(actor);if(!result.success){step.error=result.error;step.status=['WRITE_OUTCOME_UNCERTAIN','WRITE_PARTIAL_OR_FAILED','UPSTREAM_RESPONSE_INVALID'].includes(result.error?.code)?'uncertain':result.error?.code==='SPEND_CONFIRMATION_REQUIRED'?'review_ready':'failed';run.state='attention';return this.save(actor,run);}
   step.result=result.data;step.status=step.kind==='media'?(result.data.ready?'verified':'processing'):'verifying';
-  if(step.kind==='write'){step.verification=await this.verifyWrite(actor,step.review_id);step.status=step.verification.status==='verified'?'verified':step.verification.status==='mismatch'?'mismatch':'verifying';}
+  if(step.kind==='write'){step.verification=await this.verifyWrite(actor,step.review_id);step.status=verificationStepStatus(step.verification.status);}
   run.state=run.steps.every((s:JsonObject)=>s.status==='verified')?'complete':step.status==='verified'?'in_progress':'attention';run=this.save(actor,run);return {...run,next_call:run.state==='complete'?null:{tool:'amcp_campaign',arguments:{action:'prepare_next',id:run.id}},receipt:{verified:run.steps.filter((s:JsonObject)=>s.status==='verified').map((s:JsonObject)=>s.id),remaining:run.steps.filter((s:JsonObject)=>s.status!=='verified').map((s:JsonObject)=>({id:s.id,status:s.status}))}};
  }
 }
