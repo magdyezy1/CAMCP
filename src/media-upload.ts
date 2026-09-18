@@ -7,7 +7,7 @@ import {CredentialProvider} from './auth.js';
 import {NativeTransport,type BinaryUpload,type TransportResult} from './transport.js';
 import {ScopeGuard,normalizeAccount} from './scope.js';
 import {validateState,writeOutcome} from './write-review.js';
-import {normalizeReviewState,reviewStateHash,changedStateFields} from './review-state.js';
+import {normalizeSnapshot,reviewStateHash,changedStateFields} from './review-state.js';
 import {downloadPrivateDrive,driveAccess} from './private-drive.js';
 import {createMediaVariant,variantPresets,inspectMediaPlacement} from './media-variants.js';
 import {downloadDriveMedia,mediaType,driveDownloadUrl} from './drive-media.js';
@@ -55,7 +55,7 @@ export class MediaUploadService {
   const c=this.access(actor,p.platform,p.account_id,p.connection_id);new ScopeGuard(this.registry,this.store).authorize(p.read,c);
   this.ownerScope(p,c);
   const auth=await this.credentials.get(c),current=this.access(actor,p.platform,p.account_id,p.connection_id);new ScopeGuard(this.registry,this.store).authorize(p.read,current);this.ownerScope(p,current);
-  const r=await this.transport.request(p.read,current,auth);validateState(p.read,r);return normalizeReviewState(r.data);
+  const r=await this.transport.request(p.read,current,auth);validateState(p.read,r);return normalizeSnapshot(p.read,r.data);
  }
  private ownerScope(p:UploadPlan,c:Connection){
   if(p.platform==='linkedin'&&p.kind==='video'&&!/^urn:li:(?:organization|person):[A-Za-z0-9_-]+$/.test(p.owner_urn??''))fail('LINKEDIN_VIDEO_OWNER_REQUIRED','Prepare LinkedIn video with an explicit organization/person owner and its exact binding.');
@@ -173,8 +173,8 @@ export class MediaUploadService {
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Prepare and review the media again.');
   if(input.action==='execute_async'){return this.store.transaction(()=>{const current=this.store.document(actor.tenantId,'media_review',input.review_id);if(current.job_id)return {review_id:input.review_id,job_id:current.job_id,state:this.store.job(actor.tenantId,current.job_id).state};const jobId=this.store.enqueue(actor.tenantId,'media_upload',{review_id:input.review_id});this.store.putDocument(actor.tenantId,'media_review',input.review_id,{...current,job_id:jobId,actor_binding:this.store.bindJobActor(actor,'media-job:'+input.review_id)});return {review_id:input.review_id,job_id:jobId,state:'queued',expires_at:new Date(review.expires_at).toISOString(),next_call:{tool:'amcp_media',arguments:{action:'job_status',review_id:input.review_id}}};});}
   const bytes=p.library_media?Buffer.alloc(0):this.store.stagedMedia(actor.tenantId,input.review_id);if(!p.library_media&&(bytes.length!==p.size||sha256(bytes)!==p.sha256||mediaType(bytes).mime!==p.mime))fail('REVIEW_CHANGED','The staged media failed its integrity check.');
-  const current=await this.state(actor,p),actual=reviewStateHash(current),expected=reviewStateHash(review.state);
-  if(actual!==expected)fail('STATE_CHANGED','Provider configuration changed. Prepare a new media review.',{expected_state_hash:expected,actual_state_hash:actual,changed_fields:changedStateFields(review.state,current)});
+  const expectedState=normalizeSnapshot(p.read,review.state),current=await this.state(actor,p),actual=reviewStateHash(current),expected=reviewStateHash(expectedState);
+  if(actual!==expected)fail('STATE_CHANGED','Provider configuration changed. Prepare a new media review.',{expected_state_hash:expected,actual_state_hash:actual,changed_fields:changedStateFields(expectedState,current)});
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Media review expired during verification.');
   const claim=resuming?{fresh:true}:this.store.claim(actor.tenantId,input.review_id,fingerprint);if(!claim.fresh)return {...(claim.result as JsonObject),replayed:true};
   let allocated:JsonObject={};

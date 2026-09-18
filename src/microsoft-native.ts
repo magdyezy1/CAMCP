@@ -94,7 +94,7 @@ export function microsoftSnapshots(plan:CompiledRequest):CompiledRequest[]{
 }
 export function validateMicrosoftResponse(plan:CompiledRequest,result:TransportResult,state=false){
  const c=microsoftContracts.get(plan.action);if(!c)return;
- const d=result.data;if(!object(d)||d.Errors?.length||d.OperationErrors?.length||d.PartialErrors?.length)throw new MirrorError('MICROSOFT_RESPONSE_FAILED','Microsoft returned a failed or partial result.',{upstream:d},502);
+ const d=result.data;if(!object(d)||['Errors','OperationErrors','PartialErrors'].some(key=>d[key]!==undefined&&d[key]!==null&&(!Array.isArray(d[key])||d[key].length>0)))throw new MirrorError('MICROSOFT_RESPONSE_FAILED','Microsoft returned a failed, partial or malformed error result.',{upstream:d},502);
  if(!plan.readOnly)return;
  const value=d[c.result];
  if(c.name==='SubmitGenerateReport'){if(typeof value!=='string'||!value||value.length>40)throw new MirrorError('UPSTREAM_RESPONSE_INVALID','Microsoft did not return a usable ReportRequestId.',{},502);return;}

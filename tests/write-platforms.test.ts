@@ -51,6 +51,7 @@ for(const c of cases)test('reviewed '+c.gateway+' campaign '+c.label+' validates
   // This fixture varies telemetry only. The old invented target_labels field assumed
   // every scalar array was a set; ordered/unknown arrays have separate conflict tests.
   d={...(d as JsonObject),request_id:String(reads),updated_at:String(reads),delivery_status:reads%2?['A','B']:['B','A'],stats:{spend:reads}};
+  if(['google_ads','tiktok','snapchat','x_ads'].includes(c.gateway))d={...(d as JsonObject),futureEnvelopeTelemetry:{cost:reads},...(c.gateway==='google_ads'?{queryResourceConsumption:String(reads*17)}:{}),...(c.gateway==='x_ads'?{request:{params:{trace:String(reads)}}}:{})};
   return new Response(JSON.stringify(d));
  }) as typeof fetch),undefined,policy);
  try{const prepared=await service.call('amcp_write',{action:'prepare',gateway,arguments:args},actor);assert.equal(prepared.success,true,JSON.stringify(prepared));assert.equal(writes,0);assert.ok(reads>0);const r=prepared.data;

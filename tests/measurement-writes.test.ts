@@ -16,7 +16,7 @@ function fixture(s:Scenario){
  const store=new Store(':memory:',key);store.putConnection(admin,{id:'c',tenantId:actor.tenantId,gateway:s.gateway,accounts:[s.id],writeAccounts:[s.id],scopes,enabled:true,label:'synthetic'},{accessToken:'synthetic'});
  const calls:{url:URL;method:string;body?:JsonObject;headers:Headers}[]=[],state=structuredClone(s.reads);let output=s.output,status=s.status??200;
  const transport=new NativeTransport((async(url,init)=>{const u=new URL(String(url));calls.push({url:u,method:init!.method!,body:init!.body?JSON.parse(String(init!.body)):undefined,headers:new Headers(init!.headers)});
-  if(init!.method==='GET'){assert.ok(Object.hasOwn(state,u.pathname),'Unexpected state read: '+u.pathname);const value=state[u.pathname];return value===null?new Response('{"error":{"code":404}}',{status:404}):new Response(JSON.stringify(value));}
+  if(init!.method==='GET'){assert.ok(Object.hasOwn(state,u.pathname),'Unexpected state read: '+u.pathname);const value=state[u.pathname],telemetry=s.gateway==='apple_ads_native_action'?{futureEnvelopeTelemetry:{cost:calls.length}}:u.pathname.endsWith('/status')?{}:{requestId:String(calls.length),updateTime:String(calls.length)};return value===null?new Response('{"error":{"code":404}}',{status:404}):new Response(JSON.stringify({...value as JsonObject,...telemetry}));}
   return new Response(output===null?null:JSON.stringify(output),{status});
  }) as typeof fetch);
  return {store,state,calls,service:new MirrorService(registry,store,transport,undefined,policy),setOutput:(v:unknown,code=200)=>{output=v;status=code;}};
@@ -44,6 +44,18 @@ test('all four integrations prepare frozen native mutations, execute once and re
   }finally{f.store.close();}
  }
 });
+for(const change of ['processing','submission','provider_error'])test('Search Console sitemap '+change+' distinguishes crawl observations from submission state',async()=>{
+ const s=sc('DELETE_SITEMAP'),f=fixture(s),target=Object.keys(f.state).find(p=>p.includes('/sitemaps/'))!;
+ try{
+  const original={path:'https://example.test/sitemap.xml',lastSubmitted:'2026-09-01T00:00:00Z',type:'sitemap',isSitemapsIndex:false,lastDownloaded:'2026-09-01T00:00:00Z',isPending:true,errors:'1',warnings:'2',contents:[{type:'web',submitted:'100',indexed:'0'}]};
+  f.state[target]=original;const p=await prepare(f,s);assert.equal(p.success,true,JSON.stringify(p));
+  f.state[target]={...original,lastDownloaded:'2026-09-02T00:00:00Z',isPending:false,errors:'2',warnings:'4',contents:[{type:'web',submitted:'120',indexed:'80'}],...(change==='submission'?{lastSubmitted:'2026-09-02T00:00:00Z'}:{}),...(change==='provider_error'?{error:{code:403,message:'Synthetic denial'}}:{})};
+  const out=await execute(f,p.data);
+  if(change==='processing'){assert.equal(out.success,true,JSON.stringify(out));assert.equal(f.calls.filter(c=>c.method!=='GET').length,1);}
+  else{assert.equal(out.success,false);assert.equal(f.calls.filter(c=>c.method!=='GET').length,0);if(change==='submission'){assert.equal(out.error.code,'STATE_CHANGED');assert.deepEqual(out.error.details.changed_fields,['$[1]["lastSubmitted"]']);}}
+ }finally{f.store.close();}
+});
+
 test('every enabled Tag Manager CRUD and publishing contract compiles, validates before-state and confirms its exact result',async()=>{
  for(const a of gtmWriteActions){const s=gtm(a),f=fixture(s);try{const prepared=await prepare(f,s);assert.equal(prepared.success,true,a+': '+JSON.stringify(prepared));const result=await execute(f,prepared.data);assert.equal(result.success,true,a+': '+JSON.stringify(result));}finally{f.store.close();}}
 });
@@ -58,7 +70,9 @@ test('readers, missing write grants, missing provider scopes and disabled deploy
 test('stale state, lost grants, absent-target changes and missing explicit confirmation cannot execute',async()=>{
  for(const s of [ga(),gtm('UPDATE_TAG'),sc(),ap('update')]){const f=fixture(s);try{
   const prepared=await prepare(f,s);assert.equal(prepared.success,true,JSON.stringify(prepared));assert.equal((await execute(f,prepared.data,{confirmed:false})).error.code,'CONFIRMATION_REQUIRED');
-  const target=Object.keys(f.state).at(-1)!;f.state[target]=f.state[target]===null?{path:'https://example.test/sitemap.xml'}:{...(f.state[target] as JsonObject),changed:'new state'};assert.equal((await execute(f,prepared.data)).error.code,'STATE_CHANGED');assert.equal(f.calls.filter(c=>c.method!=='GET').length,0);
+  const target=Object.keys(f.state).at(-1)!,before=f.state[target] as JsonObject|null;
+  f.state[target]=before===null?{path:'https://example.test/sitemap.xml'}:s.gateway==='apple_ads_native_action'?{...before,result:{...before.result,name:'Changed account'}}:{...before,changed:'new state'};
+  assert.equal((await execute(f,prepared.data)).error.code,'STATE_CHANGED');assert.equal(f.calls.filter(c=>c.method!=='GET').length,0);
  }finally{f.store.close();}}
 });
 test('cross-resource and unqualified inputs fail before reads, including nested delegated connection conflicts',async()=>{

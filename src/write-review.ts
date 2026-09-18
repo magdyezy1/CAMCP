@@ -18,6 +18,7 @@ import {guardInput,redact,sha256,stable} from './security.js';
 import type {Actor,CallOptions,CompiledRequest,Connection,JsonObject} from './types.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {normalizeSnapshot,reviewStateHash,changedStateFields} from './review-state.js';
+import {nextPage} from './pagination.js';
 import {assertAccountWrite} from './write-access.js';
 import {assertXCreative,xCreativeKind,xCreativeEdit,xCreativeSnapshots,readXCreativeState,xCreativeOutcome} from './x-creative-writes.js';
 import {validateMetaCreative} from './creative-validation.js';
@@ -80,14 +81,24 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult):bo
  return false;
 }
 export function validateState(read:CompiledRequest,result:TransportResult):void {
- if(read.gateway===microsoftGateway){validateMicrosoftResponse(read,result,true);return;}
+ if(read.gateway===microsoftGateway)validateMicrosoftResponse(read,result,true);
  if(result.status===404&&measurementWriteGateways.has(read.gateway)){validateMeasurementState(read,result);return;}
  if(read.gateway==='gtm_native_action'&&read.path.endsWith('/status')&&result.status===200){validateMeasurementState(read,result);return;}
- if(writeOutcome(result).success!==true)fail('STATE_READ_FAILED','Failed or partial provider responses cannot verify before-state.');
  const data=object(result.data),id=normalizeAccount(read.gateway,read.accountId!);
+ // Search Console's sitemap `errors` is a documented content-error count, not
+ // a failed API envelope. Real error objects and malformed counts still fail.
+ const sitemap=read.gateway==='google_search_console_native_action'&&read.path.includes('/sitemaps/');
+ const sitemapCount=sitemap&&(typeof data.errors==='number'&&Number.isSafeInteger(data.errors)&&data.errors>=0||typeof data.errors==='string'&&/^\d+$/.test(data.errors));
+ if(sitemap&&Object.hasOwn(data,'errors')&&!sitemapCount)fail('STATE_READ_FAILED','Search Console sitemap content-error counts must be nonnegative integers.');
+ const statusResult=sitemapCount?{...result,data:{...data,errors:0}}:result;
+ if(read.gateway!==microsoftGateway&&writeOutcome(statusResult).success!==true)fail('STATE_READ_FAILED','Failed or partial provider responses cannot verify before-state.');
+ // Reuse provider pagination contracts (including Reddit pagination.next_url)
+ // before envelope projection; discarding cursors is never proof of completeness.
+ if(nextPage(read,data))fail('INCOMPLETE_STATE','State read was paginated; narrow the mutation.');
  const inspect=(v:unknown)=>{if(Array.isArray(v)){v.forEach(inspect);return;}if(!v||typeof v!=='object')return;
   const r=object(v);if(r.has_more===true||r.hasMore===true||r.nextPageToken||r.next_page_token||r.next_cursor&&r.next_cursor!=='0'||r.next_link||r.paging?.next||r.page_info?.total_page>1||Array.isArray(r.links)&&r.links.some((l:JsonObject)=>l.rel==='next'))fail('INCOMPLETE_STATE','State read was paginated; narrow the mutation.');Object.values(r).forEach(inspect);
  };inspect(data);
+ if(read.gateway===microsoftGateway)return;
  if(measurementWriteGateways.has(read.gateway)){validateMeasurementState(read,result);return;}
  if(read.gateway==='reddit_native_action'){validateRedditState(read,result);return;}
  const sameIds=(actual:unknown[],expected:unknown[])=>{const clean=(ids:unknown[])=>ids.map(x=>String(x)).sort();if(actual.length!==expected.length||stable(clean(actual))!==stable(clean(expected)))fail('STATE_TARGET_MISMATCH','State read did not return every exact requested target.');};
@@ -100,7 +111,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
   sameIds(data.results.map((r:JsonObject)=>(r[camel]??r[type])?.resourceName??(r[camel]??r[type])?.resource_name),expected);return;
  }
  if(read.gateway==='tiktok_native_action'){
-  if(!Array.isArray(data.data?.list))fail('STATE_READ_FAILED','TikTok state must contain its native list.');
+  if(data.code!==0||!Array.isArray(data.data?.list))fail('STATE_READ_FAILED','TikTok state must confirm success and contain its native list.');
   const kind=read.path.split('/')[2]!,key=kind==='advertiser'?'advertiser_id':kind+'_id';
   sameIds(data.data.list.map((r:JsonObject)=>r[key]),kind==='advertiser'?[id]:read.query.filtering[kind+'_ids']);return;
  }
@@ -307,9 +318,13 @@ export class WriteReviewService {
   const previous=this.store.db.prepare('SELECT state,result,fingerprint FROM idempotency WHERE tenant_id=? AND key=?').get(actor.tenantId,input.idempotency_key) as JsonObject|undefined;
   if(previous){if(previous.fingerprint!==fingerprint)fail('IDEMPOTENCY_CONFLICT','The key is bound to another request.');if(previous.state==='complete')return {...JSON.parse(previous.result),replayed:true};fail('WRITE_OUTCOME_UNCERTAIN','This review was already submitted. Inspect provider state; do not retry with a new key.');}
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Prepare and review a fresh request.');
-  const current=await this.state(actor,plan,review.connection_id,review.reads),expectedHash=reviewStateHash(review.state),actualHash=reviewStateHash(current);
+  // Reproject saved envelopes as well: a still-valid review prepared before an
+  // upgrade must not conflict solely because its stored envelope was wider.
+  // X creative discovery already returns its own validated resource projection.
+  const expectedState=xCreativeKind(plan)?review.state:review.state.map((value:unknown,i:number)=>normalizeSnapshot(review.reads[i],value));
+  const current=await this.state(actor,plan,review.connection_id,review.reads),expectedHash=reviewStateHash(expectedState),actualHash=reviewStateHash(current);
   const creativeImpact=writeImpact(plan,current,review.creative_edit_confirmed===true,review.connection_id);
-  if(actualHash!==expectedHash)fail('STATE_CHANGED','The provider configuration changed after preparation. Prepare and review a fresh request.',{expected_state_hash:expectedHash,actual_state_hash:actualHash,changed_fields:changedStateFields(review.state,current)});
+  if(actualHash!==expectedHash)fail('STATE_CHANGED','The provider configuration changed after preparation. Prepare and review a fresh request.',{expected_state_hash:expectedHash,actual_state_hash:actualHash,changed_fields:changedStateFields(expectedState,current)});
   const c=this.access(actor,plan,review.connection_id),auth=await this.credentials.get(c);this.access(actor,plan,review.connection_id);
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Review expired during state verification.');
   const actorBinding=this.store.bindJobActor(actor,input.review_id);

@@ -92,12 +92,13 @@ test('Microsoft paginated discovery binds each advertiser to its own parent cust
 });
 
 test('Microsoft reviewed hierarchy creates campaign → ad group → RSA → keyword with no list calls',async()=>{
- const store=new Store(':memory:',key);store.putConnection(admin,connection,{accessToken:'synthetic',developerToken:'synthetic-developer'});let writes=0;
+ const store=new Store(':memory:',key);store.putConnection(admin,connection,{accessToken:'synthetic',developerToken:'synthetic-developer'});let writes=0,reads=0;
  const sent:JsonObject[]=[],service=new MirrorService(new Registry(),store,new NativeTransport(async(url,init)=>{
   const path=new URL(String(url)).pathname,body=JSON.parse(String(init?.body)),headers=new Headers(init?.headers);assert.equal(headers.get('CustomerAccountId'),'123');assert.equal(headers.get('CustomerId'),'456');
-  if(path.endsWith('/Account/Query'))return Response.json({Account:{Id:'123',ParentCustomerId:'456',CurrencyCode:'USD'}});
-  if(path.endsWith('/Campaigns/QueryByIds'))return Response.json({Campaigns:[{Id:'100',Name:'Campaign',Status:'Paused',DailyBudget:50}]});
-  if(path.endsWith('/AdGroups/QueryByIds')){assert.equal(body.CampaignId,'100');return Response.json({AdGroups:[{Id:'200',Name:'Ad group',Status:'Paused'}]});}
+  const reply=(data:JsonObject)=>Response.json({...data,TrackingId:String(++reads),futureEnvelopeTelemetry:{cost:reads}});
+  if(path.endsWith('/Account/Query'))return reply({Account:{Id:'123',ParentCustomerId:'456',CurrencyCode:'USD'}});
+  if(path.endsWith('/Campaigns/QueryByIds'))return reply({Campaigns:[{Id:'100',Name:'Campaign',Status:'Paused',DailyBudget:50}]});
+  if(path.endsWith('/AdGroups/QueryByIds')){assert.equal(body.CampaignId,'100');return reply({AdGroups:[{Id:'200',Name:'Ad group',Status:'Paused'}]});}
   writes++;sent.push(body);const kind=path.split('/').at(-1)!,ids:Record<string,string>={Campaigns:'100',AdGroups:'200',Ads:'300',Keywords:'400'};
   return Response.json({[kind.slice(0,-1)+'Ids']:[ids[kind]],PartialErrors:null});
  }),undefined,policy);

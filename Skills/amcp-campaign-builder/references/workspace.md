@@ -123,7 +123,18 @@ blindly, reshape a request to slip past one, or split a change into smaller piec
 - `REVIEW_EXPIRED` — the five-minute window elapsed. Prepare again; never reuse an old review.
 - `REVIEW_CHANGED` — the frozen request failed its integrity check. Prepare again.
 - `STATE_CHANGED` — the provider's configuration moved between prepare and execute. Read the
-  reported changed fields, then prepare and review again.
+  reported changed fields, then prepare and review again for a real configuration change. If only
+  response telemetry differs, report a projection defect; do not loop or bypass review. Pagination
+  indicators mean incomplete evidence and must still block a write.
+- `UNSAFE_PAGINATION_LINK` — the provider continuation changes the host, resource, account or
+  invariant filters, or has ambiguous parameters. Stop; retain the scoped request for diagnosis.
+  Never follow that link manually to get around AMCP's boundary.
+- `PAGINATION_LOOP` — a read repeats an already visited cursor/request. Stop and report incomplete
+  data; narrow the read or diagnose the provider response before another attempt.
+- `PAGINATION_SHAPE_CHANGED` — pages no longer return the same native row collections. Do not
+  present accumulated rows as complete or use them as before-state evidence.
+- `AGGREGATE_TOO_LARGE` — a paginated read exceeds the memory/result bound. Split the date range
+  or resource scope and reconcile the completed parts. Reviewed writes never auto-follow pages.
 - `POLICY_PAYLOAD_TOO_DEEP` — the body nests more deeply than the spending policy can inspect, so
   it cannot be shown to leave entities paused. Flatten the request rather than retrying it.
 

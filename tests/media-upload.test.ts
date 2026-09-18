@@ -24,16 +24,17 @@ function fixture(platform:string,kind='image',options:{pending?:boolean;failUplo
   if(url.hostname==='www.linkedin.com'){assert.equal(headers.get('authorization'),kind==='image'?'Bearer synthetic':null);assert.equal(headers.get('content-type'),kind==='image'?'image/png':'application/octet-stream');assert.equal(method,'PUT');assert.deepEqual(Buffer.from(body as Uint8Array),file);return new Response(null,{status:201,headers:{etag:'"part-1"'}});}
   if(method==='GET'||path.endsWith('/googleAds:search')){
    const extra={name:stateChanged?'Changed':'Account'};
+   const reply=(data:JsonObject)=>Response.json({...data,...(['google_ads','tiktok','snapchat','x_ads'].includes(platform)?{futureEnvelopeTelemetry:{cost:calls.length},...(platform==='google_ads'?{queryResourceConsumption:String(calls.length*17)}:{})}:{requestId:String(calls.length),updatedTime:String(calls.length)})});
    if(options.statusResponse&&['/v25.0/456','/v1/media/456','/rest/images/urn%3Ali%3Aimage%3A456','/rest/videos/urn%3Ali%3Avideo%3A456','/1.1/media/upload.json'].includes(path))return Response.json(options.statusResponse);
-   if(platform==='meta')return Response.json(path.endsWith('/adimages')?{data:[{hash:'hash456'}]}:path==='/v25.0/456'?{id:'456',status:{video_status:'ready'}}:{id:'act_123',account_status:1,currency:'USD',...extra});
-   if(platform==='snapchat')return Response.json(path==='/v1/media/456'?{request_status:'SUCCESS',media:[{sub_request_status:'SUCCESS',media:{id:'456',ad_account_id:'123',media_status:'READY'}}]}:{request_status:'SUCCESS',adaccounts:[{sub_request_status:'SUCCESS',adaccount:{id:'123',...extra}}]});
-   if(platform==='tiktok')return Response.json({code:0,data:{list:[path.includes('/file/')?{[kind+'_id']:kind==='image'?'ad-site/456':'456'}:{advertiser_id:'123',...extra}]}});
-   if(platform==='google_ads'){if(String(body).includes('you_tube_video_upload.state'))return Response.json({results:[{youTubeVideoUpload:{resourceName:'customers/123/youTubeVideoUploads/456',state:'PROCESSED',videoId:'abcdefghijk'}}]});if(String(body).includes('SELECT asset.resource_name'))return Response.json({results:[{asset:{resourceName:'customers/123/assets/456',type:'IMAGE'}}]});return Response.json({results:[{customer:{id:'123',...extra}}]});}
-   if(platform==='dv360')return Response.json({advertiserId:'123',...extra});
-   if(platform==='linkedin')return path.startsWith('/rest/images/')||path.startsWith('/rest/videos/')?Response.json({id:'urn:li:'+kind+':456',owner:kind==='video'?'urn:li:organization:500':'urn:li:sponsoredAccount:123',status:'AVAILABLE',downloadUrl:'https://example.test/private?token=do-not-return'}):Response.json({id:123,...extra});
+   if(platform==='meta')return reply(path.endsWith('/adimages')?{data:[{hash:'hash456'}]}:path==='/v25.0/456'?{id:'456',status:{video_status:'ready'}}:{id:'act_123',account_status:1,currency:'USD',...extra});
+   if(platform==='snapchat')return reply(path==='/v1/media/456'?{request_status:'SUCCESS',media:[{sub_request_status:'SUCCESS',media:{id:'456',ad_account_id:'123',media_status:'READY'}}]}:{request_status:'SUCCESS',adaccounts:[{sub_request_status:'SUCCESS',adaccount:{id:'123',...extra}}]});
+   if(platform==='tiktok')return reply({code:0,data:{list:[path.includes('/file/')?{[kind+'_id']:kind==='image'?'ad-site/456':'456'}:{advertiser_id:'123',...extra}]}});
+   if(platform==='google_ads'){if(String(body).includes('you_tube_video_upload.state'))return reply({results:[{youTubeVideoUpload:{resourceName:'customers/123/youTubeVideoUploads/456',state:'PROCESSED',videoId:'abcdefghijk'}}]});if(String(body).includes('SELECT asset.resource_name'))return reply({results:[{asset:{resourceName:'customers/123/assets/456',type:'IMAGE'}}]});return reply({results:[{customer:{id:'123',...extra}}]});}
+   if(platform==='dv360')return reply({advertiserId:'123',...extra});
+   if(platform==='linkedin')return path.startsWith('/rest/images/')||path.startsWith('/rest/videos/')?reply({id:'urn:li:'+kind+':456',owner:kind==='video'?'urn:li:organization:500':'urn:li:sponsoredAccount:123',status:'AVAILABLE',downloadUrl:'https://example.test/private?token=do-not-return'}):reply({id:123,...extra});
    if(path==='/1.1/media/upload.json')return Response.json({media_id_string:'456',media_key:'13_456',processing_info:{state:'succeeded'}});
    if(path.includes('/media_library/'))return Response.json(options.statusResponse??{data:{media_key:kind==='image'?'3_456':'13_456',media_status:'TRANSCODE_COMPLETED',deleted:false}});
-   return Response.json({data:{id:'123',...extra}});
+   return reply({data:{id:'123',...extra}});
   }
   if(options.failUpload&&path.endsWith('/upload'))throw Error('Lost upload response');
   if(body instanceof FormData){
@@ -75,6 +76,16 @@ for(const platform of ['meta','snapchat','tiktok','google_ads','linkedin','x_ads
   assert.equal(out.data.ready,platform!=='dv360',JSON.stringify(out));assert.equal(out.data.status_source,platform==='dv360'?'upload_receipt':'provider');
   assert.equal((await f.call(input)).data.replayed,true);assert.equal(f.calls.length,count);assert.equal(f.downloads(),1);assert.equal(f.store.db.prepare('SELECT count(*) AS n FROM media_staging').get()!.n,0);
   if(platform==='snapchat')assert.equal(f.store.ownsResource(f.c,'123','media/456'),true);
+ }finally{f.close();}
+});
+
+test('Google media reprojects a saved older envelope while preserving the original upload claim',async()=>{
+ const f=fixture('google_ads');try{
+  const p=await f.prepare();assert.equal(p.success,true,JSON.stringify(p));const r=p.data,old=f.store.document(actor.tenantId,'media_review',r.review_id);
+  f.store.putDocument(actor.tenantId,'media_review',r.review_id,{...old,state:{...old.state,queryResourceConsumption:'999',futureEnvelopeTelemetry:{cost:999}}});
+  const input={action:'execute',review_id:r.review_id,idempotency_key:r.idempotency_key,confirmed:true},out=await f.call(input);assert.equal(out.success,true,JSON.stringify(out));
+  assert.equal(f.calls.filter(c=>c.path.endsWith('/assets:mutate')).length,1);const count=f.calls.length;
+  assert.equal((await f.call(input)).data.replayed,true);assert.equal(f.calls.length,count);
  }finally{f.close();}
 });
 

@@ -1,9 +1,10 @@
 import {sha256,stable} from './security.js';
 import {MirrorError} from './errors.js';
+import {microsoftContracts} from './microsoft-native.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 
-// Response envelopes are validated before this projection. Keep unknown fields:
-// a new provider configuration field must remain protected by default.
+// Response envelopes are validated before projection. Within each resource keep
+// unknown fields: a new configuration field must remain protected by default.
 const volatile = new Set([
  'delivery_status','effective_status','secondary_status','updated_at','updated_time','last_modified_time',
  'last_modified_at','last_modified','update_time','modification_time','modify_time','modified_at','modified_time','last_updated_at','last_update_time',
@@ -29,18 +30,44 @@ export function normalizeReviewState(value:unknown,key=''):unknown {
   .map(([key,item])=>[key,normalizeReviewState(item,key)]));
  return value;
 }
-/** Google GAQL snapshot rows are an unordered resource set. Configuration within
- * each resource remains governed by the normal projection, including ordered arrays. */
+/** Allowlist configuration-bearing response containers, not response metadata.
+ * Only call after raw success, completeness and exact-target validation. Preserve
+ * the native container shape for spending/ownership checks and field diagnostics.
+ * Flat resource responses have no separate envelope: keep unknown configuration.
+ * This is idempotent so saved, unsubmitted reviews can use the same projection. */
 export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
- if(read.gateway!=='google_ads_native_action'||!data||Array.isArray(data)||typeof data!=='object')return normalizeReviewState(data);
+ if(!data||Array.isArray(data)||typeof data!=='object')return normalizeReviewState(data);
+ const d=data as JsonObject;
+ if(read.gateway==='tiktok_native_action'&&Array.isArray(d.data?.list))return normalizeReviewState({data:{list:d.data.list}});
+ if(['x_ads_native_action','reddit_native_action'].includes(read.gateway)&&Object.hasOwn(d,'data'))return normalizeReviewState({data:d.data});
+ if(read.gateway==='apple_ads_native_action'&&Object.hasOwn(d,'result'))return normalizeReviewState({result:d.result});
+ if(read.gateway==='microsoft_ads_native_action'){
+  const field=microsoftContracts.get(read.action)?.result;
+  if(field&&Object.hasOwn(d,field))return normalizeReviewState({[field]:d[field]});
+ }
+ if(read.gateway==='snapchat_native_action'){
+  const kind=read.path.split('/').at(-2)!,singular=kind==='adsquads'?'adsquad':kind==='media'?'media':kind.slice(0,-1);
+  if(Array.isArray(d[kind]))return normalizeReviewState({[kind]:d[kind].map((row:JsonObject)=>Object.hasOwn(row,singular)?{[singular]:row[singular]}:row)});
+ }
+ if(read.gateway==='google_search_console_native_action'&&read.path.includes('/sitemaps/')&&d.amcp_absent!==true){
+  // Crawl/processing observations are not a sitemap submission change. Keep
+  // lastSubmitted, type, path, index identity and unknown configuration fields.
+  const processing=new Set(['lastDownloaded','isPending','warnings','errors','contents']);
+  return normalizeReviewState(Object.fromEntries(Object.entries(d).filter(([key])=>!processing.has(key))));
+ }
+ if(read.gateway!=='google_ads_native_action')return normalizeReviewState(data);
  const query=String((read.body as JsonObject)?.query??''),resource=/\bFROM\s+([a-z_]+)/i.exec(query)?.[1];
- const rows=(data as JsonObject).results;if(!resource||!query.includes(resource+'.resource_name')||!Array.isArray(rows))return normalizeReviewState(data);
+ const rows=d.results;if(!Array.isArray(rows))return normalizeReviewState(data);
+ // Even customer reads without resource_name must exclude query cost, field
+ // masks, summary metrics and future envelope metadata. Never ignore a nonempty
+ // nextPageToken here instead of rejecting the incomplete raw response first.
+ if(!resource||!query.includes(resource+'.resource_name'))return normalizeReviewState({results:rows});
  const key=resource.replace(/_([a-z])/g,(_m,c)=>c.toUpperCase()),seen=new Set<string>();
  const items=rows.map((row:JsonObject)=>{const value=row[resource]??row[key],id=value?.resourceName??value?.resource_name;if(typeof id!=='string'||!id||seen.has(id))throw new MirrorError('STATE_RESOURCE_INVALID','The state response contains missing or duplicate resource identities.',{},502);seen.add(id);return {id,row};});
  const expected=[...new Set([...query.matchAll(/'(customers\/[^']+)'/g)].map(m=>m[1]!))];
  if(expected.length&&(expected.length!==seen.size||expected.some(id=>!seen.has(id))))throw new MirrorError('STATE_RESOURCE_MISMATCH','The state response does not cover exactly the requested resources.',{},409);
  items.sort((a,b)=>a.id.localeCompare(b.id,'en'));
- return normalizeReviewState({...data,results:items.map(item=>item.row)});
+ return normalizeReviewState({results:items.map(item=>item.row)});
 }
 export const reviewStateHash=(value:unknown)=>sha256(stable(normalizeReviewState(value)));
 

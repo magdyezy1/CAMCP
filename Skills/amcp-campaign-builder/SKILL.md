@@ -65,7 +65,7 @@ Prepare a write using `amcp_write` with `action: prepare`, `gateway`, and native
 
 When the user's existing authorization covers the concrete change, execute with the returned `review_id` and `idempotency_key`, `confirmed: true`, and `spend_change_confirmed: true` if applicable. Otherwise present the concrete request for authorization. Do not impose extra confirmations for already authorized work. A local guide cannot authorize spending or account changes on the user's behalf.
 
-Read the resulting resource before describing it as complete. A created ID is not evidence of serving or completed video processing. Stop on partial/uncertain outcomes; retain their IDs and original idempotency key. Do not resubmit a possibly successful write under a new key. On `STATE_CHANGED`, inspect changed field paths and expected/actual hashes, then prepare and review again. `skip_preflight` never bypasses AMCP's review gate.
+Read the resulting resource before describing it as complete. A created ID is not evidence of serving or completed video processing. Stop on partial/uncertain outcomes; retain their IDs and original idempotency key. Do not resubmit a possibly successful write under a new key. On `STATE_CHANGED`, inspect changed field paths and expected/actual hashes, then prepare and review again for a real configuration change. If the only differences are query-cost, request or paging metadata, report the projection defect instead of repeatedly preparing or bypassing review; incomplete/paginated reads must still be resolved. `skip_preflight` never bypasses AMCP's review gate.
 
 ## Troubleshooting
 
