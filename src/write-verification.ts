@@ -1,3 +1,4 @@
+import {redditCreativeKind,redditCreativeVerification} from './reddit-creative-writes.js';
 import {Store} from './store.js';
 import {Registry} from './catalog.js';
 import {NativeTransport} from './transport.js';
@@ -30,6 +31,7 @@ function differing(expected:any,actual:any,path='',out:string[]=[]):string[]{
  else if(fingerprint(expected)!==fingerprint(actual??null))out.push(path);return out;
 }
 function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Registry,before:unknown[]=[]):{read:CompiledRequest;expected:JsonObject;id:string}[]{
+ if(redditCreativeKind(plan))return redditCreativeVerification(plan,result);
  if(gtmWorkspaceKind(plan))return gtmWorkspaceVerification(plan,result,before);
  if(gtmWorkflowKind(plan))return gtmWorkflowVerification(plan,result,before);
  if(dv360ListKind(plan))return dv360ListVerification(plan,result,before);

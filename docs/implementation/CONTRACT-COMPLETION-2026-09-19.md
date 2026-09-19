@@ -403,3 +403,54 @@ read-back proves that parent's absence, not independent cleanup of every descend
 No live advertising or account changes were made. Google contract version is now 6.
 Current inventory: 3,241 actions, 346 reviewed-family rows, 968 blocked mapped writes,
 105 unmapped, 50 unqualified reads, eight input-dependent adapters, four withdrawn.
+
+## Reddit post metadata and lead-form contracts
+
+Added three exact reviewed routes: PATCH posts/structured_posts (allow_comments
+only), and POST account lead_gen_forms. Post updates bind the exact t3 post's t2
+author to a current profile of the selected account, independently of historical
+resource discovery. Numeric profile IDs and Reddit user IDs are kept distinct.
+Account profiles are read with complete bounded pagination, current grant checks
+on every page, and strict response validation. Only the selected profile binding
+is included in review state; unrelated profile edits do not cause false conflicts.
+Real content/author changes still do. Comments can affect shared serving content,
+so owner activation restrictions also apply. Exact read-back proves the requested
+flag and author. Lead forms require explicit native questions and consent text;
+their receipt must match the full requested form and selected account before scope
+is learned. This creates a definition, not an ad or lead-record download.
+
+Official Reddit v3 references checked 2026-09-19:
+- [Update post](https://ads-api.reddit.com/docs/v3/api/update-post) and
+  [update structured post](https://ads-api.reddit.com/docs/v3/api/update-structured-post):
+  only comments configuration is editable; content replacement needs a new post.
+- [Create lead form](https://ads-api.reddit.com/docs/v3/api/create-lead-gen-form)
+  and pinned official OpenAPI schemas for profile identity, native questions and
+  response envelopes. Pinned metadata is documentation evidence, not live proof.
+- [Changelog](https://ads-api.reddit.com/docs/v3/history): onsite forms are withdrawn
+  September 21, with existing dependent ads paused September 30. The announcement
+  has no timezone; AMCP conservatively stops new form creation at 00:00 UTC on
+  September 21, including reviews crossing the deadline during reads. Completed
+  receipts and historical reads remain available. Use external forms with Pixel
+  or CAPI tracking afterward; legacy-route retries cannot bypass the deadline.
+
+Initial focused run: 7 pass, 8 fail (`reddit-creative-first.log`), caused by test
+fixtures selecting the wrong delegated wrappers. Corrected those fixture tool
+names; no production assertions were weakened. The second run passed 15/15.
+The final new/existing Reddit and guide run passed 19/19, zero skips/failures
+(`reddit-creative-third.log`). Negative cases cover foreign/revoked grants, stale
+or ambiguous authors, incomplete/error-200 pagination, real conflicts, duplicate
+concurrent execution, ignored writes, uncertain receipts and sunset boundaries.
+Candidate H full validation follows. No live provider calls were made.
+
+Limits: profile discovery is capped at 100 pages, 1,000 profiles and 4 MiB.
+Legacy post creation and asynchronous structured-post creation are still separate
+unfinished contracts. Media import, Reddit Max and customer-list ingestion are
+not implied by these three contracts. Reddit contract version is now 2.
+Current inventory: 3,241 actions, 349 reviewed-family rows, 965 blocked mapped writes,
+105 unmapped, 50 unqualified reads, eight input-dependent adapters, four withdrawn.
+
+Candidate H (`ce771c3106994c3754a17b108d11924ddf3af8403ae1ec0999b092fb2bca71dc`,
+461 files) passed the complete `npm.cmd run check`: 802 tests passed, zero failed,
+one FFmpeg skip, four capture tests passed. All generation, guidance, provider and
+strict contract-ledger checks passed. Evidence: `release-check-h.log`. This is
+local synthetic validation; hosted CI, Docker and live Reddit remain unverified.

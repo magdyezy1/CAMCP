@@ -1,3 +1,4 @@
+import {readRedditProfiles,validateRedditProfiles,validateRedditCreativePrerequisites,assertRedditCreativeAvailable} from './reddit-creative-writes.js';
 import {readKeywordPlanTree,validateKeywordPlanTree} from './google-keyword-plan-writes.js';
 import {reviewedWriteFamily} from './reviewed-routes.js';
 import {readAssetSetContents,validateAssetSetContents} from './google-asset-set-writes.js';
@@ -100,6 +101,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  return false;
 }
 export function validateState(read:CompiledRequest,result:TransportResult):void {
+ if(read.gateway==='reddit_native_action'&&read.redditProfilesState){validateRedditProfiles(read,result);return;}
  if(read.gateway==='google_ads_native_action'&&read.googleKeywordPlanState){validateKeywordPlanTree(read,result);return;}
  if(read.gateway==='google_ads_native_action'&&read.googleAssetSetState){validateAssetSetContents(read,result);return;}
  if(read.gateway==='gtm_native_action'&&read.gtmWorkspaceState){validateGtmWorkspaceState(read,result);return;}
@@ -319,7 +321,7 @@ export class WriteReviewService {
   });
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
-   try{result=await readKeywordPlanTree(read,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.transport.request(page,current,auth);this.access(actor,plan,connectionId);return response;})))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
+   try{result=await readRedditProfiles(read,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.transport.request(page,current,auth);this.access(actor,plan,connectionId);return response;}))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
    this.access(actor,plan,connectionId);validateState(read,result);
    if(appleEntityKind(plan)==='shared_budget'&&read.path===plan.path){
     const accounts=appleSharedAccounts(plan,result.data),frozen=plan.scopeContext?.appleSharedAccountIds;
@@ -331,6 +333,7 @@ export class WriteReviewService {
    }
    values.push(linkedinDSC(plan)&&/^\/rest\/(images|videos)\//.test(read.path)?linkedinMediaProjection(plan,object(result.data)):normalizeSnapshot(read,result.data));
   }
+  validateRedditCreativePrerequisites(plan,values);
   validateAppleEntityPrerequisites(plan,reads,values);
   validateGtmWorkflowPrerequisites(plan,values);
   validateGtmWorkspacePrerequisites(plan,values);
@@ -353,10 +356,10 @@ export class WriteReviewService {
    if(input.connection_id&&nativeArgs.connection_id&&input.connection_id!==nativeArgs.connection_id)fail('CONFLICTING_PARAMETER','Connection IDs must agree.');
    if(input.action==='inspect'){
     let accountCapability:JsonObject;try{const c=this.store.resolveConnection(actor,plan.gateway,plan.accountId,input.connection_id??nativeArgs.connection_id);accountCapability={connection_id:c.id,account_id:plan.accountId,selected:true,write_granted:c.writeAccounts?.includes(plan.accountId!)??false,granted_scopes:c.scopes,provider_access:'requires live preparation'};}catch(e){accountCapability={selected:false,error:e instanceof MirrorError?{code:e.code,message:e.message}:undefined};}
-    try{assertWriteShape(plan);const reads=snapshotPlans(plan,this.registry);return {executed:false,network_requests:0,review_contract_supported:true,request:redact(plan),contract_evidence:executionEvidence(plan),state_reads:reads.map(r=>({method:r.method,path:r.path})),live_permissions_verified:false,account_capability:accountCapability,requirements:{deployment_writes_enabled:this.policy.allowWrites,operator_role:actor.role!=='reader',account_write_grant_required:true},next_step:'Use prepare to verify live state and account access.'};}
+    try{assertWriteShape(plan);assertRedditCreativeAvailable(plan);const reads=snapshotPlans(plan,this.registry);return {executed:false,network_requests:0,review_contract_supported:true,request:redact(plan),contract_evidence:executionEvidence(plan),state_reads:reads.map(r=>({method:r.method,path:r.path})),live_permissions_verified:false,account_capability:accountCapability,requirements:{deployment_writes_enabled:this.policy.allowWrites,operator_role:actor.role!=='reader',account_write_grant_required:true},next_step:'Use prepare to verify live state and account access.'};}
     catch(e){if(!(e instanceof MirrorError))throw e;const remedy=errorRemedy(e);return {executed:false,network_requests:0,review_contract_supported:false,request:redact(plan),contract_evidence:executionEvidence(plan),error:{code:e.code,message:e.message,details:e.details,category:remedy.category,remedy},live_permissions_verified:false};}
    }
-   assertWriteShape(plan);const c=this.access(actor,plan,input.connection_id??nativeArgs.connection_id),reads=snapshotPlans(plan,this.registry),state=await this.state(actor,plan,c.id,reads);
+   assertWriteShape(plan);assertRedditCreativeAvailable(plan);const c=this.access(actor,plan,input.connection_id??nativeArgs.connection_id),reads=snapshotPlans(plan,this.registry),state=await this.state(actor,plan,c.id,reads);
    validateGoogleAssetLinkState(plan,state,true);
    validateGoogleConfigurationState(plan,state,true);
    validateDV360ListPrerequisites(plan,state,true);
@@ -390,6 +393,7 @@ export class WriteReviewService {
   const fingerprint=sha256(stable({tenant:actor.tenantId,user:actor.userId,connection:review.connection_id,plan,...(review.creative_edit_confirmed===true?{creative_edit_confirmed:true}:{})}));if(fingerprint!==review.fingerprint)fail('REVIEW_CHANGED','The stored reviewed request failed its integrity check.');
   const previous=this.store.db.prepare('SELECT state,result,fingerprint FROM idempotency WHERE tenant_id=? AND key=?').get(actor.tenantId,input.idempotency_key) as JsonObject|undefined;
   if(previous){if(previous.fingerprint!==fingerprint)fail('IDEMPOTENCY_CONFLICT','The key is bound to another request.');if(previous.state==='complete')return {...JSON.parse(previous.result),replayed:true};fail('WRITE_OUTCOME_UNCERTAIN','This review was already submitted. Inspect provider state; do not retry with a new key.');}
+  assertRedditCreativeAvailable(plan);
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Prepare and review a fresh request.');
   // Reproject saved envelopes as well: a still-valid review prepared before an
   // upgrade must not conflict solely because its stored envelope was wider.
@@ -400,6 +404,7 @@ export class WriteReviewService {
   if(actualHash!==expectedHash)fail('STATE_CHANGED','The provider configuration changed after preparation. Prepare and review a fresh request.',{expected_state_hash:expectedHash,actual_state_hash:actualHash,changed_fields:changedStateFields(expectedState,current)});
   const c=this.access(actor,plan,review.connection_id),auth=await this.credentials.get(c);this.access(actor,plan,review.connection_id);
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Review expired during state verification.');
+  assertRedditCreativeAvailable(plan);
   const actorBinding=this.store.bindJobActor(actor,input.review_id);
   const claim=this.store.transaction(()=>{checkSpendPolicy(this.store,actor,plan,current,input.review_id);return this.store.claim(actor.tenantId,input.idempotency_key,fingerprint);});if(!claim.fresh)return {...object(claim.result),replayed:true};
   try{

@@ -1,3 +1,4 @@
+import {redditCreativeKind} from './reddit-creative-writes.js';
 import type {CompiledRequest} from './types.js';
 import {appleEntityKind} from './apple-entity-writes.js';
 import {dv360ListKind} from './dv360-list-writes.js';
@@ -22,7 +23,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(gtmWorkflowKind(p))return 'gtm_workflows';
  if(gtmWorkspaceKind(p))return 'gtm_workspace';
  if(p.gateway===microsoftGateway){const c=microsoftContracts.get(p.action);return c&&c.path===route&&c.method===method?(microsoftAssociationWrite(p)?'microsoft_asset_links':/^(Add|Update|Delete)/.test(c.name)?'microsoft_search':undefined):undefined;}
- if(p.gateway==='reddit_native_action')return redditWriteKind(p)?'reddit_classic':undefined;
+ if(p.gateway==='reddit_native_action')return redditCreativeKind(p)?'reddit_creatives':redditWriteKind(p)?'reddit_classic':undefined;
  if(linkedinDSC(p))return 'linkedin_dsc';
  if(appleEntityKind(p))return 'apple_entities';
  if(dv360ListKind(p))return 'dv360_lists';

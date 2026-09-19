@@ -665,6 +665,24 @@
           ]
         }
       }
+    },
+    {
+      "gateway": "reddit_native_action",
+      "arguments": {
+        "operation": "reddit_post_ops",
+        "arguments": {
+          "action": "UPDATE_STRUCTURED_POST",
+          "account_id": "a2_111",
+          "params": {
+            "post_id": "t3_abc"
+          },
+          "payload": {
+            "data": {
+              "allow_comments": false
+            }
+          }
+        }
+      }
     }
   ],
   "recipe_business": {

@@ -50,8 +50,8 @@ qualification dependencies, not a reason to omit locally implementable code.
 
 ## Current checkpoint (2026-09-19)
 
-The working tree now inventories **3,241 actions**, including **346 reviewed-family
-rows**. **968 mapped writes, 105 unmapped actions, 50 unqualified reads and eight
+The working tree now inventories **3,241 actions**, including **349 reviewed-family
+rows**. **965 mapped writes, 105 unmapped actions, 50 unqualified reads and eight
 input-dependent adapters remain incomplete**. Four routes are now explicitly
 **provider_unsupported**, including three previously blocked writes and one read;
 these are not counted as implemented. The first batch added 68 reviewed action
@@ -102,3 +102,15 @@ quality and provider eligibility remain unverified. The broader backlog is open.
 Candidate G passed the entire release check: 792 tests passed, zero failures,
 one FFmpeg skip and four additional capture tests passed. Source hash and full
 command evidence are recorded in the dated implementation report.
+
+Saved planning is pushed as `4b0341a`. Three Reddit creative contracts now cover
+comments-only updates to legacy/structured posts and time-limited lead-form creation.
+Account profile discovery is refreshed completely, bound to the post author and
+projected to the selected profile. Owner policy, read-back, uncertain outcomes and
+the September 21 lead-form withdrawal are enforced. Nineteen focused tests pass;
+fresh full candidate H is pending. Both post-creation routes remain outstanding.
+The remaining mapped, unmapped and unqualified actions are not marked complete.
+
+Candidate H completed the entire release check: 802 passed, zero failures, one
+FFmpeg skip; four additional capture tests passed. Strict generated ledgers,
+guidance and provider checks passed. Post-creation implementation continues next.

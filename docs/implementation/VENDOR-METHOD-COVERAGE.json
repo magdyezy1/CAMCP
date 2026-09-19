@@ -24267,8 +24267,8 @@
         {
           "operation": "reddit_leadgen_ops",
           "action": "CREATE_LEAD_GEN_FORM",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "reddit_creatives"
         }
       ],
       "mapping_status": "mapped",
@@ -24966,8 +24966,8 @@
         {
           "operation": "reddit_post_ops",
           "action": "UPDATE_POST",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "reddit_creatives"
         }
       ],
       "mapping_status": "mapped",
@@ -25451,8 +25451,8 @@
         {
           "operation": "reddit_post_ops",
           "action": "UPDATE_STRUCTURED_POST",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "reddit_creatives"
         }
       ],
       "mapping_status": "mapped",

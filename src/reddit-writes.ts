@@ -1,3 +1,4 @@
+import {redditCreativeKind,assertRedditCreative,redditCreativeSnapshots,redditCreativeOutcome} from './reddit-creative-writes.js';
 import type {CompiledRequest,JsonObject,Connection} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
@@ -11,6 +12,7 @@ export function redditWriteKind(plan:CompiledRequest){
  if(plan.method==='POST'&&create)return {kind:create[2]!,create:true};if(plan.method==='PATCH'&&update)return {kind:update[1]!,create:false,target:update[2]!};
 }
 export function assertRedditWrite(plan:CompiledRequest){
+ if(redditCreativeKind(plan))return assertRedditCreative(plan);
  const route=redditWriteKind(plan);if(!route)throw new MirrorError('WRITE_CONTRACT_UNAVAILABLE','Reddit execution supports reviewed campaign, ad-group, existing-post ad and saved Reddit-audience creates/updates.');
  if(Object.keys(plan.query).length||plan.specialTransport||Object.keys(plan.headers).length)fail('Only native JSON bodies are qualified for Reddit write reviews.');
  const b=plan.body;if(!object(b)||Object.keys(b).some(k=>k!=='data')||!object(b.data)||!Object.keys(b.data).length)fail('Use the native {data:{...}} request body.');const d=b.data;
@@ -39,6 +41,7 @@ export function assertRedditWriteScopes(connection:Connection){
  if(!['adsread','adsedit'].every(s=>connection.scopes.includes(s)))throw new MirrorError('INSUFFICIENT_SCOPE','Reddit review and execution require adsread and adsedit on the selected connection.',{},403);
 }
 export function redditSnapshots(plan:CompiledRequest):CompiledRequest[]{
+ if(redditCreativeKind(plan))return redditCreativeSnapshots(plan);
  const route=redditWriteKind(plan)!,d=(plan.body as JsonObject).data;
  const read=(path:string):CompiledRequest=>({...plan,action:'AMCP_STATE_READ',path,method:'GET',body:undefined,query:{},headers:{},readOnly:true,destructive:false,requiresConfirmation:false});
  const reads=[read('/api/v3/ad_accounts/'+plan.accountId)];if(!route.create)reads.push(read(plan.path));
@@ -54,11 +57,12 @@ export function validateRedditState(plan:CompiledRequest,result:TransportResult)
   return;
  }
  if(result.status!==200||!object(d)||d.id!==target||d.ad_account_id!==undefined&&d.ad_account_id!==plan.accountId||kind==='ad_accounts'&&d.id!==plan.accountId)throw new MirrorError('STATE_TARGET_MISMATCH','Reddit did not return the exact scoped resource.',{},502);
- if(kinds.includes(kind!)&&d.ad_account_id!==plan.accountId)throw new MirrorError('STATE_TARGET_MISMATCH','Reddit state must confirm the resource account.',{},502);
+ if([...kinds,'lead_gen_forms'].includes(kind!)&&d.ad_account_id!==plan.accountId)throw new MirrorError('STATE_TARGET_MISMATCH','Reddit state must confirm the resource account.',{},502);
  if(kind==='saved_audiences'&&d.type!=='REDDIT_AUDIENCE')throw new MirrorError('WRITE_CONTRACT_UNAVAILABLE','Only saved Reddit targeting audiences are qualified. Customer-list and retargeting ingestion remain separate.');
  if(d.type==='AUTOMATED'||d.type==='DYNAMIC_CREATIVE_AD_TEMPLATE'||d.is_max===true)throw new MirrorError('WRITE_CONTRACT_UNAVAILABLE','Reddit Max state is outside the reviewed contract.');
 }
 export function redditOutcome(plan:CompiledRequest,result:TransportResult){
+ if(redditCreativeKind(plan))return redditCreativeOutcome(plan,result);
  const route=redditWriteKind(plan),d=(result.data as JsonObject)?.data,b=(plan.body as JsonObject)?.data;if(!route||result.status!==(route.create?201:200)||!object(d)||!identifier(d.id)||d.ad_account_id!==plan.accountId)return false;
  if(!route.create&&d.id!==route.target)return false;
  for(const field of ['campaign_id','ad_group_id','post_id'])if(b[field]!==undefined&&d[field]!==b[field])return false;

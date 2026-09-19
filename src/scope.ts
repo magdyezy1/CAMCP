@@ -149,7 +149,7 @@ export class ScopeGuard {
   if(plan.readOnly||plan.method!=='POST')return;
   const id=normalizeAccount(plan.gateway,plan.accountId),d=data as JsonObject;
   if(plan.gateway==='reddit_native_action'){
-   const kind=/^\/api\/v3\/ad_accounts\/[^/]+\/(campaigns|ad_groups|ads|saved_audiences)$/.exec(plan.path)?.[1],entity=d?.data;
+   const kind=/^\/api\/v3\/ad_accounts\/[^/]+\/(campaigns|ad_groups|ads|saved_audiences|lead_gen_forms)$/.exec(plan.path)?.[1],entity=d?.data;
    if(kind&&typeof entity?.id==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(entity.id)&&entity.ad_account_id===id)this.store.rememberResource(connection,id,kind+'/'+entity.id);
   }
   // Other qualified gateways carry the account in every child path/body. These two
