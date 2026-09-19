@@ -2,6 +2,12 @@
   "version": 3,
   "owner_role": "AMCP integration maintainer",
   "qualification": "Synthetic local contract examples. Replace business facts and IDs with user-supplied or discovered values. These requests inspect contracts; none authorizes or executes a mutation.",
+  "connection_diagnostics": [
+    {"gateway":"ga4_native_action","operation":"ga4_connection_ops","arguments":{"action":"status"}},
+    {"gateway":"google_search_console_native_action","operation":"gsc_connection_ops","arguments":{"action":"status"}},
+    {"gateway":"google_business_native_action","operation":"gmb_connection_ops","arguments":{"action":"status"}},
+    {"gateway":"google_business_native_action","operation":"gmb_qanda_ops","arguments":{"action":"status"}}
+  ],
   "inspections": [
     {
       "gateway": "google_ads_native_action",

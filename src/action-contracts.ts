@@ -1,4 +1,5 @@
 import {Registry} from './catalog.js';
+import {connectionDiagnosticKind,businessQandaRetirement} from './connection-diagnostics.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {appleActions} from './apple-native.js';
 import {businessWorkflowOperations} from './workflows.js';
@@ -99,6 +100,7 @@ export function actionContracts(registry:Registry):ActionContract[]{
    let row=classify(tool.name,action,route?.method??null,route?.path??null,route?.readOnly??null,route?.source??tool.schema_evidence,[],op.operation,route?.origin,route?.unsupportedMedia?.length?'vendor_media':undefined,route?.parameters);
    if(!route&&(tool.name==='amcp_platform_workspace'||tool.name==='amcp_native_action'&&(localReads.has(op.operation)||reportingOperations.has(op.operation)||businessWorkflowOperations.has(op.operation)||op.operation==='platform_media_upload'))){row={...row,status:'local_workflow',implementation:'src/service.ts / src/workflows.ts / src/reporting.ts',reason:'Implemented AMCP workflow; platform and payload support depend on its underlying contracts. This row never enables native writes.',tests:['tests/workflows.test.ts']};}
    if(tool.name==='gtm_native_action'&&gtmDiagnosticOperations.has(op.operation))row={...row,status:'local_workflow',implementation:'src/gtm-diagnostics.ts',reason:'AMCP scoped read-only configuration audit or local reviewed-write verification job status. This workflow never publishes or resubmits a mutation.',tests:['tests/gtm-diagnostics.test.ts']};
+   const diagnostic=connectionDiagnosticKind(tool.name,op.operation,action);if(diagnostic)row={...row,status:'local_workflow',implementation:'src/connection-diagnostics.ts',reason:diagnostic==='qanda'?'Implemented local retirement-status diagnostic. Google discontinued Q&A on 2025-11-03; no Q&A provider request or replacement API is available.':'Read-only tenant-scoped connection metadata with explicit/default identity resolution; no credential access, provider request or implicit connection/grant changes. Recorded configuration is not live readiness.',...(diagnostic==='qanda'?{source:businessQandaRetirement.source}:{}),tests:['tests/connection-diagnostics.test.ts']};
    if(tool.name==='amcp_native_action'&&op.operation==='search_ads_library')row={...row,status:'local_workflow',implementation:'src/meta-ad-library.ts',reason:'Bounded public Meta Ad Library search through the sole/default connection. Media format is translated separately from provider ad category. Geographic API coverage and result limits are explicit; no performance inference or token-bearing URLs are returned.',source:'https://www.facebook.com/ads/library/api/',tests:['tests/meta-ad-library.test.ts']};
    put(row);
   }

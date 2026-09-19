@@ -24,9 +24,9 @@ export const providerContracts:JsonObject[]=[
  ['google_business','google_business','v1',null,null,null,'delegated-native','https://developers.google.com/my-business/reference/rest'],
 ].map(([id,gateway,version,guide,media,writes,test,docs])=>({
  id,gateway:gateway+'_native_action',
- contract_version:({google:11,reddit:3,criteo:2,dv360:3,meta:5,microsoft:3,snapchat:2,linkedin:5,x:3,tiktok:2,ga4:2,gtm:4,gsc:2,apple:3} as Record<string,number>)[String(id)]??1,
+ contract_version:({google:11,reddit:3,criteo:2,dv360:3,meta:5,microsoft:3,snapchat:2,linkedin:5,x:3,tiktok:2,ga4:3,gtm:4,gsc:3,google_business:2,apple:3} as Record<string,number>)[String(id)]??1,
  api_version:version,owner_role:'AMCP integration maintainer',
- reviewed_at:['google','meta'].includes(String(id))?'2026-09-20':['meta','apple','dv360','gtm','reddit','criteo','linkedin','x'].includes(String(id))?'2026-09-19':['microsoft','snapchat','linkedin','ga4','gsc'].includes(String(id))?'2026-09-18':['x','tiktok'].includes(String(id))?'2026-09-14':'2026-09-12',
+ reviewed_at:['google','meta','ga4','gsc','google_business'].includes(String(id))?'2026-09-20':['meta','apple','dv360','gtm','reddit','criteo','linkedin','x'].includes(String(id))?'2026-09-19':['microsoft','snapchat','linkedin'].includes(String(id))?'2026-09-18':['x','tiktok'].includes(String(id))?'2026-09-14':'2026-09-12',
  documentation:docs,guide:guide?'amcp://guides/'+guide:null,
  website_connection:!!guide&&id!=='criteo',discovery:id==='criteo'?'partial':guide?'implemented':'unsupported',native_reads:guide&&id!=='criteo'?'implemented':'partial',
  overview_reporting:['google','meta','tiktok','snapchat','linkedin','x','microsoft','apple','reddit','ga4','gsc'].includes(String(id))?'implemented':'unsupported',
@@ -38,5 +38,7 @@ export const providerContracts:JsonObject[]=[
  recovery:'Read-only retries and durable local jobs; uncertain provider mutations require reconciliation with the original review.'
  ,...(id==='dv360'?{targeting_search:'Advertiser-scoped native GEO_REGION, POI and BUSINESS_CHAIN discovery; exact connection control, bounded complete pages and no assignment side effects'}:{})
  ,...(id==='meta'?{public_research:'Bounded Ad Library search via amcp_native_action/search_ads_library; media format, coverage, truncation and cache freshness explicit; app eligibility unverified'}:{})
+ ,...(['ga4','gsc','google_business'].includes(String(id))?{connection_diagnostics:'Local connection status only: tenant-scoped metadata, explicit/default identity selection, bounded account lists, no credential access or provider requests. Authorization, refresh, discovery and grant changes remain separate.',diagnostic_tests:['tests/connection-diagnostics.test.ts'],diagnostic_guide:'amcp://guides/dv360-and-measurement'}:{})
+ ,...(id==='google_business'?{qanda:'Local retirement-status diagnostic only. The provider discontinued Q&A on 2025-11-03 with no replacement API.'}:{})
 }));
 export function effectiveProviderContract(id:string){const c=providerContracts.find(c=>c.id===id);return c?{...c,api_version:id==='linkedin'?linkedinVersion():c.api_version}:undefined;}

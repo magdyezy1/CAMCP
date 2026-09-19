@@ -94,9 +94,10 @@
       "gateway": "ga4_native_action",
       "actions": 24,
       "counts": {
+        "local_workflow": 1,
         "native_read": 16,
         "reviewed_write_family": 2,
-        "unmapped": 6
+        "unmapped": 5
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -122,8 +123,9 @@
       "actions": 59,
       "counts": {
         "blocked_write": 23,
+        "local_workflow": 2,
         "native_read": 28,
-        "unmapped": 8
+        "unmapped": 6
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -133,9 +135,10 @@
       "gateway": "google_search_console_native_action",
       "actions": 16,
       "counts": {
+        "local_workflow": 1,
         "native_read": 6,
         "reviewed_write_family": 4,
-        "unmapped": 6
+        "unmapped": 5
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -7903,11 +7906,13 @@
       "aliases": [],
       "method": null,
       "path": null,
-      "status": "unmapped",
-      "implementation": "",
-      "reason": "No provider request mapping exists. The advertised name is not executable.",
+      "status": "local_workflow",
+      "implementation": "src/connection-diagnostics.ts",
+      "reason": "Read-only tenant-scoped connection metadata with explicit/default identity resolution; no credential access, provider request or implicit connection/grant changes. Recorded configuration is not live readiness.",
       "source": "INFERRED_OUTER_ENVELOPE",
-      "tests": [],
+      "tests": [
+        "tests/connection-diagnostics.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -16453,11 +16458,13 @@
       "aliases": [],
       "method": null,
       "path": null,
-      "status": "unmapped",
-      "implementation": "",
-      "reason": "No provider request mapping exists. The advertised name is not executable.",
+      "status": "local_workflow",
+      "implementation": "src/connection-diagnostics.ts",
+      "reason": "Read-only tenant-scoped connection metadata with explicit/default identity resolution; no credential access, provider request or implicit connection/grant changes. Recorded configuration is not live readiness.",
       "source": "INFERRED_OUTER_ENVELOPE",
-      "tests": [],
+      "tests": [
+        "tests/connection-diagnostics.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -16885,11 +16892,13 @@
       "aliases": [],
       "method": null,
       "path": null,
-      "status": "unmapped",
-      "implementation": "",
-      "reason": "No provider request mapping exists. The advertised name is not executable.",
-      "source": "INFERRED_OUTER_ENVELOPE",
-      "tests": [],
+      "status": "local_workflow",
+      "implementation": "src/connection-diagnostics.ts",
+      "reason": "Implemented local retirement-status diagnostic. Google discontinued Q&A on 2025-11-03; no Q&A provider request or replacement API is available.",
+      "source": "https://developers.google.com/my-business/content/sunset-dates",
+      "tests": [
+        "tests/connection-diagnostics.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -17069,11 +17078,13 @@
       "aliases": [],
       "method": null,
       "path": null,
-      "status": "unmapped",
-      "implementation": "",
-      "reason": "No provider request mapping exists. The advertised name is not executable.",
+      "status": "local_workflow",
+      "implementation": "src/connection-diagnostics.ts",
+      "reason": "Read-only tenant-scoped connection metadata with explicit/default identity resolution; no credential access, provider request or implicit connection/grant changes. Recorded configuration is not live readiness.",
       "source": "INFERRED_OUTER_ENVELOPE",
-      "tests": [],
+      "tests": [
+        "tests/connection-diagnostics.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {

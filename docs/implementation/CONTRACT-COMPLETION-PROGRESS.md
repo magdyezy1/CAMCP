@@ -53,7 +53,7 @@ qualification dependencies, not a reason to omit locally implementable code.
 ## Current checkpoint (2026-09-20)
 
 The working tree now inventories **3,241 actions**, including **401 reviewed-family
-rows**. **916 mapped writes, 104 unmapped actions, 27 unqualified reads and eight
+rows**. **916 mapped writes, 100 unmapped actions, 27 unqualified reads and eight
 input-dependent adapters remain incomplete**. Four routes are now explicitly
 **provider_unsupported**, including three previously blocked writes and one read;
 these are not counted as implemented. The first batch added 68 reviewed action
@@ -430,3 +430,47 @@ completed with exit zero. Manifest: 505 files, source-tree SHA-256
 `cb5f0baf00cf83a2e7ec2f13395205a185c6e404532fc0568067acde004fa166`.
 No live Meta acceptance, required-FFmpeg run or container smoke was performed.
 This batch is ready for the authorized Codex-branch push.
+
+## Local connection diagnostics and retired Q&A (2026-09-20)
+
+Implemented the exact status variant of GA4, Search Console and Business Profile
+connection operations, plus Business Profile's local Q&A retirement diagnostic.
+Four formerly unmapped catalog rows now have executable, tested local workflows.
+No OAuth start/exchange/refresh/disconnect or asset synchronization is claimed.
+Status performs zero provider requests and does not decrypt credentials. It
+checks current actor authority, selects only this tenant/provider's identities,
+resolves a unique enabled default, and bounds output with explicit truncation.
+Recorded provider scopes, account/write grants and unverified token/provider
+health remain distinct. No discovered but ungranted website assets are exposed.
+Connection failures also redact OAuth code/state before audit persistence;
+ordinary provider diagnostic error codes remain intact.
+
+Google's official sunset and Q&A change-log pages state that Q&A was withdrawn
+on 2025-11-03 without replacement (checked 2026-09-20). A successful local status
+response explicitly says provider_unsupported; it never claims a Q&A API works.
+Guide examples execute all four diagnostics without credentials or egress.
+
+Initial TypeScript fixture error used the wrong revokeKey signature. Two initial
+focused runs each passed 13 and failed one because the fixture first assigned a
+write grant outside an empty account set, then enabled an empty account set.
+Both violate existing Store invariants; corrected the fixtures instead of
+loosening those guards. Corrected focused run passed 14; the expanded diagnostic,
+MCP guidance and executable guide suites passed 23/23. Initial logs are retained
+under .runtime/contract-completion-20260919/connection-diagnostics-*.log.
+Commands: npm.cmd run build; both contract generators; node --test for
+connection-diagnostics, guidance and guide-contract-examples. Candidate AE is the
+next sanitized full check. No live provider or credential checks were performed.
+
+Inventory remains 3,241 actions: 401 reviewed-family rows, 916 blocked writes,
+100 unmapped, 27 unqualified reads, eight input-dependent adapters, four explicit
+provider-unsupported routes, 1,704 native reads, 65 local workflows and 16 media
+workflows. The Q&A status row is local; the underlying retired service is not
+counted as a newly working provider API.
+
+Candidate AE passed the full sanitized release check: 1,171 tests passed, zero
+failed, one FFmpeg skip; four capture tests passed. Generation, report, web,
+provider integrity/lifecycle, generated-contract and action-inventory checks
+completed with exit zero. Manifest: 507 files, source-tree SHA-256
+6caa222f87623f6ae08b150a6584c17976c6d5dfbfbaeb8c8055c76c962b08e5.
+Logs: install-ae.log and release-check-ae.log in the local evidence directory.
+No required-FFmpeg, Docker or live acceptance is claimed.
