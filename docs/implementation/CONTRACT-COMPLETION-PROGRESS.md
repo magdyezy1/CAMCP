@@ -696,3 +696,49 @@ Exact commands: release assembly, npm.cmd ci --ignore-scripts, npm.cmd run check
 with AMCP_SCHEMA_PYTHON set to the configured Python binary. Evidence is retained
 in install-ai.log and release-check-ai.log. Required FFmpeg mode, Docker and
 live provider/deployment qualification remain unrun.
+
+## 2026-09-20 — Business Profile place-action discovery (candidate AJ)
+
+Closed the public discovery path for LIST_PLACE_ACTION_TYPE_METADATA,
+LIST_PLACE_ACTION_LINKS and GET_PLACE_ACTION_LINK. An isolated baseline with a
+valid synthetic locations/456 grant reproduced RESOURCE_SCOPE_REQUIRED before
+provider egress for location-filtered metadata. The compiler now binds the exact
+location filter to that grant; a friendly location_id supplies the filter when
+omitted. Global/CLDR-region metadata remains supported but never implies location
+eligibility. A broader account cannot substitute for a selected location.
+
+Current grants, selected connection and business.manage scope are checked before
+and after every page. Lists follow at most 25 pages / 1000 rows, with 1-100 page
+size, 2 MiB/page, 8 MiB total and a 60-second monotonic deadline. Continuations
+retain native filter, locale, identity and cursor; resumption never claims prior
+pages were included. Native empty lists, unknown/partial/error bodies, foreign
+identities, duplicates and token loops stay distinct. Single GETs require their
+exact resource identity. No ownership or write grant is inferred from metadata.
+
+Read results retain native fields and timestamps, while private/invalid destination
+URLs and error echoes are redacted before client/audit output. Explicit previews
+need no credentials or network. Runtime help corrects the captured claim that
+reads ignore dry_run; the original captured schema remains unchanged. Three
+executable read examples and provider/action descriptors identify the qualified
+implementation and its limits. These were already native-read inventory rows;
+no action denominator or write backlog is reduced by relabeling them.
+
+Initial 22-test run: 21 passed, one failed. The new negative fixture found that
+locations/456/extra was silently shortened to locations/456 by generic resource
+parsing. Fixed exact input validation instead of weakening the assertion. Expanded
+validation passed 81/81 across 24 new read tests, both Business Profile write
+families, delegated routing and all executable guides. Build, generators and
+guidance checks passed (83 traversed modules / 14 reviewed gateways).
+Evidence: business-place-read-*.log under .runtime/contract-completion-20260919.
+
+Official metadata/list/get references checked 2026-09-20, with reference pages last
+updated 2024-10-16; exact URLs are linked in dv360-and-measurement.md. Native field
+and enum assertions use the unchanged business-place-actions-v1 Discovery artifact.
+Provider approval, live location eligibility and actual public display remain
+unverified. Candidate AJ completed the full sanitized check: 1,273 tests passed,
+zero failed, one optional FFmpeg skip, plus four capture tests passed. All check
+stages exited zero. Its 520-file manifest records source-tree SHA256
+09ca0052759354b6e920df6ab3520c9dac2ec1d8a95ce391bc5e3698b9f3c2be.
+Evidence: install-aj.log and release-check-aj.log, using npm.cmd ci --ignore-scripts
+and npm.cmd run check with the configured AMCP_SCHEMA_PYTHON. Required FFmpeg mode,
+Docker and live provider/deployment checks remain unrun.

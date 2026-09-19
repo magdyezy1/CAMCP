@@ -16732,12 +16732,12 @@
       "path": "/v1/{+name}",
       "origin": "https://mybusinessplaceactions.googleapis.com",
       "status": "native_read",
-      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
-      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "implementation": "src/delegated-native.ts / src/google-place-action-discovery.ts / src/transport.ts",
+      "reason": "Native place-action metadata, complete bounded link lists or exact link read. Location filters bind the selected location grant; global/region metadata does not establish eligibility. Current scope checks, native envelopes, private URL redaction and explicit page continuation; no ownership or write grants are inferred.",
       "source": "https://mybusinessplaceactions.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-place-action-discovery.test.ts",
+        "tests/google-place-action-links.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16764,12 +16764,12 @@
       "path": "/v1/{+parent}/placeActionLinks",
       "origin": "https://mybusinessplaceactions.googleapis.com",
       "status": "native_read",
-      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
-      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "implementation": "src/delegated-native.ts / src/google-place-action-discovery.ts / src/transport.ts",
+      "reason": "Native place-action metadata, complete bounded link lists or exact link read. Location filters bind the selected location grant; global/region metadata does not establish eligibility. Current scope checks, native envelopes, private URL redaction and explicit page continuation; no ownership or write grants are inferred.",
       "source": "https://mybusinessplaceactions.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-place-action-discovery.test.ts",
+        "tests/google-place-action-links.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16782,12 +16782,12 @@
       "path": "/v1/placeActionTypeMetadata",
       "origin": "https://mybusinessplaceactions.googleapis.com",
       "status": "native_read",
-      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
-      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "implementation": "src/delegated-native.ts / src/google-place-action-discovery.ts / src/transport.ts",
+      "reason": "Native place-action metadata, complete bounded link lists or exact link read. Location filters bind the selected location grant; global/region metadata does not establish eligibility. Current scope checks, native envelopes, private URL redaction and explicit page continuation; no ownership or write grants are inferred.",
       "source": "https://mybusinessplaceactions.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-place-action-discovery.test.ts",
+        "tests/google-place-action-links.test.ts"
       ],
       "live_qualification": "unverified"
     },

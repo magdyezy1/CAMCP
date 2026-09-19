@@ -13,6 +13,11 @@
     {"gateway":"google_search_console_native_action","operation":"gsc_connection_ops","arguments":{"action":"disconnect","connection_id":"336ecb51-2df8-4967-8bd3-cba64d552296","dry_run":true}},
     {"gateway":"google_business_native_action","operation":"gmb_connection_ops","arguments":{"action":"disconnect","connection_id":"336ecb51-2df8-4967-8bd3-cba64d552296","dry_run":true}}
   ],
+  "place_action_read_previews": [
+    {"gateway":"google_business_native_action","operation":"gmb_engagement_ops","arguments":{"action":"LIST_PLACE_ACTION_TYPE_METADATA","location_id":"456","query":{"languageCode":"en-US"},"dry_run":true}},
+    {"gateway":"google_business_native_action","operation":"gmb_engagement_ops","arguments":{"action":"LIST_PLACE_ACTION_LINKS","location_id":"456","query":{"pageSize":100},"dry_run":true}},
+    {"gateway":"google_business_native_action","operation":"gmb_engagement_ops","arguments":{"action":"GET_PLACE_ACTION_LINK","location_id":"456","place_action_link_id":"100","dry_run":true}}
+  ],
   "inspections": [
     {
       "gateway":"google_business_native_action",

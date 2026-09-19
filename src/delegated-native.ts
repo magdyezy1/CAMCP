@@ -72,7 +72,7 @@ function checkParameter(value:unknown,schema:JsonObject,key:string){
  if(schema.enum&&!schema.enum.includes(value))throw new MirrorError('INVALID_PARAMETER','Unsupported query parameter value.',{parameter:key,allowed:schema.enum});
  if(schema.minimum!==undefined&&Number(value)<Number(schema.minimum)||schema.maximum!==undefined&&Number(value)>Number(schema.maximum))throw new MirrorError('INVALID_PARAMETER','Query parameter is outside vendor bounds.',{parameter:key});
 }
-function scopeFrom(route:VendorRoute,args:JsonObject,path:string,body:JsonObject):string|undefined{
+function scopeFrom(route:VendorRoute,args:JsonObject,path:string,body:JsonObject,query:JsonObject):string|undefined{
  if(route.gateway==='ga4_native_action'){
   const property=args.property===undefined?undefined:resourceId(args.property,'properties');
   const match=path.match(/\/properties\/([^/:]+)/);if(match&&property&&decodeURIComponent(match[1]!)!==property)throw new MirrorError('ACCOUNT_SCOPE_MISMATCH','The request resource belongs to a different Analytics property.',{},403);
@@ -86,6 +86,15 @@ function scopeFrom(route:VendorRoute,args:JsonObject,path:string,body:JsonObject
  if(route.gateway==='google_business_native_action'){
   const location=resourceId(args.location_id,'locations'),found=path.match(/\/locations\/([^/:]+)/);
   if(location&&found&&decodeURIComponent(found[1]!)!==location)throw new MirrorError('ACCOUNT_SCOPE_MISMATCH','The request resource belongs to a different location.',{},403);
+  if(route.operation==='gmb_engagement_ops'&&route.action==='LIST_PLACE_ACTION_TYPE_METADATA'){
+   if(args.location_id!==undefined&&(typeof args.location_id!=='string'||!/^(?:locations\/)?[1-9][0-9]*$/.test(args.location_id)))throw new MirrorError('INVALID_RESOURCE_NAME','Use the exact numeric location ID or locations/{id}.');
+   if(account!==undefined&&(typeof account!=='string'||!/^(?:accounts\/)?[1-9][0-9]*$/.test(account)))throw new MirrorError('INVALID_RESOURCE_NAME','Use the exact numeric account ID or accounts/{id}.');
+   const filter=typeof query.filter==='string'?/^location=(locations\/[1-9][0-9]*)$/.exec(query.filter)?.[1]:undefined;
+   if(filter&&(id||location&&filter!=='locations/'+location))throw new MirrorError('ACCOUNT_SCOPE_MISMATCH','Use the exact selected location for location-filtered metadata; do not substitute a broader account.',{},403);
+   if(location&&id)throw new MirrorError('ACCOUNT_SCOPE_MISMATCH','Choose an account or a location context, not both.',{},403);
+   if(location&&query.filter===undefined)query.filter='location=locations/'+location;
+   return location?'locations/'+location:filter??id;
+  }
   return id??(match?decodeURIComponent(match[1]!):undefined)??(found?'locations/'+decodeURIComponent(found[1]!):undefined);
  }
  return id??(match?decodeURIComponent(match[1]!):undefined);
@@ -171,7 +180,7 @@ export class DelegatedNativeCompiler {
     if(data.fields.length===0)throw new MirrorError('INVALID_VENDOR_BODY','A Reddit report requires at least one field.');
    }
   }
-  const accountId=scopeFrom(route,args,path,body);
+  const accountId=scopeFrom(route,args,path,body,query);
   return {gateway,action:operation+(action?'/'+action:''),method:route.method,origin:route.origin,path,query,queryArrayEncoding:'repeat',...(bodyAllowed?{body}:{}),headers:{},readOnly:route.readOnly,destructive:route.method==='DELETE'||/(?:^|_)(?:DELETE|REMOVE|CLEAR)(?:_|$)/.test(action),requiresConfirmation:!route.readOnly,accountId,evidence:route.evidence,warnings:['This request uses an independently designed mapping to '+route.vendorMethod+'. AMCP compiler and response-envelope parity are not asserted.','Credential account bindings and ownership of globally addressed resources must be checked before execution.']};
  }
 }
