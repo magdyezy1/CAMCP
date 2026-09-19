@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 import {extractGoogleFields} from './google-asset-field-evidence.mjs';
 
 // Public documentation only. Runtime review queries never use caller-supplied fields.
-const resources=['label','campaign_label','ad_group_label','ad_group_ad_label','ad_group_criterion_label','customizer_attribute','campaign_customizer','ad_group_customizer','ad_group_criterion_customizer','customer_customizer','ad_parameter','campaign_group','conversion_custom_variable','remarketing_action','asset_group_signal','customer_negative_criterion','asset_set','asset_set_asset','campaign_asset_set','ad_group_asset_set','customer_asset_set'];
+const resources=['label','campaign_label','ad_group_label','ad_group_ad_label','ad_group_criterion_label','customizer_attribute','campaign_customizer','ad_group_customizer','ad_group_criterion_customizer','customer_customizer','ad_parameter','campaign_group','conversion_custom_variable','remarketing_action','asset_group_signal','customer_negative_criterion','asset_set','asset_set_asset','campaign_asset_set','ad_group_asset_set','customer_asset_set','keyword_plan','keyword_plan_campaign','keyword_plan_ad_group','keyword_plan_ad_group_keyword','keyword_plan_campaign_keyword'];
 const [directory,date]=process.argv.slice(2);
 if(!directory||!date)throw Error('Usage: node tools/google-configuration-field-evidence.mjs <public-html-directory> <retrieval-date> [--check]');
 if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw Error('Supply the retrieval date as YYYY-MM-DD.');

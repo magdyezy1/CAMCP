@@ -50,13 +50,13 @@ qualification dependencies, not a reason to omit locally implementable code.
 
 ## Current checkpoint (2026-09-19)
 
-The working tree now inventories **3,241 actions**, including **341 reviewed-family
-rows**. **973 mapped writes, 105 unmapped actions, 50 unqualified reads and eight
+The working tree now inventories **3,241 actions**, including **346 reviewed-family
+rows**. **968 mapped writes, 105 unmapped actions, 50 unqualified reads and eight
 input-dependent adapters remain incomplete**. Four routes are now explicitly
 **provider_unsupported**, including three previously blocked writes and one read;
 these are not counted as implemented. The first batch added 68 reviewed action
 rows (50 previously blocked mapped actions and 18 newly mapped Apple actions);
-the GTM batch adds 24 more, and asset sets add 16. Tag Manager has 64 reviewed-family rows,
+the GTM batch adds 24 more, asset sets add 16, and saved planning adds five. Tag Manager has 64 reviewed-family rows,
 38 native reads, four withdrawn methods and two implemented local diagnostics.
 No GTM catalog row remains unmapped or blocked solely by absence of a family;
 exact payload restrictions, external permissions and live qualification still apply.
@@ -91,3 +91,14 @@ Candidate F completed the entire check command: 777 tests passed, zero failed,
 one FFmpeg skip; four capture tests passed. All generation, guidance, provider and
 contract checks passed, as did Railway configuration validation. The feed batch
 is validated for this local synthetic scope, with payload and live limits retained.
+
+The feed batch is pushed as `c2e3410`. Saved Keyword Planner create/update/remove
+contracts now cover five more routes. Complete affected hierarchies, inherited bids,
+pagination, parent moves, explicit clears, genuine conflicts and negative cases are
+implemented; 42 initial, 58 expanded and 55 final focused tests passed. Full candidate
+G validation is pending. Planning resources are not serving campaigns; forecast
+quality and provider eligibility remain unverified. The broader backlog is open.
+
+Candidate G passed the entire release check: 792 tests passed, zero failures,
+one FFmpeg skip and four additional capture tests passed. Source hash and full
+command evidence are recorded in the dated implementation report.

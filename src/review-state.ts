@@ -1,3 +1,4 @@
+import {keywordPlanObserved} from './google-keyword-plan-writes.js';
 import {sha256,stable} from './security.js';
 import {MirrorError} from './errors.js';
 import {microsoftContracts} from './microsoft-native.js';
@@ -78,7 +79,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  const expected=[...new Set([...query.matchAll(/'(customers\/[^']+)'/g)].map(m=>m[1]!))];
  if(expected.length&&(read.googleState?.allowMissing?items.some(item=>!expected.includes(item.id)):expected.length!==seen.size||expected.some(id=>!seen.has(id))))throw new MirrorError('STATE_RESOURCE_MISMATCH','The state response does not cover exactly the requested resources.',{},409);
  items.sort((a,b)=>a.id.localeCompare(b.id,'en'));
- const state={results:items.map(item=>item.row)};
+ const state={results:items.map(item=>resource.startsWith('keyword_plan')?{...item.row,[key]:keywordPlanObserved(resource,item.row[key])}:item.row)};
  return normalizeReviewState(['asset','asset_set','asset_set_asset','campaign_asset_set','ad_group_asset_set','customer_asset_set'].includes(resource)?assetSetCanonical(state):state);
 }
 export const reviewStateHash=(value:unknown)=>sha256(stable(normalizeReviewState(value)));

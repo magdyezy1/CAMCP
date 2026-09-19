@@ -636,6 +636,170 @@
           "repeated": false
         }
       }
+    },
+    "keyword_plan": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/keyword_plan",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "95976c87a3076495f03bd9169ffdbd1108bf1d7c492b9a5e11103f361d2b0456",
+      "fields": {
+        "forecast_period": {
+          "selectable": true,
+          "repeated": false
+        },
+        "id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "keyword_plan_campaign": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/keyword_plan_campaign",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "e273ebff3f8346730939279b506626438c31a8eec6f2dbb6675fbbfaf16f341d",
+      "fields": {
+        "cpc_bid_micros": {
+          "selectable": true,
+          "repeated": false
+        },
+        "geo_targets": {
+          "selectable": true,
+          "repeated": true
+        },
+        "geo_targets.geo_target_constant": {
+          "selectable": false,
+          "repeated": false
+        },
+        "id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "keyword_plan": {
+          "selectable": true,
+          "repeated": false
+        },
+        "keyword_plan_network": {
+          "selectable": true,
+          "repeated": false
+        },
+        "language_constants": {
+          "selectable": true,
+          "repeated": true
+        },
+        "name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "keyword_plan_ad_group": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/keyword_plan_ad_group",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "cce92c0996717f32b157135a97d277386006dcee888e90c2f6953102547b13ea",
+      "fields": {
+        "cpc_bid_micros": {
+          "selectable": true,
+          "repeated": false
+        },
+        "id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "keyword_plan_campaign": {
+          "selectable": true,
+          "repeated": false
+        },
+        "name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "keyword_plan_ad_group_keyword": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/keyword_plan_ad_group_keyword",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "7365464a7816c4ddca49307b28cca5685bffd161e9d854963f9e418bc340ef6a",
+      "fields": {
+        "cpc_bid_micros": {
+          "selectable": true,
+          "repeated": false
+        },
+        "id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "keyword_plan_ad_group": {
+          "selectable": true,
+          "repeated": false
+        },
+        "match_type": {
+          "selectable": true,
+          "repeated": false
+        },
+        "negative": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "text": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "keyword_plan_campaign_keyword": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/keyword_plan_campaign_keyword",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "573e30ac0206922f6b6dfc2e72290a8d4dc73cc2c11ef25799d373928dcabcc5",
+      "fields": {
+        "id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "keyword_plan_campaign": {
+          "selectable": true,
+          "repeated": false
+        },
+        "match_type": {
+          "selectable": true,
+          "repeated": false
+        },
+        "negative": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "text": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
     }
   }
 }

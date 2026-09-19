@@ -9189,8 +9189,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_keyword_plan_campaign_keyword_mutate_keyword_plan_campaign_keywords",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -9409,8 +9409,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_keyword_plan_campaign_mutate_keyword_plan_campaigns",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -11876,8 +11876,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_keyword_plan_ad_group_mutate_keyword_plan_ad_groups",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -12244,8 +12244,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_keyword_plan_ad_group_keyword_mutate_keyword_plan_ad_group_keywords",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -12418,8 +12418,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_keyword_plan_mutate_keyword_plans",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",

@@ -113,3 +113,49 @@ External Merchant Center inventory and future location synchronization are not f
 an AMCP review. Read-back verifies the submitted configuration/link, not feed processing,
 provider approval, destination quality or ad delivery. Keep the original idempotency key
 after a lost response and reconcile before preparing any correction.
+
+### Saved Keyword Planner workspaces
+
+The five v23 `keywordPlans`, `keywordPlanCampaigns`, `keywordPlanAdGroups`,
+`keywordPlanAdGroupKeywords` and `keywordPlanCampaignKeywords` mutate routes now
+have reviewed create/update/remove contracts. Use their `google_ads_v23_*_mutate_*`
+actions through `amcp_write`, with exact selected-customer resource names. Create
+and verify each parent before using its returned identity for a child. Temporary
+negative IDs or a campaign-build recipe do not substitute for that binding.
+
+These resources save research; they do not create serving campaigns. CPC bids are
+hypothetical native micros in the selected account's currency. Campaign bids are
+required; groups inherit from campaigns and positive keywords inherit from groups
+unless an explicit override is set. Set an optional override to `null` with
+`updateMask: "cpcBidMicros"` to clear it. Negative keywords cannot have a CPC
+override, and campaign-level keywords must have `negative: true`. Negativity is
+immutable. Names, keyword text/match type, native parent bindings and documented
+planning configuration use explicit masks; IDs remain immutable.
+
+Discover country/language constants; never invent them. A plan permits one
+campaign, up to 20 campaign geo targets, and one campaign language. Geo targets
+are native objects such as `{"geoTargetConstant":"geoTargetConstants/2682"}`.
+Use `[]` with the appropriate mask to clear geo/language membership. Whole
+`forecastPeriod` replacement must choose exactly one documented relative interval
+or inclusive custom date range no longer than a year. `null` clears the period.
+Relative intervals follow Google's account locale, and future-date eligibility
+is checked when forecasting. Editing an old saved plan does not refresh its dates
+or make its forecast current. Forecasting is a separate read with its own quota
+and access requirements.
+
+Preparation reads the complete affected saved plan hierarchy twice, including
+inherited settings and descendants of a parent selected for deletion. Parent moves
+freeze both plans. Real changes anywhere in that reviewed hierarchy conflict;
+geo ordering and per-query telemetry do not. Unknown configuration is retained.
+Pagination is bounded at 100 pages/query, 300 requests, 15,000 resources, 32 MiB
+of responses and 16 MiB retained state. An oversized, incomplete, failed or changing
+plan is refused explicitly. Provider quotas remain authoritative.
+
+Read-back verifies the exact mutated resource, including object replacement and
+cleared optional fields. Parent removal verifies that parent's absence; it does
+not independently certify all provider-side descendant cleanup. It does not claim
+forecast quality, demand, account access or actual ad delivery. Planning edits do
+not require ad-spend confirmation, but still require review, write grants,
+deployment permission and any applicable owner deletion policy. Never retry an
+uncertain mutation as a fresh creation: inspect its retained receipt and current
+resources before reviewing a correction.

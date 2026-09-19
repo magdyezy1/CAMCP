@@ -36,14 +36,24 @@ const cases:{route:string;rpc:string;entity:string;create:JsonObject;id:string;u
  {route:'assetSetAssets',rpc:'asset_set_asset_mutate_asset_set_assets',entity:'asset_set_asset',create:{assetSet:resource('assetSets','850'),asset:resource('assets','851')},id:'850~851'},
  {route:'campaignAssetSets',rpc:'campaign_asset_set_mutate_campaign_asset_sets',entity:'campaign_asset_set',create:{campaign:resource('campaigns','100'),assetSet:resource('assetSets','850')},id:'100~850'},
  {route:'adGroupAssetSets',rpc:'ad_group_asset_set_mutate_ad_group_asset_sets',entity:'ad_group_asset_set',create:{adGroup:resource('adGroups','200'),assetSet:resource('assetSets','861')},id:'200~861'},
- {route:'customerAssetSets',rpc:'customer_asset_set_mutate_customer_asset_sets',entity:'customer_asset_set',create:{customer:'customers/123',assetSet:resource('assetSets','860')},id:'860'}
+ {route:'customerAssetSets',rpc:'customer_asset_set_mutate_customer_asset_sets',entity:'customer_asset_set',create:{customer:'customers/123',assetSet:resource('assetSets','860')},id:'860'},
+ {route:'keywordPlans',rpc:'keyword_plan_mutate_keyword_plans',entity:'keyword_plan',create:{name:'Expansion research',forecastPeriod:{dateInterval:'NEXT_MONTH'}},id:'500',update:{name:'Reviewed research'}},
+ {route:'keywordPlanCampaigns',rpc:'keyword_plan_campaign_mutate_keyword_plan_campaigns',entity:'keyword_plan_campaign',create:{name:'Planning campaign',keywordPlan:resource('keywordPlans','810'),cpcBidMicros:'1000000',keywordPlanNetwork:'GOOGLE_SEARCH',geoTargets:[{geoTargetConstant:'geoTargetConstants/2682'}],languageConstants:['languageConstants/1000']},id:'500',update:{cpcBidMicros:'2000000'}},
+ {route:'keywordPlanAdGroups',rpc:'keyword_plan_ad_group_mutate_keyword_plan_ad_groups',entity:'keyword_plan_ad_group',create:{name:'Planning group',keywordPlanCampaign:resource('keywordPlanCampaigns','801')},id:'500',update:{cpcBidMicros:'1500000'}},
+ {route:'keywordPlanAdGroupKeywords',rpc:'keyword_plan_ad_group_keyword_mutate_keyword_plan_ad_group_keywords',entity:'keyword_plan_ad_group_keyword',create:{keywordPlanAdGroup:resource('keywordPlanAdGroups','802'),text:'family homes',matchType:'PHRASE',negative:false},id:'500',update:{matchType:'EXACT'}},
+ {route:'keywordPlanCampaignKeywords',rpc:'keyword_plan_campaign_keyword_mutate_keyword_plan_campaign_keywords',entity:'keyword_plan_campaign_keyword',create:{keywordPlanCampaign:resource('keywordPlanCampaigns','801'),text:'jobs',matchType:'BROAD',negative:true},id:'500',update:{text:'careers'}}
 ];
 const fields=JSON.parse(fs.readFileSync('tests/fixtures/google-configuration-fields-v23.json','utf8')).resources;
-function fixture(row=cases[0]!){
+function fixture(row=cases[0]!,allowWrites=true){
  const store=new Store(':memory:',Buffer.alloc(32,79).toString('base64')),records=new Map<string,JsonObject>(),calls:JsonObject[]=[];
  const connection={id:'google',tenantId:actor.tenantId,gateway,accounts:['123'],writeAccounts:['123'],enabled:true,label:'Synthetic',scopes:[]};
  const credentials={accessToken:'synthetic',developerToken:'synthetic'};store.putConnection(owner,connection,credentials);
  const seed=(kind:string,id:string,value:JsonObject)=>records.set(resource(kind,id),{resourceName:resource(kind,id),...value});
+ for(const id of ['800','810'])seed('keywordPlans',id,{name:'Existing planning workspace',forecastPeriod:{dateInterval:'NEXT_MONTH'}});
+ seed('keywordPlanCampaigns','801',{name:'Existing research campaign',keywordPlan:resource('keywordPlans','800'),cpcBidMicros:'1000000',keywordPlanNetwork:'GOOGLE_SEARCH',geoTargets:[{geoTargetConstant:'geoTargetConstants/2682'},{geoTargetConstant:'geoTargetConstants/2784'}],languageConstants:['languageConstants/1000']});
+ seed('keywordPlanAdGroups','802',{name:'Existing research group',keywordPlanCampaign:resource('keywordPlanCampaigns','801')});
+ seed('keywordPlanAdGroupKeywords','803',{keywordPlanAdGroup:resource('keywordPlanAdGroups','802'),text:'existing positive',matchType:'EXACT'});
+ seed('keywordPlanCampaignKeywords','804',{keywordPlanCampaign:resource('keywordPlanCampaigns','801'),text:'existing negative',matchType:'BROAD',negative:true});
  seed('campaigns','100',{name:'Campaign',status:'PAUSED',advertisingChannelType:'SEARCH',campaignBudget:resource('campaignBudgets','50')});
  seed('adGroups','200',{name:'Group',status:'PAUSED',campaign:resource('campaigns','100')});
  seed('adGroupAds','200~300',{status:'PAUSED',ad:{id:'300',finalUrls:['https://example.com']}});
@@ -64,7 +74,8 @@ function fixture(row=cases[0]!){
   if(path.endsWith('googleAds:search')){
    reads++;const match=/^SELECT (.+) FROM ([a-z_]+)/.exec(body.query)!;assert.ok(match,'The request must be an exact GAQL query.');const entity=match[2]!;
    const feed=/asset_set_asset\.asset_set = '(customers\/[^']+)'/.exec(body.query);
-   const selected=feed?[...records.values()].filter(r=>r.assetSet===feed[1]&&r.status==='ENABLED'&&r.resourceName.includes('/assetSetAssets/')):[...body.query.matchAll(/'(customers\/[^']+)'/g)].map(m=>records.get(m[1])).filter(Boolean);
+   const planning=/FROM (keyword_plan[a-z_]*) WHERE \1\.([a-z_]+) IN/.exec(body.query),ids=[...body.query.matchAll(/'(customers\/[^']+)'/g)].map(m=>m[1]);
+   const selected=planning?[...records.values()].filter(record=>record.resourceName.split('/')[2]===camel(planning[1]!)+'s'&&ids.includes(record[camel(planning[2]!)])):feed?[...records.values()].filter(r=>r.assetSet===feed[1]&&r.status==='ENABLED'&&r.resourceName.includes('/assetSetAssets/')):[...body.query.matchAll(/'(customers\/[^']+)'/g)].map(m=>records.get(m[1])).filter(Boolean);
    const data=entity==='customer'?[{customer:{id:'123',currencyCode:'USD',timeZone:'UTC'}}]:selected.flatMap(record=>{
     const projected:JsonObject={};for(const f of match[1]!.split(', ')){assert.ok(f.startsWith(entity+'.'));const key=f.slice(entity.length+1);if(fields[entity])assert.equal(fields[entity].fields[key]?.selectable,true,'Undocumented GAQL field '+f);const value=get(record,key);if(value!==undefined&&value!=='')set(projected,key,value);}
     return [{[camel(entity)]:projected}];
@@ -83,7 +94,9 @@ function fixture(row=cases[0]!){
   });
   if(lostResponse)throw Error('Synthetic response lost after provider mutation');
   return Response.json({...(!partialReceipt?{results}:{results:[]}),...(partialReceipt?{partialFailureError:{code:3,message:'Synthetic error'}}:{})});
- }),undefined,{allowWrites:true,requireBeforeState:true,maxBudgetChange:0});
+ // These are provider-contract fixtures; pacing has its own transport tests.
+ // A large synthetic burst avoids real-time sleeps during complete hierarchy reads.
+ },async()=>{},30000,8*1024*1024,10000),undefined,{allowWrites,requireBeforeState:true,maxBudgetChange:0});
  const prepare=(operations:JsonObject[])=>service.call('amcp_write',{action:'prepare',gateway,arguments:{action:'google_ads_v23_'+row.rpc,account_id:'123',payload:{operations}}},actor);
  const execute=(p:JsonObject,extra:JsonObject={})=>service.call('amcp_write',{action:'execute',review_id:p.data.review_id,idempotency_key:p.data.idempotency_key,confirmed:true,spend_change_confirmed:true,...extra},actor);
  return {store,service,records,calls,prepare,execute,writes:()=>writes,reads:()=>reads,foreign:()=>{foreignReceipt=true;},partial:()=>{partialReceipt=true;},lose:()=>{lostResponse=true;},paginate:()=>{incomplete=true;},revoke:()=>{revoke=true;},onRead:(fn:typeof readHook)=>{readHook=fn;}};
@@ -260,4 +273,106 @@ test('feed creation supports declared types, static groups and signed Business P
  for(const create of variants){const x=fixture(cases[16]);try{
   const p=await x.prepare([{create}]);assert.equal(p.success,true,JSON.stringify(p));assert.equal((await x.execute(p)).success,true);const v=await x.service.call('amcp_campaign',{action:'verify',review_id:p.data.review_id},actor);assert.equal(v.data.status,'verified',JSON.stringify(v));
  }finally{x.store.close();}}
+});
+
+test('planning snapshots preserve full hierarchy, inherit bids and compare native geo membership as a set',async()=>{
+ for(const mode of ['reorder','bid','descendant','forecast','new-child']as const){const x=fixture(cases[23]);try{
+  const target=resource('keywordPlanAdGroups','802'),p=await x.prepare([{update:{resourceName:target,name:'Reviewed group'},updateMask:'name'}]);assert.equal(p.success,true,JSON.stringify(p));
+  assert.ok(JSON.stringify(p).includes('existing positive'));assert.ok(JSON.stringify(p).includes('existing negative'));
+  if(mode==='reorder')x.records.get(resource('keywordPlanCampaigns','801'))!.geoTargets.reverse();
+  if(mode==='bid')x.records.get(resource('keywordPlanCampaigns','801'))!.cpcBidMicros='9000000';
+  if(mode==='descendant')x.records.get(resource('keywordPlanAdGroupKeywords','803'))!.text='Changed';
+  if(mode==='forecast')x.records.get(resource('keywordPlans','800'))!.forecastPeriod={dateInterval:'NEXT_QUARTER'};
+  if(mode==='new-child'){const name=resource('keywordPlanAdGroupKeywords','805');x.records.set(name,{resourceName:name,keywordPlanAdGroup:target,text:'new keyword',matchType:'EXACT'});}
+  const r=await x.execute(p,{spend_change_confirmed:false});assert.equal(r.success,mode==='reorder',JSON.stringify(r));
+  if(mode!=='reorder'){assert.equal(r.error.code,'STATE_CHANGED');assert.ok(r.error.details.changed_fields.length);assert.equal(x.writes(),0);}
+ }finally{x.store.close();}}
+});
+
+test('planning hierarchy follows pages and rejects loops, duplicates, foreign parents, missing ancestors and provider failures',async()=>{
+ for(const mode of ['paged','loop','duplicate','foreign','missing','error','partial']as const){const x=fixture(cases[23]);try{
+  if(mode==='missing')x.records.delete(resource('keywordPlans','800'));
+  x.onRead((body,data)=>{
+   if(!body.query.includes('FROM keyword_plan_ad_group_keyword WHERE keyword_plan_ad_group_keyword.keyword_plan_ad_group IN'))return data;
+   if(mode==='error')return {error:{code:503,message:'Synthetic failure'}};
+   if(mode==='partial')return {...data,hasMore:true};
+   if(mode==='foreign')return {...data,results:[{keywordPlanAdGroupKeyword:{...data.results[0].keywordPlanAdGroupKeyword,keywordPlanAdGroup:resource('keywordPlanAdGroups','999')}}]};
+   if(mode==='duplicate')return {...data,results:[...data.results,...data.results]};
+   if(mode==='loop')return {results:[],nextPageToken:'same'};
+   if(mode==='paged')return body.pageToken?data:{results:[],nextPageToken:'page-two'};
+   return data;
+  });
+  const p=await x.prepare([{create:cases[23]!.create}]);assert.equal(p.success,mode==='paged',JSON.stringify(p));assert.equal(x.writes(),0);
+  if(mode==='paged')assert.ok(x.calls.some(c=>c.body.pageToken==='page-two'));
+ }finally{x.store.close();}}
+});
+
+test('planning writes reject invalid dates, negative bids, mismatched scope and impossible campaign counts',async()=>{
+ const invalid: [number,JsonObject][]=[
+  [21,{create:{name:'Plan',forecastPeriod:{dateInterval:'NEXT_MONTH',dateRange:{startDate:'2027-01-01',endDate:'2027-02-01'}}}}],
+  [21,{create:{name:'Plan',forecastPeriod:{dateRange:{startDate:'2027-02-30',endDate:'2027-03-31'}}}}],
+  [21,{create:{name:'Plan',forecastPeriod:{dateRange:{startDate:'2027-01-01',endDate:'2028-01-01'}}}}],
+  [22,{create:{...cases[22]!.create,keywordPlan:resource('keywordPlans','800')}}],
+  [22,{create:{...cases[22]!.create,cpcBidMicros:'-1'}}],
+  [22,{create:{...cases[22]!.create,languageConstants:['languageConstants/1000','languageConstants/1001']}}],
+  [22,{create:{...cases[22]!.create,geoTargets:[{geoTargetConstant:'geoTargetConstants/2682'},{geoTargetConstant:'geoTargetConstants/2682'}]}}],
+  [23,{create:{...cases[23]!.create,keywordPlanCampaign:'customers/999/keywordPlanCampaigns/801'}}],
+  [24,{create:{...cases[24]!.create,negative:true,cpcBidMicros:'10'}}],
+  [25,{create:{...cases[25]!.create,negative:false}}],
+  [24,{update:{resourceName:resource('keywordPlanAdGroupKeywords','803'),negative:true},updateMask:'negative'}],
+  [23,{update:{resourceName:resource('keywordPlanAdGroups','802'),name:'Unmasked',cpcBidMicros:'1'},updateMask:'name'}]
+ ];
+ for(const [index,op]of invalid){const x=fixture(cases[index]);try{const p=await x.prepare([op]);assert.equal(p.success,false,JSON.stringify(p));assert.equal(x.writes(),0);}finally{x.store.close();}}
+ const x=fixture(cases[24]);try{x.records.get(resource('keywordPlanAdGroupKeywords','803'))!.negative=true;const p=await x.prepare([{update:{resourceName:resource('keywordPlanAdGroupKeywords','803'),cpcBidMicros:'1000000'},updateMask:'cpcBidMicros'}]);assert.equal(p.success,false);assert.equal(x.writes(),0);}finally{x.store.close();}
+});
+
+test('planning replacements and explicit clears detect provider-ignored fields without requiring spend approval',async()=>{
+ for(const [index,id,update]of [[21,'800',{forecastPeriod:{dateRange:{startDate:'2027-01-01',endDate:'2027-02-01'}}}],[21,'800',{forecastPeriod:null}],[22,'801',{geoTargets:[],languageConstants:[]}],[23,'802',{cpcBidMicros:null}]] as [number,string,JsonObject][]){
+  for(const ignored of [false,true]){const row=cases[index]!,x=fixture(row);try{
+   const target=resource(row.route,id);if(index===23)x.records.get(target)!.cpcBidMicros='1000000';const old=structuredClone(x.records.get(target)!);
+   const p=await x.prepare([{update:{resourceName:target,...update},updateMask:Object.keys(update).join(',')}]);assert.equal(p.success,true,JSON.stringify(p));assert.equal((await x.execute(p,{spend_change_confirmed:false})).success,true);
+   if(ignored){if(index===21&&update.forecastPeriod)x.records.get(target)!.forecastPeriod.dateInterval='NEXT_MONTH';else for(const key of Object.keys(update))x.records.get(target)![key]=old[key];}
+   else for(const key of Object.keys(update))if(update[key]===null||Array.isArray(update[key])&&!update[key].length)delete x.records.get(target)![key]; // ProtoJSON defaults are omitted.
+   const v=await x.service.call('amcp_campaign',{action:'verify',review_id:p.data.review_id},actor);assert.equal(v.data.status,ignored?'inconclusive':'verified',JSON.stringify(v));
+  }finally{x.store.close();}}
+ }
+});
+
+test('planning bids stay hypothetical while deletion, deployment and account grants remain enforced',async()=>{
+ const x=fixture(cases[22]);try{
+  saveSpendPolicy(x.store,owner,{gateway,account_id:'123',confirmed:true,policy:{allow_activation:false,allow_deletion:false,max_budget_native:0,max_daily_increase_native:0}});
+  const p=await x.prepare([{create:cases[22]!.create}]);assert.equal(p.success,true,JSON.stringify(p));assert.equal((await x.execute(p,{spend_change_confirmed:false})).success,true);
+  const removed=await x.prepare([{remove:resource('keywordPlanCampaigns','500')}]);assert.equal(removed.success,false);assert.equal(removed.error.code,'POLICY_DELETION_FORBIDDEN');
+ }finally{x.store.close();}
+ const revoked=fixture(cases[24]);try{const p=await revoked.prepare([{create:cases[24]!.create}]);assert.equal(p.success,true);revoked.revoke();const r=await revoked.execute(p);assert.equal(r.success,false);assert.equal(revoked.writes(),0);}finally{revoked.store.close();}
+ const disabled=fixture(cases[24],false);try{const p=await disabled.prepare([{create:cases[24]!.create}]);if(p.success)assert.equal((await disabled.execute(p)).error.code,'LIVE_WRITES_DISABLED');else assert.equal(p.error.code,'LIVE_WRITES_DISABLED');assert.equal(disabled.writes(),0);}finally{disabled.store.close();}
+});
+
+test('planning parent deletion freezes descendants and rejects a concurrent child edit',async()=>{
+ const x=fixture(cases[21]);try{const p=await x.prepare([{remove:resource('keywordPlans','800')}]);assert.equal(p.success,true,JSON.stringify(p));assert.ok(JSON.stringify(p).includes('existing positive'));x.records.get(resource('keywordPlanAdGroupKeywords','803'))!.text='Changed before deletion';const r=await x.execute(p);assert.equal(r.error.code,'STATE_CHANGED');assert.equal(x.writes(),0);}finally{x.store.close();}
+});
+
+test('planning context detects a race or revocation while reading paged descendants',async()=>{
+ for(const mode of ['race','revoke']as const){const x=fixture(cases[24]);try{
+  let seen=false;x.onRead((body,data)=>{if(!seen&&body.query.includes('FROM keyword_plan_ad_group_keyword WHERE keyword_plan_ad_group_keyword.keyword_plan_ad_group IN')){seen=true;if(mode==='race')x.records.get(resource('keywordPlans','800'))!.name='Concurrent rename';else x.revoke();}return data;});
+  assert.equal((await x.prepare([{create:cases[24]!.create}])).success,false);assert.equal(x.writes(),0);
+ }finally{x.store.close();}}
+});
+
+test('planning receipts and concurrency retain uncertainty without duplicate provider mutations',async()=>{
+ for(const mode of ['foreign','partial','lost','concurrent']as const){const x=fixture(cases[24]);try{
+  const p=await x.prepare([{create:cases[24]!.create}]);assert.equal(p.success,true);
+  if(mode==='foreign')x.foreign();if(mode==='partial')x.partial();if(mode==='lost')x.lose();
+  if(mode==='concurrent'){await Promise.all([x.execute(p),x.execute(p)]);assert.equal(x.writes(),1);}
+  else{assert.equal((await x.execute(p)).success,false);assert.equal(x.writes(),1);const replay=await x.execute(p);assert.equal(replay.success,false);assert.equal(x.writes(),1);}
+ }finally{x.store.close();}}
+});
+
+test('planning parent moves capture both hierarchies and verification binds the new parent',async()=>{
+ const x=fixture(cases[23]);try{
+  const newCampaign=resource('keywordPlanCampaigns','811');x.records.set(newCampaign,{resourceName:newCampaign,name:'Other planning campaign',keywordPlan:resource('keywordPlans','810'),cpcBidMicros:'9000000',keywordPlanNetwork:'GOOGLE_SEARCH'});
+  const target=resource('keywordPlanAdGroups','802'),p=await x.prepare([{update:{resourceName:target,keywordPlanCampaign:newCampaign},updateMask:'keywordPlanCampaign'}]);assert.equal(p.success,true,JSON.stringify(p));
+  const snapshot=p.data.before_state.find((v:JsonObject)=>v.amcpKeywordPlanTree);assert.deepEqual(snapshot.amcpKeywordPlanTree.roots,[resource('keywordPlans','800'),resource('keywordPlans','810')]);
+  assert.equal((await x.execute(p)).success,true);const v=await x.service.call('amcp_campaign',{action:'verify',review_id:p.data.review_id},actor);assert.equal(v.data.status,'verified',JSON.stringify(v));
+ }finally{x.store.close();}
 });

@@ -1,3 +1,4 @@
+import {keywordPlanKind} from './google-keyword-plan-writes.js';
 import type {Actor,CompiledRequest,JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {googleTargetingKind} from './google-targeting-writes.js';
@@ -24,5 +25,5 @@ export function authorizeExecution(actor:Actor,plan:CompiledRequest,input:JsonOb
  if((googleTargetingKind(plan)||plan.gateway==='reddit_native_action')&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Targeting, serving and shared-list changes require spend_change_confirmed=true.');
  if(googleConfigurationServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Customizer, ad-parameter, signal, exclusion and feed changes can affect existing ads. Review their impact and provide spend_change_confirmed=true.');
  const statusPatch=Array.isArray(plan.body)&&plan.body.some(op=>op&&/\/(status|intendedStatus|intended_status|entity_status|operation_status)$/.test(String(op.path))&&['ACTIVE','ENABLE','ENABLED'].includes(op.value));
- if((statusPatch||/budget|bid|spend|"(?:status|intendedStatus|intended_status|entity_status|entityStatus|operation_status)"\s*:\s*"(?:ACTIVE|ENABLE|ENABLED|ENTITY_STATUS_ACTIVE)"/i.test(JSON.stringify({query:plan.query,body:plan.body})))&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Spend-affecting writes need spend_change_confirmed=true.');
+ if(!keywordPlanKind(plan)&&(statusPatch||/budget|bid|spend|"(?:status|intendedStatus|intended_status|entity_status|entityStatus|operation_status)"\s*:\s*"(?:ACTIVE|ENABLE|ENABLED|ENTITY_STATUS_ACTIVE)"/i.test(JSON.stringify({query:plan.query,body:plan.body})))&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Spend-affecting writes need spend_change_confirmed=true.');
 }

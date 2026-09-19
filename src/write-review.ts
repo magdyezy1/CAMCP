@@ -1,3 +1,4 @@
+import {readKeywordPlanTree,validateKeywordPlanTree} from './google-keyword-plan-writes.js';
 import {reviewedWriteFamily} from './reviewed-routes.js';
 import {readAssetSetContents,validateAssetSetContents} from './google-asset-set-writes.js';
 import {assertProviderActionAvailable} from './retired-provider-actions.js';
@@ -99,6 +100,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  return false;
 }
 export function validateState(read:CompiledRequest,result:TransportResult):void {
+ if(read.gateway==='google_ads_native_action'&&read.googleKeywordPlanState){validateKeywordPlanTree(read,result);return;}
  if(read.gateway==='google_ads_native_action'&&read.googleAssetSetState){validateAssetSetContents(read,result);return;}
  if(read.gateway==='gtm_native_action'&&read.gtmWorkspaceState){validateGtmWorkspaceState(read,result);return;}
  if(read.gateway==='gtm_native_action'&&read.gtmState){validateGtmWorkflowState(read,result);return;}
@@ -317,7 +319,7 @@ export class WriteReviewService {
   });
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
-   try{result=await readAssetSetContents(read,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.transport.request(page,current,auth);this.access(actor,plan,connectionId);return response;}))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
+   try{result=await readKeywordPlanTree(read,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.transport.request(page,current,auth);this.access(actor,plan,connectionId);return response;})))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
    this.access(actor,plan,connectionId);validateState(read,result);
    if(appleEntityKind(plan)==='shared_budget'&&read.path===plan.path){
     const accounts=appleSharedAccounts(plan,result.data),frozen=plan.scopeContext?.appleSharedAccountIds;

@@ -323,6 +323,12 @@ content equality. Full sanitized release validation follows this checkpoint.
 Current inventory: 3,241 rows; 341 reviewed-family, 973 blocked mapped writes,
 105 unmapped, 50 unqualified reads, eight input-dependent adapters, four withdrawn.
 
+Saved-planning candidate G (`d694b6af1adf5d8160bb1885f1611ae1624a14336144caf69c77e3e47280ba71`,
+459 files) completed `npm.cmd run check` successfully: 792 tests passed, zero failed,
+one FFmpeg test skipped; four capture tests passed. Generation, public evidence,
+guidance, web, provider maintenance and strict contract-ledger checks passed.
+Evidence: `.runtime/contract-completion-20260919/release-check-g.log`.
+
 Candidate E (`66da668037d6b9c7cb239c0b0dfc13b907f12de67aa844ca54b75daad74c9711`,
 456 files) completed 773 tests successfully, failed one and skipped one FFmpeg
 test. `release-check-e.log` preserves the failure: the activity HTTP fixture failed
@@ -347,3 +353,53 @@ contract ledgers. Test totals: 777 passed, zero failed, one FFmpeg test skipped;
 four additional capture tests passed. `node deploy/check-railway.mjs` also passed.
 Evidence: `release-check-f.log`. FFmpeg and Docker remain unavailable locally;
 no hosted CI, container execution, provider mutation or live qualification claim.
+
+## Saved Keyword Planner contract batch
+
+Added five reviewed RPC routes covering saved plans, planning campaigns/groups,
+positive or negative group keywords and negative campaign keywords. Native parent
+bindings, oneofs, update masks, account-currency micros and optional CPC clears
+are validated separately from serving-ad contracts. Planning bids do not trigger
+ad-spend confirmation; deployment, review, grants, immutable requests, idempotency
+and owner deletion policy still apply. Parent changes snapshot both hierarchies.
+
+For existing plans, server-derived reads resolve all ancestors and capture all five
+resource types twice with complete bounded pagination. Descendant changes invalidate
+parent-removal reviews. A changed inherited bid is a conflict; geo ordering and query
+telemetry are not. Exact replacement hashes detect an old forecast interval retained
+beside a new date range. Cleared optional fields are checked against ProtoJSON defaults.
+The field evidence grows to 148 captured fields across 26 resources; every actual
+selected field is checked against the pinned public reference fixture. The
+`keyword_plan_campaign.geo_targets` message is selectable; its nested constant field
+is not separately selectable and is not used as a GAQL projection.
+
+Official references checked 2026-09-19, v23 resource pages dated 2026-02-23:
+- [KeywordPlan](https://developers.google.com/google-ads/api/reference/rpc/v23/KeywordPlan)
+  and the five public GAQL field tables recorded in the fixture.
+- [KeywordPlanCampaign](https://developers.google.com/google-ads/api/reference/rpc/v23/KeywordPlanCampaign):
+  native bid/currency, network, one campaign per plan, geo and language boundaries.
+- [KeywordPlanAdGroupKeyword](https://developers.google.com/google-ads/api/reference/rpc/v23/KeywordPlanAdGroupKeyword):
+  inherited optional bids and immutable negativity.
+- [KeywordPlanForecastPeriod](https://developers.google.com/google-ads/api/reference/rpc/v23/KeywordPlanForecastPeriod):
+  future-date constraints apply when forecasting; editing a saved plan does not
+  invent new dates or convert account locale to the server UTC calendar.
+- Pinned Google v23 Discovery schemas independently checked for all five resource
+  shapes, operation oneofs and request/response envelopes.
+
+Verification: initial lifecycle suite passed 42/42 (`keyword-plan-first.log`),
+followed by configuration/state/Discovery regressions 58/58 (`keyword-plan-second.log`).
+Final expanded configuration and executable-guide checks passed 55/55
+(`keyword-plan-third.log`), including two-plan parent moves, uncertain/foreign/partial
+receipts, concurrent execution, revocation inside hierarchy reads and ignored clears.
+No assertions were weakened. These fixture tests now inject a large synthetic
+transport burst to avoid real-time provider pacing; dedicated transport-budget tests
+still exercise the production budget controls. Full sanitized candidate G follows.
+
+Limits: 15,000 resources across affected plans, 300 requests, 100 pages/query,
+32 MiB read and 16 MiB retained state. Complete-plan comparison can conflict with an
+unrelated concurrent edit inside the same saved plan. Provider quotas, field-level
+eligibility and forecast quality require live qualification. A removed parent's
+read-back proves that parent's absence, not independent cleanup of every descendant.
+No live advertising or account changes were made. Google contract version is now 6.
+Current inventory: 3,241 actions, 346 reviewed-family rows, 968 blocked mapped writes,
+105 unmapped, 50 unqualified reads, eight input-dependent adapters, four withdrawn.

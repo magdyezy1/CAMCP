@@ -619,6 +619,52 @@
           ]
         }
       }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "google_ads_v23_keyword_plan_mutate_keyword_plans",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "name": "Reviewed planning workspace",
+                "forecastPeriod": {
+                  "dateInterval": "NEXT_MONTH"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "google_ads_v23_keyword_plan_campaign_mutate_keyword_plan_campaigns",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "keywordPlan": "customers/123/keywordPlans/456",
+                "name": "Planning campaign",
+                "cpcBidMicros": "1000000",
+                "keywordPlanNetwork": "GOOGLE_SEARCH",
+                "geoTargets": [
+                  {
+                    "geoTargetConstant": "geoTargetConstants/2682"
+                  }
+                ],
+                "languageConstants": [
+                  "languageConstants/1000"
+                ]
+              }
+            }
+          ]
+        }
+      }
     }
   ],
   "recipe_business": {
