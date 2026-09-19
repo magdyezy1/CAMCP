@@ -10,6 +10,10 @@
   ],
   "inspections": [
     {
+      "gateway":"google_ads_native_action",
+      "arguments":{"action":"google_ads_v23_campaign_bid_modifier_mutate_campaign_bid_modifiers","account_id":"123","payload":{"operations":[{"update":{"resourceName":"customers/123/campaignBidModifiers/100~500","bidModifier":1.2},"updateMask":"bid_modifier"}]}}
+    },
+    {
       "gateway": "google_ads_native_action",
       "arguments": {
         "action": "google_ads_v23_custom_conversion_goal_mutate_custom_conversion_goals",

@@ -1,0 +1,129 @@
+{
+  "api_version": "v23",
+  "source": "https://developers.google.com/google-ads/api/fields/v23/bidding_strategy",
+  "checked_at": "2026-09-20",
+  "method": "Official public field table text retrieved with web tool; no live account query",
+  "source_text_sha256": "8c9fdf5fb8a123bf92f891b60a3a01c740646b0c2bf45d1198b343361963d0b3",
+  "fields": {
+    "aligned_campaign_budget_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "campaign_count": {
+      "selectable": true,
+      "repeated": false
+    },
+    "currency_code": {
+      "selectable": true,
+      "repeated": false
+    },
+    "effective_currency_code": {
+      "selectable": true,
+      "repeated": false
+    },
+    "enhanced_cpc": {
+      "selectable": true,
+      "repeated": false
+    },
+    "id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "maximize_conversion_value.cpc_bid_ceiling_micros": {
+      "selectable": true,
+      "repeated": false
+    },
+    "maximize_conversion_value.cpc_bid_floor_micros": {
+      "selectable": true,
+      "repeated": false
+    },
+    "maximize_conversion_value.target_roas": {
+      "selectable": true,
+      "repeated": false
+    },
+    "maximize_conversion_value.target_roas_tolerance_percent_millis": {
+      "selectable": true,
+      "repeated": false
+    },
+    "maximize_conversions.cpc_bid_ceiling_micros": {
+      "selectable": true,
+      "repeated": false
+    },
+    "maximize_conversions.cpc_bid_floor_micros": {
+      "selectable": true,
+      "repeated": false
+    },
+    "maximize_conversions.target_cpa_micros": {
+      "selectable": true,
+      "repeated": false
+    },
+    "name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "non_removed_campaign_count": {
+      "selectable": true,
+      "repeated": false
+    },
+    "resource_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "status": {
+      "selectable": true,
+      "repeated": false
+    },
+    "target_cpa.cpc_bid_ceiling_micros": {
+      "selectable": true,
+      "repeated": false
+    },
+    "target_cpa.cpc_bid_floor_micros": {
+      "selectable": true,
+      "repeated": false
+    },
+    "target_cpa.target_cpa_micros": {
+      "selectable": true,
+      "repeated": false
+    },
+    "target_impression_share.cpc_bid_ceiling_micros": {
+      "selectable": true,
+      "repeated": false
+    },
+    "target_impression_share.location": {
+      "selectable": true,
+      "repeated": false
+    },
+    "target_impression_share.location_fraction_micros": {
+      "selectable": true,
+      "repeated": false
+    },
+    "target_roas.cpc_bid_ceiling_micros": {
+      "selectable": true,
+      "repeated": false
+    },
+    "target_roas.cpc_bid_floor_micros": {
+      "selectable": true,
+      "repeated": false
+    },
+    "target_roas.target_roas": {
+      "selectable": true,
+      "repeated": false
+    },
+    "target_roas.target_roas_tolerance_percent_millis": {
+      "selectable": true,
+      "repeated": false
+    },
+    "target_spend.cpc_bid_ceiling_micros": {
+      "selectable": true,
+      "repeated": false
+    },
+    "target_spend.target_spend_micros": {
+      "selectable": true,
+      "repeated": false
+    },
+    "type": {
+      "selectable": true,
+      "repeated": false
+    }
+  }
+}

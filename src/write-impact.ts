@@ -3,7 +3,7 @@ import {redditCreativeKind,redditCreativeServing,redditLeadFormSunset,redditLead
 import {criteoTargetingKind} from './criteo-targeting-writes.js';
 import {keywordPlanKind} from './google-keyword-plan-writes.js';
 import {metaLabelImpact} from './meta-label-writes.js';
-import {googleBidKind,googleBidImpact} from './google-bid-modifiers.js';
+import {googleBidKind,googleBidImpactFor} from './google-bid-modifiers.js';
 import {googleSegmentKind,googleSegmentImpact} from './google-custom-segments.js';
 import {googleConversionGoalKind,googleConversionGoalServing,googleConversionGoalImpact} from './google-conversion-goals.js';
 import {googleBiddingEventKind,googleBiddingEventImpact} from './google-bidding-events.js';
@@ -44,7 +44,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  if(xDraftKind(plan))return xDraftImpact(plan);
  if(linkedinConversionKind(plan))return linkedinConversionImpact;
  if(linkedinRuleKind(plan))return linkedinRuleImpact;
- if(googleBidKind(plan))return googleBidImpact;
+ if(googleBidKind(plan))return googleBidImpactFor(plan);
  if(googleSegmentKind(plan))return {...googleSegmentImpact,may_affect_serving:googleConfigurationServing(plan)};
  if(googleBiddingEventKind(plan))return googleBiddingEventImpact;
  if(metaReportKind(plan))return metaReportImpact;

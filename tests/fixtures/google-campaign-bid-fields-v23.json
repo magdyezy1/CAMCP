@@ -1,0 +1,29 @@
+{
+  "api_version": "v23",
+  "source": "https://developers.google.com/google-ads/api/fields/v23/campaign_bid_modifier",
+  "checked_at": "2026-09-20",
+  "method": "Official public field table text retrieved with web tool; no live account query",
+  "source_text_sha256": "c5b94a59b52d7e9242db9e74e65df78b8d5f40daa9571fc700672949a8935fe7",
+  "fields": {
+    "bid_modifier": {
+      "selectable": true,
+      "repeated": false
+    },
+    "campaign": {
+      "selectable": true,
+      "repeated": false
+    },
+    "criterion_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "interaction_type.type": {
+      "selectable": true,
+      "repeated": false
+    },
+    "resource_name": {
+      "selectable": true,
+      "repeated": false
+    }
+  }
+}

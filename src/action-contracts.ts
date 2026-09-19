@@ -27,7 +27,7 @@ const familyFiles:Record<string,[string,string[]]>={
  x_drafts:['src/x-draft-writes.ts',['tests/x-draft-writes.test.ts']],
  linkedin_conversion_rules:['src/linkedin-conversion-rules.ts',['tests/linkedin-conversion-rules.test.ts']],
  linkedin_conversion_links:['src/linkedin-conversion-links.ts',['tests/linkedin-conversion-links.test.ts']],
- google_bid_modifiers:['src/google-bid-modifiers.ts',['tests/google-bid-modifiers.test.ts']],
+ google_bid_modifiers:['src/google-bid-modifiers.ts / src/google-campaign-bid-modifiers.ts',['tests/google-bid-modifiers.test.ts','tests/google-campaign-bid-modifiers.test.ts']],
  google_bidding_events:['src/google-bidding-events.ts',['tests/google-bidding-events.test.ts']],
  meta_labels:['src/meta-label-writes.ts',['tests/meta-label-writes.test.ts']],
  criteo_targeting:['src/criteo-targeting-writes.ts',['tests/criteo-targeting-writes.test.ts']],

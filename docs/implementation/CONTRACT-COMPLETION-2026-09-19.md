@@ -1507,3 +1507,62 @@ completed with exit zero. Manifest: 507 files, source-tree SHA-256
 6caa222f87623f6ae08b150a6584c17976c6d5dfbfbaeb8c8055c76c962b08e5.
 Logs: install-ae.log and release-check-ae.log in the local evidence directory.
 No required-FFmpeg, Docker or live acceptance is claimed.
+
+## Google campaign call-bid update/removal (2026-09-20)
+
+Three more action rows now have reviewed execution: the campaign bid-modifier
+RPC and native UPDATE/REMOVE aliases. The CREATE alias remains blocked, and an
+RPC create payload is explicitly rejected: the v23 resource makes campaign
+output-only, so creation needs verified native identity semantics rather than
+inventing a campaign field or criterion ID. This is not full family coverage.
+
+Existing Search CALLS modifiers use an exact discovered composite resource;
+0.1-10 is the native multiplier range, not micros or a percentage. Zero remains
+a device-only opt-out. Review reads the client account, complete call modifiers,
+selected campaign/budget configuration and client-owned portfolio configuration.
+The entire native portfolio configuration field table is independently recorded;
+only aggregate campaign counts and redundant ID are excluded. A second parent
+read catches changes while dependencies are fetched. Cross-customer portfolios
+remain unqualified. State bounds: 25 operations, 25 pages/query, 80 requests,
+2100 total rows, 4 MiB/page, 8 MiB total and a 60-second monotonic deadline.
+
+The existing durable claims, immutable reviews, current grants, native scopes,
+spend acknowledgement and owner activation/deletion policies remain enforced.
+Exact update and complete-collection deletion read-back cannot certify an ignored
+write, permission failure or partial response. No created-resource ownership is
+inferred. Google bid verification now rechecks OAuth scopes on each in-flight
+read as well as before verification; this also protects existing ad-group bids.
+
+Official evidence checked 2026-09-20: v23 CampaignBidModifier; the campaign_bid_modifier
+and bidding_strategy field tables (last updated 2026-09-10); the current Manage
+Bid Modifiers guide and Google Ads Help interaction adjustment range/eligibility.
+URLs are in the maintained Google guide. Reproducible field extraction retains
+five modifier fields and 30 portfolio fields with source hashes. No live query
+or mutation was performed. Shared manual-bid configuration does not prove auction
+effects, call-asset eligibility or that Smart Bidding applies the adjustment.
+
+Initial build failures were a TypeScript unknown-response narrowing and fixture
+cleanup signature, then an expanded fixture syntax error; corrected without
+loosening checks. First focused run: 33 passed, two fixture failures (spend policy
+confirmation/policy nesting and an already-parsed Store document). Corrected run:
+35/35. Expanded lifecycle, pagination/byte/time limits and schema evidence: 39/39.
+Compatibility with review/state and executable guides: 59/59. The first field
+extractor retained 4/5 fields because a web line label was inline; it now handles
+inline labels and still requires the complete field counts. Initial logs remain
+in .runtime/contract-completion-20260919/campaign-bids-*.log.
+
+Commands: npm.cmd run build; node --test for google-campaign-bid-modifiers,
+google-bid-modifiers, write-review, review-state and guide-contract-examples;
+node tools/google-bid-field-evidence.mjs .runtime/contract-completion-20260919
+2026-09-20 --campaign (and --portfolio, with --check for integrity).
+Candidate AF completed the sanitized release check: 1,189 tests passed, zero
+failed, one optional FFmpeg test skipped, plus four capture tests passed.
+All check stages exited zero. Its 511-file manifest records source-tree SHA256
+61f4e9dcb2c69be21217dbf4bfc83627bff91ac9103379f3ffc8e12041e63294.
+Evidence: .runtime/contract-completion-20260919/install-af.log and
+release-check-af.log. The required-FFmpeg CI mode was not run on this host.
+
+Inventory: 3,241 actions, 404 reviewed-family rows, 913 blocked writes, 100
+unmapped, 27 unqualified reads, eight input-dependent adapters and four explicit
+provider-unsupported routes. None of the remaining rows is marked completed by
+this implementation. Required-FFmpeg, container and live verification remain open.

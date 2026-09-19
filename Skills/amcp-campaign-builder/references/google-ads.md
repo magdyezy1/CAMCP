@@ -1,5 +1,35 @@
 # Google Ads: choose the channel's actual hierarchy
 
+## Campaign call-interaction bid modifiers
+
+The v23 `CampaignBidModifierService.MutateCampaignBidModifiers` RPC and the
+`UPDATE_CAMPAIGN_BID_MODIFIER` / `REMOVE_CAMPAIGN_BID_MODIFIER` aliases support
+reviewed changes to **existing** Search campaign `CALLS` modifiers. Discover the
+exact `campaign_bid_modifier.resource_name` and current configuration first;
+never guess the criterion ID. Supply that selected-customer resource with
+`update: {resourceName, bidModifier}` and `updateMask: "bid_modifier"`, or
+`remove: resourceName`. The multiplier is 0.1–10: **1.2 is +20%**. Device opt-out
+zero is invalid for calls. Creation still lacks a qualified native identity
+contract and remains blocked; do not supply the output-only `campaign` field
+or fabricate a resource name to work around this boundary.
+
+AMCP freezes all call modifiers for the selected campaigns, campaign configuration,
+budget configuration and client-owned portfolio targets/limits. It checks parent
+consistency across dependency reads and verifies complete native read-back. Limits
+are 25 changes, 25 pages per query, 80 requests, 4 MiB per page, 8 MiB total and a
+60-second state-read deadline. A partial or failed page cannot prove absence.
+Manager-owned portfolio strategies require a separate authority contract.
+Removal restores default bidding and can increase bids, so changes retain spend
+acknowledgement and the owner's activation/deletion policies. Smart Bidding can
+ignore manual adjustments; configuration verification does not prove serving,
+call-asset eligibility, auction effects or performance. No budget is changed.
+Retain the original review/key after an uncertain response and inspect read-back.
+
+Official references checked 2026-09-20: [v23 resource](https://developers.google.com/google-ads/api/reference/rpc/v23/CampaignBidModifier),
+[complete configuration fields](https://developers.google.com/google-ads/api/fields/v23/campaign_bid_modifier),
+[portfolio fields](https://developers.google.com/google-ads/api/fields/v23/bidding_strategy),
+and [interaction ranges and bidding eligibility](https://support.google.com/google-ads/answer/2732132?hl=en).
+
 ## Ad-group bid modifiers
 
 Use `google_ads_v23_ad_group_bid_modifier_mutate_ad_group_bid_modifiers` or its
