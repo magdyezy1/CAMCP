@@ -246,9 +246,40 @@ visible. Lists expose counts and truncation: at most 100 connections and 250 sel
 account IDs are returned; use `/connections` for the complete inventory. Never infer
 absence from a truncated list. Use that page to authorize, reauthorize or change account
 selection. These status operations never synchronize assets, refresh tokens or change
-grants, even with `dry_run:false`. The separate connection actions start, exchange,
-refresh and disconnect remain unimplemented MCP adapters; do not treat status as their
+grants, even with `dry_run:false`. The separate connection actions start, exchange and
+refresh remain unimplemented MCP adapters; do not treat status as their
 replacement or send passwords, tokens, authorization codes or OAuth state to an agent.
+
+The same three `*_connection_ops` operations support local `action:"disconnect"`.
+First use status to identify the exact login and obtain its `connection_id` UUID.
+Do not infer which login to remove from a default, a shared account ID or a label.
+An administrator can preview with
+`{"action":"disconnect","connection_id":"336ecb51-2df8-4967-8bd3-cba64d552296","dry_run":true}`.
+Replace this synthetic ID with the selected stored ID. Omitting `dry_run` also
+previews. Show the identity, selected-account counts and affected pending work,
+then send the same call with `dry_run:false` only after the user authorizes that
+specific local disconnection. This is an immediate local administrator command;
+it does not use the advertising review flow or require deployment advertising
+writes to be enabled. Readers and operators cannot disconnect.
+
+The transaction deletes the connection's encrypted credentials, saved discovery
+metadata and resource bindings, with a durable receipt and audit event. Retries
+of the same removed identity return that receipt without repeating deletion.
+Other logins and workspaces remain intact. Saved reports, jobs, reviews, claims
+and audit history are retained for diagnosis and recovery. Provider accounts,
+advertisements and OAuth grants are unchanged, and no credential is decrypted.
+Use provider settings separately if the user intends to revoke the external
+application grant. A request already submitted to the provider may still finish;
+disconnection cannot cancel it or justify replaying an uncertain mutation.
+
+`CONNECTION_ID_REQUIRED` means discover and name the exact UUID, not retry with
+an account ID. `CONNECTION_NOT_FOUND` does not establish absence in other
+workspaces or gateways. `FORBIDDEN` requires a current workspace administrator.
+An already disconnected identity can be previewed or its original receipt read;
+reconnection is a separate browser authorization flow. Business Profile website
+OAuth remains unavailable; its local disconnect applies to provisioned identities.
+Executable preview examples live in `examples/contracts.json` and are tested
+without credential access, provider requests or local changes.
 
 `google_business_native_action` operation `gmb_qanda_ops`,
 `arguments: {"action":"status"}`, reports `provider_unsupported` locally.

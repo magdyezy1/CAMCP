@@ -42,7 +42,7 @@ include 396 without mapped actions. No denominator is silently discarded.
 | GTM reverts, variables, folders, versions, gallery and administrative workflows | Implemented; focused tests pass | 20 additional reviewed actions; administrator role/scopes, complete permission membership, last-admin checks, hashed environment codes and exact read-back. Four officially withdrawn routes retained separately. |
 | GTM bulk update, synchronization, quick preview and conflict resolution | Implemented; focused tests pass | All ten Entity kinds, bounded complete workspace/base-version snapshots, unordered bulk receipts, entity fingerprints, explicit clearing, partial sync conflicts and temporary preview verification. Four additional reviewed rows. |
 | GTM configuration audit and verification job status | Implemented; full release checks pass | Two formerly unmapped local operations. Read-only scoped discovery and diagnostics; job polling checks tenant, actor, provider and current connection/account access. |
-| GA4, Business Profile and Search Console gaps | Pending | Granular administrative authority and documented local/OAuth routing. |
+| GA4, Business Profile and Search Console gaps | Partly implemented | Scoped local status and administrator disconnect; Business Profile public links and account notifications. Browser OAuth, asset sync and other provider writes remain pending. |
 | Adjust, Commerce, Amazon and other unmapped actions | Pending | Establish actual provider product and executable contracts; do not invent missing specifications. |
 | First full regression and branch push | Complete locally; pushed | `95b85ff` pushed to `Codex-branch`. Fresh release: 700 tests passed, one FFmpeg test skipped, four capture tests passed; generation, guidance, web, provider integrity and Railway compatibility checks passed. Container smoke checks require Docker. |
 
@@ -53,7 +53,7 @@ qualification dependencies, not a reason to omit locally implementable code.
 ## Current checkpoint (2026-09-20)
 
 The working tree now inventories **3,241 actions**, including **408 reviewed-family
-rows**. **909 mapped writes, 100 unmapped actions, 27 unqualified reads and eight
+rows**. **909 mapped writes, 97 unmapped actions, 27 unqualified reads and eight
 input-dependent adapters remain incomplete**. Four routes are now explicitly
 **provider_unsupported**, including three previously blocked writes and one read;
 these are not counted as implemented. The first batch added 68 reviewed action
@@ -656,3 +656,43 @@ to the configured Python runtime. Inventory now: 3,241 actions, 408
 reviewed-family rows, 909 blocked writes, 100 unmapped, 27 unqualified reads,
 eight input-dependent adapters and four provider-unsupported actions. Required
 FFmpeg mode, Docker and live provider/deployment verification remain unrun.
+
+## 2026-09-20 — Local connection disconnect (candidate AI)
+
+Implemented the three explicit disconnect actions for GA4, Search Console and
+Business Profile. A current administrator must name an exact connection UUID.
+The default previews the named login and impact; dry_run:false performs the
+authorized local disconnection. No implicit/default identity selection, provider
+request, credential decryption or provider OAuth revocation occurs. Advertising
+deployment write controls do not prevent removing local credential access.
+
+The website and MCP now share one transaction that deletes the credential row,
+resource bindings and discovery documents and records a receipt plus audit event.
+Reports, reviews, submitted jobs and idempotency claims remain for reconciliation.
+A replay returns the original local receipt; an in-flight token refresh cannot
+restore a deleted connection. A submitted external mutation may still complete;
+disconnect does not cancel it or permit a blind retry. Administrator test accounts
+remain restricted to their isolated workspace. No live credentials were changed.
+
+Seventeen new tests cover all three adapters, dry-run defaults, cross-tenant and
+cross-gateway IDs, duplicate account identities, concurrent/restarted calls,
+disabled connections, read-only deployments, atomic audit-failure rollback,
+pending recovery evidence, delayed refresh, test accounts, website compatibility,
+redacted labels and executable guide previews. Initial compatibility passed
+61/61 tests; expanded diagnostic/disconnect/guidance validation passed 38/38.
+Build, both contract generators and guidance checks passed (81 modules and
+14 reviewed gateways). Logs: connection-disconnect-*.log under
+.runtime/contract-completion-20260919. No failure was hidden or assertion relaxed.
+
+Inventory: 3,241 actions, 408 reviewed-family rows, 909 blocked writes, 97 unmapped,
+27 unqualified reads, eight input-dependent, four provider-unsupported and 68
+local workflows. Start/exchange/refresh and other unmapped actions remain explicit.
+Business Profile website OAuth is not enabled by local connection management.
+Candidate AI completed the full sanitized check: 1,249 passed, zero failed,
+one optional FFmpeg skip, plus four capture tests passed. All check stages
+exited zero. The 517-file manifest records source-tree SHA256
+77f1fdef9f032c5a61b28eb862bb4aa7f99e6148635a79cc4ba3a6c33f6ba475.
+Exact commands: release assembly, npm.cmd ci --ignore-scripts, npm.cmd run check
+with AMCP_SCHEMA_PYTHON set to the configured Python binary. Evidence is retained
+in install-ai.log and release-check-ai.log. Required FFmpeg mode, Docker and
+live provider/deployment qualification remain unrun.

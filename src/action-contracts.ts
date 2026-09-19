@@ -1,5 +1,6 @@
 import {Registry} from './catalog.js';
 import {connectionDiagnosticKind,businessQandaRetirement} from './connection-diagnostics.js';
+import {connectionDisconnectKind} from './connection-disconnect.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {appleActions} from './apple-native.js';
 import {businessWorkflowOperations} from './workflows.js';
@@ -104,6 +105,7 @@ export function actionContracts(registry:Registry):ActionContract[]{
    if(tool.name==='gtm_native_action'&&gtmDiagnosticOperations.has(op.operation))row={...row,status:'local_workflow',implementation:'src/gtm-diagnostics.ts',reason:'AMCP scoped read-only configuration audit or local reviewed-write verification job status. This workflow never publishes or resubmits a mutation.',tests:['tests/gtm-diagnostics.test.ts']};
    const diagnostic=connectionDiagnosticKind(tool.name,op.operation,action);if(diagnostic)row={...row,status:'local_workflow',implementation:'src/connection-diagnostics.ts',reason:diagnostic==='qanda'?'Implemented local retirement-status diagnostic. Google discontinued Q&A on 2025-11-03; no Q&A provider request or replacement API is available.':'Read-only tenant-scoped connection metadata with explicit/default identity resolution; no credential access, provider request or implicit connection/grant changes. Recorded configuration is not live readiness.',...(diagnostic==='qanda'?{source:businessQandaRetirement.source}:{}),tests:['tests/connection-diagnostics.test.ts']};
    if(tool.name==='amcp_native_action'&&op.operation==='search_ads_library')row={...row,status:'local_workflow',implementation:'src/meta-ad-library.ts',reason:'Bounded public Meta Ad Library search through the sole/default connection. Media format is translated separately from provider ad category. Geographic API coverage and result limits are explicit; no performance inference or token-bearing URLs are returned.',source:'https://www.facebook.com/ads/library/api/',tests:['tests/meta-ad-library.test.ts']};
+   if(connectionDisconnectKind(tool.name,op.operation,action))row={...row,status:'local_workflow',implementation:'src/connection-disconnect.ts',reason:'Administrator-only explicit-UUID local disconnect, with dry-run default. Atomically removes the encrypted credential row, resource bindings and discovery metadata while retaining recovery history. No provider calls or grant revocation; default selection never chooses the identity.',tests:['tests/connection-disconnect.test.ts']};
    put(row);
   }
  }

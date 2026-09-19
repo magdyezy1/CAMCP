@@ -66,7 +66,7 @@ test('Business Profile Q&A status reports the official retirement without a prov
 });
 
 test('only the four implemented local diagnostics move out of unmapped inventory',()=>{
- const rows=actionContracts(registry),diagnostics=rows.filter(r=>r.implementation==='src/connection-diagnostics.ts');assert.equal(diagnostics.length,4);assert.ok(diagnostics.every(r=>r.status==='local_workflow'));for(const [g,o]of cases)for(const action of ['start','exchange','refresh','disconnect']){assert.equal(connectionDiagnosticKind(g,o,action),undefined);assert.equal(rows.find(r=>r.gateway===g&&r.operation===o&&r.action===action)!.status,'unmapped');}
+ const rows=actionContracts(registry),diagnostics=rows.filter(r=>r.implementation==='src/connection-diagnostics.ts');assert.equal(diagnostics.length,4);assert.ok(diagnostics.every(r=>r.status==='local_workflow'));for(const [g,o]of cases)for(const action of ['start','exchange','refresh']){assert.equal(connectionDiagnosticKind(g,o,action),undefined);assert.equal(rows.find(r=>r.gateway===g&&r.operation===o&&r.action===action)!.status,'unmapped');}
 });
 
 test('all published connection diagnostic examples execute without credentials, provider calls or changes',async()=>{

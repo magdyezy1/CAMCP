@@ -94,10 +94,10 @@
       "gateway": "ga4_native_action",
       "actions": 24,
       "counts": {
-        "local_workflow": 1,
+        "local_workflow": 2,
         "native_read": 16,
         "reviewed_write_family": 2,
-        "unmapped": 5
+        "unmapped": 4
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -123,10 +123,10 @@
       "actions": 59,
       "counts": {
         "blocked_write": 19,
-        "local_workflow": 2,
+        "local_workflow": 3,
         "native_read": 28,
         "reviewed_write_family": 4,
-        "unmapped": 6
+        "unmapped": 5
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -136,10 +136,10 @@
       "gateway": "google_search_console_native_action",
       "actions": 16,
       "counts": {
-        "local_workflow": 1,
+        "local_workflow": 2,
         "native_read": 6,
         "reviewed_write_family": 4,
-        "unmapped": 5
+        "unmapped": 4
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -7851,11 +7851,13 @@
       "aliases": [],
       "method": null,
       "path": null,
-      "status": "unmapped",
-      "implementation": "",
-      "reason": "No provider request mapping exists. The advertised name is not executable.",
+      "status": "local_workflow",
+      "implementation": "src/connection-disconnect.ts",
+      "reason": "Administrator-only explicit-UUID local disconnect, with dry-run default. Atomically removes the encrypted credential row, resource bindings and discovery metadata while retaining recovery history. No provider calls or grant revocation; default selection never chooses the identity.",
       "source": "INFERRED_OUTER_ENVELOPE",
-      "tests": [],
+      "tests": [
+        "tests/connection-disconnect.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -16604,11 +16606,13 @@
       "aliases": [],
       "method": null,
       "path": null,
-      "status": "unmapped",
-      "implementation": "",
-      "reason": "No provider request mapping exists. The advertised name is not executable.",
+      "status": "local_workflow",
+      "implementation": "src/connection-disconnect.ts",
+      "reason": "Administrator-only explicit-UUID local disconnect, with dry-run default. Atomically removes the encrypted credential row, resource bindings and discovery metadata while retaining recovery history. No provider calls or grant revocation; default selection never chooses the identity.",
       "source": "INFERRED_OUTER_ENVELOPE",
-      "tests": [],
+      "tests": [
+        "tests/connection-disconnect.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -17254,11 +17258,13 @@
       "aliases": [],
       "method": null,
       "path": null,
-      "status": "unmapped",
-      "implementation": "",
-      "reason": "No provider request mapping exists. The advertised name is not executable.",
+      "status": "local_workflow",
+      "implementation": "src/connection-disconnect.ts",
+      "reason": "Administrator-only explicit-UUID local disconnect, with dry-run default. Atomically removes the encrypted credential row, resource bindings and discovery metadata while retaining recovery history. No provider calls or grant revocation; default selection never chooses the identity.",
       "source": "INFERRED_OUTER_ENVELOPE",
-      "tests": [],
+      "tests": [
+        "tests/connection-disconnect.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {

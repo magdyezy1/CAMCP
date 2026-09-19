@@ -9,6 +9,7 @@ import {MirrorService} from '../src/service.js';
 import {MediaUploadService} from '../src/media-upload.js';
 import {mediaType} from '../src/drive-media.js';
 import {Store} from '../src/store.js';
+import {disconnectLocalConnection} from '../src/connection-disconnect.js';
 import {MirrorError} from '../src/errors.js';
 import {sha256,redact} from '../src/security.js';
 import type {Connection,JsonObject} from '../src/types.js';
@@ -217,8 +218,7 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
  }));
  router.delete('/api/connections/:id',handler((req,res)=>{
   const s=web.requireAdminMutation(req),tenant=s.actor.tenantId,c=connection(tenant,String(req.params.id));
-  store.transaction(()=>{store.db.prepare('DELETE FROM connections WHERE tenant_id=? AND id=?').run(tenant,c.id);store.db.prepare('DELETE FROM resource_ownership WHERE tenant_id=? AND connection_id=?').run(tenant,c.id);store.db.prepare("DELETE FROM documents WHERE tenant_id=? AND id=? AND kind IN ('website_assets','website_connection')").run(tenant,c.id);});
-  store.appendAudit(tenant,randomUUID(),{event:'website_local_disconnect',connection_id:c.id,vendor_writes:0});res.json({success:true});
+  disconnectLocalConnection(store,s.actor,c.gateway,c.id,'website');res.json({success:true});
  }));
  router.get('/api/connector-tokens',handler((req,res)=>{const s=web.requireSession(req);res.json({tokens:store.documents(s.actor.tenantId,'website_mcp_token').map(({hash,...v})=>v),url:web.origin+'/mcp'});}));
  router.post('/api/connector-tokens',express.json({limit:'4kb'}),handler((req,res)=>{
