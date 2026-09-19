@@ -1,4 +1,5 @@
 import {redditCreativeKind,redditCreativeVerification,readRedditProfiles} from './reddit-creative-writes.js';
+import {criteoTargetingKind,criteoTargetingVerification,readCriteoTargeting,assertCriteoReadScope} from './criteo-targeting-writes.js';
 import {redditPostCreation,verifyRedditPostCreation} from './reddit-post-creation.js';
 import {Store} from './store.js';
 import {Registry} from './catalog.js';
@@ -32,6 +33,7 @@ function differing(expected:any,actual:any,path='',out:string[]=[]):string[]{
  else if(fingerprint(expected)!==fingerprint(actual??null))out.push(path);return out;
 }
 function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Registry,before:unknown[]=[]):{read:CompiledRequest;expected:JsonObject;id:string}[]{
+ if(criteoTargetingKind(plan))return criteoTargetingVerification(plan,before);
  if(redditCreativeKind(plan))return redditCreativeVerification(plan,result);
  if(gtmWorkspaceKind(plan))return gtmWorkspaceVerification(plan,result,before);
  if(gtmWorkflowKind(plan))return gtmWorkflowVerification(plan,result,before);
@@ -98,6 +100,7 @@ export class WriteVerifier{
   const checkAppleAccounts=()=>{for(const account of appleSharedAccounts(plan))this.store.resolveConnection(actor,plan.gateway,account,c.id);};checkAppleAccounts();
   if(linkedinDSC(plan))assertLinkedInDSCGrant(plan,c,false);
   if(redditPostCreation(plan)&&!c.scopes.includes('adsread'))bad('Reddit post verification requires adsread.','INSUFFICIENT_SCOPE');
+  if(criteoTargetingKind(plan))assertCriteoReadScope(c);
   if(result.success!==true)bad('Inspect the retained partial failure before recovery.','WRITE_PARTIAL_OR_FAILED');
   const cached=optional(this.store,actor.tenantId,'write_verification',reviewId);if(cached?.status==='verified'&&Date.now()-cached.checked_at<10000)return {...cached,cached:true};
   let reads:ReturnType<typeof verificationReads>=[],status='unverified',checks:JsonObject[]=[],resources:JsonObject[]=[];
@@ -128,7 +131,7 @@ export class WriteVerifier{
    const expected=normalize(item.expected),readback=await readConsistently(async()=>{
     this.store.assertActorActive(actor);checkAppleAccounts();const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(item.read,current);
     const auth=await this.credentials.get(current);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));
-    let response;try{response=await readGtmWorkspace(item.read,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.transport.request(page,latest,auth);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(page,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));return result;})));}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
+    let response;try{response=await readCriteoTargeting(item.read,criteoPage=>readGtmWorkspace(criteoPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.transport.request(page,latest,auth);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(page,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));return result;}))));}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
     checkAppleAccounts();return normalize(entity(item.read,response.data as JsonObject));
    },actual=>differing(expected,actual).length===0);
    const actual=readback.value,changed=differing(expected,actual),phase=readback.consistent?measurementVerificationPhase(item.read,actual):'inconclusive';checks.push({resource_id:item.id,status:phase,code:readback.consistent?undefined:'VERIFICATION_INCONCLUSIVE',read_attempts:readback.attempts,changed_fields:changed,expected_hash:fingerprint(expected),actual_hash:fingerprint(actual??null),checked_fields:Object.keys(expected)});

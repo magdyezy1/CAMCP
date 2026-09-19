@@ -583,3 +583,83 @@ Sanitized `npm.cmd ci --ignore-scripts --no-audit --no-fund`, then `npm.cmd run
 check`, exited 0. Main suite 848 passed, zero failed, one FFmpeg skip; capture
 suite four passed. Generated ledgers, provider integrity, guidance and remaining
 release checks passed. Log: `release-check-k.log` in the existing evidence folder.
+
+## Criteo preferred-line-item targeting
+
+Added nine independently reviewed operations for audience, store and add-to-basket
+targets: native PUT scope changes and POST append/delete. The new family is
+`criteo_targeting`, implemented in `src/criteo-targeting-writes.ts` and integrated
+with the existing frozen review, deployment, actor, account, policy, idempotency
+and verifier services. Criteo contract version 2, API 2026-01. The native connection
+remains administrator-provisioned; adding a guide does not claim website OAuth.
+
+Before a mutation, discover the line through the chosen account's native list.
+The review rechecks filtered complete account membership, its preferred campaign
+and account, current retailer, detailed line settings and full target membership.
+Audience searches check every referenced audience belongs to the same account and
+retailer, including its current definition. An internal read authority exists only
+after these fresh checks and cannot be supplied by the client. Every request and
+verification cache observes current access. Compound state excludes raw response
+envelopes and only documented spent/remaining/timestamp telemetry; unknown
+configuration remains protected. Native member arrays are canonical sets.
+
+The current reference describes PUT as setting scope. The qualified contract
+therefore requires preserving member arrays, and uses separate append/delete
+operations for membership changes. It does not assume that PUT implements a full
+replacement. Scope and membership affect delivery immediately: explicit spend
+acknowledgement and owner activation/deletion permissions apply. These routes do
+not alter budgets. Store/product/category validity and retailer eligibility are
+provider checks, not invented locally or claimed from the captured catalog.
+
+Receipts require native complete target data. HTTP 200 errors/warnings, malformed,
+empty and lost responses cannot establish success. The separate read-back compares
+the entire resulting membership and scope. Uncertain claims remain claimed across
+SQLite reopen; concurrent calls and replay do not dispatch a second write.
+Supported bounds: 100 requested member changes (PUT preserves at most 100), 1000
+retained target IDs, 24 requests, 4 MiB per response and 8 MiB total per state read.
+There is a monotonic between-request 60-second budget. Filtered account lists
+must completely return the one exact target; no provider-returned URL is followed.
+
+Official sources checked 2026-09-19:
+- [Pinned official OpenAPI 2026-01](https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json)
+  supplies request/response shapes, account list filters, metadata and
+  `RetailMedia_Campaign_Read` / `RetailMedia_Campaign_Manage` scopes.
+- [Audience append](https://developers.criteo.com/retail-media/reference/appendaudiencetargetsbylineitemid),
+  [audience delete](https://developers.criteo.com/retail-media/reference/deleteaudiencetargetsbylineitemid),
+  [store scope](https://developers.criteo.com/retail-media/reference/putstoretargetbylineitemid),
+  [store append](https://developers.criteo.com/retail-media/reference/appendstoretargetsbylineitemid)
+  and [basket scope](https://developers.criteo.com/retail-media/reference/putaddtobaskettargetbylineitemid)
+  describe the separate native effects and resulting target data.
+
+Verification: initial TypeScript compilation found narrowing errors in a new
+throw helper, corrected with an explicit never-returning function. An exploratory
+compiler invocation used the wrong helper signature; the production request
+fixtures use the actual nested delegated arguments. Initial 17 lifecycle tests
+passed (`criteo-first.log`); expanded/guidance 27 passed (`criteo-expanded.log`);
+final 79 Criteo, state-envelope, spending-policy and action-contract tests passed
+(`criteo-final.log`). Commands: `npm.cmd run build` followed by
+`node --test --test-concurrency=1` with those compiled suites. Three executable
+inspect examples and `amcp://guides/criteo` are included. Required matrix tests
+were extended for this newly enabled gateway, not weakened.
+
+Inventory remains 3,241 actions: 360 reviewed-family, 954 blocked writes, 105
+unmapped, 37 unqualified reads, eight input-dependent and four withdrawn. Criteo
+still has 45 blocked writes and three unmapped actions. Full candidate L follows;
+no retailer credentials, live mutations or provider approval claims are involved.
+
+Candidate L (`809079431febd2729026dc69cc1543f4b229a9f860e717a219c344a0b0b8755c`,
+468 files) failed with 868 passed, two failed, one FFmpeg skip. Both failures were
+the same stale guide-count assertion in `deploy/smoke-api.mjs`, exercised with
+writes enabled and disabled. Corrected the expected count from 11 to 12 and added
+an explicit Criteo guide URI assertion. The four deployment/guidance tests then
+passed (`criteo-smoke.log`); initial `release-check-l.log` is retained. A fresh
+sanitized candidate M must pass the entire release check before this batch is pushed.
+
+Candidate M completed `npm.cmd ci --ignore-scripts --no-audit --no-fund` and
+`npm.cmd run check` with exit 0: 870 passed, zero failed, one FFmpeg skip, plus
+four capture tests passed. All generated-source, vendor, WSDL, feed, guidance,
+web, lifecycle and action-ledger checks passed. Source tree hash:
+`2d16ab5f376fa7d85db6e91da7336e178b6710c2c6d3f6eaa53d4d8ecf70cfea`, 468 files.
+Logs: `.runtime/contract-completion-20260919/install-m.log` and
+`release-check-m.log`. FFmpeg and Docker remain unavailable on this host; this
+does not establish container or live-provider qualification.

@@ -36,7 +36,9 @@ include 396 without mapped actions. No denominator is silently discarded.
 | Apple child resources and shared budgets | Implemented; local lifecycle tests pass | 18 new native actions. SDK type facts, parent scoping, org/account union authorization, per-account spending policies and read-back. 99 SDK methods are now independently inventoried; 58 remain unmapped. |
 | Meta, TikTok, Snapchat, LinkedIn and X remaining operation families | Pending | Exact account/identity binding and lifecycle contracts per family. |
 | DV360 advertiser-owned channels, negative-keyword lists and location lists | Implemented; local lifecycle tests pass | 18 additional reviewed actions. Complete bounded membership pagination, scoped receipts, replacement/deletion policy, set verification and uncertain-outcome retention. Partner-owned variants remain blocked. |
-| Reddit, remaining DV360 and Criteo families | Pending | Resource identity, targeting, asynchronous/bulk and budget safeguards. |
+| Reddit captured post/classic families | Implemented within explicit limits | 13 reviewed-family rows and 38 native reads; legacy/structured posts, worker polling, verified post-to-ad handoff. Max, private Drive and customer ingestion remain unqualified. |
+| Criteo preferred-line-item targeting | Implemented; focused tests pass | Nine scope/member operations. Fresh scoped account/campaign/retailer discovery, audience definition checks, exact set projection and read-back, policy gates and restart-safe claims. Website OAuth and other Criteo families remain pending. |
+| Remaining DV360 and Criteo families | Pending | Campaign/line-item creation, reports, billing, audience ingestion, asynchronous/bulk and budget safeguards. |
 | GTM reverts, variables, folders, versions, gallery and administrative workflows | Implemented; focused tests pass | 20 additional reviewed actions; administrator role/scopes, complete permission membership, last-admin checks, hashed environment codes and exact read-back. Four officially withdrawn routes retained separately. |
 | GTM bulk update, synchronization, quick preview and conflict resolution | Implemented; focused tests pass | All ten Entity kinds, bounded complete workspace/base-version snapshots, unordered bulk receipts, entity fingerprints, explicit clearing, partial sync conflicts and temporary preview verification. Four additional reviewed rows. |
 | GTM configuration audit and verification job status | Implemented; full release checks pass | Two formerly unmapped local operations. Read-only scoped discovery and diagnostics; job polling checks tenant, actor, provider and current connection/account access. |
@@ -50,8 +52,8 @@ qualification dependencies, not a reason to omit locally implementable code.
 
 ## Current checkpoint (2026-09-19)
 
-The working tree now inventories **3,241 actions**, including **351 reviewed-family
-rows**. **963 mapped writes, 105 unmapped actions, 50 unqualified reads and eight
+The working tree now inventories **3,241 actions**, including **360 reviewed-family
+rows**. **954 mapped writes, 105 unmapped actions, 37 unqualified reads and eight
 input-dependent adapters remain incomplete**. Four routes are now explicitly
 **provider_unsupported**, including three previously blocked writes and one read;
 these are not counted as implemented. The first batch added 68 reviewed action
@@ -144,3 +146,20 @@ Inventory: 3,241 actions, 351 reviewed families, 963 blocked writes, 105 unmappe
 Candidate K passed the full check: 848 tests passed, zero failed, one FFmpeg skip,
 and four capture tests passed. Strict generated action coverage and all release
 checks passed. Read-contract source hash is recorded in the dated evidence report.
+
+The read-contract batch is pushed as `2a026d5`. Criteo now has nine qualified
+targeting-family rows, 45 blocked writes, 51 native reads and three unmapped rows.
+Initial 17 lifecycle tests, 27 expanded/guidance tests and 79 final policy,
+envelope and contract regressions passed. Full sanitized candidate L is pending.
+All other incomplete action families remain open. No live Criteo mutation occurred.
+
+Candidate L passed 868 tests, failed two deployment-smoke instances and skipped
+FFmpeg. Both failures came from the shared HTTP smoke helper still expecting 11
+guide resources after Criteo added the twelfth. Updated its exact count and asserted
+the Criteo URI. All four deployment/guidance regressions passed. Candidate M follows;
+the first failed full-check log remains retained.
+
+Candidate M passed the complete release check: 870 passed, zero failures, one
+FFmpeg skip, plus four capture tests passed. All strict generation, guide, action
+coverage, web and provider checks passed. Criteo targeting is qualified locally
+within the documented bounds; no live Criteo call or deployment was performed.

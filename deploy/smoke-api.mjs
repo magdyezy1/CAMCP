@@ -62,7 +62,8 @@ export async function checkApplication({base, origin, password, writes, restart}
  assert.equal(tools.tools.length,writes?27:25);
  assert.ok(tools.tools.some(t=>t.name==='amcp_reporting_overview'));
  const guides=await mcp('resources/list');
- assert.equal(guides.resources.length,11);
+ assert.equal(guides.resources.length,12);
+ assert.ok(guides.resources.some(resource=>resource.uri==='amcp://guides/criteo'));
  assert.ok(guides.resources.some(r=>r.uri==='amcp://guides/reporting-overview'));
  // Read every advertised guide from the runtime image, not just its build stage.
  for(const resource of guides.resources){

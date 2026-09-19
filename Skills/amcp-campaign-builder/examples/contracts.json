@@ -739,6 +739,76 @@
           }
         }
       }
+    },
+    {
+      "gateway": "criteo_native_action",
+      "arguments": {
+        "operation": "criteo_line_item_ops",
+        "arguments": {
+          "action": "APPEND_STORE_TARGETS_BY_LINE_ITEM_ID",
+          "account_id": "123",
+          "params": {
+            "line-item-id": "789"
+          },
+          "payload": {
+            "data": {
+              "attributes": {
+                "storeIds": [
+                  "store-from-discovery"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "gateway": "criteo_native_action",
+      "arguments": {
+        "operation": "criteo_line_item_ops",
+        "arguments": {
+          "action": "PUT_AUDIENCE_TARGETS_BY_LINE_ITEM_ID",
+          "account_id": "123",
+          "params": {
+            "line-item-id": "789"
+          },
+          "payload": {
+            "data": {
+              "attributes": {
+                "scope": "include",
+                "audienceIds": [
+                  "345"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "gateway": "criteo_native_action",
+      "arguments": {
+        "operation": "criteo_line_item_ops",
+        "arguments": {
+          "action": "DELETE_ADD_TO_BASKET_TARGETS_BY_LINE_ITEM_ID",
+          "account_id": "123",
+          "params": {
+            "line-item-id": "789"
+          },
+          "payload": {
+            "data": {
+              "attributes": {
+                "productIds": [
+                  "sku-from-discovery"
+                ],
+                "categoryIds": [
+                  "category-from-discovery"
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   ],
   "recipe_business": {

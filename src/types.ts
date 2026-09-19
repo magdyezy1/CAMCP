@@ -39,7 +39,7 @@ export interface CompiledRequest {
   accountId?:string; evidence:string; warnings:string[]; specialTransport?:string;
   queryArrayEncoding?:'json'|'repeat';
   responseControls?:import('./projection.js').ResponseControls;
-  scopeContext?:{campaignId?:string;linkedinPostReviewId?:string;microsoftExtensionTypes?:string[];microsoftAssociationPairs?:{entityId:string;extensionId:string}[];appleSharedAccountIds?:string[];appleSharedResultAccounts?:string[];appleSharedOrgId?:string;appleCurrency?:string;gtmPriorAuthHash?:string;redditProfileId?:string;redditProfileUserId?:string;redditPostReviewId?:string};
+  scopeContext?:{campaignId?:string;linkedinPostReviewId?:string;microsoftExtensionTypes?:string[];microsoftAssociationPairs?:{entityId:string;extensionId:string}[];appleSharedAccountIds?:string[];appleSharedResultAccounts?:string[];appleSharedOrgId?:string;appleCurrency?:string;gtmPriorAuthHash?:string;redditProfileId?:string;redditProfileUserId?:string;redditPostReviewId?:string;criteoVerifiedLineId?:string};
   reportDownload?:{offset:number;limit:number};
   contractEvidence?:JsonObject;
   /** Internal, derived exact-target GAQL read. Never accepted from client input. */
@@ -50,6 +50,8 @@ export interface CompiledRequest {
   googleKeywordPlanState?:{names:string[]};
   /** Bounded current account/profile discovery for Reddit metadata writes. */
   redditProfilesState?:boolean;
+  /** Exact selected-account targeting discovery; external callers cannot supply this context. */
+  criteoTargetState?:{lineId:string;kind:string;audienceIds:string[]};
   /** Server-derived DV360 membership/absence read, never caller supplied. */
   dv360ListState?:{kind:string;collection:boolean};
   /** Server-derived GTM workflow read. Never accepted from external arguments. */

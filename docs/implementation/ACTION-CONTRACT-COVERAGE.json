@@ -67,8 +67,9 @@
       "gateway": "criteo_native_action",
       "actions": 108,
       "counts": {
-        "blocked_write": 54,
+        "blocked_write": 45,
         "native_read": 51,
+        "reviewed_write_family": 9,
         "unmapped": 3
       },
       "captured_catalog_complete": true,
@@ -3050,7 +3051,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3112,7 +3113,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3129,7 +3130,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3146,7 +3147,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3193,7 +3194,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3210,7 +3211,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3332,7 +3333,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3349,7 +3350,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3366,7 +3367,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3398,7 +3399,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3415,7 +3416,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3477,7 +3478,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3494,7 +3495,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3511,7 +3512,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3528,7 +3529,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3605,7 +3606,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3622,7 +3623,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3639,7 +3640,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3656,7 +3657,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3673,7 +3674,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3690,7 +3691,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3707,7 +3708,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3724,7 +3725,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3831,7 +3832,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3893,7 +3894,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3910,7 +3911,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3927,7 +3928,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3944,7 +3945,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3961,7 +3962,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3978,7 +3979,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -3995,7 +3996,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4027,7 +4028,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4044,7 +4045,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4136,7 +4137,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4153,7 +4154,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4170,7 +4171,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4187,7 +4188,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4204,7 +4205,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4231,12 +4232,15 @@
       "method": "POST",
       "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/add-to-basket/append",
       "origin": "https://api.criteo.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/criteo-targeting-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/criteo-targeting-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "criteo_targeting"
     },
     {
       "gateway": "criteo_native_action",
@@ -4246,12 +4250,15 @@
       "method": "POST",
       "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/audiences/append",
       "origin": "https://api.criteo.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/criteo-targeting-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/criteo-targeting-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "criteo_targeting"
     },
     {
       "gateway": "criteo_native_action",
@@ -4261,12 +4268,15 @@
       "method": "POST",
       "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/stores/append",
       "origin": "https://api.criteo.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/criteo-targeting-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/criteo-targeting-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "criteo_targeting"
     },
     {
       "gateway": "criteo_native_action",
@@ -4306,12 +4316,15 @@
       "method": "POST",
       "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/add-to-basket/delete",
       "origin": "https://api.criteo.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/criteo-targeting-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/criteo-targeting-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "criteo_targeting"
     },
     {
       "gateway": "criteo_native_action",
@@ -4321,12 +4334,15 @@
       "method": "POST",
       "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/audiences/delete",
       "origin": "https://api.criteo.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/criteo-targeting-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/criteo-targeting-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "criteo_targeting"
     },
     {
       "gateway": "criteo_native_action",
@@ -4336,12 +4352,15 @@
       "method": "POST",
       "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/stores/delete",
       "origin": "https://api.criteo.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/criteo-targeting-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/criteo-targeting-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "criteo_targeting"
     },
     {
       "gateway": "criteo_native_action",
@@ -4356,7 +4375,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4373,7 +4392,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4390,7 +4409,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4407,7 +4426,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4424,7 +4443,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4441,7 +4460,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4458,7 +4477,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4475,7 +4494,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4492,7 +4511,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4509,7 +4528,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4526,7 +4545,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4538,12 +4557,15 @@
       "method": "PUT",
       "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/add-to-basket",
       "origin": "https://api.criteo.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/criteo-targeting-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/criteo-targeting-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "criteo_targeting"
     },
     {
       "gateway": "criteo_native_action",
@@ -4553,12 +4575,15 @@
       "method": "PUT",
       "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/audiences",
       "origin": "https://api.criteo.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/criteo-targeting-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/criteo-targeting-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "criteo_targeting"
     },
     {
       "gateway": "criteo_native_action",
@@ -4568,12 +4593,15 @@
       "method": "PUT",
       "path": "/2026-01/retail-media/preferred-line-items/{line-item-id}/targeting/stores",
       "origin": "https://api.criteo.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/criteo-targeting-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/criteo-targeting-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "criteo_targeting"
     },
     {
       "gateway": "criteo_native_action",
@@ -4735,7 +4763,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4752,7 +4780,7 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/criteo-targeting-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },

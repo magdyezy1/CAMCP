@@ -11,7 +11,7 @@ import {readGuidance,buildCampaignPrompt,guidanceResources} from '../src/guidanc
 test('MCP clients discover, read and load curated campaign guides without provider calls',async()=>{
  const store=new Store(':memory:'),server=createMcpServer(new MirrorService(new Registry(),store),{tenantId:'t',userId:'u',role:'reader'}),client=new Client({name:'guide-test',version:'1'}),[c,s]=InMemoryTransport.createLinkedPair();
  try{
-  await server.connect(s);await client.connect(c);const list=await client.listResources();assert.equal(list.resources.length,11);const overview=await client.readResource({uri:'amcp://guides/reporting-overview'});assert.ok(overview.contents.some(c=>'text' in c&&c.text.includes('Google Sheets')));
+  await server.connect(s);await client.connect(c);const list=await client.listResources();assert.equal(list.resources.length,12);const overview=await client.readResource({uri:'amcp://guides/reporting-overview'});assert.ok(overview.contents.some(c=>'text' in c&&c.text.includes('Google Sheets')));
   for(const resource of list.resources){const result=await client.readResource({uri:resource.uri}),content=result.contents[0]!;assert.ok('text' in content&&content.text.length>500);}
   assert.equal((await client.listPrompts()).prompts[0]!.name,'amcp_build_campaign');
   const prompt=await client.getPrompt({name:'amcp_build_campaign',arguments:{platform:'microsoft',request:'Build a paused search campaign'}});assert.ok(JSON.stringify(prompt).includes('DailyBudget'));assert.ok(JSON.stringify(prompt).includes('Build a paused search campaign'));

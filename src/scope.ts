@@ -9,6 +9,7 @@ import {authorizeLinkedInSpecial} from './linkedin-posts.js';
 import {authorizeRedditPostRead,redditPostCreation} from './reddit-post-creation.js';
 import {googleGlobalReadMethods} from './execution-risk.js';
 import {authorizeQualifiedProviderRead} from './provider-read-contracts.js';
+import {authorizeCriteoInternalRead,assertCriteoReadScope} from './criteo-targeting-writes.js';
 
 export function normalizeAccount(gateway:string,id:unknown):string{
  const value=String(id);return gateway==='meta_native_action'?value.replace(/^act_/,''):gateway==='google_ads_native_action'?value.replaceAll('-',''):value;
@@ -53,7 +54,9 @@ export class ScopeGuard {
    }
   };
   walk(plan.query);walk(plan.body);walk(decoded,'path');
+  if(plan.gateway==='criteo_native_action'&&plan.action==='AMCP_CRITEO_TARGET_READ')assertCriteoReadScope(connection);
   if(authorizeQualifiedProviderRead(plan,connection,id))return id;
+  if(authorizeCriteoInternalRead(plan,connection,id))return id;
   if(plan.gateway==='google_ads_native_action'&&plan.readOnly&&plan.method==='POST'&&/^\/v23:[A-Za-z]+$/.test(decoded)&&googleGlobalReadMethods.has(decoded.slice(5)))return id;
   if(authorizeLinkedInSpecial(plan,connection,this.store,id))return id;
   if(authorizeRedditPostRead(plan,connection,this.store,id))return id;
@@ -114,6 +117,10 @@ export class ScopeGuard {
    if(entity&&this.store.ownsResource(connection,id,entity[1]+'/'+entity[2]))return id;
   }
   // Global object paths need an ownership observation from an account-scoped list.
+  if(plan.gateway==='criteo_native_action'){
+   const line=/^\/2026-01\/retail-media\/preferred-line-items\/(\d+)(?:\/targeting\/(?:audiences|stores|add-to-basket)(?:\/(?:append|delete))?)?$/.exec(decoded)?.[1];
+   if(line&&this.store.ownsResource(connection,id,'preferred-line-items/'+line))return id;
+  }
   const resource=plan.gateway==='meta_native_action'?/^\/v[^/]+\/([^/]+)/.exec(decoded)?.[1]:plan.gateway==='snapchat_native_action'?/^\/v1\/(campaigns|adsquads|ads|creatives|media)\/([^/]+)/.exec(decoded)?.slice(1).join('/'):undefined;
   if(resource&&this.store.ownsResource(connection,id,resource))return id;
   // Administrative provisioning can declare otherwise unscoped Business/Profile resources.
@@ -133,6 +140,9 @@ export class ScopeGuard {
   }
   // Only named entity collections are ownership evidence; never learn from arbitrary
   // nested IDs, reports, user supplied state, search results or unscoped account lists.
+  if(plan.gateway==='criteo_native_action'&&new RegExp('^/2026-01/retail-media/accounts/'+id+'/line-items$').test(plan.path)&&Array.isArray(d?.data)&&!d.error&&(!d.errors||Array.isArray(d.errors)&&!d.errors.length)){
+   for(const row of d.data)if(typeof row?.id==='string'&&/^[1-9][0-9]*$/.test(row.id)&&row.attributes?.type==='preferred'&&typeof row.attributes?.campaignId==='string'&&/^[1-9][0-9]*$/.test(row.attributes.campaignId))this.store.rememberResource(connection,id,'preferred-line-items/'+row.id);
+  }
   if(plan.gateway==='meta_native_action'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads|adcreatives)$/.test(plan.path)&&Array.isArray(d?.data)){
    for(const entity of d.data)if(typeof entity?.id==='string'&&/^\d+$/.test(entity.id))this.store.rememberResource(connection,id,entity.id);
   }

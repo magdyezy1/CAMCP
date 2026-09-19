@@ -1,6 +1,7 @@
 import {readRedditProfiles,validateRedditProfiles,validateRedditCreativePrerequisites,assertRedditCreativeAvailable} from './reddit-creative-writes.js';
 import {readKeywordPlanTree,validateKeywordPlanTree} from './google-keyword-plan-writes.js';
 import {reviewedWriteFamily} from './reviewed-routes.js';
+import {criteoTargetingKind,assertCriteoTargeting,assertCriteoTargetingScopes,criteoTargetingSnapshots,readCriteoTargeting,validateCriteoTargetState,validateCriteoTargetingPrerequisites,criteoTargetingOutcome} from './criteo-targeting-writes.js';
 import {readAssetSetContents,validateAssetSetContents} from './google-asset-set-writes.js';
 import {assertProviderActionAvailable} from './retired-provider-actions.js';
 import {gtmWorkspaceKind,assertGtmWorkspace,gtmWorkspaceSnapshots,validateGtmWorkspaceState,readGtmWorkspace,validateGtmWorkspacePrerequisites,gtmWorkspaceOutcome,gtmWorkspaceReceipt} from './gtm-workspace-writes.js';
@@ -41,7 +42,7 @@ import {validateMicrosoftAssociationState} from './microsoft-associations.js';
 import {measurementWriteGateways,assertMeasurementWrite,assertMeasurementScopes,measurementSnapshots,optionalMissingState,validateMeasurementState,measurementOutcome} from './measurement-writes.js';
 
 export const writeTool={name:'amcp_write',description:'Inspect, prepare and execute a reviewed native advertising or measurement mutation. inspect checks local write-contract support without credentials or network calls. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request. Execution requires its review_id, idempotency_key and explicit confirmation. Operator role and administrator account write grants are required. This is an AMCP extension, not a captured AMCP tool.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['inspect','prepare','execute']},gateway:{type:'string'},arguments:{type:'object'},connection_id:{type:'string'},review_id:{type:'string'},idempotency_key:{type:'string'},confirmed:{type:'boolean'},spend_change_confirmed:{type:'boolean'},creative_edit_confirmed:{type:'boolean',description:'Explicitly acknowledge a reviewed X card edit/deletion or Tweet rename that may disrupt promoted ads. Freeze this choice during prepare and repeat it during execute.'}},additionalProperties:false}};
-export const writeContractGateways=new Set(['meta_native_action','tiktok_native_action','snapchat_native_action','google_ads_native_action','linkedin_native_action','x_ads_native_action','dv360_native_action','reddit_native_action',microsoftGateway,...measurementWriteGateways]);
+export const writeContractGateways=new Set(['meta_native_action','tiktok_native_action','snapchat_native_action','google_ads_native_action','linkedin_native_action','x_ads_native_action','dv360_native_action','reddit_native_action','criteo_native_action',microsoftGateway,...measurementWriteGateways]);
 const object=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?v as JsonObject:{};
 const snake=(s:string)=>s.replace(/([a-z0-9])([A-Z])/g,'$1_$2').toLowerCase();
 function fail(code:string,message:string,details:JsonObject={}):never{throw new MirrorError(code,message,details);}
@@ -64,6 +65,7 @@ export function writeOutcome(result:TransportResult,plan?:CompiledRequest,before
  return {success:errors.length===0,executed:true,outcome:errors.length?'partial_or_failed':'succeeded',data:plan?.gateway==='gtm_native_action'?gtmSafeConfiguration(result.data):result.data,status:result.status,headers:result.headers,...(result.headers['x-restli-id']?{created_id:result.headers['x-restli-id']}:{ }),...(errors.length?{failures:plan?.gateway==='gtm_native_action'?gtmSafeConfiguration(errors):errors,retry_safe:false}:{}),...(plan&&gtmWorkspaceKind(plan)?gtmWorkspaceReceipt(plan,result):{})};
 }
 function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,before:unknown[]):boolean {
+ if(criteoTargetingKind(plan))return criteoTargetingOutcome(plan,result);
  if(gtmWorkspaceKind(plan))return gtmWorkspaceOutcome(plan,result,before);
  if(gtmWorkflowKind(plan))return gtmWorkflowOutcome(plan,result);
  if(dv360ListKind(plan))return dv360ListOutcome(plan,result);
@@ -101,6 +103,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  return false;
 }
 export function validateState(read:CompiledRequest,result:TransportResult):void {
+ if(read.criteoTargetState){validateCriteoTargetState(read,result);return;}
  if(read.gateway==='reddit_native_action'&&read.redditProfilesState){validateRedditProfiles(read,result);return;}
  if(read.gateway==='google_ads_native_action'&&read.googleKeywordPlanState){validateKeywordPlanTree(read,result);return;}
  if(read.gateway==='google_ads_native_action'&&read.googleAssetSetState){validateAssetSetContents(read,result);return;}
@@ -189,6 +192,7 @@ export function assertWriteShape(plan:CompiledRequest){
  const supported=reviewedWriteFamily(plan);
  if(!supported)fail('WRITE_CONTRACT_UNAVAILABLE','This route is outside the reviewed campaign-management execution contracts. Use a local dry run.');
  if(dv360ListKind(plan))assertDV360ListWrite(plan);
+ if(criteoTargetingKind(plan))assertCriteoTargeting(plan);
  if(plan.gateway==='meta_native_action'&&route.endsWith('/adcreatives'))validateMetaCreative(body);
  if(Object.keys(plan.query).some(k=>!(plan.gateway==='dv360_native_action'&&k==='updateMask'||plan.gateway==='gtm_native_action'&&k==='fingerprint')))fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed writes accept body fields and qualified concurrency parameters only.');
  if(plan.gateway==='linkedin_native_action'&&method==='POST'&&/^\/rest\/adAccounts\/[^/]+\/[^/]+\/[^/]+$/.test(route)&&(!body.patch||plan.headers['X-RestLi-Method']?.toUpperCase()!=='PARTIAL_UPDATE'))fail('WRITE_CONTRACT_UNAVAILABLE','LinkedIn entity POST requires a native patch and restli_method PARTIAL_UPDATE.');
@@ -230,6 +234,7 @@ export function assertWriteShape(plan:CompiledRequest){
 
 /** Reads are explicitly derived from the target, never supplied by the caller as proof. */
 export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRequest[]{
+ if(criteoTargetingKind(plan))return criteoTargetingSnapshots(plan);
  if(gtmWorkflowKind(plan))return gtmWorkflowSnapshots(plan);
  if(gtmWorkspaceKind(plan))return gtmWorkspaceSnapshots(plan);
  if(dv360ListKind(plan))return dv360ListSnapshots(plan);
@@ -309,6 +314,7 @@ export class WriteReviewService {
   assertAccountWrite(this.store,c,id);
   for(const account of appleSharedAccounts(plan)){this.store.resolveConnection(actor,plan.gateway,account,c.id);assertAccountWrite(this.store,c,account);}
   if(plan.gateway==='reddit_native_action')assertRedditWriteScopes(c);
+  if(criteoTargetingKind(plan))assertCriteoTargetingScopes(c);
   if(dv360ListKind(plan)&&!c.scopes.includes('https://www.googleapis.com/auth/display-video'))fail('PROVIDER_WRITE_SCOPE_REQUIRED','Reconnect DV360 with the display-video OAuth scope.');
   if(plan.gateway===microsoftGateway&&!c.scopes.some(s=>s===microsoftScope||s==='msads.manage'))fail('INSUFFICIENT_SCOPE','Reconnect Microsoft Advertising with msads.manage permission.');
   plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);assertMeasurementScopes(plan,c);return c;
@@ -321,7 +327,7 @@ export class WriteReviewService {
   });
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
-   try{result=await readRedditProfiles(read,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.transport.request(page,current,auth);this.access(actor,plan,connectionId);return response;}))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
+   try{result=await readCriteoTargeting(read,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.transport.request(page,current,auth);this.access(actor,plan,connectionId);return response;})))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
    this.access(actor,plan,connectionId);validateState(read,result);
    if(appleEntityKind(plan)==='shared_budget'&&read.path===plan.path){
     const accounts=appleSharedAccounts(plan,result.data),frozen=plan.scopeContext?.appleSharedAccountIds;
@@ -334,6 +340,7 @@ export class WriteReviewService {
    values.push(linkedinDSC(plan)&&/^\/rest\/(images|videos)\//.test(read.path)?linkedinMediaProjection(plan,object(result.data)):normalizeSnapshot(read,result.data));
   }
   validateRedditCreativePrerequisites(plan,values);
+  validateCriteoTargetingPrerequisites(plan,values);
   validateAppleEntityPrerequisites(plan,reads,values);
   validateGtmWorkflowPrerequisites(plan,values);
   validateGtmWorkspacePrerequisites(plan,values);

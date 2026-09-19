@@ -3062,8 +3062,8 @@
         {
           "operation": "criteo_line_item_ops",
           "action": "PUT_ADD_TO_BASKET_TARGET_BY_LINE_ITEM_ID",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_targeting"
         }
       ],
       "mapping_status": "mapped",
@@ -3082,8 +3082,8 @@
         {
           "operation": "criteo_line_item_ops",
           "action": "APPEND_ADD_TO_BASKET_TARGETS_BY_LINE_ITEM_ID",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_targeting"
         }
       ],
       "mapping_status": "mapped",
@@ -3102,8 +3102,8 @@
         {
           "operation": "criteo_line_item_ops",
           "action": "DELETE_ADD_TO_BASKET_TARGETS_BY_LINE_ITEM_ID",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_targeting"
         }
       ],
       "mapping_status": "mapped",
@@ -3142,8 +3142,8 @@
         {
           "operation": "criteo_line_item_ops",
           "action": "PUT_AUDIENCE_TARGETS_BY_LINE_ITEM_ID",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_targeting"
         }
       ],
       "mapping_status": "mapped",
@@ -3162,8 +3162,8 @@
         {
           "operation": "criteo_line_item_ops",
           "action": "APPEND_AUDIENCE_TARGETS_BY_LINE_ITEM_ID",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_targeting"
         }
       ],
       "mapping_status": "mapped",
@@ -3182,8 +3182,8 @@
         {
           "operation": "criteo_line_item_ops",
           "action": "DELETE_AUDIENCE_TARGETS_BY_LINE_ITEM_ID",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_targeting"
         }
       ],
       "mapping_status": "mapped",
@@ -3222,8 +3222,8 @@
         {
           "operation": "criteo_line_item_ops",
           "action": "PUT_STORE_TARGET_BY_LINE_ITEM_ID",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_targeting"
         }
       ],
       "mapping_status": "mapped",
@@ -3242,8 +3242,8 @@
         {
           "operation": "criteo_line_item_ops",
           "action": "APPEND_STORE_TARGETS_BY_LINE_ITEM_ID",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_targeting"
         }
       ],
       "mapping_status": "mapped",
@@ -3262,8 +3262,8 @@
         {
           "operation": "criteo_line_item_ops",
           "action": "DELETE_STORE_TARGET_BY_LINE_ITEM_ID",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_targeting"
         }
       ],
       "mapping_status": "mapped",
