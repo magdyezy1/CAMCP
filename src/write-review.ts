@@ -17,7 +17,8 @@ import {checkSpendPolicy} from './spend-policy.js';
 import {randomUUID} from 'node:crypto';
 import {MirrorError,errorRemedy} from './errors.js';
 import {validateMetaCampaign} from './meta-contracts.js';
-import {validateGoogleRequest} from './google-contracts.js';
+import {validateGoogleRequest,assertGoogleAdsScope} from './google-contracts.js';
+import {googleSegmentKind} from './google-custom-segments.js';
 import {linkedinDSC,assertLinkedInDSC,linkedinDSCReads,linkedinMediaProjection,linkedinPostId} from './linkedin-posts.js';
 import {writeImpact} from './write-impact.js';
 import {executionEvidence} from './contract-evidence.js';
@@ -337,6 +338,7 @@ export class WriteReviewService {
   if(criteoTargetingKind(plan))assertCriteoTargetingScopes(c);
   if(metaLabelKind(plan))assertMetaLabelScope(c,true);
   if(googleBidKind(plan))assertGoogleBidScope(c);
+  if(googleSegmentKind(plan))assertGoogleAdsScope(c);
   if(linkedinConversionKind(plan)||linkedinRuleKind(plan))assertLinkedInConversionScope(c,true);
   if(dv360ListKind(plan)&&!c.scopes.includes('https://www.googleapis.com/auth/display-video'))fail('PROVIDER_WRITE_SCOPE_REQUIRED','Reconnect DV360 with the display-video OAuth scope.');
   if(plan.gateway===microsoftGateway&&!c.scopes.some(s=>s===microsoftScope||s==='msads.manage'))fail('INSUFFICIENT_SCOPE','Reconnect Microsoft Advertising with msads.manage permission.');

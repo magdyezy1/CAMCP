@@ -30,7 +30,7 @@ const familyFiles:Record<string,[string,string[]]>={
  gtm_workflows:['src/gtm-workflow-writes.ts',['tests/gtm-workflow-writes.test.ts']],
  apple_entities:['src/apple-entity-writes.ts',['tests/apple-entity-writes.test.ts']],
  dv360_lists:['src/dv360-list-writes.ts',['tests/dv360-list-writes.test.ts']],
- google_configuration:['src/google-configuration-writes.ts',['tests/google-configuration-writes.test.ts']],
+ google_configuration:['src/google-configuration-writes.ts',['tests/google-configuration-writes.test.ts','tests/google-custom-segments.test.ts']],
  google_asset_links:['src/google-asset-links.ts',['tests/google-asset-links.test.ts']],google_targeting:['src/google-targeting-writes.ts',['tests/google-targeting-writes.test.ts']],google_entities:['src/write-review.ts',['tests/write-review.test.ts','tests/review-envelopes.test.ts']],
  meta_entities:['src/write-review.ts',['tests/meta-provision.test.ts']],tiktok_entities:['src/write-review.ts',['tests/write-platforms.test.ts','tests/tiktok-verification.test.ts']],snapchat_entities:['src/write-review.ts',['tests/snapchat-writes.test.ts']],
  linkedin_entities:['src/write-review.ts',['tests/write-platforms.test.ts']],linkedin_dsc:['src/linkedin-posts.ts',['tests/linkedin-posts.test.ts']],x_creatives:['src/x-creative-writes.ts',['tests/x-creative-writes.test.ts']],x_entities:['src/write-review.ts',['tests/x-targeting-writes.test.ts','tests/write-platforms.test.ts']],

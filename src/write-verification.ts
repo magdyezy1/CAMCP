@@ -3,6 +3,8 @@ import {criteoTargetingKind,criteoTargetingVerification,readCriteoTargeting,asse
 import {redditPostCreation,verifyRedditPostCreation} from './reddit-post-creation.js';
 import {metaLabelKind,metaLabelVerification,readMetaLabels,assertMetaLabelScope} from './meta-label-writes.js';
 import {googleBidKind,googleBidVerification,readGoogleBidState,isGoogleBidRead,assertGoogleBidScope} from './google-bid-modifiers.js';
+import {assertGoogleAdsScope} from './google-contracts.js';
+import {googleSegmentKind} from './google-custom-segments.js';
 import {linkedinConversionKind,linkedinConversionVerification,readLinkedInConversions,isLinkedInConversionRead,assertLinkedInConversionScope} from './linkedin-conversion-links.js';
 import {linkedinRuleKind,linkedinRuleVerification,readLinkedInRules,isLinkedInRuleRead} from './linkedin-conversion-rules.js';
 import {Store} from './store.js';
@@ -113,6 +115,7 @@ export class WriteVerifier{
   if(criteoTargetingKind(plan))assertCriteoReadScope(c);
   if(metaLabelKind(plan))assertMetaLabelScope(c);
   if(googleBidKind(plan))assertGoogleBidScope(c);
+  if(googleSegmentKind(plan))assertGoogleAdsScope(c);
   if(linkedinConversionKind(plan)||linkedinRuleKind(plan))assertLinkedInConversionScope(c);
   if(result.success!==true)bad('Inspect the retained partial failure before recovery.','WRITE_PARTIAL_OR_FAILED');
   const cached=optional(this.store,actor.tenantId,'write_verification',reviewId);if(cached?.status==='verified'&&Date.now()-cached.checked_at<10000)return {...cached,cached:true};

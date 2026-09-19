@@ -107,10 +107,10 @@
       "actions": 456,
       "counts": {
         "adapter_requires_input": 8,
-        "blocked_write": 138,
+        "blocked_write": 136,
         "media_workflow": 2,
         "native_read": 175,
-        "reviewed_write_family": 131,
+        "reviewed_write_family": 133,
         "unqualified_read": 2
       },
       "captured_catalog_complete": true,
@@ -8364,7 +8364,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -8412,7 +8413,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -8428,7 +8430,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -8444,7 +8447,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -8604,7 +8608,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -8620,7 +8625,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -8636,7 +8642,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -8714,7 +8721,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -8776,7 +8784,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -8834,7 +8843,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -8850,7 +8860,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -8879,7 +8890,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -8908,7 +8920,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -9159,7 +9172,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9177,7 +9191,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9195,7 +9210,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9213,7 +9229,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9231,7 +9248,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9249,7 +9267,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9267,7 +9286,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9300,7 +9320,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9318,7 +9339,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9336,7 +9358,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9369,7 +9392,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9387,7 +9411,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9405,7 +9430,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9424,6 +9450,7 @@
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
         "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts",
         "tests/google-generation.test.ts"
       ],
       "live_qualification": "unverified"
@@ -9442,7 +9469,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9460,7 +9488,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9478,7 +9507,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9496,7 +9526,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9515,6 +9546,7 @@
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
         "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts",
         "tests/google-generation.test.ts"
       ],
       "live_qualification": "unverified"
@@ -9547,6 +9579,7 @@
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
         "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts",
         "tests/google-generation.test.ts"
       ],
       "live_qualification": "unverified"
@@ -9565,7 +9598,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9619,7 +9653,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -9681,7 +9716,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -9713,7 +9749,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -9729,7 +9766,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -9761,7 +9799,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -9777,7 +9816,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -9827,7 +9867,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -9847,6 +9888,7 @@
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
         "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts",
         "tests/google-generation.test.ts"
       ],
       "live_qualification": "unverified"
@@ -9866,6 +9908,7 @@
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
         "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts",
         "tests/google-generation.test.ts"
       ],
       "live_qualification": "unverified"
@@ -9927,7 +9970,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -9960,7 +10004,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -9976,7 +10021,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -9995,7 +10041,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10013,7 +10060,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10031,7 +10079,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10049,7 +10098,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10067,7 +10117,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10085,7 +10136,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10103,7 +10155,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10121,7 +10174,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10178,7 +10232,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10222,7 +10277,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10240,7 +10296,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10258,7 +10315,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10276,7 +10334,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10294,7 +10353,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10364,7 +10424,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10395,7 +10456,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -10470,7 +10532,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -10489,7 +10552,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10556,7 +10620,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -10572,7 +10637,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -10637,7 +10703,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10655,7 +10722,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10696,7 +10764,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -10772,12 +10841,16 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/customers/{customer_id=*}/customAudiences:mutate",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-configuration-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_configuration"
     },
     {
       "gateway": "google_ads_native_action",
@@ -10798,12 +10871,16 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/customers/{customer_id=*}/customInterests:mutate",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-configuration-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_configuration"
     },
     {
       "gateway": "google_ads_native_action",
@@ -10832,7 +10909,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -10887,7 +10965,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -10932,7 +11011,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10986,7 +11066,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -11041,7 +11122,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -11138,7 +11220,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11195,7 +11278,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11226,7 +11310,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11244,7 +11329,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11275,7 +11361,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11293,7 +11380,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11311,7 +11399,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11355,7 +11444,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11373,7 +11463,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11388,7 +11479,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -11404,7 +11496,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -11420,7 +11513,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -11436,7 +11530,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -11455,7 +11550,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11473,7 +11569,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11491,7 +11588,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11509,7 +11607,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11524,7 +11623,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -11543,7 +11643,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11558,7 +11659,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -11655,7 +11757,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11738,7 +11841,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11756,7 +11860,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11774,7 +11879,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11792,7 +11898,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11810,7 +11917,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11828,7 +11936,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11873,6 +11982,7 @@
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
         "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts",
         "tests/google-generation.test.ts"
       ],
       "live_qualification": "unverified"
@@ -11901,7 +12011,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -11933,7 +12044,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11996,7 +12108,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12027,7 +12140,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12045,7 +12159,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12063,7 +12178,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12094,7 +12210,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12205,7 +12322,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12223,7 +12341,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12241,7 +12360,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12259,7 +12379,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12277,7 +12398,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12295,7 +12417,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12313,7 +12436,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12331,7 +12455,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12349,7 +12474,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12367,7 +12493,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12385,7 +12512,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12403,7 +12531,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12421,7 +12550,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12439,7 +12569,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12457,7 +12588,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12475,7 +12607,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12493,7 +12626,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12511,7 +12645,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12529,7 +12664,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12547,7 +12683,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12565,7 +12702,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12583,7 +12721,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12601,7 +12740,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12619,7 +12759,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12637,7 +12778,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12670,7 +12812,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12688,7 +12831,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12706,7 +12850,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12724,7 +12869,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12742,7 +12888,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12760,7 +12907,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12778,7 +12926,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12796,7 +12945,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12814,7 +12964,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12832,7 +12983,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12850,7 +13002,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12868,7 +13021,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12886,7 +13040,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12904,7 +13059,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12922,7 +13078,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12940,7 +13097,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12958,7 +13116,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12976,7 +13135,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12994,7 +13154,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13012,7 +13173,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13030,7 +13192,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13048,7 +13211,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13066,7 +13230,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13084,7 +13249,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13102,7 +13268,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13120,7 +13287,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13138,7 +13306,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13156,7 +13325,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13174,7 +13344,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13192,7 +13363,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13210,7 +13382,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13228,7 +13401,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13246,7 +13420,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13264,7 +13439,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13282,7 +13458,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13300,7 +13477,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13318,7 +13496,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13336,7 +13515,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13354,7 +13534,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13372,7 +13553,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13390,7 +13572,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13408,7 +13591,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13426,7 +13610,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13444,7 +13629,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13462,7 +13648,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13480,7 +13667,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13498,7 +13686,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13516,7 +13705,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13534,7 +13724,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13552,7 +13743,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13570,7 +13762,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13588,7 +13781,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13606,7 +13800,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13624,7 +13819,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13642,7 +13838,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13660,7 +13857,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13678,7 +13876,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13696,7 +13895,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13714,7 +13914,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13732,7 +13933,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13750,7 +13952,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13768,7 +13971,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13786,7 +13990,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13804,7 +14009,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13822,7 +14028,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13840,7 +14047,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13858,7 +14066,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13876,7 +14085,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13894,7 +14104,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13912,7 +14123,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13930,7 +14142,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13948,7 +14161,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13966,7 +14180,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13984,7 +14199,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14095,7 +14311,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -14143,7 +14360,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -14159,7 +14377,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -14175,7 +14394,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -14268,7 +14488,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -14284,7 +14505,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -14300,7 +14522,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -14393,7 +14616,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -14438,7 +14662,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -14496,7 +14721,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -14512,7 +14738,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -14528,7 +14755,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -14570,7 +14798,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"
@@ -14670,7 +14899,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14714,7 +14944,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14732,7 +14963,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14750,7 +14982,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14880,7 +15113,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14898,7 +15132,8 @@
         "tests/google-legacy.test.ts",
         "tests/google-contracts.test.ts",
         "tests/google-asset-links.test.ts",
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -15055,7 +15290,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-configuration-writes.test.ts"
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-custom-segments.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "google_configuration"

@@ -17,7 +17,7 @@ const campaignFields=['resource_name','name','status','advertising_channel_type'
 const account=(p:CompiledRequest)=>{const id=p.accountId?.replaceAll('-','');if(!id||!/^\d+$/.test(id))fail('Select one Google Ads customer.');return id;};
 const rn=(p:CompiledRequest,value:unknown,collection='adGroupBidModifiers')=>{if(typeof value!=='string'||!new RegExp('^customers/'+account(p)+'/'+collection+'/[1-9][0-9]*'+(collection==='adGroupBidModifiers'?'~[1-9][0-9]*':'')+'$').test(value))fail('Use the exact selected-customer '+collection+' resource.');return value as string;};
 export function googleBidKind(p:CompiledRequest):boolean{return p.gateway==='google_ads_native_action'&&p.method==='POST'&&!p.specialTransport&&(!p.origin||p.origin==='https://googleads.googleapis.com')&&/^\/v23\/customers\/\d+\/adGroupBidModifiers:mutate$/.test(p.path);}
-export function assertGoogleBidScope(c:Connection){if(!c.scopes.includes('https://www.googleapis.com/auth/adwords'))fail('Reconnect the selected Ads connection with the adwords scope.','INSUFFICIENT_SCOPE');}
+export {assertGoogleAdsScope as assertGoogleBidScope} from './google-contracts.js';
 const groupFor=(p:CompiledRequest,op:JsonObject)=>op.create?rn(p,op.create.adGroup,'adGroups'):'customers/'+account(p)+'/adGroups/'+rn(p,op.remove??op.update.resourceName).split('/').at(-1)!.split('~')[0];
 function criterion(r:JsonObject):string{
  const kinds=Object.keys(criteria).filter(k=>r[k]!==undefined);if(kinds.length!==1)fail('Supply exactly one device or hotel criterion.');const k=kinds[0]!,v=r[k];if(!object(v))fail('The criterion must be a native object.');const fields=criteria[k as keyof typeof criteria];only(v,fields);

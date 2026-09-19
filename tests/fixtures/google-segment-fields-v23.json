@@ -1,0 +1,77 @@
+{
+  "api_version": "v23",
+  "resources": {
+    "custom_audience": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/custom_audience",
+      "checked_at": "2026-09-19",
+      "method": "Public field-heading/table extraction through web tool; not a live account query",
+      "source_text_sha256": "078129a9c073bb3c0cef279364eb45d6a7f7033d09b35e83695ed3f852021081",
+      "fields": {
+        "description": {
+          "selectable": true,
+          "repeated": false
+        },
+        "id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "members": {
+          "selectable": true,
+          "repeated": true
+        },
+        "name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        },
+        "type": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "custom_interest": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/custom_interest",
+      "checked_at": "2026-09-19",
+      "method": "Public field-heading/table extraction through web tool; not a live account query",
+      "source_text_sha256": "078129a9c073bb3c0cef279364eb45d6a7f7033d09b35e83695ed3f852021081",
+      "fields": {
+        "description": {
+          "selectable": true,
+          "repeated": false
+        },
+        "id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "members": {
+          "selectable": true,
+          "repeated": true
+        },
+        "name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        },
+        "type": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    }
+  }
+}

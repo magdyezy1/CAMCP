@@ -9836,8 +9836,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_custom_audience_mutate_custom_audiences",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -12876,8 +12876,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_custom_interest_mutate_custom_interests",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",

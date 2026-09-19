@@ -7,6 +7,7 @@ import {MirrorError} from './errors.js';
 import {googleTargetingKind} from './google-targeting-writes.js';
 import {googleAssetLinkKind} from './google-asset-links.js';
 import {googleConfigurationServing} from './google-configuration-writes.js';
+import {googleSegmentKind} from './google-custom-segments.js';
 import {appleEntityServing} from './apple-entity-writes.js';
 import {dv360ListAffectsServing} from './dv360-list-writes.js';
 import {microsoftAssociationWrite} from './microsoft-associations.js';
@@ -29,7 +30,9 @@ export function authorizeExecution(actor:Actor,plan:CompiledRequest,input:JsonOb
  if(dv360ListAffectsServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','DV360 shared-list membership can change serving eligibility. Provide spend_change_confirmed=true.');
  if((googleAssetLinkKind(plan)||microsoftAssociationWrite(plan))&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Asset associations change which creative can serve. Review the parent state and provide spend_change_confirmed=true.');
  if((googleTargetingKind(plan)||plan.gateway==='reddit_native_action')&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Targeting, serving and shared-list changes require spend_change_confirmed=true.');
- if(googleConfigurationServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Customizer, ad-parameter, signal, exclusion and feed changes can affect existing ads. Review their impact and provide spend_change_confirmed=true.');
+ if(googleConfigurationServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Customizer, ad-parameter, segment, signal, exclusion and feed changes can affect existing ads. Review their impact and provide spend_change_confirmed=true.');
  const statusPatch=Array.isArray(plan.body)&&plan.body.some(op=>op&&/\/(status|intendedStatus|intended_status|entity_status|operation_status)$/.test(String(op.path))&&['ACTIVE','ENABLE','ENABLED'].includes(op.value));
- if(!keywordPlanKind(plan)&&(statusPatch||/budget|bid|spend|"(?:status|intendedStatus|intended_status|entity_status|entityStatus|operation_status)"\s*:\s*"(?:ACTIVE|ENABLE|ENABLED|ENTITY_STATUS_ACTIVE)"/i.test(JSON.stringify({query:plan.query,body:plan.body})))&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Spend-affecting writes need spend_change_confirmed=true.');
+ // Segment effects are decided by the contract above. Native ENABLED denotes
+ // an available definition; a keyword containing "budget" is not a budget edit.
+ if(!keywordPlanKind(plan)&&!googleSegmentKind(plan)&&(statusPatch||/budget|bid|spend|"(?:status|intendedStatus|intended_status|entity_status|entityStatus|operation_status)"\s*:\s*"(?:ACTIVE|ENABLE|ENABLED|ENTITY_STATUS_ACTIVE)"/i.test(JSON.stringify({query:plan.query,body:plan.body})))&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Spend-affecting writes need spend_change_confirmed=true.');
 }

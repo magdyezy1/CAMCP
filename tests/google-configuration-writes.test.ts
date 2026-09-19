@@ -41,12 +41,14 @@ const cases:{route:string;rpc:string;entity:string;create:JsonObject;id:string;u
  {route:'keywordPlanCampaigns',rpc:'keyword_plan_campaign_mutate_keyword_plan_campaigns',entity:'keyword_plan_campaign',create:{name:'Planning campaign',keywordPlan:resource('keywordPlans','810'),cpcBidMicros:'1000000',keywordPlanNetwork:'GOOGLE_SEARCH',geoTargets:[{geoTargetConstant:'geoTargetConstants/2682'}],languageConstants:['languageConstants/1000']},id:'500',update:{cpcBidMicros:'2000000'}},
  {route:'keywordPlanAdGroups',rpc:'keyword_plan_ad_group_mutate_keyword_plan_ad_groups',entity:'keyword_plan_ad_group',create:{name:'Planning group',keywordPlanCampaign:resource('keywordPlanCampaigns','801')},id:'500',update:{cpcBidMicros:'1500000'}},
  {route:'keywordPlanAdGroupKeywords',rpc:'keyword_plan_ad_group_keyword_mutate_keyword_plan_ad_group_keywords',entity:'keyword_plan_ad_group_keyword',create:{keywordPlanAdGroup:resource('keywordPlanAdGroups','802'),text:'family homes',matchType:'PHRASE',negative:false},id:'500',update:{matchType:'EXACT'}},
- {route:'keywordPlanCampaignKeywords',rpc:'keyword_plan_campaign_keyword_mutate_keyword_plan_campaign_keywords',entity:'keyword_plan_campaign_keyword',create:{keywordPlanCampaign:resource('keywordPlanCampaigns','801'),text:'jobs',matchType:'BROAD',negative:true},id:'500',update:{text:'careers'}}
+ {route:'keywordPlanCampaignKeywords',rpc:'keyword_plan_campaign_keyword_mutate_keyword_plan_campaign_keywords',entity:'keyword_plan_campaign_keyword',create:{keywordPlanCampaign:resource('keywordPlanCampaigns','801'),text:'jobs',matchType:'BROAD',negative:true},id:'500',update:{text:'careers'}},
+ {route:'customAudiences',rpc:'custom_audience_mutate_custom_audiences',entity:'custom_audience',create:{name:'Approved keyword audience',type:'SEARCH',members:[{memberType:'KEYWORD',keyword:'family homes'}]},id:'500',update:{description:'Reviewed search intent'}},
+ {route:'customInterests',rpc:'custom_interest_mutate_custom_interests',entity:'custom_interest',create:{name:'Approved interest',type:'CUSTOM_AFFINITY',members:[{memberType:'URL',parameter:'https://example.com'}]},id:'500',update:{description:'Reviewed affinity'}}
 ];
-const fields=JSON.parse(fs.readFileSync('tests/fixtures/google-configuration-fields-v23.json','utf8')).resources;
+const fields={...JSON.parse(fs.readFileSync('tests/fixtures/google-configuration-fields-v23.json','utf8')).resources,...JSON.parse(fs.readFileSync('tests/fixtures/google-segment-fields-v23.json','utf8')).resources};
 function fixture(row=cases[0]!,allowWrites=true){
  const store=new Store(':memory:',Buffer.alloc(32,79).toString('base64')),records=new Map<string,JsonObject>(),calls:JsonObject[]=[];
- const connection={id:'google',tenantId:actor.tenantId,gateway,accounts:['123'],writeAccounts:['123'],enabled:true,label:'Synthetic',scopes:[]};
+ const connection={id:'google',tenantId:actor.tenantId,gateway,accounts:['123'],writeAccounts:['123'],enabled:true,label:'Synthetic',scopes:['https://www.googleapis.com/auth/adwords']};
  const credentials={accessToken:'synthetic',developerToken:'synthetic'};store.putConnection(owner,connection,credentials);
  const seed=(kind:string,id:string,value:JsonObject)=>records.set(resource(kind,id),{resourceName:resource(kind,id),...value});
  for(const id of ['800','810'])seed('keywordPlans',id,{name:'Existing planning workspace',forecastPeriod:{dateInterval:'NEXT_MONTH'}});
@@ -89,7 +91,7 @@ function fixture(row=cases[0]!,allowWrites=true){
    const name=op.remove??op.update?.resourceName??resource(collection,row.id);
    if(op.remove)records.delete(name);
    else if(op.update){const record=records.get(name)!;for(const f of op.updateMask.split(','))set(record,f,get(op.update,f));}
-   else records.set(name,{...op.create,resourceName:name,...(['labels','customizerAttributes','campaignCustomizers','adGroupCustomizers','AdGroupCriterionCustomizers','CustomerCustomizers','campaignGroups','assetSets','assetSetAssets','campaignAssetSets','adGroupAssetSets','customerAssetSets'].includes(row.route)?{status:'ENABLED'}:{}),...(row.route==='customerNegativeCriteria'?{type:'PLACEMENT'}:{})});
+   else records.set(name,{...op.create,resourceName:name,...(['labels','customizerAttributes','campaignCustomizers','adGroupCustomizers','AdGroupCriterionCustomizers','CustomerCustomizers','campaignGroups','assetSets','assetSetAssets','campaignAssetSets','adGroupAssetSets','customerAssetSets','customAudiences','customInterests'].includes(row.route)?{status:'ENABLED'}:{}),...(row.route==='customerNegativeCriteria'?{type:'PLACEMENT'}:{})});
    return {resourceName:foreignReceipt?name.replace('customers/123/','customers/999/'):name};
   });
   if(lostResponse)throw Error('Synthetic response lost after provider mutation');
@@ -123,7 +125,7 @@ for(const row of cases)test('Google configuration lifecycle: '+row.route,async()
   // Some provider services deliberately do not expose remove. Their Discovery
   // request schema is checked separately instead of inventing a delete operation.
   if(!['conversionCustomVariables','remarketingActions'].includes(row.route)){
-   const removed=await x.prepare([{remove:name}]);assert.equal(removed.success,true,JSON.stringify(removed));assert.equal((await x.execute(removed)).success,true);
+   const removed=await x.prepare([row.route==='customInterests'?{update:{resourceName:name,status:'REMOVED'},updateMask:'status'}:{remove:name}]);assert.equal(removed.success,true,JSON.stringify(removed));assert.equal((await x.execute(removed)).success,true);
    const v=await x.service.call('amcp_campaign',{action:'verify',review_id:removed.data.review_id},actor);assert.equal(v.data.status,'verified',JSON.stringify(v));
   }
  }finally{x.store.close();}

@@ -16,6 +16,8 @@ import {authorizeLinkedInConversion} from './linkedin-conversion-links.js';
 import {authorizeLinkedInRule} from './linkedin-conversion-rules.js';
 import {metaAdLibraryRead} from './meta-ad-library.js';
 import {assertGoogleBidScope} from './google-bid-modifiers.js';
+import {assertGoogleAdsScope} from './google-contracts.js';
+import {googleSegmentResource,googleSegmentKind} from './google-custom-segments.js';
 
 export function normalizeAccount(gateway:string,id:unknown):string{
  const value=String(id);return gateway==='meta_native_action'?value.replace(/^act_/,''):gateway==='google_ads_native_action'?value.replaceAll('-',''):value;
@@ -63,6 +65,7 @@ export class ScopeGuard {
   walk(plan.query);walk(plan.body);walk(decoded,'path');
   assertGoogleGenerationScope(plan,connection);
   if(plan.gateway==='google_ads_native_action'&&plan.action==='AMCP_GOOGLE_BID_READ')assertGoogleBidScope(connection);
+  if(googleSegmentKind(plan)||plan.gateway==='google_ads_native_action'&&plan.action==='AMCP_CONFIG_READ'&&googleSegmentResource(plan.googleState?.resource??''))assertGoogleAdsScope(connection);
   if(plan.gateway==='meta_native_action'&&(plan.action==='AMCP_META_LABEL_READ'||plan.method==='GET'&&/^\/v25\.0\/act_\d+\/adlabels$/.test(plan.path)))assertMetaLabelScope(connection);
   if(plan.gateway==='criteo_native_action'&&plan.action==='AMCP_CRITEO_TARGET_READ')assertCriteoReadScope(connection);
   if(authorizeQualifiedProviderRead(plan,connection,id))return id;

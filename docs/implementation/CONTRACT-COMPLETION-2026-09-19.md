@@ -1084,3 +1084,61 @@ Logs: `install-w.log`, `release-check-w.log`. Guidance, generated contract,
 provider, web and lifecycle checks passed. The Google custom-segment draft and
 its tests are excluded. Live provider acceptance, FFmpeg-required and container
 checks remain unverified; no advertising mutation or deployment was performed.
+
+## Google reusable custom segments
+
+LinkedIn conversion rules are pushed as `96d8bda`. Two previously blocked Google
+v23 RPC rows now cover custom audience and custom interest creation, membership
+replacement, editing and their distinct native deletion mechanisms. The latter
+has no remove oneof; explicit REMOVED status is a destructive update and follows
+the same owner policy. Type changes and output-only audience status inputs remain
+refused. Scope is the exact selected Ads connection/customer with the Ads scope,
+including refresh/read-back and cached verification checks.
+
+Every requested target has a complete configuration read. Native member arrays
+are unordered sets; unknown nested data remains protected and ordered. Known
+empty ProtoJSON defaults normalize without erasing a meaningful edit. Read-back
+checks replacement/clearing and customer-bound native identity; it does not
+certify reach, provider approval or serving. URL members are targeting signals;
+AMCP does not fetch those URLs. Bounds are explicit in the guide, including
+1000 members per definition and the enclosing reviewed mutation limits.
+
+The same native contract decides spend effects: unattached creation does not
+activate advertising, including an explicit CustomInterest ENABLED status.
+Existing definition edits can affect consumers and require impact confirmation
+and owner activation permission. Arbitrary words such as "budget" in keywords
+must not masquerade as budget operations. A focused failing test demonstrates
+the old generic heuristic (`google-segments-policy-repro.log`); the segment
+contract now supplies these effects, with no exemption for mixed update batches.
+Native request validation still rejects every unqualified envelope/field.
+
+Sources checked 2026-09-19: pinned Google Ads v23 Discovery and the official
+[custom audience field table](https://developers.google.com/google-ads/api/fields/v23/custom_audience),
+[custom interest field table](https://developers.google.com/google-ads/api/fields/v23/custom_interest),
+[custom audience guide](https://developers.google.com/google-ads/api/docs/remarketing/audience-segments/custom-audiences)
+and [type update restriction](https://ads-developers.googleblog.com/2023/08/change-to-updates-of-google-ads-custom.html).
+The fixture contains all fourteen published fields and their selectable/repeated
+flags, with source/date/hash and a public-text regeneration tool. Current guide
+samples may use a newer API; request qualification uses the pinned v23 schema.
+
+Initial pure tests passed three cases. The first integrated run passed 64 and
+failed four because a simulated provider edit mutated a shared test member used
+by later fixtures. Each fixture now owns a deep clone; runtime guards correctly
+rejected the contaminated input. No assertion was weakened. Corrected segment,
+configuration and bid-modifier suites passed 89 tests. Expanded policy, inventory
+and guidance tests passed 41. Logs: `google-segments-first.log`,
+`google-segments-corrected.log`, `google-segments-expanded.log`. Final qualification
+and candidate X follow. Live native eligibility, legacy interest acceptance,
+FFmpeg-required and container checks remain open. The inventory retains 3,241
+rows: 385 reviewed families, 929 blocked writes, 104 unmapped actions and 31
+unqualified reads. Remaining provider and payload contracts are not complete.
+
+Final segment/guide/inventory qualification passed 31 tests
+(`google-segments-qualified.log`), including 20 dedicated segment tests. Candidate X
+passed the entire sanitized check: 1,018 passed, zero failures, one FFmpeg skip,
+plus four capture tests passed. Source tree hash
+`322289d8fb2d711ff70065b7aeb9a1fe8092c90fe763ce51c9fa711c8a22d959`, 488 files.
+Logs: `install-x.log`, `release-check-x.log`. All strict generation, contract,
+provider, guide, web and lifecycle checks passed. The later unregistered X draft
+workflow is excluded from this qualification and the Google commit. Live calls,
+FFmpeg-required and container checks were not performed.

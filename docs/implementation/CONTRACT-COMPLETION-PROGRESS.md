@@ -52,8 +52,8 @@ qualification dependencies, not a reason to omit locally implementable code.
 
 ## Current checkpoint (2026-09-19)
 
-The working tree now inventories **3,241 actions**, including **383 reviewed-family
-rows**. **931 mapped writes, 104 unmapped actions, 31 unqualified reads and eight
+The working tree now inventories **3,241 actions**, including **385 reviewed-family
+rows**. **929 mapped writes, 104 unmapped actions, 31 unqualified reads and eight
 input-dependent adapters remain incomplete**. Four routes are now explicitly
 **provider_unsupported**, including three previously blocked writes and one read;
 these are not counted as implemented. The first batch added 68 reviewed action
@@ -276,3 +276,19 @@ provider and lifecycle checks passed. The LinkedIn batch is locally qualified;
 Google custom-segment drafts are excluded. Remaining inventory: 931 blocked
 writes, 104 unmapped actions and 31 unqualified reads. Live provider acceptance,
 FFmpeg-required and container validation remain open.
+
+LinkedIn conversion rules are pushed as `96d8bda`. Google custom audience and
+custom interest definitions now have exact native member, update-mask, deletion,
+scope and verification contracts. Explicit empty member sets, member ordering,
+unknown configuration and native default omission are handled independently.
+Initial fixture contamination failed four tests (64 passed); isolated fixtures
+then passed 89 compatibility tests. A focused reproduction exposed a generic
+policy false positive for budget keywords and unattached ENABLED definitions;
+contract-specific effect checks correct it while mixed updates remain protected.
+Forty-one expanded tests passed. Final qualification and candidate X follow.
+
+Candidate X passed the full sanitized check: 1,018 tests passed, zero failures,
+one FFmpeg skip, plus four capture tests passed. Final guide/inventory/segment
+qualification passed 31 tests, including 20 dedicated segment tests. All generated,
+provider and release checks passed. A later unregistered X draft-workflow file is
+excluded from this Google qualification and commit. Live eligibility remains open.

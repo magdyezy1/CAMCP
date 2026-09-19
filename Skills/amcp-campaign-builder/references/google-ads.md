@@ -250,3 +250,57 @@ recommendations and making shareable previews are separate contracts. Temporary
 image URLs are returned to the authorized caller, with signatures redacted in
 audit records; source image bytes are excluded from audit payloads. No image
 download, policy approval or successful live creation is implied.
+
+### Reusable custom segments
+
+The v23 `google_ads_v23_custom_audience_mutate_custom_audiences` and
+`google_ads_v23_custom_interest_mutate_custom_interests` actions have reviewed
+create/update/delete workflows. Discover and select the exact Ads customer and
+connection with `https://www.googleapis.com/auth/adwords`; social sign-in or
+Analytics access does not authorize these operations. Creation saves an unattached
+definition. Attaching it to targeting or a signal requires a separate review.
+
+Custom audiences require an explicit `AUTO` or `SEARCH` type. Older INTEREST and
+PURCHASE_INTENT definitions can be read and edited without changing their type.
+Custom interests require `CUSTOM_AFFINITY` or `CUSTOM_INTENT`. Type changes are
+not qualified; ask for the intended new definition rather than silently migrating.
+Input members use native objects: custom audiences accept KEYWORD/keyword,
+URL/url, APP/app (Android package), and PLACE_CATEGORY/placeCategory (exact int64
+string); custom interests accept KEYWORD/parameter or URL/parameter. Discover
+category IDs; never invent them or infer business targeting from a campaign name.
+URL membership describes an audience signal; AMCP does not fetch the URL, scrape
+its visitors, or establish ownership of the referenced site or app.
+
+Updates require an explicit mask. Replacing `members` replaces the whole set:
+read the existing members and preserve every intended one. `members: []` with
+`updateMask: "members"` explicitly clears it; it is not an append operation.
+Use an explicit empty description to clear it. Custom-audience status is
+output-only; use its `remove` operation for deletion. CustomInterestOperation
+has no remove oneof: set `status: "REMOVED"` with `updateMask: "status"`.
+Both forms obey the administrator's deletion policy. Edits/deletion can affect
+existing consumers and require spending-impact confirmation and activation
+permission; creating an unattached definition does not activate advertising.
+
+`INVALID_CUSTOM_SEGMENT` identifies malformed member variants, duplicate members,
+unqualified type/status changes or exceeded review bounds. Correct the named
+input using the discovered resource and native contract, then prepare again.
+AMCP bounds a segment at 1000 complete members, descriptions at 1024 characters,
+and apps at 512 characters. Keyword validation limits input to 10 words/80
+character units, counting CJK/full-width characters twice. URL members require
+HTTP(S), no embedded credentials and at most 2048 characters. These local
+validation bounds do not establish native eligibility or available account quota.
+
+Review snapshots and read-back normalize member order and documented empty
+ProtoJSON defaults only; real membership edits and unknown configuration remain
+protected. An incomplete, missing, foreign, duplicated or oversized state refuses
+preparation. Read-back verifies exact saved configuration and native identity,
+not reach, approval, ad serving or measurement performance. A lost response or
+partial mutation keeps the original review claim across restarts; never submit
+another create to recover. Inspect the receipt and current resources first.
+
+References checked 2026-09-19: [v23 custom audiences](https://developers.google.com/google-ads/api/fields/v23/custom_audience),
+[v23 custom interests](https://developers.google.com/google-ads/api/fields/v23/custom_interest)
+and [custom audience type update restriction](https://ads-developers.googleblog.com/2023/08/change-to-updates-of-google-ads-custom.html).
+Native request fields and operation oneofs also use the pinned v23 Discovery
+schema. Provider acceptance and legacy custom-interest account eligibility have
+not been verified live.

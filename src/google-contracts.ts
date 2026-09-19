@@ -1,7 +1,9 @@
 import fs from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {MirrorError} from './errors.js';
-import type {CompiledRequest,JsonObject} from './types.js';
+import type {CompiledRequest,Connection,JsonObject} from './types.js';
+
+export function assertGoogleAdsScope(c:Connection):void{if(!c.scopes.includes('https://www.googleapis.com/auth/adwords'))throw new MirrorError('INSUFFICIENT_SCOPE','Reconnect the selected Ads connection with the adwords scope.');}
 
 let artifact:JsonObject|undefined;
 function data():JsonObject{return artifact??=JSON.parse(fs.readFileSync(fileURLToPath(new URL('../../generated/vendor-routes.json',import.meta.url)),'utf8'));}

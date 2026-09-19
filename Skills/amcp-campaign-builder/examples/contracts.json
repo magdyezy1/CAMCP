@@ -4,6 +4,26 @@
   "qualification": "Synthetic local contract examples. Replace business facts and IDs with user-supplied or discovered values. These requests inspect contracts; none authorizes or executes a mutation.",
   "inspections": [
     {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "google_ads_v23_custom_audience_mutate_custom_audiences",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "name": "Approved search-intent definition",
+                "type": "SEARCH",
+                "members": [
+                  {"memberType": "KEYWORD", "keyword": "family homes"}
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
       "gateway": "linkedin_native_action",
       "arguments": {
         "action": "linkedin_rest_conversions_post",
