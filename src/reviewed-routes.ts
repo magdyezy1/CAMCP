@@ -1,4 +1,6 @@
 import {metaReportKind} from './meta-insights-jobs.js';
+import {placeActionKind} from './google-place-action-links.js';
+import {businessNotificationKind} from './google-business-notifications.js';
 import {redditCreativeKind} from './reddit-creative-writes.js';
 import {linkedinConversionKind} from './linkedin-conversion-links.js';
 import {linkedinRuleKind} from './linkedin-conversion-rules.js';
@@ -29,6 +31,8 @@ import {gtmWorkspaceKind} from './gtm-workspace-writes.js';
 export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  const route=p.path,method=p.method,action=p.action.split('/').at(-1)!;
  if(p.readOnly||p.specialTransport)return;
+ if(placeActionKind(p))return 'google_place_actions';
+ if(businessNotificationKind(p))return 'google_business_notifications';
  if(linkedinConversionKind(p))return 'linkedin_conversion_links';
  if(linkedinRuleKind(p))return 'linkedin_conversion_rules';
  if(metaReportKind(p))return 'meta_insights_jobs';

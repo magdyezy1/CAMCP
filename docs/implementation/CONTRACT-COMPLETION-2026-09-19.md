@@ -1566,3 +1566,126 @@ Inventory: 3,241 actions, 404 reviewed-family rows, 913 blocked writes, 100
 unmapped, 27 unqualified reads, eight input-dependent adapters and four explicit
 provider-unsupported routes. None of the remaining rows is marked completed by
 this implementation. Required-FFmpeg, container and live verification remain open.
+
+## 2026-09-20 — Business Profile public action links (candidate AG)
+
+Implemented the exact CREATE/PATCH/DELETE_PLACE_ACTION_LINK contracts under
+google_business_native_action / gmb_engagement_ops. This qualifies three more
+mapped writes: 407 reviewed-family rows and 910 blocked writes out of 3,241
+catalog actions. The 100 unmapped actions, 27 unqualified reads, eight
+input-dependent adapters and four provider-unsupported actions remain explicit.
+
+The contract requires an already provisioned business.manage identity and exact
+locations/{id} read/write grants. A broader Business Profile account does not
+confer location authority. Website OAuth and asset discovery remain unavailable;
+the provider descriptor retains those limitations rather than inferring them
+from the new guide. No live account, credential or provider mutation was used.
+
+Preparation reads the public business identity/category configuration, native
+location-filtered eligible action types and complete link collection, then
+repeats the snapshot for consistency. Native envelope/identity validation precedes
+projection; localized labels and create/update timestamps are omitted, while
+real URI, type, editability, provider, preferences and business identity changes
+conflict. Limits: 1,000 links, 25 pages/collection, 80 requests, 4,100 total rows,
+2 MiB/page, 8 MiB total and 60 seconds per snapshot.
+
+Creation/editing publishes a public link without a paused state. Owner
+allow_activation=false forbids both; allow_deletion=false forbids deletion.
+Exact field masks and explicit false clears are enforced. Unique URI/type pairs
+and currently editable targets are required. Choosing a preferred link clears
+the previous preference of that type; read-back compares the complete expected
+collection including that side effect. Unknown/partial/foreign receipts, failed
+discovery and lost outcomes never permit another mutation. Verified creation
+returns the scoped link identity; it does not grant a global resource binding.
+
+Public destinations are never fetched by AMCP. Private/signed URLs and credentials
+are rejected, and rejected URL values are removed from inspect output, failed
+receipts, provider error echoes and audit input. The original input remains
+immutable. A URL containing "budget" does not falsely require spend confirmation
+in this exact non-budget contract. All ordinary review/deployment/grant checks
+remain enforced. Read-back does not establish Maps/Search display, public
+destination availability, approval or conversions.
+
+Official sources checked 2026-09-20: PlaceActionLink resource, create/patch/delete/
+list methods, location-filtered placeActionTypeMetadata and Business Information
+location data. URLs and version boundaries are in the maintained
+dv360-and-measurement guide. Native field/enum coverage is checked against the
+pinned business-place-actions-v1 Discovery artifact; SOLOPRENEUR_APPOINTMENT also
+requires current location eligibility. Provider approval and live behavior remain
+unverified.
+
+Validation: initial 21/21 lifecycle tests passed. Expanded suite has 24 new tests;
+53/53 passed with shared review/state/spending-policy checks, and 39/39 passed
+with delegated-native and executable guide checks. Two test compilation failures
+during expansion (optional payload narrowing; an extra mock response field) were
+corrected without changing assertions; their build logs remain. Bounds tests
+assert the specific byte/page/row/deadline failure, not merely any rejection.
+Build, contract generators and guidance checks passed (80 traversed modules,
+14 reviewed gateways, no missing guide coverage). Evidence:
+.runtime/contract-completion-20260919/place-links-*.log.
+Candidate AG ran the complete sanitized check; the failure and correction are recorded below.
+
+## 2026-09-20 — Business Profile notification configuration (candidate AH)
+
+Added UPDATE_NOTIFICATION_SETTING under gmb_notification_ops. Both native mutable
+fields are covered: pubsubTopic and complete notificationTypes replacement, with
+exact masks and unchanged unmasked fields. Disabling explicitly clears both.
+The administrator-only contract verifies the exact numeric account grant,
+business.manage scope, current actor, account identity and native setting.
+Location grants and another login cannot substitute for the frozen connection.
+
+The review explains the account-wide data destination, previous topic, selected
+events and future-location effect. Topic provisioning, IAM, subscribers, test
+messages and delivery validation are explicitly outside this contract. Pub/Sub
+may incur Cloud charges; no advertising budget is edited. Activation policy
+protects enablement/changes; clearing is classified as destructive despite PATCH
+and respects deletion policy. Existing partial or lost outcomes cannot replay.
+
+The complete state is read twice, bounded to four requests, 1 MiB per response,
+4 MiB total and a 30-second monotonic deadline. Notification types are a set;
+actual topic/type/account-authority changes remain conflicts. Missing defaults
+on a correctly identified setting are empty values; a 404, 403, unknown envelope
+or unidentified body is never an empty configuration. Read-back verifies saved
+settings, not event delivery, topic IAM, retention or subscriber access.
+
+The current official NotificationSetting reference (updated 2025-11-06) marks
+Q&A events retired after 2025-11-03, unlike the captured Discovery enum. All six
+current and five retired/deprecated values are accounted for in tests. Existing
+old values remain visible for explicit removal/migration but cannot be newly
+requested or silently retained when enabling a destination. LOSS_OF_VOICE_OF_MERCHANT
+must migrate to VOICE_OF_MERCHANT_UPDATED. Captured vendor evidence was preserved.
+Official setup, method, account and Pub/Sub sources checked 2026-09-20 are linked
+in the maintained measurement guide; the setup guide resolves the generic field
+mask wording using its concrete pubsubTopic mask example.
+
+Validation: 18 new notification tests plus 24 place-link tests. Initial combined
+run: 40 passed / one failed because the place-link inventory test counted every
+Business Profile write instead of its engagement operation; scoped that fixture
+to its named operation and retained the exact three-action assertion. Notification
+and guide fixtures independently require the new family. Expanded compatibility
+passed 101/101 across both new families, spending policy, shared state matrix and
+executable guides. Guidance check initially reported undocumented ADMIN_REQUIRED;
+added its administrator/reviewer remedy, then all 81 modules / 14 reviewed gateways
+passed. Source and initial-failure logs are retained as business-notifications-*.log.
+
+Candidate AG evidence is retained: 513 files, source-tree SHA256
+056f2e5546d17a0974703548c8e5d45ec47059c46d413e9a0e04d3212f1c07e7.
+Its first complete-check attempt failed when spawnSync python reached a broken
+Windows shim. Retried with AMCP_SCHEMA_PYTHON set to the configured Python binary.
+That attempt ran 1,214 tests: 1,212 passed, one failed, one optional FFmpeg skip.
+The failure was the shared gateway snapshot matrix missing the newly enabled
+Business Profile gateway. Added its compound-state fixture, preserving the
+all-gateway equality assertion; all 38 envelope tests pass. No test was disabled.
+Evidence: install-ag.log, release-check-ag.log, release-check-ag-retry.log and
+place-links-envelope-fix.log in .runtime/contract-completion-20260919.
+
+Candidate AH completed the sanitized full check with both Business Profile
+families and the matrix correction: 1,232 tests passed, zero failed, one optional
+FFmpeg skip, plus four capture tests passed. All check stages exited zero.
+Its 515-file manifest records source-tree SHA256
+25d7448d6910f74591fdc985c5689aa9158e0f309c53f14fd75baae50dd26663.
+Evidence: install-ah.log and release-check-ah.log, with AMCP_SCHEMA_PYTHON set
+to the configured Python runtime. Inventory now: 3,241 actions, 408
+reviewed-family rows, 909 blocked writes, 100 unmapped, 27 unqualified reads,
+eight input-dependent adapters and four provider-unsupported actions. Required
+FFmpeg mode, Docker and live provider/deployment verification remain unrun.

@@ -122,9 +122,10 @@
       "gateway": "google_business_native_action",
       "actions": 59,
       "counts": {
-        "blocked_write": 23,
+        "blocked_write": 19,
         "local_workflow": 2,
         "native_read": 28,
+        "reviewed_write_family": 4,
         "unmapped": 6
       },
       "captured_catalog_complete": true,
@@ -16369,7 +16370,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessaccountmanagement.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16386,7 +16388,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessaccountmanagement.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16403,7 +16406,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessaccountmanagement.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16420,7 +16424,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessaccountmanagement.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16437,7 +16442,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessaccountmanagement.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16514,7 +16520,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16531,7 +16538,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16548,7 +16556,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16565,7 +16574,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16582,7 +16592,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16680,12 +16691,15 @@
       "method": "POST",
       "path": "/v1/{+parent}/placeActionLinks",
       "origin": "https://mybusinessplaceactions.googleapis.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-place-action-links.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://mybusinessplaceactions.googleapis.com/$discovery/rest?version=v1",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-place-action-links.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_place_actions"
     },
     {
       "gateway": "google_business_native_action",
@@ -16695,12 +16709,15 @@
       "method": "DELETE",
       "path": "/v1/{+name}",
       "origin": "https://mybusinessplaceactions.googleapis.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-place-action-links.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://mybusinessplaceactions.googleapis.com/$discovery/rest?version=v1",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-place-action-links.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_place_actions"
     },
     {
       "gateway": "google_business_native_action",
@@ -16715,7 +16732,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessplaceactions.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16746,7 +16764,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessplaceactions.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16763,7 +16782,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessplaceactions.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16775,12 +16795,15 @@
       "method": "PATCH",
       "path": "/v1/{+name}",
       "origin": "https://mybusinessplaceactions.googleapis.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-place-action-links.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://mybusinessplaceactions.googleapis.com/$discovery/rest?version=v1",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-place-action-links.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_place_actions"
     },
     {
       "gateway": "google_business_native_action",
@@ -16825,7 +16848,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16842,7 +16866,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16859,7 +16884,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16876,7 +16902,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16893,7 +16920,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16925,7 +16953,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16957,7 +16986,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinesslodging.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16974,7 +17004,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinesslodging.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17006,7 +17037,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessnotifications.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17018,12 +17050,15 @@
       "method": "PATCH",
       "path": "/v1/{+name}",
       "origin": "https://mybusinessnotifications.googleapis.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-business-notifications.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://mybusinessnotifications.googleapis.com/$discovery/rest?version=v1",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-business-notifications.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_business_notifications"
     },
     {
       "gateway": "google_business_native_action",
@@ -17038,7 +17073,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://businessprofileperformance.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17055,7 +17091,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://businessprofileperformance.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17072,7 +17109,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://businessprofileperformance.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17120,7 +17158,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessverifications.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17152,7 +17191,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessverifications.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17169,7 +17209,8 @@
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "https://mybusinessverifications.googleapis.com/$discovery/rest?version=v1",
       "tests": [
-        "tests/delegated-native.test.ts"
+        "tests/google-place-action-links.test.ts",
+        "tests/google-business-notifications.test.ts"
       ],
       "live_qualification": "unverified"
     },

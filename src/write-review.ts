@@ -1,4 +1,6 @@
 import {metaReportKind,assertMetaReport,assertMetaReportScope,metaReportSnapshots,readMetaReportState,metaReportOutcome} from './meta-insights-jobs.js';
+import {placeActionKind,assertPlaceAction,assertPlaceActionScope,placeActionSnapshots,readPlaceActionState,placeActionOutcome,placeActionSafe,placeActionSafeError} from './google-place-action-links.js';
+import {businessNotificationKind,assertBusinessNotification,assertBusinessNotificationActor,assertBusinessNotificationScope,businessNotificationSnapshots,readBusinessNotificationState,businessNotificationOutcome} from './google-business-notifications.js';
 import {readRedditProfiles,validateRedditProfiles,validateRedditCreativePrerequisites,assertRedditCreativeAvailable} from './reddit-creative-writes.js';
 import {readKeywordPlanTree,validateKeywordPlanTree} from './google-keyword-plan-writes.js';
 import {reviewedWriteFamily} from './reviewed-routes.js';
@@ -51,7 +53,7 @@ import {validateMicrosoftAssociationState} from './microsoft-associations.js';
 import {measurementWriteGateways,assertMeasurementWrite,assertMeasurementScopes,measurementSnapshots,optionalMissingState,validateMeasurementState,measurementOutcome} from './measurement-writes.js';
 
 export const writeTool={name:'amcp_write',description:'Inspect, prepare and execute a reviewed native advertising or measurement mutation. inspect checks local write-contract support without credentials or network calls. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request. Execution requires its review_id, idempotency_key and explicit confirmation. Operator role and administrator account write grants are required. This is an AMCP extension, not a captured AMCP tool.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['inspect','prepare','execute']},gateway:{type:'string'},arguments:{type:'object'},connection_id:{type:'string'},review_id:{type:'string'},idempotency_key:{type:'string'},confirmed:{type:'boolean'},spend_change_confirmed:{type:'boolean'},creative_edit_confirmed:{type:'boolean',description:'Explicitly acknowledge a reviewed X card edit/deletion or Tweet rename that may disrupt promoted ads. Freeze this choice during prepare and repeat it during execute.'}},additionalProperties:false}};
-export const writeContractGateways=new Set(['meta_native_action','tiktok_native_action','snapchat_native_action','google_ads_native_action','linkedin_native_action','x_ads_native_action','dv360_native_action','reddit_native_action','criteo_native_action',microsoftGateway,...measurementWriteGateways]);
+export const writeContractGateways=new Set(['meta_native_action','tiktok_native_action','snapchat_native_action','google_ads_native_action','google_business_native_action','linkedin_native_action','x_ads_native_action','dv360_native_action','reddit_native_action','criteo_native_action',microsoftGateway,...measurementWriteGateways]);
 const object=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?v as JsonObject:{};
 const snake=(s:string)=>s.replace(/([a-z0-9])([A-Z])/g,'$1_$2').toLowerCase();
 function fail(code:string,message:string,details:JsonObject={}):never{throw new MirrorError(code,message,details);}
@@ -71,10 +73,12 @@ export function writeOutcome(result:TransportResult,plan?:CompiledRequest,before
  };walk(result.data);
  if(!plan&&result.status!==204&&result.status!==205&&!result.headers['x-restli-id']&&(result.data===null||typeof result.data!=='object'||!Object.keys(result.data).length))errors.push({path:'$',value:'Provider returned no verifiable mutation result.'});
  if(plan&&!confirmedMutationResult(plan,result,before))errors.push({path:'$',value:'The response does not confirm every mutation under this provider response contract.'});
- return {success:errors.length===0,executed:true,outcome:errors.length?'partial_or_failed':'succeeded',data:plan?.gateway==='gtm_native_action'?gtmSafeConfiguration(result.data):result.data,status:result.status,headers:result.headers,...(result.headers['x-restli-id']?{created_id:result.headers['x-restli-id']}:{ }),...(errors.length?{failures:plan?.gateway==='gtm_native_action'?gtmSafeConfiguration(errors):errors,retry_safe:false}:{}),...(plan&&gtmWorkspaceKind(plan)?gtmWorkspaceReceipt(plan,result):{})};
+ const outcome={success:errors.length===0,executed:true,outcome:errors.length?'partial_or_failed':'succeeded',data:plan?.gateway==='gtm_native_action'?gtmSafeConfiguration(result.data):result.data,status:result.status,headers:result.headers,...(result.headers['x-restli-id']?{created_id:result.headers['x-restli-id']}:{ }),...(errors.length?{failures:plan?.gateway==='gtm_native_action'?gtmSafeConfiguration(errors):errors,retry_safe:false}:{}),...(plan&&gtmWorkspaceKind(plan)?gtmWorkspaceReceipt(plan,result):{})}; return plan&&(placeActionKind(plan)||businessNotificationKind(plan))?placeActionSafe(outcome):outcome;
 }
 function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,before:unknown[]):boolean {
  if(xDraftKind(plan))return xDraftOutcome(plan,result,before);
+ if(placeActionKind(plan))return placeActionOutcome(plan,result,before);
+ if(businessNotificationKind(plan))return businessNotificationOutcome(plan,result,before);
  if(linkedinRuleKind(plan))return linkedinRuleOutcome(plan,result);
  if(linkedinConversionKind(plan))return linkedinConversionOutcome(plan,result);
  if(googleBidKind(plan))return googleBidOutcome(plan,result);
@@ -203,6 +207,8 @@ export function assertWriteShape(plan:CompiledRequest){
  if(plan.gateway==='reddit_native_action'){assertRedditWrite(plan);return;}
  if(plan.gateway===microsoftGateway){assertMicrosoftWrite(plan);return;}
  if(plan.specialTransport)fail('WRITE_CONTRACT_UNAVAILABLE','For Google Drive media imports, use amcp_media prepare and execute. Other binary transports need a dedicated upload contract.');
+ if(placeActionKind(plan)){assertPlaceAction(plan);return;}
+ if(businessNotificationKind(plan)){assertBusinessNotification(plan);return;}
  if(linkedinRuleKind(plan)){assertLinkedInRule(plan);return;}
  if(linkedinConversionKind(plan)){assertLinkedInConversion(plan);return;}
  if(xDraftKind(plan)){assertXDraft(plan);return;}
@@ -263,6 +269,8 @@ export function assertWriteShape(plan:CompiledRequest){
 
 /** Reads are explicitly derived from the target, never supplied by the caller as proof. */
 export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRequest[]{
+ if(placeActionKind(plan))return placeActionSnapshots(plan);
+ if(businessNotificationKind(plan))return businessNotificationSnapshots(plan);
  if(xDraftKind(plan))return xDraftSnapshots(plan);
  if(linkedinRuleKind(plan))return linkedinRuleSnapshots(plan);
  if(linkedinConversionKind(plan))return linkedinConversionSnapshots(plan);
@@ -345,6 +353,7 @@ export class WriteReviewService {
  private access(actor:Actor,plan:CompiledRequest,connectionId?:string):Connection {
   this.store.assertActorActive(actor);
   assertGtmWorkflowActor(plan,actor);
+  assertBusinessNotificationActor(plan,actor);
   if(!this.policy.allowWrites)fail('LIVE_WRITES_DISABLED','Enable MIRROR_ALLOW_WRITES=true for reviewed write support.');
   if(actor.role==='reader')throw new MirrorError('FORBIDDEN','A writer connector and administrator account grant are required.',{},403);
   const c=this.store.resolveConnection(actor,plan.gateway,plan.accountId,connectionId),id=normalizeAccount(plan.gateway,plan.accountId??(c.accounts.length===1?c.accounts[0]:''));
@@ -353,6 +362,8 @@ export class WriteReviewService {
   if(plan.gateway==='reddit_native_action')assertRedditWriteScopes(c);
   if(criteoTargetingKind(plan))assertCriteoTargetingScopes(c);
   if(metaReportKind(plan))assertMetaReportScope(c);
+  if(placeActionKind(plan))assertPlaceActionScope(c);
+  if(businessNotificationKind(plan))assertBusinessNotificationScope(c);
   if(metaLabelKind(plan))assertMetaLabelScope(c,true);
   if(googleBidKind(plan))assertGoogleBidScope(c);
   if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan))assertGoogleAdsScope(c);
@@ -362,6 +373,11 @@ export class WriteReviewService {
   plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);assertMeasurementScopes(plan,c);return c;
  }
  private async state(actor:Actor,plan:CompiledRequest,connectionId:string,reads:CompiledRequest[]):Promise<unknown[]> {
+  if(placeActionKind(plan)||businessNotificationKind(plan))return (placeActionKind(plan)?readPlaceActionState:readBusinessNotificationState)(plan,async read=>{
+   if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Place-action prerequisites must remain read-only.');
+   const access=()=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,current);return current;};
+   const c=access(),auth=await this.credentials.get(c);access();const result=await this.transport.request(read,c,auth);access();return result;
+  });
   if(metaReportKind(plan))return readMetaReportState(plan,async read=>{
    if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Report prerequisites must remain read-only.');
    const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));
@@ -419,8 +435,8 @@ export class WriteReviewService {
    if(input.connection_id&&nativeArgs.connection_id&&input.connection_id!==nativeArgs.connection_id)fail('CONFLICTING_PARAMETER','Connection IDs must agree.');
    if(input.action==='inspect'){
     let accountCapability:JsonObject;try{const c=this.store.resolveConnection(actor,plan.gateway,plan.accountId,input.connection_id??nativeArgs.connection_id);accountCapability={connection_id:c.id,account_id:plan.accountId,selected:true,write_granted:c.writeAccounts?.includes(plan.accountId!)??false,granted_scopes:c.scopes,provider_access:'requires live preparation'};}catch(e){accountCapability={selected:false,error:e instanceof MirrorError?{code:e.code,message:e.message}:undefined};}
-    try{assertWriteShape(plan);assertRedditCreativeAvailable(plan);const reads=snapshotPlans(plan,this.registry);return {executed:false,network_requests:0,review_contract_supported:true,request:redact(plan),contract_evidence:executionEvidence(plan),state_reads:reads.map(r=>({method:r.method,path:r.path})),live_permissions_verified:false,account_capability:accountCapability,requirements:{deployment_writes_enabled:this.policy.allowWrites,operator_role:actor.role!=='reader',account_write_grant_required:true},next_step:'Use prepare to verify live state and account access.'};}
-    catch(e){if(!(e instanceof MirrorError))throw e;const remedy=errorRemedy(e);return {executed:false,network_requests:0,review_contract_supported:false,request:redact(plan),contract_evidence:executionEvidence(plan),error:{code:e.code,message:e.message,details:e.details,category:remedy.category,remedy},live_permissions_verified:false};}
+    try{assertWriteShape(plan);assertRedditCreativeAvailable(plan);const reads=snapshotPlans(plan,this.registry);return {executed:false,network_requests:0,review_contract_supported:true,request:redact(plan.gateway==='google_business_native_action'?placeActionSafe(plan):plan),contract_evidence:executionEvidence(plan),state_reads:reads.map(r=>({method:r.method,path:r.path})),live_permissions_verified:false,account_capability:accountCapability,requirements:{deployment_writes_enabled:this.policy.allowWrites,operator_role:actor.role!=='reader',account_write_grant_required:true,...(businessNotificationKind(plan)?{administrator_role_required:true,administrator_role:actor.role==='admin'&&actor.testAccount!==true}:{})},next_step:'Use prepare to verify live state and account access.'};}
+    catch(e){if(!(e instanceof MirrorError))throw e;const remedy=errorRemedy(e);return {executed:false,network_requests:0,review_contract_supported:false,request:redact(plan.gateway==='google_business_native_action'?placeActionSafe(plan):plan),contract_evidence:executionEvidence(plan),error:{code:e.code,message:e.message,details:e.details,category:remedy.category,remedy},live_permissions_verified:false};}
    }
    assertWriteShape(plan);assertRedditCreativeAvailable(plan);const c=this.access(actor,plan,input.connection_id??nativeArgs.connection_id),reads=snapshotPlans(plan,this.registry),state=await this.state(actor,plan,c.id,reads);
    validateGoogleAssetLinkState(plan,state,true);
@@ -442,7 +458,7 @@ export class WriteReviewService {
    const stateHash=reviewStateHash(state),spendPolicy=checkSpendPolicy(this.store,actor,plan,state);
    this.store.putDocument(actor.tenantId,'write_review',reviewId,{user_id:actor.userId,connection_id:c.id,plan,reads,state,state_hash:stateHash,fingerprint,expires_at:expiresAt,...override});
    this.store.appendAudit(actor.tenantId,reviewId,{event:'write_prepared',request:plan,fingerprint,expires_at:expiresAt});
-   return {success:true,executed:false,review_id:reviewId,idempotency_key:reviewId,expires_at:new Date(expiresAt).toISOString(),request:redact(plan),contract_evidence:executionEvidence(plan),before_state:redact(state),spend_policy:spendPolicy,state_hash:stateHash,state_reads:reads.map(r=>({method:r.method,path:r.path})),fingerprint,confirmation_required:true,...(creativeImpact?{creative_impact:creativeImpact}:{})};
+   return {success:true,executed:false,review_id:reviewId,idempotency_key:reviewId,expires_at:new Date(expiresAt).toISOString(),request:redact(plan.gateway==='google_business_native_action'?placeActionSafe(plan):plan),contract_evidence:executionEvidence(plan),before_state:redact(state),spend_policy:spendPolicy,state_hash:stateHash,state_reads:reads.map(r=>({method:r.method,path:r.path})),fingerprint,confirmation_required:true,...(creativeImpact?{creative_impact:creativeImpact}:{})};
   }
   if(input.action!=='execute'||typeof input.review_id!=='string')fail('INVALID_ARGUMENT','Use prepare or execute with a review_id.');
   if(input.arguments!==undefined||input.gateway!==undefined||input.connection_id!==undefined)fail('INVALID_ARGUMENT','Execute uses the frozen reviewed request; prepare a new review to change it.');
@@ -488,6 +504,6 @@ export class WriteReviewService {
   // walk past the owner's cumulative daily cap. The accepted cost is that a deterministic
   // rejection, which certainly did not land, still consumes part of the day's allowance. Only
   // release on errors provably raised before dispatch, never on transport-layer uncertainty.
-  }catch(e){this.store.uncertain(actor.tenantId,input.idempotency_key);this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_uncertain',code:e instanceof MirrorError?e.code:'INTERNAL_ERROR'});throw e;}
+  }catch(e){this.store.uncertain(actor.tenantId,input.idempotency_key);this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_uncertain',code:e instanceof MirrorError?e.code:'INTERNAL_ERROR'});throw placeActionKind(plan)||businessNotificationKind(plan)?placeActionSafeError(e):e;}
  }
 }

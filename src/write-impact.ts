@@ -41,6 +41,8 @@ function assertSnapchatReplacement(plan:CompiledRequest,state:unknown[]){
  }
 }
 export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolean,connectionId:string):JsonObject|undefined{
+ if(businessNotificationKind(plan))return businessNotificationImpact(plan,state);
+ if(placeActionKind(plan))return placeActionImpact(plan,state);
  if(xDraftKind(plan))return xDraftImpact(plan);
  if(linkedinConversionKind(plan))return linkedinConversionImpact;
  if(linkedinRuleKind(plan))return linkedinRuleImpact;
@@ -71,3 +73,5 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  return undefined;
 }
 import {googleConfigurationKind,googleConfigurationServing} from './google-configuration-writes.js';
+import {placeActionKind,placeActionImpact} from './google-place-action-links.js';
+import {businessNotificationKind,businessNotificationImpact} from './google-business-notifications.js';

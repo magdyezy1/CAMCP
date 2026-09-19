@@ -55,6 +55,8 @@ const layouts:Layout[]=[
  {gateway:'reddit_native_action',path:'/api/v3/campaigns/1',wrap:(r,n)=>({data:{id:'1',ad_account_id:'123',...r},pagination:{previous:'trace-'+n},futureEnvelopeTelemetry:n})},
  {gateway:'microsoft_ads_native_action',path:'/CampaignManagement/v13/Campaigns/QueryByIds',action:'GetCampaignsByIds',wrap:(r,n)=>({Campaigns:[{Id:'1',...r}],PartialErrors:null,TrackingId:String(n),futureEnvelopeTelemetry:n})},
  {gateway:'apple_ads_native_action',path:'/v1/campaigns/1',wrap:(r,n)=>({result:{id:1,...r},error:null,requestId:String(n),futureEnvelopeTelemetry:n})},
+ // Business Profile validates complete pages before constructing keyed link state.
+ {gateway:'google_business_native_action',path:'/v1/locations/123',action:'AMCP_PLACE_ACTION_READ',wrap:(r,n)=>({business:{name:'locations/123',title:'Synthetic'},links:{'locations/123/placeActionLinks/1':{...r,uri:'https://example.com/book',isEditable:true}},requestId:String(n)})},
  // Criteo's bounded multi-read adapter validates raw envelopes before building this compound state.
  {gateway:'criteo_native_action',path:'/2026-01/retail-media/accounts/123/line-items',wrap:(r,n)=>({accountId:'123',lineItemId:'789',campaign:{id:'456',attributes:{}},line:{id:'789',attributes:r},target:{scope:'include',storeIds:['1']},audiences:[],requestId:String(n)})},
  ...['meta_native_action','linkedin_native_action','dv360_native_action','ga4_native_action','gtm_native_action','google_search_console_native_action'].map(gateway=>({gateway,path:'/resource/1',wrap:(r:JsonObject,n:number)=>({...r,requestId:String(n),updatedTime:String(n)})}))

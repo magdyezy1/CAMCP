@@ -10,6 +10,14 @@
   ],
   "inspections": [
     {
+      "gateway":"google_business_native_action",
+      "arguments":{"operation":"gmb_notification_ops","arguments":{"action":"UPDATE_NOTIFICATION_SETTING","account_id":"123","payload":{"name":"accounts/123/notificationSetting","pubsubTopic":"projects/amcp-test/topics/reviews","notificationTypes":["NEW_REVIEW","UPDATED_REVIEW"]},"query":{"updateMask":"pubsubTopic,notificationTypes"}}}
+    },
+    {
+      "gateway":"google_business_native_action",
+      "arguments":{"operation":"gmb_engagement_ops","arguments":{"action":"CREATE_PLACE_ACTION_LINK","location_id":"456","payload":{"uri":"https://example.com/book","placeActionType":"APPOINTMENT","isPreferred":true}}}
+    },
+    {
       "gateway":"google_ads_native_action",
       "arguments":{"action":"google_ads_v23_campaign_bid_modifier_mutate_campaign_bid_modifiers","account_id":"123","payload":{"operations":[{"update":{"resourceName":"customers/123/campaignBidModifiers/100~500","bidModifier":1.2},"updateMask":"bid_modifier"}]}}
     },

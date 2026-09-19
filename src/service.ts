@@ -13,6 +13,7 @@ import {Store} from './store.js';
 import {CredentialProvider} from './auth.js';
 import {NativeTransport} from './transport.js';
 import {authorizeExecution,readOnlyPolicy,type ExecutionPolicy} from './preflight.js';
+import {redactPlaceActionInput} from './google-place-action-links.js';
 import {errorResult,MirrorError,untrustedProviderContent} from './errors.js';
 import {redact} from './security.js';
 import {paginate} from './pagination.js';
@@ -76,7 +77,7 @@ export class MirrorService {
    const media=input.dry_run===false||hasMediaSource?nativeMediaInput(plan,this.connectionId(input)):undefined;
    if(media)return this.wrap(input.dry_run===false?mediaNext(await this.media().call(media,actor)):mediaPreview(media),requestId,start,tool);
    return this.wrap(await this.runPlan(plan,input,actor,requestId),requestId,start,tool);
-  }catch(e){const result=errorResult(e,requestId,Date.now()-start);this.store.appendAudit(actor.tenantId,requestId,{tool,input:redact(redactConnectionInput(tool,input)),outcome:result});return result;}
+  }catch(e){const result=errorResult(e,requestId,Date.now()-start);this.store.appendAudit(actor.tenantId,requestId,{tool,input:redact(redactConnectionInput(tool,redactPlaceActionInput(tool,input))),outcome:result});return result;}
  }
  /**
   * Campaign names, ad copy, creative and media metadata, report rows and account labels are

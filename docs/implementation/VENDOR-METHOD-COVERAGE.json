@@ -1102,8 +1102,8 @@
         {
           "operation": "gmb_notification_ops",
           "action": "UPDATE_NOTIFICATION_SETTING",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_notifications"
         }
       ],
       "mapping_status": "mapped",
@@ -1202,8 +1202,8 @@
         {
           "operation": "gmb_engagement_ops",
           "action": "DELETE_PLACE_ACTION_LINK",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_place_actions"
         }
       ],
       "mapping_status": "mapped",
@@ -1222,8 +1222,8 @@
         {
           "operation": "gmb_engagement_ops",
           "action": "CREATE_PLACE_ACTION_LINK",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_place_actions"
         }
       ],
       "mapping_status": "mapped",
@@ -1282,8 +1282,8 @@
         {
           "operation": "gmb_engagement_ops",
           "action": "PATCH_PLACE_ACTION_LINK",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_place_actions"
         }
       ],
       "mapping_status": "mapped",
