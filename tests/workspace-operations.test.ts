@@ -1,3 +1,4 @@
+import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Registry} from '../src/catalog.js';
@@ -91,7 +92,7 @@ test('Google provider validation sets validateOnly on a reviewed contract withou
  }finally{store.close();}
 });
 test('new website operation pages enforce session and CSRF and retain escaped data in JSON',async()=>{
- const x=setup(),origin='https://amcp.shop',password='synthetic-workspace-password',listener=createHttpApp(x.service,x.store,{website:{origin,masterKey:key,adminPassword:password,tenantId:actor.tenantId}}).listen(0,'127.0.0.1');await new Promise<void>(r=>listener.once('listening',r));const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
+ const x=setup(),origin='https://amcp.shop',password='synthetic-workspace-password',listener=await listenForFetch(createHttpApp(x.service,x.store,{website:{origin,masterKey:key,adminPassword:password,tenantId:actor.tenantId}}));const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
  const request=async(url:string,body?:unknown,headers:Record<string,string>={})=>{const r=await fetch(base+url,{method:body===undefined?'GET':'POST',headers:{Origin:origin,'Content-Type':'application/json',...headers},body:body===undefined?undefined:JSON.stringify(body)});const text=await r.text();return {status:r.status,headers:r.headers,text};};
  try{for(const route of ['/dashboard','/campaigns','/media','/profiles','/reports'])assert.equal((await request(route)).status,200);assert.equal((await request('/api/workspace/workspace',{action:'dashboard'})).status,401);const login=await request('/api/session',{password}),cookie=login.headers.get('set-cookie')!.split(';')[0]!,csrf=JSON.parse(login.text).csrf;assert.equal((await request('/api/workspace/workspace',{action:'dashboard'},{Cookie:cookie})).status,403);const dashboard=await request('/api/workspace/workspace',{action:'dashboard'},{Cookie:cookie,'X-AMCP-CSRF':csrf});assert.equal(JSON.parse(dashboard.text).data.capabilities.features.length,8);assert.equal((await request('/api/media/variants/missing/preview')).status,401);
  }finally{await new Promise<void>(r=>listener.close(()=>r()));x.store.close();}

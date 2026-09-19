@@ -30,6 +30,7 @@ include 396 without mapped actions. No denominator is silently discarded.
 |---|---|---|
 | Recheck checkout, remote and initial action denominator | Complete | Clean branch at the base revision; remote main remains `067871481d79fc59a6cb976d8a13b62d409e283a`. Baseline artifact saved locally under `.runtime/contract-completion-20260919/`. |
 | Google configuration and association resources | Implemented; local lifecycle tests pass | 16 explicitly declared resources, 32 additional reviewed action rows. Exact references, meaningful state comparisons, mutation receipts and read-back. Historical immutable UPDATE aliases remain blocked. |
+| Google asset-set configuration and links | Implemented for declared variants; focused tests pass | Five additional resource descriptors, 16 additional reviewed rows. Complete bounded native feed membership/content, parent/type checks, semantic label comparison, exact clearing verification. Sync credential and nonselectable configuration variants remain explicit limits. |
 | Remaining Google jobs, recommendations, billing, customer data and permissions | Pending | Separate effects, authorization, batch/async receipts and recovery contracts; no universal mutate exemption. |
 | Microsoft library/media and remaining service methods | Pending | Exact JSON contracts and polymorphic schemas; WSDL method matches alone are insufficient. |
 | Apple child resources and shared budgets | Implemented; local lifecycle tests pass | 18 new native actions. SDK type facts, parent scoping, org/account union authorization, per-account spending policies and read-back. 99 SDK methods are now independently inventoried; 58 remain unmapped. |
@@ -49,13 +50,13 @@ qualification dependencies, not a reason to omit locally implementable code.
 
 ## Current checkpoint (2026-09-19)
 
-The working tree now inventories **3,241 actions**, including **325 reviewed-family
-rows**. **989 mapped writes, 105 unmapped actions, 50 unqualified reads and eight
+The working tree now inventories **3,241 actions**, including **341 reviewed-family
+rows**. **973 mapped writes, 105 unmapped actions, 50 unqualified reads and eight
 input-dependent adapters remain incomplete**. Four routes are now explicitly
 **provider_unsupported**, including three previously blocked writes and one read;
 these are not counted as implemented. The first batch added 68 reviewed action
 rows (50 previously blocked mapped actions and 18 newly mapped Apple actions);
-the current GTM batch adds 24 more. Tag Manager has 64 reviewed-family rows,
+the GTM batch adds 24 more, and asset sets add 16. Tag Manager has 64 reviewed-family rows,
 38 native reads, four withdrawn methods and two implemented local diagnostics.
 No GTM catalog row remains unmapped or blocked solely by absence of a family;
 exact payload restrictions, external permissions and live qualification still apply.
@@ -76,4 +77,17 @@ the documentation-refusal check for VERIFICATION_UNSUPPORTED. Its recovery behav
 is now documented. Candidate D completed the entire check command successfully:
 762 tests passed, zero failed, one FFmpeg skip, plus four capture tests passed.
 The diagnostic and workspace authorization fixtures exercise actual revocation.
+GTM is pushed as `cde2b60`. The following feed batch passed 71 focused tests;
+fresh release validation is in progress. Review-family rows do not certify every
+variant: the explicit asset-set creation limits remain in the guide and evidence.
 See `CONTRACT-COMPLETION-2026-09-19.md` for commands, first failures and scope limits.
+
+Feed candidate E completed 773 passing tests, one failure and one FFmpeg skip.
+The failure was Fetch `bad port` in an OS-assigned test listener. Added a bounded
+Fetch-compatible loopback helper across HTTP fixtures; all 13 listener, activity
+and deployment regressions passed. Candidate F full validation is pending.
+
+Candidate F completed the entire check command: 777 tests passed, zero failed,
+one FFmpeg skip; four capture tests passed. All generation, guidance, provider and
+contract checks passed, as did Railway configuration validation. The feed batch
+is validated for this local synthetic scope, with payload and live limits retained.

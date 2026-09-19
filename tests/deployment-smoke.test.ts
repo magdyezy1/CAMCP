@@ -1,3 +1,4 @@
+import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomBytes} from 'node:crypto';
@@ -22,8 +23,7 @@ for(const writes of [false,true])test(`deployment HTTP contract includes reporti
   const transport=new NativeTransport(async()=>{egress++;throw Error('Deployment smoke must not contact a vendor.');});
   const service=new MirrorService(new Registry(),store,transport,undefined,{allowWrites:writes,maxBudgetChange:0,requireBeforeState:true});
   const app=createHttpApp(service,store,{publicOrigin:origin,website:{origin,masterKey:master,adminPassword:password,authEnv:{}}});
-  listener=app.listen(port,'127.0.0.1');
-  await new Promise<void>((resolve,reject)=>{listener!.once('listening',resolve);listener!.once('error',reject);});
+  listener=await listenForFetch(app,{port});
   port=(listener.address() as {port:number}).port;
  };
  const stop=async()=>{

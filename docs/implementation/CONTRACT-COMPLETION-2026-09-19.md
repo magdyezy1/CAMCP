@@ -268,3 +268,82 @@ refusal documentation, source/browser checks and both contract inventories passe
 Log: `.runtime/contract-completion-20260919/release-check-d.log`. FFmpeg/ffprobe
 and Docker are unavailable on this host; this is not a container smoke or live
 provider qualification. Earlier failed attempts remain recorded above.
+
+The GTM batch was committed and pushed as `cde2b60` to `Codex-branch` only.
+
+## Google asset sets and feed links
+
+Five new resource descriptors add 16 reviewed rows: asset-set create/update/remove,
+and asset, campaign, ad-group and customer associations. Nine advertiser feed types,
+Merchant Center feed settings, static location groups and Business Profile group
+filters have explicit native validation. Membership reads follow all pages and bind
+every member and asset to the selected account and exact set. Parent groups are
+checked against the source LOCATION_SYNC set. Current content/configuration and
+membership are frozen, with bounded fan-out and a second membership/config read.
+Asset and label ordering is semantic; final URL lists remain ordered. Object
+replacement verification uses exact field hashes to detect ignored clears.
+
+The field generator now handles CRLF reference captures. The checked GAQL fixture
+contains 117 fields across 21 resources. Feed asset selectors derive from 133
+already captured selectable fields across 11 explicitly declared asset types;
+`generate:feeds:check` checks regeneration in every release check.
+
+Official documentation checked 2026-09-19:
+- [AssetSet v23](https://developers.google.com/google-ads/api/reference/rpc/v23/AssetSet),
+  resource page dated 2026-02-23; pinned Discovery request fields also checked.
+- [Asset-set fields v23](https://developers.google.com/google-ads/api/fields/v23/asset_set),
+  reference dated 2026-09-10; association resource field tables checked separately.
+- [Customer asset-set fields](https://developers.google.com/google-ads/api/fields/v23/customer_asset_set),
+  reference dated 2026-09-10: `customer` is not selectable; identity is bound through
+  the exact selected-customer resource name instead.
+- [Asset overview](https://developers.google.com/google-ads/api/docs/assets/overview),
+  dated 2026-09-10: feed type/linkage restrictions checked against the implementation.
+- [Location assets](https://developers.google.com/google-ads/api/docs/assets/location-assets),
+  dated 2026-09-10: static group parent membership, the separate business.manage
+  authorization token requirement, and signed int64 listing-ID conversion checked.
+
+Limits remain explicit: creation of LOCATION_SYNC, CHAIN_DYNAMIC_LOCATION_GROUP,
+HOTEL_PROPERTY and TRAVEL_FEED is unqualified. Sync authorization must be sourced
+from a separately granted Business Profile connection; some chain/map settings lack
+selectable v23 read-back. These variants were not made executable with partial
+verification or caller-pasted OAuth tokens. Native current membership does not freeze
+external Merchant Center inventory or future synchronization. Provider rules, account
+access, processing and serving remain live qualification dependencies.
+
+Verification: first 30 focused tests passed. The expanded run passed 35 and failed
+one because a synthetic location-group fixture retained a PAGE_FEED member; the
+contract correctly rejected the incompatible asset. Corrected the fixture, then
+three targeted regressions passed. A final focused run of configuration, asset-link,
+state-comparison and guide tests passed **71/71**, zero failures/skips. Logs are
+`google-feed-first.log` through `google-feed-fourth.log` under the current runtime
+evidence directory. The earlier user-supplied CI failure was a stale CSV contract
+ledger; the current source generator and index both use LF and retain strict
+content equality. Full sanitized release validation follows this checkpoint.
+
+Current inventory: 3,241 rows; 341 reviewed-family, 973 blocked mapped writes,
+105 unmapped, 50 unqualified reads, eight input-dependent adapters, four withdrawn.
+
+Candidate E (`66da668037d6b9c7cb239c0b0dfc13b907f12de67aa844ca54b75daad74c9711`,
+456 files) completed 773 tests successfully, failed one and skipped one FFmpeg
+test. `release-check-e.log` preserves the failure: the activity HTTP fixture failed
+before network I/O with Node Fetch `bad port`. The test used an unrestricted OS
+ephemeral port; the actual rejected port was not logged. The Fetch standard blocks
+listed ports even on loopback ([port blocking](https://fetch.spec.whatwg.org/#port-blocking),
+checked 2026-09-19). This is distinct from the earlier unexplained URL-spelling
+failure; no causal connection to that failure has been established.
+
+Added a test-only listener shared by 20 HTTP fixture files. It releases forbidden
+OS allocations and bounds retries at ten, retains explicit restart ports, and
+propagates binding errors. It never retries HTTP calls/assertions or changes
+application safeguards. Four deterministic regressions cover Fetch rejection,
+successful reallocation and cleanup, retry exhaustion, and genuine bind failure.
+All 13 listener/activity/deployment tests passed (`http-listener.log`). Fresh full
+candidate F validation follows; candidate E's failed result remains recorded.
+
+Candidate F (`99753c73cd606148a3c3dc41ea975873a35b1f993869779dec486df68338c895`,
+458 files) passed the entire `npm.cmd run check` command, including generation,
+runtime tests, capture replay, web checks, provider integrity/lifecycle and strict
+contract ledgers. Test totals: 777 passed, zero failed, one FFmpeg test skipped;
+four additional capture tests passed. `node deploy/check-railway.mjs` also passed.
+Evidence: `release-check-f.log`. FFmpeg and Docker remain unavailable locally;
+no hosted CI, container execution, provider mutation or live qualification claim.

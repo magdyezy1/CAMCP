@@ -43,7 +43,9 @@ export interface CompiledRequest {
   reportDownload?:{offset:number;limit:number};
   contractEvidence?:JsonObject;
   /** Internal, derived exact-target GAQL read. Never accepted from client input. */
-  googleState?:{resource:string;names:string[];allowMissing:boolean;removedAsAbsent?:boolean};
+  googleState?:{resource:string;names:string[];allowMissing:boolean;removedAsAbsent?:boolean;exactFields?:string[]};
+  /** Complete bounded Google feed membership/content read; never caller supplied. */
+  googleAssetSetState?:{names:string[]};
   /** Server-derived DV360 membership/absence read, never caller supplied. */
   dv360ListState?:{kind:string;collection:boolean};
   /** Server-derived GTM workflow read. Never accepted from external arguments. */

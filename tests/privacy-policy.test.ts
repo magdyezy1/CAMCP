@@ -1,3 +1,4 @@
+import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -9,7 +10,7 @@ import {createHttpApp} from '../server/http-app.js';
 test('the full privacy policy is public HTML without redirects, login, JavaScript or provider requests',async()=>{
  const key=Buffer.alloc(32,91).toString('base64'),store=new Store(':memory:',key);
  const app=createHttpApp(new MirrorService(new Registry(),store),store,{website:{origin:'https://amcp.shop',masterKey:key,authEnv:{},fetcher:async()=>{throw Error('Public privacy page must not contact a provider');}}});
- const listener=app.listen(0,'127.0.0.1');await new Promise<void>(r=>listener.once('listening',r));
+ const listener=await listenForFetch(app);
  const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
  try{
   for(const method of ['GET','HEAD']){

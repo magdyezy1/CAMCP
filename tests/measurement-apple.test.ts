@@ -1,3 +1,4 @@
+import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {generateKeyPairSync,verify,randomUUID} from 'node:crypto';
@@ -119,7 +120,7 @@ test('website onboarding persists selectable properties/sites and Apple accounts
  let holdToken=false,releaseToken:()=>void=()=>{},notifyToken:()=>void=()=>{};
  const tokenStarted=new Promise<void>(r=>notifyToken=r),tokenReleased=new Promise<void>(r=>releaseToken=r);
  const fake:typeof fetch=async(input)=>{const url=new URL(String(input));if(url.hostname==='oauth2.googleapis.com'||url.hostname==='appleid.apple.com'){if(holdToken){notifyToken();await tokenReleased;}return json({access_token:'synthetic',refresh_token:'synthetic',expires_in:3600});}if(url.pathname.endsWith('accountSummaries'))return json({accountSummaries:[{account:'accounts/8',propertySummaries:[{property:'properties/123',displayName:'GA4'}]}]});if(url.pathname==='/tagmanager/v2/accounts')return json({account:[{accountId:'44',name:'Google tags'}]});if(url.pathname==='/webmasters/v3/sites')return json({siteEntry:[{siteUrl:'sc-domain:example.com',permissionLevel:'siteOwner'}]});if(url.pathname==='/v1/acls')return json({result:{acls:[{adAccount:{id:'77',name:'Apple'},roles:['API_ACCOUNT_READ_ONLY']}]}});throw Error('Unexpected URL');};
- const listener=createHttpApp(service,store,{website:{origin,masterKey:master,adminPassword:password,fetcher:fake}}).listen(0,'127.0.0.1');await new Promise<void>(r=>listener.once('listening',r));const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
+ const listener=await listenForFetch(createHttpApp(service,store,{website:{origin,masterKey:master,adminPassword:password,fetcher:fake}}));const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
  const request=async(url:string,method='GET',body?:unknown,headers:Record<string,string>={})=>{const r=await fetch(base+url,{method,redirect:'manual',headers:{Origin:origin,'Content-Type':'application/json',...headers},body:body===undefined?undefined:JSON.stringify(body)});return new Response(await r.arrayBuffer(),{status:r.status,headers:r.headers});};
  try{
   const login=await request('/api/session','POST',{password}),headers={Cookie:login.headers.get('set-cookie')!.split(';')[0]!,'X-AMCP-CSRF':(await login.json()).csrf as string};

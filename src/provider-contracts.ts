@@ -24,7 +24,7 @@ export const providerContracts:JsonObject[]=[
  ['google_business','google_business','v1',null,null,null,'delegated-native','https://developers.google.com/my-business/reference/rest'],
 ].map(([id,gateway,version,guide,media,writes,test,docs])=>({
  id,gateway:gateway+'_native_action',
- contract_version:({google:4,dv360:2,meta:2,microsoft:3,snapchat:2,linkedin:3,x:2,tiktok:2,ga4:2,gtm:4,gsc:2,apple:3} as Record<string,number>)[String(id)]??1,
+ contract_version:({google:5,dv360:2,meta:2,microsoft:3,snapchat:2,linkedin:3,x:2,tiktok:2,ga4:2,gtm:4,gsc:2,apple:3} as Record<string,number>)[String(id)]??1,
  api_version:version,owner_role:'AMCP integration maintainer',
  reviewed_at:['google','apple','dv360','gtm'].includes(String(id))?'2026-09-19':['google','meta','microsoft','snapchat','linkedin','ga4','gtm','gsc','apple'].includes(String(id))?'2026-09-18':['x','tiktok'].includes(String(id))?'2026-09-14':'2026-09-12',
  documentation:docs,guide:guide?'amcp://guides/'+guide:null,

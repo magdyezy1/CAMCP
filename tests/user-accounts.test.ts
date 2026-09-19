@@ -1,3 +1,4 @@
+import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {generateKeyPairSync,randomBytes,createHash} from 'node:crypto';
@@ -26,7 +27,7 @@ async function fixture(extra:NodeJS.ProcessEnv={},site:{testPassword?:string}={}
    return json({access_token:'social-access-only',id_token:state.invalid==='signature'?token.slice(0,-8)+'invalidx':token});
   }throw Error('Unexpected provider egress '+u.origin);
  };
- const service=new MirrorService(new Registry(),store),listener=createHttpApp(service,store,{website:{origin,masterKey:master,adminPassword:password,...site,authEnv:env,fetcher}}).listen(0,'127.0.0.1');await new Promise<void>(r=>listener.once('listening',r));const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
+ const service=new MirrorService(new Registry(),store),listener=await listenForFetch(createHttpApp(service,store,{website:{origin,masterKey:master,adminPassword:password,...site,authEnv:env,fetcher}}));const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
  const request=async(path:string,method='GET',body?:unknown,headers:Record<string,string>={})=>{const r=await fetch(base+path,{method,redirect:'manual',headers:{Origin:origin,...(body?{'Content-Type':'application/json'}:{}),...headers},body:body?JSON.stringify(body):undefined}),bytes=await r.arrayBuffer();return new Response(bytes,{status:r.status,headers:r.headers});};
  const create=async(email='member@example.test')=>store.transaction(()=>accounts.newUser('Test member',email,null,true));
  const credentials=(s:ReturnType<WebStore['createSession']>)=>({Cookie:web.cookie(s.id),'X-AMCP-CSRF':s.csrf});

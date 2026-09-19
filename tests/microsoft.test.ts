@@ -1,3 +1,4 @@
+import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Registry} from '../src/catalog.js';
@@ -144,7 +145,7 @@ test('website Microsoft OAuth account selection persists customer mapping and de
  const keys=['AMCP_MICROSOFT_CLIENT_ID','AMCP_MICROSOFT_CLIENT_SECRET','AMCP_MICROSOFT_DEVELOPER_TOKEN'],previous=keys.map(k=>process.env[k]);keys.forEach(k=>process.env[k]='synthetic');
  const store=new Store(':memory:',key),origin='https://amcp.shop',password='synthetic-ms-website-password';
  const fake:typeof fetch=async url=>{const path=new URL(String(url)).pathname;return Response.json(path.endsWith('/token')?{access_token:'synthetic',refresh_token:'synthetic-refresh',expires_in:3600}:path.endsWith('/User/Query')?{User:{Id:'789'}}:{Accounts:[{Id:'123',ParentCustomerId:'456',Name:'Synthetic',CurrencyCode:'USD'}]});};
- const listener=createHttpApp(new MirrorService(new Registry(),store,undefined,undefined,policy),store,{website:{origin,masterKey:key,adminPassword:password,fetcher:fake}}).listen(0,'127.0.0.1');await new Promise<void>(resolve=>listener.once('listening',resolve));const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
+ const listener=await listenForFetch(createHttpApp(new MirrorService(new Registry(),store,undefined,undefined,policy),store,{website:{origin,masterKey:key,adminPassword:password,fetcher:fake}}));const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
  const request=(url:string,method='GET',body?:unknown,headers:Record<string,string>={})=>fetch(base+url,{method,redirect:'manual',headers:{Origin:origin,'Content-Type':'application/json',...headers},body:body===undefined?undefined:JSON.stringify(body)});
  try{
   const login=await request('/api/session','POST',{password}),session=await login.json(),headers={Cookie:login.headers.get('set-cookie')!.split(';')[0]!,'X-AMCP-CSRF':session.csrf};

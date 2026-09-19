@@ -1,3 +1,4 @@
+import {listenForFetch} from '../dist/tests/http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Store} from '../dist/src/store.js';
@@ -42,7 +43,7 @@ for(const role of ['viewer','operator','admin'])test(role+' connector deletion u
   const app=createHttpApp(new MirrorService(new Registry(),f.store),f.store,{website:{origin,masterKey:master,adminPassword:'synthetic-admin-password',authEnv:{}}}),user=f.accounts.newUser('Member',role+'@example.test',null,true);
   f.store.db.prepare('INSERT INTO workspace_memberships VALUES(?,?,?,1,?)').run(f.web.tenantId,user.id,role,Date.now());const session=f.accounts.session(user,f.web.tenantId),id='administrator-connector',token=f.store.createKey({tenantId:f.web.tenantId,userId:'connector/'+id,role:'operator'});
   f.store.putDocument(f.web.tenantId,'website_mcp_token',id,{hash:sha256(token),name:'Owner connector',role:'operator',revoked:false});
-  server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
+  server=await listenForFetch(app);
   const response=await fetch('http://127.0.0.1:'+server.address().port+'/api/connector-tokens/'+id,{method:'DELETE',headers:{Origin:origin,Cookie:f.web.cookie(session.id),'x-amcp-csrf':session.csrf}});
   assert.equal(response.status,role==='admin'?200:403);if(role==='admin')assert.throws(()=>f.store.authenticate(token));else assert.doesNotThrow(()=>f.store.authenticate(token));
  }finally{if(server){server.closeAllConnections();await new Promise(r=>server.close(r));}f.store.close();}

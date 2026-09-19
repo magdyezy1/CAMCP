@@ -572,7 +572,12 @@
           "action": "CREATE_BUILT_IN_VARIABLES",
           "account_id": "123",
           "parent": "accounts/123/containers/456/workspaces/789",
-          "params": {"type": ["pageUrl", "clickId"]}
+          "params": {
+            "type": [
+              "pageUrl",
+              "clickId"
+            ]
+          }
         }
       }
     },
@@ -584,7 +589,34 @@
           "action": "BULK_UPDATE_WORKSPACE",
           "account_id": "123",
           "path": "accounts/123/containers/456/workspaces/789",
-          "payload": {"changes": [{"folder": {"folderId": "new_1", "name": "Reviewed folder"}, "changeStatus": "added"}]}
+          "payload": {
+            "changes": [
+              {
+                "folder": {
+                  "folderId": "new_1",
+                  "name": "Reviewed folder"
+                },
+                "changeStatus": "added"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "google_ads_v23_asset_set_asset_mutate_asset_set_assets",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "assetSet": "customers/123/assetSets/850",
+                "asset": "customers/123/assets/851"
+              }
+            }
+          ]
         }
       }
     }

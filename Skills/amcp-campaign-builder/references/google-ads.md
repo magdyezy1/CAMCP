@@ -75,3 +75,41 @@ are excluded. Real name, targeting, budget, label or text changes still conflict
 ad parameters, signals and exclusions can change existing ads and require spend confirmation.
 After execution, verify the exact resource or deletion. Configuration read-back establishes
 neither serving nor conversion collection; do not retry a lost mutation under a new key.
+
+## Asset sets and feed associations
+
+Reviewed v23 asset-set contracts cover `assetSets:mutate` and create/remove on
+`assetSetAssets:mutate`, `campaignAssetSets:mutate`, `adGroupAssetSets:mutate` and
+`customerAssetSets:mutate`. Both RPC and legacy actions use the same contracts.
+Create the feed, attach its existing assets, then link the feed to its intended scope.
+Asset-set links have provider-owned status; they do not accept a caller PAUSED status.
+They require spend confirmation and respect the owner's activation/deletion restrictions.
+
+Page feeds and the eight dynamic advertiser feed types support creation, name updates,
+membership and campaign links. A static location group requires its exact LOCATION_SYNC
+parent; every location attached manually must already belong to that sync parent.
+Ad-group links accept location sets/groups. Customer links accept LOCATION_SYNC and
+bind the selected customer through the composite resource name. Google does not permit
+selecting `customer_asset_set.customer` in GAQL; AMCP does not issue that invalid query.
+Merchant Center feed settings and Business Profile dynamic-group filters support explicit
+qualified update masks. Full-object replacements verify cleared fields too. Business
+Profile listing IDs use Google's signed int64 representation, which can be negative;
+do not turn these into positive IDs or unsafe JavaScript numbers.
+
+`ASSET_SET_VARIANT_UNQUALIFIED` means that the exact creation variant lacks a complete
+read-back or credential workflow. LOCATION_SYNC creation needs a separate Business
+Profile authorization flow; chain/map filters are not fully selectable in the pinned
+GAQL contract. HOTEL_PROPERTY and TRAVEL_FEED creation also remain unqualified. Do not
+paste OAuth tokens into a payload, select another type to evade the refusal, or call a
+raw mutation. Existing qualified sets can still be used for supported operations.
+
+Preparation captures feed configuration, all current enabled membership, and asset
+content. Reads are paginated and bounded (100 related sets, 1,000 resources per query,
+100 pages per query, 300 requests, 16 MiB read/8 MiB retained state). It rechecks set
+configuration and membership after reading content. A failed, truncated, foreign or
+changing read refuses preparation. Labels and membership are compared as sets; ordered
+fields keep their order. Real URL/content/member changes invalidate the review.
+External Merchant Center inventory and future location synchronization are not frozen by
+an AMCP review. Read-back verifies the submitted configuration/link, not feed processing,
+provider approval, destination quality or ad delivery. Keep the original idempotency key
+after a lost response and reconcile before preparing any correction.

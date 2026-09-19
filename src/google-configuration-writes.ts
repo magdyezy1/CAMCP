@@ -1,5 +1,6 @@
 import {MirrorError} from './errors.js';
 import {googleJson} from './google-contracts.js';
+import {googleAssetSetFields,googleFeedFields,assertAssetSetRecord,assetSetExtraSnapshots,validateAssetSetPrerequisites,assetSetObserved,assetSetCanonical,assetSetExactFields} from './google-asset-set-writes.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -11,6 +12,8 @@ const group=reference('adGroup','adGroups','ad_group',['name','status','campaign
 const criterion=reference('adGroupCriterion','adGroupCriteria','ad_group_criterion',['ad_group','type','status','negative','keyword.text','keyword.match_type'],2);
 const label=reference('label','labels','label',['name','status','text_label.background_color','text_label.description']);
 const attribute=reference('customizerAttribute','customizerAttributes','customizer_attribute',['name','type','status']);
+const assetSet=reference('assetSet','assetSets','asset_set',googleAssetSetFields);
+const feedAsset=reference('asset','assets','asset',googleFeedFields);
 const descriptor=(resource:string,collection:string,create:string[],required:string[],mutable:string[],fields:string[],options:Partial<Contract>={}):Contract=>({resource,collection,parts:1,create,required,mutable,fields,references:[],serving:false,...options});
 const association=(resource:string,collection:string,parent:Reference)=>descriptor(resource,collection,[parent.field,'label'],[parent.field,'label'],[],[snake(parent.field),'label'],{parts:parent.parts+1,references:[parent,label],identity:[parent.field,'label']});
 const customizer=(resource:string,collection:string,parent?:Reference)=>descriptor(resource,collection,[...(parent?[parent.field]:[]),'customizerAttribute','value'],[...(parent?[parent.field]:[]),'customizerAttribute','value'],[],[...(parent?[snake(parent.field)]:[]),'customizer_attribute','value.type','value.string_value','status'],{parts:(parent?.parts??0)+1,references:[...(parent?[parent]:[]),attribute],identity:[...(parent?[parent.field]:[]),'customizerAttribute'],serving:true});
@@ -19,6 +22,11 @@ const customizer=(resource:string,collection:string,parent?:Reference)=>descript
 // Discovery validates wire fields/enums; the checked GAQL reference fixture validates reads.
 // A mapped mutation outside this table does not gain execution permission.
 export const googleConfigurationContracts:Record<string,Contract>={
+ assetSets:descriptor('asset_set','assetSets',['name','type','merchantCenterFeed','locationGroupParentAssetSetId','businessProfileLocationGroup'],['name','type'],['name','merchantCenterFeed','merchantCenterFeed.merchantId','merchantCenterFeed.feedLabel','businessProfileLocationGroup','businessProfileLocationGroup.dynamicBusinessProfileLocationGroupFilter','businessProfileLocationGroup.dynamicBusinessProfileLocationGroupFilter.businessNameFilter','businessProfileLocationGroup.dynamicBusinessProfileLocationGroupFilter.labelFilters','businessProfileLocationGroup.dynamicBusinessProfileLocationGroupFilter.listingIdFilters'],googleAssetSetFields,{serving:true}),
+ assetSetAssets:descriptor('asset_set_asset','assetSetAssets',['assetSet','asset'],['assetSet','asset'],[],['asset_set','asset','status'],{parts:2,references:[assetSet,feedAsset],identity:['assetSet','asset'],serving:true}),
+ campaignAssetSets:descriptor('campaign_asset_set','campaignAssetSets',['campaign','assetSet'],['campaign','assetSet'],[],['campaign','asset_set','status'],{parts:2,references:[campaign,assetSet],identity:['campaign','assetSet'],serving:true}),
+ adGroupAssetSets:descriptor('ad_group_asset_set','adGroupAssetSets',['adGroup','assetSet'],['adGroup','assetSet'],[],['ad_group','asset_set','status'],{parts:2,references:[group,assetSet],identity:['adGroup','assetSet'],serving:true}),
+ customerAssetSets:descriptor('customer_asset_set','customerAssetSets',['customer','assetSet'],['assetSet'],[],['asset_set','status'],{references:[assetSet],identity:['assetSet'],serving:true}),
  labels:descriptor('label','labels',['name','textLabel'],['name'],['name','textLabel','textLabel.backgroundColor','textLabel.description'],['name','status','text_label.background_color','text_label.description']),
  campaignLabels:association('campaign_label','campaignLabels',campaign),
  adGroupLabels:association('ad_group_label','adGroupLabels',group),
@@ -64,7 +72,8 @@ function keys(value:JsonObject,allowed:string[]){for(const key of Object.keys(va
 function text(value:unknown,field:string,max:number,empty=false){if(typeof value!=='string'||!empty&&!value.trim()||typeof value==='string'&&([...value].length>max||/[\u0000\r\n]/.test(value)))invalid(field+' requires '+(empty?'at most ':'1–')+max+' characters without line breaks.');}
 const leaves=(v:JsonObject,prefix=''):string[]=>Object.entries(v).flatMap(([k,x])=>object(x)&&Object.keys(x).length?leaves(x,prefix+k+'.'):[prefix+k]);
 function validateRecord(kind:string,c:Contract,r:JsonObject,creating:boolean){
- if(r.name!==undefined){text(r.name,'name',kind==='labels'?80:kind==='customizerAttributes'?40:kind==='conversionCustomVariables'?100:255);if(kind==='conversionCustomVariables'&&r.name!==r.name.trim())invalid('Conversion variable names cannot have surrounding spaces.');}
+ if(r.name!==undefined){text(r.name,'name',kind==='assetSets'?128:kind==='labels'?80:kind==='customizerAttributes'?40:kind==='conversionCustomVariables'?100:255);if(kind==='conversionCustomVariables'&&r.name!==r.name.trim())invalid('Conversion variable names cannot have surrounding spaces.');}
+ if(kind==='assetSets')assertAssetSetRecord(r,creating);
  if(r.textLabel!==undefined){if(!object(r.textLabel))invalid('textLabel must be an object.');keys(r.textLabel,['backgroundColor','description']);if(r.textLabel.backgroundColor!==undefined&&!/^#(?:[a-fA-F0-9]{6}|[a-fA-F0-9]{3})$/.test(r.textLabel.backgroundColor))invalid('Use a 3- or 6-digit label HEX color.');if(r.textLabel.description!==undefined)text(r.textLabel.description,'textLabel.description',200,true);}
  if(kind==='customizerAttributes'&&!['TEXT','NUMBER','PRICE','PERCENT'].includes(r.type))invalid('Choose a declared customizer attribute type.');
  if(r.value!==undefined){if(!object(r.value))invalid('value must be a CustomizerValue object.');keys(r.value,['type','stringValue']);if(!['TEXT','NUMBER','PRICE','PERCENT'].includes(r.value.type)||typeof r.value.stringValue!=='string'||!r.value.stringValue.trim())invalid('A customizer value requires type and nonempty stringValue; the provider enforces native formatting.');}
@@ -108,6 +117,7 @@ export function assertGoogleConfiguration(p:CompiledRequest):void{
    if(mask.some((f:string)=>get(r,f)===undefined||get(r,f)===null)||values.some(f=>!mask.some((m:string)=>f===m||f.startsWith(m+'.'))))invalid('Every changed value must be covered by the mask, and every mask field must have an explicit value.');
   }else if(op.updateMask!==undefined)invalid('A remove does not accept updateMask.');
   if(r){validateRecord(kind,c,r,!!op.create);for(const ref of c.references){const value=get(r,ref.field);if(value!==undefined)resource(value,p,ref.collection,ref.parts);}}
+  if(kind==='customerAssetSets'&&r?.customer!==undefined&&r.customer!=='customers/'+account(p))invalid('The customer link must use the selected customer.');
   const name=identity(p,c,op);if(name){if(seen.has(name))invalid('Each configuration target may occur only once per review.');seen.add(name);}
   if(kind==='adParameters'&&name&&!/[~][12]$/.test(name))invalid('Ad parameter resource names must end with parameter index 1 or 2.');
  }
@@ -132,10 +142,12 @@ export function googleConfigurationSnapshots(p:CompiledRequest):CompiledRequest[
  const groups=new Map<Reference,string[]>();
  for(const op of ops)for(const {ref,name}of references(p,c,op)){const list=groups.get(ref)??[];list.push(name);groups.set(ref,list);}
  for(const [ref,names]of groups)reads.push(search(p,ref.resource,ref.fields,names));
+ reads.push(...assetSetExtraSnapshots(p));
  return reads;
 }
 export function validateGoogleConfigurationState(p:CompiledRequest,states:unknown[],preparing=false):void{
  const kind=googleConfigurationKind(p);if(!kind)return;const c=googleConfigurationContracts[kind]!,ops=googleJson(p.body).operations as JsonObject[];
+ validateAssetSetPrerequisites(p,states);
  const rows=states.flatMap(s=>(s as JsonObject)?.results??[]).flatMap(row=>Object.values(googleJson(row))) as JsonObject[];
  for(const op of ops){
   const name=identity(p,c,op),found=name?rows.find(r=>r.resourceName===name):undefined;
@@ -167,13 +179,20 @@ export function googleConfigurationVerification(p:CompiledRequest,result:JsonObj
  const c=googleConfigurationContracts[googleConfigurationKind(p)!]!,ops=googleJson(p.body).operations as JsonObject[];
  return ops.map((op,i)=>{const id=resource(result.data.results[i].resourceName,p,c.collection,c.parts),expected:JsonObject=op.remove?{status:'REMOVED'}:{...op.create??op.update,resourceName:id};
   if(c.collection==='labels'&&op.update?.textLabel&&op.updateMask.split(',').includes('textLabel'))expected.textLabel={backgroundColor:'',description:'',...op.update.textLabel};
-  return {id,expected,read:search(p,c.resource,c.fields,[id],!!op.remove,!!op.remove)};
+  if(c.collection==='customerAssetSets')delete expected.customer; // GAQL cannot select customer; the scoped resource name binds it.
+  const read=search(p,c.resource,c.fields,[id],!!op.remove,!!op.remove),normalized=c.resource==='asset_set'&&op.update?assetSetCanonical(expected):assetSetObserved(c.resource,expected);
+  if(c.resource==='asset_set'&&op.update){const fields=op.updateMask.split(',').filter((f:string)=>object(get(op.update,f)));if(fields.length){
+   const defaults=assetSetObserved(c.resource,expected);for(const field of fields){const path=field.split('.');let node=normalized;for(const key of path.slice(0,-1))node=node[key]??={};node[path.at(-1)!]=get(defaults,field);}
+   read.googleState!.exactFields=fields;normalized.amcpExactFieldHashes=assetSetExactFields(normalized,fields);
+  }}
+  return {id,expected:normalized,read};
  });
 }
 export function googleConfigurationObserved(read:CompiledRequest,value:JsonObject):JsonObject{
  // ProtoJSON omits default strings after a cleared text-label field. This applies
  // only to documented optional label strings, never unknown fields or identities.
  if(read.action==='AMCP_CONFIG_READ'&&read.googleState?.resource==='label'&&value?.resourceName)return {...value,textLabel:{backgroundColor:'',description:'',...value.textLabel}};
- return value;
+ const normalized=assetSetObserved(read.googleState?.resource??'',value);
+ return read.googleState?.exactFields?{...normalized,amcpExactFieldHashes:assetSetExactFields(normalized,read.googleState.exactFields)}:normalized;
 }
-export function googleConfigurationServing(p:CompiledRequest):boolean{const kind=googleConfigurationKind(p);return !!kind&&googleConfigurationContracts[kind]!.serving&&(kind!=='customizerAttributes'||googleJson(p.body).operations.some((o:JsonObject)=>o.remove));}
+export function googleConfigurationServing(p:CompiledRequest):boolean{const kind=googleConfigurationKind(p);return !!kind&&googleConfigurationContracts[kind]!.serving&&(kind!=='customizerAttributes'||googleJson(p.body).operations.some((o:JsonObject)=>o.remove))&&(kind!=='assetSets'||googleJson(p.body).operations.some((o:JsonObject)=>!o.create));}

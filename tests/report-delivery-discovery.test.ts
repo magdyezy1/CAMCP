@@ -1,3 +1,4 @@
+import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -39,8 +40,8 @@ test('Google hierarchy repeated pagination is a visible incomplete sync, not a c
  const store=new Store(':memory:',key);try{store.putConnection(actor,google,credentials);const discovery=new AssetDiscovery(store,async(url,init)=>String(url).endsWith(':listAccessibleCustomers')?json({resourceNames:['customers/300']}):String(init?.body).includes('FROM customer_client')?json({results:[child('301','CANCELED')],nextPageToken:'repeat'}):json({results:[{customer:rootRow('300',true)}]}));const g=(await discovery.sync(google)).groups[0]!;assert.equal(g.complete,false);assert.match(g.error!,/page token/);}finally{store.close();}
 });
 test('website selection saves a cancelled Google account with its verified manager and transport uses that manager',async()=>{
- const store=new Store(':memory:',key),f=googleFixture(),service=new MirrorService(new Registry(),store),origin='https://amcp.shop',app=createHttpApp(service,store,{website:{origin,masterKey:key,adminPassword:'synthetic-test-password',fetcher:f.fetcher}}),server=app.listen(0,'127.0.0.1');
- await new Promise<void>(r=>server.once('listening',r));const base='http://127.0.0.1:'+(server.address() as {port:number}).port;
+ const store=new Store(':memory:',key),f=googleFixture(),service=new MirrorService(new Registry(),store),origin='https://amcp.shop',app=createHttpApp(service,store,{website:{origin,masterKey:key,adminPassword:'synthetic-test-password',fetcher:f.fetcher}}),server=await listenForFetch(app);
+ const base='http://127.0.0.1:'+(server.address() as {port:number}).port;
  try{
   store.putConnection(actor,google,credentials);const login=await fetch(base+'/api/session',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({password:'synthetic-test-password'})});const data=await login.json() as JsonObject,headers={Origin:origin,'Content-Type':'application/json',Cookie:login.headers.get('set-cookie')!.split(';')[0]!,'X-AMCP-CSRF':data.csrf};
   const sync=await fetch(base+'/api/connections/google-test/sync',{method:'POST',headers,body:'{}'});assert.equal(sync.status,200);await sync.json();

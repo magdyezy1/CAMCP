@@ -1,3 +1,4 @@
+import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -104,8 +105,8 @@ test('Google diagnostics distinguish project approval, ambiguous v23 authorizati
 test('Connections and Activity expose safe Google sync diagnostics behind authentication and preserve prior selection',async()=>{
  const store=new Store(':memory:',key),f=fixture(),origin='https://amcp.shop';
  store.putConnection(actor,connection,credentials);
- const service=new MirrorService(new Registry(),store),app=createHttpApp(service,store,{website:{origin,masterKey:key,adminPassword:'synthetic-sync-password',fetcher:f.fetcher}}),server=app.listen(0,'127.0.0.1');
- await new Promise<void>(r=>server.once('listening',r));const base='http://127.0.0.1:'+(server.address() as {port:number}).port;
+ const service=new MirrorService(new Registry(),store),app=createHttpApp(service,store,{website:{origin,masterKey:key,adminPassword:'synthetic-sync-password',fetcher:f.fetcher}}),server=await listenForFetch(app);
+ const base='http://127.0.0.1:'+(server.address() as {port:number}).port;
  try{
   assert.equal((await fetch(base+'/api/activity')).status,401);
   const login=await fetch(base+'/api/session',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({password:'synthetic-sync-password'})});

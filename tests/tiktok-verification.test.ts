@@ -1,3 +1,4 @@
+import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -13,9 +14,9 @@ test('TikTok root verification serves the exact downloaded bytes without authent
  assert.equal(createHash('sha256').update(expected).digest('hex'),'122f458611b4f20fb6a6e786166b80da6003023518358405d0f4d03bb75971a9');
  const master=Buffer.alloc(32,61).toString('base64'),store=new Store(':memory:',master);
  const app=createHttpApp(new MirrorService(new Registry(),store),store,{website:{origin:'https://amcp.shop',masterKey:master,fetcher:async()=>{throw Error('Unexpected provider request');}}});
- const server=app.listen(0,'127.0.0.1');
+ const server=await listenForFetch(app);
  try{
-  await new Promise<void>(resolve=>server.once('listening',resolve));
+
   const base='http://127.0.0.1:'+(server.address() as {port:number}).port;
   const response=await fetch(base+'/'+filename,{redirect:'manual'}),actual=Buffer.from(await response.arrayBuffer());
   assert.equal(response.status,200);

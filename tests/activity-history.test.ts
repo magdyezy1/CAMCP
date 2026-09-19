@@ -1,3 +1,4 @@
+import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Store} from '../src/store.js';
@@ -26,8 +27,8 @@ test('recent activity selects the newest tenant rows before limiting, without ch
 
 test('Activity includes fresh reauthorization diagnostics after more than 100 events and excludes other tenants and secrets',async()=>{
  const store=new Store(':memory:',key),service=new MirrorService(new Registry(),store),origin='https://amcp.shop';
- const listener=createHttpApp(service,store,{website:{origin,masterKey:key,adminPassword:'synthetic-activity-password',tenantId:'workspace-a',fetcher:async()=>{throw Error('Unexpected provider request');}}}).listen(0,'127.0.0.1');
- await new Promise<void>(resolve=>listener.once('listening',resolve));
+ const listener=await listenForFetch(createHttpApp(service,store,{website:{origin,masterKey:key,adminPassword:'synthetic-activity-password',tenantId:'workspace-a',fetcher:async()=>{throw Error('Unexpected provider request');}}}));
+
  const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
  const request=async(path:string,init?:RequestInit)=>{const response=await fetch(base+path,{redirect:'manual',...init}),bytes=await response.arrayBuffer();return new Response(bytes,{status:response.status,headers:response.headers});};
  try{

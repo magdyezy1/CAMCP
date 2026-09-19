@@ -1,3 +1,4 @@
+import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Store} from '../src/store.js';
@@ -13,8 +14,8 @@ const blocked:typeof fetch=async()=>{throw Error('Unexpected vendor egress');};
 
 async function site(){
  const store=new Store(':memory:',master),service=new MirrorService(new Registry(),store);
- const listener=createHttpApp(service,store,{website:{origin,masterKey:master,adminPassword:password,testPassword,fetcher:blocked}}).listen(0,'127.0.0.1');
- await new Promise<void>(r=>listener.once('listening',r));
+ const listener=await listenForFetch(createHttpApp(service,store,{website:{origin,masterKey:master,adminPassword:password,testPassword,fetcher:blocked}}));
+
  const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
  const request=async(url:string,method='GET',body?:unknown,headers:Record<string,string>={})=>{
   const response=await fetch(base+url,{method,redirect:'manual',headers:{Origin:origin,...(body===undefined?{}:{'Content-Type':'application/json'}),...headers},body:body===undefined?undefined:JSON.stringify(body)});

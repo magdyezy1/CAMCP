@@ -1,3 +1,4 @@
+import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash,randomBytes} from 'node:crypto';
@@ -16,8 +17,8 @@ const connection:Connection={id:'write-access-synthetic',tenantId:'local',gatewa
 const blocked:typeof fetch=async()=>{throw Error('No vendor network requests are permitted in access tests.');};
 async function site(allowWrites:boolean){
  const store=new Store(':memory:',master),service=new MirrorService(new Registry(),store,undefined,undefined,{allowWrites,maxBudgetChange:0,requireBeforeState:true});
- const listener=createHttpApp(service,store,{website:{origin,masterKey:master,adminPassword:password,fetcher:blocked}}).listen(0,'127.0.0.1');
- await new Promise<void>(resolve=>listener.once('listening',resolve));const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
+ const listener=await listenForFetch(createHttpApp(service,store,{website:{origin,masterKey:master,adminPassword:password,fetcher:blocked}}));
+ const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
  const request=(url:string,method='GET',body?:unknown,headers:Record<string,string>={})=>fetch(base+url,{method,redirect:'manual',headers:{Origin:origin,...(body===undefined?{}:{'Content-Type':'application/json'}),...headers},body:body===undefined?undefined:JSON.stringify(body)});
  const login=await request('/api/session','POST',{password}),session=await login.json();assert.equal(login.status,200);
  const headers={Cookie:login.headers.get('set-cookie')!.split(';')[0]!,'X-AMCP-CSRF':session.csrf as string};

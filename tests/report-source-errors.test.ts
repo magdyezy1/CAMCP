@@ -1,3 +1,4 @@
+import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -73,8 +74,8 @@ test('provider diagnostics distinguish Google app restrictions and safely projec
 });
 test('Activity exposes diagnostic fields for historical Google failures while preserving session protection',async()=>{
  const f=fixture(()=>json(googleFailure(),403)),origin='https://amcp.shop';
- const app=createHttpApp(f.service,f.store,{publicOrigin:origin,website:{origin,masterKey:key,adminPassword:'synthetic-smoke-password',tenantId:actor.tenantId,authEnv:{}}}),listener=app.listen(0,'127.0.0.1');
- await new Promise<void>(resolve=>listener.once('listening',resolve));const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
+ const app=createHttpApp(f.service,f.store,{publicOrigin:origin,website:{origin,masterKey:key,adminPassword:'synthetic-smoke-password',tenantId:actor.tenantId,authEnv:{}}}),listener=await listenForFetch(app);
+ const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
  try{
   f.store.appendAudit(actor.tenantId,'historical-read',{event:'request_failed',request:{gateway:'google_ads_native_action',action:'AMCP_READINESS',method:'POST',path:'/v23/customers/1234567890/googleAds:search',accountId:source.account_id},error:{code:'INSUFFICIENT_SCOPE',message:'Platform returned HTTP 403',details:{upstream:googleFailure()}}});
   assert.equal((await fetch(base+'/api/activity')).status,401);

@@ -456,6 +456,186 @@
           "repeated": false
         }
       }
+    },
+    "asset_set": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/asset_set",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "0f0ce4fd768717f58f250ac840d7378762fe4700585d0f0e880fdc6db3201dc7",
+      "fields": {
+        "location_set.business_profile_location_set.business_name_filter": {
+          "selectable": true,
+          "repeated": false
+        },
+        "location_set.business_profile_location_set.label_filters": {
+          "selectable": true,
+          "repeated": true
+        },
+        "location_set.business_profile_location_set.listing_id_filters": {
+          "selectable": true,
+          "repeated": true
+        },
+        "location_set.chain_location_set.relationship_type": {
+          "selectable": true,
+          "repeated": false
+        },
+        "location_set.location_ownership_type": {
+          "selectable": true,
+          "repeated": false
+        },
+        "merchant_center_feed.feed_label": {
+          "selectable": true,
+          "repeated": false
+        },
+        "merchant_center_feed.merchant_id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        },
+        "type": {
+          "selectable": true,
+          "repeated": false
+        },
+        "business_profile_location_group.dynamic_business_profile_location_group_filter.business_name_filter.business_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "business_profile_location_group.dynamic_business_profile_location_group_filter.business_name_filter.filter_type": {
+          "selectable": true,
+          "repeated": false
+        },
+        "business_profile_location_group.dynamic_business_profile_location_group_filter.label_filters": {
+          "selectable": true,
+          "repeated": true
+        },
+        "business_profile_location_group.dynamic_business_profile_location_group_filter.listing_id_filters": {
+          "selectable": true,
+          "repeated": true
+        },
+        "hotel_property_data.hotel_center_id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "hotel_property_data.partner_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "location_group_parent_asset_set_id": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "asset_set_asset": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/asset_set_asset",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "53e5f44b6b6a35dabb35c7ce25a0520eea427d28641df7735cc7ba0e305bc764",
+      "fields": {
+        "asset_set": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        },
+        "asset": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "campaign_asset_set": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/campaign_asset_set",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "bc85f2c774ef19a42c9990fa9ff1d1089858fd3f8537b50a1dc0c6e431d4b31a",
+      "fields": {
+        "asset_set": {
+          "selectable": true,
+          "repeated": false
+        },
+        "campaign": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "ad_group_asset_set": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/ad_group_asset_set",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "d601210b7ac9058a80b0ce87d6b5c995c16226c913fcf473d0ba87a3be86c179",
+      "fields": {
+        "ad_group": {
+          "selectable": true,
+          "repeated": false
+        },
+        "asset_set": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "customer_asset_set": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/customer_asset_set",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "c485d710dd68191dbfe843b3d6bf70e056091b602e9c7e167a4716e21ba04ae3",
+      "fields": {
+        "asset_set": {
+          "selectable": true,
+          "repeated": false
+        },
+        "customer": {
+          "selectable": false,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
     }
   }
 }

@@ -1,3 +1,4 @@
+import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
@@ -9,8 +10,8 @@ import {createHttpApp} from '../server/http-app.js';
 test('real HTTP MCP enforces bearer, origin and body limits and serves SDK tools',async()=>{
  const store=new Store(':memory:'),service=new MirrorService(new Registry(),store);
  const key=store.createKey({tenantId:'http-test',userId:'r',role:'reader'});
- const listener=createHttpApp(service,store,{maxBodyBytes:8192}).listen(0,'127.0.0.1');
- await new Promise<void>(r=>listener.once('listening',r));const address=listener.address() as {port:number},url=new URL('http://127.0.0.1:'+address.port+'/mcp');
+ const listener=await listenForFetch(createHttpApp(service,store,{maxBodyBytes:8192}));
+ const address=listener.address() as {port:number},url=new URL('http://127.0.0.1:'+address.port+'/mcp');
  const client=new Client({name:'http-integration',version:'1'});
  try{
   assert.equal((await fetch(url,{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}})).status,401);

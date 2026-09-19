@@ -29,9 +29,10 @@
     "check:web": "node tools/check-web.mjs",
     "providers:check": "node dist/tools/provider-drift.js",
     "release:assemble": "node tools/prepare-public-release.mjs",
-    "check": "npm run generate:check && npm run generate:vendor:check && npm run generate:wsdl:check && npm test && npm run test:capture && npm run report && npm run check:web && npm run providers:check && npm run providers:lifecycle && npm run contracts:check && npm run contracts:actions:check",
+    "check": "npm run generate:check && npm run generate:vendor:check && npm run generate:wsdl:check && npm run generate:feeds:check && npm test && npm run test:capture && npm run report && npm run check:web && npm run providers:check && npm run providers:lifecycle && npm run contracts:check && npm run contracts:actions:check",
     "contracts:actions": "npm run build && node dist/tools/action-contracts.js",
-    "contracts:actions:check": "node dist/tools/action-contracts.js --check"
+    "contracts:actions:check": "node dist/tools/action-contracts.js --check",
+    "generate:feeds:check": "node tools/google-asset-set-fields.mjs --check"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

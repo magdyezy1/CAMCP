@@ -1,3 +1,4 @@
+import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -87,8 +88,8 @@ test('report account choices use selected account names and keep the login label
 });
 
 test('the CSV endpoint rejects empty, failed and unfinished reports as JSON without an attachment header',async()=>{
- const f=fixture(()=>({data:[]})),origin='https://amcp.shop',app=createHttpApp(f.service,f.store,{publicOrigin:origin,website:{origin,masterKey:key,adminPassword:'synthetic-test-password',tenantId:actor.tenantId,authEnv:{}}}),listener=app.listen(0,'127.0.0.1');
- await new Promise<void>(resolve=>listener.once('listening',resolve));const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
+ const f=fixture(()=>({data:[]})),origin='https://amcp.shop',app=createHttpApp(f.service,f.store,{publicOrigin:origin,website:{origin,masterKey:key,adminPassword:'synthetic-test-password',tenantId:actor.tenantId,authEnv:{}}}),listener=await listenForFetch(app);
+ const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
  try{
   const report=await f.run(),url=base+'/api/reporting-overview/'+report.id+'.csv';assert.equal((await fetch(url)).status,401);
   const login=await fetch(base+'/api/session',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({password:'synthetic-test-password'})});await login.text();const headers={Cookie:login.headers.get('set-cookie')!.split(';')[0]!};

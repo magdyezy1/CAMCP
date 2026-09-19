@@ -1,3 +1,4 @@
+import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
@@ -105,8 +106,8 @@ async function website(denyFresh=false){
   if(denyFresh||new Headers(init?.headers).get('Authorization')==='Bearer old-access-token')return Response.json(failure,{status:403});
   return available()(url,init);
  };
- const service=new MirrorService(new Registry(),store,undefined,strictOptions,{...readOnlyPolicy,allowWrites:true}),app=createHttpApp(service,store,{website:{origin,masterKey:key,adminPassword:password,fetcher,authEnv:env}}),server=app.listen(0,'127.0.0.1');
- await new Promise<void>(r=>server.once('listening',r));const base='http://127.0.0.1:'+(server.address() as {port:number}).port;
+ const service=new MirrorService(new Registry(),store,undefined,strictOptions,{...readOnlyPolicy,allowWrites:true}),app=createHttpApp(service,store,{website:{origin,masterKey:key,adminPassword:password,fetcher,authEnv:env}}),server=await listenForFetch(app);
+ const base='http://127.0.0.1:'+(server.address() as {port:number}).port;
  const request=async(url:string,method='GET',body?:unknown,headers:Record<string,string>={})=>{const r=await fetch(base+url,{method,redirect:'manual',headers:{Origin:origin,...(body===undefined?{}:{'Content-Type':'application/json'}),...headers},body:body===undefined?undefined:JSON.stringify(body)}),bytes=await r.arrayBuffer();return new Response(bytes,{status:r.status,headers:r.headers});};
  const login=await request('/api/session','POST',{password}),cookie=login.headers.get('set-cookie')!.split(';')[0]!,csrf=(await login.json()).csrf,headers={Cookie:cookie,'X-AMCP-CSRF':csrf};
  const start=async()=>{const r=await request('/api/connections/'+connection.id+'/reauthorize','POST',undefined,headers);assert.equal(r.status,200);return await r.json() as JsonObject;};

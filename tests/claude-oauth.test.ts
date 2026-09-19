@@ -1,3 +1,4 @@
+import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash,randomBytes} from 'node:crypto';
@@ -19,8 +20,8 @@ const master=Buffer.alloc(32,81).toString('base64'),password='synthetic-claude-t
 const registration={client_name:'Claude',redirect_uris:[redirect],token_endpoint_auth_method:'client_secret_post',grant_types:['authorization_code','refresh_token'],response_types:['code']};
 async function site(){
  const store=new Store(':memory:',master),service=new MirrorService(new Registry(),store);
- const listener=createHttpApp(service,store,{publicOrigin:origin,website:{origin,masterKey:master,adminPassword:password,fetcher:async()=>{throw Error('No provider traffic allowed');}}}).listen(0,'127.0.0.1');
- await new Promise<void>(r=>listener.once('listening',r));const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
+ const listener=await listenForFetch(createHttpApp(service,store,{publicOrigin:origin,website:{origin,masterKey:master,adminPassword:password,fetcher:async()=>{throw Error('No provider traffic allowed');}}}));
+ const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
  const request=async(url:string,method='GET',body?:unknown,headers:Record<string,string>={})=>{
   const form=body instanceof URLSearchParams;
   const response=await fetch(base+url,{method,redirect:'manual',headers:{Origin:origin,...(body===undefined?{}:{'Content-Type':form?'application/x-www-form-urlencoded':'application/json'}),...headers},body:body===undefined?undefined:form?body:JSON.stringify(body)});

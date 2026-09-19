@@ -1,3 +1,4 @@
+import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomBytes,createHash} from 'node:crypto';
@@ -17,8 +18,8 @@ const c:Connection={id:'synthetic-meta',tenantId:'local',gateway:'meta_native_ac
 const json=(value:unknown)=>new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}});
 const blocked:typeof fetch=async()=>{throw Error('Unexpected vendor egress');};
 async function site(fetcher:typeof fetch=blocked){
- const store=new Store(':memory:',master),service=new MirrorService(new Registry(),store),listener=createHttpApp(service,store,{website:{origin,masterKey:master,adminPassword:password,fetcher}}).listen(0,'127.0.0.1');
- await new Promise<void>(r=>listener.once('listening',r));const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
+ const store=new Store(':memory:',master),service=new MirrorService(new Registry(),store),listener=await listenForFetch(createHttpApp(service,store,{website:{origin,masterKey:master,adminPassword:password,fetcher}}));
+ const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
  // Consume each network body before fixture teardown; leaving it unread can race
  // socket shutdown in Node's HTTP parser. Return a detached response to assertions.
  const request=async(url:string,method='GET',body?:unknown,headers:Record<string,string>={})=>{

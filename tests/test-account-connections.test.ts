@@ -1,3 +1,4 @@
+import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Store} from '../src/store.js';
@@ -39,8 +40,8 @@ async function site(kind:'shared'|'named'='shared',allowWrites=false){
  const options={origin,masterKey:master,adminPassword:password,testPassword,authEnv,fetcher};
  const web=new WebStore(store,options),accounts=new UserAccounts(web);
  const service=new MirrorService(new Registry(),store,undefined,undefined,{...readOnlyPolicy,allowWrites});
- const listener=createHttpApp(service,store,{website:options}).listen(0,'127.0.0.1');
- await new Promise<void>(r=>listener.once('listening',r));
+ const listener=await listenForFetch(createHttpApp(service,store,{website:options}));
+
  const base='http://127.0.0.1:'+(listener.address() as {port:number}).port;
  const request=async(path:string,method='GET',body?:unknown,headers:Headers={})=>{
   const r=await fetch(base+path,{method,redirect:'manual',headers:{Origin:origin,...(body===undefined?{}:{'Content-Type':'application/json'}),...headers},body:body===undefined?undefined:JSON.stringify(body)});
