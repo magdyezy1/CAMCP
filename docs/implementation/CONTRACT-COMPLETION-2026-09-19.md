@@ -1198,3 +1198,71 @@ Source manifest: 490 files, SHA-256
 Exact output is retained in `.runtime/contract-completion-20260919/install-y.log`
 and `release-check-y.log`. No required-FFmpeg, container or live-provider claim
 is inferred from this successful local command.
+
+## Google bidding seasonality adjustments and data exclusions
+
+X draft contracts are pushed as `693c40c`. Both captured v23 event mutation RPCs
+now implement atomic create/update/remove with exact native fields and masks,
+selected-client ownership, provider Ads scopes, account-local date/DST validation,
+complete old/new campaign scopes, budgets and local portfolio targets/bid limits.
+The 23 selectable event fields are extracted from official public v23 reference
+text into a checked fixture with source URL, date and source-content hash. Native
+requests continue through pinned Discovery validation and ProtoJSON transport.
+
+The review includes both complete event histories and rechecks them after parent
+reads. Known campaign/channel/device sets are unordered; unknown arrays remain
+ordered. Query cost and pagination envelopes are excluded only after completeness
+validation. Creation receipts must have new exact-customer resource identities.
+Read-back compares full configuration and explicit clearing, or complete collection
+absence after removal. Success does not certify bid learning, auction effects,
+future channel members or conversion repair. Uncertain writes retain durable claims.
+
+Business restrictions are explicit: client customers only, API-supported CHANNEL
+values, qualified Smart Bidding campaign types, no App beta or cross-customer
+portfolio assumptions. Google website manager-account support is not an API
+contract. Data exclusions use click dates and leave reporting intact; future outage
+definitions are allowed as documented in Google help, but never invented by AMCP.
+New seasonality starts must be future. Both boundaries must be unambiguous in the
+account timezone and span at most 14 elapsed days. Empty devices means all devices.
+Every operation requires spending-impact confirmation and respects activation and
+deletion policies. Neither event type changes monetary budgets directly.
+
+Bounds: 25 mutations, 1000 historical events per kind, 2000 current campaigns,
+25 pages per collection, 128 reads, 10000 total rows, 4 MiB/response, 8 MiB total,
+60-second monotonic deadline, plus Google's 500-active-exclusion constraint.
+Creation reserves history capacity for read-back even if a removed row remains.
+The whole history snapshot deliberately makes concurrent unrelated event edits
+conflict; this is a known conservative limit rather than hidden pagination loss.
+
+Sources checked 2026-09-19: Google v23
+[seasonality](https://developers.google.com/google-ads/api/fields/v23/bidding_seasonality_adjustment),
+[exclusion](https://developers.google.com/google-ads/api/fields/v23/bidding_data_exclusion)
+and [portfolio](https://developers.google.com/google-ads/api/fields/v23/bidding_strategy)
+field references; official
+[seasonality API guide](https://developers.google.com/google-ads/api/docs/campaigns/bidding/seasonality-adjustments),
+[exclusion API guide](https://developers.google.com/google-ads/api/docs/campaigns/bidding/data-exclusions),
+[seasonality eligibility](https://support.google.com/google-ads/answer/10369906)
+and [data-exclusion guidance](https://support.google.com/google-ads/answer/10370710).
+No live Ads request occurred.
+
+Initial TypeScript checks found missing explicit dictionary annotations, corrected
+without changing runtime checks. `google-events-first.log` retains 20 passes and
+one failing test: skip_preflight is an unsupported native parameter, so the fixture
+did not reach the intended review guard. Separate tests now assert both rejections.
+`google-events-expanded.log` passed 65 tests, including 26 event tests covering full
+lifecycle, clearing, scope transfers, DST, telemetry, real conflicts, complete pages,
+capacity, grants, policies, foreign/partial/lost receipts, concurrency and restart.
+Generated contracts, guidance and the full sanitized candidate Z follow. Live
+eligibility, provider edit-time rules, FFmpeg-required and container checks remain
+unverified. Other provider families remain explicitly open in the action ledger.
+
+Candidate Z completed the sanitized `npm ci --ignore-scripts --no-audit --no-fund`
+and `npm run check` with exit 0. It passed 1,066 tests with zero failures and one
+FFmpeg skip; all four capture tests and subsequent generated, guidance, provider
+and release checks passed. Final qualification passed 37 tests, including 26 event
+tests. Logs: `.runtime/contract-completion-20260919/install-z.log`,
+`release-check-z.log`, `google-events-qualified.log`. Candidate manifest SHA-256:
+`fab4c10246634a8bb541b14ec2d0c0b189d13135a7a4556600279f9cd22ee401`
+(494 files). A later unregistered DV360 search draft is excluded. The ledger now
+contains 391 reviewed-family rows and 923 blocked writes; 104 unmapped actions,
+31 unqualified reads and the other previously recorded limitations remain.

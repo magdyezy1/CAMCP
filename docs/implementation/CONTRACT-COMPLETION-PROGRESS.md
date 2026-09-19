@@ -52,8 +52,8 @@ qualification dependencies, not a reason to omit locally implementable code.
 
 ## Current checkpoint (2026-09-19)
 
-The working tree now inventories **3,241 actions**, including **389 reviewed-family
-rows**. **925 mapped writes, 104 unmapped actions, 31 unqualified reads and eight
+The working tree now inventories **3,241 actions**, including **391 reviewed-family
+rows**. **923 mapped writes, 104 unmapped actions, 31 unqualified reads and eight
 input-dependent adapters remain incomplete**. Four routes are now explicitly
 **provider_unsupported**, including three previously blocked writes and one read;
 these are not counted as implemented. The first batch added 68 reviewed action
@@ -309,3 +309,21 @@ provider and release checks passed. Source manifest SHA-256:
 `cc4e8e539c75781e9e1617b3c2fe82a48b456c9d2c125248f9bb34ac60de7332`
 (490 files). The X draft batch is locally qualified; preview device delivery,
 live provider acceptance, FFmpeg-required and container checks remain unverified.
+
+The X draft batch is pushed as `693c40c`. Google bidding events now have exact
+create/update/remove contracts for seasonality adjustments and data exclusions.
+Reviews bind client-account timezone, both event histories, old/new campaign scope,
+budgets and local portfolio targets/limits. Known sets and telemetry are canonical;
+actual configuration, unknown arrays and current grants remain protected. Initial
+tests passed 20 and failed one bypass fixture because skip_preflight is rejected
+before the review guard. The fixture now asserts both independent protections.
+Expanded tests passed 65, including 26 dedicated event tests. Candidate Z follows.
+
+Candidate Z passed the full sanitized check: 1,066 tests passed, zero failures,
+one FFmpeg skip, plus four capture tests passed. Final event/inventory/example
+qualification passed 37 tests. All subsequent generated, guidance, provider and
+release checks passed. Source manifest: 494 files, SHA-256
+`fab4c10246634a8bb541b14ec2d0c0b189d13135a7a4556600279f9cd22ee401`.
+The later DV360 targeting-search draft is excluded from this Google qualification.
+Current inventory: 391 reviewed-family rows, 923 blocked writes, 104 unmapped
+actions and 31 unqualified reads. Live, FFmpeg-required and container checks remain open.

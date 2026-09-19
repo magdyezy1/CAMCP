@@ -1,0 +1,113 @@
+{
+  "api_version": "v23",
+  "resources": {
+    "bidding_seasonality_adjustment": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/bidding_seasonality_adjustment",
+      "checked_at": "2026-09-19",
+      "method": "Public field heading/table extraction through the web tool; not a live account query",
+      "source_text_sha256": "5fdf2fc9033a3bd9af57c1c816350bc9a2cebc166933b531ed4b12a1c4da7fbe",
+      "fields": {
+        "advertising_channel_types": {
+          "selectable": true,
+          "repeated": true
+        },
+        "campaigns": {
+          "selectable": true,
+          "repeated": true
+        },
+        "conversion_rate_modifier": {
+          "selectable": true,
+          "repeated": false
+        },
+        "description": {
+          "selectable": true,
+          "repeated": false
+        },
+        "devices": {
+          "selectable": true,
+          "repeated": true
+        },
+        "end_date_time": {
+          "selectable": true,
+          "repeated": false
+        },
+        "name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "scope": {
+          "selectable": true,
+          "repeated": false
+        },
+        "seasonality_adjustment_id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "start_date_time": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "bidding_data_exclusion": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/bidding_data_exclusion",
+      "checked_at": "2026-09-19",
+      "method": "Public field heading/table extraction through the web tool; not a live account query",
+      "source_text_sha256": "5fdf2fc9033a3bd9af57c1c816350bc9a2cebc166933b531ed4b12a1c4da7fbe",
+      "fields": {
+        "advertising_channel_types": {
+          "selectable": true,
+          "repeated": true
+        },
+        "campaigns": {
+          "selectable": true,
+          "repeated": true
+        },
+        "data_exclusion_id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "description": {
+          "selectable": true,
+          "repeated": false
+        },
+        "devices": {
+          "selectable": true,
+          "repeated": true
+        },
+        "end_date_time": {
+          "selectable": true,
+          "repeated": false
+        },
+        "name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "scope": {
+          "selectable": true,
+          "repeated": false
+        },
+        "start_date_time": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    }
+  }
+}

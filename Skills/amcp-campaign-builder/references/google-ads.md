@@ -304,3 +304,80 @@ and [custom audience type update restriction](https://ads-developers.googleblog.
 Native request fields and operation oneofs also use the pinned v23 Discovery
 schema. Provider acceptance and legacy custom-interest account eligibility have
 not been verified live.
+
+## Bidding seasonality adjustments and data exclusions
+
+`google_ads_v23_bidding_seasonality_adjustment_mutate_bidding_seasonality_adjustments`
+and `google_ads_v23_bidding_data_exclusion_mutate_bidding_data_exclusions` support
+reviewed native create/update/remove operations. Choose the exact client customer
+and Ads connection with the adwords scope. The pinned v23 resources cannot be used
+in manager customers, even though the Google Ads website supports manager-level
+workflows. Manager fan-out is a different workflow; do not switch the account
+silently or infer write grants from manager visibility.
+
+Ask for the expected conversion-rate change or known tracking outage, its dates,
+campaign/device scope and business reason. Discover account timezone, existing
+events and actual campaign/bidding configuration before preparing. Do not invent
+a sale uplift, outage or conversion-delay window. A data exclusion affects the
+click data used for Smart Bidding; it does not erase or repair reporting. A planned
+future outage is an explicit user decision, not an inferred routine optimization.
+
+Use account-local `yyyy-MM-dd HH:mm:ss` values: inclusive start, exclusive end,
+more than zero and at most 14 elapsed days. Ambiguous/nonexistent DST boundaries
+are refused; select an unambiguous account-local time. New seasonality events and
+changed seasonality start dates must start in the future. A completed event may
+still be renamed or removed. Native eligibility and edit-time restrictions remain
+provider decisions. `conversionRateModifier` is a multiplier: 1.5 means +50%,
+0.8 means -20%, and 1 means no adjustment. It does not set a budget or guarantee
+spend, CPA or ROAS. Never add an opposite adjustment when a promotion ends.
+
+`CAMPAIGN` requires 1–2000 exact selected-customer campaign resource names. This
+contract qualifies Search/Display/Shopping Smart Bidding and Performance Max;
+Search/Display/Shopping seasonality requires a CPA or ROAS target. App beta and
+cross-customer portfolio strategies need separate qualification. `CHANNEL`
+requires SEARCH, DISPLAY or SHOPPING in `advertisingChannelTypes`; it also applies
+to future matching campaigns. The review lists current campaigns only. `CUSTOMER`
+is a legacy read-only scope. Omitted or empty `devices` means all devices.
+
+Create named events, with an explicit multiplier for seasonality. Updates use an
+exact mask and explicit values. Arrays replace complete membership. Changing from
+campaign scope to channel scope must also set `campaigns: []`; the inverse must
+clear `advertisingChannelTypes`. `devices: []` restores all devices; an empty
+description clears it. Status and numeric event IDs are output-only. Remove uses
+the exact discovered native resource. Removing data exclusions can disrupt bid
+learning; never remove one automatically to undo a tracking outage.
+
+All event operations require spending-impact confirmation and obey activation
+and deletion policies. Reviews include both event collections, selected-customer
+timezone/currency, affected old and new campaign scopes, native budgets and local
+portfolio targets/limits. Existing event history is frozen as a whole to establish
+creation identity and exclusion capacity. An unrelated event edit can therefore
+require a fresh review. Known set ordering and query telemetry do not conflict;
+configuration edits and unknown ordered fields do. No live bid effect is inferred
+from successful configuration verification.
+
+`INVALID_BIDDING_EVENT` means an invalid field/mask, date, scope, multiplier,
+unqualified campaign, conflicting name or exceeded input/history bound. Correct
+the named input or narrow the work, then prepare again. `BIDDING_EVENT_STATE_UNVERIFIED`
+means identity, completeness, consistency, timezone or a dependency could not be
+established. Reconnect or resolve the native read issue; never supply fabricated
+before-state or bypass review. Bounds: 25 atomic operations, 1000 historical
+events per kind, 2000 current campaigns, 25 pages per read, 128 reads, 10000 total
+rows, 4 MiB per response, 8 MiB total and 60 seconds. Google limits active data
+exclusions to 500; creation must leave room for complete read-back too.
+
+Retain the original review/idempotency key after a lost or partial response.
+Verify exact stored configuration or complete collection absence. Field disagreement
+requires investigation and a new corrective review, never a blind retry. Verification
+does not establish auction behavior, learning convergence, future membership,
+tracking repair, account eligibility or provider approval.
+
+Sources checked 2026-09-19: [v23 seasonality fields](https://developers.google.com/google-ads/api/fields/v23/bidding_seasonality_adjustment),
+[v23 exclusion fields](https://developers.google.com/google-ads/api/fields/v23/bidding_data_exclusion),
+[API seasonality guide](https://developers.google.com/google-ads/api/docs/campaigns/bidding/seasonality-adjustments),
+[API exclusions guide](https://developers.google.com/google-ads/api/docs/campaigns/bidding/data-exclusions),
+[seasonality eligibility](https://support.google.com/google-ads/answer/10369906),
+[exclusion effects and planned outages](https://support.google.com/google-ads/answer/10370710)
+and [portfolio configuration fields](https://developers.google.com/google-ads/api/fields/v23/bidding_strategy).
+Field/reference fixtures and isolated lifecycle tests are synthetic; these actions
+have not been verified against a live Ads account.

@@ -20,6 +20,7 @@ import {MirrorError,errorRemedy} from './errors.js';
 import {validateMetaCampaign} from './meta-contracts.js';
 import {validateGoogleRequest,assertGoogleAdsScope} from './google-contracts.js';
 import {googleSegmentKind} from './google-custom-segments.js';
+import {googleBiddingEventKind,assertGoogleBiddingEvent,googleBiddingEventSnapshots,readGoogleBiddingEventState,googleBiddingEventOutcome} from './google-bidding-events.js';
 import {linkedinDSC,assertLinkedInDSC,linkedinDSCReads,linkedinMediaProjection,linkedinPostId} from './linkedin-posts.js';
 import {writeImpact} from './write-impact.js';
 import {executionEvidence} from './contract-evidence.js';
@@ -75,6 +76,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(linkedinRuleKind(plan))return linkedinRuleOutcome(plan,result);
  if(linkedinConversionKind(plan))return linkedinConversionOutcome(plan,result);
  if(googleBidKind(plan))return googleBidOutcome(plan,result);
+ if(googleBiddingEventKind(plan))return googleBiddingEventOutcome(plan,result,before);
  if(metaLabelKind(plan))return metaLabelOutcome(plan,result,before);
  if(criteoTargetingKind(plan))return criteoTargetingOutcome(plan,result);
  if(gtmWorkspaceKind(plan))return gtmWorkspaceOutcome(plan,result,before);
@@ -249,6 +251,7 @@ export function assertWriteShape(plan:CompiledRequest){
   assertGoogleAssetLinks(plan);
   assertGoogleConfiguration(plan);
   assertGoogleBid(plan);
+  assertGoogleBiddingEvent(plan);
  }
 }
 
@@ -258,6 +261,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(linkedinRuleKind(plan))return linkedinRuleSnapshots(plan);
  if(linkedinConversionKind(plan))return linkedinConversionSnapshots(plan);
  if(googleBidKind(plan))return googleBidSnapshots(plan);
+ if(googleBiddingEventKind(plan))return googleBiddingEventSnapshots(plan);
  if(metaLabelKind(plan))return metaLabelSnapshots(plan);
  if(criteoTargetingKind(plan))return criteoTargetingSnapshots(plan);
  if(gtmWorkflowKind(plan))return gtmWorkflowSnapshots(plan);
@@ -342,13 +346,18 @@ export class WriteReviewService {
   if(criteoTargetingKind(plan))assertCriteoTargetingScopes(c);
   if(metaLabelKind(plan))assertMetaLabelScope(c,true);
   if(googleBidKind(plan))assertGoogleBidScope(c);
-  if(googleSegmentKind(plan))assertGoogleAdsScope(c);
+  if(googleSegmentKind(plan)||googleBiddingEventKind(plan))assertGoogleAdsScope(c);
   if(linkedinConversionKind(plan)||linkedinRuleKind(plan))assertLinkedInConversionScope(c,true);
   if(dv360ListKind(plan)&&!c.scopes.includes('https://www.googleapis.com/auth/display-video'))fail('PROVIDER_WRITE_SCOPE_REQUIRED','Reconnect DV360 with the display-video OAuth scope.');
   if(plan.gateway===microsoftGateway&&!c.scopes.some(s=>s===microsoftScope||s==='msads.manage'))fail('INSUFFICIENT_SCOPE','Reconnect Microsoft Advertising with msads.manage permission.');
   plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);assertMeasurementScopes(plan,c);return c;
  }
  private async state(actor:Actor,plan:CompiledRequest,connectionId:string,reads:CompiledRequest[]):Promise<unknown[]> {
+  if(googleBiddingEventKind(plan))return readGoogleBiddingEventState(plan,async read=>{
+   if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Bidding-event dependency checks must be read-only.');
+   const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);
+   const result=await this.transport.request(read,c,auth);this.access(actor,plan,connectionId);return result;
+  });
   if(xCreativeKind(plan)||xDraftKind(plan))return (xDraftKind(plan)?readXDraftState:readXCreativeState)(plan,async read=>{
    if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Creative dependency checks must be read-only.');
    const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);

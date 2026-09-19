@@ -8,6 +8,7 @@ import {googleTargetingKind} from './google-targeting-writes.js';
 import {googleAssetLinkKind} from './google-asset-links.js';
 import {googleConfigurationServing} from './google-configuration-writes.js';
 import {googleSegmentKind} from './google-custom-segments.js';
+import {googleBiddingEventKind} from './google-bidding-events.js';
 import {xDraftKind} from './x-draft-writes.js';
 import {appleEntityServing} from './apple-entity-writes.js';
 import {dv360ListAffectsServing} from './dv360-list-writes.js';
@@ -32,6 +33,7 @@ export function authorizeExecution(actor:Actor,plan:CompiledRequest,input:JsonOb
  if((googleAssetLinkKind(plan)||microsoftAssociationWrite(plan))&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Asset associations change which creative can serve. Review the parent state and provide spend_change_confirmed=true.');
  if((googleTargetingKind(plan)||plan.gateway==='reddit_native_action')&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Targeting, serving and shared-list changes require spend_change_confirmed=true.');
  if(googleConfigurationServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Customizer, ad-parameter, segment, signal, exclusion and feed changes can affect existing ads. Review their impact and provide spend_change_confirmed=true.');
+ if(googleBiddingEventKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Seasonality adjustments and data exclusions can change bids, including after removal. Review the account timezone, scope and bidding impact, then provide spend_change_confirmed=true.');
  const statusPatch=Array.isArray(plan.body)&&plan.body.some(op=>op&&/\/(status|intendedStatus|intended_status|entity_status|operation_status)$/.test(String(op.path))&&['ACTIVE','ENABLE','ENABLED'].includes(op.value));
  // Segment effects are decided by the contract above. Native ENABLED denotes
  // an available definition; a keyword containing "budget" is not a budget edit.
