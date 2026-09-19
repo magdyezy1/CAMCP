@@ -22,6 +22,6 @@ test('MCP clients discover, read and load curated campaign guides without provid
 
 test('guide references are complete and distinguish unsupported execution from metadata',()=>{
  for(const {uri}of guidanceResources){const text=readGuidance(uri).text;for(const match of text.matchAll(/\]\((?:references\/)?([a-z-]+)\.md\)/g))assert.ok(guidanceResources.some(r=>r.name===match[1]),match[1]);}
- const reddit=readGuidance('amcp://guides/reddit').text;assert.ok(reddit.includes('CREATE_SAVED_AUDIENCE'));assert.ok(reddit.includes('Reddit Drive/media import, Reddit Max, post publishing and customer-list ingestion remain unqualified'));
+ const reddit=readGuidance('amcp://guides/reddit').text;assert.ok(reddit.includes('CREATE_SAVED_AUDIENCE'));assert.ok(reddit.includes('Reddit private Drive import, Reddit Max and customer-list ingestion remain unqualified'));assert.ok(reddit.includes('CREATE_STRUCTURED_POST_JOB'));assert.ok(reddit.includes('verified_resources[0].id'));assert.ok(reddit.includes('Never\nrepeat the POST'));assert.ok(reddit.includes('does not certify identical bytes/appearance'));
  assert.ok(readGuidance('amcp://guides/google-ads').text.includes('negative campaign keyword'));
 });

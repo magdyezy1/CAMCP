@@ -18,7 +18,8 @@ function fixture(options:{scopes?:readonly string[];grant?:boolean;badReceipt?:b
   if(method==='GET'){
    const reply=(data:JsonObject)=>Response.json({data,futureEnvelopeTelemetry:{cost:calls.length},request_id:String(calls.length)});
    if(path==='/api/v3/ad_accounts/a2_111')return reply({id:'a2_111',name:'Account'});
-   if(path==='/api/v3/posts/t3_123')return reply({id:'t3_123',profile_id:'t2_123'});
+   if(path==='/api/v3/posts/t3_123')return reply({id:'t3_123',profile_id:'t2_123',type:'TEXT',headline:'Fixture post',body:'Fixture body',allow_comments:false});
+   if(path==='/api/v3/ad_accounts/a2_111/profiles')return Response.json({data:[{id:'123',reddit_user_id:'t2_123',business_id:'business'}],pagination:{next_url:null}});
    const d=state.get(path);assert.ok(d,'Missing fixture state '+path);return reply(d);
   }
   writes++;const b=JSON.parse(String(init?.body)).data,kind=method==='POST'?path.split('/').at(-1)!:path.split('/').at(-2)!,id=method==='POST'?ids[kind]!:path.split('/').at(-1)!,target='/api/v3/'+kind+'/'+id;

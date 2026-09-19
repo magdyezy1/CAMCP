@@ -683,6 +683,62 @@
           }
         }
       }
+    },
+    {
+      "gateway": "reddit_native_action",
+      "arguments": {
+        "operation": "reddit_post_ops",
+        "arguments": {
+          "action": "CREATE_STRUCTURED_POST_JOB",
+          "account_id": "a2_111",
+          "params": {
+            "profile_id": "123"
+          },
+          "payload": {
+            "data": {
+              "allow_comments": false,
+              "creative": {
+                "type": "TEXT",
+                "headline": "An explicit headline",
+                "body": "Approved post copy",
+                "text_format": "PLAIN_TEXT",
+                "enhancements": {
+                  "user_generated_content": {
+                    "enroll_status": "OPT_OUT"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "gateway": "reddit_native_action",
+      "arguments": {
+        "operation": "reddit_post_ops",
+        "arguments": {
+          "action": "CREATE_POST",
+          "account_id": "a2_111",
+          "params": {
+            "profile_id": "123"
+          },
+          "payload": {
+            "data": {
+              "type": "IMAGE",
+              "allow_comments": false,
+              "headline": "An explicit headline",
+              "content": [
+                {
+                  "media_url": "https://assets.example.com/image.jpg",
+                  "destination_url": "https://example.com/landing",
+                  "call_to_action": "Learn More"
+                }
+              ]
+            }
+          }
+        }
+      }
     }
   ],
   "recipe_business": {

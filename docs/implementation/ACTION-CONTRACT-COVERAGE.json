@@ -195,9 +195,8 @@
       "gateway": "reddit_native_action",
       "actions": 51,
       "counts": {
-        "blocked_write": 2,
         "native_read": 38,
-        "reviewed_write_family": 11
+        "reviewed_write_family": 13
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -32409,7 +32408,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32427,7 +32427,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32445,7 +32446,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32463,7 +32465,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32481,7 +32484,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32499,7 +32503,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32517,7 +32522,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32535,7 +32541,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32553,7 +32560,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32571,7 +32579,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32589,7 +32598,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32607,7 +32617,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32625,7 +32636,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32643,7 +32655,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32661,7 +32674,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32697,7 +32711,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32715,7 +32730,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32787,7 +32803,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32805,7 +32822,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32823,7 +32841,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32841,7 +32860,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32859,7 +32879,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32877,7 +32898,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32895,7 +32917,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32913,7 +32936,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32931,7 +32955,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32949,7 +32974,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33021,7 +33047,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33034,11 +33061,12 @@
       "path": "/api/v3/ad_accounts/{ad_account_id}/lead_gen_forms",
       "origin": "https://ads-api.reddit.com",
       "status": "reviewed_write_family",
-      "implementation": "src/reddit-creative-writes.ts",
+      "implementation": "src/reddit-creative-writes.ts / src/reddit-post-creation.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "reddit_creatives"
@@ -33057,7 +33085,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33075,7 +33104,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33087,12 +33117,16 @@
       "method": "POST",
       "path": "/api/v3/profiles/{profile_id}/posts",
       "origin": "https://ads-api.reddit.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/reddit-creative-writes.ts / src/reddit-post-creation.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "reddit_creatives"
     },
     {
       "gateway": "reddit_native_action",
@@ -33102,12 +33136,16 @@
       "method": "POST",
       "path": "/api/v3/profiles/{profile_id}/structured_posts/jobs",
       "origin": "https://ads-api.reddit.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/reddit-creative-writes.ts / src/reddit-post-creation.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "reddit_creatives"
     },
     {
       "gateway": "reddit_native_action",
@@ -33123,7 +33161,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33141,7 +33180,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33159,7 +33199,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33177,7 +33218,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33195,7 +33237,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33213,7 +33256,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33231,7 +33275,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33244,11 +33289,12 @@
       "path": "/api/v3/posts/{post_id}",
       "origin": "https://ads-api.reddit.com",
       "status": "reviewed_write_family",
-      "implementation": "src/reddit-creative-writes.ts",
+      "implementation": "src/reddit-creative-writes.ts / src/reddit-post-creation.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "reddit_creatives"
@@ -33262,11 +33308,12 @@
       "path": "/api/v3/structured_posts/{post_id}",
       "origin": "https://ads-api.reddit.com",
       "status": "reviewed_write_family",
-      "implementation": "src/reddit-creative-writes.ts",
+      "implementation": "src/reddit-creative-writes.ts / src/reddit-post-creation.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified",
       "family": "reddit_creatives"
@@ -33285,7 +33332,8 @@
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
         "tests/reddit-writes.test.ts",
-        "tests/reddit-creative-writes.test.ts"
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
       ],
       "live_qualification": "unverified"
     },

@@ -1,4 +1,5 @@
-import {redditCreativeKind,redditCreativeVerification} from './reddit-creative-writes.js';
+import {redditCreativeKind,redditCreativeVerification,readRedditProfiles} from './reddit-creative-writes.js';
+import {redditPostCreation,verifyRedditPostCreation} from './reddit-post-creation.js';
 import {Store} from './store.js';
 import {Registry} from './catalog.js';
 import {NativeTransport} from './transport.js';
@@ -96,10 +97,21 @@ export class WriteVerifier{
   const result=JSON.parse(row.result),plan=review.plan as CompiledRequest,c=this.store.resolveConnection(actor,plan.gateway,plan.accountId,review.connection_id);
   const checkAppleAccounts=()=>{for(const account of appleSharedAccounts(plan))this.store.resolveConnection(actor,plan.gateway,account,c.id);};checkAppleAccounts();
   if(linkedinDSC(plan))assertLinkedInDSCGrant(plan,c,false);
+  if(redditPostCreation(plan)&&!c.scopes.includes('adsread'))bad('Reddit post verification requires adsread.','INSUFFICIENT_SCOPE');
   if(result.success!==true)bad('Inspect the retained partial failure before recovery.','WRITE_PARTIAL_OR_FAILED');
   const cached=optional(this.store,actor.tenantId,'write_verification',reviewId);if(cached?.status==='verified'&&Date.now()-cached.checked_at<10000)return {...cached,cached:true};
-  let reads:ReturnType<typeof verificationReads>=[],status='unverified',checks:JsonObject[]=[];
-  try{if(xCreativeKind(plan)){
+  let reads:ReturnType<typeof verificationReads>=[],status='unverified',checks:JsonObject[]=[],resources:JsonObject[]=[];
+  try{if(redditPostCreation(plan)){
+   const verified=await verifyRedditPostCreation(plan,result,reviewId,c,this.store,read=>readRedditProfiles(read,async page=>{
+    if(!independentlyReadOnly(page))bad('Post verification must remain read-only.','VERIFICATION_UNSUPPORTED');
+    this.store.assertActorActive(actor);let current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);
+    if(!current.scopes.includes('adsread'))bad('Reddit post verification requires adsread.','INSUFFICIENT_SCOPE');
+    new ScopeGuard(this.registry,this.store).authorize(page,current);const auth=await this.credentials.get(current);
+    this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(!current.scopes.includes('adsread'))bad('Reddit post verification requires adsread.','INSUFFICIENT_SCOPE');new ScopeGuard(this.registry,this.store).authorize(page,current);
+    const response=await this.transport.request(page,current,auth);this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);
+    if(!current.scopes.includes('adsread'))bad('Reddit post verification requires adsread.','INSUFFICIENT_SCOPE');new ScopeGuard(this.registry,this.store).authorize(page,current);return response;
+   }));status=verified.status;checks=verified.checks;resources=verified.resources??[];
+  }else if(xCreativeKind(plan)){
    for(let attempt=0;attempt<3;attempt++){
     if(attempt)await delay(attempt*250);
     const verified=await verifyXCreative(plan,result,async read=>{
@@ -122,8 +134,9 @@ export class WriteVerifier{
    const actual=readback.value,changed=differing(expected,actual),phase=readback.consistent?measurementVerificationPhase(item.read,actual):'inconclusive';checks.push({resource_id:item.id,status:phase,code:readback.consistent?undefined:'VERIFICATION_INCONCLUSIVE',read_attempts:readback.attempts,changed_fields:changed,expected_hash:fingerprint(expected),actual_hash:fingerprint(actual??null),checked_fields:Object.keys(expected)});
    if(linkedinDSC(plan)&&readback.consistent)rememberLinkedInPost(this.store,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id),plan,result.headers['x-restli-id']);
   }status=reads.length?(checks.some(c=>c.status==='failed')?'failed':checks.every(c=>c.status==='verified')?'verified':checks.some(c=>c.status==='pending')?'pending':'inconclusive'):'unsupported';}}
-  catch(e){checks.push({status:'unverified',code:e instanceof MirrorError?e.code:'READ_FAILED',message:e instanceof MirrorError?e.message:'Verification read failed.'});}
+  catch(e){if(redditPostCreation(plan)&&e instanceof MirrorError&&e.retryable)status='pending';checks.push({status:status==='pending'?'pending':'unverified',code:e instanceof MirrorError?e.code:'READ_FAILED',message:e instanceof MirrorError?e.message:'Verification read failed.'});}
   this.store.assertActorActive(actor);const receipt={review_id:reviewId,connection_id:c.id,account_id:plan.accountId,action:plan.action,status,...(status==='inconclusive'?{code:'VERIFICATION_INCONCLUSIVE'}:{}),checks,checked_at:Date.now(),automatic_retry_of_mutation:false,recovery:'Preserve successful resources. Field disagreement after bounded reads is inconclusive, not permission to repeat a mutation. Corrective writes need a new review; verification never resets idempotency.',...(['pending','inconclusive'].includes(status)?{retry_read_after_ms:1000,next_call:{tool:'amcp_campaign',arguments:{action:'verify',review_id:reviewId}}}:{})};
+  if(resources.length)Object.assign(receipt,{verified_resources:resources});
   this.store.putDocument(actor.tenantId,'write_verification',reviewId,receipt);audit(this.store,actor,'write_verification',{connection_id:c.id,account_id:plan.accountId,review_id:reviewId,status});return receipt;
  }
 }

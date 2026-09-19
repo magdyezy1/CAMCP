@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {redditPostCreation,redditPromotedSource,redditAdPost,assertRedditPostCreation,validateRedditPromotion,redditPostCreationOutcome} from './reddit-post-creation.js';
 import {nextPage} from './pagination.js';
 import {stable} from './security.js';
 import type {CompiledRequest,JsonObject} from './types.js';
@@ -14,6 +15,7 @@ const postId=(v:unknown):v is string=>typeof v==='string'&&/^t3_[A-Za-z0-9]+$/.t
 const userId=(v:unknown):v is string=>typeof v==='string'&&/^t2_[A-Za-z0-9]+$/.test(v);
 export function redditCreativeKind(p:CompiledRequest):{kind:string;create:boolean;target?:string}|undefined{
  if(p.gateway!=='reddit_native_action'||p.origin&&p.origin!=='https://ads-api.reddit.com')return;
+ const creation=redditPostCreation(p);if(creation)return {kind:creation.structured?'structured_post_jobs':'posts',create:true,target:creation.profileId};
  if(p.method==='POST'&&/^\/api\/v3\/ad_accounts\/[^/]+\/lead_gen_forms$/.test(p.path))return {kind:'lead_gen_forms',create:true};
  const update=/^\/api\/v3\/(posts|structured_posts)\/([^/]+)$/.exec(p.path);
  if(p.method==='PATCH'&&update)return {kind:update[1]!,create:false,target:update[2]!};
@@ -26,6 +28,7 @@ export function assertRedditCreative(p:CompiledRequest):void{
  const c=redditCreativeKind(p);if(!c)return;
  if(Object.keys(p.query).length||Object.keys(p.headers).length||p.specialTransport)invalid('Use the native Reddit JSON contract without query or header overrides.');
  const b=p.body;if(!object(b)||Object.keys(b).some(k=>k!=='data')||!object(b.data))return invalid('Use a native {data:{...}} request.');const d=b.data;
+ if(redditPostCreation(p))return assertRedditPostCreation(p,d);
  if(c.kind==='lead_gen_forms'){
   if(Object.keys(d).some(k=>!['ad_account_id','name','privacy_link','prompt','questions'].includes(k)))invalid('Lead forms accept only advertiser-defined fields.');
   if(d.ad_account_id!==undefined&&d.ad_account_id!==p.accountId)invalid('The lead form must belong to the selected account.');
@@ -41,7 +44,9 @@ const read=(p:CompiledRequest,path:string):CompiledRequest=>({...p,action:'AMCP_
 export function redditCreativeSnapshots(p:CompiledRequest):CompiledRequest[]{
  const c=redditCreativeKind(p)!;
  const reads=[read(p,'/api/v3/ad_accounts/'+p.accountId)];
- if(!c.create)reads.push(read(p,p.path),{...read(p,'/api/v3/ad_accounts/'+p.accountId+'/profiles'),redditProfilesState:true});
+ if(!c.create)reads.push(read(p,p.path));
+ if(!c.create||redditPostCreation(p))reads.push({...read(p,'/api/v3/ad_accounts/'+p.accountId+'/profiles'),redditProfilesState:true});
+ const source=redditPromotedSource(p);if(source)reads.push(read(p,'/api/v3/posts/'+source));
  return reads;
 }
 /** Refresh provider account/profile association; cached ID discovery alone is insufficient. */
@@ -61,18 +66,21 @@ export async function readRedditProfiles(p:CompiledRequest,request:(r:CompiledRe
 }
 export function validateRedditProfiles(p:CompiledRequest,result:TransportResult):void{if(!p.redditProfilesState||result.status!==200||!Array.isArray((result.data as JsonObject)?.amcpRedditProfiles))failed('The complete account profile snapshot is unavailable.');}
 export function validateRedditCreativePrerequisites(p:CompiledRequest,states:unknown[]):void{
- const c=redditCreativeKind(p);if(!c||c.create)return;
- const post=(states as JsonObject[]).map(s=>s?.data).find(v=>v?.id===c.target),snapshot=(states as JsonObject[]).find(s=>s?.amcpRedditProfiles),profiles=snapshot?.amcpRedditProfiles;
- if(!postId(post?.id)||!userId(post?.profile_id)||typeof post.allow_comments!=='boolean'||!Array.isArray(profiles))failed('The exact post author and comments configuration must be readable.');
- const matches=profiles.filter((v:JsonObject)=>v.reddit_user_id===post.profile_id);if(matches.length!==1)throw new MirrorError('RESOURCE_SCOPE_REQUIRED','The post author is not an unambiguous current profile of the selected ad account.',{},403);
+ const c=redditCreativeKind(p),creation=redditPostCreation(p),adPost=redditAdPost(p);if(!c&&!adPost||c?.create&&!creation)return;
+ const post=(states as JsonObject[]).map(s=>s?.data).find(v=>v?.id===(adPost??c?.target)),snapshot=(states as JsonObject[]).find(s=>s?.amcpRedditProfiles),profiles=snapshot?.amcpRedditProfiles;
+ if(!Array.isArray(profiles)||!creation&&(!postId(post?.id)||!userId(post?.profile_id)||typeof post.allow_comments!=='boolean'))failed('The exact post author and comments configuration must be readable.');
+ const matches=profiles.filter((v:JsonObject)=>creation?v.id===creation.profileId:v.reddit_user_id===post.profile_id);if(matches.length!==1)throw new MirrorError('RESOURCE_SCOPE_REQUIRED','The post author is not an unambiguous current profile of the selected ad account.',{},403);
  const profile=matches[0];
- if(p.scopeContext?.redditProfileId&&p.scopeContext.redditProfileId!==profile.id||p.scopeContext?.redditProfileUserId&&p.scopeContext.redditProfileUserId!==post.profile_id)throw new MirrorError('STATE_CHANGED','The post author or account profile changed after review.');
- p.scopeContext={...p.scopeContext,redditProfileId:profile.id,redditProfileUserId:post.profile_id};
+ if(profiles.filter((v:JsonObject)=>v.reddit_user_id===profile.reddit_user_id).length!==1)throw new MirrorError('RESOURCE_SCOPE_REQUIRED','The Reddit author has ambiguous account profile bindings.',{},403);
+ if(p.scopeContext?.redditProfileId&&p.scopeContext.redditProfileId!==profile.id||p.scopeContext?.redditProfileUserId&&p.scopeContext.redditProfileUserId!==profile.reddit_user_id)throw new MirrorError('STATE_CHANGED','The post author or account profile changed after review.');
+ p.scopeContext={...p.scopeContext,redditProfileId:profile.id,redditProfileUserId:profile.reddit_user_id};
+ validateRedditPromotion(p,states);
  // Discovery is complete; only the selected author's binding is configuration for this write.
  snapshot!.amcpRedditProfiles=matches;
 }
-export const redditCreativeServing=(p:CompiledRequest)=>redditCreativeKind(p)?.create===false;
+export const redditCreativeServing=(p:CompiledRequest)=>redditCreativeKind(p)?.create===false||!!redditPromotedSource(p);
 export function redditCreativeOutcome(p:CompiledRequest,result:TransportResult):boolean{
+ if(redditPostCreation(p))return redditPostCreationOutcome(p,result);
  const c=redditCreativeKind(p),d=(result.data as JsonObject)?.data,b=(p.body as JsonObject)?.data;
  if(!c||result.status!==(c.create?201:200)||!object(d)||!id(d.id))return false;
  if(c.kind==='lead_gen_forms')return d.ad_account_id===p.accountId&&['name','privacy_link','prompt','questions'].every(k=>stable(d[k])===stable(b[k]));

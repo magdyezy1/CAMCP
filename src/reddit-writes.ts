@@ -47,6 +47,7 @@ export function redditSnapshots(plan:CompiledRequest):CompiledRequest[]{
  const reads=[read('/api/v3/ad_accounts/'+plan.accountId)];if(!route.create)reads.push(read(plan.path));
  const parents:Record<string,string>={campaign_id:'campaigns',ad_group_id:'ad_groups',post_id:'posts',profile_id:'profiles',saved_audience_id:'saved_audiences'};
  for(const [field,kind]of Object.entries(parents))if(d[field])reads.push(read('/api/v3/'+kind+'/'+d[field]));
+ if(d.post_id)reads.push({...read('/api/v3/ad_accounts/'+plan.accountId+'/profiles'),redditProfilesState:true});
  if(d.funding_instrument_id)reads.push({...read('/api/v3/ad_accounts/'+plan.accountId+'/funding_instruments'),query:{funding_instrument_ids:d.funding_instrument_id,mode:'ALL'}});
  return reads;
 }

@@ -6,6 +6,7 @@ import {stable} from './security.js';
 import {microsoftGateway,microsoftCustomer,microsoftContracts} from './microsoft-native.js';
 import {microsoftReportKey} from './microsoft-report-download.js';
 import {authorizeLinkedInSpecial} from './linkedin-posts.js';
+import {authorizeRedditPostRead,redditPostCreation} from './reddit-post-creation.js';
 import {googleGlobalReadMethods} from './execution-risk.js';
 
 export function normalizeAccount(gateway:string,id:unknown):string{
@@ -53,6 +54,7 @@ export class ScopeGuard {
   walk(plan.query);walk(plan.body);walk(decoded,'path');
   if(plan.gateway==='google_ads_native_action'&&plan.readOnly&&plan.method==='POST'&&/^\/v23:[A-Za-z]+$/.test(decoded)&&googleGlobalReadMethods.has(decoded.slice(5)))return id;
   if(authorizeLinkedInSpecial(plan,connection,this.store,id))return id;
+  if(authorizeRedditPostRead(plan,connection,this.store,id))return id;
   const patterns:Record<string,RegExp>={
    google_ads_native_action:/\/customers\/([^/:]+)/,
    meta_native_action:/^\/v[^/]+\/act_([^/]+)/,
@@ -149,6 +151,8 @@ export class ScopeGuard {
   if(plan.readOnly||plan.method!=='POST')return;
   const id=normalizeAccount(plan.gateway,plan.accountId),d=data as JsonObject;
   if(plan.gateway==='reddit_native_action'){
+   // Only an accepted, account/profile-bound original creation may authorize a job read.
+   if(redditPostCreation(plan)?.structured&&typeof d?.data?.id==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(d.data.id))this.store.rememberResource(connection,id,'structured_post_jobs/'+d.data.id);
    const kind=/^\/api\/v3\/ad_accounts\/[^/]+\/(campaigns|ad_groups|ads|saved_audiences|lead_gen_forms)$/.exec(plan.path)?.[1],entity=d?.data;
    if(kind&&typeof entity?.id==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(entity.id)&&entity.ad_account_id===id)this.store.rememberResource(connection,id,kind+'/'+entity.id);
   }

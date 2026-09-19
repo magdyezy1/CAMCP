@@ -454,3 +454,83 @@ Candidate H (`ce771c3106994c3754a17b108d11924ddf3af8403ae1ec0999b092fb2bca71dc`,
 one FFmpeg skip, four capture tests passed. All generation, guidance, provider and
 strict contract-ledger checks passed. Evidence: `release-check-h.log`. This is
 local synthetic validation; hosted CI, Docker and live Reddit remain unverified.
+
+## Reddit post creation and asynchronous verification
+
+Added CREATE_POST and CREATE_STRUCTURED_POST_JOB with fresh account/profile
+association, immutable native payloads, bounded prerequisites, current grants,
+normal reviewed execution and retained idempotency. Legacy TEXT/IMAGE/VIDEO/
+CAROUSEL and structured TEXT/IMAGE/VIDEO/CAROUSEL/PROMOTED_POST are validated.
+Media uses the native public-URL ingestion path; private Drive and Max asset
+uploads remain separate unfinished workflows. Media fields are not silently
+dropped from verification: the receipt describes provider-hosted URL
+transformation and explicitly does not prove byte or visual identity. Strict
+comparison covers author, comments, destinations, ordered cards, crop, event and
+enhancement configuration. Deprecated UGC boolean fields project to explicit
+native enrollment; contradictory representations remain a mismatch.
+
+The accepted job receipt grants only its exact scoped job read. A durable
+resolution tied to tenant/review/connection/account authorizes an internal read
+of the resulting post, not general ownership. Only successful read-back grants
+post reuse. Changed job IDs, ambiguous receipts, foreign authors, revoked profiles
+and missing scopes cannot confer access. Queued/processing states and transient
+read errors use existing bounded worker polling; terminal provider failures remain
+failed. Restart, concurrency and lost-response tests prove no automatic second
+POST. Campaign steps preserve verified_resources on immediate verification,
+later polling and reconciliation, so dependent ads use a verified post ID.
+Attaching a post to a classic ad now also refreshes account/profile authority.
+
+Community promotion requires an already scoped original post authored by the
+selected profile, its unchanged headline and canonical community URL. Original
+content is frozen for concurrency review, owner activation policy applies, and
+read-back checks that original comments were disabled. The documented voting
+side effect is displayed but not independently exposed by this API's read shape.
+Provider SFW/public-community eligibility and publication/approval are live checks.
+
+Official v3 evidence checked 2026-09-19:
+- [Legacy create](https://ads-api.reddit.com/docs/v3/api/create-post): still callable,
+  with structured creation recommended; successful response is 201.
+- [Create structured job](https://ads-api.reddit.com/docs/v3/api/create-structured-post-creation-job)
+  and [get original job](https://ads-api.reddit.com/docs/v3/api/get-structured-post-creation-job):
+  accepted jobs and subsequent outcomes are separate operations.
+- [Campaign setup](https://ads-api.reddit.com/docs/v3/guides/programs/campaign/campaign-setup):
+  native creative fields, original-post effects, job processing and post-to-ad flow.
+  Its 2–7 carousel range conflicts with OpenAPI's 1–40 schema; AMCP qualifies their
+  common range and reports this limit rather than guessing broader acceptance.
+- [Changelog](https://ads-api.reddit.com/docs/v3/history) and the pinned public
+  OpenAPI: explicit UGC opt-out, reminder events and media URL replacement.
+  Current REMINDER validation is stricter than the September 5 pinned schema.
+
+Verification: first compilation found TypeScript narrowing errors, corrected
+without changing contract assertions. Initial lifecycle run passed 26/26
+(`reddit-post-first.log`). Expanded run passed 42 and failed four chain tests:
+the new ad fixture returned a nonnumeric ID, which the published vendor schema
+correctly rejected. Corrected the synthetic receipt; no vendor assertion weakened.
+Final expanded run passed 48/48 (`reddit-post-third.log`), including all four
+post-to-paused-ad chains, worker terminal/transient/poll-limit states and restart
+recovery. The failed second log remains retained. Full sanitized candidate I
+follows. No live provider calls or actual publication were performed.
+
+Reddit contract version 3; 13 reviewed-family and 38 native-read captured rows.
+Total inventory: 3,241 actions; 351 reviewed-family, 963 blocked mapped writes,
+105 unmapped, 50 unqualified reads, eight input-dependent adapters, four withdrawn.
+Unknown vendor actions and explicit private-media/Max/audience limitations remain
+open; route-family coverage is not a statement that every provider action works.
+
+Candidate I (`b3ef8034897f7fc44ccb7a45e7609614977fd3ef2bda5d36e80cc5a7736a1da4`,
+463 files) passed 828 tests, failed one and skipped FFmpeg. `release-check-i.log`
+retains the obsolete guide assertion requiring post publishing to be described as
+unqualified. Updated it to check the supported structured-post workflow, verified
+resource handoff, no-retry instruction, byte-identity limits and still-unsupported
+private Drive/Max/customer ingestion. Fresh candidate J follows; assertions about
+actual execution and unsupported capabilities remain mandatory.
+
+Candidate J: `.release/contract-batch-20260919-j`, 463 files, source hash
+`43ceca198fe58b66b2d7c12af0c5bdfd30105612cb2dc4f8737da30219eef90a`.
+The same sanitized `npm.cmd ci --ignore-scripts --no-audit --no-fund` and
+`npm.cmd run check` sequence exited 0: 829 tests passed, zero failed, one FFmpeg
+skip; all four capture tests passed. Generated contracts and action ledgers,
+guidance, web, vendor integrity and offline lifecycle checks passed.
+Evidence: `.runtime/contract-completion-20260919/release-check-j.log`.
+FFmpeg/container, hosted CI and live credentials remain unavailable. This is
+synthetic/local qualification, not evidence of live publication or ad approval.

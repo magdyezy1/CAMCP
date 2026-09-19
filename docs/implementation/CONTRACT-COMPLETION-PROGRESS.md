@@ -50,8 +50,8 @@ qualification dependencies, not a reason to omit locally implementable code.
 
 ## Current checkpoint (2026-09-19)
 
-The working tree now inventories **3,241 actions**, including **349 reviewed-family
-rows**. **965 mapped writes, 105 unmapped actions, 50 unqualified reads and eight
+The working tree now inventories **3,241 actions**, including **351 reviewed-family
+rows**. **963 mapped writes, 105 unmapped actions, 50 unqualified reads and eight
 input-dependent adapters remain incomplete**. Four routes are now explicitly
 **provider_unsupported**, including three previously blocked writes and one read;
 these are not counted as implemented. The first batch added 68 reviewed action
@@ -114,3 +114,21 @@ The remaining mapped, unmapped and unqualified actions are not marked complete.
 Candidate H completed the entire release check: 802 passed, zero failures, one
 FFmpeg skip; four additional capture tests passed. Strict generated ledgers,
 guidance and provider checks passed. Post-creation implementation continues next.
+
+Reddit metadata is pushed as `5cd05ef`. Both post-creation routes now have scoped
+review/receipt/read-back contracts, including all documented creative formats,
+current profile checks and resumable jobs. Forty-eight expanded lifecycle,
+campaign-chain, polling and recovery tests pass; full candidate I is pending.
+The 51-row captured Reddit catalog now has 13 reviewed-family and 38 native-read
+rows, with no missing family. This does not implement uncataloged Max, audience
+ingestion, private Drive transfer or establish live provider eligibility.
+
+Candidate I passed 828 tests, failed one and skipped FFmpeg. The failing guidance
+test still required the old statement that post publication was unimplemented.
+Updated that assertion to require the new workflow, verified ID handoff, no-retry
+warning and remaining capability limits. Fresh candidate J validation follows.
+
+Candidate J completed the full release check: 829 passed, zero failures, one
+FFmpeg skip, plus four capture tests passed. Strict generation, guidance, web,
+provider and action-ledger checks all passed. Both post creation paths are locally
+qualified within their documented limits. No live Reddit publishing was performed.
