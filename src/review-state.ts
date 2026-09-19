@@ -41,7 +41,13 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  const d=data as JsonObject;
  if(read.gateway==='tiktok_native_action'&&Array.isArray(d.data?.list))return normalizeReviewState({data:{list:d.data.list}});
  if(['x_ads_native_action','reddit_native_action'].includes(read.gateway)&&Object.hasOwn(d,'data'))return normalizeReviewState({data:d.data});
- if(read.gateway==='apple_ads_native_action'&&Object.hasOwn(d,'result'))return normalizeReviewState({result:d.result});
+ if(read.gateway==='apple_ads_native_action'&&Object.hasOwn(d,'result')){
+  // SDK output-only processing/approval observations are not advertiser edits.
+  const observational=new Set(['systemStatus','systemStatusReasons','systemStatusLimitingReasons','displayStatus','eligibility']);
+  const result=Object.fromEntries(Object.entries(d.result??{}).filter(([key])=>!observational.has(key)));
+  if(Array.isArray(result.adAccountIds))result.adAccountIds=[...result.adAccountIds].sort((a,b)=>String(a).localeCompare(String(b),'en'));
+  return normalizeReviewState({result});
+ }
  if(read.gateway==='microsoft_ads_native_action'){
   if(read.action==='GetAdExtensionsAssociations')return normalizeReviewState(microsoftAssociationProjection(read,d));
   const field=microsoftContracts.get(read.action)?.result;

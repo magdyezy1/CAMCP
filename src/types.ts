@@ -39,11 +39,13 @@ export interface CompiledRequest {
   accountId?:string; evidence:string; warnings:string[]; specialTransport?:string;
   queryArrayEncoding?:'json'|'repeat';
   responseControls?:import('./projection.js').ResponseControls;
-  scopeContext?:{campaignId?:string;linkedinPostReviewId?:string;microsoftExtensionTypes?:string[];microsoftAssociationPairs?:{entityId:string;extensionId:string}[]};
+  scopeContext?:{campaignId?:string;linkedinPostReviewId?:string;microsoftExtensionTypes?:string[];microsoftAssociationPairs?:{entityId:string;extensionId:string}[];appleSharedAccountIds?:string[];appleSharedResultAccounts?:string[];appleSharedOrgId?:string;appleCurrency?:string};
   reportDownload?:{offset:number;limit:number};
   contractEvidence?:JsonObject;
   /** Internal, derived exact-target GAQL read. Never accepted from client input. */
   googleState?:{resource:string;names:string[];allowMissing:boolean;removedAsAbsent?:boolean};
+  /** Server-derived DV360 membership/absence read, never caller supplied. */
+  dv360ListState?:{kind:string;collection:boolean};
 }
 export interface EnhancementFlags {
   catalogEnvelope?:boolean; catalogPagination?:boolean; catalogFields?:boolean;

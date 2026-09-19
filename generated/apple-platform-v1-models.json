@@ -1,0 +1,2488 @@
+{
+  "format_version": 1,
+  "revision": "f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1",
+  "normalization": "LF line endings and one final newline before SHA-256",
+  "api_source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+  "api_canonical_sha256": "581e9f4d0fd59d7be09204de1aa02c83e10000f7068e1bd6548f10a64042b53b",
+  "sources": {
+    "AdAccountSystemStatusReason": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-account-system-status-reason.ts",
+      "canonical_sha256": "c10816e9f321aecb713839d4d293b5fa9365fc58055a0feb4a16d0bb2dbfb60b"
+    },
+    "AdAccountSystemStatus": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-account-system-status.ts",
+      "canonical_sha256": "fa53f5348c467355abc6811024bca8f67dc7e909545b6ccaae153f7d4850efc9"
+    },
+    "AdAccount": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-account.ts",
+      "canonical_sha256": "9f8dc62f4cd589929ac1a59d1acada0f5f630d7d37fd5349c4a961501a7231f0"
+    },
+    "AdCreate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-create.ts",
+      "canonical_sha256": "d1003a8fecc2fd5856668db0fcf0722c9edc6734cbb2a5e07a540c16676affd0"
+    },
+    "AdDisplayStatus": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-display-status.ts",
+      "canonical_sha256": "ef43a0b4c87beb6581a54db48a244fffad9b1092bc8920b0e4266784c559e9d8"
+    },
+    "AdGroupCreate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-group-create.ts",
+      "canonical_sha256": "edafc9cee1e9102d4392e993af20d5b72ddb310d1a2b14d006dbd0f2a236f126"
+    },
+    "AdGroupDisplayStatus": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-group-display-status.ts",
+      "canonical_sha256": "5ca812b1d5c274b5c935fc6fb78ff7f3911eb6e42921baa56a1237a5f5d0f893"
+    },
+    "AdGroupStatus": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-group-status.ts",
+      "canonical_sha256": "19d41adba7071c4f1d74c9b1e0c908de1f8045156db85bf6a7de53059802d921"
+    },
+    "AdGroupSystemLimitedStatusReason": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-group-system-limited-status-reason.ts",
+      "canonical_sha256": "e8f2ba7c9419b774825d8b211d8eb946257a83d2de0caec795c22fe52edf792f"
+    },
+    "AdGroupSystemStatusReason": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-group-system-status-reason.ts",
+      "canonical_sha256": "f8de644d740f65a92934feb3cb60fbec21ac1a2e97e3eaf188019707ace34be6"
+    },
+    "AdGroupSystemStatus": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-group-system-status.ts",
+      "canonical_sha256": "6c91d8fda35c2e33cf606626226b0e3cbf0cc7875eb314a0a88807f07424760d"
+    },
+    "AdGroupTargetingCreate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-group-targeting-create.ts",
+      "canonical_sha256": "4742ddb846d9444d99aed9b0d223a79ec8f356a591bc8a52a4ad4fc5a2e025eb"
+    },
+    "AdGroupTargetingUpdate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-group-targeting-update.ts",
+      "canonical_sha256": "199cce0735670c6685dd236967382d863cb0747aa6fce3e90d72504b5adaa2bc"
+    },
+    "AdGroupTargeting": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-group-targeting.ts",
+      "canonical_sha256": "8f3cb1885971dcfd7f3aae163d221d01575aaa45569e41bb22e0ec65fea3d1df"
+    },
+    "AdGroupUpdate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-group-update.ts",
+      "canonical_sha256": "8b1175eb80f7c9fa65a77569f7257bc171535a981ecfa8d7ec3423c192a75ff6"
+    },
+    "AdGroup": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-group.ts",
+      "canonical_sha256": "70af7f5049ca30595d6614b5b0b5525bf5c5e73f4373a803cb5da3015400e4b4"
+    },
+    "AdStatus": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-status.ts",
+      "canonical_sha256": "def78d8042f185c0085b9606c2e8c49435ee834fe5dfd35e9dc211e805a1ed98"
+    },
+    "AdSystemLimitedStatusReason": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-system-limited-status-reason.ts",
+      "canonical_sha256": "d55f8682caada4ab80fd24a0a0055e5e78caf89e5b2ce275e5bb366a570a4157"
+    },
+    "AdSystemStatusReason": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-system-status-reason.ts",
+      "canonical_sha256": "27a8f5ea534495e21d0ee3a2b952f6bee1e8855fe77b0c7455bacccbcbe41d1e"
+    },
+    "AdSystemStatus": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-system-status.ts",
+      "canonical_sha256": "3fbe0a3610a36fe733c1b6a1ebe9e19ad1bd67ea486882f702560f951bad5ec9"
+    },
+    "AdUpdate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad-update.ts",
+      "canonical_sha256": "4c8bd8e4c4a271992e402f84438e321f106218a5400f91db6ff004f7bc9ec532"
+    },
+    "Ad": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/ad.ts",
+      "canonical_sha256": "db5eee4661146910594d4d881b0929e518c185a8b0c6654c1c679be3f54cd7e9"
+    },
+    "AdvertiserResourceType": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/advertiser-resource-type.ts",
+      "canonical_sha256": "4258d6aedf67cd74abae4384c48495140248294b74ed290ff8d1a87adc9e2bc2"
+    },
+    "BidStrategyCreate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/bid-strategy-create.ts",
+      "canonical_sha256": "f13b35d5bfdf8535c6043db0ed9c6a59b2111bee70f183114d1b0a4dc323f8c4"
+    },
+    "BidStrategyGoal": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/bid-strategy-goal.ts",
+      "canonical_sha256": "5909242910d0483fe627e91a066d74c59a00c509319d1a56a952a5e2c6c24b7a"
+    },
+    "BidStrategyType": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/bid-strategy-type.ts",
+      "canonical_sha256": "5bd641a9f1c0ebc122550c1ca60055c94013f4f25b7edfbac9009004c2a65892"
+    },
+    "BidStrategyUpdate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/bid-strategy-update.ts",
+      "canonical_sha256": "462d367d6333dd77193684d823f73397e3f675f11fd4829f49bfb2267fdd699a"
+    },
+    "BidStrategy": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/bid-strategy.ts",
+      "canonical_sha256": "667a2212f41967cf3202645269a4765333284850c088eb7b15fd3ae66e138c67"
+    },
+    "BillingEvent": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/billing-event.ts",
+      "canonical_sha256": "d6886a90299532d4e71250ae4e68db51e95b417621ab299d2be44f751cb5f36b"
+    },
+    "BudgetSystemStatusReason": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/budget-system-status-reason.ts",
+      "canonical_sha256": "aa015fa6e831a64e241e24c4a02725eedf0b14f98ce334578f7bb06e06c1bc88"
+    },
+    "BudgetSystemStatus": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/budget-system-status.ts",
+      "canonical_sha256": "71f88616704a40d48329193a9798cb1586fb456fb6a77333508d30c75f70a378"
+    },
+    "CampaignDisplayStatus": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/campaign-display-status.ts",
+      "canonical_sha256": "c6aba7de8a1dd56e9ff5671c76409b3c103c9e9a46d5e86a0c4d9a4c5b56a1f3"
+    },
+    "CampaignStatus": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/campaign-status.ts",
+      "canonical_sha256": "c6b81d8752c60d5ba0c4aaddae78e97d1c39fd53844fbff8044374d28ae7a0c6"
+    },
+    "CampaignSystemLimitedStatusReason": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/campaign-system-limited-status-reason.ts",
+      "canonical_sha256": "4e6f716c61c4f60169e7a43a53ba8808571b476a9bb8dd68b24da7854753412b"
+    },
+    "CampaignSystemStatusReason": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/campaign-system-status-reason.ts",
+      "canonical_sha256": "5b276051144f5e08c4e1fa9947557eecf052002ea2929787c426b85f13276753"
+    },
+    "CampaignSystemStatus": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/campaign-system-status.ts",
+      "canonical_sha256": "fce2dbdb9b5c582ab1f82751c54f23df21bf32434d56b54f46e2907a4088021a"
+    },
+    "CampaignTargeting": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/campaign-targeting.ts",
+      "canonical_sha256": "c8198f5f001f3fa409edd6389a39dfa0d0abfee6b0e39c9f54a031f0fa38f899"
+    },
+    "Campaign": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/campaign.ts",
+      "canonical_sha256": "a8b49097cce1b56590cef898e8cd4bb800442738b082923ec4d3a6b6a6cc7a74"
+    },
+    "CPAGoalCreate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/cpagoal-create.ts",
+      "canonical_sha256": "4820438457451206cd21f316e90758c4dd1c18df3b1524d095bb734f13ae33ce"
+    },
+    "CPAGoalUpdate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/cpagoal-update.ts",
+      "canonical_sha256": "0824a1b8c434334b011064ebf5a124ef66844978e3d7e59e2a3c0608dfc54a48"
+    },
+    "CPAGoal": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/cpagoal.ts",
+      "canonical_sha256": "28688242010a22eaf8f39ba1d72760f5019ee2dd77e676d6179f36c85b96a48e"
+    },
+    "CreativeCreate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/creative-create.ts",
+      "canonical_sha256": "cfcb67348c6bbac54bc78f7da986624982ea5ea445312f80604d9f0ec57ed60d"
+    },
+    "CreativeEligibility": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/creative-eligibility.ts",
+      "canonical_sha256": "738c499c8c7c94f101e378755c6a087fe98b1a3b3acce7ee425832276ada11cb"
+    },
+    "CreativeSystemStatusReason": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/creative-system-status-reason.ts",
+      "canonical_sha256": "79a26b6f1574ef07cee7f3de8dcc611357eb5e6bed8d36d88bd47fe975b1e1b6"
+    },
+    "CreativeSystemStatus": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/creative-system-status.ts",
+      "canonical_sha256": "0deb9aa1becd9528a2446effb521980613d16c9efa9b49197e68a50ce419441d"
+    },
+    "CreativeType": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/creative-type.ts",
+      "canonical_sha256": "cf04b2b2bc7ef6f44cf24aaf41d39e1d7ce1a669397fbd1ad197bb4778b09496"
+    },
+    "CreativeUpdate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/creative-update.ts",
+      "canonical_sha256": "563bec6de899facc631a38be8893294eef6148ff1cbfc11829f717c3fb809190"
+    },
+    "Creative": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/creative.ts",
+      "canonical_sha256": "15cbd91cc9cd0c37f894166b35e82bc1c2066a2cb6f1948ea41ffb6f31e1340e"
+    },
+    "Currency": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/currency.ts",
+      "canonical_sha256": "e6e5cc8dd6487971d6c3d22c3cdf08a21c2b247cb8b79ed855f82062920bb961"
+    },
+    "DailyBudget": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/daily-budget.ts",
+      "canonical_sha256": "32c74ea53f9e9205ccd3e524cf3d33480157c057a2c0e01dbca63ce4a56e81bc"
+    },
+    "Delegation": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/delegation.ts",
+      "canonical_sha256": "ac04752d4afd91e5072954373aa4a99e8f85b936bebaa3f1b7e3972393450358"
+    },
+    "DestinationCreate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/destination-create.ts",
+      "canonical_sha256": "7f0be4f6cb30ac7548bd6833965a8ce32cc9707a0408665a9428a47411d343e0"
+    },
+    "DestinationParameter": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/destination-parameter.ts",
+      "canonical_sha256": "aa3cc350927b7d9a36e278da401e240d476e2a24376599f3de4fbf135c35f6a0"
+    },
+    "DestinationType": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/destination-type.ts",
+      "canonical_sha256": "82f411b1aead1fda7f43ec6d130af3e94d9bf13a51eb0b86769054ba00f180f5"
+    },
+    "Destination": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/destination.ts",
+      "canonical_sha256": "28be302ca866467a6cca10f397e90d0ce4a315edfd734beb6c9983c87003e489"
+    },
+    "InvoiceDetailCreate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/invoice-detail-create.ts",
+      "canonical_sha256": "c199b2925133737e4681a81ee6581b3a72ebcc4bd36fcc919ec57ea44f1460e6"
+    },
+    "InvoiceDetailUpdate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/invoice-detail-update.ts",
+      "canonical_sha256": "17a399d54d498349aa962132dfa7ad0b4bc1c6adf7109cf99c4f8a9267c49cf9"
+    },
+    "InvoiceDetail": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/invoice-detail.ts",
+      "canonical_sha256": "4ee6d729ab35d94f8ee3fc858981a5f34bf563cb6ed4743b360e294678eb7f17"
+    },
+    "KeywordCreate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/keyword-create.ts",
+      "canonical_sha256": "d2699dbe44cf1ab2e8f426ae2cb57f2bd7875caec39c1789c075a9c1557aa9b6"
+    },
+    "KeywordDisplayStatus": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/keyword-display-status.ts",
+      "canonical_sha256": "dce06953fe2ef7f83d6c7affd842133966bcbf7650dcfd7b079e7fa921b4a34e"
+    },
+    "KeywordMatchType": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/keyword-match-type.ts",
+      "canonical_sha256": "b40554921ffb8dbb02ad0fbe6b6164f1b674dadb59e5213d46fbb1af045561ef"
+    },
+    "KeywordStatus": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/keyword-status.ts",
+      "canonical_sha256": "f60535e6334e7849c1cd6d41a73d29e09e19e9eac6f30350be990aa33cdd7c0a"
+    },
+    "KeywordUpdate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/keyword-update.ts",
+      "canonical_sha256": "18c36c8779ce5b8deaa2d6391ff82c58348858cfe4c106a3077671c00fd9f6da"
+    },
+    "Keyword": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/keyword.ts",
+      "canonical_sha256": "b2139d2f970d90eb8d1cdd11e77df676a51dc54b67d95fb93caea619b09d02e2"
+    },
+    "Money": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/money.ts",
+      "canonical_sha256": "22cfcb2a5fe34ef2ee8956475de49a847aec749db950795ec8ee3bdb7eb7b9c4"
+    },
+    "NegativeKeywordCreate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/negative-keyword-create.ts",
+      "canonical_sha256": "05850d6c570ba4214936f96e307b383bc053012cfcad43250a148759d20346e9"
+    },
+    "NegativeKeywordStatus": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/negative-keyword-status.ts",
+      "canonical_sha256": "f04e9463833664e382be06be4d4b757c236efa6f64d1fb4f6539bc3a77144adc"
+    },
+    "NegativeKeywordUpdate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/negative-keyword-update.ts",
+      "canonical_sha256": "9ac5fac8d2d42a9de3a8bd8e89d47fd76875875cc4ce80a8af959cfb92de34e1"
+    },
+    "NegativeKeyword": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/negative-keyword.ts",
+      "canonical_sha256": "065ed9c09d551aeabf27575de5404bff32c3e62107c9565c621211b4cf85ba2a"
+    },
+    "PaymentModel": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/payment-model.ts",
+      "canonical_sha256": "1be5b41ea2ff68a65575c1aeb06cc6eba118a22e846f760268111dfbae52e835"
+    },
+    "PricingModel": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/pricing-model.ts",
+      "canonical_sha256": "cbd70b0a28b2cc749ab9d5717d1d41e8782e2aa8454398fb3f3c891e06a9fe22"
+    },
+    "PromotedObjectType": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/promoted-object-type.ts",
+      "canonical_sha256": "62366025599acc103df1ae44afb4a6fc7fe7e0f1df66ec88681d80d0aec332bc"
+    },
+    "RegulationResponseValue": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/regulation-response-value.ts",
+      "canonical_sha256": "4f4c94a146bd141e78415512e5c82428a9d6587613af325dc6cf357ffc41afd0"
+    },
+    "RegulationResponse": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/regulation-response.ts",
+      "canonical_sha256": "4ac579c689560838c1590c717ec4b9194f2034691affa3fbf805697f8c5268f8"
+    },
+    "RegulationType": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/regulation-type.ts",
+      "canonical_sha256": "96ebd3b981a328a1682545ed1aceb65d7364cceaec7fd90d2e0034a22150f1ac"
+    },
+    "SharedBudgetAssignment": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/shared-budget-assignment.ts",
+      "canonical_sha256": "e66711e8ed84931740f1a532e7227d034b7b534037022fcf67bf3b2f143fa201"
+    },
+    "SharedBudgetCreate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/shared-budget-create.ts",
+      "canonical_sha256": "2936dd61dcaa258827bbb93289539f6c6604d5125ee6558a0bc3f05ef74bed29"
+    },
+    "SharedBudgetUpdate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/shared-budget-update.ts",
+      "canonical_sha256": "96951979536bad1c95741a020215640213c3a5bbe55dc5c47b8e14e86d1593dc"
+    },
+    "SharedBudget": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/shared-budget.ts",
+      "canonical_sha256": "744834e6c18de8bf862b7095dcf35ae906b951caabf7c3d9233a0ae83497553d"
+    },
+    "TargetingDataCreate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/targeting-data-create.ts",
+      "canonical_sha256": "d998078bc3da9d52478c37a8ce0799bfa578152e70d965000adfe85cac84cc83"
+    },
+    "TargetingDataUpdate": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/targeting-data-update.ts",
+      "canonical_sha256": "61d8b5bf5fc0977b5751bc0fb946011ec4fa646c2a8fa1f4bd7173a819ac71a7"
+    },
+    "TargetingData": {
+      "source": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/model/targeting-data.ts",
+      "canonical_sha256": "0b9a6f23ddb653b2d098effd41c8d481df4df9424145fed5165f7878fb4fd2db"
+    }
+  },
+  "models": {
+    "AdAccountSystemStatusReason": {
+      "enum": [
+        "CHARGE_BACK_DISPUTED",
+        "CREDIT_CARD_SUSPENDED",
+        "ORG_PAYMENT_TYPE_DECLINED",
+        "FRAUD",
+        "INVALID_PAYMENT_PROFILE",
+        "MSA_EXPIRED",
+        "MSA_NOT_RECEIVED",
+        "NO_PAYMENT_METHOD_ON_FILE",
+        "ORG_NO_PAYMENT_METHOD_ON_FILE",
+        "PAYMENT_DECLINED",
+        "PAYMENT_METHOD_CANCELED",
+        "PAYMENT_METHOD_ON_HOLD",
+        "PAYMENT_PENDING_CHARGES",
+        "LOC_EXHAUSTED",
+        "POLICY_VIOLATION",
+        "TAX_VERIFICATION_PENDING",
+        "TERM_NOT_ACCEPTED",
+        "USER_REQUESTED_ACCOUNT_SUSPENSION"
+      ]
+    },
+    "AdAccountSystemStatus": {
+      "enum": [
+        "ACTIVE",
+        "INACTIVE"
+      ]
+    },
+    "AdAccount": {
+      "fields": {
+        "name": {
+          "type": "string | null",
+          "required": false
+        },
+        "orgId": {
+          "type": "number | null",
+          "required": false
+        },
+        "timezone": {
+          "type": "string | null",
+          "required": false
+        },
+        "currency": {
+          "type": "Currency | null",
+          "required": false
+        },
+        "paymentModel": {
+          "type": "PaymentModel | null",
+          "required": false
+        },
+        "systemStatus": {
+          "type": "AdAccountSystemStatus | null",
+          "required": false
+        },
+        "systemStatusReasons": {
+          "type": "Array<AdAccountSystemStatusReason> | null",
+          "required": false
+        },
+        "delegations": {
+          "type": "Array<Delegation> | null",
+          "required": false
+        },
+        "productFeatures": {
+          "type": "Array<string> | null",
+          "required": false
+        },
+        "id": {
+          "type": "number | null",
+          "required": false
+        },
+        "creationTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "modificationTime": {
+          "type": "string | null",
+          "required": false
+        }
+      }
+    },
+    "AdCreate": {
+      "fields": {
+        "adGroupId": {
+          "type": "number",
+          "required": true
+        },
+        "creativeId": {
+          "type": "number",
+          "required": true
+        },
+        "name": {
+          "type": "string",
+          "required": true
+        },
+        "status": {
+          "type": "AdStatus",
+          "required": true
+        }
+      }
+    },
+    "AdDisplayStatus": {
+      "enum": [
+        "AD_GROUP_ON_HOLD",
+        "CAMPAIGN_ON_HOLD",
+        "DELETED",
+        "LIMITED",
+        "ON_HOLD",
+        "PAUSED",
+        "PROCESSING",
+        "RUNNING"
+      ]
+    },
+    "AdGroupCreate": {
+      "fields": {
+        "name": {
+          "type": "string",
+          "required": true
+        },
+        "campaignId": {
+          "type": "number",
+          "required": true
+        },
+        "startTime": {
+          "type": "string",
+          "required": false
+        },
+        "endTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "pricingModel": {
+          "type": "PricingModel",
+          "required": true
+        },
+        "automatedKeywordsOptIn": {
+          "type": "boolean | null",
+          "required": false
+        },
+        "status": {
+          "type": "AdGroupStatus",
+          "required": false
+        },
+        "automatedKeywordsRequired": {
+          "type": "boolean | null",
+          "required": false
+        },
+        "bidStrategy": {
+          "type": "BidStrategyCreate | null",
+          "required": false
+        },
+        "cpaCap": {
+          "type": "CPAGoalCreate | null",
+          "required": false
+        },
+        "targeting": {
+          "type": "AdGroupTargetingCreate | null",
+          "required": false
+        }
+      }
+    },
+    "AdGroupDisplayStatus": {
+      "enum": [
+        "CAMPAIGN_ON_HOLD",
+        "DELETED",
+        "LIMITED",
+        "ON_HOLD",
+        "PAUSED",
+        "PROCESSING",
+        "RUNNING"
+      ]
+    },
+    "AdGroupStatus": {
+      "enum": [
+        "ENABLED",
+        "PAUSED"
+      ]
+    },
+    "AdGroupSystemLimitedStatusReason": {
+      "enum": [
+        "LOCATION_POLICY_ISSUES",
+        "LOCATION_GROUP_ISSUES",
+        "ADS_LIMITED"
+      ]
+    },
+    "AdGroupSystemStatusReason": {
+      "enum": [
+        "PROCESSING",
+        "PAUSED_BY_SYSTEM",
+        "PAUSED_BY_USER",
+        "DELETED_BY_USER",
+        "SCHEDULE_PENDING",
+        "SCHEDULE_EXPIRED",
+        "TARGETED_DEVICE_CLASS_NOT_SUPPORTED_SUPPLY_PLACEMENT",
+        "PENDING_AUDIENCE_VERIFICATION",
+        "AUDIENCE_BELOW_THRESHOLD",
+        "CAMPAIGN_NOT_RUNNING",
+        "ADS_NOT_RUNNING",
+        "AUTOMATED_KEYWORDS_REQUIRED_AD_GROUP_NOT_ALLOWED_IN_MANUAL_CAMPAIGNS",
+        "KEYWORDS_MISSING"
+      ]
+    },
+    "AdGroupSystemStatus": {
+      "enum": [
+        "RUNNING",
+        "NOT_RUNNING"
+      ]
+    },
+    "AdGroupTargetingCreate": {
+      "fields": {
+        "country": {
+          "type": "TargetingDataCreate | null",
+          "required": false
+        },
+        "adminArea": {
+          "type": "TargetingDataCreate | null",
+          "required": false
+        },
+        "locality": {
+          "type": "TargetingDataCreate | null",
+          "required": false
+        },
+        "postalCode": {
+          "type": "TargetingDataCreate | null",
+          "required": false
+        },
+        "deviceClass": {
+          "type": "TargetingDataCreate | null",
+          "required": false
+        },
+        "minAge": {
+          "type": "TargetingDataCreate | null",
+          "required": false
+        },
+        "maxAge": {
+          "type": "TargetingDataCreate | null",
+          "required": false
+        },
+        "gender": {
+          "type": "TargetingDataCreate | null",
+          "required": false
+        },
+        "appCategory": {
+          "type": "TargetingDataCreate | null",
+          "required": false
+        },
+        "appDownloader": {
+          "type": "TargetingDataCreate | null",
+          "required": false
+        },
+        "daypart": {
+          "type": "TargetingDataCreate | null",
+          "required": false
+        },
+        "radius": {
+          "type": "TargetingDataCreate | null",
+          "required": false
+        },
+        "locationGroup": {
+          "type": "TargetingDataCreate | null",
+          "required": false
+        },
+        "travelIntent": {
+          "type": "TargetingDataCreate | null",
+          "required": false
+        }
+      }
+    },
+    "AdGroupTargetingUpdate": {
+      "fields": {
+        "country": {
+          "type": "TargetingDataUpdate | null",
+          "required": false
+        },
+        "adminArea": {
+          "type": "TargetingDataUpdate | null",
+          "required": false
+        },
+        "locality": {
+          "type": "TargetingDataUpdate | null",
+          "required": false
+        },
+        "postalCode": {
+          "type": "TargetingDataUpdate | null",
+          "required": false
+        },
+        "deviceClass": {
+          "type": "TargetingDataUpdate | null",
+          "required": false
+        },
+        "minAge": {
+          "type": "TargetingDataUpdate | null",
+          "required": false
+        },
+        "maxAge": {
+          "type": "TargetingDataUpdate | null",
+          "required": false
+        },
+        "gender": {
+          "type": "TargetingDataUpdate | null",
+          "required": false
+        },
+        "appCategory": {
+          "type": "TargetingDataUpdate | null",
+          "required": false
+        },
+        "appDownloader": {
+          "type": "TargetingDataUpdate | null",
+          "required": false
+        },
+        "daypart": {
+          "type": "TargetingDataUpdate | null",
+          "required": false
+        },
+        "radius": {
+          "type": "TargetingDataUpdate | null",
+          "required": false
+        },
+        "locationGroup": {
+          "type": "TargetingDataUpdate | null",
+          "required": false
+        },
+        "travelIntent": {
+          "type": "TargetingDataUpdate | null",
+          "required": false
+        }
+      }
+    },
+    "AdGroupTargeting": {
+      "fields": {
+        "country": {
+          "type": "TargetingData",
+          "required": false
+        },
+        "adminArea": {
+          "type": "TargetingData",
+          "required": false
+        },
+        "locality": {
+          "type": "TargetingData",
+          "required": false
+        },
+        "postalCode": {
+          "type": "TargetingData",
+          "required": false
+        },
+        "deviceClass": {
+          "type": "TargetingData",
+          "required": false
+        },
+        "minAge": {
+          "type": "TargetingData",
+          "required": false
+        },
+        "maxAge": {
+          "type": "TargetingData",
+          "required": false
+        },
+        "gender": {
+          "type": "TargetingData",
+          "required": false
+        },
+        "appCategory": {
+          "type": "TargetingData",
+          "required": false
+        },
+        "appDownloader": {
+          "type": "TargetingData",
+          "required": false
+        },
+        "daypart": {
+          "type": "TargetingData",
+          "required": false
+        },
+        "radius": {
+          "type": "TargetingData",
+          "required": false
+        },
+        "locationGroup": {
+          "type": "TargetingData",
+          "required": false
+        },
+        "travelIntent": {
+          "type": "TargetingData",
+          "required": false
+        }
+      }
+    },
+    "AdGroupUpdate": {
+      "fields": {
+        "name": {
+          "type": "string",
+          "required": false
+        },
+        "startTime": {
+          "type": "string",
+          "required": false
+        },
+        "endTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "automatedKeywordsOptIn": {
+          "type": "boolean | null",
+          "required": false
+        },
+        "status": {
+          "type": "AdGroupStatus",
+          "required": false
+        },
+        "automatedKeywordsRequired": {
+          "type": "boolean | null",
+          "required": false
+        },
+        "bidStrategy": {
+          "type": "BidStrategyUpdate | null",
+          "required": false
+        },
+        "cpaCap": {
+          "type": "CPAGoalUpdate | null",
+          "required": false
+        },
+        "targeting": {
+          "type": "AdGroupTargetingUpdate | null",
+          "required": false
+        }
+      }
+    },
+    "AdGroup": {
+      "fields": {
+        "id": {
+          "type": "number | null",
+          "required": false
+        },
+        "name": {
+          "type": "string | null",
+          "required": false
+        },
+        "adAccountId": {
+          "type": "number | null",
+          "required": false
+        },
+        "campaignId": {
+          "type": "number | null",
+          "required": false
+        },
+        "startTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "endTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "pricingModel": {
+          "type": "PricingModel | null",
+          "required": false
+        },
+        "automatedKeywordsOptIn": {
+          "type": "boolean | null",
+          "required": false
+        },
+        "status": {
+          "type": "AdGroupStatus | null",
+          "required": false
+        },
+        "systemStatus": {
+          "type": "AdGroupSystemStatus | null",
+          "required": false
+        },
+        "systemStatusReasons": {
+          "type": "Array<AdGroupSystemStatusReason> | null",
+          "required": false
+        },
+        "systemStatusLimitingReasons": {
+          "type": "Array<AdGroupSystemLimitedStatusReason> | null",
+          "required": false
+        },
+        "automatedKeywordsRequired": {
+          "type": "boolean | null",
+          "required": false
+        },
+        "displayStatus": {
+          "type": "AdGroupDisplayStatus | null",
+          "required": false
+        },
+        "bidStrategy": {
+          "type": "BidStrategy | null",
+          "required": false
+        },
+        "cpaCap": {
+          "type": "CPAGoal | null",
+          "required": false
+        },
+        "targeting": {
+          "type": "AdGroupTargeting | null",
+          "required": false
+        },
+        "creationTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "modificationTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "deleted": {
+          "type": "boolean | null",
+          "required": false
+        }
+      }
+    },
+    "AdStatus": {
+      "enum": [
+        "ENABLED",
+        "PAUSED"
+      ]
+    },
+    "AdSystemLimitedStatusReason": {
+      "enum": [
+        "CREATIVE_POLICY_ISSUES"
+      ]
+    },
+    "AdSystemStatusReason": {
+      "enum": [
+        "PROCESSING",
+        "PAUSED_BY_SYSTEM",
+        "PAUSED_BY_USER",
+        "DELETED_BY_USER",
+        "AD_APPROVAL_CREATIVE_DOC_EXPIRED",
+        "AD_APPROVAL_CREATIVE_DOC_NOT_SUBMITTED",
+        "AD_APPROVAL_CREATIVE_DOC_PENDING",
+        "AD_APPROVAL_CREATIVE_DOC_REJECTED",
+        "AD_APPROVAL_PENDING",
+        "AD_APPROVAL_REJECTED",
+        "CREATIVE_SET_INVALID",
+        "CREATIVE_SET_UNSUPPORTED",
+        "PRODUCT_PAGE_DELETED",
+        "PRODUCT_PAGE_HIDDEN",
+        "PRODUCT_PAGE_INCOMPATIBLE",
+        "PRODUCT_PAGE_INSUFFICIENT_ASSETS",
+        "PRODUCT_PAGE_UNAVAILABLE",
+        "CREATIVE_INVALID",
+        "CREATIVE_PENDING",
+        "CREATIVE_LOCALE_INCOMPATIBLE"
+      ]
+    },
+    "AdSystemStatus": {
+      "enum": [
+        "RUNNING",
+        "NOT_RUNNING"
+      ]
+    },
+    "AdUpdate": {
+      "fields": {
+        "name": {
+          "type": "string",
+          "required": false
+        },
+        "status": {
+          "type": "AdStatus",
+          "required": false
+        }
+      }
+    },
+    "Ad": {
+      "fields": {
+        "id": {
+          "type": "number | null",
+          "required": false
+        },
+        "adAccountId": {
+          "type": "number | null",
+          "required": false
+        },
+        "campaignId": {
+          "type": "number | null",
+          "required": false
+        },
+        "adGroupId": {
+          "type": "number | null",
+          "required": false
+        },
+        "creativeId": {
+          "type": "number | null",
+          "required": false
+        },
+        "name": {
+          "type": "string | null",
+          "required": false
+        },
+        "status": {
+          "type": "AdStatus | null",
+          "required": false
+        },
+        "systemStatus": {
+          "type": "AdSystemStatus | null",
+          "required": false
+        },
+        "systemStatusReasons": {
+          "type": "Array<AdSystemStatusReason> | null",
+          "required": false
+        },
+        "systemStatusLimitingReasons": {
+          "type": "Array<AdSystemLimitedStatusReason> | null",
+          "required": false
+        },
+        "displayStatus": {
+          "type": "AdDisplayStatus | null",
+          "required": false
+        },
+        "creationTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "modificationTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "deleted": {
+          "type": "boolean | null",
+          "required": false
+        }
+      }
+    },
+    "AdvertiserResourceType": {
+      "enum": [
+        "CONTENT_PROVIDER",
+        "BUSINESS_BRAND"
+      ]
+    },
+    "BidStrategyCreate": {
+      "fields": {
+        "bidStrategyType": {
+          "type": "BidStrategyType | null",
+          "required": false
+        },
+        "bidStrategyGoal": {
+          "type": "BidStrategyGoal | null",
+          "required": false
+        },
+        "bid": {
+          "type": "Money",
+          "required": false
+        }
+      }
+    },
+    "BidStrategyGoal": {
+      "enum": [
+        "IMPRESSION",
+        "INSTALL",
+        "TAP"
+      ]
+    },
+    "BidStrategyType": {
+      "enum": [
+        "MANUAL_CPT",
+        "MAX_CONVERSIONS",
+        "MANUAL_CPM",
+        "MAX_ENGAGEMENTS"
+      ]
+    },
+    "BidStrategyUpdate": {
+      "fields": {
+        "bidStrategyType": {
+          "type": "BidStrategyType | null",
+          "required": false
+        },
+        "bidStrategyGoal": {
+          "type": "BidStrategyGoal | null",
+          "required": false
+        },
+        "bid": {
+          "type": "Money",
+          "required": false
+        }
+      }
+    },
+    "BidStrategy": {
+      "fields": {
+        "bidStrategyType": {
+          "type": "BidStrategyType",
+          "required": false
+        },
+        "bidStrategyGoal": {
+          "type": "BidStrategyGoal",
+          "required": false
+        },
+        "bid": {
+          "type": "Money",
+          "required": false
+        }
+      }
+    },
+    "BillingEvent": {
+      "enum": [
+        "IMPRESSIONS",
+        "INSTALLS",
+        "TAPS"
+      ]
+    },
+    "BudgetSystemStatusReason": {
+      "enum": [
+        "PROCESSING",
+        "DELETED_BY_USER",
+        "EXHAUSTED",
+        "CANCELED",
+        "SCHEDULE_PENDING",
+        "SCHEDULE_EXPIRED",
+        "CAMPAIGN_BUDGET_UNASSIGNED"
+      ]
+    },
+    "BudgetSystemStatus": {
+      "enum": [
+        "ACTIVE",
+        "INACTIVE"
+      ]
+    },
+    "CampaignDisplayStatus": {
+      "enum": [
+        "DELETED",
+        "LIMITED",
+        "ON_HOLD",
+        "PAUSED",
+        "PROCESSING",
+        "RUNNING"
+      ]
+    },
+    "CampaignStatus": {
+      "enum": [
+        "ENABLED",
+        "PAUSED"
+      ]
+    },
+    "CampaignSystemLimitedStatusReason": {
+      "enum": [
+        "FEATURE_NOT_AVAILABLE_IN_COUNTRY_OR_REGION",
+        "ACCOUNT_DOC_APPROVAL_EXPIRED",
+        "ACCOUNT_DOC_APPROVAL_INFECTED",
+        "ACCOUNT_DOC_APPROVAL_NOT_SUBMITTED",
+        "ACCOUNT_DOC_APPROVAL_PENDING",
+        "ACCOUNT_DOC_APPROVAL_REJECTED",
+        "APP_CONTENT_REJECTED",
+        "APP_CONTENT_REVIEW_PENDING",
+        "APP_DOC_APPROVAL_EXPIRED",
+        "APP_DOC_APPROVAL_INFECTED",
+        "APP_DOC_APPROVAL_NOT_SUBMITTED",
+        "APP_DOC_APPROVAL_PENDING",
+        "APP_DOC_APPROVAL_REJECTED",
+        "APP_NOT_ELIGIBLE",
+        "APP_NOT_ELIGIBLE_SEARCHADS",
+        "APP_NOT_ELIGIBLE_SUPPLY_SOURCE",
+        "APP_NOT_ELIGIBLE_SUPPLY_PLACEMENT",
+        "APP_LANGUAGE_INCOMPATIBLE",
+        "APP_NOT_PUBLISHED_YET",
+        "SAPIN_LAW_AGENT_UNKNOWN",
+        "SAPIN_LAW_FRENCH_BIZ",
+        "SAPIN_LAW_FRENCH_BIZ_UNKNOWN",
+        "BRAND_POLICY_ISSUES",
+        "AD_GROUPS_LIMITED"
+      ]
+    },
+    "CampaignSystemStatusReason": {
+      "enum": [
+        "PROCESSING",
+        "PAUSED_BY_SYSTEM",
+        "FEATURE_NOT_YET_AVAILABLE",
+        "FEATURE_NO_LONGER_AVAILABLE",
+        "PAUSED_BY_USER",
+        "DELETED_BY_USER",
+        "USER_REQUESTED_ACCOUNT_SUSPENSION",
+        "CAMPAIGN_DELETED_FOR_BASIC_MSF_MIGRATION",
+        "SCHEDULE_PENDING",
+        "SCHEDULE_EXPIRED",
+        "APP_DOC_APPROVAL_REJECTED",
+        "APP_NOT_CATEGORIZED",
+        "APP_NOT_ELIGIBLE",
+        "APP_NOT_ELIGIBLE_SEARCHADS",
+        "APP_NOT_ELIGIBLE_SUPPLY_PLACEMENT",
+        "APP_NOT_PUBLISHED_YET",
+        "APP_SENSITIVE_CONTENT",
+        "COUNTRIES_OR_REGIONS_NOT_ELIGIBLE",
+        "SAPIN_LAW_AGENT_UNKNOWN",
+        "SAPIN_LAW_FRENCH_BIZ",
+        "SAPIN_LAW_FRENCH_BIZ_UNKNOWN",
+        "LIFETIME_BUDGET_EXHAUSTED",
+        "MONTHLY_BUDGET_EXHAUSTED",
+        "BUDGET_ORDER_EXHAUSTED",
+        "BUDGET_ORDER_SCHEDULE_PENDING",
+        "BUDGET_ORDER_SCHEDULE_EXPIRED",
+        "BUDGET_ORDER_CANCELED",
+        "BUDGET_ORDER_OR_INVOICE_DETAIL_MISSING",
+        "ORG_PAYMENT_TYPE_DECLINED",
+        "LINE_OF_CREDIT_EXHAUSTED",
+        "TAX_VERIFICATION_PENDING",
+        "AD_ACCOUNT_PAYMENT_ISSUES",
+        "ORG_NO_PAYMENT_METHOD_ON_FILE",
+        "ORG_CHARGE_BACK_DISPUTED",
+        "ORG_PAYMENT_METHOD_CHANGED",
+        "ORG_SUSPENDED_FRAUD",
+        "ORG_SUSPENDED_POLICY_VIOLATION",
+        "CONTENT_PROVIDER_UNLINKED",
+        "AD_ACCOUNT_BRAND_DELEGATION_ISSUES",
+        "AD_GROUPS_MISSING",
+        "AD_GROUPS_NOT_RUNNING",
+        "AUTOMATED_KEYWORDS_REQUIRED_AD_GROUP_MISSING",
+        "AUTOMATED_KEYWORDS_REQUIRED_AD_GROUP_NOT_RUNNING"
+      ]
+    },
+    "CampaignSystemStatus": {
+      "enum": [
+        "RUNNING",
+        "NOT_RUNNING"
+      ]
+    },
+    "CampaignTargeting": {
+      "fields": {
+        "supplySource": {
+          "type": "TargetingData",
+          "required": false
+        },
+        "supplyPlacement": {
+          "type": "TargetingData",
+          "required": false
+        },
+        "countryOrRegion": {
+          "type": "TargetingData",
+          "required": false
+        }
+      }
+    },
+    "Campaign": {
+      "fields": {
+        "id": {
+          "type": "number | null",
+          "required": false
+        },
+        "adAccountId": {
+          "type": "number | null",
+          "required": false
+        },
+        "name": {
+          "type": "string | null",
+          "required": false
+        },
+        "billingEvent": {
+          "type": "BillingEvent | null",
+          "required": false
+        },
+        "paymentModel": {
+          "type": "PaymentModel | null",
+          "required": false
+        },
+        "startTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "endTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "promotedObjectType": {
+          "type": "PromotedObjectType | null",
+          "required": false
+        },
+        "promotedObjectId": {
+          "type": "string | null",
+          "required": false
+        },
+        "status": {
+          "type": "CampaignStatus | null",
+          "required": false
+        },
+        "systemStatus": {
+          "type": "CampaignSystemStatus | null",
+          "required": false
+        },
+        "systemStatusReasons": {
+          "type": "Array<CampaignSystemStatusReason> | null",
+          "required": false
+        },
+        "systemStatusLimitingReasons": {
+          "type": "Array<CampaignSystemLimitedStatusReason> | null",
+          "required": false
+        },
+        "displayStatus": {
+          "type": "CampaignDisplayStatus | null",
+          "required": false
+        },
+        "dailyBudget": {
+          "type": "DailyBudget | null",
+          "required": false
+        },
+        "sharedBudgets": {
+          "type": "Array<SharedBudgetAssignment> | null",
+          "required": false
+        },
+        "targeting": {
+          "type": "CampaignTargeting | null",
+          "required": false
+        },
+        "bidStrategy": {
+          "type": "BidStrategy | null",
+          "required": false
+        },
+        "invoiceDetail": {
+          "type": "InvoiceDetail | null",
+          "required": false
+        },
+        "regulationResponses": {
+          "type": "Array<RegulationResponse> | null",
+          "required": false
+        },
+        "creationTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "modificationTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "deleted": {
+          "type": "boolean | null",
+          "required": false
+        }
+      }
+    },
+    "CPAGoalCreate": {
+      "fields": {
+        "value": {
+          "type": "Money",
+          "required": false
+        }
+      }
+    },
+    "CPAGoalUpdate": {
+      "fields": {
+        "value": {
+          "type": "Money",
+          "required": false
+        }
+      }
+    },
+    "CPAGoal": {
+      "fields": {
+        "value": {
+          "type": "Money",
+          "required": false
+        }
+      }
+    },
+    "CreativeCreate": {
+      "fields": {
+        "name": {
+          "type": "string",
+          "required": true
+        },
+        "creativeType": {
+          "type": "CreativeType",
+          "required": true
+        },
+        "creativeSpec": {
+          "type": "object | null",
+          "required": false
+        },
+        "destination": {
+          "type": "DestinationCreate",
+          "required": true
+        }
+      }
+    },
+    "CreativeEligibility": {
+      "fields": {
+        "status": {
+          "type": "string",
+          "required": false
+        },
+        "blockedGroups": {
+          "type": "object",
+          "required": false
+        },
+        "allowedGroups": {
+          "type": "object",
+          "required": false
+        }
+      }
+    },
+    "CreativeSystemStatusReason": {
+      "enum": [
+        "PRODUCT_PAGE_DELETED",
+        "PRODUCT_PAGE_HIDDEN",
+        "PRODUCT_PAGE_UNAVAILABLE",
+        "CREATIVE_ASSET_UNAVAILABLE",
+        "CREATIVE_ASSET_PENDING_AVAILABILITY",
+        "DELETED_BY_USER",
+        "ASSET_DELETED",
+        "PAUSED_BY_USER",
+        "POLICY_PROHIBITED",
+        "NEEDS_REVIEW",
+        "POLICY_UNDEFINED",
+        "MISSING_ASSET",
+        "PENDING_ASSET_CHECKS",
+        "FAILED_ASSET_RATIO_COMPATIBILITY"
+      ]
+    },
+    "CreativeSystemStatus": {
+      "enum": [
+        "VALID",
+        "INVALID",
+        "PENDING"
+      ]
+    },
+    "CreativeType": {
+      "enum": [
+        "CUSTOM_PRODUCT_PAGE",
+        "DEFAULT_PRODUCT_PAGE",
+        "LOCAL_ADS_SEARCH_CREATIVE"
+      ]
+    },
+    "CreativeUpdate": {
+      "fields": {
+        "name": {
+          "type": "string",
+          "required": false
+        },
+        "creativeSpec": {
+          "type": "object | null",
+          "required": false
+        }
+      }
+    },
+    "Creative": {
+      "fields": {
+        "adAccountId": {
+          "type": "number | null",
+          "required": false
+        },
+        "name": {
+          "type": "string | null",
+          "required": false
+        },
+        "creativeType": {
+          "type": "CreativeType | null",
+          "required": false
+        },
+        "creativeSpec": {
+          "type": "object | null",
+          "required": false
+        },
+        "systemStatus": {
+          "type": "CreativeSystemStatus | null",
+          "required": false
+        },
+        "systemStatusReasons": {
+          "type": "Array<CreativeSystemStatusReason> | null",
+          "required": false
+        },
+        "destination": {
+          "type": "Destination | null",
+          "required": false
+        },
+        "eligibility": {
+          "type": "CreativeEligibility | null",
+          "required": false
+        },
+        "id": {
+          "type": "number | null",
+          "required": false
+        },
+        "creationTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "modificationTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "deleted": {
+          "type": "boolean | null",
+          "required": false
+        }
+      }
+    },
+    "Currency": {
+      "enum": [
+        "USD",
+        "RMB",
+        "AUD",
+        "CAD",
+        "EUR",
+        "GBP",
+        "JPY",
+        "MXN",
+        "NZD",
+        "RUB",
+        "CNY",
+        "INR",
+        "BRL",
+        "IDR"
+      ]
+    },
+    "DailyBudget": {
+      "fields": {
+        "value": {
+          "type": "Money",
+          "required": false
+        }
+      }
+    },
+    "Delegation": {
+      "fields": {
+        "resourceId": {
+          "type": "string",
+          "required": false
+        },
+        "resourceType": {
+          "type": "AdvertiserResourceType",
+          "required": false
+        },
+        "resourceName": {
+          "type": "string",
+          "required": false
+        }
+      }
+    },
+    "DestinationCreate": {
+      "fields": {
+        "destinationType": {
+          "type": "DestinationType",
+          "required": true
+        },
+        "parameters": {
+          "type": "DestinationParameter | null",
+          "required": false
+        }
+      }
+    },
+    "DestinationParameter": {
+      "fields": {
+        "adamId": {
+          "type": "string | null",
+          "required": false
+        },
+        "productPageId": {
+          "type": "string | null",
+          "required": false
+        }
+      }
+    },
+    "DestinationType": {
+      "enum": [
+        "APP_STORE_PRODUCT_PAGE",
+        "LOCAL_ADS_PLACECARD"
+      ]
+    },
+    "Destination": {
+      "fields": {
+        "destinationType": {
+          "type": "DestinationType",
+          "required": false
+        },
+        "url": {
+          "type": "string",
+          "required": false
+        },
+        "parameters": {
+          "type": "DestinationParameter",
+          "required": false
+        }
+      }
+    },
+    "InvoiceDetailCreate": {
+      "fields": {
+        "orderNumber": {
+          "type": "string | null",
+          "required": false
+        },
+        "clientName": {
+          "type": "string | null",
+          "required": false
+        },
+        "primaryBuyerName": {
+          "type": "string",
+          "required": true
+        },
+        "primaryBuyerEmail": {
+          "type": "string",
+          "required": true
+        },
+        "billingEmail": {
+          "type": "string",
+          "required": true
+        }
+      }
+    },
+    "InvoiceDetailUpdate": {
+      "fields": {
+        "orderNumber": {
+          "type": "string | null",
+          "required": false
+        },
+        "clientName": {
+          "type": "string | null",
+          "required": false
+        },
+        "primaryBuyerName": {
+          "type": "string | null",
+          "required": false
+        },
+        "primaryBuyerEmail": {
+          "type": "string | null",
+          "required": false
+        },
+        "billingEmail": {
+          "type": "string | null",
+          "required": false
+        }
+      }
+    },
+    "InvoiceDetail": {
+      "fields": {
+        "orderNumber": {
+          "type": "string",
+          "required": false
+        },
+        "clientName": {
+          "type": "string",
+          "required": false
+        },
+        "primaryBuyerName": {
+          "type": "string",
+          "required": false
+        },
+        "primaryBuyerEmail": {
+          "type": "string",
+          "required": false
+        },
+        "billingEmail": {
+          "type": "string",
+          "required": false
+        }
+      }
+    },
+    "KeywordCreate": {
+      "fields": {
+        "adGroupId": {
+          "type": "number",
+          "required": true
+        },
+        "text": {
+          "type": "string",
+          "required": true
+        },
+        "matchType": {
+          "type": "KeywordMatchType",
+          "required": false
+        },
+        "bid": {
+          "type": "Money",
+          "required": false
+        },
+        "status": {
+          "type": "KeywordStatus",
+          "required": false
+        }
+      }
+    },
+    "KeywordDisplayStatus": {
+      "enum": [
+        "AD_GROUP_ON_HOLD",
+        "CAMPAIGN_ON_HOLD",
+        "DELETED",
+        "PAUSED",
+        "RUNNING"
+      ]
+    },
+    "KeywordMatchType": {
+      "enum": [
+        "EXACT",
+        "BROAD",
+        "PHRASE",
+        "CATEGORY"
+      ]
+    },
+    "KeywordStatus": {
+      "enum": [
+        "ENABLED",
+        "PAUSED"
+      ]
+    },
+    "KeywordUpdate": {
+      "fields": {
+        "bid": {
+          "type": "Money",
+          "required": false
+        },
+        "status": {
+          "type": "KeywordStatus",
+          "required": false
+        }
+      }
+    },
+    "Keyword": {
+      "fields": {
+        "id": {
+          "type": "number | null",
+          "required": false
+        },
+        "adAccountId": {
+          "type": "number | null",
+          "required": false
+        },
+        "campaignId": {
+          "type": "number | null",
+          "required": false
+        },
+        "adGroupId": {
+          "type": "number | null",
+          "required": false
+        },
+        "text": {
+          "type": "string | null",
+          "required": false
+        },
+        "matchType": {
+          "type": "KeywordMatchType | null",
+          "required": false
+        },
+        "bid": {
+          "type": "Money",
+          "required": false
+        },
+        "status": {
+          "type": "KeywordStatus | null",
+          "required": false
+        },
+        "displayStatus": {
+          "type": "KeywordDisplayStatus | null",
+          "required": false
+        },
+        "creationTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "modificationTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "deleted": {
+          "type": "boolean | null",
+          "required": false
+        }
+      }
+    },
+    "Money": {
+      "fields": {
+        "amount": {
+          "type": "string",
+          "required": true
+        },
+        "currency": {
+          "type": "string | null",
+          "required": false
+        }
+      }
+    },
+    "NegativeKeywordCreate": {
+      "fields": {
+        "campaignId": {
+          "type": "number | null",
+          "required": false
+        },
+        "adGroupId": {
+          "type": "number | null",
+          "required": false
+        },
+        "text": {
+          "type": "string",
+          "required": true
+        },
+        "matchType": {
+          "type": "KeywordMatchType",
+          "required": false
+        },
+        "status": {
+          "type": "NegativeKeywordStatus",
+          "required": false
+        }
+      }
+    },
+    "NegativeKeywordStatus": {
+      "enum": [
+        "ENABLED",
+        "PAUSED"
+      ]
+    },
+    "NegativeKeywordUpdate": {
+      "fields": {
+        "status": {
+          "type": "NegativeKeywordStatus",
+          "required": false
+        }
+      }
+    },
+    "NegativeKeyword": {
+      "fields": {
+        "id": {
+          "type": "number | null",
+          "required": false
+        },
+        "adAccountId": {
+          "type": "number | null",
+          "required": false
+        },
+        "campaignId": {
+          "type": "number | null",
+          "required": false
+        },
+        "adGroupId": {
+          "type": "number | null",
+          "required": false
+        },
+        "text": {
+          "type": "string | null",
+          "required": false
+        },
+        "matchType": {
+          "type": "KeywordMatchType | null",
+          "required": false
+        },
+        "status": {
+          "type": "NegativeKeywordStatus | null",
+          "required": false
+        },
+        "creationTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "modificationTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "deleted": {
+          "type": "boolean | null",
+          "required": false
+        }
+      }
+    },
+    "PaymentModel": {
+      "enum": [
+        "PAYG",
+        "LOC"
+      ]
+    },
+    "PricingModel": {
+      "enum": [
+        "CPA",
+        "CPM",
+        "CPT"
+      ]
+    },
+    "PromotedObjectType": {
+      "enum": [
+        "APPSTORE_APP",
+        "BUSINESS_BRAND"
+      ]
+    },
+    "RegulationResponseValue": {
+      "enum": [
+        "AGENT",
+        "FALSE",
+        "FRENCH_BUSINESS",
+        "NOT_AGENT",
+        "NOT_ANSWERED",
+        "NOT_FRENCH_BUSINESS",
+        "TRUE"
+      ]
+    },
+    "RegulationResponse": {
+      "fields": {
+        "regulationType": {
+          "type": "RegulationType",
+          "required": false
+        },
+        "responseValue": {
+          "type": "RegulationResponseValue",
+          "required": false
+        }
+      }
+    },
+    "RegulationType": {
+      "enum": [
+        "CAC",
+        "CAMPAIGN_SAPIN_LAW",
+        "ORG_SAPIN_LAW"
+      ]
+    },
+    "SharedBudgetAssignment": {
+      "fields": {
+        "budgetId": {
+          "type": "number",
+          "required": false
+        }
+      }
+    },
+    "SharedBudgetCreate": {
+      "fields": {
+        "name": {
+          "type": "string",
+          "required": true
+        },
+        "startTime": {
+          "type": "string",
+          "required": true
+        },
+        "endTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "value": {
+          "type": "Money",
+          "required": true
+        },
+        "adAccountIds": {
+          "type": "Array<number>",
+          "required": true
+        },
+        "invoiceDetail": {
+          "type": "InvoiceDetailCreate",
+          "required": true
+        }
+      }
+    },
+    "SharedBudgetUpdate": {
+      "fields": {
+        "name": {
+          "type": "string",
+          "required": false
+        },
+        "startTime": {
+          "type": "string",
+          "required": false
+        },
+        "endTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "value": {
+          "type": "Money",
+          "required": false
+        },
+        "adAccountIds": {
+          "type": "Array<number>",
+          "required": false
+        },
+        "invoiceDetail": {
+          "type": "InvoiceDetailUpdate",
+          "required": false
+        }
+      }
+    },
+    "SharedBudget": {
+      "fields": {
+        "name": {
+          "type": "string | null",
+          "required": false
+        },
+        "startTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "endTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "value": {
+          "type": "Money",
+          "required": false
+        },
+        "orgId": {
+          "type": "number | null",
+          "required": false
+        },
+        "adAccountIds": {
+          "type": "Array<number> | null",
+          "required": false
+        },
+        "systemStatus": {
+          "type": "BudgetSystemStatus | null",
+          "required": false
+        },
+        "systemStatusReasons": {
+          "type": "Array<BudgetSystemStatusReason> | null",
+          "required": false
+        },
+        "invoiceDetail": {
+          "type": "InvoiceDetail | null",
+          "required": false
+        },
+        "id": {
+          "type": "number | null",
+          "required": false
+        },
+        "creationTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "modificationTime": {
+          "type": "string | null",
+          "required": false
+        },
+        "deleted": {
+          "type": "boolean | null",
+          "required": false
+        }
+      }
+    },
+    "TargetingDataCreate": {
+      "fields": {
+        "include": {
+          "type": "Array<string> | null",
+          "required": false
+        },
+        "exclude": {
+          "type": "Array<string> | null",
+          "required": false
+        }
+      }
+    },
+    "TargetingDataUpdate": {
+      "fields": {
+        "include": {
+          "type": "Array<string> | null",
+          "required": false
+        },
+        "exclude": {
+          "type": "Array<string> | null",
+          "required": false
+        }
+      }
+    },
+    "TargetingData": {
+      "fields": {
+        "include": {
+          "type": "Array<string>",
+          "required": false
+        },
+        "exclude": {
+          "type": "Array<string>",
+          "required": false
+        }
+      }
+    }
+  },
+  "methods": {
+    "adAccountsIdGet": {
+      "method": "GET",
+      "path": "/v1/ad-accounts/{id}",
+      "account_context": "required"
+    },
+    "adAccountsIdPut": {
+      "method": "PUT",
+      "path": "/v1/ad-accounts/{id}",
+      "account_context": "required"
+    },
+    "adAccountsPost": {
+      "method": "POST",
+      "path": "/v1/ad-accounts",
+      "account_context": "none"
+    },
+    "adgroupsIdDelete": {
+      "method": "DELETE",
+      "path": "/v1/adgroups/{id}",
+      "account_context": "required"
+    },
+    "adgroupsIdGet": {
+      "method": "GET",
+      "path": "/v1/adgroups/{id}",
+      "account_context": "required"
+    },
+    "adgroupsIdPut": {
+      "method": "PUT",
+      "path": "/v1/adgroups/{id}",
+      "account_context": "required"
+    },
+    "adgroupsPost": {
+      "method": "POST",
+      "path": "/v1/adgroups",
+      "account_context": "required"
+    },
+    "adgroupsQueryPost": {
+      "method": "POST",
+      "path": "/v1/adgroups/query",
+      "account_context": "required"
+    },
+    "adsIdDelete": {
+      "method": "DELETE",
+      "path": "/v1/ads/{id}",
+      "account_context": "required"
+    },
+    "adsIdGet": {
+      "method": "GET",
+      "path": "/v1/ads/{id}",
+      "account_context": "required"
+    },
+    "adsIdPut": {
+      "method": "PUT",
+      "path": "/v1/ads/{id}",
+      "account_context": "required"
+    },
+    "adsPost": {
+      "method": "POST",
+      "path": "/v1/ads",
+      "account_context": "required"
+    },
+    "adsQueryPost": {
+      "method": "POST",
+      "path": "/v1/ads/query",
+      "account_context": "required"
+    },
+    "applyDailyBudgetRecommendations": {
+      "method": "POST",
+      "path": "/v1/recommendations/daily-budgets/apply",
+      "account_context": "required"
+    },
+    "applyTargetCpaRecommendations": {
+      "method": "POST",
+      "path": "/v1/recommendations/target-cpas/apply",
+      "account_context": "required"
+    },
+    "appsAdGroupReports": {
+      "method": "POST",
+      "path": "/v1/reports/apps/adgroups/query",
+      "account_context": "required"
+    },
+    "appsAdReports": {
+      "method": "POST",
+      "path": "/v1/reports/apps/ads/query",
+      "account_context": "required"
+    },
+    "appsCampaignReports": {
+      "method": "POST",
+      "path": "/v1/reports/apps/campaigns/query",
+      "account_context": "required"
+    },
+    "appsKeywordReports": {
+      "method": "POST",
+      "path": "/v1/reports/apps/keywords/query",
+      "account_context": "required"
+    },
+    "appsSearchTermReports": {
+      "method": "POST",
+      "path": "/v1/reports/apps/searchterms/query",
+      "account_context": "required"
+    },
+    "brandsAdGroupReports": {
+      "method": "POST",
+      "path": "/v1/reports/business-brands/adgroups/query",
+      "account_context": "required"
+    },
+    "brandsAdReports": {
+      "method": "POST",
+      "path": "/v1/reports/business-brands/ads/query",
+      "account_context": "required"
+    },
+    "brandsCampaignReports": {
+      "method": "POST",
+      "path": "/v1/reports/business-brands/campaigns/query",
+      "account_context": "required"
+    },
+    "brandsKeywordReports": {
+      "method": "POST",
+      "path": "/v1/reports/business-brands/keywords/query",
+      "account_context": "required"
+    },
+    "brandsSearchTermReports": {
+      "method": "POST",
+      "path": "/v1/reports/business-brands/searchterms/query",
+      "account_context": "required"
+    },
+    "campaignsIdDelete": {
+      "method": "DELETE",
+      "path": "/v1/campaigns/{id}",
+      "account_context": "required"
+    },
+    "campaignsIdGet": {
+      "method": "GET",
+      "path": "/v1/campaigns/{id}",
+      "account_context": "required"
+    },
+    "campaignsIdLegacyAppLimitedStatusReasonDetailsGet": {
+      "method": "GET",
+      "path": "/v1/campaigns/{id}/legacy-app-limited-status-reason-details",
+      "account_context": "required"
+    },
+    "campaignsIdPut": {
+      "method": "PUT",
+      "path": "/v1/campaigns/{id}",
+      "account_context": "required"
+    },
+    "campaignsPost": {
+      "method": "POST",
+      "path": "/v1/campaigns",
+      "account_context": "required"
+    },
+    "campaignsQueryPost": {
+      "method": "POST",
+      "path": "/v1/campaigns/query",
+      "account_context": "required"
+    },
+    "createLocationGroup": {
+      "method": "POST",
+      "path": "/v1/location-groups",
+      "account_context": "required"
+    },
+    "creativesIdDelete": {
+      "method": "DELETE",
+      "path": "/v1/creatives/{id}",
+      "account_context": "required"
+    },
+    "creativesIdGet": {
+      "method": "GET",
+      "path": "/v1/creatives/{id}",
+      "account_context": "required"
+    },
+    "creativesIdPut": {
+      "method": "PUT",
+      "path": "/v1/creatives/{id}",
+      "account_context": "required"
+    },
+    "creativesPost": {
+      "method": "POST",
+      "path": "/v1/creatives",
+      "account_context": "required"
+    },
+    "creativesQueryPost": {
+      "method": "POST",
+      "path": "/v1/creatives/query",
+      "account_context": "required"
+    },
+    "deleteAsset": {
+      "method": "DELETE",
+      "path": "/v1/assets/{id}",
+      "account_context": "required"
+    },
+    "deleteLocationGroup": {
+      "method": "DELETE",
+      "path": "/v1/location-groups/{id}",
+      "account_context": "required"
+    },
+    "dismissDailyBudgetRecommendations": {
+      "method": "POST",
+      "path": "/v1/recommendations/daily-budgets/dismiss",
+      "account_context": "required"
+    },
+    "dismissTargetCpaRecommendations": {
+      "method": "POST",
+      "path": "/v1/recommendations/target-cpas/dismiss",
+      "account_context": "required"
+    },
+    "eligibilitiesAppsQueryPost": {
+      "method": "POST",
+      "path": "/v1/eligibilities/apps/query",
+      "account_context": "required"
+    },
+    "getAdvertiserResources": {
+      "method": "GET",
+      "path": "/v1/advertiser-resources",
+      "account_context": "none"
+    },
+    "getAppDetailsByAdamId": {
+      "method": "GET",
+      "path": "/v1/apps/{adamId}",
+      "account_context": "required"
+    },
+    "getAsset": {
+      "method": "GET",
+      "path": "/v1/assets/{id}",
+      "account_context": "required"
+    },
+    "getBrand": {
+      "method": "GET",
+      "path": "/v1/business-brands/{id}",
+      "account_context": "required"
+    },
+    "getCategory": {
+      "method": "GET",
+      "path": "/v1/business-categories/{id}",
+      "account_context": "required"
+    },
+    "getChangeDetails": {
+      "method": "GET",
+      "path": "/v1/change-history/{detailId}",
+      "account_context": "required"
+    },
+    "getGeosByIds": {
+      "method": "POST",
+      "path": "/v1/search/geo",
+      "account_context": "required"
+    },
+    "getLocation": {
+      "method": "GET",
+      "path": "/v1/locations/{id}",
+      "account_context": "required"
+    },
+    "getLocationGroup": {
+      "method": "GET",
+      "path": "/v1/location-groups/{id}",
+      "account_context": "required"
+    },
+    "getMe": {
+      "method": "GET",
+      "path": "/v1/me",
+      "account_context": "none"
+    },
+    "getProductPageById": {
+      "method": "GET",
+      "path": "/v1/product-pages/{productPageId}",
+      "account_context": "required"
+    },
+    "getUserAcls": {
+      "method": "GET",
+      "path": "/v1/acls",
+      "account_context": "none"
+    },
+    "impressionShareQuery": {
+      "method": "POST",
+      "path": "/v1/insights/apps/impression-share/query",
+      "account_context": "required"
+    },
+    "keywordsBulkCreatePost": {
+      "method": "POST",
+      "path": "/v1/keywords/bulk-create",
+      "account_context": "required"
+    },
+    "keywordsBulkUpdatePost": {
+      "method": "POST",
+      "path": "/v1/keywords/bulk-update",
+      "account_context": "required"
+    },
+    "keywordsIdDelete": {
+      "method": "DELETE",
+      "path": "/v1/keywords/{id}",
+      "account_context": "required"
+    },
+    "keywordsIdGet": {
+      "method": "GET",
+      "path": "/v1/keywords/{id}",
+      "account_context": "required"
+    },
+    "keywordsIdPut": {
+      "method": "PUT",
+      "path": "/v1/keywords/{id}",
+      "account_context": "required"
+    },
+    "keywordsPost": {
+      "method": "POST",
+      "path": "/v1/keywords",
+      "account_context": "required"
+    },
+    "keywordsQueryPost": {
+      "method": "POST",
+      "path": "/v1/keywords/query",
+      "account_context": "required"
+    },
+    "negativeKeywordsBulkCreatePost": {
+      "method": "POST",
+      "path": "/v1/negative-keywords/bulk-create",
+      "account_context": "required"
+    },
+    "negativeKeywordsBulkUpdatePost": {
+      "method": "POST",
+      "path": "/v1/negative-keywords/bulk-update",
+      "account_context": "required"
+    },
+    "negativeKeywordsIdDelete": {
+      "method": "DELETE",
+      "path": "/v1/negative-keywords/{id}",
+      "account_context": "required"
+    },
+    "negativeKeywordsIdGet": {
+      "method": "GET",
+      "path": "/v1/negative-keywords/{id}",
+      "account_context": "required"
+    },
+    "negativeKeywordsIdPut": {
+      "method": "PUT",
+      "path": "/v1/negative-keywords/{id}",
+      "account_context": "required"
+    },
+    "negativeKeywordsPost": {
+      "method": "POST",
+      "path": "/v1/negative-keywords",
+      "account_context": "required"
+    },
+    "negativeKeywordsQueryPost": {
+      "method": "POST",
+      "path": "/v1/negative-keywords/query",
+      "account_context": "required"
+    },
+    "orgsIdGet": {
+      "method": "GET",
+      "path": "/v1/orgs/{id}",
+      "account_context": "none"
+    },
+    "queryAppLocaleDetails": {
+      "method": "POST",
+      "path": "/v1/apps/{adamId}/locale-details/query",
+      "account_context": "required"
+    },
+    "queryAssets": {
+      "method": "POST",
+      "path": "/v1/assets/query",
+      "account_context": "required"
+    },
+    "queryAuditSummary": {
+      "method": "POST",
+      "path": "/v1/change-history/query",
+      "account_context": "required"
+    },
+    "queryBrands": {
+      "method": "POST",
+      "path": "/v1/business-brands/query",
+      "account_context": "required"
+    },
+    "queryCategories": {
+      "method": "POST",
+      "path": "/v1/business-categories/query",
+      "account_context": "required"
+    },
+    "queryCategorySuggestions": {
+      "method": "POST",
+      "path": "/v1/suggestions/categories/query",
+      "account_context": "required"
+    },
+    "queryDailyBudgetRecommendations": {
+      "method": "POST",
+      "path": "/v1/recommendations/daily-budgets/query",
+      "account_context": "required"
+    },
+    "queryKeywordSuggestions": {
+      "method": "POST",
+      "path": "/v1/suggestions/keywords/query",
+      "account_context": "required"
+    },
+    "queryLocationGroups": {
+      "method": "POST",
+      "path": "/v1/location-groups/query",
+      "account_context": "required"
+    },
+    "queryLocations": {
+      "method": "POST",
+      "path": "/v1/locations/query",
+      "account_context": "required"
+    },
+    "queryPhraseSuggestions": {
+      "method": "POST",
+      "path": "/v1/suggestions/phrases/query",
+      "account_context": "required"
+    },
+    "queryProductPageLocaleDetails": {
+      "method": "POST",
+      "path": "/v1/product-pages/locale-details/query",
+      "account_context": "required"
+    },
+    "queryProductPages": {
+      "method": "POST",
+      "path": "/v1/product-pages/query",
+      "account_context": "required"
+    },
+    "queryRejectionReasonsByBusinessBrand": {
+      "method": "POST",
+      "path": "/v1/rejection-reasons/business-brands/query",
+      "account_context": "required"
+    },
+    "querySupportedAppLanguages": {
+      "method": "POST",
+      "path": "/v1/metadata/apps/supported-languages/query",
+      "account_context": "required"
+    },
+    "queryTargetCpaRecommendations": {
+      "method": "POST",
+      "path": "/v1/recommendations/target-cpas/query",
+      "account_context": "required"
+    },
+    "queryTargetCpaSuggestion": {
+      "method": "POST",
+      "path": "/v1/suggestions/target-cpas/query",
+      "account_context": "required"
+    },
+    "rejectionReasonsAppsQueryPost": {
+      "method": "POST",
+      "path": "/v1/rejection-reasons/apps/query",
+      "account_context": "required"
+    },
+    "rejectionReasonsAppsRejectionReasonIdGet": {
+      "method": "GET",
+      "path": "/v1/rejection-reasons/apps/{rejectionReasonId}",
+      "account_context": "required"
+    },
+    "searchApps": {
+      "method": "GET",
+      "path": "/v1/search/apps",
+      "account_context": "required"
+    },
+    "searchGeos": {
+      "method": "GET",
+      "path": "/v1/search/geo",
+      "account_context": "required"
+    },
+    "searchTermPopularityQuery": {
+      "method": "POST",
+      "path": "/v1/insights/apps/search-term-popularity/query",
+      "account_context": "required"
+    },
+    "sharedBudgetsIdDelete": {
+      "method": "DELETE",
+      "path": "/v1/shared-budgets/{id}",
+      "account_context": "none"
+    },
+    "sharedBudgetsIdGet": {
+      "method": "GET",
+      "path": "/v1/shared-budgets/{id}",
+      "account_context": "optional"
+    },
+    "sharedBudgetsIdPut": {
+      "method": "PUT",
+      "path": "/v1/shared-budgets/{id}",
+      "account_context": "none"
+    },
+    "sharedBudgetsPost": {
+      "method": "POST",
+      "path": "/v1/shared-budgets",
+      "account_context": "none"
+    },
+    "sharedBudgetsQueryPost": {
+      "method": "POST",
+      "path": "/v1/shared-budgets/query",
+      "account_context": "optional"
+    },
+    "updateLocationGroup": {
+      "method": "PUT",
+      "path": "/v1/location-groups/{id}",
+      "account_context": "required"
+    },
+    "uploadAsset": {
+      "method": "POST",
+      "path": "/v1/assets/upload",
+      "account_context": "required"
+    }
+  }
+}

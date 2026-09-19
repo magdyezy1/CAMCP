@@ -518,6 +518,51 @@
           ]
         }
       }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "google_ads_v23_label_mutate_labels",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "name": "Reviewed launch",
+                "textLabel": {
+                  "backgroundColor": "#0055aa",
+                  "description": "Synthetic inspect example"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "arguments": {
+        "action": "apple_ads_v1_adgroup_create",
+        "account_id": "123",
+        "payload": {
+          "name": "Synthetic paused group",
+          "campaignId": 456,
+          "pricingModel": "CPT",
+          "status": "PAUSED"
+        }
+      }
+    },
+    {
+      "gateway": "dv360_native_action",
+      "arguments": {
+        "action": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_CREATE",
+        "params": {
+          "advertiserId": "123"
+        },
+        "body": {
+          "displayName": "Synthetic exclusions"
+        }
+      }
     }
   ],
   "recipe_business": {

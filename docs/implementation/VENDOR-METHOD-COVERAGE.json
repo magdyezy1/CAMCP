@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "scope": "All methods in the pinned public vendor Discovery, OpenAPI and WSDL documents. Missing mappings remain explicit; no action is enabled by this inventory.",
+  "scope": "All methods in the pinned public vendor Discovery, OpenAPI, WSDL and Apple SDK method evidence. Missing mappings remain explicit; no action is enabled by this inventory.",
   "summary": [
     {
       "gateway": "google_business_native_action",
@@ -243,6 +243,17 @@
       "mapped": 10,
       "no_mapped_action": 1,
       "meaning": "Complete for this pinned document, not all provider APIs or account access."
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "revision": "f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1",
+      "sha256": "47933c604b2a34950effbdab18b2ac709046b390a42153adb8d9171590edd65c",
+      "methods": 99,
+      "mapped": 41,
+      "no_mapped_action": 58,
+      "meaning": "All methods extracted from the pinned public SDK API source; selected model facts are separate from method coverage and live access."
     }
   ],
   "methods": [
@@ -5408,8 +5419,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_PATCH",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_lists"
         }
       ],
       "mapping_status": "mapped",
@@ -5428,8 +5439,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_CREATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_lists"
         }
       ],
       "mapping_status": "mapped",
@@ -5448,8 +5459,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_DELETE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_lists"
         }
       ],
       "mapping_status": "mapped",
@@ -5468,8 +5479,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_REPLACE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_lists"
         }
       ],
       "mapping_status": "mapped",
@@ -5488,8 +5499,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_CREATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_lists"
         }
       ],
       "mapping_status": "mapped",
@@ -5508,8 +5519,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_DELETE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_lists"
         }
       ],
       "mapping_status": "mapped",
@@ -5548,8 +5559,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_NEGATIVE_KEYWORD_LISTS_NEGATIVE_KEYWORDS_BULK_EDIT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_lists"
         }
       ],
       "mapping_status": "mapped",
@@ -5568,8 +5579,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_CHANNELS_CREATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_lists"
         }
       ],
       "mapping_status": "mapped",
@@ -5628,8 +5639,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_CHANNELS_PATCH",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_lists"
         }
       ],
       "mapping_status": "mapped",
@@ -5648,8 +5659,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_CHANNELS_SITES_CREATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_lists"
         }
       ],
       "mapping_status": "mapped",
@@ -5668,8 +5679,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_CHANNELS_SITES_REPLACE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_lists"
         }
       ],
       "mapping_status": "mapped",
@@ -5688,8 +5699,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_CHANNELS_SITES_DELETE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_lists"
         }
       ],
       "mapping_status": "mapped",
@@ -5728,8 +5739,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_CHANNELS_SITES_BULK_EDIT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_lists"
         }
       ],
       "mapping_status": "mapped",
@@ -5828,8 +5839,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_LOCATION_LISTS_PATCH",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_lists"
         }
       ],
       "mapping_status": "mapped",
@@ -5848,8 +5859,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_LOCATION_LISTS_CREATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_lists"
         }
       ],
       "mapping_status": "mapped",
@@ -5908,8 +5919,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_LOCATION_LISTS_ASSIGNED_LOCATIONS_CREATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_lists"
         }
       ],
       "mapping_status": "mapped",
@@ -5928,8 +5939,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_LOCATION_LISTS_ASSIGNED_LOCATIONS_DELETE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_lists"
         }
       ],
       "mapping_status": "mapped",
@@ -5968,8 +5979,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_LOCATION_LISTS_ASSIGNED_LOCATIONS_BULK_EDIT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_lists"
         }
       ],
       "mapping_status": "mapped",
@@ -9805,8 +9816,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_ad_group_criterion_label_mutate_ad_group_criterion_labels",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -10209,8 +10220,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_label_mutate_labels",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -10633,8 +10644,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_ad_group_ad_label_mutate_ad_group_ad_labels",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -10745,8 +10756,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_conversion_custom_variable_mutate_conversion_custom_variables",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -10797,20 +10808,20 @@
         {
           "operation": null,
           "action": "CREATE_ASSET_GROUP_SIGNAL",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "google_ads_v23_asset_group_signal_mutate_asset_group_signals",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "REMOVE_ASSET_GROUP_SIGNAL",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -10829,8 +10840,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_campaign_label_mutate_campaign_labels",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -10869,8 +10880,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_remarketing_action_mutate_remarketing_actions",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -11789,32 +11800,32 @@
         {
           "operation": null,
           "action": "CREATE_APP_ACCOUNT_NEGATIVE_CRITERION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "CREATE_CUSTOMER_NEGATIVE_CRITERION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "google_ads_v23_customer_negative_criterion_mutate_customer_negative_criteria",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "REMOVE_APP_ACCOUNT_NEGATIVE_CRITERION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "REMOVE_CUSTOMER_NEGATIVE_CRITERION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -11833,20 +11844,20 @@
         {
           "operation": null,
           "action": "CREATE_CUSTOMER_CUSTOMIZER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "google_ads_v23_customer_customizer_mutate_customer_customizers",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "REMOVE_CUSTOMER_CUSTOMIZER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -12033,8 +12044,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_ad_parameter_mutate_ad_parameters",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -12181,8 +12192,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_ad_group_label_mutate_ad_group_labels",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -12201,20 +12212,20 @@
         {
           "operation": null,
           "action": "CREATE_AD_GROUP_CUSTOMIZER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "google_ads_v23_ad_group_customizer_mutate_ad_group_customizers",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "REMOVE_AD_GROUP_CUSTOMIZER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -12427,20 +12438,20 @@
         {
           "operation": null,
           "action": "CREATE_CAMPAIGN_CUSTOMIZER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "google_ads_v23_campaign_customizer_mutate_campaign_customizers",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "REMOVE_CAMPAIGN_CUSTOMIZER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -12459,8 +12470,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_campaign_group_mutate_campaign_groups",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -12885,20 +12896,20 @@
         {
           "operation": null,
           "action": "CREATE_CUSTOMIZER_ATTRIBUTE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "google_ads_v23_customizer_attribute_mutate_customizer_attributes",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "REMOVE_CUSTOMIZER_ATTRIBUTE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
@@ -12961,20 +12972,20 @@
         {
           "operation": null,
           "action": "CREATE_AD_GROUP_CRITERION_CUSTOMIZER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "google_ads_v23_ad_group_criterion_customizer_mutate_ad_group_criterion_customizers",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "REMOVE_AD_GROUP_CRITERION_CUSTOMIZER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",
@@ -25868,6 +25879,1679 @@
         }
       ],
       "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "adAccountsIdGet",
+      "method": "GET",
+      "path": "/v1/ad-accounts/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_ad_account_get",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "adAccountsIdPut",
+      "method": "PUT",
+      "path": "/v1/ad-accounts/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "adAccountsPost",
+      "method": "POST",
+      "path": "/v1/ad-accounts",
+      "account_context": "none",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "adgroupsIdDelete",
+      "method": "DELETE",
+      "path": "/v1/adgroups/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_adgroup_delete",
+          "status": "reviewed_write_family",
+          "family": "apple_entities"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "adgroupsIdGet",
+      "method": "GET",
+      "path": "/v1/adgroups/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_adgroup_get",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "adgroupsIdPut",
+      "method": "PUT",
+      "path": "/v1/adgroups/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_adgroup_update",
+          "status": "reviewed_write_family",
+          "family": "apple_entities"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "adgroupsPost",
+      "method": "POST",
+      "path": "/v1/adgroups",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_adgroup_create",
+          "status": "reviewed_write_family",
+          "family": "apple_entities"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "adgroupsQueryPost",
+      "method": "POST",
+      "path": "/v1/adgroups/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_adgroups_query",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "adsIdDelete",
+      "method": "DELETE",
+      "path": "/v1/ads/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_ad_delete",
+          "status": "reviewed_write_family",
+          "family": "apple_entities"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "adsIdGet",
+      "method": "GET",
+      "path": "/v1/ads/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_ad_get",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "adsIdPut",
+      "method": "PUT",
+      "path": "/v1/ads/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_ad_update",
+          "status": "reviewed_write_family",
+          "family": "apple_entities"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "adsPost",
+      "method": "POST",
+      "path": "/v1/ads",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_ad_create",
+          "status": "reviewed_write_family",
+          "family": "apple_entities"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "adsQueryPost",
+      "method": "POST",
+      "path": "/v1/ads/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_ads_query",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "applyDailyBudgetRecommendations",
+      "method": "POST",
+      "path": "/v1/recommendations/daily-budgets/apply",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "applyTargetCpaRecommendations",
+      "method": "POST",
+      "path": "/v1/recommendations/target-cpas/apply",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "appsAdGroupReports",
+      "method": "POST",
+      "path": "/v1/reports/apps/adgroups/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_reports_apps_adgroups",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "appsAdReports",
+      "method": "POST",
+      "path": "/v1/reports/apps/ads/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_reports_apps_ads",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "appsCampaignReports",
+      "method": "POST",
+      "path": "/v1/reports/apps/campaigns/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_reports_apps_campaigns",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "appsKeywordReports",
+      "method": "POST",
+      "path": "/v1/reports/apps/keywords/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_reports_apps_keywords",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "appsSearchTermReports",
+      "method": "POST",
+      "path": "/v1/reports/apps/searchterms/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_reports_apps_searchterms",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "brandsAdGroupReports",
+      "method": "POST",
+      "path": "/v1/reports/business-brands/adgroups/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "brandsAdReports",
+      "method": "POST",
+      "path": "/v1/reports/business-brands/ads/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "brandsCampaignReports",
+      "method": "POST",
+      "path": "/v1/reports/business-brands/campaigns/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "brandsKeywordReports",
+      "method": "POST",
+      "path": "/v1/reports/business-brands/keywords/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "brandsSearchTermReports",
+      "method": "POST",
+      "path": "/v1/reports/business-brands/searchterms/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "campaignsIdDelete",
+      "method": "DELETE",
+      "path": "/v1/campaigns/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_campaign_delete",
+          "status": "reviewed_write_family",
+          "family": "apple_campaigns"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "campaignsIdGet",
+      "method": "GET",
+      "path": "/v1/campaigns/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_campaign_get",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "campaignsIdLegacyAppLimitedStatusReasonDetailsGet",
+      "method": "GET",
+      "path": "/v1/campaigns/{id}/legacy-app-limited-status-reason-details",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "campaignsIdPut",
+      "method": "PUT",
+      "path": "/v1/campaigns/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_campaign_update",
+          "status": "reviewed_write_family",
+          "family": "apple_campaigns"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "campaignsPost",
+      "method": "POST",
+      "path": "/v1/campaigns",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_campaign_create",
+          "status": "reviewed_write_family",
+          "family": "apple_campaigns"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "campaignsQueryPost",
+      "method": "POST",
+      "path": "/v1/campaigns/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_campaigns_query",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "createLocationGroup",
+      "method": "POST",
+      "path": "/v1/location-groups",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "creativesIdDelete",
+      "method": "DELETE",
+      "path": "/v1/creatives/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_creative_delete",
+          "status": "reviewed_write_family",
+          "family": "apple_entities"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "creativesIdGet",
+      "method": "GET",
+      "path": "/v1/creatives/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_creative_get",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "creativesIdPut",
+      "method": "PUT",
+      "path": "/v1/creatives/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_creative_update",
+          "status": "reviewed_write_family",
+          "family": "apple_entities"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "creativesPost",
+      "method": "POST",
+      "path": "/v1/creatives",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_creative_create",
+          "status": "reviewed_write_family",
+          "family": "apple_entities"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "creativesQueryPost",
+      "method": "POST",
+      "path": "/v1/creatives/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_creatives_query",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "deleteAsset",
+      "method": "DELETE",
+      "path": "/v1/assets/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "deleteLocationGroup",
+      "method": "DELETE",
+      "path": "/v1/location-groups/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "dismissDailyBudgetRecommendations",
+      "method": "POST",
+      "path": "/v1/recommendations/daily-budgets/dismiss",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "dismissTargetCpaRecommendations",
+      "method": "POST",
+      "path": "/v1/recommendations/target-cpas/dismiss",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "eligibilitiesAppsQueryPost",
+      "method": "POST",
+      "path": "/v1/eligibilities/apps/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "getAdvertiserResources",
+      "method": "GET",
+      "path": "/v1/advertiser-resources",
+      "account_context": "none",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "getAppDetailsByAdamId",
+      "method": "GET",
+      "path": "/v1/apps/{adamId}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "getAsset",
+      "method": "GET",
+      "path": "/v1/assets/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "getBrand",
+      "method": "GET",
+      "path": "/v1/business-brands/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "getCategory",
+      "method": "GET",
+      "path": "/v1/business-categories/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "getChangeDetails",
+      "method": "GET",
+      "path": "/v1/change-history/{detailId}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "getGeosByIds",
+      "method": "POST",
+      "path": "/v1/search/geo",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "getLocation",
+      "method": "GET",
+      "path": "/v1/locations/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "getLocationGroup",
+      "method": "GET",
+      "path": "/v1/location-groups/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "getMe",
+      "method": "GET",
+      "path": "/v1/me",
+      "account_context": "none",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "getProductPageById",
+      "method": "GET",
+      "path": "/v1/product-pages/{productPageId}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "getUserAcls",
+      "method": "GET",
+      "path": "/v1/acls",
+      "account_context": "none",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "impressionShareQuery",
+      "method": "POST",
+      "path": "/v1/insights/apps/impression-share/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "keywordsBulkCreatePost",
+      "method": "POST",
+      "path": "/v1/keywords/bulk-create",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "keywordsBulkUpdatePost",
+      "method": "POST",
+      "path": "/v1/keywords/bulk-update",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "keywordsIdDelete",
+      "method": "DELETE",
+      "path": "/v1/keywords/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_keyword_delete",
+          "status": "reviewed_write_family",
+          "family": "apple_entities"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "keywordsIdGet",
+      "method": "GET",
+      "path": "/v1/keywords/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_keyword_get",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "keywordsIdPut",
+      "method": "PUT",
+      "path": "/v1/keywords/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_keyword_update",
+          "status": "reviewed_write_family",
+          "family": "apple_entities"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "keywordsPost",
+      "method": "POST",
+      "path": "/v1/keywords",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_keyword_create",
+          "status": "reviewed_write_family",
+          "family": "apple_entities"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "keywordsQueryPost",
+      "method": "POST",
+      "path": "/v1/keywords/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_keywords_query",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "negativeKeywordsBulkCreatePost",
+      "method": "POST",
+      "path": "/v1/negative-keywords/bulk-create",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "negativeKeywordsBulkUpdatePost",
+      "method": "POST",
+      "path": "/v1/negative-keywords/bulk-update",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "negativeKeywordsIdDelete",
+      "method": "DELETE",
+      "path": "/v1/negative-keywords/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_negative_keyword_delete",
+          "status": "reviewed_write_family",
+          "family": "apple_entities"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "negativeKeywordsIdGet",
+      "method": "GET",
+      "path": "/v1/negative-keywords/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_negative_keyword_get",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "negativeKeywordsIdPut",
+      "method": "PUT",
+      "path": "/v1/negative-keywords/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_negative_keyword_update",
+          "status": "reviewed_write_family",
+          "family": "apple_entities"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "negativeKeywordsPost",
+      "method": "POST",
+      "path": "/v1/negative-keywords",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_negative_keyword_create",
+          "status": "reviewed_write_family",
+          "family": "apple_entities"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "negativeKeywordsQueryPost",
+      "method": "POST",
+      "path": "/v1/negative-keywords/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_negative_keywords_query",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "orgsIdGet",
+      "method": "GET",
+      "path": "/v1/orgs/{id}",
+      "account_context": "none",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "queryAppLocaleDetails",
+      "method": "POST",
+      "path": "/v1/apps/{adamId}/locale-details/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "queryAssets",
+      "method": "POST",
+      "path": "/v1/assets/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "queryAuditSummary",
+      "method": "POST",
+      "path": "/v1/change-history/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "queryBrands",
+      "method": "POST",
+      "path": "/v1/business-brands/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "queryCategories",
+      "method": "POST",
+      "path": "/v1/business-categories/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "queryCategorySuggestions",
+      "method": "POST",
+      "path": "/v1/suggestions/categories/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "queryDailyBudgetRecommendations",
+      "method": "POST",
+      "path": "/v1/recommendations/daily-budgets/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "queryKeywordSuggestions",
+      "method": "POST",
+      "path": "/v1/suggestions/keywords/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "queryLocationGroups",
+      "method": "POST",
+      "path": "/v1/location-groups/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "queryLocations",
+      "method": "POST",
+      "path": "/v1/locations/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "queryPhraseSuggestions",
+      "method": "POST",
+      "path": "/v1/suggestions/phrases/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "queryProductPageLocaleDetails",
+      "method": "POST",
+      "path": "/v1/product-pages/locale-details/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "queryProductPages",
+      "method": "POST",
+      "path": "/v1/product-pages/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "queryRejectionReasonsByBusinessBrand",
+      "method": "POST",
+      "path": "/v1/rejection-reasons/business-brands/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "querySupportedAppLanguages",
+      "method": "POST",
+      "path": "/v1/metadata/apps/supported-languages/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "queryTargetCpaRecommendations",
+      "method": "POST",
+      "path": "/v1/recommendations/target-cpas/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "queryTargetCpaSuggestion",
+      "method": "POST",
+      "path": "/v1/suggestions/target-cpas/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "rejectionReasonsAppsQueryPost",
+      "method": "POST",
+      "path": "/v1/rejection-reasons/apps/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "rejectionReasonsAppsRejectionReasonIdGet",
+      "method": "GET",
+      "path": "/v1/rejection-reasons/apps/{rejectionReasonId}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "searchApps",
+      "method": "GET",
+      "path": "/v1/search/apps",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "searchGeos",
+      "method": "GET",
+      "path": "/v1/search/geo",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "searchTermPopularityQuery",
+      "method": "POST",
+      "path": "/v1/insights/apps/search-term-popularity/query",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "sharedBudgetsIdDelete",
+      "method": "DELETE",
+      "path": "/v1/shared-budgets/{id}",
+      "account_context": "none",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_shared_budget_delete",
+          "status": "reviewed_write_family",
+          "family": "apple_entities"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "sharedBudgetsIdGet",
+      "method": "GET",
+      "path": "/v1/shared-budgets/{id}",
+      "account_context": "optional",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_shared_budget_get",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "sharedBudgetsIdPut",
+      "method": "PUT",
+      "path": "/v1/shared-budgets/{id}",
+      "account_context": "none",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_shared_budget_update",
+          "status": "reviewed_write_family",
+          "family": "apple_entities"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "sharedBudgetsPost",
+      "method": "POST",
+      "path": "/v1/shared-budgets",
+      "account_context": "none",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_shared_budget_create",
+          "status": "reviewed_write_family",
+          "family": "apple_entities"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "sharedBudgetsQueryPost",
+      "method": "POST",
+      "path": "/v1/shared-budgets/query",
+      "account_context": "optional",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_shared_budgets_query",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "updateLocationGroup",
+      "method": "PUT",
+      "path": "/v1/location-groups/{id}",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "source_file": "generated/apple-platform-v1-models.json",
+      "source_url": "https://github.com/apple/apple-ads-platform-api-node/blob/f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1/src/api/apple-ads-api.ts",
+      "api_version": "v1",
+      "id": "uploadAsset",
+      "method": "POST",
+      "path": "/v1/assets/upload",
+      "account_context": "required",
+      "origin": "https://api.ads.apple.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
       "qualification": "unverified"
     }
   ]

@@ -11,7 +11,10 @@ import {linkedinDSC,assertLinkedInDSCGrant,rememberLinkedInPost} from './linkedi
 import {xCreativeKind,xPromotion,verifyXCreative} from './x-creative-writes.js';
 import {normalizeReviewState} from './review-state.js';
 import {googleAssetLinkKind,googleAssetLinkVerification} from './google-asset-links.js';
+import {googleConfigurationKind,googleConfigurationVerification,googleConfigurationObserved} from './google-configuration-writes.js';
 import {measurementWriteGateways,measurementVerification,measurementVerificationPhase,optionalMissingState} from './measurement-writes.js';
+import {appleSharedAccounts} from './apple-entity-writes.js';
+import {dv360ListKind,dv360ListVerification,dv360ListObserved,readDV360List} from './dv360-list-writes.js';
 import {validateState,snapshotPlans} from './write-review.js';
 import {compileMicrosoft,microsoftGateway,microsoftContracts} from './microsoft-native.js';
 import {microsoftAssociationWrite,microsoftAssociationVerification,microsoftAssociationObserved} from './microsoft-associations.js';
@@ -24,7 +27,9 @@ function differing(expected:any,actual:any,path='',out:string[]=[]):string[]{
  else if((typeof expected==='number'&&typeof actual==='string'||typeof expected==='string'&&typeof actual==='number')&&String(expected)===String(actual))return out;
  else if(fingerprint(expected)!==fingerprint(actual??null))out.push(path);return out;
 }
-function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Registry):{read:CompiledRequest;expected:JsonObject;id:string}[]{
+function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Registry,before:unknown[]=[]):{read:CompiledRequest;expected:JsonObject;id:string}[]{
+ if(dv360ListKind(plan))return dv360ListVerification(plan,result,before);
+ if(googleConfigurationKind(plan))return googleConfigurationVerification(plan,result);
  if(googleAssetLinkKind(plan))return googleAssetLinkVerification(plan);
  if(microsoftAssociationWrite(plan))return microsoftAssociationVerification(plan,compileMicrosoft);
  if(measurementWriteGateways.has(plan.gateway))return measurementVerification(plan,result);
@@ -60,10 +65,14 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
 }
 function entity(plan:CompiledRequest,data:JsonObject):JsonObject{
  if(data.amcp_absent===true)return data;
+ if(plan.dv360ListState)return dv360ListObserved(plan,data);
  if(plan.gateway===microsoftGateway&&plan.action==='GetAdExtensionsAssociations')return microsoftAssociationObserved(plan,data);
- if(plan.gateway==='apple_ads_native_action')return data.result;
+ if(plan.gateway==='apple_ads_native_action'){
+  if(plan.action==='AMCP_STATE_OPTIONAL'&&data.result?.deleted===true)return {amcp_absent:true,path:plan.path};
+  return Array.isArray(data.result?.adAccountIds)?{...data.result,adAccountIds:[...data.result.adAccountIds].sort((a,b)=>String(a).localeCompare(String(b),'en'))}:data.result;
+ }
  if(plan.googleState?.removedAsAbsent&&!data.results?.length)return {status:'REMOVED'};
- if(plan.gateway==='google_ads_native_action')return Object.values(data.results?.[0]??{})[0] as JsonObject;
+ if(plan.gateway==='google_ads_native_action')return googleConfigurationObserved(plan,Object.values(data.results?.[0]??{})[0] as JsonObject);
  if(plan.gateway===microsoftGateway)return data[microsoftContracts.get(plan.action)!.result]?.[0];
  if(plan.gateway==='tiktok_native_action')return data.data?.list?.[0];
  if(plan.gateway==='snapchat_native_action'){const kind=plan.path.split('/').at(-2)!,singular=kind==='adsquads'?'adsquad':kind.slice(0,-1);return data[kind]?.[0]?.[singular];}
@@ -77,6 +86,7 @@ export class WriteVerifier{
   const row=this.store.db.prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?').get(actor.tenantId,reviewId) as JsonObject|undefined;
   if(row?.state!=='complete'||!row.result)bad('The write outcome is uncertain or unavailable; verification cannot make it safe to resubmit.','WRITE_OUTCOME_UNCERTAIN');
   const result=JSON.parse(row.result),plan=review.plan as CompiledRequest,c=this.store.resolveConnection(actor,plan.gateway,plan.accountId,review.connection_id);
+  const checkAppleAccounts=()=>{for(const account of appleSharedAccounts(plan))this.store.resolveConnection(actor,plan.gateway,account,c.id);};checkAppleAccounts();
   if(linkedinDSC(plan))assertLinkedInDSCGrant(plan,c,false);
   if(result.success!==true)bad('Inspect the retained partial failure before recovery.','WRITE_PARTIAL_OR_FAILED');
   const cached=optional(this.store,actor.tenantId,'write_verification',reviewId);if(cached?.status==='verified'&&Date.now()-cached.checked_at<10000)return {...cached,cached:true};
@@ -92,14 +102,14 @@ export class WriteVerifier{
     });status=verified.status;checks=verified.checks;
     if(!xPromotion(plan)||status!=='pending')break;
    }
-  }else{reads=verificationReads(plan,result,this.registry);for(const item of reads){
+  }else{reads=verificationReads(plan,result,this.registry,review.state);for(const item of reads){
    if(linkedinDSC(plan)){item.read.scopeContext={linkedinPostReviewId:reviewId};item.read.query={viewContext:'AUTHOR'};}
    if(!obj(item.expected)||!Object.keys(item.expected).length||!independentlyReadOnly(item.read))bad('No complete configuration read contract exists for this write.','VERIFICATION_UNSUPPORTED');
    const expected=normalize(item.expected),readback=await readConsistently(async()=>{
-    this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(item.read,current);
+    this.store.assertActorActive(actor);checkAppleAccounts();const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(item.read,current);
     const auth=await this.credentials.get(current);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));
-    let response;try{response=await this.transport.request(item.read,current,auth);}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
-    return normalize(entity(item.read,response.data as JsonObject));
+    let response;try{response=await readDV360List(item.read,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.transport.request(page,latest,auth);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(page,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));return result;});}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
+    checkAppleAccounts();return normalize(entity(item.read,response.data as JsonObject));
    },actual=>differing(expected,actual).length===0);
    const actual=readback.value,changed=differing(expected,actual),phase=readback.consistent?measurementVerificationPhase(item.read,actual):'inconclusive';checks.push({resource_id:item.id,status:phase,code:readback.consistent?undefined:'VERIFICATION_INCONCLUSIVE',read_attempts:readback.attempts,changed_fields:changed,expected_hash:fingerprint(expected),actual_hash:fingerprint(actual??null),checked_fields:Object.keys(expected)});
    if(linkedinDSC(plan)&&readback.consistent)rememberLinkedInPost(this.store,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id),plan,result.headers['x-restli-id']);

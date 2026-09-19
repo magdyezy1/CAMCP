@@ -16,6 +16,9 @@ import type {Action,CompiledRequest,JsonObject} from './types.js';
 export type ContractStatus='native_read'|'reviewed_write_family'|'media_workflow'|'local_workflow'|'adapter_requires_input'|'blocked_write'|'unmapped'|'unqualified_read';
 export interface ActionContract {gateway:string;operation?:string;action:string;aliases:string[];method:string|null;path:string|null;origin?:string;status:ContractStatus;family?:string;implementation:string;reason:string;source:string;tests:string[];live_qualification:'unverified';}
 const familyFiles:Record<string,[string,string[]]>={
+ apple_entities:['src/apple-entity-writes.ts',['tests/apple-entity-writes.test.ts']],
+ dv360_lists:['src/dv360-list-writes.ts',['tests/dv360-list-writes.test.ts']],
+ google_configuration:['src/google-configuration-writes.ts',['tests/google-configuration-writes.test.ts']],
  google_asset_links:['src/google-asset-links.ts',['tests/google-asset-links.test.ts']],google_targeting:['src/google-targeting-writes.ts',['tests/google-targeting-writes.test.ts']],google_entities:['src/write-review.ts',['tests/write-review.test.ts','tests/review-envelopes.test.ts']],
  meta_entities:['src/write-review.ts',['tests/meta-provision.test.ts']],tiktok_entities:['src/write-review.ts',['tests/write-platforms.test.ts','tests/tiktok-verification.test.ts']],snapchat_entities:['src/write-review.ts',['tests/snapchat-writes.test.ts']],
  linkedin_entities:['src/write-review.ts',['tests/write-platforms.test.ts']],linkedin_dsc:['src/linkedin-posts.ts',['tests/linkedin-posts.test.ts']],x_creatives:['src/x-creative-writes.ts',['tests/x-creative-writes.test.ts']],x_entities:['src/write-review.ts',['tests/x-targeting-writes.test.ts','tests/write-platforms.test.ts']],

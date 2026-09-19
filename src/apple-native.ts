@@ -1,5 +1,6 @@
 import type {Action,CompiledRequest,JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
+import {appleEntityKind,assertAppleEntityWrite} from './apple-entity-writes.js';
 
 // AMCP extensions derived from Apple's own Platform API SDK, not captured AMCP actions.
 // https://github.com/apple/apple-ads-platform-api-node/blob/main/src/api/apple-ads-api.ts
@@ -16,7 +17,7 @@ export const appleActions:Action[]=[
  ...entities.flatMap(([singular,plural])=>[route(plural.replaceAll('-','_')+'_query','POST',plural+'/query','query'),route(singular+'_get','GET',plural+'/{id}','get')]),
  route('ad_account_get','GET','ad-accounts/{id}','get'),
  ...['campaigns','adgroups','ads','keywords','searchterms'].map(entity=>route('reports_apps_'+entity,'POST','reports/apps/'+entity+'/query','report')),
- route('campaign_create','POST','campaigns','write'),route('campaign_update','PUT','campaigns/{id}','write'),route('campaign_delete','DELETE','campaigns/{id}','write')
+ ...entities.flatMap(([singular,plural])=>[route(singular+'_create','POST',plural,'write'),route(singular+'_update','PUT',plural+'/{id}','write'),route(singular+'_delete','DELETE',plural+'/{id}','write')])
 ];
 const actions=new Map(appleActions.map(action=>[action.name,action]));
 const object=(value:unknown):value is JsonObject=>!!value&&typeof value==='object'&&!Array.isArray(value);
@@ -75,6 +76,8 @@ export function validateApplePlan(plan:CompiledRequest):CompiledRequest {
  if(kind==='query'||kind==='report'){
   if(!object(body))invalid('Query and report payloads must be objects.');
   if(kind==='report')reportBody(plan,body);else queryBody(body,false);
+ }else if(kind==='write'&&appleEntityKind(plan)){
+  assertAppleEntityWrite({...plan,query,body});
  }else if(kind==='write'&&plan.method!=='DELETE'){
   if(!object(body)||!Object.keys(body).length)invalid('Campaign writes require a nonempty native payload.');
   const create=plan.method==='POST';

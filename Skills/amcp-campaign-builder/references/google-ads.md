@@ -51,3 +51,27 @@ forms are not retrieved or exposed by this link workflow.
 
 Asset association execution requires `spend_change_confirmed: true`, including an omitted
 create status: the link changes which creative may serve under the parent.
+
+## Configuration and labels
+
+Reviewed v23 configuration contracts cover labels and campaign/ad-group/ad/criterion label
+associations; customizer attributes and customer/campaign/ad-group/criterion values; ad
+parameters; campaign groups; conversion custom variables; remarketing actions; asset-group
+signals; and customer negative criteria. Use the exact native RPC payload and inspect it.
+Only declared mutable fields accept update masks. Customizer attribute names/types are
+immutable, so the historical UPDATE_CUSTOMIZER_ATTRIBUTE alias remains unsupported.
+Conversion custom variables and remarketing actions have no native remove operation.
+
+Discover existing parent and reference resource names in the selected customer. Composite
+IDs must include every component in provider order. Ad parameters require an existing
+positive keyword criterion and parameterIndex 1 or 2. Customizer values must match their
+attribute type; supply numeric, currency or percentage formatting from the business brief.
+Select exactly one audience/search-theme signal or one customer exclusion type. Never
+invent an audience, shared list, price or conversion tag to satisfy a required input.
+
+`CONFIGURATION_EXISTS` means reuse or inspect the existing association. Preparation freezes
+the configuration-bearing results and reference resources; query cost and request telemetry
+are excluded. Real name, targeting, budget, label or text changes still conflict. Customizers,
+ad parameters, signals and exclusions can change existing ads and require spend confirmation.
+After execution, verify the exact resource or deletion. Configuration read-back establishes
+neither serving nor conversion collection; do not retry a lost mutation under a new key.

@@ -16,7 +16,12 @@ const registry=new Registry(),rows=actionContracts(registry);
 
 test('vendor denominator includes uncatalogued operations from every pinned spec',()=>{
  const inventory=vendorContractInventory(rows);
- assert.equal(inventory.summary.length,fs.readdirSync('.mirror/VENDOR').filter(f=>f.endsWith('.json')&&f!=='lifecycle-pages.json').length);
+ const expectedSources=[...fs.readdirSync('.mirror/VENDOR').filter(f=>f.endsWith('.json')&&f!=='lifecycle-pages.json').map(f=>'.mirror/VENDOR/'+f),'generated/apple-platform-v1-models.json'].sort();
+ assert.deepEqual(inventory.summary.map(s=>s.source_file).sort(),expectedSources);
+ const apple=inventory.summary.find(s=>s.gateway==='apple_ads_native_action')!;
+ assert.equal(apple.methods,99);assert.equal(apple.mapped+apple.no_mapped_action,99);
+ assert.ok(inventory.methods.some(r=>r.id==='adgroupsPost'&&r.mapping_status==='mapped'));
+ assert.ok(inventory.methods.some(r=>r.id==='adAccountsPost'&&r.mapping_status==='no_mapped_action'));
  assert.equal(inventory.summary.filter(r=>r.gateway==='microsoft_ads_native_action').reduce((n,r)=>n+r.methods,0),291);
  assert.equal(inventory.summary.find(r=>r.source_file.endsWith('google-ads-v23.json'))!.methods,176);
  const unique=new Set(inventory.methods.map(r=>r.source_file+'/'+r.method+'/'+r.id));assert.equal(unique.size,inventory.methods.length);

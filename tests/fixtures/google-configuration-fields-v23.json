@@ -1,0 +1,461 @@
+{
+  "api_version": "v23",
+  "resources": {
+    "label": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/label",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "051c86db41d19fae73f9acdde1fa313bad58695a3e46243b08a480be5d95cb7d",
+      "fields": {
+        "id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        },
+        "text_label.background_color": {
+          "selectable": true,
+          "repeated": false
+        },
+        "text_label.description": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "campaign_label": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/campaign_label",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "9f0ee8806a5b90c0344efff979a5cc6f7990886114988aba94ddb97b085c2422",
+      "fields": {
+        "campaign": {
+          "selectable": true,
+          "repeated": false
+        },
+        "label": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "ad_group_label": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/ad_group_label",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "62e4be02728656c1a550685d2079c9f41eca4a04a3e275e38599a793cdf26f8e",
+      "fields": {
+        "ad_group": {
+          "selectable": true,
+          "repeated": false
+        },
+        "label": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "ad_group_ad_label": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/ad_group_ad_label",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "43b634e90f42d9bded1e1e5a5cb5802484f4df5578b679bff166972715debdd3",
+      "fields": {
+        "ad_group_ad": {
+          "selectable": true,
+          "repeated": false
+        },
+        "label": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "ad_group_criterion_label": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/ad_group_criterion_label",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "20c147071c6e6872c87ce412ea439d384dc82f320c8d9f29e5946c3b25fec913",
+      "fields": {
+        "ad_group_criterion": {
+          "selectable": true,
+          "repeated": false
+        },
+        "label": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "customizer_attribute": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/customizer_attribute",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "da8dd141a6ff33d55c5070adf0d6c65f853d1ac1c6c206319b553f1678636b07",
+      "fields": {
+        "id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        },
+        "type": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "campaign_customizer": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/campaign_customizer",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "0b69d895606c3f44e22f4dc5839ddcffdce7e45a8f7727f61399f2d77ce97afd",
+      "fields": {
+        "campaign": {
+          "selectable": true,
+          "repeated": false
+        },
+        "customizer_attribute": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        },
+        "value.string_value": {
+          "selectable": true,
+          "repeated": false
+        },
+        "value.type": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "ad_group_customizer": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/ad_group_customizer",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "62ce96b5cccae721152754efe558c70e15b8f8e7930ece1ac240c410b219af3c",
+      "fields": {
+        "ad_group": {
+          "selectable": true,
+          "repeated": false
+        },
+        "customizer_attribute": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        },
+        "value.string_value": {
+          "selectable": true,
+          "repeated": false
+        },
+        "value.type": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "ad_group_criterion_customizer": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/ad_group_criterion_customizer",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "fc49d6030b644c53c9dacb6fb0849b6113a0925a45c92d062d093bd30946095e",
+      "fields": {
+        "ad_group_criterion": {
+          "selectable": true,
+          "repeated": false
+        },
+        "customizer_attribute": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        },
+        "value.string_value": {
+          "selectable": true,
+          "repeated": false
+        },
+        "value.type": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "customer_customizer": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/customer_customizer",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "59f09209899aee6478a5f9748e5db29241ce50fac4a8439d4c219b07ca6e5b2a",
+      "fields": {
+        "customizer_attribute": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        },
+        "value.string_value": {
+          "selectable": true,
+          "repeated": false
+        },
+        "value.type": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "ad_parameter": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/ad_parameter",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "971d0099300d59d2a2f0a21edaea98d8d6242a49a6469979e9e8d130b031bf8a",
+      "fields": {
+        "ad_group_criterion": {
+          "selectable": true,
+          "repeated": false
+        },
+        "insertion_text": {
+          "selectable": true,
+          "repeated": false
+        },
+        "parameter_index": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "campaign_group": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/campaign_group",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "b6f74c308bb638e05fa99e88a5a0596e81c844e85eab8ac4ee40ae638b0aebeb",
+      "fields": {
+        "name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "conversion_custom_variable": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/conversion_custom_variable",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "52ecb471d42d5b537cdb93da95cb15ee7f66c901f3df22dfd5c9f8ada9f8b504",
+      "fields": {
+        "id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "owner_customer": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        },
+        "tag": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "remarketing_action": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/remarketing_action",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "326d01c31ee4de5bcdb9bca3ab07c7c9d8352aa60f7cbeb51e28cd07aa2f2e28",
+      "fields": {
+        "id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "tag_snippets": {
+          "selectable": true,
+          "repeated": true
+        }
+      }
+    },
+    "asset_group_signal": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/asset_group_signal",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "8fb325aa4df05ccf4425df7c3b559324b49515cd3923ebd1f1aab37d90fb1c6b",
+      "fields": {
+        "approval_status": {
+          "selectable": true,
+          "repeated": false
+        },
+        "asset_group": {
+          "selectable": true,
+          "repeated": false
+        },
+        "audience.audience": {
+          "selectable": true,
+          "repeated": false
+        },
+        "disapproval_reasons": {
+          "selectable": true,
+          "repeated": true
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "search_theme.text": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "customer_negative_criterion": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/customer_negative_criterion",
+      "checked_at": "2026-09-19",
+      "method": "Public reference field-heading/table text extraction through web tool; original HTML fetch unavailable; not a live account query",
+      "source_text_sha256": "171a303bf8fb59b84c687a5f1fcdec9b8dc13d8bfc8fb4be4e1d018e91d34a18",
+      "fields": {
+        "content_label.type": {
+          "selectable": true,
+          "repeated": false
+        },
+        "id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "ip_block.ip_address": {
+          "selectable": true,
+          "repeated": false
+        },
+        "mobile_app_category.mobile_app_category_constant": {
+          "selectable": true,
+          "repeated": false
+        },
+        "mobile_application.app_id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "mobile_application.name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "negative_keyword_list.shared_set": {
+          "selectable": true,
+          "repeated": false
+        },
+        "placement.url": {
+          "selectable": true,
+          "repeated": false
+        },
+        "placement_list.shared_set": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "type": {
+          "selectable": true,
+          "repeated": false
+        },
+        "youtube_channel.channel_id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "youtube_video.video_id": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    }
+  }
+}

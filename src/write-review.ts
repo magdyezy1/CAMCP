@@ -1,4 +1,7 @@
 import {reviewedWriteFamily} from './reviewed-routes.js';
+import {appleEntityKind,appleSharedAccounts,appleSharedAccountReads,validateAppleEntityPrerequisites} from './apple-entity-writes.js';
+import {dv360ListKind,assertDV360ListWrite,dv360ListSnapshots,validateDV360ListState,readDV360List,validateDV360ListPrerequisites,dv360ListOutcome} from './dv360-list-writes.js';
+import {googleConfigurationKind,assertGoogleConfiguration,googleConfigurationSnapshots,validateGoogleConfigurationState,googleConfigurationOutcome} from './google-configuration-writes.js';
 import {checkSpendPolicy} from './spend-policy.js';
 import {randomUUID} from 'node:crypto';
 import {MirrorError,errorRemedy} from './errors.js';
@@ -55,6 +58,8 @@ export function writeOutcome(result:TransportResult,plan?:CompiledRequest):JsonO
  return {success:errors.length===0,executed:true,outcome:errors.length?'partial_or_failed':'succeeded',data:result.data,status:result.status,headers:result.headers,...(result.headers['x-restli-id']?{created_id:result.headers['x-restli-id']}:{ }),...(errors.length?{failures:errors,retry_safe:false}:{})};
 }
 function confirmedMutationResult(plan:CompiledRequest,result:TransportResult):boolean {
+ if(dv360ListKind(plan))return dv360ListOutcome(plan,result);
+ if(googleConfigurationKind(plan))return googleConfigurationOutcome(plan,result);
  if(googleAssetLinkKind(plan))return googleAssetLinkOutcome(plan,result);
  if(linkedinDSC(plan))return result.status===201&&linkedinPostId(result.headers['x-restli-id']);
  if(xCreativeKind(plan))return xCreativeOutcome(plan,result);
@@ -88,6 +93,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult):bo
  return false;
 }
 export function validateState(read:CompiledRequest,result:TransportResult):void {
+ if(read.gateway==='dv360_native_action'&&read.dv360ListState&&!read.dv360ListState.collection&&result.status===404){const d=object(result.data);if(read.action!=='AMCP_STATE_OPTIONAL'||d.amcp_absent!==true||d.path!==read.path)fail('STATE_TARGET_MISMATCH','Unqualified absent DV360 target.');return;}
  if(read.gateway===microsoftGateway)validateMicrosoftResponse(read,result,true);
  if(result.status===404&&measurementWriteGateways.has(read.gateway)){validateMeasurementState(read,result);return;}
  if(read.gateway==='gtm_native_action'&&read.path.endsWith('/status')&&result.status===200){validateMeasurementState(read,result);return;}
@@ -120,6 +126,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  };inspect(data);
  if(read.gateway===microsoftGateway)return;
  if(measurementWriteGateways.has(read.gateway)){validateMeasurementState(read,result);return;}
+ if(read.gateway==='dv360_native_action'&&(read.action==='AMCP_DV360_LIST_STATE'||read.dv360ListState)){validateDV360ListState(read,result);return;}
  if(read.gateway==='reddit_native_action'){validateRedditState(read,result);return;}
  const sameIds=(actual:unknown[],expected:unknown[])=>{const clean=(ids:unknown[])=>ids.map(x=>String(x)).sort();if(actual.length!==expected.length||stable(clean(actual))!==stable(clean(expected)))fail('STATE_TARGET_MISMATCH','State read did not return every exact requested target.');};
  if(read.gateway==='google_ads_native_action'){
@@ -165,6 +172,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(measurementWriteGateways.has(plan.gateway))assertMeasurementWrite(plan);
  const supported=reviewedWriteFamily(plan);
  if(!supported)fail('WRITE_CONTRACT_UNAVAILABLE','This route is outside the reviewed campaign-management execution contracts. Use a local dry run.');
+ if(dv360ListKind(plan))assertDV360ListWrite(plan);
  if(plan.gateway==='meta_native_action'&&route.endsWith('/adcreatives'))validateMetaCreative(body);
  if(Object.keys(plan.query).some(k=>!(plan.gateway==='dv360_native_action'&&k==='updateMask'||plan.gateway==='gtm_native_action'&&k==='fingerprint')))fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed writes accept body fields and qualified concurrency parameters only.');
  if(plan.gateway==='linkedin_native_action'&&method==='POST'&&/^\/rest\/adAccounts\/[^/]+\/[^/]+\/[^/]+$/.test(route)&&(!body.patch||plan.headers['X-RestLi-Method']?.toUpperCase()!=='PARTIAL_UPDATE'))fail('WRITE_CONTRACT_UNAVAILABLE','LinkedIn entity POST requires a native patch and restli_method PARTIAL_UPDATE.');
@@ -200,11 +208,14 @@ export function assertWriteShape(plan:CompiledRequest){
   for(const op of body.operations)if(!op||typeof op!=='object'||['create','update','remove'].filter(k=>op[k]!==undefined).length!==1)fail('INVALID_MUTATION','Each Google operation must contain exactly one create, update or remove.');
   assertGoogleTargeting(plan);
   assertGoogleAssetLinks(plan);
+  assertGoogleConfiguration(plan);
  }
 }
 
 /** Reads are explicitly derived from the target, never supplied by the caller as proof. */
 export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRequest[]{
+ if(dv360ListKind(plan))return dv360ListSnapshots(plan);
+ if(googleConfigurationKind(plan))return googleConfigurationSnapshots(plan);
  if(googleAssetLinkKind(plan))return googleAssetLinkSnapshots(plan);
  if(linkedinDSC(plan))return linkedinDSCReads(plan);
  if(xCreativeKind(plan))return xCreativeSnapshots(plan);
@@ -277,7 +288,9 @@ export class WriteReviewService {
   if(actor.role==='reader')throw new MirrorError('FORBIDDEN','A writer connector and administrator account grant are required.',{},403);
   const c=this.store.resolveConnection(actor,plan.gateway,plan.accountId,connectionId),id=normalizeAccount(plan.gateway,plan.accountId??(c.accounts.length===1?c.accounts[0]:''));
   assertAccountWrite(this.store,c,id);
+  for(const account of appleSharedAccounts(plan)){this.store.resolveConnection(actor,plan.gateway,account,c.id);assertAccountWrite(this.store,c,account);}
   if(plan.gateway==='reddit_native_action')assertRedditWriteScopes(c);
+  if(dv360ListKind(plan)&&!c.scopes.includes('https://www.googleapis.com/auth/display-video'))fail('PROVIDER_WRITE_SCOPE_REQUIRED','Reconnect DV360 with the display-video OAuth scope.');
   if(plan.gateway===microsoftGateway&&!c.scopes.some(s=>s===microsoftScope||s==='msads.manage'))fail('INSUFFICIENT_SCOPE','Reconnect Microsoft Advertising with msads.manage permission.');
   plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);assertMeasurementScopes(plan,c);return c;
  }
@@ -289,9 +302,26 @@ export class WriteReviewService {
   });
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
-   try{result=await this.transport.request(read,c,auth);}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
-   this.access(actor,plan,connectionId);validateState(read,result);values.push(linkedinDSC(plan)&&/^\/rest\/(images|videos)\//.test(read.path)?linkedinMediaProjection(plan,object(result.data)):normalizeSnapshot(read,result.data));
-  }validateGoogleTargetingState(plan,values);validateGoogleAssetLinkState(plan,values);validateMicrosoftAssociationState(plan,values);validateXTargetingState(plan,values);return values;
+   try{result=await readDV360List(read,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.transport.request(page,current,auth);this.access(actor,plan,connectionId);return response;});}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
+   this.access(actor,plan,connectionId);validateState(read,result);
+   if(appleEntityKind(plan)==='shared_budget'&&read.path===plan.path){
+    const accounts=appleSharedAccounts(plan,result.data),frozen=plan.scopeContext?.appleSharedAccountIds;
+    for(const account of accounts){const current=this.store.resolveConnection(actor,plan.gateway,account,connectionId);assertAccountWrite(this.store,current,account);}
+    if(!frozen){
+     plan.scopeContext={...plan.scopeContext,appleSharedAccountIds:accounts};
+     for(const extra of appleSharedAccountReads(plan,accounts))if(!reads.some(r=>r.path===extra.path))reads.push(extra);
+    }
+   }
+   values.push(linkedinDSC(plan)&&/^\/rest\/(images|videos)\//.test(read.path)?linkedinMediaProjection(plan,object(result.data)):normalizeSnapshot(read,result.data));
+  }
+  validateAppleEntityPrerequisites(plan,reads,values);
+  validateDV360ListPrerequisites(plan,values);
+  if(appleEntityKind(plan)==='shared_budget'&&!plan.scopeContext?.appleSharedOrgId){
+   const account=object(values[reads.findIndex(r=>r.path==='/v1/ad-accounts/'+plan.accountId)]).result;
+   const target=object(values[reads.findIndex(r=>r.path===plan.path)]).result;
+   plan.scopeContext={...plan.scopeContext,appleSharedAccountIds:appleSharedAccounts(plan),appleSharedOrgId:String(account.orgId),appleSharedResultAccounts:(object(plan.body).adAccountIds??target.adAccountIds).map(String)};
+  }
+  validateGoogleTargetingState(plan,values);validateGoogleAssetLinkState(plan,values);validateGoogleConfigurationState(plan,values);validateMicrosoftAssociationState(plan,values);validateXTargetingState(plan,values);return values;
  }
  async call(input:JsonObject,actor:Actor):Promise<unknown>{
   guardInput(input);for(const key of Object.keys(input))if(!Object.hasOwn(writeTool.inputSchema.properties,key))fail('INVALID_ARGUMENT','Unknown write-tool parameter.',{parameter:key});
@@ -309,6 +339,8 @@ export class WriteReviewService {
    }
    assertWriteShape(plan);const c=this.access(actor,plan,input.connection_id??nativeArgs.connection_id),reads=snapshotPlans(plan,this.registry),state=await this.state(actor,plan,c.id,reads);
    validateGoogleAssetLinkState(plan,state,true);
+   validateGoogleConfigurationState(plan,state,true);
+   validateDV360ListPrerequisites(plan,state,true);
    validateMicrosoftAssociationState(plan,state,true);
    if(plan.gateway==='gtm_native_action'){
     const route=this.delegated.data.routes.find(r=>r.gateway===plan.gateway&&r.operation+(r.action?'/'+r.action:'')===plan.action),fingerprint=object(state[0]).fingerprint;

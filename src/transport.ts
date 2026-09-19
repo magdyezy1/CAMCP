@@ -106,7 +106,14 @@ export class NativeTransport {
    else if(plan.action!=='AMCP_MICROSOFT_DISCOVERY'||![microsoftCustomerOrigin+'/CustomerManagement/v13/User/Query',microsoftCustomerOrigin+'/CustomerManagement/v13/Accounts/Search'].includes(url.href))throw new MirrorError('ACCOUNT_REQUIRED','Microsoft requests require an explicit selected account.');
   }
   if(plan.gateway==='amazon_native_action'){if(!credentials.clientId)throw new MirrorError('CLIENT_ID_REQUIRED','Amazon Ads requires a client ID.');headers['Amazon-Advertising-API-ClientId']=credentials.clientId;if(plan.accountId)headers['Amazon-Advertising-API-Scope']=plan.accountId;}
-  if(plan.gateway==='apple_ads_native_action'&&plan.accountId)headers['X-AP-Context']=(url.origin==='https://api.ads.apple.com'&&plan.path.startsWith('/v1/')?'adAccountId='+plan.accountId+';':'orgId='+plan.accountId);
+  if(plan.gateway==='apple_ads_native_action'&&plan.accountId){
+   // Shared-budget mutations are organization-level methods in Apple's SDK.
+   // The review layer authorizes every affected account; a header cannot scope
+   // this mutation. Reads retain the optional selected-account context.
+   const sharedWrite=url.origin==='https://api.ads.apple.com'&&!plan.readOnly&&/^\/v1\/shared-budgets(?:\/\d+)?$/.test(plan.path);
+   if(sharedWrite){for(const key of Object.keys(headers))if(key.toLowerCase()==='x-ap-context')delete headers[key];}
+   else headers['X-AP-Context']=(url.origin==='https://api.ads.apple.com'&&plan.path.startsWith('/v1/')?'adAccountId='+plan.accountId+';':'orgId='+plan.accountId);
+  }
   if(plan.gateway==='x_ads_native_action')headers.Authorization=oauth1(plan.method,url,credentials,form);
   if(credentials.apiKey&&!headers.Authorization)headers.Authorization='Bearer '+credentials.apiKey;
   if(!headers.Authorization&&!headers['Access-Token'])throw new MirrorError('CREDENTIALS_REQUIRED','An authenticated platform connection is required.',{},401);

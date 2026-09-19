@@ -1,6 +1,7 @@
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
+import {appleEntityKind,assertAppleEntityWrite,appleEntitySnapshots,validateAppleEntityState,appleEntityOutcome,appleEntityVerification} from './apple-entity-writes.js';
 
 export const measurementWriteGateways=new Set(['ga4_native_action','gtm_native_action','google_search_console_native_action','apple_ads_native_action']);
 const obj=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?v as JsonObject:{};
@@ -31,6 +32,7 @@ function referenceScope(p:CompiledRequest){
 
 /** Explicit contracts: new vendor catalog entries do not automatically gain write permission. */
 export function assertMeasurementWrite(p:CompiledRequest):void{
+ if(appleEntityKind(p)){assertAppleEntityWrite(p);return;}
  const a=action(p),b=obj(p.body);
  if(p.gateway==='apple_ads_native_action'){
   if(p.origin!=='https://api.ads.apple.com'||!['apple_ads_v1_campaign_create','apple_ads_v1_campaign_update','apple_ads_v1_campaign_delete'].includes(a)||!((p.method==='POST'&&p.path==='/v1/campaigns')||(['PUT','DELETE'].includes(p.method)&&/^\/v1\/campaigns\/\d+$/.test(p.path))))fail('Only Apple Platform API v1 campaign mutations are supported.');
@@ -63,6 +65,7 @@ export function assertMeasurementScopes(p:CompiledRequest,c:Connection):void{
 }
 
 export function measurementSnapshots(p:CompiledRequest):CompiledRequest[]{
+ if(appleEntityKind(p))return appleEntitySnapshots(p);
  const read=(path:string,origin=p.origin,optional=false):CompiledRequest=>({...p,action:optional?'AMCP_STATE_OPTIONAL':'AMCP_STATE_READ',method:'GET',path,origin,query:{},body:undefined,headers:{},readOnly:true,destructive:false,requiresConfirmation:false,responseControls:undefined,specialTransport:undefined});
  if(p.gateway==='apple_ads_native_action')return [read(p.method==='POST'?'/v1/ad-accounts/'+p.accountId:p.path)];
  if(p.gateway==='ga4_native_action')return [read('/v1beta/properties/'+p.accountId,'https://analyticsadmin.googleapis.com')];
@@ -83,6 +86,7 @@ export function optionalMissingState(read:CompiledRequest,e:unknown):TransportRe
 export function validateMeasurementState(read:CompiledRequest,result:TransportResult):void{
  const d=obj(result.data),failState=():never=>{throw new MirrorError('STATE_TARGET_MISMATCH','Provider state did not identify the exact selected resource.');};
  if(result.status===404){if(read.action!=='AMCP_STATE_OPTIONAL'||d.amcp_absent!==true||d.path!==read.path)failState();return;}
+ if(read.gateway==='apple_ads_native_action'&&(read.action==='AMCP_APPLE_ENTITY_STATE'||read.scopeContext?.appleSharedAccountIds||/^\/v1\/(adgroups|ads|creatives|keywords|negative-keywords|shared-budgets)\//.test(read.path))){validateAppleEntityState(read,d);return;}
  if(read.gateway==='apple_ads_native_action'){if(String(d.result?.id)!==read.path.split('/').at(-1)||d.result?.adAccountId!==undefined&&String(d.result.adAccountId)!==read.accountId)failState();return;}
  if(read.gateway==='ga4_native_action'){
   const target=read.path.replace(/^\/v1(?:alpha|beta)\//,'');
@@ -98,6 +102,7 @@ export function validateMeasurementState(read:CompiledRequest,result:TransportRe
  if(d.path!==resource)failState();
 }
 export function measurementOutcome(p:CompiledRequest,r:TransportResult):boolean{
+ if(appleEntityKind(p))return appleEntityOutcome(p,r);
  const d=obj(r.data),a=action(p);
  if(p.gateway==='google_search_console_native_action')return [200,204].includes(r.status)&&empty(r.data);
  if(p.gateway==='apple_ads_native_action'){
@@ -120,6 +125,7 @@ export function measurementOutcome(p:CompiledRequest,r:TransportResult):boolean{
 /** Result identities come only from an already validated mutation receipt. A
  * created export is not a completed export: the verifier preserves job state. */
 export function measurementVerification(plan:CompiledRequest,result:JsonObject):{read:CompiledRequest;expected:JsonObject;id:string}[]{
+ if(appleEntityKind(plan))return appleEntityVerification(plan,result);
  const d=obj(result.data),b=obj(plan.body),a=action(plan);
  const read=(path:string,optional=false):CompiledRequest=>({...plan,action:optional?'AMCP_STATE_OPTIONAL':'AMCP_VERIFY_READ',method:'GET',path,query:{},body:undefined,headers:{},readOnly:true,destructive:false,requiresConfirmation:false,responseControls:undefined,specialTransport:undefined});
  if(plan.method==='DELETE')return [{read:read(plan.path,true),expected:{amcp_absent:true,path:plan.path},id:plan.path}];

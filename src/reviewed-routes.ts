@@ -1,6 +1,9 @@
 import type {CompiledRequest} from './types.js';
+import {appleEntityKind} from './apple-entity-writes.js';
+import {dv360ListKind} from './dv360-list-writes.js';
 import {googleTargetingKind} from './google-targeting-writes.js';
 import {googleAssetLinkKind} from './google-asset-links.js';
+import {googleConfigurationKind} from './google-configuration-writes.js';
 import {xCreativeKind} from './x-creative-writes.js';
 import {linkedinDSC} from './linkedin-posts.js';
 import {redditWriteKind} from './reddit-writes.js';
@@ -17,11 +20,14 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(p.gateway===microsoftGateway){const c=microsoftContracts.get(p.action);return c&&c.path===route&&c.method===method?(microsoftAssociationWrite(p)?'microsoft_asset_links':/^(Add|Update|Delete)/.test(c.name)?'microsoft_search':undefined):undefined;}
  if(p.gateway==='reddit_native_action')return redditWriteKind(p)?'reddit_classic':undefined;
  if(linkedinDSC(p))return 'linkedin_dsc';
+ if(appleEntityKind(p))return 'apple_entities';
+ if(dv360ListKind(p))return 'dv360_lists';
  if(p.gateway==='apple_ads_native_action')return p.origin==='https://api.ads.apple.com'&&['apple_ads_v1_campaign_create','apple_ads_v1_campaign_update','apple_ads_v1_campaign_delete'].includes(action)&&(method==='POST'&&route==='/v1/campaigns'||['PUT','DELETE'].includes(method)&&/^\/v1\/campaigns\/\d+$/.test(route))?'apple_campaigns':undefined;
  if(p.gateway==='ga4_native_action')return p.origin==='https://analyticsdata.googleapis.com'&&method==='POST'&&['ga4_create_audience_export','ga4_create_report_task'].includes(p.action)&&/^\/v1(?:alpha|beta)\/properties\/\d+\/(audienceExports|reportTasks)$/.test(route)?'ga4_export_jobs':undefined;
  if(p.gateway==='gtm_native_action')return p.origin==='https://tagmanager.googleapis.com'&&gtmWriteActions.has(action)&&/^\/tagmanager\/v2\/accounts\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*(?::create_version|:publish)?$/.test(route)?'gtm_entities':undefined;
  if(p.gateway==='google_search_console_native_action')return ['https://www.googleapis.com','https://searchconsole.googleapis.com'].includes(p.origin!)&&['ADD_SITE','DELETE_SITE','SUBMIT_SITEMAP','DELETE_SITEMAP'].includes(action)&&['PUT','DELETE'].includes(method)&&/^\/webmasters\/v3\/sites\/[^/]+(?:\/sitemaps\/[^/]+)?$/.test(route)?'search_console_sites':undefined;
  if(p.gateway==='google_ads_native_action'){
+  if(googleConfigurationKind(p))return 'google_configuration';
   if(googleAssetLinkKind(p))return 'google_asset_links';
   if(googleTargetingKind(p))return 'google_targeting';
   return method==='POST'&&/^\/v23\/customers\/[^/]+\/(campaigns|adGroups|adGroupAds|campaignBudgets|ads|assetGroups|assets):mutate$/.test(route)?'google_entities':undefined;

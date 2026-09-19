@@ -2,6 +2,8 @@ import {microsoftAssociationWrite,microsoftAssociationActivates} from './microso
 import {xCreativeImpact} from './x-creative-writes.js';
 import {googleAssetLinkKind,googleAssetLinkActivates} from './google-asset-links.js';
 import {MirrorError} from './errors.js';
+import {appleEntityKind} from './apple-entity-writes.js';
+import {dv360ListKind} from './dv360-list-writes.js';
 import {stable} from './security.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 const object=(v:unknown):v is JsonObject=>!!v&&typeof v==='object'&&!Array.isArray(v);
@@ -24,6 +26,9 @@ function assertSnapchatReplacement(plan:CompiledRequest,state:unknown[]){
  }
 }
 export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolean,connectionId:string):JsonObject|undefined{
+ if(dv360ListKind(plan))return {provider:'dv360',effect:'Channel, location and negative-keyword lists can be shared by enabled line items. Membership edits affect all consumers of this selected-advertiser list. Replacement removes previous members not in the supplied complete list.',verification:'Complete membership read-back, including all pages, compares the resulting set. It does not establish serving or policy approval.',limits:'Advertiser-owned lists only; partner ownership requires separate grants. Maximum 1000 changes, 10000 snapshot members and 100 pages per review.',recovery:'Partial receipts and lost responses do not authorize replay. Preserve the frozen request and inspect membership; corrections require a fresh review.'};
+ if(appleEntityKind(plan))return {provider:'apple',scope:appleEntityKind(plan),affected_account_ids:plan.scopeContext?.appleSharedAccountIds??[plan.accountId],effect:appleEntityKind(plan)==='shared_budget'?'Changes a budget shared by all listed accounts. Every affected account must remain write-authorized; each account policy reserves the entire positive increase conservatively.':'Changes the selected entity. Creative edits and exclusions may affect already enabled ads.',verification:'Exact configuration read-back proves the requested fields, not creative approval or serving. Provider business constraints and access remain live checks.',recovery:'Never repeat an uncertain mutation. Read the exact resources and retained receipt; a correction needs a fresh review.'};
+ if(googleConfigurationKind(plan))return {provider:'google',scope:googleConfigurationKind(plan),effect:googleConfigurationServing(plan)?'Changes configuration used by existing ads. Customizer values and ad parameters can change served text; signals and exclusions can change eligible traffic.':'Changes organizational or measurement configuration.',may_affect_serving:googleConfigurationServing(plan),verification:'Exact selected-customer configuration read-back; no claim of serving, policy approval, conversion accrual or tracking installation.',recovery:'A rejected or lost response never authorizes replay. Inspect the original receipt and exact resources; corrections require a fresh review.'};
  if(googleAssetLinkKind(plan))return {provider:'google',effect:'Changes associations of existing assets; it does not create new assets. Enabled links may serve under enabled parents. An omitted create status is treated as activation for owner policy checks.',may_activate:googleAssetLinkActivates(plan),scope:googleAssetLinkKind(plan),source:'https://developers.google.com/google-ads/api/docs/assets/working-with-assets',limits:'Provider policy approval, campaign-type rules and asset-count requirements remain provider checks. Link read-back proves configuration, not impressions or approval. Lead-form delivery credentials are never read by this contract.'};
  if(microsoftAssociationWrite(plan))return {provider:'microsoft',effect:'Changes existing extension associations without modifying the asset library. Linking may serve immediately under an enabled parent.',may_activate:microsoftAssociationActivates(plan),limits:'Exact membership read-back does not establish editorial approval or delivery. Search parents only; ad-group associations require campaign_id. Review freezes the discovered extension types and asset content.'};
  const x=xCreativeImpact(plan,state,override,connectionId);
@@ -35,3 +40,4 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  }
  return undefined;
 }
+import {googleConfigurationKind,googleConfigurationServing} from './google-configuration-writes.js';

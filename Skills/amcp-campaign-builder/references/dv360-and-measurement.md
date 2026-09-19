@@ -24,6 +24,22 @@ has no DV360 campaign-performance adapter. Native resource reads and media uploa
 establish report support. Use a separately qualified reporting integration, never an empty
 DV360 overview presented as success.
 
+Advertiser-owned channels, location lists and negative-keyword lists also support reviewed
+creation and display-name updates. Negative-keyword lists support deletion. Their members
+support create, delete and bulk edit; sites and negative keywords also support replacement.
+Use native `params` and `body`, for example `params: {advertiserId: "123", channelId: "456"}`.
+`PATCH` requires `params.updateMask: "displayName"`. Partner-owned list routes remain separate
+and unsupported by these advertiser contracts; do not substitute an advertiser grant.
+
+Membership changes affect every line item using the list. Supply `spend_change_confirmed`
+at execution. A replacement requires the complete new array, including an explicit empty
+array when clearing; it and bulk removals obey the owner's deletion policy. AMCP reads all
+pages before review and verification (up to 10,000 members and 100 pages); the per-review
+change limit is 1,000. Pagination failure never becomes an empty list. `CONFIGURATION_EXISTS`
+means discover/reuse the existing member. A stale or uncertain write needs reconciliation,
+not another replacement or a new idempotency key. Keyword values use native ASCII words;
+do not transliterate a user's keyword without agreement.
+
 ## GA4 — ga4_native_action
 
 Google social sign-in, Ads access, Analytics access and optional Sheets/Drive access are
@@ -67,13 +83,33 @@ Read-back confirms the sitemap registration or deletion, not crawling or indexin
 
 ## Apple Ads — apple_ads_native_action
 
-The Platform API v1 adapter supports ACL account discovery, campaign reads, campaign reports
-and reviewed campaign create/update/delete. These are advertising campaign writes, not
-measurement configuration. Create campaigns PAUSED; inspect budget, account and promoted
-object prerequisites. The adapter does not complete an Apple ad-group/keyword/ad journey.
-Do not invent child operations from the incomplete historical catalog.
+The Platform API v1 adapter supports ACL account discovery, native entity reads, reports and
+reviewed create/update/delete for campaigns, ad groups, ads, creatives, keywords, negative
+keywords and shared budgets. The child action pattern is `apple_ads_v1_<entity>_<verb>`, with
+entities `adgroup`, `ad`, `creative`, `keyword`, `negative_keyword`, and `shared_budget`.
+Use `account_id`, native `payload`, and `path_params: {id: "..."}` for update/delete.
+Create campaigns, ad groups, ads and keywords PAUSED. Discover the campaign, ad group and
+creative before choosing their native parent IDs. Do not guess app IDs, product-page IDs,
+pricing models, targeting or identity inputs. New negative keywords select exactly one
+campaignId or adGroupId. Updates cannot change immutable parents or creative destination.
+
+Money uses decimal strings with at most two fractional digits and the discovered account
+currency. `CURRENCY_MISMATCH` requires correcting the currency, never converting by guessing
+an exchange rate. `VENDOR_SCHEMA_UNAVAILABLE` needs a maintainer to restore or refresh the
+pinned official model; do not bypass validation. The model evidence is pinned to Apple's
+public SDK revision f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1.
+
+Shared-budget writes operate at organization level. AMCP discovers existing membership,
+checks every old/new account on the same connection, freezes organization/currency, and
+enforces every affected account's spending policy. The selected account must remain a
+member. An entire positive increase is reserved against each account conservatively; AMCP
+does not invent a split. Native invoice contact details must come from the business.
+Creative edits, exclusions and shared budgets can affect enabled campaigns and require
+spend acknowledgement. Provider app eligibility and ad approval still require live checks.
 Campaign read-back checks the requested fields, exact account and returned campaign ID;
-deletion verification requires absence. A permission denial is not proof of deletion.
+deletion verification requires absence or the exact child's native deleted state.
+A permission denial is not proof of deletion. Creative configuration verification does not
+mean that the creative is approved or serving.
 
 Reports decode metadata.id, metadata.name and totalMetrics. Spend uses Money.amount and
 Money.currency; total installs include tap and view installs. Authentication obtains an

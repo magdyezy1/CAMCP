@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import {createHash} from 'node:crypto';
 import type {ActionContract} from '../src/action-contracts.js';
 import type {JsonObject} from '../src/types.js';
+import {appleModelEvidence} from '../src/apple-entity-writes.js';
 
 const gateways:Record<string,string>={
  'google-ads':'google_ads','ga4-':'ga4','gtm-':'gtm','search-console':'google_search_console','business-':'google_business','dv360-':'dv360','criteo-':'criteo','reddit-':'reddit','microsoft-':'microsoft_ads'
@@ -29,5 +30,10 @@ export function vendorContractInventory(actions:ActionContract[]){
   });
   summary.push({gateway:gateway+'_native_action',source_file:'.mirror/VENDOR/'+file,source_url:w.source,captured_at:w.captured_at,sha256:createHash('sha256').update(raw).digest('hex'),methods:native.length,mapped:available.filter(m=>m.mapped_actions.length).length,no_mapped_action:available.filter(m=>!m.mapped_actions.length).length,meaning:'Complete for this pinned document, not all provider APIs or account access.'});rows.push(...available);
  }
- return {format_version:1,scope:'All methods in the pinned public vendor Discovery, OpenAPI and WSDL documents. Missing mappings remain explicit; no action is enabled by this inventory.',summary,methods:rows};
+ const apple=appleModelEvidence(),appleRows=Object.entries(apple.methods).map(([id,m])=>{
+  const method=m as JsonObject,mapped=actions.filter(a=>a.gateway==='apple_ads_native_action'&&a.method===method.method&&a.path&&shape(a.path)===shape(method.path));
+  return {gateway:'apple_ads_native_action',source_file:'generated/apple-platform-v1-models.json',source_url:apple.api_source,api_version:'v1',id,...method,origin:'https://api.ads.apple.com',mapped_actions:mapped.map(a=>({operation:a.operation??null,action:a.action,status:a.status,family:a.family??null})),mapping_status:mapped.length?'mapped':'no_mapped_action',qualification:'unverified'};
+ });
+ summary.push({gateway:'apple_ads_native_action',source_file:'generated/apple-platform-v1-models.json',source_url:apple.api_source,revision:apple.revision,sha256:createHash('sha256').update(JSON.stringify(apple,null,2)+'\n').digest('hex'),methods:appleRows.length,mapped:appleRows.filter(m=>m.mapped_actions.length).length,no_mapped_action:appleRows.filter(m=>!m.mapped_actions.length).length,meaning:'All methods extracted from the pinned public SDK API source; selected model facts are separate from method coverage and live access.'});rows.push(...appleRows);
+ return {format_version:1,scope:'All methods in the pinned public vendor Discovery, OpenAPI, WSDL and Apple SDK method evidence. Missing mappings remain explicit; no action is enabled by this inventory.',summary,methods:rows};
 }
