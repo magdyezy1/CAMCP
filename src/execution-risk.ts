@@ -4,6 +4,7 @@ import {gtmWorkflowDestructive} from './gtm-workflow-writes.js';
 import {gtmWorkspaceDestructive} from './gtm-workspace-writes.js';
 import {xCreativeEdit,xCreativeWarnings} from './x-creative-writes.js';
 import {microsoftGateway,microsoftRead} from './microsoft-native.js';
+import {qualifiedProviderRead} from './provider-read-contracts.js';
 
 // Read-only metadata is a compatibility observation, never sufficient execution
 // authorization. POST reads must match a separately maintained route allowlist.
@@ -22,14 +23,19 @@ export function independentlyReadOnly(plan:CompiledRequest):boolean{
  if(plan.gateway==='google_search_console_native_action'&&/^\/webmasters\/v3\/sites\/[^/?#\r\n\\]+(?:\/sitemaps(?:\/[^/?#\r\n\\]+)?|\/searchAnalytics\/query)?$/.test(plan.path))pathname=plan.path.replace(/^(\/webmasters\/v3\/sites\/)[^/]+/,'$1PROPERTY').replace(/(\/sitemaps\/)[^/]+$/,'$1SITEMAP');
  if(/[?#\r\n\\]/.test(pathname))return false;
  const tokens=pathname.replace(/([a-z])([A-Z])/g,'$1_$2').toLowerCase().split(/[\/_:.-]+/);
- if(tokens.some(t=>['update','delete','remove','mutate','activate','deactivate','publish','unpublish','revoke','authorize','authorization','verify','create','insert','patch','set','upload','submit','send'].includes(t)))return false;
+ if(!qualifiedProviderRead(plan)&&tokens.some(t=>['update','delete','remove','mutate','activate','deactivate','publish','unpublish','revoke','authorize','authorization','verify','create','insert','patch','set','upload','submit','send'].includes(t)))return false;
  const queryAndBody=[plan.query,plan.body];
  for(const bag of queryAndBody)if(bag&&typeof bag==='object'&&!Array.isArray(bag))for(const [key,v]of Object.entries(bag)){
-  if(['method','_method','http_method','method_override'].includes(key)&&!['GET','HEAD'].includes(String(v).toUpperCase()))return false;
-  if(plan.gateway==='meta_native_action'&&key==='batch')return false;
+  if(['method','_method','http_method','method_override'].includes(key.toLowerCase())&&!['GET','HEAD'].includes(String(v).toUpperCase()))return false;
+  if(plan.gateway==='meta_native_action'&&key.toLowerCase()==='batch')return false;
  }
- const override=plan.headers['X-HTTP-Method-Override'];if(override&&!['GET','HEAD'].includes(override.toUpperCase()))return false;
- const restli=plan.headers['X-RestLi-Method'];if(restli&&!['GET','BATCH_GET','FINDER','GET_ALL'].includes(restli.toUpperCase()))return false;
+ let override:string|undefined;
+ for(const [key,value]of Object.entries(plan.headers)){
+  if(key.toLowerCase()==='x-http-method-override'){
+   const method=value.toUpperCase();if(!['GET','HEAD'].includes(method)||(override!==undefined&&override!==method))return false;override=method;
+  }
+  if(key.toLowerCase()==='x-restli-method'&&!['GET','BATCH_GET','FINDER','GET_ALL'].includes(value.toUpperCase()))return false;
+ }
  const method=override??plan.method;if(['GET','HEAD'].includes(method))return true;
  if(method!=='POST')return false;
  switch(plan.gateway){

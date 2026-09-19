@@ -1,5 +1,17 @@
 # TikTok and Snapchat
 
+Read diagnostics include catalog product sets, organic post publishing and ad
+authorization status, location/hashtag lookup, brand-safety partner status, CTM
+message-event sets, Shop exclusive-authorization status and video music rights.
+These exact GET routes do not publish content or grant permissions. Use the
+discovered native parameters. Business/catalog/Shop/identity/message-account
+reads require an administrator's exact path and native-ID binding for the chosen
+AMCP connection/account; an advertiser grant alone is insufficient. For example,
+`/v1.3/catalog/set/get` needs both `bc_id` and `catalog_id` in that binding.
+`RESOURCE_SCOPE_REQUIRED` means ask the workspace administrator for that binding,
+not try another login or invent an advertiser-to-Business Account relationship.
+Read the actual returned eligibility and restrictions before using an identity.
+
 Snapchat creative updates support the documented collection PUT, `snapchat_adaccounts_ad_account_id_creatives_update` with a complete `payload: {creatives: [{id, ad_account_id, type, ...native configuration}]}`. Each target gets an exact snapshot and must belong to the selected connection/account. `INCOMPLETE_CREATIVE_REPLACEMENT` lists omitted existing fields (including nested defaults); explicitly preserve intended settings or use PATCH. `INVALID_CREATIVE_REPLACEMENT` requires preserving immutable identity/type and configuration. An edited shared creative can affect all attached ads and trigger re-review; inspect `creative_impact`. AMCP does not enumerate all sharing ads here: `affected_ad_ids: null` is unknown, not zero. Do not infer that a historical PATCH error means the provider removed PATCH.
 
 TikTok: campaign → ad group → ad. Use `tiktok_native_action`; advertiser IDs remain strings. New serving entities require `operation_status: DISABLE`. Discover authorized identities, Spark/non-Spark eligibility, placement constraints and objective-specific conversion settings. TikTok's Business API app/token flow differs from its consumer OAuth APIs; do not invent a refresh endpoint from another TikTok product.

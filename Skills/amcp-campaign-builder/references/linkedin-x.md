@@ -1,5 +1,13 @@
 # LinkedIn and X
 
+LinkedIn's `organizationalEntityCreateShareAuthorizations` GET can check a
+specific company/member/account tuple before a video dark post. Discover the
+action and native composite-key parameter; retain the selected sponsored-account
+URN. It requires recorded `rw_ads` and an administrator binding for that exact
+decoded path. A successful HTTP read may contain `com.linkedin.sharingauth.Denied`:
+this is a negative permission result, not permission to publish. Do not equate
+read access, AMCP grants, Page identity or another member's authorization.
+
 LinkedIn's hierarchy is account → **campaign group** → **campaign** → creative. Historical cross-platform “campaign” means LinkedIn campaign group, and “ad set” means LinkedIn campaign. Native `linkedin_native_action` preserves LinkedIn names and URNs.
 
 Confirm the Page/organization, post author, media owner and ad-account association. A member-owned media URN cannot be silently substituted for an organization-owned creative. AMCP's media workflow requires a scoped owner and returns the provider's native URN. Poll video status and follow upload finalization before creative attachment. A dark post followed by sponsorship is a separate content/publication operation from the ad itself.

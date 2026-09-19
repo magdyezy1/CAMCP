@@ -8,6 +8,7 @@ import {microsoftReportKey} from './microsoft-report-download.js';
 import {authorizeLinkedInSpecial} from './linkedin-posts.js';
 import {authorizeRedditPostRead,redditPostCreation} from './reddit-post-creation.js';
 import {googleGlobalReadMethods} from './execution-risk.js';
+import {authorizeQualifiedProviderRead} from './provider-read-contracts.js';
 
 export function normalizeAccount(gateway:string,id:unknown):string{
  const value=String(id);return gateway==='meta_native_action'?value.replace(/^act_/,''):gateway==='google_ads_native_action'?value.replaceAll('-',''):value;
@@ -52,6 +53,7 @@ export class ScopeGuard {
    }
   };
   walk(plan.query);walk(plan.body);walk(decoded,'path');
+  if(authorizeQualifiedProviderRead(plan,connection,id))return id;
   if(plan.gateway==='google_ads_native_action'&&plan.readOnly&&plan.method==='POST'&&/^\/v23:[A-Za-z]+$/.test(decoded)&&googleGlobalReadMethods.has(decoded.slice(5)))return id;
   if(authorizeLinkedInSpecial(plan,connection,this.store,id))return id;
   if(authorizeRedditPostRead(plan,connection,this.store,id))return id;

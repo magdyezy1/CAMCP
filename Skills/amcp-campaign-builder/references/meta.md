@@ -1,5 +1,10 @@
 # Meta: campaign, ad set, creative, ad
 
+The account-scoped `meta_ad_account_id_value_rule_set_get` is a GET read,
+including in read-only deployments. A value-rule set is a resource name, not a
+command to change a rule. Its existence does not qualify the separate creation,
+translation or update writes. Inspect the selected account's returned rules.
+
 Use `meta_native_action`. Resolve its current actions with LIST_ACTIONS / DESCRIBE_ACTION; current aliases include `meta_campaign_create`, `meta_adset_create`, `meta_creative_create`, `meta_ad_create`, `meta_image_upload` and `meta_video_upload`.
 
 Campaign → ad set → ad; the ad references a separately reusable creative. Native account paths have an `act_` prefix. AMCP accepts either numeric or prefixed account input. New campaign/ad set/ad writes require `status: PAUSED`; this is an AMCP contract, not a claim that Meta always overrides active input.

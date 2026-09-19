@@ -158,9 +158,8 @@
       "actions": 287,
       "counts": {
         "blocked_write": 130,
-        "native_read": 145,
-        "reviewed_write_family": 11,
-        "unqualified_read": 1
+        "native_read": 146,
+        "reviewed_write_family": 11
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -172,9 +171,9 @@
       "counts": {
         "blocked_write": 148,
         "media_workflow": 4,
-        "native_read": 419,
+        "native_read": 420,
         "reviewed_write_family": 14,
-        "unqualified_read": 6
+        "unqualified_read": 5
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -222,9 +221,9 @@
       "counts": {
         "blocked_write": 221,
         "media_workflow": 4,
-        "native_read": 299,
+        "native_read": 310,
         "reviewed_write_family": 12,
-        "unqualified_read": 25
+        "unqualified_read": 14
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -21585,11 +21584,15 @@
       "aliases": [],
       "method": "GET",
       "path": "/rest/organizationalEntityCreateShareAuthorizations/{organizational_entity_create_share_authorization_id}",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/provider-read-contracts.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Documented fixed GET semantics override ambiguous resource names; Business/Catalog/member resources still require exact administrator bindings.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/linkedin-posts.test.ts",
+        "tests/creative-chain-audit.test.ts",
+        "tests/provider-read-contracts.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -24508,11 +24511,15 @@
       "aliases": [],
       "method": "GET",
       "path": "/v25.0/act_{ad_account_id}/value_rule_set",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/provider-read-contracts.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Documented fixed GET semantics override ambiguous resource names; Business/Catalog/member resources still require exact administrator bindings.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/meta-provision.test.ts",
+        "tests/meta-contracts.test.ts",
+        "tests/provider-read-contracts.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -41680,11 +41687,15 @@
       "aliases": [],
       "method": "GET",
       "path": "/v1.3/business/mention/hashtag/verify/list/",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/provider-read-contracts.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Documented fixed GET semantics override ambiguous resource names; Business/Catalog/member resources still require exact administrator bindings.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/write-platforms.test.ts",
+        "tests/creative-chain-audit.test.ts",
+        "tests/provider-read-contracts.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -42025,11 +42036,15 @@
       "aliases": [],
       "method": "GET",
       "path": "/v1.3/business/post/authorize/status/",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/provider-read-contracts.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Documented fixed GET semantics override ambiguous resource names; Business/Catalog/member resources still require exact administrator bindings.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/write-platforms.test.ts",
+        "tests/creative-chain-audit.test.ts",
+        "tests/provider-read-contracts.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -42093,11 +42108,15 @@
       "aliases": [],
       "method": "GET",
       "path": "/v1.3/business/publish/location/",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/provider-read-contracts.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Documented fixed GET semantics override ambiguous resource names; Business/Catalog/member resources still require exact administrator bindings.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/write-platforms.test.ts",
+        "tests/creative-chain-audit.test.ts",
+        "tests/provider-read-contracts.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -42106,11 +42125,15 @@
       "aliases": [],
       "method": "GET",
       "path": "/v1.3/business/publish/status/",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/provider-read-contracts.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Documented fixed GET semantics override ambiguous resource names; Business/Catalog/member resources still require exact administrator bindings.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/write-platforms.test.ts",
+        "tests/creative-chain-audit.test.ts",
+        "tests/provider-read-contracts.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -42969,11 +42992,15 @@
       "aliases": [],
       "method": "GET",
       "path": "/v1.3/catalog/set/get/",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/provider-read-contracts.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Documented fixed GET semantics override ambiguous resource names; Business/Catalog/member resources still require exact administrator bindings.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/write-platforms.test.ts",
+        "tests/creative-chain-audit.test.ts",
+        "tests/provider-read-contracts.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -42984,11 +43011,15 @@
       ],
       "method": "GET",
       "path": "/v1.3/catalog/set/get/",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/provider-read-contracts.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Documented fixed GET semantics override ambiguous resource names; Business/Catalog/member resources still require exact administrator bindings.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/write-platforms.test.ts",
+        "tests/creative-chain-audit.test.ts",
+        "tests/provider-read-contracts.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -42997,11 +43028,15 @@
       "aliases": [],
       "method": "GET",
       "path": "/v1.3/catalog/set/product/get/",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/provider-read-contracts.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Documented fixed GET semantics override ambiguous resource names; Business/Catalog/member resources still require exact administrator bindings.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/write-platforms.test.ts",
+        "tests/creative-chain-audit.test.ts",
+        "tests/provider-read-contracts.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -43611,11 +43646,15 @@
       "aliases": [],
       "method": "GET",
       "path": "/v1.3/ctm/message_event_set/get/",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/provider-read-contracts.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Documented fixed GET semantics override ambiguous resource names; Business/Catalog/member resources still require exact administrator bindings.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/write-platforms.test.ts",
+        "tests/creative-chain-audit.test.ts",
+        "tests/provider-read-contracts.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -44495,11 +44534,15 @@
       "aliases": [],
       "method": "GET",
       "path": "/v1.3/gmv_max/exclusive_authorization/get/",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/provider-read-contracts.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Documented fixed GET semantics override ambiguous resource names; Business/Catalog/member resources still require exact administrator bindings.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/write-platforms.test.ts",
+        "tests/creative-chain-audit.test.ts",
+        "tests/provider-read-contracts.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -44696,11 +44739,15 @@
       "aliases": [],
       "method": "GET",
       "path": "/v1.3/identity/music/authorization/",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/provider-read-contracts.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Documented fixed GET semantics override ambiguous resource names; Business/Catalog/member resources still require exact administrator bindings.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/write-platforms.test.ts",
+        "tests/creative-chain-audit.test.ts",
+        "tests/provider-read-contracts.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -46971,11 +47018,15 @@
       "aliases": [],
       "method": "GET",
       "path": "/v1.3/tool/brand_safety/partner/authorize/status/",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/provider-read-contracts.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Documented fixed GET semantics override ambiguous resource names; Business/Catalog/member resources still require exact administrator bindings.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/write-platforms.test.ts",
+        "tests/creative-chain-audit.test.ts",
+        "tests/provider-read-contracts.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {

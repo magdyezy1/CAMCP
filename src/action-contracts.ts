@@ -4,6 +4,7 @@ import {appleActions} from './apple-native.js';
 import {businessWorkflowOperations} from './workflows.js';
 import {reportingOperations} from './reporting.js';
 import {independentlyReadOnly} from './execution-risk.js';
+import {qualifiedProviderRead} from './provider-read-contracts.js';
 import {reviewedWriteFamily} from './reviewed-routes.js';
 import {mediaRoute} from './media-routing.js';
 import {providerContracts} from './provider-contracts.js';
@@ -36,10 +37,10 @@ function classify(gateway:string,action:string,method:string|null,path:string|nu
  const provider=providerContracts.find(c=>c.gateway===gateway),result:ActionContract={gateway,...(operation?{operation}:{}),action,aliases,method,path,...(origin?{origin}:{}),status:'unmapped',implementation:'',reason:'No provider request mapping exists. The advertised name is not executable.',source,tests:[],live_qualification:'unverified'};
  if(!method||!path)return result;
  const absolute=path.startsWith('https://')?new URL(concrete(path,parameters)):undefined,relative=absolute?.pathname??concrete(path.split('?')[0]!,parameters);
- const p:CompiledRequest={gateway,action:operation?operation+(action!==operation?'/'+action:''):action,method,path:relative,origin:origin??absolute?.origin,query:Object.fromEntries(new URLSearchParams((absolute?.search??path.split('?')[1]??'').replaceAll('{action}','initializeUpload'))),body:{},headers:{},readOnly:readOnly===true,destructive:method==='DELETE',requiresConfirmation:false,accountId:'123',evidence:source,warnings:[],specialTransport};
+ const p:CompiledRequest={gateway,action:operation?operation+(action!==operation?'/'+action:''):action,method,path:relative,origin:origin??absolute?.origin,query:Object.fromEntries(new URLSearchParams((absolute?.search??path.split('?')[1]??'').replaceAll('{action}','initializeUpload'))),body:['GET','HEAD'].includes(method)?undefined:{},headers:{},readOnly:readOnly===true,destructive:method==='DELETE',requiresConfirmation:false,accountId:'123',evidence:source,warnings:[],specialTransport};
  result.origin=p.origin;
  const retired=retiredProviderAction(p);if(retired){return {...result,status:'provider_unsupported',implementation:'src/retired-provider-actions.ts',reason:'The provider documents this method as no longer supported. Retained in the denominator; no replacement API is invented.',source:retired.source,tests:['tests/retired-provider-actions.test.ts']};}
- if(independentlyReadOnly(p)){result.status='native_read';result.implementation='src/compiler.ts / src/delegated-native.ts / src/transport.ts';result.reason='A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.';result.tests=provider?.tests??[];return result;}
+ if(independentlyReadOnly(p)){result.status='native_read';result.implementation='src/compiler.ts / src/delegated-native.ts / src/transport.ts';result.reason='A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.';result.tests=provider?.tests??[];if(qualifiedProviderRead(p)){result.implementation+=' / src/provider-read-contracts.ts';result.tests=[...result.tests,'tests/provider-read-contracts.test.ts'];result.reason+=' Documented fixed GET semantics override ambiguous resource names; Business/Catalog/member resources still require exact administrator bindings.';}return result;}
  const family=reviewedWriteFamily({...p,readOnly:false});
  if(family){result.status='reviewed_write_family';result.family=family;[result.implementation,result.tests]=familyFiles[family]!;result.reason='Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.';return result;}
  const media=mediaRoute(p);

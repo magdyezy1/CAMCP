@@ -132,3 +132,15 @@ Candidate J completed the full release check: 829 passed, zero failures, one
 FFmpeg skip, plus four capture tests passed. Strict generation, guidance, web,
 provider and action-ledger checks all passed. Both post creation paths are locally
 qualified within their documented limits. No live Reddit publishing was performed.
+
+Reddit creation is pushed as `d2c0e10`. Thirteen previously unqualified GET actions
+now have independent read semantics and exact scope contracts (Meta value-rule
+sets; eleven TikTok catalog/business/identity diagnostics; LinkedIn dark-post
+permission checks). Override headers are checked case-insensitively. Initial 25,
+expanded 27 and final 27 focused tests passed. Candidate K full validation follows.
+Inventory: 3,241 actions, 351 reviewed families, 963 blocked writes, 105 unmapped,
+37 unqualified reads, eight input-dependent adapters and four withdrawn methods.
+
+Candidate K passed the full check: 848 tests passed, zero failed, one FFmpeg skip,
+and four capture tests passed. Strict generated action coverage and all release
+checks passed. Read-contract source hash is recorded in the dated evidence report.

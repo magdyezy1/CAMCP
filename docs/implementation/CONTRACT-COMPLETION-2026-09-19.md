@@ -534,3 +534,52 @@ guidance, web, vendor integrity and offline lifecycle checks passed.
 Evidence: `.runtime/contract-completion-20260919/release-check-j.log`.
 FFmpeg/container, hosted CI and live credentials remain unavailable. This is
 synthetic/local qualification, not evidence of live publication or ad approval.
+
+## Documented GET diagnostics with ambiguous resource names
+
+Thirteen catalog rows used names such as `set`, `publish` or `authorization`,
+which the independent risk classifier conservatively rejected. Added exact GET
+contracts in `provider-read-contracts.ts`, retaining the method/body/origin,
+override, batch, account and connection checks. Method override headers and query
+keys now also use case-insensitive refusal. No POST or undocumented route is
+enabled by this exception. The captured GET anchor/create remains unqualified.
+
+Meta's account value-rule-set list uses the selected `act_ID`. TikTok's fixed
+paths cover product sets/products, organic publishing status/location, post ad
+authorization, hashtag verification, brand-safety partner status, CTM event sets,
+Shop exclusive authorization and video music rights. Additional business/catalog,
+Shop, message-account and identity authority requires an administrator binding
+containing the exact path and native identifier tuple on that same connection.
+Broad prefix bindings cannot substitute for this check. LinkedIn's documented
+company/member/account composite requires exact binding and `rw_ads`; a returned
+Denied value stays negative permission evidence, not publication authority.
+
+Current official sources checked 2026-09-19:
+- [Meta official SDK, get_value_rule_set](https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/main/facebook_business/adobjects/adaccount.py)
+  explicitly uses GET; AMCP remains pinned to Graph v25.0.
+- [LinkedIn account access controls, 202607](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/account-access-controls?view=li-lms-2026-07)
+  documents the GET tuple, `rw_ads`, Approved/Denied (updated 2026-06-24).
+  Existing configurable LinkedIn version is unchanged.
+- [TikTok v1.3 endpoint catalog](https://business-api.tiktok.com/gateway/docs/index?doc_id=1735713875563521&language=ENGLISH)
+  documents the read purposes and permission categories; native shapes use the
+  captured catalog. The documentation search index was readable while the clean
+  direct URL intermittently returned a fetch error. No live account acceptance
+  or response-field completeness is inferred from these metadata sources.
+
+Verification commands: `npm.cmd run build`; `node --test --test-concurrency=1`
+with `dist/tests/provider-read-contracts.test.js`, existing account/security/read
+verification, action-ledger and scope/guidance suites. Initial 25, expanded 27
+and final 27 tests passed (`read-contracts-first.log`, `-expanded.log`, `-final.log`).
+The fixtures execute actual compiled requests through a reader actor and a
+read-only deployment, test native error envelopes, wrong grants/IDs, absent and
+broad bindings, in-flight revocation, malformed verbs/paths and mixed-case
+overrides with no unauthorized egress. Strict regenerated inventory has 1,697
+native reads and 37 unqualified reads; 963 mapped writes still lack a family.
+Candidate K full release check follows. No read was performed on a live account.
+
+Candidate K `.release/contract-batch-20260919-k`: 465 files, source hash
+`fa7cb02091c999c05ed0ac8a4f6c69e7edaded53086218f0ef19d4e7a814d50c`.
+Sanitized `npm.cmd ci --ignore-scripts --no-audit --no-fund`, then `npm.cmd run
+check`, exited 0. Main suite 848 passed, zero failed, one FFmpeg skip; capture
+suite four passed. Generated ledgers, provider integrity, guidance and remaining
+release checks passed. Log: `release-check-k.log` in the existing evidence folder.
