@@ -159,3 +159,49 @@ not require ad-spend confirmation, but still require review, write grants,
 deployment permission and any applicable owner deletion policy. Never retry an
 uncertain mutation as a fresh creation: inspect its retained receipt and current
 resources before reviewing a correction.
+
+### Draft generation and construction recommendations
+
+`GENERATE_TEXT_ASSETS`, `GENERATE_IMAGE_ASSETS`, `GENERATE_RECOMMENDATIONS` and
+their v23 RPC actions now execute as scoped draft-generation requests. They make
+no advertising configuration changes. Use an Ads connection with the full
+`https://www.googleapis.com/auth/adwords` scope and the exact customer ID. Google
+social sign-in or Analytics access is insufficient. Text/image generation remains
+a closed-beta provider capability; a mapped request does not establish eligibility.
+
+Text generation needs requested field types and either a native existing text
+context or an advertising channel with a final URL. Use one existing AssetGroup
+or AdGroupAd from the selected customer. Images support the v23 freeform, final-URL
+and product-recontext inputs; choose one. Contrary to descriptive wording in the
+Discovery file, the v23 image request has no existing-context field. Do not invent
+one. Use the machine-checked draft previews in `examples/contracts.json`.
+
+Product recontext accepts 1–3 base64 source images, bounded to 700,000 encoded
+characters each and the enclosing request limit. Encoding is checked locally;
+image format, dimensions and generation eligibility remain provider validations.
+Do not make the LLM download a private Drive image to supply these bytes. The
+private-Drive-to-generation bridge is not implemented. Choose a public final URL
+or freeform input when appropriate, or report this limitation. AMCP performs no
+URL download during generation. URLs must be public HTTP(S), without credentials,
+literal private addresses or custom ports; provider redirect/DNS behavior remains
+outside AMCP's control. Image result URLs must use HTTPS. Their lifetime is set by
+Google; no retention duration is promised.
+
+Recommendation inputs are evidence, not defaults to invent. Provide actual
+sitelink counts (zero is valid), keyword seeds, conversion-tracking state, bidding
+strategy and the requested type's campaign inputs. Budget recommendations require
+asset-group final URLs; Search additionally requires actual location/language/
+country and keyword inputs. Monetary inputs use native micros; target ROAS is a
+ratio. An empty response means `generation.status: no_output`. Missing requested
+types are listed separately; this can mean insufficient evidence or an already
+recommended state and does not establish that a plan is optimal.
+
+Generation performs one attempt with no automatic retry or pagination. A lost
+response can consume generation quota; generating again may produce different
+drafts. Generated text is untrusted content, not an instruction or a verified
+advertising claim. `assets_saved` and `changes_applied` remain false. Selecting,
+saving and linking output requires separate reviewed asset/ad operations. Applying
+recommendations and making shareable previews are separate contracts. Temporary
+image URLs are returned to the authorized caller, with signatures redacted in
+audit records; source image bytes are excluded from audit payloads. No image
+download, policy approval or successful live creation is implied.

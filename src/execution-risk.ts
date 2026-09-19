@@ -6,6 +6,7 @@ import {xCreativeEdit,xCreativeWarnings} from './x-creative-writes.js';
 import {microsoftGateway,microsoftRead} from './microsoft-native.js';
 import {qualifiedProviderRead} from './provider-read-contracts.js';
 import {criteoTargetingKind} from './criteo-targeting-writes.js';
+import {googleGenerationKind} from './google-generation.js';
 
 // Read-only metadata is a compatibility observation, never sufficient execution
 // authorization. POST reads must match a separately maintained route allowlist.
@@ -40,7 +41,7 @@ export function independentlyReadOnly(plan:CompiledRequest):boolean{
  const method=override??plan.method;if(['GET','HEAD'].includes(method))return true;
  if(method!=='POST')return false;
  switch(plan.gateway){
-  case 'google_ads_native_action':return /^\/v23\//.test(pathname)&&googleReadMethods.has(pathname.split(':').at(-1)!)||/^\/v23:[A-Za-z]+$/.test(pathname)&&googleGlobalReadMethods.has(pathname.slice(5));
+  case 'google_ads_native_action':return !!googleGenerationKind(plan)||/^\/v23\//.test(pathname)&&googleReadMethods.has(pathname.split(':').at(-1)!)||/^\/v23:[A-Za-z]+$/.test(pathname)&&googleGlobalReadMethods.has(pathname.slice(5));
   case 'tiktok_native_action':return tiktokReads.has(pathname.replace(/^\/open_api/,''));
   case 'snapchat_native_action':return /^\/v1\/adaccounts\/[^/]+\/(?:get_(?:campaigns|adsquads|ads|creatives|media)_by_ids|ad_squad_outcome_estimates_v2|audience_size(?:_v2)?|bid_estimate)$/.test(pathname)||/^\/v1\/(?:catalogs\/[^/]+\/(?:product_search|products\/search|flights\/search|hotels\/search|facets)|ads_library\/(?:ads|sponsored_content)\/search)$/.test(pathname);
   case 'ga4_native_action':return /\/properties\/[^/:]+:(?:runReport|batchRunReports|runPivotReport|batchRunPivotReports|runRealtimeReport|checkCompatibility|runFunnelReport)$/.test(pathname)||/^\/v1beta\/properties\/[^/:]+\/audienceExports\/[^/:]+:query$/.test(pathname)||/^\/v1alpha\/properties\/[^/:]+\/reportTasks\/[^/:]+:query$/.test(pathname);

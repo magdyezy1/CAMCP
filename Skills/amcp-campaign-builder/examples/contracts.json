@@ -849,5 +849,48 @@
     "special_ad_categories": [],
     "start_date": "2026-10-01",
     "end_date": "2026-10-31"
-  }
+  },
+  "native_read_previews": [
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "GENERATE_TEXT_ASSETS",
+        "account_id": "123",
+        "payload": {
+          "asset_field_types": [
+            "HEADLINE"
+          ],
+          "advertising_channel_type": "SEARCH",
+          "final_url": "https://example.com/homes"
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "GENERATE_IMAGE_ASSETS",
+        "account_id": "123",
+        "payload": {
+          "advertising_channel_type": "DISPLAY",
+          "freeform_generation": {
+            "freeform_prompt": "A bright empty room."
+          }
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "GENERATE_RECOMMENDATIONS",
+        "account_id": "123",
+        "payload": {
+          "advertising_channel_type": "SEARCH",
+          "recommendation_types": [
+            "SITELINK_ASSET"
+          ],
+          "campaign_sitelink_count": 0
+        }
+      }
+    }
+  ]
 }

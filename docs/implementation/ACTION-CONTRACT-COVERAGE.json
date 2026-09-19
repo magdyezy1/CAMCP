@@ -109,9 +109,9 @@
         "adapter_requires_input": 8,
         "blocked_write": 142,
         "media_workflow": 2,
-        "native_read": 169,
+        "native_read": 175,
         "reviewed_write_family": 127,
-        "unqualified_read": 8
+        "unqualified_read": 2
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -9410,11 +9410,17 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/customers/{customer_id=*}/assetGenerations:generateImages",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/google-generation.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Fixed draft-generation RPC: native required inputs and oneofs, selected Ads scope, one attempt and explicit no-output semantics. It does not save assets or apply recommendations. Text/image generation requires provider closed-beta access.",
       "source": "src/google-legacy-mapping.json",
-      "tests": [],
+      "tests": [
+        "tests/google-legacy.test.ts",
+        "tests/google-contracts.test.ts",
+        "tests/google-asset-links.test.ts",
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-generation.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -9495,11 +9501,17 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/customers/{customer_id=*}/recommendations:generate",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/google-generation.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Fixed draft-generation RPC: native required inputs and oneofs, selected Ads scope, one attempt and explicit no-output semantics. It does not save assets or apply recommendations. Text/image generation requires provider closed-beta access.",
       "source": "src/google-legacy-mapping.json",
-      "tests": [],
+      "tests": [
+        "tests/google-legacy.test.ts",
+        "tests/google-contracts.test.ts",
+        "tests/google-asset-links.test.ts",
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-generation.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -9521,11 +9533,17 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/customers/{customer_id=*}/assetGenerations:generateText",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/google-generation.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Fixed draft-generation RPC: native required inputs and oneofs, selected Ads scope, one attempt and explicit no-output semantics. It does not save assets or apply recommendations. Text/image generation requires provider closed-beta access.",
       "source": "src/google-legacy-mapping.json",
-      "tests": [],
+      "tests": [
+        "tests/google-legacy.test.ts",
+        "tests/google-contracts.test.ts",
+        "tests/google-asset-links.test.ts",
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-generation.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -9812,11 +9830,17 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/customers/{customer_id=*}/assetGenerations:generateImages",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/google-generation.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Fixed draft-generation RPC: native required inputs and oneofs, selected Ads scope, one attempt and explicit no-output semantics. It does not save assets or apply recommendations. Text/image generation requires provider closed-beta access.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/google-legacy.test.ts",
+        "tests/google-contracts.test.ts",
+        "tests/google-asset-links.test.ts",
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-generation.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -9825,11 +9849,17 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/customers/{customer_id=*}/assetGenerations:generateText",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/google-generation.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Fixed draft-generation RPC: native required inputs and oneofs, selected Ads scope, one attempt and explicit no-output semantics. It does not save assets or apply recommendations. Text/image generation requires provider closed-beta access.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/google-legacy.test.ts",
+        "tests/google-contracts.test.ts",
+        "tests/google-asset-links.test.ts",
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-generation.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -11826,11 +11856,17 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/customers/{customer_id=*}/recommendations:generate",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/google-generation.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Fixed draft-generation RPC: native required inputs and oneofs, selected Ads scope, one attempt and explicit no-output semantics. It does not save assets or apply recommendations. Text/image generation requires provider closed-beta access.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/google-legacy.test.ts",
+        "tests/google-contracts.test.ts",
+        "tests/google-asset-links.test.ts",
+        "tests/google-configuration-writes.test.ts",
+        "tests/google-generation.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {

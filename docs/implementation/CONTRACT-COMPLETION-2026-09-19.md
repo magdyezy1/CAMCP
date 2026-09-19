@@ -663,3 +663,64 @@ web, lifecycle and action-ledger checks passed. Source tree hash:
 Logs: `.runtime/contract-completion-20260919/install-m.log` and
 `release-check-m.log`. FFmpeg and Docker remain unavailable on this host; this
 does not establish container or live-provider qualification.
+
+## Google draft generation (batch N)
+
+Six previously unqualified rows (legacy plus RPC forms of text generation, image
+generation and recommendation generation) now execute through an exact v23 POST
+read contract. No mutate/apply/dismiss/shareable-preview route is enabled by it.
+Inputs use pinned Discovery types plus independent native required/conditional
+fields and oneofs. Both protobuf and ProtoJSON casing work. The selected customer,
+current Ads scope and connection are checked before egress and again before
+returning a response. Duplicate logins require an explicit connection.
+
+Results keep native draft data and add generation metadata. Empty repeated fields
+may be omitted by ProtoJSON; these produce `no_output`, with missing recommendation
+types and uncertainty retained. Errors, malformed or unknown envelopes, wrong
+output types and unsafe temporary URLs are rejected. A generation request makes
+one attempt, cannot paginate and creates no reviewed-write/idempotency claim.
+Content is not saved as an asset or applied. Temporary URLs are returned only as
+data, with no download or invented expiry. Audit redaction now removes image bytes
+and existing URL-signature redaction remains intact; prior audit rows are untouched.
+
+All three image inputs, both text-context variants and ten recommendation types
+have local fixtures. Search impression-share micros, Performance Max retail input,
+zero counts and budget micros preserve their native meaning. Public HTTP(S)
+inputs reject embedded credentials/literal private hosts, but Google's redirect,
+DNS and content processing is not controlled or verified by AMCP. Product-recontext
+inputs are bounded to 1–3 base64 values of at most 700000 encoded characters each;
+format/dimensions and provider eligibility remain provider checks. Private Drive
+ingestion into this generation RPC is still incomplete and the guide forbids
+asking the LLM to download and relay private files.
+
+Official evidence checked 2026-09-19, in addition to the pinned v23 Discovery:
+- [v23 AssetGenerationService protobuf](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/services/asset_generation_service.proto)
+  confirms the three fixed image inputs, text contexts and temporary URL output.
+  The image request has no existing-context field despite its descriptive prose.
+- [v23 RecommendationService protobuf](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/services/recommendation_service.proto)
+  separates generation from application and defines the native input fields.
+- [Recommendation construction guidance](https://developers.google.com/google-ads/api/docs/recommendations)
+  explains why an empty result need not mean an optimal plan.
+- [Release notes](https://developers.google.com/google-ads/api/docs/release-notes)
+  describe text/image generation as initially limited to closed-beta participants.
+  No access, successful live response or provider approval is claimed here.
+
+Initial compilation found a TypeScript union access in the new test fixture;
+corrected with an explicit property-presence check. Then 18 initial tests passed
+(`google-generation-first.log`), 54 expanded compatibility/ledger/guide tests
+passed (`google-generation-expanded.log`) and 40 final generation, security,
+transport, Google schema and guide tests passed (`google-generation-final.log`).
+Commands: `npm.cmd run build`, `node dist/tools/generate-contracts.js`,
+`node dist/tools/action-contracts.js`, and `node --test --test-concurrency=1`
+with the named compiled suites and `tests/guide-contract-examples.test.mjs`.
+Inventory: 3241 actions, 360 reviewed-family, 954 blocked writes, 105 unmapped,
+31 unqualified reads, 1703 native reads, eight input-dependent and four withdrawn.
+Candidate N must pass the full sanitized release check before push.
+
+Candidate N passed `npm.cmd ci --ignore-scripts --no-audit --no-fund` and
+`npm.cmd run check` with exit 0: 889 tests passed, zero failures, one FFmpeg skip;
+four capture tests passed. Source hash:
+`c175be9da9553a0281798f76264f518431519f7c4914f543e8e6082cb2aeeecf`, 470 files.
+Logs: `.runtime/contract-completion-20260919/install-n.log` and
+`release-check-n.log`. The subsequent Meta alias reproductions are a separate
+pending batch and were not part of candidate N. No live generation was attempted.

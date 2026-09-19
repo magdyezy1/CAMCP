@@ -8,6 +8,7 @@ import {responseControls} from './projection.js';
 import {validateApplePlan} from './apple-native.js';
 import {microsoftGateway,compileMicrosoft} from './microsoft-native.js';
 import {googleContractEvidence} from './google-contracts.js';
+import {googleGenerationPlan} from './google-generation.js';
 import {linkedinVersion} from './linkedin-version.js';
 const object=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?{...v}:{};
 export function expandPath(template:string,values:JsonObject):{path:string;consumed:string[]}{
@@ -82,7 +83,7 @@ export class Compiler {
   }
   const required=new Set([...action.required,...(action.raw.required_path_params??[])]);
   if(gateway==='google_ads_native_action'||options.mode==='enhanced'&&options.flags.catalogPreflight)for(const key of required){
-   if(typeof key!=='string')continue;const v=values[key];
+   if(typeof key!=='string')continue;const v=values[key]??(gateway==='google_ads_native_action'?values[key.replace(/_([a-z])/g,(_,c:string)=>c.toUpperCase())]:undefined);
    // The AMCP Drive importer supplies the binary payload after review. Only its
    // exact upload routes may omit their ordinary native content container.
    if(gateway==='google_ads_native_action'&&['operations','you_tube_video_upload'].includes(key)&&/\/(?:assets:mutate|youTubeVideoUploads:create)$/.test(action.path)&&['drive_url','url','image_url','video_url','file_url','source'].some(k=>typeof values[k]==='string'))continue;
@@ -132,7 +133,7 @@ export class Compiler {
    readOnly=readOnly&&['GET','HEAD'].includes(override);
   }
   if(gateway==='meta_native_action'&&query.batch!==undefined)readOnly=false;
-  return googleContractEvidence(validateApplePlan({gateway,action:action.canonical_name||action.name,method,path,query,...(absolute?{origin:absolute.origin}:{}),...(body===undefined?{}:{body}),headers,readOnly,destructive:action.destructive===true||headers['X-HTTP-Method-Override']==='DELETE',requiresConfirmation:!readOnly,accountId,evidence:action.evidence,warnings:['Request routing compiled locally; live behavioral parity is tracked separately.'],specialTransport:action.raw.special_transport??undefined,...(projection?{responseControls:projection}:{})}));
+  return googleGenerationPlan(googleContractEvidence(validateApplePlan({gateway,action:action.canonical_name||action.name,method,path,query,...(absolute?{origin:absolute.origin}:{}),...(body===undefined?{}:{body}),headers,readOnly,destructive:action.destructive===true||headers['X-HTTP-Method-Override']==='DELETE',requiresConfirmation:!readOnly,accountId,evidence:action.evidence,warnings:['Request routing compiled locally; live behavioral parity is tracked separately.'],specialTransport:action.raw.special_transport??undefined,...(projection?{responseControls:projection}:{})})));
  }
  private native(gateway:string,input:JsonObject):CompiledRequest{
   const n=input.native_request;if(!['GET','POST','PUT','PATCH','DELETE'].includes(n.method)||typeof n.path!=='string')throw new MirrorError('INVALID_NATIVE_REQUEST','Provide a supported HTTP method and a relative path.');

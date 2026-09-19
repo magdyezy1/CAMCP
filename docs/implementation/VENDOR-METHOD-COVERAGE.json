@@ -9856,13 +9856,13 @@
         {
           "operation": null,
           "action": "GENERATE_RECOMMENDATIONS",
-          "status": "unqualified_read",
+          "status": "native_read",
           "family": null
         },
         {
           "operation": null,
           "action": "google_ads_v23_recommendation_generate_recommendations",
-          "status": "unqualified_read",
+          "status": "native_read",
           "family": null
         }
       ],
@@ -12798,13 +12798,13 @@
         {
           "operation": null,
           "action": "GENERATE_IMAGE_ASSETS",
-          "status": "unqualified_read",
+          "status": "native_read",
           "family": null
         },
         {
           "operation": null,
           "action": "google_ads_v23_asset_generation_generate_images",
-          "status": "unqualified_read",
+          "status": "native_read",
           "family": null
         }
       ],
@@ -12824,13 +12824,13 @@
         {
           "operation": null,
           "action": "GENERATE_TEXT_ASSETS",
-          "status": "unqualified_read",
+          "status": "native_read",
           "family": null
         },
         {
           "operation": null,
           "action": "google_ads_v23_asset_generation_generate_text",
-          "status": "unqualified_read",
+          "status": "native_read",
           "family": null
         }
       ],

@@ -11,7 +11,7 @@ export function stable(value:unknown):string {
 }
 export function redact(value:unknown):any {
  if(Array.isArray(value))return value.map(redact);
- if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,/^(authorization|authorization[-_]?code|gtm_auth|access[-_]?token|refresh[-_]?token|client[-_]?secret|consumer[-_]?secret|token[-_]?secret|developer[-_]?token|secret|oauth[-_]?token|oauth[-_]?token[-_]?secret|password|api[-_]?key|cookie|set-cookie)$/i.test(k)?'[REDACTED]':redact(v)]));
+ if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,/^image[-_]?data$/i.test(k)?'[BINARY_REDACTED]':/^(authorization|authorization[-_]?code|gtm_auth|access[-_]?token|refresh[-_]?token|client[-_]?secret|consumer[-_]?secret|token[-_]?secret|developer[-_]?token|secret|oauth[-_]?token|oauth[-_]?token[-_]?secret|password|api[-_]?key|cookie|set-cookie)$/i.test(k)?'[REDACTED]':redact(v)]));
  if(typeof value==='string')return value.replace(/Bearer\s+[\w.+/=-]+/gi,'Bearer [REDACTED]').replace(/([?&](?:access_token|refresh_token|client_secret|secret|oauth_token|token|api_key|key|sig|signature|gtm_auth)=)[^&\s]+/gi,'$1[REDACTED]');
  return value;
 }

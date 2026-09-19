@@ -53,7 +53,7 @@ qualification dependencies, not a reason to omit locally implementable code.
 ## Current checkpoint (2026-09-19)
 
 The working tree now inventories **3,241 actions**, including **360 reviewed-family
-rows**. **954 mapped writes, 105 unmapped actions, 37 unqualified reads and eight
+rows**. **954 mapped writes, 105 unmapped actions, 31 unqualified reads and eight
 input-dependent adapters remain incomplete**. Four routes are now explicitly
 **provider_unsupported**, including three previously blocked writes and one read;
 these are not counted as implemented. The first batch added 68 reviewed action
@@ -163,3 +163,18 @@ Candidate M passed the complete release check: 870 passed, zero failures, one
 FFmpeg skip, plus four capture tests passed. All strict generation, guide, action
 coverage, web and provider checks passed. Criteo targeting is qualified locally
 within the documented bounds; no live Criteo call or deployment was performed.
+
+Criteo targeting is pushed as `7d75bdd`. Six Google legacy/RPC action rows now
+have explicit draft-generation read contracts: text, images and construction
+recommendations. Required evidence, native oneofs, account selection, Ads scopes,
+response validation, no-output metadata and single-attempt quota behavior are
+covered. Three machine-checked preview examples are included. Initial 18, expanded
+54 and final 40 focused tests passed. Candidate N full validation follows. These
+routes neither save assets nor apply recommendations; closed-beta eligibility,
+image constraints and a private-Drive-to-generation bridge remain external or
+unimplemented capabilities, explicitly documented. All remaining backlog stays open.
+
+Candidate N passed the entire check command: 889 passed, zero failures, one
+FFmpeg skip, plus four capture tests passed. All strict generated, provider,
+guide, web and lifecycle checks passed. This qualifies draft-generation requests
+locally; access to Google's closed beta and image production quality remain unverified.

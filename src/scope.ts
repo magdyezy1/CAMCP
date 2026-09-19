@@ -10,6 +10,7 @@ import {authorizeRedditPostRead,redditPostCreation} from './reddit-post-creation
 import {googleGlobalReadMethods} from './execution-risk.js';
 import {authorizeQualifiedProviderRead} from './provider-read-contracts.js';
 import {authorizeCriteoInternalRead,assertCriteoReadScope} from './criteo-targeting-writes.js';
+import {assertGoogleGenerationScope} from './google-generation.js';
 
 export function normalizeAccount(gateway:string,id:unknown):string{
  const value=String(id);return gateway==='meta_native_action'?value.replace(/^act_/,''):gateway==='google_ads_native_action'?value.replaceAll('-',''):value;
@@ -54,6 +55,7 @@ export class ScopeGuard {
    }
   };
   walk(plan.query);walk(plan.body);walk(decoded,'path');
+  assertGoogleGenerationScope(plan,connection);
   if(plan.gateway==='criteo_native_action'&&plan.action==='AMCP_CRITEO_TARGET_READ')assertCriteoReadScope(connection);
   if(authorizeQualifiedProviderRead(plan,connection,id))return id;
   if(authorizeCriteoInternalRead(plan,connection,id))return id;
