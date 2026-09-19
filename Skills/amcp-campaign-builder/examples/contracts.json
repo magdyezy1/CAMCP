@@ -1039,5 +1039,62 @@
         }
       }
     }
+  ],
+  "targeting_search_previews": [
+    {
+      "gateway": "dv360_native_action",
+      "arguments": {
+        "action": "DV360_TARGETING_TYPES_TARGETING_OPTIONS_SEARCH",
+        "connection_id": "11111111-1111-4111-8111-111111111111",
+        "params": {
+          "targetingType": "TARGETING_TYPE_GEO_REGION"
+        },
+        "body": {
+          "advertiserId": "123",
+          "geoRegionSearchTerms": {
+            "geoRegionQuery": "Cairo"
+          },
+          "pageSize": 100
+        },
+        "paginate": true
+      }
+    },
+    {
+      "gateway": "dv360_native_action",
+      "arguments": {
+        "action": "DV360_TARGETING_TYPES_TARGETING_OPTIONS_SEARCH",
+        "connection_id": "11111111-1111-4111-8111-111111111111",
+        "params": {
+          "targetingType": "TARGETING_TYPE_POI"
+        },
+        "body": {
+          "advertiserId": "123",
+          "poiSearchTerms": {
+            "poiQuery": "Cairo airport"
+          },
+          "pageSize": 100
+        },
+        "paginate": true
+      }
+    },
+    {
+      "gateway": "dv360_native_action",
+      "arguments": {
+        "action": "DV360_TARGETING_TYPES_TARGETING_OPTIONS_SEARCH",
+        "connection_id": "11111111-1111-4111-8111-111111111111",
+        "params": {
+          "targetingType": "TARGETING_TYPE_BUSINESS_CHAIN"
+        },
+        "body": {
+          "advertiserId": "123",
+          "businessChainSearchTerms": {
+            "businessChainQuery": "Example business",
+            "regionQuery": "Cairo"
+          },
+          "pageSize": 100
+        },
+        "paginate": true
+      }
+    }
   ]
 }

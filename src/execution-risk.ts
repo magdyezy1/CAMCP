@@ -7,6 +7,7 @@ import {microsoftGateway,microsoftRead} from './microsoft-native.js';
 import {qualifiedProviderRead} from './provider-read-contracts.js';
 import {criteoTargetingKind} from './criteo-targeting-writes.js';
 import {googleGenerationKind} from './google-generation.js';
+import {dv360TargetingSearchRoute} from './dv360-targeting-search.js';
 import {googleSegmentRemoval} from './google-custom-segments.js';
 
 // Read-only metadata is a compatibility observation, never sufficient execution
@@ -17,7 +18,7 @@ const tiktokReads=new Set(['/v1.3/ad/audience_size/estimate/','/v1.3/audience/in
 // documented planning metadata reads create no customer-owned resources.
 export const googleGlobalReadMethods=new Set(['generateConversionRates','listBenchmarksAvailableDates','listBenchmarksLocations','listBenchmarksProducts','listBenchmarksSources','listPlannableLocations','listPlannableProducts','listPlannableUserInterests','listPlannableUserLists']);
 export function independentlyReadOnly(plan:CompiledRequest):boolean{
- if(!plan.readOnly)return false;
+ if(!plan.readOnly&&!dv360TargetingSearchRoute(plan))return false;
  if(plan.gateway===microsoftGateway)return microsoftRead(plan);
  let pathname:string;try{pathname=decodeURIComponent(plan.path);}catch{return false;}
  // Search Console encodes full property/sitemap URLs as resource segments.
@@ -42,6 +43,7 @@ export function independentlyReadOnly(plan:CompiledRequest):boolean{
  const method=override??plan.method;if(['GET','HEAD'].includes(method))return true;
  if(method!=='POST')return false;
  switch(plan.gateway){
+  case 'dv360_native_action':return dv360TargetingSearchRoute(plan);
   case 'google_ads_native_action':return !!googleGenerationKind(plan)||/^\/v23\//.test(pathname)&&googleReadMethods.has(pathname.split(':').at(-1)!)||/^\/v23:[A-Za-z]+$/.test(pathname)&&googleGlobalReadMethods.has(pathname.slice(5));
   case 'tiktok_native_action':return tiktokReads.has(pathname.replace(/^\/open_api/,''));
   case 'snapchat_native_action':return /^\/v1\/adaccounts\/[^/]+\/(?:get_(?:campaigns|adsquads|ads|creatives|media)_by_ids|ad_squad_outcome_estimates_v2|audience_size(?:_v2)?|bid_estimate)$/.test(pathname)||/^\/v1\/(?:catalogs\/[^/]+\/(?:product_search|products\/search|flights\/search|hotels\/search|facets)|ads_library\/(?:ads|sponsored_content)\/search)$/.test(pathname);

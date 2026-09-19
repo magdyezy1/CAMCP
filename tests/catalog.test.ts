@@ -10,8 +10,17 @@ test('20 captured tools, Microsoft extension and 112 delegated schemas load and 
  assert.equal(registry.data.catalogs.length,19);
  assert.deepEqual(registry.help({},strictOptions),registry.data.discovery);
 });
-test('gateway help preserves the captured direct schemas',()=>{
- for(const tool of registry.data.tools.filter(t=>t.mode==='direct'))assert.deepEqual(registry.help({gateway:tool.name},strictOptions).inputSchema,tool.inputSchema);
+test('gateway help preserves every captured field and only the declared DV360 connection extension',()=>{
+ for(const tool of registry.data.tools.filter(t=>t.mode==='direct')){
+  const schema=registry.help({gateway:tool.name},strictOptions).inputSchema;
+  if(tool.name==='dv360_native_action'){
+   assert.deepEqual(schema,registry.listTools(strictOptions).find(t=>t.name===tool.name)!.inputSchema);
+   assert.deepEqual(schema.properties.connection_id,{type:'string',format:'uuid',description:'AMCP connection to use for this request. Select explicitly when more than one identity can access the advertiser. Never sent to Google.'});
+   delete schema.properties.connection_id;
+   assert.equal(tool.inputSchema.properties.connection_id,undefined);
+  }
+  assert.deepEqual(schema,tool.inputSchema);
+ }
 });
 test('strict full catalog pages match frozen live metadata',()=>{
  for(const c of registry.data.catalogs.filter(c=>c.denominator_kind==='LIST_ACTIONS')){

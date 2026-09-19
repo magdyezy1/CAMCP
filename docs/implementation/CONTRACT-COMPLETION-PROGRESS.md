@@ -53,7 +53,7 @@ qualification dependencies, not a reason to omit locally implementable code.
 ## Current checkpoint (2026-09-19)
 
 The working tree now inventories **3,241 actions**, including **391 reviewed-family
-rows**. **923 mapped writes, 104 unmapped actions, 31 unqualified reads and eight
+rows**. **922 mapped writes, 104 unmapped actions, 31 unqualified reads and eight
 input-dependent adapters remain incomplete**. Four routes are now explicitly
 **provider_unsupported**, including three previously blocked writes and one read;
 these are not counted as implemented. The first batch added 68 reviewed action
@@ -327,3 +327,26 @@ release checks passed. Source manifest: 494 files, SHA-256
 The later DV360 targeting-search draft is excluded from this Google qualification.
 Current inventory: 391 reviewed-family rows, 923 blocked writes, 104 unmapped
 actions and 31 unqualified reads. Live, FFmpeg-required and container checks remain open.
+
+Google bidding events are pushed as `ecfa30a`. DV360 targeting search is now
+qualified as advertiser-scoped POST discovery for geo regions, POIs and business
+chains, with exact native bodies, scopes and truthful bounded pagination. The
+gateway now exposes explicit connection selection without altering captured raw
+schemas. No targeting assignments or ownership grants follow from search results.
+Initial integration fixtures failed on nonexistent gateway fields and an invalid
+revoked-connection setup (13 passed, seven failed). Correct fixtures then passed
+20 tests; expanded compatibility, inventory and guide examples passed 50 tests,
+including 23 dedicated search tests. Candidate AA full validation follows. This
+moves one misclassified blocked write to a qualified read, not a new write family.
+
+Candidate AA: 1089 passes, one help-schema equality failure, one FFmpeg skip.
+The captured schema stayed unchanged; the old test did not account for the new
+independent connection selector in effective help. Updated it to require exactly
+that extension and preserve equality for every captured field. Candidate AB follows.
+
+Candidate AB passed the entire sanitized release check: 1090 tests passed, zero
+failed, one FFmpeg skip; four capture tests passed. The final schema/search check
+passed 29 tests. Manifest: 497 files, SHA-256
+`3523764e716ed7679d7097fd0fc47935e5d3a33619f7ab1c09aa22d0f1733492`.
+The conversion-goal draft is excluded. Remaining inventory is 922 blocked writes,
+104 unmapped actions and 31 unqualified reads; no all-platform completion claim.

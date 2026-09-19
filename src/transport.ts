@@ -6,6 +6,7 @@ import {redact,scopeKey} from './security.js';
 import {linkedinQuery} from './linkedin-restli.js';
 import {googleJson,validateGoogleRequest} from './google-contracts.js';
 import {googleGenerationKind,googleGenerationResult,validateGoogleGeneration} from './google-generation.js';
+import {dv360TargetingSearchRoute,validateDV360TargetingSearch,dv360TargetingSearchResult} from './dv360-targeting-search.js';
 import type {Store} from './store.js';
 import {microsoftGateway,microsoftOrigin,microsoftCustomerOrigin,microsoftReportOrigin,microsoftCustomer} from './microsoft-native.js';
 export const vendorOrigins:Record<string,string>={google_sheets_native_action:'https://www.googleapis.com',google_drive_native_action:'https://www.googleapis.com',
@@ -71,6 +72,7 @@ export class NativeTransport {
  async request(plan:CompiledRequest,connection:Connection,credentials:Credentials,upload?:BinaryUpload):Promise<TransportResult>{
   validateGoogleRequest(plan);
   validateGoogleGeneration(plan);
+  validateDV360TargetingSearch(plan);
   this.prune();const key=scopeKey(connection.tenantId,connection.gateway);
   const circuit=this.circuits.get(key);if(circuit&&circuit.until>performance.now())throw new MirrorError('CIRCUIT_OPEN','Platform circuit is temporarily open.',{retry_after_ms:circuit.until-performance.now()},503,true);
   await this.permit(key);
@@ -139,6 +141,7 @@ export class NativeTransport {
      if((plan.gateway==='tiktok_native_action'&&d.code!==undefined&&d.code!==0)||d.request_status==='ERROR'||d.error)throw new MirrorError('PLATFORM_ERROR','Platform reported an unsuccessful result.',errorDetails(),502,false);
     }
     googleGenerationResult(plan,data);
+    if(dv360TargetingSearchRoute(plan))dv360TargetingSearchResult(plan,data);
     this.circuits.delete(key);this.metrics.totalLatencyMs+=performance.now()-start;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'latency_ms',performance.now()-start);
     return {data,status:response.status,headers:Object.fromEntries(['request-id','x-request-id','x-fb-trace-id','x-restli-id','retry-after',...(plan.gateway==='google_ads_native_action'&&plan.path.startsWith('/resumable/upload/')?['x-goog-upload-url','x-goog-upload-chunk-granularity']:[])].map(k=>[k,response.headers.get(k)]).filter((p):p is [string,string]=>p[1]!==null))};
    }catch(error){

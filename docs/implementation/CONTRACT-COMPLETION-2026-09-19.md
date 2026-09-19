@@ -1266,3 +1266,60 @@ tests. Logs: `.runtime/contract-completion-20260919/install-z.log`,
 (494 files). A later unregistered DV360 search draft is excluded. The ledger now
 contains 391 reviewed-family rows and 923 blocked writes; 104 unmapped actions,
 31 unqualified reads and the other previously recorded limitations remain.
+
+## DV360 targeting-option search and explicit connection selection
+
+Google bidding events are pushed as `ecfa30a`. The captured search operation was
+incorrectly treated as a write. Its exact v4 POST now validates the GEO_REGION,
+POI and BUSINESS_CHAIN body unions and the selected advertiser before credentials
+or egress. Both action-name and resource/method entry points are exercised. Search
+is usable by a reader on a deployment with advertising writes disabled. It does
+not assign targeting, claim ownership or create an idempotent mutation receipt.
+
+The captured DV360 schema had no connection selector. An independent effective
+schema extension now exposes UUID `connection_id`; raw catalog/help evidence is
+unchanged. Duplicate-account connections and a conflicting default are tested.
+The native account field remains `advertiserId` in body/params as appropriate;
+invented top-level account_id and aggregate_pages are not required or advertised.
+
+Native response validation detects wrong resource/type identities, unknown detail
+variants, duplicate IDs/cursors, unexpected envelopes and impossible pages. Empty
+ProtoJSON results remain valid. Complete collection requires every page; starting
+from a continuation never claims earlier pages. Bounds: 25 pages, 5000 options,
+4 MiB per response, 8 MiB total and a 60-second monotonic deadline. Current scope,
+tenant, exact connection and advertiser grants are checked before and after reads.
+An interrupted/failed page is an error, never an empty successful collection.
+
+Official evidence checked 2026-09-19: [v4 targeting search](https://developers.google.com/display-video/api/reference/rest/v4/targetingTypes.targetingOptions/search)
+(last updated 2025-03-27) and pinned `.mirror/VENDOR/dv360-v4.json` Discovery models.
+The public reference defines only discovery here; later targeting assignment
+still requires its own write contract and user choice. No live request occurred.
+
+`dv360-search-unit.log`: 11 passed. First integration: 13 passed/seven failed;
+fixtures used nonexistent top-level account_id/aggregate_pages, a wrong local
+table name and an enabled connection with no bindings. These failures exposed
+the real missing connection-control schema extension as well. The second run
+retained those failures because Windows selected its unavailable Python alias;
+the explicit bundled Python applied the fixture corrections. Third integration:
+20 passed. `dv360-search-qualified.log`: 50 passed, including 23 dedicated tests,
+existing DV360 writes, action inventory and three executable guide examples.
+Generated contracts and guidance checks pass. Candidate AA follows. Inventory:
+3241 actions, 391 reviewed-family rows, 922 blocked writes, 104 unmapped actions,
+31 unqualified reads, eight input-dependent adapters and four withdrawn routes.
+
+Candidate AA ran the complete unit/integration suite: 1089 passed, one failed and
+one FFmpeg skip. The failure was the old help-schema equality contract, which
+assumed no direct-tool schema could gain an independent AMCP control. Raw captured
+schemas remain unchanged. The regression now requires the exact documented DV360
+connection property, requires tools/list and help to agree, and still compares
+every original property unchanged. `release-check-aa.log` preserves this failure.
+Candidate AB follows; an unregistered conversion-goal draft is excluded.
+
+Candidate AB completed `npm ci --ignore-scripts --no-audit --no-fund` and the
+entire `npm run check` with exit 0: 1090 tests passed, zero failures, one FFmpeg
+skip; four capture tests also passed. Generation, guidance, web, provider and
+contract checks all passed. The final search/capture regression passed 29 tests.
+Manifest SHA-256 `3523764e716ed7679d7097fd0fc47935e5d3a33619f7ab1c09aa22d0f1733492`
+(497 files). Logs: `install-ab.log`, `release-check-ab.log` and
+`dv360-search-capture.log` under `.runtime/contract-completion-20260919/`.
+Live provider availability, required-FFmpeg and container checks remain unverified.

@@ -10,6 +10,7 @@ import {validateApplePlan} from './apple-native.js';
 import {microsoftGateway,compileMicrosoft} from './microsoft-native.js';
 import {googleContractEvidence} from './google-contracts.js';
 import {googleGenerationPlan} from './google-generation.js';
+import {dv360TargetingSearchPlan} from './dv360-targeting-search.js';
 import {linkedinVersion} from './linkedin-version.js';
 const object=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?{...v}:{};
 export function expandPath(template:string,values:JsonObject):{path:string;consumed:string[]}{
@@ -134,7 +135,7 @@ export class Compiler {
    readOnly=readOnly&&['GET','HEAD'].includes(override);
   }
   if(gateway==='meta_native_action'&&query.batch!==undefined)readOnly=false;
-  return linkedinConversionPlan(googleGenerationPlan(googleContractEvidence(validateApplePlan({gateway,action:action.canonical_name||action.name,method,path,query,...(absolute?{origin:absolute.origin}:{}),...(body===undefined?{}:{body}),headers,readOnly,destructive:action.destructive===true||headers['X-HTTP-Method-Override']==='DELETE',requiresConfirmation:!readOnly,accountId,evidence:action.evidence,warnings:['Request routing compiled locally; live behavioral parity is tracked separately.'],specialTransport:action.raw.special_transport??undefined,...(projection?{responseControls:projection}:{})}))));
+  return dv360TargetingSearchPlan(linkedinConversionPlan(googleGenerationPlan(googleContractEvidence(validateApplePlan({gateway,action:action.canonical_name||action.name,method,path,query,...(absolute?{origin:absolute.origin}:{}),...(body===undefined?{}:{body}),headers,readOnly,destructive:action.destructive===true||headers['X-HTTP-Method-Override']==='DELETE',requiresConfirmation:!readOnly,accountId,evidence:action.evidence,warnings:['Request routing compiled locally; live behavioral parity is tracked separately.'],specialTransport:action.raw.special_transport??undefined,...(projection?{responseControls:projection}:{})})))));
  }
  private native(gateway:string,input:JsonObject):CompiledRequest{
   const n=input.native_request;if(!['GET','POST','PUT','PATCH','DELETE'].includes(n.method)||typeof n.path!=='string')throw new MirrorError('INVALID_NATIVE_REQUEST','Provide a supported HTTP method and a relative path.');

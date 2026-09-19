@@ -6791,7 +6791,7 @@
         {
           "operation": null,
           "action": "DV360_TARGETING_TYPES_TARGETING_OPTIONS_SEARCH",
-          "status": "blocked_write",
+          "status": "native_read",
           "family": null
         }
       ],

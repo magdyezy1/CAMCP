@@ -9,6 +9,7 @@ import {authorizeLinkedInSpecial} from './linkedin-posts.js';
 import {authorizeRedditPostRead,redditPostCreation} from './reddit-post-creation.js';
 import {googleGlobalReadMethods} from './execution-risk.js';
 import {authorizeQualifiedProviderRead} from './provider-read-contracts.js';
+import {authorizeDV360TargetingSearch} from './dv360-targeting-search.js';
 import {authorizeCriteoInternalRead,assertCriteoReadScope} from './criteo-targeting-writes.js';
 import {assertGoogleGenerationScope} from './google-generation.js';
 import {assertMetaLabelScope,metaLabelIdentities} from './meta-label-writes.js';
@@ -69,6 +70,7 @@ export class ScopeGuard {
   if(plan.gateway==='meta_native_action'&&(plan.action==='AMCP_META_LABEL_READ'||plan.method==='GET'&&/^\/v25\.0\/act_\d+\/adlabels$/.test(plan.path)))assertMetaLabelScope(connection);
   if(plan.gateway==='criteo_native_action'&&plan.action==='AMCP_CRITEO_TARGET_READ')assertCriteoReadScope(connection);
   if(authorizeQualifiedProviderRead(plan,connection,id))return id;
+  if(authorizeDV360TargetingSearch(plan,connection,id))return id;
   if(authorizeLinkedInConversion(plan,connection,id))return id;
   if(authorizeLinkedInRule(plan,connection,id))return id;
   if(authorizeCriteoInternalRead(plan,connection,id))return id;
