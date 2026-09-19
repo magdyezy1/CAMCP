@@ -13570,8 +13570,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_ACCOUNT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -13636,8 +13636,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -13718,7 +13718,7 @@
         {
           "operation": "gtm_ops",
           "action": "GET_DESTINATION",
-          "status": "native_read",
+          "status": "provider_unsupported",
           "family": null
         },
         {
@@ -13804,8 +13804,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_ACCOUNT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -13870,8 +13870,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -13932,7 +13932,7 @@
         {
           "operation": "gtm_ops",
           "action": "GET_DESTINATION",
-          "status": "native_read",
+          "status": "provider_unsupported",
           "family": null
         },
         {
@@ -14038,8 +14038,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_BUILT_IN_VARIABLES",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -14104,8 +14104,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -14142,8 +14142,8 @@
         {
           "operation": "gtm_ops",
           "action": "CREATE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         }
       ],
       "mapping_status": "mapped",
@@ -14182,7 +14182,7 @@
         {
           "operation": "gtm_ops",
           "action": "COMBINE_CONTAINERS",
-          "status": "blocked_write",
+          "status": "provider_unsupported",
           "family": null
         }
       ],
@@ -14242,8 +14242,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_BUILT_IN_VARIABLES",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -14308,8 +14308,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -14370,7 +14370,7 @@
         {
           "operation": "gtm_ops",
           "action": "GET_DESTINATION",
-          "status": "native_read",
+          "status": "provider_unsupported",
           "family": null
         },
         {
@@ -14456,7 +14456,7 @@
         {
           "operation": "gtm_ops",
           "action": "MOVE_TAG_ID",
-          "status": "blocked_write",
+          "status": "provider_unsupported",
           "family": null
         }
       ],
@@ -14496,8 +14496,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_ACCOUNT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -14562,8 +14562,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -14600,7 +14600,7 @@
         {
           "operation": "gtm_ops",
           "action": "LINK_DESTINATION",
-          "status": "blocked_write",
+          "status": "provider_unsupported",
           "family": null
         }
       ],
@@ -14664,7 +14664,7 @@
         {
           "operation": "gtm_ops",
           "action": "GET_DESTINATION",
-          "status": "native_read",
+          "status": "provider_unsupported",
           "family": null
         },
         {
@@ -14750,8 +14750,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_ACCOUNT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -14816,8 +14816,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -14878,7 +14878,7 @@
         {
           "operation": "gtm_ops",
           "action": "GET_DESTINATION",
-          "status": "native_read",
+          "status": "provider_unsupported",
           "family": null
         },
         {
@@ -14964,8 +14964,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_BUILT_IN_VARIABLES",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -15030,8 +15030,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -15088,8 +15088,8 @@
         {
           "operation": "gtm_ops",
           "action": "REAUTHORIZE_ENVIRONMENT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         }
       ],
       "mapping_status": "mapped",
@@ -15128,8 +15128,8 @@
         {
           "operation": "gtm_ops",
           "action": "SET_LATEST_CONTAINER_VERSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         }
       ],
       "mapping_status": "mapped",
@@ -15172,7 +15172,7 @@
         {
           "operation": "gtm_ops",
           "action": "GET_DESTINATION",
-          "status": "native_read",
+          "status": "provider_unsupported",
           "family": null
         },
         {
@@ -15258,8 +15258,8 @@
         {
           "operation": "gtm_ops",
           "action": "UNDELETE_CONTAINER_VERSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         }
       ],
       "mapping_status": "mapped",
@@ -15278,8 +15278,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_ACCOUNT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -15344,8 +15344,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -15402,8 +15402,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_BUILT_IN_VARIABLES",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -15468,8 +15468,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -15566,8 +15566,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_BUILT_IN_VARIABLES",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -15632,8 +15632,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -15670,8 +15670,8 @@
         {
           "operation": "gtm_ops",
           "action": "QUICK_PREVIEW",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workspace"
         }
       ],
       "mapping_status": "mapped",
@@ -15710,8 +15710,8 @@
         {
           "operation": "gtm_ops",
           "action": "SYNC_WORKSPACE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workspace"
         }
       ],
       "mapping_status": "mapped",
@@ -15750,8 +15750,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_ACCOUNT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -15816,8 +15816,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -15874,8 +15874,8 @@
         {
           "operation": "gtm_ops",
           "action": "BULK_UPDATE_WORKSPACE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workspace"
         }
       ],
       "mapping_status": "mapped",
@@ -15938,7 +15938,7 @@
         {
           "operation": "gtm_ops",
           "action": "GET_DESTINATION",
-          "status": "native_read",
+          "status": "provider_unsupported",
           "family": null
         },
         {
@@ -16024,8 +16024,8 @@
         {
           "operation": "gtm_ops",
           "action": "RESOLVE_WORKSPACE_CONFLICT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workspace"
         }
       ],
       "mapping_status": "mapped",
@@ -16064,8 +16064,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_BUILT_IN_VARIABLES",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -16130,8 +16130,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -16168,8 +16168,8 @@
         {
           "operation": "gtm_ops",
           "action": "CREATE_BUILT_IN_VARIABLES",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         }
       ],
       "mapping_status": "mapped",
@@ -16188,8 +16188,8 @@
         {
           "operation": "gtm_ops",
           "action": "REVERT_BUILT_IN_VARIABLE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         }
       ],
       "mapping_status": "mapped",
@@ -16208,8 +16208,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_ACCOUNT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -16274,8 +16274,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -16336,7 +16336,7 @@
         {
           "operation": "gtm_ops",
           "action": "GET_DESTINATION",
-          "status": "native_read",
+          "status": "provider_unsupported",
           "family": null
         },
         {
@@ -16442,8 +16442,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_BUILT_IN_VARIABLES",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -16508,8 +16508,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -16566,8 +16566,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_BUILT_IN_VARIABLES",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -16632,8 +16632,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -16690,8 +16690,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_ACCOUNT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -16756,8 +16756,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -16794,50 +16794,50 @@
         {
           "operation": "gtm_ops",
           "action": "REVERT_CLIENT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_FOLDER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TAG",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TEMPLATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TRANSFORMATION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TRIGGER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_VARIABLE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_ZONE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         }
       ],
       "mapping_status": "mapped",
@@ -16880,7 +16880,7 @@
         {
           "operation": "gtm_ops",
           "action": "GET_DESTINATION",
-          "status": "native_read",
+          "status": "provider_unsupported",
           "family": null
         },
         {
@@ -16986,8 +16986,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_BUILT_IN_VARIABLES",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -17052,8 +17052,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -17134,7 +17134,7 @@
         {
           "operation": "gtm_ops",
           "action": "GET_DESTINATION",
-          "status": "native_read",
+          "status": "provider_unsupported",
           "family": null
         },
         {
@@ -17220,8 +17220,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_ACCOUNT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -17286,8 +17286,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -17344,50 +17344,50 @@
         {
           "operation": "gtm_ops",
           "action": "REVERT_CLIENT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_FOLDER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TAG",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TEMPLATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TRANSFORMATION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TRIGGER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_VARIABLE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_ZONE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         }
       ],
       "mapping_status": "mapped",
@@ -17446,8 +17446,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_BUILT_IN_VARIABLES",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -17512,8 +17512,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -17550,50 +17550,50 @@
         {
           "operation": "gtm_ops",
           "action": "REVERT_CLIENT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_FOLDER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TAG",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TEMPLATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TRANSFORMATION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TRIGGER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_VARIABLE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_ZONE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         }
       ],
       "mapping_status": "mapped",
@@ -17612,8 +17612,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_ACCOUNT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -17678,8 +17678,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -17740,7 +17740,7 @@
         {
           "operation": "gtm_ops",
           "action": "GET_DESTINATION",
-          "status": "native_read",
+          "status": "provider_unsupported",
           "family": null
         },
         {
@@ -17826,8 +17826,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_BUILT_IN_VARIABLES",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -17892,8 +17892,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -17950,8 +17950,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_ACCOUNT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -18016,8 +18016,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -18054,50 +18054,50 @@
         {
           "operation": "gtm_ops",
           "action": "REVERT_CLIENT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_FOLDER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TAG",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TEMPLATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TRANSFORMATION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TRIGGER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_VARIABLE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_ZONE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         }
       ],
       "mapping_status": "mapped",
@@ -18160,7 +18160,7 @@
         {
           "operation": "gtm_ops",
           "action": "GET_DESTINATION",
-          "status": "native_read",
+          "status": "provider_unsupported",
           "family": null
         },
         {
@@ -18270,7 +18270,7 @@
         {
           "operation": "gtm_ops",
           "action": "GET_DESTINATION",
-          "status": "native_read",
+          "status": "provider_unsupported",
           "family": null
         },
         {
@@ -18356,8 +18356,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_BUILT_IN_VARIABLES",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -18422,8 +18422,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -18500,8 +18500,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_ACCOUNT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -18566,8 +18566,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -18604,50 +18604,50 @@
         {
           "operation": "gtm_ops",
           "action": "REVERT_CLIENT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_FOLDER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TAG",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TEMPLATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TRANSFORMATION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TRIGGER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_VARIABLE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_ZONE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         }
       ],
       "mapping_status": "mapped",
@@ -18706,8 +18706,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_BUILT_IN_VARIABLES",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -18772,8 +18772,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -18834,7 +18834,7 @@
         {
           "operation": "gtm_ops",
           "action": "GET_DESTINATION",
-          "status": "native_read",
+          "status": "provider_unsupported",
           "family": null
         },
         {
@@ -18920,50 +18920,50 @@
         {
           "operation": "gtm_ops",
           "action": "REVERT_CLIENT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_FOLDER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TAG",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TEMPLATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TRANSFORMATION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TRIGGER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_VARIABLE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_ZONE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         }
       ],
       "mapping_status": "mapped",
@@ -18982,8 +18982,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_ACCOUNT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -19048,8 +19048,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -19086,8 +19086,8 @@
         {
           "operation": "gtm_ops",
           "action": "IMPORT_TEMPLATE_FROM_GALLERY",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         }
       ],
       "mapping_status": "mapped",
@@ -19146,8 +19146,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_BUILT_IN_VARIABLES",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -19212,8 +19212,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -19250,50 +19250,50 @@
         {
           "operation": "gtm_ops",
           "action": "REVERT_CLIENT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_FOLDER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TAG",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TEMPLATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TRANSFORMATION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TRIGGER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_VARIABLE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_ZONE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         }
       ],
       "mapping_status": "mapped",
@@ -19336,7 +19336,7 @@
         {
           "operation": "gtm_ops",
           "action": "GET_DESTINATION",
-          "status": "native_read",
+          "status": "provider_unsupported",
           "family": null
         },
         {
@@ -19422,8 +19422,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_ACCOUNT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -19488,8 +19488,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -19526,8 +19526,8 @@
         {
           "operation": "gtm_ops",
           "action": "MOVE_ENTITIES_TO_FOLDER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         }
       ],
       "mapping_status": "mapped",
@@ -19546,8 +19546,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_BUILT_IN_VARIABLES",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -19612,8 +19612,8 @@
         {
           "operation": "gtm_ops",
           "action": "DELETE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -19714,7 +19714,7 @@
         {
           "operation": "gtm_ops",
           "action": "GET_DESTINATION",
-          "status": "native_read",
+          "status": "provider_unsupported",
           "family": null
         },
         {
@@ -19800,8 +19800,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_ACCOUNT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -19866,8 +19866,8 @@
         {
           "operation": "gtm_ops",
           "action": "UPDATE_USER_PERMISSION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
@@ -19924,50 +19924,50 @@
         {
           "operation": "gtm_ops",
           "action": "REVERT_CLIENT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_FOLDER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TAG",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TEMPLATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TRANSFORMATION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_TRIGGER",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_VARIABLE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         },
         {
           "operation": "gtm_ops",
           "action": "REVERT_ZONE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "gtm_workflows"
         }
       ],
       "mapping_status": "mapped",

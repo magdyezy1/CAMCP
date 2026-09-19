@@ -36,9 +36,12 @@ include 396 without mapped actions. No denominator is silently discarded.
 | Meta, TikTok, Snapchat, LinkedIn and X remaining operation families | Pending | Exact account/identity binding and lifecycle contracts per family. |
 | DV360 advertiser-owned channels, negative-keyword lists and location lists | Implemented; local lifecycle tests pass | 18 additional reviewed actions. Complete bounded membership pagination, scoped receipts, replacement/deletion policy, set verification and uncertain-outcome retention. Partner-owned variants remain blocked. |
 | Reddit, remaining DV360 and Criteo families | Pending | Resource identity, targeting, asynchronous/bulk and budget safeguards. |
-| GA4, GTM, Business Profile and Search Console gaps | Pending | Granular administrative authority and documented local/OAuth routing. |
+| GTM reverts, variables, folders, versions, gallery and administrative workflows | Implemented; focused tests pass | 20 additional reviewed actions; administrator role/scopes, complete permission membership, last-admin checks, hashed environment codes and exact read-back. Four officially withdrawn routes retained separately. |
+| GTM bulk update, synchronization, quick preview and conflict resolution | Implemented; focused tests pass | All ten Entity kinds, bounded complete workspace/base-version snapshots, unordered bulk receipts, entity fingerprints, explicit clearing, partial sync conflicts and temporary preview verification. Four additional reviewed rows. |
+| GTM configuration audit and verification job status | Implemented; full release checks pass | Two formerly unmapped local operations. Read-only scoped discovery and diagnostics; job polling checks tenant, actor, provider and current connection/account access. |
+| GA4, Business Profile and Search Console gaps | Pending | Granular administrative authority and documented local/OAuth routing. |
 | Adjust, Commerce, Amazon and other unmapped actions | Pending | Establish actual provider product and executable contracts; do not invent missing specifications. |
-| Full regression, fresh sanitized release and branch push | Local check passed; push pending | Fresh release: 700 tests passed, one FFmpeg test skipped, four capture tests passed; generation, guidance, web, provider integrity and Railway compatibility checks passed. Container smoke checks require Docker. |
+| First full regression and branch push | Complete locally; pushed | `95b85ff` pushed to `Codex-branch`. Fresh release: 700 tests passed, one FFmpeg test skipped, four capture tests passed; generation, guidance, web, provider integrity and Railway compatibility checks passed. Container smoke checks require Docker. |
 
 Live advertising mutations, permission changes, production deployment and real
 customer-data uploads are outside this implementation authorization. They are
@@ -46,14 +49,31 @@ qualification dependencies, not a reason to omit locally implementable code.
 
 ## Current checkpoint (2026-09-19)
 
-The working tree now inventories **3,241 actions**, including **301 reviewed-family
-rows**. **1,016 mapped writes, 107 unmapped actions, 50 unqualified reads and eight
-input-dependent adapters remain incomplete**. This batch adds 68 reviewed action
-rows: 50 previously blocked mapped actions and 18 newly mapped Apple actions.
+The working tree now inventories **3,241 actions**, including **325 reviewed-family
+rows**. **989 mapped writes, 105 unmapped actions, 50 unqualified reads and eight
+input-dependent adapters remain incomplete**. Four routes are now explicitly
+**provider_unsupported**, including three previously blocked writes and one read;
+these are not counted as implemented. The first batch added 68 reviewed action
+rows (50 previously blocked mapped actions and 18 newly mapped Apple actions);
+the current GTM batch adds 24 more. Tag Manager has 64 reviewed-family rows,
+38 native reads, four withdrawn methods and two implemented local diagnostics.
+No GTM catalog row remains unmapped or blocked solely by absence of a family;
+exact payload restrictions, external permissions and live qualification still apply.
 The separate vendor denominator grows to **1,208 methods, 454 without a mapped
 action** because all 99 official Apple SDK methods are now included. This is an
 expanded denominator, not a regression hidden by removing unsupported methods.
 
-Focused verification: 70 tests passed (new provider lifecycles, coverage artifacts
-and guidance). Full sanitized release check passed; branch push is next.
+First batch: focused 70 passed and full sanitized release check passed, then pushed.
+GTM batch: 61 initial focused/new/existing measurement tests passed; then 57 tests
+for both new GTM families, withdrawn routes and executable guidance passed. The
+first full candidate reported a URL-spelling test failure and retained a listener;
+its isolated run and 16 diagnostic reruns passed. A full rerun completed and caught
+a missing guide-family example (731 passed, one failed, one FFmpeg skip). Added
+both required family examples without weakening coverage. Fresh release validation
+and push are pending. Initial failure logs are retained, not replaced by retries.
+Candidate C passed 753 tests and four capture tests (one FFmpeg skip), then failed
+the documentation-refusal check for VERIFICATION_UNSUPPORTED. Its recovery behavior
+is now documented. Candidate D completed the entire check command successfully:
+762 tests passed, zero failed, one FFmpeg skip, plus four capture tests passed.
+The diagnostic and workspace authorization fixtures exercise actual revocation.
 See `CONTRACT-COMPLETION-2026-09-19.md` for commands, first failures and scope limits.

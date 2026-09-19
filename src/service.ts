@@ -1,4 +1,6 @@
 import {campaignPreflight} from './campaign-preflight.js';
+import {assertProviderActionAvailable} from './retired-provider-actions.js';
+import {gtmDiagnosticOperations,gtmDiagnostics} from './gtm-diagnostics.js';
 import {randomUUID} from 'node:crypto';
 import type {Actor,CallOptions,CompiledRequest,JsonObject} from './types.js';
 import {Registry} from './catalog.js';
@@ -115,6 +117,7 @@ export class MirrorService {
   return new WriteReviewService(this.registry,this.compiler,this.store,this.transport,this.credentials,this.options,this.policy,this.delegatedCompiler).call(input,actor);
  }
  async runPlan(plan:CompiledRequest,input:JsonObject,actor:Actor,requestId:string=randomUUID()):Promise<unknown>{
+  assertProviderActionAvailable(plan);
   if(input.connection_id&&input.connectionId&&input.connection_id!==input.connectionId)throw new MirrorError('CONFLICTING_PARAMETER','Connection ID aliases must identify the same connection.',{},403);
   plan=applyExecutionRisk(plan);
   if(input.dry_run===true||!plan.readOnly&&input.dry_run!==false){const result={success:true,dry_run:true,action:plan.action,request:plan,executed:false};this.store.appendAudit(actor.tenantId,requestId,{event:'preview',request:plan,outcome:'not_executed'});return result;}
@@ -160,6 +163,7 @@ export class MirrorService {
    }
    const media=workflowMediaInput(args);return args.dry_run===false?mediaNext(await this.media().call(media,actor)):mediaPreview(media);
   }
+  if(gateway==='gtm_native_action'&&gtmDiagnosticOperations.has(operation))return gtmDiagnostics(this.store,this.registry,this.transport,this.credentials,operation,args,actor);
   if(this.delegatedCompiler.isNativeOperation(gateway,operation))return this.runPlan(this.delegatedCompiler.compile(gateway,{operation,arguments:args}),args,actor,requestId);
   if(gateway==='amcp_native_action'&&reportingOperations.has(operation))return new ReportingService(this.store).handle(operation,args,actor);
   if(['get_workspace_context','list_accounts','list_workspace_assets'].includes(operation)){

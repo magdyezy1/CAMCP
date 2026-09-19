@@ -2,6 +2,7 @@ import {sha256,stable} from './security.js';
 import {MirrorError} from './errors.js';
 import {microsoftContracts} from './microsoft-native.js';
 import {microsoftAssociationProjection} from './microsoft-associations.js';
+import {gtmSafeConfiguration} from './gtm-workflow-writes.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 
 // Response envelopes are validated before projection. Within each resource keep
@@ -39,6 +40,7 @@ export function normalizeReviewState(value:unknown,key=''):unknown {
 export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(!data||Array.isArray(data)||typeof data!=='object')return normalizeReviewState(data);
  const d=data as JsonObject;
+ if(read.gateway==='gtm_native_action')return normalizeReviewState(gtmSafeConfiguration(data));
  if(read.gateway==='tiktok_native_action'&&Array.isArray(d.data?.list))return normalizeReviewState({data:{list:d.data.list}});
  if(['x_ads_native_action','reddit_native_action'].includes(read.gateway)&&Object.hasOwn(d,'data'))return normalizeReviewState({data:d.data});
  if(read.gateway==='apple_ads_native_action'&&Object.hasOwn(d,'result')){

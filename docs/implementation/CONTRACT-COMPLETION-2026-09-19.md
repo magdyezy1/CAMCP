@@ -126,7 +126,7 @@ FFmpeg and Docker are unavailable locally; the required FFmpeg and container CI
 smoke checks are not established by this local pass. No hosted CI result or live
 provider qualification is claimed. Branch push follows this verified checkpoint.
 
-## Remaining work
+## First checkpoint remaining work
 
 The generated ledger currently contains 3,241 actions / 301 reviewed-family rows,
 1,016 blocked mapped writes, 107 unmapped actions, 50 unqualified reads and eight
@@ -134,3 +134,137 @@ input-dependent adapters. Independent vendor evidence now inventories 1,208
 methods, 454 without mapped actions. Every remaining row stays explicit in the
 generated inventories. `CONTRACT-COMPLETION-PROGRESS.md` records the next families;
 this checkpoint must not be presented as completion of those rows.
+
+## Tag Manager contract completion checkpoint
+
+The next batch adds 24 reviewed action rows: eight entity reverts; built-in
+variable creation/deletion/revert; folder moves; latest-version selection and
+undelete; pinned gallery import; account update and permission CRUD; environment
+reauthorization; workspace bulk edits, sync, quick preview and conflict resolution.
+These are explicit contracts in `src/gtm-workflow-writes.ts` and
+`src/gtm-workspace-writes.ts`, with native Discovery model/method evidence.
+
+Administrative actions require the AMCP administrator role and the exact native
+scope, without broadening default consent. Complete permission pagination protects
+against duplicate grants and removing the last observed administrator. Environment
+codes are replaced with one-way hashes before review/result persistence; code and
+`gtm_auth` URL fields are redacted. Version latest selection does not publish.
+
+Workspace snapshots cover all ten entity collections and the latest complete
+version for sync/preview. Each page rechecks grants; missing/foreign/duplicate
+entities, cursor loops and concurrently changed status prevent execution. Bounds:
+100 bulk changes, 1000 entities per kind, 5000 total, 100 pages per collection,
+16 MiB cumulatively read and an 8 MiB retained snapshot. Updates explicitly preserve
+or clear current configuration; field hashes verify cleared arrays/objects. Trigger
+ID membership is unordered; parameter and tag sequencing arrays remain ordered.
+
+Bulk receipts are matched by exact existing IDs or unique per-kind create names
+(Google tag configs use distinct types), never response position. Temporary ID
+references are rewritten only in qualified identity/reference fields. Full read-back
+checks affected configuration and deletion. Native semantic eligibility, container
+type restrictions, template behavior and provider acceptance remain live checks.
+
+Sync conflicts are retained as partial outcomes with recovery instructions; no
+automatic mutation replay occurs. Resolution freezes the conflicted entity's
+fingerprint, preserves unrelated conflicts and verifies the resolved configuration.
+Quick preview validates its temporary version against the frozen intended merged
+contents and reads the workspace afterward; it never invents a persistent-version
+GET or claims publishing/browser execution. Uncertain outcomes keep their claim.
+
+### Current official references
+
+The following official pages were checked on 2026-09-19, independently of the
+pinned Discovery document. These are documentation observations, not live calls:
+
+- [Bulk update](https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers.workspaces/bulk_update),
+  updated 2025-12-08: temporary `new_N` IDs, ProposedChange request and unordered
+  Entity receipt; deleted/system-updated entities are absent from the receipt.
+- [Resolve conflict](https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers.workspaces/resolve_conflict),
+  updated 2025-03-06: Entity body, conflicted-entity fingerprint and empty response.
+- [Sync](https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers.workspaces/sync),
+  updated 2025-03-06: latest-version synchronization can succeed with unresolved
+  conflicts, which still prevent version creation.
+- [Quick preview](https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers.workspaces/quick_preview),
+  updated 2025-03-06: temporary version and separate sync/compiler status.
+- [Set latest](https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers.versions/set_latest)
+  and [gallery import](https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers.workspaces.templates/import_from_gallery):
+  exact native scope and gallery parameters. AMCP requires an explicit gallery SHA.
+
+Four historical mappings are **provider_unsupported**, retained in the denominator:
+[combine](https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers/combine)
+and [move_tag_id](https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers/move_tag_id)
+(updated 2026-08-25), plus
+[destination link](https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers.destinations/link)
+and [destination get](https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers.destinations/get)
+(updated 2026-06-04). Google explicitly marks each as no longer supported. The
+runtime refuses them before credential acquisition or provider egress. Three were
+previously blocked writes and one a read; none is counted as implemented.
+
+### Validation and initial failures
+
+- Initial GTM compilation exposed fixture type inference mistakes; corrected them.
+  The first tests caught a latest-version header scope comparison using the container
+  root instead of its exact resource path, and an invalid nested `dry_run` fixture.
+- Strengthening the method/scope parity check caught an incorrect scope on
+  `SET_LATEST_CONTAINER_VERSION`. Fixed it to the documented edit.containers scope.
+- 61 new/existing measurement tests passed; an additional focused run passed 32.
+- Public candidate `.release/contract-batch-20260919-b`: 449 files, tree hash
+  `6f679644b2816739fdd27dcba487aef73bab0e2c9b72b5d7f0bfbc89550b7d11`.
+  `npm.cmd ci --ignore-scripts --no-audit --no-fund --cache ../../.runtime/npm-cache`
+  passed. The first `npm.cmd run check` emitted a failure in the existing test
+  `the reviewer scope holds however the path is spelled`, then retained a listener;
+  it was interrupted. Log: `release-check-b.log`. The same test file passed in
+  isolation, then 16 diagnostic `node --test --test-reporter=tap --test-force-exit
+  dist/tests/test-account-scope.test.js` runs passed. The cause remains unconfirmed;
+  no production change or assertion weakening was justified by this evidence.
+- Full candidate rerun completed: 731 passed, one failed, one FFmpeg skip. The
+  actionable failure was missing executable guidance for the new GTM family.
+  Added a real inspect example, plus the new workspace-family example; the test
+  still requires every declared family. Log: `release-check-b-retry.log`.
+- Workspace contract tests first passed 18; then explicit field-clearing, ordered
+  versus unordered configuration and byte-bound regressions were added. Command:
+  `node --test --test-concurrency=1 dist/tests/gtm-workspace-writes.test.js
+  dist/tests/gtm-workflow-writes.test.js dist/tests/retired-provider-actions.test.js
+  tests/guide-contract-examples.test.mjs` — **57 passed, zero failed/skipped**.
+  Log: `gtm-workspace-second.log`. Full fresh release validation follows this point.
+
+The checkpoint above had 107 unmapped rows. The two remaining GTM operations are
+now explicit AMCP diagnostics in `src/gtm-diagnostics.ts`: native read-only account,
+container and workspace audit; and local reviewed-write verification job status.
+Discovery stays within the exact connection's existing account grants. Complete
+bounded pagination, current permissions, native scopes and foreign-resource checks
+apply. Default output excludes full tag configuration. Missing references, duplicate
+names, merge conflicts and latest/live-version observations are returned as findings;
+unrecognized system trigger references remain unknown, and publish readiness is never
+inferred. Job polling requires the same tenant, creator/admin and current account
+access, excludes authority/lease fields, and never submits a mutation or reads tokens.
+
+Public candidate C contained 451 files, tree hash
+`e1d7f92609391eb8c66394905ce6e93e278cfa31ac6c48c42c328da8e02bc60b`.
+Full check passed **753 tests and four capture tests**, with one FFmpeg skip,
+then the report's guidance check correctly rejected the undocumented
+`VERIFICATION_UNSUPPORTED` refusal. Documented its cause and safe recovery instead
+of exempting the code. Log: `release-check-c.log`. No passing full-check claim is
+made for that attempt.
+
+The first diagnostic tests passed eight and failed one: its fixture attempted to
+represent revocation as an enabled connection with zero accounts, which Store
+correctly forbids. Both diagnostic and workspace in-flight revocation fixtures now
+disable the connection through its valid API, so they test actual authority loss.
+
+Current denominator: 3,241 actions; 325 reviewed-family rows, 989 blocked mapped
+writes, 105 unmapped actions, 50 unqualified reads, eight input-dependent adapters,
+four withdrawn methods. GTM has 64 reviewed-family rows, 38 native reads, two local
+diagnostics and four withdrawn methods. Family membership is conditional on the
+documented payload limits; no live qualification or exhaustive variant claim is made.
+
+Fresh public candidate D contained 453 files, tree hash
+`6de60aeb7923c6bcf6d856af4622ebac305d96c35c284e26c697712f48d9cb0a`.
+Installation used `npm.cmd ci --ignore-scripts --no-audit --no-fund --cache
+../../.runtime/npm-cache`; `AMCP_SCHEMA_PYTHON` selected bundled Python 3.12.
+`npm.cmd run check` exited **0**: **762 passed, zero failed, one FFmpeg skip**,
+plus **four capture tests passed**. Schema generation/integrity, guide examples,
+refusal documentation, source/browser checks and both contract inventories passed.
+Log: `.runtime/contract-completion-20260919/release-check-d.log`. FFmpeg/ffprobe
+and Docker are unavailable on this host; this is not a container smoke or live
+provider qualification. Earlier failed attempts remain recorded above.

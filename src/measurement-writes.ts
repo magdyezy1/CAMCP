@@ -2,6 +2,8 @@ import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
 import {appleEntityKind,assertAppleEntityWrite,appleEntitySnapshots,validateAppleEntityState,appleEntityOutcome,appleEntityVerification} from './apple-entity-writes.js';
+import {gtmWorkflowKind,gtmWorkflowContracts} from './gtm-workflow-writes.js';
+import {gtmWorkspaceKind,gtmWorkspaceContracts} from './gtm-workspace-writes.js';
 
 export const measurementWriteGateways=new Set(['ga4_native_action','gtm_native_action','google_search_console_native_action','apple_ads_native_action']);
 const obj=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?v as JsonObject:{};
@@ -61,6 +63,8 @@ export function assertMeasurementScopes(p:CompiledRequest,c:Connection):void{
   const a=action(p),scope=a==='PUBLISH_CONTAINER_VERSION'?'tagmanager.publish':['CREATE_CONTAINER_VERSION','UPDATE_CONTAINER_VERSION','DELETE_CONTAINER_VERSION'].includes(a)?'tagmanager.edit.containerversions':['DELETE_CONTAINER','DELETE_WORKSPACE'].includes(a)?'tagmanager.delete.containers':'tagmanager.edit.containers';
   scopes=['https://www.googleapis.com/auth/'+scope];
  }
+ const gtm=gtmWorkflowKind(p);if(gtm)scopes=[gtmWorkflowContracts[gtm]!.scope];
+ const workspace=gtmWorkspaceKind(p);if(workspace)scopes=['https://www.googleapis.com/auth/tagmanager.'+gtmWorkspaceContracts[workspace].scope];
  if(scopes.length&&!scopes.some(s=>c.scopes.includes(s)))throw new MirrorError('PROVIDER_WRITE_SCOPE_REQUIRED','Reconnect this provider with the required permission before preparing a mutation.',{required_any:scopes},403);
 }
 

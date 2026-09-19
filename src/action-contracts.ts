@@ -10,12 +10,16 @@ import {providerContracts} from './provider-contracts.js';
 import {redditAudienceRoutes} from './reddit-extensions.js';
 import {MirrorError} from './errors.js';
 import {googleLegacyCoverage} from './google-legacy.js';
+import {retiredProviderAction} from './retired-provider-actions.js';
+import {gtmDiagnosticOperations} from './gtm-diagnostics.js';
 import legacy from './google-legacy-mapping.json' with {type:'json'};
 import type {Action,CompiledRequest,JsonObject} from './types.js';
 
-export type ContractStatus='native_read'|'reviewed_write_family'|'media_workflow'|'local_workflow'|'adapter_requires_input'|'blocked_write'|'unmapped'|'unqualified_read';
+export type ContractStatus='native_read'|'reviewed_write_family'|'media_workflow'|'local_workflow'|'adapter_requires_input'|'blocked_write'|'unmapped'|'unqualified_read'|'provider_unsupported';
 export interface ActionContract {gateway:string;operation?:string;action:string;aliases:string[];method:string|null;path:string|null;origin?:string;status:ContractStatus;family?:string;implementation:string;reason:string;source:string;tests:string[];live_qualification:'unverified';}
 const familyFiles:Record<string,[string,string[]]>={
+ gtm_workspace:['src/gtm-workspace-writes.ts',['tests/gtm-workspace-writes.test.ts']],
+ gtm_workflows:['src/gtm-workflow-writes.ts',['tests/gtm-workflow-writes.test.ts']],
  apple_entities:['src/apple-entity-writes.ts',['tests/apple-entity-writes.test.ts']],
  dv360_lists:['src/dv360-list-writes.ts',['tests/dv360-list-writes.test.ts']],
  google_configuration:['src/google-configuration-writes.ts',['tests/google-configuration-writes.test.ts']],
@@ -33,6 +37,7 @@ function classify(gateway:string,action:string,method:string|null,path:string|nu
  const absolute=path.startsWith('https://')?new URL(concrete(path,parameters)):undefined,relative=absolute?.pathname??concrete(path.split('?')[0]!,parameters);
  const p:CompiledRequest={gateway,action:operation?operation+(action!==operation?'/'+action:''):action,method,path:relative,origin:origin??absolute?.origin,query:Object.fromEntries(new URLSearchParams((absolute?.search??path.split('?')[1]??'').replaceAll('{action}','initializeUpload'))),body:{},headers:{},readOnly:readOnly===true,destructive:method==='DELETE',requiresConfirmation:false,accountId:'123',evidence:source,warnings:[],specialTransport};
  result.origin=p.origin;
+ const retired=retiredProviderAction(p);if(retired){return {...result,status:'provider_unsupported',implementation:'src/retired-provider-actions.ts',reason:'The provider documents this method as no longer supported. Retained in the denominator; no replacement API is invented.',source:retired.source,tests:['tests/retired-provider-actions.test.ts']};}
  if(independentlyReadOnly(p)){result.status='native_read';result.implementation='src/compiler.ts / src/delegated-native.ts / src/transport.ts';result.reason='A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.';result.tests=provider?.tests??[];return result;}
  const family=reviewedWriteFamily({...p,readOnly:false});
  if(family){result.status='reviewed_write_family';result.family=family;[result.implementation,result.tests]=familyFiles[family]!;result.reason='Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.';return result;}
@@ -75,6 +80,7 @@ export function actionContracts(registry:Registry):ActionContract[]{
    const route=vendorRoutes.find(r=>r.gateway===tool.name&&r.operation===op.operation&&(r.action===action||!r.action&&action===op.operation));
    let row=classify(tool.name,action,route?.method??null,route?.path??null,route?.readOnly??null,route?.source??tool.schema_evidence,[],op.operation,route?.origin,route?.unsupportedMedia?.length?'vendor_media':undefined,route?.parameters);
    if(!route&&(tool.name==='amcp_platform_workspace'||tool.name==='amcp_native_action'&&(localReads.has(op.operation)||reportingOperations.has(op.operation)||businessWorkflowOperations.has(op.operation)||op.operation==='platform_media_upload'))){row={...row,status:'local_workflow',implementation:'src/service.ts / src/workflows.ts / src/reporting.ts',reason:'Implemented AMCP workflow; platform and payload support depend on its underlying contracts. This row never enables native writes.',tests:['tests/workflows.test.ts']};}
+   if(tool.name==='gtm_native_action'&&gtmDiagnosticOperations.has(op.operation))row={...row,status:'local_workflow',implementation:'src/gtm-diagnostics.ts',reason:'AMCP scoped read-only configuration audit or local reviewed-write verification job status. This workflow never publishes or resubmits a mutation.',tests:['tests/gtm-diagnostics.test.ts']};
    put(row);
   }
  }

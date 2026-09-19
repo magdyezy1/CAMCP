@@ -563,6 +563,30 @@
           "displayName": "Synthetic exclusions"
         }
       }
+    },
+    {
+      "gateway": "gtm_native_action",
+      "arguments": {
+        "operation": "gtm_ops",
+        "arguments": {
+          "action": "CREATE_BUILT_IN_VARIABLES",
+          "account_id": "123",
+          "parent": "accounts/123/containers/456/workspaces/789",
+          "params": {"type": ["pageUrl", "clickId"]}
+        }
+      }
+    },
+    {
+      "gateway": "gtm_native_action",
+      "arguments": {
+        "operation": "gtm_ops",
+        "arguments": {
+          "action": "BULK_UPDATE_WORKSPACE",
+          "account_id": "123",
+          "path": "accounts/123/containers/456/workspaces/789",
+          "payload": {"changes": [{"folder": {"folderId": "new_1", "name": "Reviewed folder"}, "changeStatus": "added"}]}
+        }
+      }
     }
   ],
   "recipe_business": {

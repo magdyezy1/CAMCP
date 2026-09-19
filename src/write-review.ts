@@ -1,4 +1,7 @@
 import {reviewedWriteFamily} from './reviewed-routes.js';
+import {assertProviderActionAvailable} from './retired-provider-actions.js';
+import {gtmWorkspaceKind,assertGtmWorkspace,gtmWorkspaceSnapshots,validateGtmWorkspaceState,readGtmWorkspace,validateGtmWorkspacePrerequisites,gtmWorkspaceOutcome,gtmWorkspaceReceipt} from './gtm-workspace-writes.js';
+import {gtmWorkflowKind,assertGtmWorkflow,assertGtmWorkflowActor,gtmWorkflowSnapshots,validateGtmWorkflowState,readGtmWorkflow,gtmSafeConfiguration,validateGtmWorkflowPrerequisites,gtmWorkflowOutcome} from './gtm-workflow-writes.js';
 import {appleEntityKind,appleSharedAccounts,appleSharedAccountReads,validateAppleEntityPrerequisites} from './apple-entity-writes.js';
 import {dv360ListKind,assertDV360ListWrite,dv360ListSnapshots,validateDV360ListState,readDV360List,validateDV360ListPrerequisites,dv360ListOutcome} from './dv360-list-writes.js';
 import {googleConfigurationKind,assertGoogleConfiguration,googleConfigurationSnapshots,validateGoogleConfigurationState,googleConfigurationOutcome} from './google-configuration-writes.js';
@@ -39,7 +42,7 @@ export const writeContractGateways=new Set(['meta_native_action','tiktok_native_
 const object=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?v as JsonObject:{};
 const snake=(s:string)=>s.replace(/([a-z0-9])([A-Z])/g,'$1_$2').toLowerCase();
 function fail(code:string,message:string,details:JsonObject={}):never{throw new MirrorError(code,message,details);}
-export function writeOutcome(result:TransportResult,plan?:CompiledRequest):JsonObject {
+export function writeOutcome(result:TransportResult,plan?:CompiledRequest,before:unknown[]=[]):JsonObject {
  const errors:JsonObject[]=[];
  const walk=(value:unknown,path='$')=>{
   if(Array.isArray(value)){value.forEach((v,i)=>walk(v,path+'['+i+']'));return;}
@@ -54,10 +57,12 @@ export function writeOutcome(result:TransportResult,plan?:CompiledRequest):JsonO
   }
  };walk(result.data);
  if(!plan&&result.status!==204&&result.status!==205&&!result.headers['x-restli-id']&&(result.data===null||typeof result.data!=='object'||!Object.keys(result.data).length))errors.push({path:'$',value:'Provider returned no verifiable mutation result.'});
- if(plan&&!confirmedMutationResult(plan,result))errors.push({path:'$',value:'The response does not confirm every mutation under this provider response contract.'});
- return {success:errors.length===0,executed:true,outcome:errors.length?'partial_or_failed':'succeeded',data:result.data,status:result.status,headers:result.headers,...(result.headers['x-restli-id']?{created_id:result.headers['x-restli-id']}:{ }),...(errors.length?{failures:errors,retry_safe:false}:{})};
+ if(plan&&!confirmedMutationResult(plan,result,before))errors.push({path:'$',value:'The response does not confirm every mutation under this provider response contract.'});
+ return {success:errors.length===0,executed:true,outcome:errors.length?'partial_or_failed':'succeeded',data:plan?.gateway==='gtm_native_action'?gtmSafeConfiguration(result.data):result.data,status:result.status,headers:result.headers,...(result.headers['x-restli-id']?{created_id:result.headers['x-restli-id']}:{ }),...(errors.length?{failures:plan?.gateway==='gtm_native_action'?gtmSafeConfiguration(errors):errors,retry_safe:false}:{}),...(plan&&gtmWorkspaceKind(plan)?gtmWorkspaceReceipt(plan,result):{})};
 }
-function confirmedMutationResult(plan:CompiledRequest,result:TransportResult):boolean {
+function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,before:unknown[]):boolean {
+ if(gtmWorkspaceKind(plan))return gtmWorkspaceOutcome(plan,result,before);
+ if(gtmWorkflowKind(plan))return gtmWorkflowOutcome(plan,result);
  if(dv360ListKind(plan))return dv360ListOutcome(plan,result);
  if(googleConfigurationKind(plan))return googleConfigurationOutcome(plan,result);
  if(googleAssetLinkKind(plan))return googleAssetLinkOutcome(plan,result);
@@ -93,6 +98,8 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult):bo
  return false;
 }
 export function validateState(read:CompiledRequest,result:TransportResult):void {
+ if(read.gateway==='gtm_native_action'&&read.gtmWorkspaceState){validateGtmWorkspaceState(read,result);return;}
+ if(read.gateway==='gtm_native_action'&&read.gtmState){validateGtmWorkflowState(read,result);return;}
  if(read.gateway==='dv360_native_action'&&read.dv360ListState&&!read.dv360ListState.collection&&result.status===404){const d=object(result.data);if(read.action!=='AMCP_STATE_OPTIONAL'||d.amcp_absent!==true||d.path!==read.path)fail('STATE_TARGET_MISMATCH','Unqualified absent DV360 target.');return;}
  if(read.gateway===microsoftGateway)validateMicrosoftResponse(read,result,true);
  if(result.status===404&&measurementWriteGateways.has(read.gateway)){validateMeasurementState(read,result);return;}
@@ -158,6 +165,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  fail('STATE_READ_FAILED','No response contract exists for this state read.');
 }
 export function assertWriteShape(plan:CompiledRequest){
+ assertProviderActionAvailable(plan);
  validateGoogleRequest(plan);
  validateMetaCampaign(plan);
  if(!writeContractGateways.has(plan.gateway))fail('WRITE_CONTRACT_UNAVAILABLE','This platform has no reviewed mutation contract.');
@@ -166,6 +174,8 @@ export function assertWriteShape(plan:CompiledRequest){
  if(plan.gateway===microsoftGateway){assertMicrosoftWrite(plan);return;}
  if(plan.specialTransport)fail('WRITE_CONTRACT_UNAVAILABLE','For Google Drive media imports, use amcp_media prepare and execute. Other binary transports need a dedicated upload contract.');
  if(plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['CREATE','PARTIAL_UPDATE','DELETE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))fail('WRITE_CONTRACT_UNAVAILABLE','This REST.li method override is not qualified for reviewed execution.');
+ if(gtmWorkflowKind(plan)){assertGtmWorkflow(plan);return;}
+ if(gtmWorkspaceKind(plan)){assertGtmWorkspace(plan);return;}
  if(linkedinDSC(plan)){if(Object.keys(plan.query).length)fail('WRITE_CONTRACT_UNAVAILABLE','DSC creation does not accept query actions or method overrides.');assertLinkedInDSC(plan);return;}
  const body=object(plan.body);
  const route=plan.path,method=plan.method;
@@ -214,6 +224,8 @@ export function assertWriteShape(plan:CompiledRequest){
 
 /** Reads are explicitly derived from the target, never supplied by the caller as proof. */
 export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRequest[]{
+ if(gtmWorkflowKind(plan))return gtmWorkflowSnapshots(plan);
+ if(gtmWorkspaceKind(plan))return gtmWorkspaceSnapshots(plan);
  if(dv360ListKind(plan))return dv360ListSnapshots(plan);
  if(googleConfigurationKind(plan))return googleConfigurationSnapshots(plan);
  if(googleAssetLinkKind(plan))return googleAssetLinkSnapshots(plan);
@@ -284,6 +296,7 @@ export class WriteReviewService {
  constructor(private registry:Registry,private compiler:Compiler,private store:Store,private transport:NativeTransport,private credentials:CredentialProvider,private options:CallOptions,private policy:ExecutionPolicy,private delegated=new DelegatedNativeCompiler()){}
  private access(actor:Actor,plan:CompiledRequest,connectionId?:string):Connection {
   this.store.assertActorActive(actor);
+  assertGtmWorkflowActor(plan,actor);
   if(!this.policy.allowWrites)fail('LIVE_WRITES_DISABLED','Enable MIRROR_ALLOW_WRITES=true for reviewed write support.');
   if(actor.role==='reader')throw new MirrorError('FORBIDDEN','A writer connector and administrator account grant are required.',{},403);
   const c=this.store.resolveConnection(actor,plan.gateway,plan.accountId,connectionId),id=normalizeAccount(plan.gateway,plan.accountId??(c.accounts.length===1?c.accounts[0]:''));
@@ -302,7 +315,7 @@ export class WriteReviewService {
   });
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
-   try{result=await readDV360List(read,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.transport.request(page,current,auth);this.access(actor,plan,connectionId);return response;});}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
+   try{result=await readGtmWorkspace(read,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.transport.request(page,current,auth);this.access(actor,plan,connectionId);return response;})));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
    this.access(actor,plan,connectionId);validateState(read,result);
    if(appleEntityKind(plan)==='shared_budget'&&read.path===plan.path){
     const accounts=appleSharedAccounts(plan,result.data),frozen=plan.scopeContext?.appleSharedAccountIds;
@@ -315,6 +328,8 @@ export class WriteReviewService {
    values.push(linkedinDSC(plan)&&/^\/rest\/(images|videos)\//.test(read.path)?linkedinMediaProjection(plan,object(result.data)):normalizeSnapshot(read,result.data));
   }
   validateAppleEntityPrerequisites(plan,reads,values);
+  validateGtmWorkflowPrerequisites(plan,values);
+  validateGtmWorkspacePrerequisites(plan,values);
   validateDV360ListPrerequisites(plan,values);
   if(appleEntityKind(plan)==='shared_budget'&&!plan.scopeContext?.appleSharedOrgId){
    const account=object(values[reads.findIndex(r=>r.path==='/v1/ad-accounts/'+plan.accountId)]).result;
@@ -341,8 +356,9 @@ export class WriteReviewService {
    validateGoogleAssetLinkState(plan,state,true);
    validateGoogleConfigurationState(plan,state,true);
    validateDV360ListPrerequisites(plan,state,true);
+   validateGtmWorkflowPrerequisites(plan,state,true);
    validateMicrosoftAssociationState(plan,state,true);
-   if(plan.gateway==='gtm_native_action'){
+   if(plan.gateway==='gtm_native_action'&&!gtmWorkspaceKind(plan)){
     const route=this.delegated.data.routes.find(r=>r.gateway===plan.gateway&&r.operation+(r.action?'/'+r.action:'')===plan.action),fingerprint=object(state[0]).fingerprint;
     if(route?.parameters.fingerprint&&typeof fingerprint==='string'&&fingerprint){
      if(plan.query.fingerprint!==undefined&&plan.query.fingerprint!==fingerprint)fail('STATE_CHANGED','The supplied Tag Manager fingerprint is stale.');
@@ -384,7 +400,7 @@ export class WriteReviewService {
   const claim=this.store.transaction(()=>{checkSpendPolicy(this.store,actor,plan,current,input.review_id);return this.store.claim(actor.tenantId,input.idempotency_key,fingerprint);});if(!claim.fresh)return {...object(claim.result),replayed:true};
   try{
    this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_started',request:plan,fingerprint,before_state:current});
-   const response=await this.transport.request(plan,c,auth);this.delegated.validateResponse(plan,response.data,response.status);const result=writeOutcome(response,plan);
+   const response=await this.transport.request(plan,c,auth);this.delegated.validateResponse(plan,response.data,response.status);const result=writeOutcome(response,plan,current);
    const outcome:JsonObject={...result,review_id:input.review_id,action:plan.action,fingerprint,...(creativeImpact?{creative_impact:creativeImpact}:{})};
    this.store.transaction(()=>{
     if(result.success===true)new ScopeGuard(this.registry,this.store).observeCreated(plan,c,response.data);

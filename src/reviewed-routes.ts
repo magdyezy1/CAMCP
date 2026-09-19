@@ -10,6 +10,8 @@ import {redditWriteKind} from './reddit-writes.js';
 import {microsoftContracts,microsoftGateway} from './microsoft-native.js';
 import {microsoftAssociationWrite} from './microsoft-associations.js';
 import {gtmWriteActions} from './measurement-writes.js';
+import {gtmWorkflowKind} from './gtm-workflow-writes.js';
+import {gtmWorkspaceKind} from './gtm-workspace-writes.js';
 
 /** Route membership only. This never substitutes for assertWriteShape, scope,
  * prerequisites, spend policies, frozen review, provider receipts or read-back.
@@ -17,6 +19,8 @@ import {gtmWriteActions} from './measurement-writes.js';
 export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  const route=p.path,method=p.method,action=p.action.split('/').at(-1)!;
  if(p.readOnly||p.specialTransport)return;
+ if(gtmWorkflowKind(p))return 'gtm_workflows';
+ if(gtmWorkspaceKind(p))return 'gtm_workspace';
  if(p.gateway===microsoftGateway){const c=microsoftContracts.get(p.action);return c&&c.path===route&&c.method===method?(microsoftAssociationWrite(p)?'microsoft_asset_links':/^(Add|Update|Delete)/.test(c.name)?'microsoft_search':undefined):undefined;}
  if(p.gateway==='reddit_native_action')return redditWriteKind(p)?'reddit_classic':undefined;
  if(linkedinDSC(p))return 'linkedin_dsc';
