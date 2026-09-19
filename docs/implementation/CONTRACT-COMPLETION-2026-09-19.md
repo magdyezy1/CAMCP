@@ -904,3 +904,61 @@ Evidence: `install-s.log`, `release-check-s.log` in the runtime evidence directo
 The entire check command completed successfully, including strict generation,
 provider, contract, guide, website and lifecycle checks. FFmpeg, containers and
 live provider behavior remain unverified; no live mutations were made.
+
+## LinkedIn campaign conversion associations
+
+Google bid modifiers were pushed as `92c261d`. The next batch adds all five
+captured campaignConversions write rows: both single PUT aliases, single DELETE,
+batch PUT and batch DELETE. Only the exact 25-pair association contract is enabled.
+No conversion creation, event ingestion, automatic association or tracking setup
+is silently authorized. The captured catalog and its raw templates remain intact;
+the compiler fixes scalar encoding for valid compound keys at execution time.
+
+The state reader proves every campaign and conversion against the selected
+account, then follows the fixed campaigns finder with offset pagination. It
+freezes full returned resource configuration and complete association membership,
+excludes association timestamps, and normalizes only documented campaign-URN
+sets. Unknown configuration remains protected. Bounds: 25 pairs, 1000 links,
+25 pages, 80 requests, 4 MiB per response, 8 MiB total and 60 seconds monotonic.
+An extra empty page proves completion when the final page is exactly full and
+has no total. Malformed counts, errors, partial/unknown metadata and foreign or
+duplicate membership fail before dispatch. Entire-batch capacity is checked.
+
+Native REST.li empty 204 and exact per-key 200 receipts have separate validators.
+Verification reads the complete collection; 404 is never removal evidence. Scope
+and connection/account grants are checked again for every read and before cached
+verification. Optimization-affecting association changes require spending
+confirmation and respect owner activation and deletion restrictions. Lost or
+partial receipts keep the durable submission claim across concurrency/restart.
+
+Official sources checked 2026-09-19:
+
+- [LinkedIn conversion tracking, 202605](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/conversion-tracking?view=li-lms-2026-05): association routes, scoped conversion reads, campaign finder, permissions and empty-success semantics.
+- [LinkedIn REST.li protocol](https://linkedin.github.io/rest.li/spec/protocol): association tuple encoding, batch ids/entities and per-key result/error maps. The endpoint's batch PUT example is incomplete; its body is implemented from this official protocol and remains subject to staging qualification.
+
+The first draft build caught a missing explicit never-return, a test cleanup
+signature and an overly broad fixture type; all corrected without relaxing runtime
+checks. First test run: seven passed, eight failed because the fixture compared
+JSON objects to the parser's intentionally null-prototype objects. Comparing the
+same own fields fixes the fixture while retaining exact wire assertions. The
+original `linkedin-links-first.log` remains. Fifteen corrected tests passed.
+Expanded contract, compiler, REST.li, existing DSC and spending tests: 50 passed,
+zero failures (`linkedin-links-expanded.log`), including 21 dedicated tests.
+Candidate T full release validation follows; this is synthetic qualification only.
+
+TikTok's separate adgroup/budget/update route was researched but not enabled:
+its captured mapping has no usable native request/response contract in the public
+portal, and the current official Adgroup SDK documents standard update rather
+than the separate budget route. Source:
+[official TikTok Adgroup SDK](https://github.com/tiktok/tiktok-business-api-sdk/blob/main/python_sdk/docs/AdgroupApi.md).
+The missing SDK entry does not prove provider withdrawal. Keep it open pending
+authoritative contract evidence; do not guess its body from the route name.
+
+Candidate T passed: 960 passed, zero failures, one FFmpeg skip; four capture tests
+also passed. Source tree hash
+`e69c28378f932999ae89eda6fa2bb5a9cd2527a4e370efd65e07b7a02ff0ac16`, 479 files.
+Logs: `install-t.log`, `release-check-t.log`. Final contract inventory and guide
+checks passed 34 tests (`linkedin-links-qualified.log`). All strict generated,
+provider, web and lifecycle checks passed. A later unregistered Meta Ad Library
+draft is excluded from this qualification and the LinkedIn commit. Native live
+batch compatibility and installed conversion tracking remain unverified.

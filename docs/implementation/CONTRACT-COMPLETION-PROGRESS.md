@@ -52,8 +52,8 @@ qualification dependencies, not a reason to omit locally implementable code.
 
 ## Current checkpoint (2026-09-19)
 
-The working tree now inventories **3,241 actions**, including **376 reviewed-family
-rows**. **938 mapped writes, 105 unmapped actions, 31 unqualified reads and eight
+The working tree now inventories **3,241 actions**, including **381 reviewed-family
+rows**. **933 mapped writes, 105 unmapped actions, 31 unqualified reads and eight
 input-dependent adapters remain incomplete**. Four routes are now explicitly
 **provider_unsupported**, including three previously blocked writes and one read;
 these are not counted as implemented. The first batch added 68 reviewed action
@@ -231,3 +231,18 @@ provider, guide, web and lifecycle checks passed. These results qualify the
 documented bid-modifier contract locally; live acceptance and auction behavior
 remain unverified. Remaining counts are 938 blocked writes, 105 unmapped actions
 and 31 unqualified reads; the backlog is not complete.
+
+Google bid modifiers are pushed as `92c261d`. All five captured LinkedIn campaign
+conversion association writes now have an exact tuple/batch contract, fresh
+campaign/conversion account checks, complete bounded membership, REST.li receipts,
+read-back and durable claims. Initial fixture prototype mismatches are preserved
+in the evidence; 50 expanded tests pass after correction. Candidate T full checks
+are next. No live or installed-tag behavior is claimed. TikTok's separate budget
+route remains open for authoritative contract evidence; its public SDK does not
+document that route and the portal did not expose its schema.
+
+Candidate T passed the full sanitized release check: 960 passed, zero failures,
+one FFmpeg skip, plus four capture tests passed. Final inventory/example checks
+passed 34 tests. LinkedIn associations are locally qualified within the documented
+bounds. An unregistered Meta Ad Library draft was written afterward and is not
+included in this candidate or the LinkedIn commit. Remaining counts stay explicit.

@@ -24,6 +24,37 @@ LinkedIn finder filters use REST.li syntax and restli_method: FINDER: creatives 
 
 Use native `targetingCriteria`; do not force an irreversible migration of an existing legacy targeting object during an unrelated edit. For conversion optimization, discover the relevant conversion and verify its campaign association. The API's version header is a supported `YYYYMM` value, not a prose version nickname. Dated limits in the supplied manual are not permanent validation constants.
 
+## Reviewed LinkedIn campaign conversion associations
+
+Use `linkedin_rest_campaign_conversions_campaign_conversion_id_put` to associate
+an existing conversion with a selected campaign. Pass `path_params.campaign_conversion_id`
+as `(campaign:urn:li:sponsoredCampaign:<id>,conversion:urn:lla:llaPartnerConversion:<id>)`
+and the same two URNs as `payload.campaign` and `payload.conversion`. AMCP encodes
+each scalar once. The longer `campaign_campaign_urn_conversion_conversion_urn_put`
+alias is also qualified. Remove an association with the matching `_delete` action
+and no payload. These actions do not create a conversion rule or install tracking.
+
+For multiple pairs use `linkedin_rest_campaign_conversions_put` or `_delete` with
+`query.ids` as a native array of `{campaign, conversion}` objects. PUT requires
+`payload.entities`, keyed by each unescaped tuple with the matching pair as its
+value, and `restli_method: BATCH_UPDATE` when explicitly supplied. DELETE uses no
+payload and `BATCH_DELETE`. Limits are 25 distinct pairs and 1000 complete current
+associations. Larger scopes need separate reviews; never truncate discovery.
+
+Keep the exact selected connection/account. Preparation verifies both resources
+under that account and reads every association page. Writes require `rw_ads`;
+read-back requires `r_ads` or `rw_ads`. The provider's account role and app approval
+remain separate checks. Confirm the rule, attribution and campaign objective with
+the user when ambiguous. Never infer a purchase rule from its name alone. Review
+the effect on conversion optimization, then execute with `confirmed: true` and
+`spend_change_confirmed: true`; owner activation/deletion controls still apply.
+
+Call `amcp_campaign verify` using the original review. Removal is proven by a
+complete membership read, never a 404. Incomplete state, per-key errors and lost
+responses require reconciliation; keep the original claim and do not repeat the
+batch. The contract does not certify an installed Insight Tag, event receipt,
+attribution accuracy, auction delivery or current provider approval.
+
 X's hierarchy is account → campaign (budget/funding) → line item (objective, bidding, placements) → promoted Tweet/media creative. Use `x_ads_native_action`. Monetary fields ending `_local_micro` use account currency × 1,000,000. Read an existing funding instrument rather than inventing one or assuming a CREATE_FUNDING_INSTRUMENT catalog entry provisions credit.
 
 ## X targeting is a separate resource, not a line-item field

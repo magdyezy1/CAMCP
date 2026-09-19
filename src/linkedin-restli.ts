@@ -36,6 +36,12 @@ function parse(value:string):unknown {
  const result=read(0);if(at!==value.length)invalid();return result;
 }
 
+export function parseLinkedInValue(value:string):unknown {
+ if(value.length>65536)invalid();
+ if(/^(?:List%28|%28)/i.test(value)){try{value=decodeURIComponent(value);}catch{invalid();}}
+ return parse(value);
+}
+
 export function linkedinQuery(query:JsonObject):string {
  let nodes=0;
  const serialize=(v:unknown,depth=0):string=>{

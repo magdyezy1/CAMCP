@@ -1,4 +1,5 @@
 import {redditCreativeKind} from './reddit-creative-writes.js';
+import {linkedinConversionKind} from './linkedin-conversion-links.js';
 import {criteoTargetingKind} from './criteo-targeting-writes.js';
 import {metaLabelKind} from './meta-label-writes.js';
 import {googleBidKind} from './google-bid-modifiers.js';
@@ -23,6 +24,7 @@ import {gtmWorkspaceKind} from './gtm-workspace-writes.js';
 export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  const route=p.path,method=p.method,action=p.action.split('/').at(-1)!;
  if(p.readOnly||p.specialTransport)return;
+ if(linkedinConversionKind(p))return 'linkedin_conversion_links';
  if(metaLabelKind(p))return 'meta_labels';
  if(googleBidKind(p))return 'google_bid_modifiers';
  if(criteoTargetingKind(p))return 'criteo_targeting';

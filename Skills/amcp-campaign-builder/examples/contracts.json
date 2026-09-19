@@ -4,6 +4,15 @@
   "qualification": "Synthetic local contract examples. Replace business facts and IDs with user-supplied or discovered values. These requests inspect contracts; none authorizes or executes a mutation.",
   "inspections": [
     {
+      "gateway": "linkedin_native_action",
+      "arguments": {
+        "action": "linkedin_rest_campaign_conversions_campaign_conversion_id_put",
+        "account_id": "123",
+        "path_params": { "campaign_conversion_id": "(campaign:urn:li:sponsoredCampaign:456,conversion:urn:lla:llaPartnerConversion:789)" },
+        "payload": { "campaign": "urn:li:sponsoredCampaign:456", "conversion": "urn:lla:llaPartnerConversion:789" }
+      }
+    },
+    {
       "gateway": "google_ads_native_action",
       "arguments": {
         "action": "google_ads_v23_ad_group_bid_modifier_mutate_ad_group_bid_modifiers",
