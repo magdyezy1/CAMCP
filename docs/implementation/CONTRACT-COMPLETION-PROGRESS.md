@@ -52,8 +52,8 @@ qualification dependencies, not a reason to omit locally implementable code.
 
 ## Current checkpoint (2026-09-19)
 
-The working tree now inventories **3,241 actions**, including **360 reviewed-family
-rows**. **954 mapped writes, 105 unmapped actions, 31 unqualified reads and eight
+The working tree now inventories **3,241 actions**, including **366 reviewed-family
+rows**. **948 mapped writes, 105 unmapped actions, 31 unqualified reads and eight
 input-dependent adapters remain incomplete**. Four routes are now explicitly
 **provider_unsupported**, including three previously blocked writes and one read;
 these are not counted as implemented. The first batch added 68 reviewed action
@@ -178,3 +178,18 @@ Candidate N passed the entire check command: 889 passed, zero failures, one
 FFmpeg skip, plus four capture tests passed. All strict generated, provider,
 guide, web and lifecycle checks passed. This qualifies draft-generation requests
 locally; access to Google's closed beta and image production quality remain unverified.
+
+Google generation is pushed as `4a36ec9`. A ledger defect incorrectly classified
+six existing Meta update/delete aliases as blocked because it used the public
+alias instead of the compiler's canonical action. Seven focused reproductions
+failed at the inventory assertion after successful reviewed execution. The ledger
+now uses the actual execution name and retains all alias rows. Thirteen focused
+tests pass; counts increase by six reviewed-family rows and decrease by six
+blocked rows. This is a coverage-report correction, not six newly implemented
+mutations. Existing Meta delete read-back remains unsupported and is not certified
+by these receipt/replay tests. A dedicated contract is still required for that gap.
+
+Candidate P passed the full release check: 896 tests passed, zero failures, one
+FFmpeg skip; four capture tests passed. All strict generated/ledger and release
+checks passed. The alias-report correction preserves the Google legacy immutable
+update restriction and changes no native execution permission.

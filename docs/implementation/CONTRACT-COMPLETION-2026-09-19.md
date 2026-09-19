@@ -724,3 +724,38 @@ four capture tests passed. Source hash:
 Logs: `.runtime/contract-completion-20260919/install-n.log` and
 `release-check-n.log`. The subsequent Meta alias reproductions are a separate
 pending batch and were not part of candidate N. No live generation was attempted.
+
+## Canonical Meta alias inventory correction
+
+`Compiler.compile` already resolves `meta_campaign_update/delete`,
+`meta_adset_update/delete` and `meta_ad_update/delete` to the corresponding
+`*_id_*` names. The action ledger used the alias and falsely marked them blocked.
+The ledger now classifies the same canonical identity without removing alias rows
+or changing authorization/routing. Unrelated creative/audience/access/batch actions
+remain blocked. This corrects reporting; it does not add six new write contracts.
+
+Seven regression tests initially failed at inventory assertions after successful
+synthetic prepare/execute, actual state conflict, revoked grants, concurrent
+single dispatch and durable replay. The corrected inventory passed all seven,
+plus six existing action-contract tests: 13/13. Update read-back also passed;
+existing generic Meta DELETE verification is unsupported and remains a separate
+open capability, not a verified lifecycle in this batch. Files and logs:
+`tests/meta-action-aliases.test.ts`, `meta-alias-baseline.log`,
+`meta-alias-fixed.log`, `alias-ledger.log`, `alias-ledger-check.log` under the
+existing runtime evidence directory. The generated strict ledger check passes.
+Current counts: 3241 actions, 366 reviewed-family, 948 blocked writes, 105 unmapped,
+31 unqualified reads, eight input-dependent and four withdrawn. Remaining records
+are not marked complete. No external provider requests or mutations occurred.
+
+Reviewing the generated delta caught an over-broad draft inventory correction:
+Google legacy adapters intentionally retain their legacy names, including the
+unsupported `UPDATE_CUSTOMIZER_ATTRIBUTE`. The classifier now preserves that
+exception, with a regression test. Candidate O was assembled but never executed
+or published; it is superseded. Final focused compatibility, alias, guide and
+ledger tests passed 24/24 (`meta-alias-final.log`). Candidate P follows.
+
+Candidate P completed the full sanitized `npm.cmd run check` with exit 0:
+896 passed, zero failures, one FFmpeg skip, plus four capture tests passed.
+Source tree hash `8816c5751027a38fb69a4b028ccaf2da2354dd55f388316466edabb199bb1868`,
+471 files. Logs: `install-p.log` and `release-check-p.log` in the runtime evidence
+directory. No live Meta call, container smoke or deployment was performed.
