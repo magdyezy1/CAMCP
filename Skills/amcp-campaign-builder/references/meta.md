@@ -1,5 +1,45 @@
 # Meta: campaign, ad set, creative, ad
 
+## Account labels
+
+`meta_ad_account_id_adlabels_create`, `meta_ad_label_id_update` and
+`meta_ad_label_id_delete` implement reviewed creation, renaming and deletion.
+`meta_ad_id_adlabels_create`, `meta_campaign_id_adlabels_create` and
+`meta_creative_id_adlabels_create` attach existing labels. These organizational
+labels do not change delivery settings. Deletion removes the shared label and
+can remove its associations; it requires the owner's deletion policy to permit it.
+
+Select the exact account and connection. Discover labels with
+`meta_ad_account_id_adlabels_get`; AMCP uses `/v25.0/act_{ad_account_id}/adlabels`.
+For renaming/deletion supply `params.ad_label_id` and for attachment supply the
+corresponding `ad_id`, `campaign_id` or `creative_id`. Discover the advertising
+object first. AMCP checks fresh account ownership as part of every review.
+Creation/renaming accepts only `payload: {name: "User-supplied label"}`;
+attachment accepts only `payload: {adlabels: [{id: "discovered-label-id"}]}`.
+Never infer a label name, create a label implicitly, or attach a foreign-account ID.
+Write scope is `ads_management`; reads require it or `ads_read`.
+
+Inspect, prepare, review the shared effect, execute with the original idempotency
+key, then verify. Successful receipts alone do not prove attachment or deletion.
+A verified new label can immediately be used by another scoped review. For a
+timeout/unknown receipt retain the claim and reconcile; do not repeat creation.
+Names, memberships and unknown returned configuration are protected from drift;
+timestamps, paging envelopes and member order are excluded from configuration.
+
+Local bounds: 1–25 labels per attachment, at most 1000 account labels, 25 pages,
+4 MiB per response, 8 MiB total and 60 seconds per complete state read. Creation
+is refused at 1000 labels because the next read-back must remain complete.
+Attachment currently requires explicit complete `adlabels`, including `[]` for
+empty membership. Omitted/partial membership is refused; its provider absence
+semantics have not been verified live. Ad-set attachment and edge removal are not
+qualified by these six catalog actions. Other Meta writes retain their own limits.
+
+Contract research: Meta's official [account SDK methods](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adaccount.py),
+[label object](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adlabel.py)
+and [label mixin](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/mixins.py),
+checked 2026-09-19. AMCP remains pinned to v25.0. Fixtures qualify local behavior;
+native receipt and empty-membership compatibility still need live verification.
+
 The account-scoped `meta_ad_account_id_value_rule_set_get` is a GET read,
 including in read-only deployments. A value-rule set is a resource name, not a
 command to change a rule. Its existence does not qualify the separate creation,

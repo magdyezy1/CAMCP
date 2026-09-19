@@ -6,6 +6,15 @@
     {
       "gateway": "meta_native_action",
       "arguments": {
+        "action": "meta_ad_id_adlabels_create",
+        "account_id": "123",
+        "params": { "ad_id": "456" },
+        "payload": { "adlabels": [{ "id": "789" }] }
+      }
+    },
+    {
+      "gateway": "meta_native_action",
+      "arguments": {
         "action": "meta_campaign_create",
         "account_id": "123",
         "payload": {

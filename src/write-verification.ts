@@ -1,6 +1,7 @@
 import {redditCreativeKind,redditCreativeVerification,readRedditProfiles} from './reddit-creative-writes.js';
 import {criteoTargetingKind,criteoTargetingVerification,readCriteoTargeting,assertCriteoReadScope} from './criteo-targeting-writes.js';
 import {redditPostCreation,verifyRedditPostCreation} from './reddit-post-creation.js';
+import {metaLabelKind,metaLabelVerification,readMetaLabels,assertMetaLabelScope} from './meta-label-writes.js';
 import {Store} from './store.js';
 import {Registry} from './catalog.js';
 import {NativeTransport} from './transport.js';
@@ -34,6 +35,7 @@ function differing(expected:any,actual:any,path='',out:string[]=[]):string[]{
 }
 function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Registry,before:unknown[]=[]):{read:CompiledRequest;expected:JsonObject;id:string}[]{
  if(criteoTargetingKind(plan))return criteoTargetingVerification(plan,before);
+ if(metaLabelKind(plan))return metaLabelVerification(plan,result,before);
  if(redditCreativeKind(plan))return redditCreativeVerification(plan,result);
  if(gtmWorkspaceKind(plan))return gtmWorkspaceVerification(plan,result,before);
  if(gtmWorkflowKind(plan))return gtmWorkflowVerification(plan,result,before);
@@ -101,6 +103,7 @@ export class WriteVerifier{
   if(linkedinDSC(plan))assertLinkedInDSCGrant(plan,c,false);
   if(redditPostCreation(plan)&&!c.scopes.includes('adsread'))bad('Reddit post verification requires adsread.','INSUFFICIENT_SCOPE');
   if(criteoTargetingKind(plan))assertCriteoReadScope(c);
+  if(metaLabelKind(plan))assertMetaLabelScope(c);
   if(result.success!==true)bad('Inspect the retained partial failure before recovery.','WRITE_PARTIAL_OR_FAILED');
   const cached=optional(this.store,actor.tenantId,'write_verification',reviewId);if(cached?.status==='verified'&&Date.now()-cached.checked_at<10000)return {...cached,cached:true};
   let reads:ReturnType<typeof verificationReads>=[],status='unverified',checks:JsonObject[]=[],resources:JsonObject[]=[];
@@ -131,11 +134,12 @@ export class WriteVerifier{
    const expected=normalize(item.expected),readback=await readConsistently(async()=>{
     this.store.assertActorActive(actor);checkAppleAccounts();const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(item.read,current);
     const auth=await this.credentials.get(current);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));
-    let response;try{response=await readCriteoTargeting(item.read,criteoPage=>readGtmWorkspace(criteoPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.transport.request(page,latest,auth);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(page,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));return result;}))));}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
+    let response;try{response=await readMetaLabels(item.read,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readGtmWorkspace(criteoPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.transport.request(page,latest,auth);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(page,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));return result;})))));}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
     checkAppleAccounts();return normalize(entity(item.read,response.data as JsonObject));
    },actual=>differing(expected,actual).length===0);
    const actual=readback.value,changed=differing(expected,actual),phase=readback.consistent?measurementVerificationPhase(item.read,actual):'inconclusive';checks.push({resource_id:item.id,status:phase,code:readback.consistent?undefined:'VERIFICATION_INCONCLUSIVE',read_attempts:readback.attempts,changed_fields:changed,expected_hash:fingerprint(expected),actual_hash:fingerprint(actual??null),checked_fields:Object.keys(expected)});
    if(linkedinDSC(plan)&&readback.consistent)rememberLinkedInPost(this.store,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id),plan,result.headers['x-restli-id']);
+   if(metaLabelKind(plan)&&readback.consistent&&item.expected.label?.present===true){const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertMetaLabelScope(current);this.store.rememberResource(current,plan.accountId!,item.id);}
   }status=reads.length?(checks.some(c=>c.status==='failed')?'failed':checks.every(c=>c.status==='verified')?'verified':checks.some(c=>c.status==='pending')?'pending':'inconclusive'):'unsupported';}}
   catch(e){if(redditPostCreation(plan)&&e instanceof MirrorError&&e.retryable)status='pending';checks.push({status:status==='pending'?'pending':'unverified',code:e instanceof MirrorError?e.code:'READ_FAILED',message:e instanceof MirrorError?e.message:'Verification read failed.'});}
   this.store.assertActorActive(actor);const receipt={review_id:reviewId,connection_id:c.id,account_id:plan.accountId,action:plan.action,status,...(status==='inconclusive'?{code:'VERIFICATION_INCONCLUSIVE'}:{}),checks,checked_at:Date.now(),automatic_retry_of_mutation:false,recovery:'Preserve successful resources. Field disagreement after bounded reads is inconclusive, not permission to repeat a mutation. Corrective writes need a new review; verification never resets idempotency.',...(['pending','inconclusive'].includes(status)?{retry_read_after_ms:1000,next_call:{tool:'amcp_campaign',arguments:{action:'verify',review_id:reviewId}}}:{})};

@@ -1,5 +1,11 @@
 import {MirrorError} from './errors.js';
-import type {CompiledRequest,JsonObject} from './types.js';
+import type {Action,CompiledRequest,JsonObject} from './types.js';
+
+/** Correct independently documented account scoping without rewriting capture evidence. */
+export function metaActionOverride(a:Action):Action{
+ if(a.name!=='meta_ad_account_id_adlabels_get')return a;
+ return {...a,path:'/v25.0/act_{ad_account_id}/adlabels',evidence:'VENDOR_DOCUMENTED_INDEPENDENT_MAPPING'};
+}
 
 /** Endpoint-specific v25 campaign rules, not blanket bans on creative fields. */
 export function validateMetaCampaign(plan:CompiledRequest){

@@ -759,3 +759,76 @@ Candidate P completed the full sanitized `npm.cmd run check` with exit 0:
 Source tree hash `8816c5751027a38fb69a4b028ccaf2da2354dd55f388316466edabb199bb1868`,
 471 files. Logs: `install-p.log` and `release-check-p.log` in the runtime evidence
 directory. No live Meta call, container smoke or deployment was performed.
+
+## Meta account labels and exact membership
+
+Six catalog writes now have a `meta_labels` contract: create, rename and delete
+account labels; attach existing labels to ads, campaigns and creatives. The
+captured account-label GET lacked `act_`; a documented runtime override corrects
+it while preserving the raw capture and its provenance. Discovery validates the
+whole returned page before recording connection/account ownership. Error-bearing,
+duplicate, malformed or foreign identities cannot partially establish grants.
+
+State reads resolve the selected account and its complete label collection,
+then the exact attachment target/account. Names and unknown configuration are
+retained, while timestamp/envelope telemetry and label order cannot falsely
+conflict. Pagination rebuilds a fixed scoped request and never follows the
+provider URL or propagates its token. Limits are 25 pages, 1000 labels, 28 requests,
+4 MiB per response, 8 MiB total and 60 seconds including the final response.
+Creation at capacity is refused before dispatch. Attachment requires an explicit
+complete array, including `[]`; an omitted field is not invented empty state.
+
+Creation/renaming accepts a bounded nonempty name. Attachment accepts 1–25 distinct
+existing label IDs only, preserving current membership. Provider receipts are
+strict: new ID for creation, `success:true` for other mutations, no failure or
+warning envelope. Read-back checks the exact name/presence/union; deletion uses
+absence from a complete collection, never a 404 assumption. Only verified created
+IDs gain immediate scoped reuse. Current scope, account grants and deletion
+policy are rechecked; cached verification cannot bypass revoked scopes.
+
+Official SDK sources checked 2026-09-19 (AMCP pinned v25.0):
+
+- [AdAccount GET/create labels](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adaccount.py)
+- [AdLabel fields/update/delete](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adlabel.py)
+- [Campaign attachment](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/campaign.py)
+- [Ad attachment](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/ad.py)
+- [Creative attachment](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adcreative.py)
+- [Explicit membership mixin](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/mixins.py)
+
+The Meta HTML reference pages could not be fetched. SDK methods prove documented
+routes/fields, not live receipt or omitted-empty-field behavior. Those remain
+verification dependencies. Ad-set attachment and membership removal are not
+introduced by this batch. No automation or delivery behavior is inferred from
+organizational label changes, although external label-driven automation may exist.
+
+`npm.cmd run build` passed. Initial focused 15/15 and expanded 21/21 tests passed;
+final label, alias, scope, ledger and executable-guide tests passed 39/39. The
+original capacity fixture was corrected because repeated first-page identities
+tested duplicates rather than the named capacity boundary. Distinct 1000-label
+complete reads now succeed, creation at 1000 fails, and 1001/26-page/byte/time
+overflow cases fail independently. Other negatives cover changed state, revoked
+and foreign access, ignored mutations, malformed/partial/lost receipts,
+concurrent one-dispatch execution, verified immediate reuse, and both completed
+and uncertain claims across SQLite reopen. Evidence logs: `meta-label-first.log`,
+`meta-label-expanded.log`, `meta-label-final.log` under the runtime evidence
+directory. Regenerated counts: 3241 actions, 372 reviewed-family, 942 blocked
+writes, 105 unmapped and 31 unqualified reads. Candidate Q full check follows.
+
+Candidate Q completed with 914 tests passed, three failures and one FFmpeg skip.
+Its source hash was `3b881e6531b9bedf5f1ef8338373ce3ade8d80fe903374e72c7931ffc22e2562`,
+473 files. `release-check-q.log` retains the failures: frozen full catalog pages,
+deterministic path templates, and compatibility replay. The new override had added
+provenance to the raw captured record. It now preserves raw metadata unchanged
+and separately describes the documented effective mapping. The compiler test
+asserts the one exact corrected template while retaining all 2207 other template
+assertions. A dedicated test checks both original and effective representations.
+Targeted catalog/compiler/label tests passed 34/34; compatibility replay also
+passed. Capture assertions were not weakened. Candidate R reruns the full check.
+
+Candidate R passed the entire sanitized release check: 918 passed, zero failures,
+one FFmpeg skip, plus four capture tests passed. Source tree hash
+`b371ab7664ebdf7200096f5d776d76df054959426b7747342e5f98cdb554c0c9`, 473 files.
+All generated/guide/provider/web/lifecycle checks passed. Logs: `install-r.log`
+and `release-check-r.log`. A subsequent unregistered draft Google bid-modifier
+module is excluded from this candidate and this Meta commit. No live provider
+mutations, container checks or deployment were performed.

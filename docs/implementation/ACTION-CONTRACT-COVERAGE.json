@@ -170,10 +170,10 @@
       "gateway": "meta_native_action",
       "actions": 591,
       "counts": {
-        "blocked_write": 142,
+        "blocked_write": 136,
         "media_workflow": 4,
         "native_read": 420,
-        "reviewed_write_family": 20,
+        "reviewed_write_family": 26,
         "unqualified_read": 5
       },
       "captured_catalog_complete": true,
@@ -22849,7 +22849,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -22878,7 +22879,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -22894,7 +22896,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -22910,7 +22913,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -22926,7 +22930,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -22942,7 +22947,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -22971,7 +22977,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23003,7 +23010,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23019,7 +23027,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23035,7 +23044,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23079,7 +23089,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23095,7 +23106,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23105,26 +23117,30 @@
       "aliases": [],
       "method": "POST",
       "path": "/v25.0/act_{ad_account_id}/adlabels",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/meta-label-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/meta-label-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "meta_labels"
     },
     {
       "gateway": "meta_native_action",
       "action": "meta_ad_account_id_adlabels_get",
       "aliases": [],
       "method": "GET",
-      "path": "/v25.0/{ad_account_id}/adlabels",
+      "path": "/v25.0/act_{ad_account_id}/adlabels",
       "status": "native_read",
       "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
-      "source": "OBSERVED",
+      "source": "VENDOR_DOCUMENTED_INDEPENDENT_MAPPING",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23153,7 +23169,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23182,7 +23199,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23211,7 +23229,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23243,7 +23262,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23259,7 +23279,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23275,7 +23296,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23291,7 +23313,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23323,7 +23346,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23380,7 +23404,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23409,7 +23434,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23425,7 +23451,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23441,7 +23468,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23483,7 +23511,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23512,7 +23541,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23528,7 +23558,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23557,7 +23588,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23586,7 +23618,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23602,7 +23635,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23618,7 +23652,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23634,7 +23669,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23679,7 +23715,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23695,7 +23732,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23711,7 +23749,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23727,7 +23766,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23769,7 +23809,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23798,7 +23839,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23827,7 +23869,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23843,7 +23886,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23859,7 +23903,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23875,7 +23920,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23891,7 +23937,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23907,7 +23954,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23923,7 +23971,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23939,7 +23988,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23955,7 +24005,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23984,7 +24035,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24000,7 +24052,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24016,7 +24069,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24032,7 +24086,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24048,7 +24103,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24064,7 +24120,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24080,7 +24137,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24096,7 +24154,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24125,7 +24184,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24141,7 +24201,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24157,7 +24218,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24186,7 +24248,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24202,7 +24265,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24231,7 +24295,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24260,7 +24325,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24276,7 +24342,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24292,7 +24359,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24308,7 +24376,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24324,7 +24393,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24340,7 +24410,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24382,7 +24453,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24398,7 +24470,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24414,7 +24487,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24430,7 +24504,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24446,7 +24521,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24462,7 +24538,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24478,7 +24555,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24507,7 +24585,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24523,7 +24602,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24539,7 +24619,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24582,6 +24663,7 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -24598,7 +24680,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24614,7 +24697,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24630,7 +24714,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24663,7 +24748,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24732,7 +24818,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24742,12 +24829,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v25.0/{ad_id}/adlabels",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/meta-label-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/meta-label-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "meta_labels"
     },
     {
       "gateway": "meta_native_action",
@@ -24790,7 +24880,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24806,7 +24897,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24822,7 +24914,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24838,7 +24931,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24854,7 +24948,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24888,7 +24983,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24904,7 +25000,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24920,7 +25017,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24936,7 +25034,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24952,7 +25051,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24962,12 +25062,15 @@
       "aliases": [],
       "method": "DELETE",
       "path": "/v25.0/{ad_label_id}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/meta-label-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/meta-label-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "meta_labels"
     },
     {
       "gateway": "meta_native_action",
@@ -24975,12 +25078,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v25.0/{ad_label_id}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/meta-label-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/meta-label-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "meta_labels"
     },
     {
       "gateway": "meta_native_action",
@@ -24996,7 +25102,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25012,7 +25119,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25028,7 +25136,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25044,7 +25153,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25060,7 +25170,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25076,7 +25187,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25092,7 +25204,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25121,7 +25234,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25137,7 +25251,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25166,7 +25281,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25198,7 +25314,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25214,7 +25331,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25230,7 +25348,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25246,7 +25365,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25275,7 +25395,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25291,7 +25412,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25307,7 +25429,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25323,7 +25446,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25355,7 +25479,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25371,7 +25496,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25387,7 +25513,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25403,7 +25530,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25419,7 +25547,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25435,7 +25564,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25464,7 +25594,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25536,7 +25667,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25554,7 +25686,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25572,7 +25705,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25606,7 +25740,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25637,7 +25772,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25655,7 +25791,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25699,7 +25836,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25741,7 +25879,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25770,7 +25909,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25786,7 +25926,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25815,7 +25956,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25831,7 +25973,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25847,7 +25990,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25863,7 +26007,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25879,7 +26024,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25895,7 +26041,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25924,7 +26071,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25940,7 +26088,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25956,7 +26105,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25972,7 +26122,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25988,7 +26139,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26004,7 +26156,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26020,7 +26173,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26036,7 +26190,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26052,7 +26207,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26081,7 +26237,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26123,7 +26280,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26152,7 +26310,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26168,7 +26327,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26184,7 +26344,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26200,7 +26361,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26216,7 +26378,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26232,7 +26395,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26248,7 +26412,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26264,7 +26429,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26280,7 +26446,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26296,7 +26463,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26325,7 +26493,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26341,7 +26510,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26357,7 +26527,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26373,7 +26544,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26389,7 +26561,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26405,7 +26578,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26421,7 +26595,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26437,7 +26612,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26453,7 +26629,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26469,7 +26646,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26498,7 +26676,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26514,7 +26693,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26530,7 +26710,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26546,7 +26727,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26562,7 +26744,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26578,7 +26761,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26594,7 +26778,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26623,7 +26808,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26639,7 +26825,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26668,7 +26855,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26710,7 +26898,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26726,7 +26915,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26742,7 +26932,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26771,7 +26962,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26800,7 +26992,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26842,7 +27035,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26858,7 +27052,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26874,7 +27069,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26890,7 +27086,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26906,7 +27103,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26922,7 +27120,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26951,7 +27150,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26967,7 +27167,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26996,7 +27197,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27012,7 +27214,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27041,7 +27244,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27057,7 +27261,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27073,7 +27278,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27089,7 +27295,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27105,7 +27312,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27121,7 +27329,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27137,7 +27346,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27153,7 +27363,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27169,7 +27380,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27185,7 +27397,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27201,7 +27414,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27217,7 +27431,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27233,7 +27448,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27249,7 +27465,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27265,7 +27482,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27281,7 +27499,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27297,7 +27516,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27313,7 +27533,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27329,7 +27550,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27345,7 +27567,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27361,7 +27584,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27377,7 +27601,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27393,7 +27618,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27409,7 +27635,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27425,7 +27652,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27441,7 +27669,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27457,7 +27686,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27473,7 +27703,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27489,7 +27720,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27505,7 +27737,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27547,7 +27780,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27563,7 +27797,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27579,7 +27814,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27595,7 +27831,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27611,7 +27848,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27640,7 +27878,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27656,7 +27895,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27672,7 +27912,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27701,7 +27942,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27732,7 +27974,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27748,7 +27991,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27764,7 +28008,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27780,7 +28025,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27796,7 +28042,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27812,7 +28059,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27828,7 +28076,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27844,7 +28093,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27860,7 +28110,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27876,7 +28127,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27892,7 +28144,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27908,7 +28161,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27937,7 +28191,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27983,7 +28238,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28067,7 +28323,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28083,7 +28340,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28099,7 +28357,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28109,12 +28368,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v25.0/{campaign_id}/adlabels",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/meta-label-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/meta-label-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "meta_labels"
     },
     {
       "gateway": "meta_native_action",
@@ -28128,7 +28390,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28144,7 +28407,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28160,7 +28424,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28189,7 +28454,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28218,7 +28484,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28250,7 +28517,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28266,7 +28534,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28311,7 +28580,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28329,7 +28599,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28347,7 +28618,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28394,7 +28666,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28427,7 +28700,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28491,7 +28765,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28501,12 +28776,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v25.0/{creative_id}/adlabels",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/meta-label-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/meta-label-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "meta_labels"
     },
     {
       "gateway": "meta_native_action",
@@ -28520,7 +28798,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28549,7 +28828,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28565,7 +28845,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28596,7 +28877,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28614,7 +28896,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28677,7 +28960,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28719,7 +29003,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28735,7 +29020,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28751,7 +29037,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28780,7 +29067,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28796,7 +29084,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28812,7 +29101,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28828,7 +29118,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28844,7 +29135,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28860,7 +29152,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28915,7 +29208,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28944,7 +29238,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28962,7 +29257,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28995,7 +29291,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29011,7 +29308,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29027,7 +29325,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29056,7 +29355,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29072,7 +29372,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29088,7 +29389,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29104,7 +29406,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29120,7 +29423,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29138,7 +29442,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29173,7 +29478,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29189,7 +29495,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29218,7 +29525,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29234,7 +29542,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29250,7 +29559,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29279,7 +29589,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29295,7 +29606,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29311,7 +29623,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29340,7 +29653,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29356,7 +29670,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29372,7 +29687,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29401,7 +29717,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29443,7 +29760,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29459,7 +29777,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29475,7 +29794,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29517,7 +29837,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29548,7 +29869,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29564,7 +29886,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29580,7 +29903,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29596,7 +29920,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29612,7 +29937,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29628,7 +29954,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29644,7 +29971,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29660,7 +29988,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29676,7 +30005,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29692,7 +30022,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29708,7 +30039,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29724,7 +30056,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29740,7 +30073,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29756,7 +30090,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29772,7 +30107,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29801,7 +30137,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29817,7 +30154,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29833,7 +30171,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29849,7 +30188,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29865,7 +30205,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29881,7 +30222,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29897,7 +30239,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29913,7 +30256,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29929,7 +30273,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29945,7 +30290,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29961,7 +30307,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29977,7 +30324,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29993,7 +30341,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30035,7 +30384,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30051,7 +30401,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30067,7 +30418,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30083,7 +30435,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30099,7 +30452,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30130,7 +30484,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30148,7 +30503,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30164,7 +30520,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30206,7 +30563,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30222,7 +30580,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30251,7 +30610,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30267,7 +30627,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30283,7 +30644,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30325,7 +30687,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30341,7 +30704,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30357,7 +30721,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30373,7 +30738,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30389,7 +30755,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30405,7 +30772,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30421,7 +30789,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30450,7 +30819,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30466,7 +30836,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30482,7 +30853,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30498,7 +30870,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30527,7 +30900,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30543,7 +30917,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30559,7 +30934,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30588,7 +30964,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30617,7 +30994,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30646,7 +31024,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30675,7 +31054,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30730,7 +31110,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30759,7 +31140,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30775,7 +31157,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30791,7 +31174,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30820,7 +31204,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30849,7 +31234,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30865,7 +31251,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30894,7 +31281,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30910,7 +31298,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30939,7 +31328,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30955,7 +31345,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30984,7 +31375,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31000,7 +31392,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31016,7 +31409,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31032,7 +31426,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31048,7 +31443,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31077,7 +31473,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31106,7 +31503,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31122,7 +31520,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31138,7 +31537,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31154,7 +31554,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31183,7 +31584,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31199,7 +31601,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31215,7 +31618,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31231,7 +31635,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31247,7 +31652,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31276,7 +31682,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31292,7 +31699,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31325,7 +31733,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31343,7 +31752,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31359,7 +31769,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31377,7 +31788,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31434,7 +31846,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31450,7 +31863,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31466,7 +31880,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31482,7 +31897,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31515,7 +31931,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31531,7 +31948,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31547,7 +31965,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31563,7 +31982,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31579,7 +31999,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31595,7 +32016,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31611,7 +32033,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31627,7 +32050,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31643,7 +32067,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31659,7 +32084,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31675,7 +32101,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31691,7 +32118,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31707,7 +32135,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31725,7 +32154,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31743,7 +32173,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31761,7 +32192,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31779,7 +32211,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31797,7 +32230,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31852,7 +32286,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31907,7 +32342,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31936,7 +32372,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31954,7 +32391,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/meta-provision.test.ts",
-        "tests/meta-contracts.test.ts"
+        "tests/meta-contracts.test.ts",
+        "tests/meta-label-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },

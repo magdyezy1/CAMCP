@@ -5,6 +5,8 @@ export class Introspection {
  constructor(private registry:Registry){}
  describe(gateway:string,input:JsonObject):JsonObject{
   const name=input.target_action;if(!name)throw new MirrorError('INVALID_ARGUMENT','target_action is required for DESCRIBE_ACTION.');
+  const effective=this.registry.action(gateway,name);
+  if(gateway==='meta_native_action'&&effective?.name==='meta_ad_account_id_adlabels_get')return {success:true,api_version:'v25.0',...structuredClone(effective.raw),path:effective.path,mirror_evidence:effective.evidence,captured_mapping:structuredClone(effective.raw),source:'https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adaccount.py'};
   const exact=this.registry.data.descriptions[gateway+'/'+name];if(exact)return structuredClone(exact);
   const action=this.registry.action(gateway,name);if(!action)throw new MirrorError('UNKNOWN_ACTION','Action is absent from the captured catalog.');
   return {success:true,api_version:this.registry.catalogs.get(gateway)?.api_version,...structuredClone(action.raw),mirror_evidence:'Catalog metadata only; extended DESCRIBE_ACTION response is unverified.'};

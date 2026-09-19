@@ -11,6 +11,7 @@ import {googleGlobalReadMethods} from './execution-risk.js';
 import {authorizeQualifiedProviderRead} from './provider-read-contracts.js';
 import {authorizeCriteoInternalRead,assertCriteoReadScope} from './criteo-targeting-writes.js';
 import {assertGoogleGenerationScope} from './google-generation.js';
+import {assertMetaLabelScope,metaLabelIdentities} from './meta-label-writes.js';
 
 export function normalizeAccount(gateway:string,id:unknown):string{
  const value=String(id);return gateway==='meta_native_action'?value.replace(/^act_/,''):gateway==='google_ads_native_action'?value.replaceAll('-',''):value;
@@ -56,6 +57,7 @@ export class ScopeGuard {
   };
   walk(plan.query);walk(plan.body);walk(decoded,'path');
   assertGoogleGenerationScope(plan,connection);
+  if(plan.gateway==='meta_native_action'&&(plan.action==='AMCP_META_LABEL_READ'||plan.method==='GET'&&/^\/v25\.0\/act_\d+\/adlabels$/.test(plan.path)))assertMetaLabelScope(connection);
   if(plan.gateway==='criteo_native_action'&&plan.action==='AMCP_CRITEO_TARGET_READ')assertCriteoReadScope(connection);
   if(authorizeQualifiedProviderRead(plan,connection,id))return id;
   if(authorizeCriteoInternalRead(plan,connection,id))return id;
@@ -147,6 +149,9 @@ export class ScopeGuard {
   }
   if(plan.gateway==='meta_native_action'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads|adcreatives)$/.test(plan.path)&&Array.isArray(d?.data)){
    for(const entity of d.data)if(typeof entity?.id==='string'&&/^\d+$/.test(entity.id))this.store.rememberResource(connection,id,entity.id);
+  }
+  if(plan.gateway==='meta_native_action'&&/^\/v25\.0\/act_\d+\/adlabels$/.test(plan.path)){
+   const labels=metaLabelIdentities(d,id);for(const label of labels)this.store.rememberResource(connection,id,label);
   }
   if(plan.gateway==='snapchat_native_action'){
    const m=/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives|media)$/.exec(plan.path);

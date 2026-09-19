@@ -8,6 +8,7 @@ import {guardInput} from './security.js';
 import {appleActions} from './apple-native.js';
 import {microsoftActions,microsoftGateway,microsoftTool} from './microsoft-native.js';
 import {extendRedditTool} from './reddit-extensions.js';
+import {metaActionOverride} from './meta-contracts.js';
 const addFormats=addFormatsModule as unknown as (ajv:Ajv)=>void;
 export class Registry {
  readonly data:RegistryData; readonly tools=new Map<string,ToolDefinition>(); readonly catalogs=new Map<string,Catalog>();
@@ -17,7 +18,7 @@ export class Registry {
   this.data=data??JSON.parse(fs.readFileSync(fileURLToPath(new URL('../../generated/registry.json',import.meta.url)),'utf8'));
   addFormats(this.ajv);
   for(const original of this.data.tools){const tool=original.name==='reddit_native_action'?extendRedditTool(original):original;this.tools.set(tool.name,tool);this.validators.set(tool.name,this.ajv.compile(tool.inputSchema));for(const op of tool.operations??[])this.validators.set(tool.name+'/'+op.operation,this.ajv.compile(op.argumentsSchema));}
-  for(const catalog of this.data.catalogs){this.catalogs.set(catalog.gateway,catalog);for(const action of catalog.actions)this.register(catalog.gateway,action);}
+  for(const original of this.data.catalogs){const catalog=original.gateway==='meta_native_action'?{...original,actions:original.actions.map(metaActionOverride)}:original;this.catalogs.set(catalog.gateway,catalog);for(const action of catalog.actions)this.register(catalog.gateway,action);}
   for(const action of this.data.supplemental)this.register(action.gateway!,action,false);
   if(this.tools.has('apple_ads_native_action'))for(const action of appleActions)this.register('apple_ads_native_action',action,false);
   if(this.tools.has('amcp_tool_help')){

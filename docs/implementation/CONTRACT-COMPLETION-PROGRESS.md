@@ -52,8 +52,8 @@ qualification dependencies, not a reason to omit locally implementable code.
 
 ## Current checkpoint (2026-09-19)
 
-The working tree now inventories **3,241 actions**, including **366 reviewed-family
-rows**. **948 mapped writes, 105 unmapped actions, 31 unqualified reads and eight
+The working tree now inventories **3,241 actions**, including **372 reviewed-family
+rows**. **942 mapped writes, 105 unmapped actions, 31 unqualified reads and eight
 input-dependent adapters remain incomplete**. Four routes are now explicitly
 **provider_unsupported**, including three previously blocked writes and one read;
 these are not counted as implemented. The first batch added 68 reviewed action
@@ -193,3 +193,24 @@ Candidate P passed the full release check: 896 tests passed, zero failures, one
 FFmpeg skip; four capture tests passed. All strict generated/ledger and release
 checks passed. The alias-report correction preserves the Google legacy immutable
 update restriction and changes no native execution permission.
+
+Alias correction pushed as `51cfd52`. Six additional Meta label contracts now
+implement creation, renaming, deletion and attachment to ads/campaigns/creatives.
+The account label GET route is corrected independently from capture evidence.
+Complete bounded account membership, exact target account checks, current Ads
+scopes, native receipts, read-back and durable claims are implemented. Unknown
+or omitted target membership is refused pending live absence-semantics evidence.
+Initial 15, expanded 21, and final 39 focused compatibility/guide tests passed.
+Candidate Q must pass the sanitized full release checks before push. The rest
+of the backlog remains open; native Meta compatibility is not live-qualified.
+
+Candidate Q failed three capture/conformance assertions (914 passed, one FFmpeg
+skip). All stemmed from the route correction mutating the raw metadata shape or
+the deliberate one-template difference. The override now preserves captured
+raw metadata and separately exposes its effective path. Thirty-four targeted
+catalog/compiler/label tests and compatibility replay passed. Candidate R follows;
+Q's failed log remains visible and no failed candidate was pushed.
+
+Candidate R passed: 918 tests, zero failures, one FFmpeg skip; four capture tests
+also passed. Meta labels are qualified within their documented local bounds.
+The separate Google bid-modifier draft is not included in this qualification.

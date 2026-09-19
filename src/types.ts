@@ -52,6 +52,8 @@ export interface CompiledRequest {
   redditProfilesState?:boolean;
   /** Exact selected-account targeting discovery; external callers cannot supply this context. */
   criteoTargetState?:{lineId:string;kind:string;audienceIds:string[]};
+  /** Complete selected-account Meta labels and exact target membership; internal only. */
+  metaLabelState?:{kind:'create'|'rename'|'delete'|'attach';labelId?:string;targetId?:string;verification?:boolean};
   /** Server-derived DV360 membership/absence read, never caller supplied. */
   dv360ListState?:{kind:string;collection:boolean};
   /** Server-derived GTM workflow read. Never accepted from external arguments. */
