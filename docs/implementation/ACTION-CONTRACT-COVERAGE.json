@@ -25,8 +25,8 @@
       "gateway": "amcp_native_action",
       "actions": 77,
       "counts": {
-        "local_workflow": 55,
-        "unmapped": 22
+        "local_workflow": 56,
+        "unmapped": 21
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -1754,11 +1754,13 @@
       "aliases": [],
       "method": null,
       "path": null,
-      "status": "unmapped",
-      "implementation": "",
-      "reason": "No provider request mapping exists. The advertised name is not executable.",
-      "source": "INFERRED_OUTER_ENVELOPE",
-      "tests": [],
+      "status": "local_workflow",
+      "implementation": "src/meta-ad-library.ts",
+      "reason": "Bounded public Meta Ad Library search through the sole/default connection. Media format is translated separately from provider ad category. Geographic API coverage and result limits are explicit; no performance inference or token-bearing URLs are returned.",
+      "source": "https://www.facebook.com/ads/library/api/",
+      "tests": [
+        "tests/meta-ad-library.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -22877,7 +22879,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -22907,7 +22910,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -22924,7 +22928,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -22941,7 +22946,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -22958,7 +22964,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -22975,7 +22982,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23005,7 +23013,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23038,7 +23047,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23055,7 +23065,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23072,7 +23083,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23117,7 +23129,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23134,7 +23147,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23167,7 +23181,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23197,7 +23212,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23227,7 +23243,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23257,7 +23274,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23290,7 +23308,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23307,7 +23326,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23324,7 +23344,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23341,7 +23362,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23374,7 +23396,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23432,7 +23455,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23462,7 +23486,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23479,7 +23504,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23496,7 +23522,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23539,7 +23566,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23569,7 +23597,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23586,7 +23615,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23616,7 +23646,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23646,7 +23677,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23663,7 +23695,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23680,7 +23713,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23697,7 +23731,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23743,7 +23778,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23760,7 +23796,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23777,7 +23814,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23794,7 +23832,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23837,7 +23876,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23867,7 +23907,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23897,7 +23938,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23914,7 +23956,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23931,7 +23974,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23948,7 +23992,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23965,7 +24010,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23982,7 +24028,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23999,7 +24046,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24016,7 +24064,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24033,7 +24082,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24063,7 +24113,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24080,7 +24131,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24097,7 +24149,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24114,7 +24167,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24131,7 +24185,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24148,7 +24203,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24165,7 +24221,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24182,7 +24239,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24212,7 +24270,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24229,7 +24288,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24246,7 +24306,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24276,7 +24337,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24293,7 +24355,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24323,7 +24386,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24353,7 +24417,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24370,7 +24435,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24387,7 +24453,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24404,7 +24471,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24421,7 +24489,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24438,7 +24507,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24481,7 +24551,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24498,7 +24569,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24515,7 +24587,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24532,7 +24605,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24549,7 +24623,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24566,7 +24641,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24583,7 +24659,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24613,7 +24690,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24630,7 +24708,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24647,7 +24726,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24691,6 +24771,7 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -24708,7 +24789,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24725,7 +24807,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24742,7 +24825,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24776,7 +24860,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24846,7 +24931,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24908,7 +24994,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24925,7 +25012,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24942,7 +25030,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24959,7 +25048,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24976,7 +25066,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25011,7 +25102,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25028,7 +25120,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25045,7 +25138,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25062,7 +25156,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25079,7 +25174,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25130,7 +25226,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25147,7 +25244,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25164,7 +25262,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25181,7 +25280,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25198,7 +25298,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25215,7 +25316,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25232,7 +25334,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25262,7 +25365,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25279,7 +25383,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25309,7 +25414,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25342,7 +25448,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25359,7 +25466,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25376,7 +25484,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25393,7 +25502,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25423,7 +25533,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25440,7 +25551,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25457,7 +25569,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25474,7 +25587,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25507,7 +25621,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25524,7 +25639,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25541,7 +25657,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25558,7 +25675,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25575,7 +25693,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25592,7 +25711,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25622,7 +25742,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25695,7 +25816,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25714,7 +25836,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25733,7 +25856,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25768,7 +25892,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25800,7 +25925,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25819,7 +25945,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25864,7 +25991,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25907,7 +26035,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25937,7 +26066,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25954,7 +26084,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25984,7 +26115,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26001,7 +26133,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26018,7 +26151,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26035,7 +26169,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26052,7 +26187,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26069,7 +26205,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26099,7 +26236,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26116,7 +26254,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26133,7 +26272,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26150,7 +26290,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26167,7 +26308,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26184,7 +26326,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26201,7 +26344,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26218,7 +26362,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26235,7 +26380,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26265,7 +26411,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26308,7 +26455,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26338,7 +26486,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26355,7 +26504,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26372,7 +26522,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26389,7 +26540,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26406,7 +26558,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26423,7 +26576,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26440,7 +26594,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26457,7 +26612,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26474,7 +26630,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26491,7 +26648,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26521,7 +26679,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26538,7 +26697,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26555,7 +26715,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26572,7 +26733,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26589,7 +26751,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26606,7 +26769,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26623,7 +26787,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26640,7 +26805,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26657,7 +26823,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26674,7 +26841,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26704,7 +26872,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26721,7 +26890,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26738,7 +26908,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26755,7 +26926,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26772,7 +26944,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26789,7 +26962,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26806,7 +26980,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26836,7 +27011,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26853,7 +27029,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26883,7 +27060,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26926,7 +27104,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26943,7 +27122,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26960,7 +27140,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26990,7 +27171,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27020,7 +27202,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27063,7 +27246,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27080,7 +27264,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27097,7 +27282,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27114,7 +27300,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27131,7 +27318,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27148,7 +27336,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27178,7 +27367,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27195,7 +27385,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27225,7 +27416,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27242,7 +27434,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27272,7 +27465,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27289,7 +27483,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27306,7 +27501,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27323,7 +27519,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27340,7 +27537,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27357,7 +27555,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27374,7 +27573,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27391,7 +27591,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27408,7 +27609,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27425,7 +27627,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27442,7 +27645,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27459,7 +27663,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27476,7 +27681,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27493,7 +27699,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27510,7 +27717,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27527,7 +27735,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27544,7 +27753,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27561,7 +27771,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27578,7 +27789,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27595,7 +27807,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27612,7 +27825,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27629,7 +27843,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27646,7 +27861,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27663,7 +27879,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27680,7 +27897,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27697,7 +27915,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27714,7 +27933,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27731,7 +27951,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27748,7 +27969,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27765,7 +27987,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27808,7 +28031,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27825,7 +28049,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27842,7 +28067,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27859,7 +28085,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27876,7 +28103,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27906,7 +28134,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27923,7 +28152,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27940,7 +28170,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27970,7 +28201,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28002,7 +28234,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28019,7 +28252,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28036,7 +28270,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28053,7 +28288,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28070,7 +28306,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28087,7 +28324,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28104,7 +28342,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28121,7 +28360,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28138,7 +28378,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28155,7 +28396,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28172,7 +28414,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28189,7 +28432,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28219,7 +28463,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28266,7 +28511,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28351,7 +28597,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28368,7 +28615,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28385,7 +28633,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28418,7 +28667,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28435,7 +28685,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28452,7 +28703,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28482,7 +28734,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28512,7 +28765,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28545,7 +28799,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28562,7 +28817,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28608,7 +28864,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28627,7 +28884,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28646,7 +28904,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28694,7 +28953,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28728,7 +28988,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28793,7 +29054,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28826,7 +29088,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28856,7 +29119,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28873,7 +29137,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28905,7 +29170,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28924,7 +29190,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28988,7 +29255,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29031,7 +29299,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29048,7 +29317,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29065,7 +29335,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29095,7 +29366,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29112,7 +29384,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29129,7 +29402,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29146,7 +29420,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29163,7 +29438,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29180,7 +29456,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29236,7 +29513,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29266,7 +29544,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29285,7 +29564,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29319,7 +29599,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29336,7 +29617,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29353,7 +29635,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29383,7 +29666,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29400,7 +29684,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29417,7 +29702,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29434,7 +29720,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29451,7 +29738,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29470,7 +29758,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29506,7 +29795,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29523,7 +29813,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29553,7 +29844,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29570,7 +29862,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29587,7 +29880,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29617,7 +29911,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29634,7 +29929,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29651,7 +29947,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29681,7 +29978,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29698,7 +29996,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29715,7 +30014,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29745,7 +30045,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29788,7 +30089,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29805,7 +30107,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29822,7 +30125,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29865,7 +30169,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29897,7 +30202,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29914,7 +30220,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29931,7 +30238,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29948,7 +30256,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29965,7 +30274,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29982,7 +30292,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29999,7 +30310,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30016,7 +30328,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30033,7 +30346,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30050,7 +30364,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30067,7 +30382,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30084,7 +30400,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30101,7 +30418,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30118,7 +30436,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30135,7 +30454,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30165,7 +30485,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30182,7 +30503,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30199,7 +30521,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30216,7 +30539,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30233,7 +30557,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30250,7 +30575,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30267,7 +30593,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30284,7 +30611,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30301,7 +30629,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30318,7 +30647,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30335,7 +30665,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30352,7 +30683,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30369,7 +30701,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30412,7 +30745,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30429,7 +30763,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30446,7 +30781,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30463,7 +30799,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30480,7 +30817,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30512,7 +30850,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30531,7 +30870,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30548,7 +30888,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30591,7 +30932,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30608,7 +30950,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30638,7 +30981,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30655,7 +30999,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30672,7 +31017,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30715,7 +31061,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30732,7 +31079,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30749,7 +31097,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30766,7 +31115,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30783,7 +31133,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30800,7 +31151,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30817,7 +31169,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30847,7 +31200,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30864,7 +31218,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30881,7 +31236,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30898,7 +31254,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30928,7 +31285,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30945,7 +31303,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30962,7 +31321,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30992,7 +31352,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31022,7 +31383,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31052,7 +31414,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31082,7 +31445,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31138,7 +31502,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31168,7 +31533,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31185,7 +31551,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31202,7 +31569,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31232,7 +31600,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31262,7 +31631,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31279,7 +31649,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31309,7 +31680,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31326,7 +31698,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31356,7 +31729,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31373,7 +31747,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31403,7 +31778,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31420,7 +31796,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31437,7 +31814,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31454,7 +31832,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31471,7 +31850,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31501,7 +31881,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31531,7 +31912,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31548,7 +31930,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31565,7 +31948,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31582,7 +31966,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31612,7 +31997,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31629,7 +32015,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31646,7 +32033,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31663,7 +32051,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31680,7 +32069,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31710,7 +32100,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31727,7 +32118,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31761,7 +32153,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31780,7 +32173,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31797,7 +32191,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31816,7 +32211,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31874,7 +32270,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31891,7 +32288,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31908,7 +32306,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31925,7 +32324,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31959,7 +32359,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31976,7 +32377,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31993,7 +32395,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32010,7 +32413,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32027,7 +32431,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32044,7 +32449,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32061,7 +32467,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32078,7 +32485,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32095,7 +32503,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32112,7 +32521,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32129,7 +32539,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32146,7 +32557,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32163,7 +32575,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32182,7 +32595,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32201,7 +32615,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32220,7 +32635,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32239,7 +32655,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32258,7 +32675,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32314,7 +32732,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32370,7 +32789,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32400,7 +32820,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32419,7 +32840,8 @@
       "tests": [
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
-        "tests/meta-label-writes.test.ts"
+        "tests/meta-label-writes.test.ts",
+        "tests/meta-ad-library.test.ts"
       ],
       "live_qualification": "unverified"
     },

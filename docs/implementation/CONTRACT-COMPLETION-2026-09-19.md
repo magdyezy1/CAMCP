@@ -962,3 +962,52 @@ checks passed 34 tests (`linkedin-links-qualified.log`). All strict generated,
 provider, web and lifecycle checks passed. A later unregistered Meta Ad Library
 draft is excluded from this qualification and the LinkedIn commit. Native live
 batch compatibility and installed conversion tracking remain unverified.
+
+## Meta public Ad Library workflow
+
+LinkedIn associations were pushed as `981b5f9`. The previously unmapped
+`amcp_native_action/search_ads_library` now performs a bounded public archive
+query through the sole/default enabled Meta connection. Its fixed GET contract
+does not authorize other Graph paths or establish private advertiser ownership.
+Actor/connection access is rechecked during pagination and cache reads.
+Captured `ad_type` maps to native `media_type`; native category remains ALL and
+status ACTIVE. Native search terms are limited to 100 characters; longer captured
+schema input is rejected rather than silently truncated.
+
+Results expose geographic coverage, query completeness, result limits, fetch time,
+cache status and uncertainty, without performance inference. Token-bearing
+snapshot/paging URLs are omitted; an ID-derived public library URL is returned.
+Cursors stay on the fixed Graph origin. Bounds: 25 pages, 4 MiB per response,
+8 MiB total, 60 seconds, 100 requested ads. Malformed/partial/unknown envelopes,
+duplicate identities, cursor loops and provider errors fail explicitly. The
+15-minute in-memory cache is tenant/connection scoped and capped at 128 entries
+and 16 MiB per Store; backward clock jumps invalidate entries.
+
+Official source checked 2026-09-19:
+[Meta Ad Library API](https://br-fr.facebook.com/ads/library/api/?source=archive-landing-page).
+Transport uses Graph v25.0. API coverage is narrower than the public website;
+identity/location confirmation, app eligibility and geographic live results
+remain unverified. The guide and executable example explain these distinctions.
+
+Initial fixtures incorrectly used an enabled connection with no account binding;
+Store correctly refused it. They now use a valid synthetic account. A second run
+passed ten tests and failed two fixture assumptions: searching output for the
+word "cursors" also matched the explanatory next-action message, and 129 rapid
+requests exhausted the test transport's 100-call burst. Exact field/token
+assertions and a larger isolated fixture burst correct those cases; production
+pacing and Store constraints are unchanged. Logs `meta-library-first.log` and
+`meta-library-corrected.log` remain. Twelve dedicated tests subsequently passed;
+the executable example raises that count to 13. Final scope/inventory/guidance
+checks passed 24 tests (`meta-library-qualified.log`). Candidate U follows.
+
+Inventory: 3,241 actions, 381 reviewed-family rows, 933 blocked writes,
+104 unmapped actions and 31 unqualified reads. This read workflow removes one
+unmapped entry; it does not inflate write coverage or claim live qualification.
+
+Candidate U passed the entire check command: 973 passed, zero failures, one
+FFmpeg skip, plus four capture tests passed. Source tree hash
+`3d5ef440ee51ddb2f0143555a197cf45e1b53e74b888c4371106c3488dc7f075`, 481 files.
+Logs: `install-u.log`, `release-check-u.log`. All strict generation, provider,
+contract, web and lifecycle checks passed. Subsequent LinkedIn state corrections
+and conversion-rule drafts are excluded from U and the Meta commit. No live
+calls or advertising mutations were performed; FFmpeg/container checks remain open.

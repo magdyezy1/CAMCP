@@ -1,4 +1,5 @@
 import {campaignPreflight} from './campaign-preflight.js';
+import {searchMetaAdLibrary} from './meta-ad-library.js';
 import {assertProviderActionAvailable} from './retired-provider-actions.js';
 import {gtmDiagnosticOperations,gtmDiagnostics} from './gtm-diagnostics.js';
 import {randomUUID} from 'node:crypto';
@@ -158,6 +159,7 @@ export class MirrorService {
   return {...parsed,rows,status:'Success',report_request_id:reportId,download_complete:true,offset,limit,has_more:hasMore,...(hasMore?{next_call:next(offset+rows.length)}:{})};
  }
  private async delegated(gateway:string,operation:string,args:JsonObject,actor:Actor,requestId:string):Promise<unknown>{
+  if(gateway==='amcp_native_action'&&operation==='search_ads_library')return searchMetaAdLibrary(this.registry,this.store,this.transport,this.credentials,args,actor,requestId);
   if(gateway==='amcp_native_action'&&operation==='inspect_google_drive_media'){this.store.assertActorActive(actor);return inspectDrive(args.link,this.mediaFetcher);}
   if(gateway==='amcp_native_action'&&operation==='platform_media_upload'){
    if(args.action==='FINALIZE_UPLOAD_SESSION'){

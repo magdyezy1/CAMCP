@@ -13,6 +13,7 @@ import {authorizeCriteoInternalRead,assertCriteoReadScope} from './criteo-target
 import {assertGoogleGenerationScope} from './google-generation.js';
 import {assertMetaLabelScope,metaLabelIdentities} from './meta-label-writes.js';
 import {authorizeLinkedInConversion} from './linkedin-conversion-links.js';
+import {metaAdLibraryRead} from './meta-ad-library.js';
 import {assertGoogleBidScope} from './google-bid-modifiers.js';
 
 export function normalizeAccount(gateway:string,id:unknown):string{
@@ -35,6 +36,7 @@ export class ScopeGuard {
  constructor(private registry:Registry,private store:Store){}
  authorize(plan:CompiledRequest,connection:Connection):string{
   if(connection.gateway!==plan.gateway)throw new MirrorError('ACCOUNT_SCOPE_MISMATCH','Connection gateway does not match request.',{},403);
+  if(metaAdLibraryRead(plan))return 'public_ad_library';
   const id=normalizeAccount(plan.gateway,plan.accountId??(connection.accounts.length===1?connection.accounts[0]:''));
   if(!id||!connection.accounts.some(a=>normalizeAccount(plan.gateway,a)===id))throw new MirrorError('ACCOUNT_REQUIRED','Select an explicitly bound account for this request.',{},403);
   let decoded:string;try{decoded=decodeURIComponent(plan.path);}catch{throw new MirrorError('INVALID_PATH','Malformed path encoding.');}

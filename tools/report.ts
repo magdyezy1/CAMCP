@@ -13,7 +13,7 @@ import {guidanceResources} from '../src/guidance.js';
 import {assertGuidanceCoverage} from './guidance-coverage.js';
 const registry=new Registry(),vendor=new DelegatedNativeCompiler(),legacy=googleLegacyCoverage();
 const unimplemented:string[]=[];
-const localReads=new Set(['get_workspace_context','list_accounts','list_workspace_assets','get_creative_generation_job','inspect_google_drive_media']);
+const localReads=new Set(['get_workspace_context','list_accounts','list_workspace_assets','get_creative_generation_job','inspect_google_drive_media','search_ads_library']);
 const gateways=registry.data.catalogs.map(c=>({gateway:c.gateway,mode:c.mode,catalog_records:c.captured,known_denominator:c.reported_total,denominator_kind:c.denominator_kind,catalog_complete:c.complete,captured_http_routes:c.actions.filter(a=>a.path&&a.method).length,vendor_documented_routes:registry.data.supplemental.filter(a=>a.gateway===c.gateway).length+vendor.data.routes.filter(a=>a.gateway===c.gateway&&!a.unsupportedMedia).length+(c.gateway==='apple_ads_native_action'?appleActions.length:0),legacy_adapters:c.gateway==='google_ads_native_action'?legacy.total:0,live_mirror_verified:false,production_ready:false,gaps:c.gaps}));
 const workflowGaps=registry.data.tools.filter(t=>t.mode==='delegated').flatMap(t=>(t.operations??[]).filter(op=>t.name!=='amcp_platform_workspace'&&!vendor.isNativeOperation(t.name,op.operation)&&!(t.name==='amcp_native_action'&&(localReads.has(op.operation)||reportingOperations.has(op.operation)||businessWorkflowOperations.has(op.operation)&&!unimplemented.includes(op.operation)))).map(op=>({gateway:t.name,operation:op.operation,reason:'Workflow/provider implementation incomplete'})));
 const guidance=assertGuidanceCoverage();

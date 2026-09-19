@@ -53,7 +53,7 @@ qualification dependencies, not a reason to omit locally implementable code.
 ## Current checkpoint (2026-09-19)
 
 The working tree now inventories **3,241 actions**, including **381 reviewed-family
-rows**. **933 mapped writes, 105 unmapped actions, 31 unqualified reads and eight
+rows**. **933 mapped writes, 104 unmapped actions, 31 unqualified reads and eight
 input-dependent adapters remain incomplete**. Four routes are now explicitly
 **provider_unsupported**, including three previously blocked writes and one read;
 these are not counted as implemented. The first batch added 68 reviewed action
@@ -246,3 +246,14 @@ one FFmpeg skip, plus four capture tests passed. Final inventory/example checks
 passed 34 tests. LinkedIn associations are locally qualified within the documented
 bounds. An unregistered Meta Ad Library draft was written afterward and is not
 included in this candidate or the LinkedIn commit. Remaining counts stay explicit.
+
+LinkedIn associations are pushed as `981b5f9`. Meta public Ad Library search now
+has fixed-route authorization, bounded pagination, explicit geographic coverage,
+safe public URLs and a tenant/connection-scoped bounded cache. Initial fixture
+failures are preserved; 24 final focused scope, inventory and guide tests pass.
+Candidate U full checks follow. One formerly unmapped workflow is implemented;
+remaining writes and live provider qualification are still open.
+
+Candidate U passed: 973 tests, zero failures, one FFmpeg skip, plus four capture
+tests passed. This qualifies the Meta Ad Library workflow locally. Later LinkedIn
+state corrections and conversion-rule drafts are excluded and remain under test.

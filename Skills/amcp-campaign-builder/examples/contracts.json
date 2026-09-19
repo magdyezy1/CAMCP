@@ -8,8 +8,13 @@
       "arguments": {
         "action": "linkedin_rest_campaign_conversions_campaign_conversion_id_put",
         "account_id": "123",
-        "path_params": { "campaign_conversion_id": "(campaign:urn:li:sponsoredCampaign:456,conversion:urn:lla:llaPartnerConversion:789)" },
-        "payload": { "campaign": "urn:li:sponsoredCampaign:456", "conversion": "urn:lla:llaPartnerConversion:789" }
+        "path_params": {
+          "campaign_conversion_id": "(campaign:urn:li:sponsoredCampaign:456,conversion:urn:lla:llaPartnerConversion:789)"
+        },
+        "payload": {
+          "campaign": "urn:li:sponsoredCampaign:456",
+          "conversion": "urn:lla:llaPartnerConversion:789"
+        }
       }
     },
     {
@@ -17,11 +22,19 @@
       "arguments": {
         "action": "google_ads_v23_ad_group_bid_modifier_mutate_ad_group_bid_modifiers",
         "account_id": "123",
-        "payload": { "operations": [{ "create": {
-          "adGroup": "customers/123/adGroups/456",
-          "bidModifier": 1.2,
-          "device": { "type": "MOBILE" }
-        } }] }
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "adGroup": "customers/123/adGroups/456",
+                "bidModifier": 1.2,
+                "device": {
+                  "type": "MOBILE"
+                }
+              }
+            }
+          ]
+        }
       }
     },
     {
@@ -29,8 +42,16 @@
       "arguments": {
         "action": "meta_ad_id_adlabels_create",
         "account_id": "123",
-        "params": { "ad_id": "456" },
-        "payload": { "adlabels": [{ "id": "789" }] }
+        "params": {
+          "ad_id": "456"
+        },
+        "payload": {
+          "adlabels": [
+            {
+              "id": "789"
+            }
+          ]
+        }
       }
     },
     {
@@ -919,6 +940,20 @@
             "SITELINK_ASSET"
           ],
           "campaign_sitelink_count": 0
+        }
+      }
+    }
+  ],
+  "public_read_workflows": [
+    {
+      "gateway": "amcp_native_action",
+      "arguments": {
+        "operation": "search_ads_library",
+        "arguments": {
+          "search_term": "Example",
+          "country": "GB",
+          "ad_type": "VIDEO",
+          "limit": 25
         }
       }
     }
