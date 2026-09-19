@@ -1,0 +1,69 @@
+{
+  "api_version": "v23",
+  "source": "https://developers.google.com/google-ads/api/fields/v23/ad_group_bid_modifier",
+  "checked_at": "2026-09-19",
+  "method": "Official public field table text retrieved with web tool; no live account query",
+  "source_text_sha256": "fce03199ae61324596900f4f7b11c7f1c7d6434601df012b33840d0c2bfde539",
+  "fields": {
+    "ad_group": {
+      "selectable": true,
+      "repeated": false
+    },
+    "base_ad_group": {
+      "selectable": true,
+      "repeated": false
+    },
+    "bid_modifier": {
+      "selectable": true,
+      "repeated": false
+    },
+    "bid_modifier_source": {
+      "selectable": true,
+      "repeated": false
+    },
+    "criterion_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "device.type": {
+      "selectable": true,
+      "repeated": false
+    },
+    "hotel_advance_booking_window.max_days": {
+      "selectable": true,
+      "repeated": false
+    },
+    "hotel_advance_booking_window.min_days": {
+      "selectable": true,
+      "repeated": false
+    },
+    "hotel_check_in_date_range.end_date": {
+      "selectable": true,
+      "repeated": false
+    },
+    "hotel_check_in_date_range.start_date": {
+      "selectable": true,
+      "repeated": false
+    },
+    "hotel_check_in_day.day_of_week": {
+      "selectable": true,
+      "repeated": false
+    },
+    "hotel_date_selection_type.type": {
+      "selectable": true,
+      "repeated": false
+    },
+    "hotel_length_of_stay.max_nights": {
+      "selectable": true,
+      "repeated": false
+    },
+    "hotel_length_of_stay.min_nights": {
+      "selectable": true,
+      "repeated": false
+    },
+    "resource_name": {
+      "selectable": true,
+      "repeated": false
+    }
+  }
+}

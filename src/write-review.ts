@@ -1,6 +1,7 @@
 import {readRedditProfiles,validateRedditProfiles,validateRedditCreativePrerequisites,assertRedditCreativeAvailable} from './reddit-creative-writes.js';
 import {readKeywordPlanTree,validateKeywordPlanTree} from './google-keyword-plan-writes.js';
 import {reviewedWriteFamily} from './reviewed-routes.js';
+import {googleBidKind,assertGoogleBid,assertGoogleBidScope,googleBidSnapshots,readGoogleBidState,isGoogleBidRead,validateGoogleBidState,googleBidPrerequisites,googleBidOutcome} from './google-bid-modifiers.js';
 import {metaLabelKind,assertMetaLabel,assertMetaLabelScope,metaLabelSnapshots,readMetaLabels,validateMetaLabelState,validateMetaLabelPrerequisites,metaLabelOutcome} from './meta-label-writes.js';
 import {criteoTargetingKind,assertCriteoTargeting,assertCriteoTargetingScopes,criteoTargetingSnapshots,readCriteoTargeting,validateCriteoTargetState,validateCriteoTargetingPrerequisites,criteoTargetingOutcome} from './criteo-targeting-writes.js';
 import {readAssetSetContents,validateAssetSetContents} from './google-asset-set-writes.js';
@@ -66,6 +67,7 @@ export function writeOutcome(result:TransportResult,plan?:CompiledRequest,before
  return {success:errors.length===0,executed:true,outcome:errors.length?'partial_or_failed':'succeeded',data:plan?.gateway==='gtm_native_action'?gtmSafeConfiguration(result.data):result.data,status:result.status,headers:result.headers,...(result.headers['x-restli-id']?{created_id:result.headers['x-restli-id']}:{ }),...(errors.length?{failures:plan?.gateway==='gtm_native_action'?gtmSafeConfiguration(errors):errors,retry_safe:false}:{}),...(plan&&gtmWorkspaceKind(plan)?gtmWorkspaceReceipt(plan,result):{})};
 }
 function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,before:unknown[]):boolean {
+ if(googleBidKind(plan))return googleBidOutcome(plan,result);
  if(metaLabelKind(plan))return metaLabelOutcome(plan,result,before);
  if(criteoTargetingKind(plan))return criteoTargetingOutcome(plan,result);
  if(gtmWorkspaceKind(plan))return gtmWorkspaceOutcome(plan,result,before);
@@ -105,6 +107,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  return false;
 }
 export function validateState(read:CompiledRequest,result:TransportResult):void {
+ if(isGoogleBidRead(read)){validateGoogleBidState(read,result);return;}
  if(read.metaLabelState){validateMetaLabelState(read,result);return;}
  if(read.criteoTargetState){validateCriteoTargetState(read,result);return;}
  if(read.gateway==='reddit_native_action'&&read.redditProfilesState){validateRedditProfiles(read,result);return;}
@@ -233,11 +236,13 @@ export function assertWriteShape(plan:CompiledRequest){
   assertGoogleTargeting(plan);
   assertGoogleAssetLinks(plan);
   assertGoogleConfiguration(plan);
+  assertGoogleBid(plan);
  }
 }
 
 /** Reads are explicitly derived from the target, never supplied by the caller as proof. */
 export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRequest[]{
+ if(googleBidKind(plan))return googleBidSnapshots(plan);
  if(metaLabelKind(plan))return metaLabelSnapshots(plan);
  if(criteoTargetingKind(plan))return criteoTargetingSnapshots(plan);
  if(gtmWorkflowKind(plan))return gtmWorkflowSnapshots(plan);
@@ -321,6 +326,7 @@ export class WriteReviewService {
   if(plan.gateway==='reddit_native_action')assertRedditWriteScopes(c);
   if(criteoTargetingKind(plan))assertCriteoTargetingScopes(c);
   if(metaLabelKind(plan))assertMetaLabelScope(c,true);
+  if(googleBidKind(plan))assertGoogleBidScope(c);
   if(dv360ListKind(plan)&&!c.scopes.includes('https://www.googleapis.com/auth/display-video'))fail('PROVIDER_WRITE_SCOPE_REQUIRED','Reconnect DV360 with the display-video OAuth scope.');
   if(plan.gateway===microsoftGateway&&!c.scopes.some(s=>s===microsoftScope||s==='msads.manage'))fail('INSUFFICIENT_SCOPE','Reconnect Microsoft Advertising with msads.manage permission.');
   plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);assertMeasurementScopes(plan,c);return c;
@@ -333,7 +339,7 @@ export class WriteReviewService {
   });
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
-   try{result=await readMetaLabels(read,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.transport.request(page,current,auth);this.access(actor,plan,connectionId);return response;}))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
+   try{result=await readGoogleBidState(read,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.transport.request(page,current,auth);this.access(actor,plan,connectionId);return response;})))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
    this.access(actor,plan,connectionId);validateState(read,result);
    if(appleEntityKind(plan)==='shared_budget'&&read.path===plan.path){
     const accounts=appleSharedAccounts(plan,result.data),frozen=plan.scopeContext?.appleSharedAccountIds;
@@ -348,6 +354,7 @@ export class WriteReviewService {
   validateRedditCreativePrerequisites(plan,values);
   validateCriteoTargetingPrerequisites(plan,values);
   validateMetaLabelPrerequisites(plan,values);
+  googleBidPrerequisites(plan,values);
   validateAppleEntityPrerequisites(plan,reads,values);
   validateGtmWorkflowPrerequisites(plan,values);
   validateGtmWorkspacePrerequisites(plan,values);

@@ -3,7 +3,7 @@ import {linkedinVersion} from './linkedin-version.js';
 
 /** Maintained contract boundaries, not inferred from generated action counts. */
 export const providerContracts:JsonObject[]=[
- ['google','google_ads','v23','google-ads','google-ads','campaigns, budgets, targeting, ads; campaign/ad-group/customer/asset-group asset links; declared labels, customizers, ad parameters, campaign groups, conversion variables, remarketing actions, signals and exclusions; qualified asset sets, complete feed membership and saved Keyword Planner hierarchies','google-legacy','https://developers.google.com/google-ads/api/docs/start'],
+ ['google','google_ads','v23','google-ads','google-ads','campaigns, budgets, targeting, ads; campaign/ad-group/customer/asset-group asset links; declared labels, customizers, ad parameters, campaign groups, conversion variables, remarketing actions, signals and exclusions; qualified asset sets, complete feed membership, saved Keyword Planner hierarchies and complete ad-group device/hotel bid-modifier reviews','google-legacy','https://developers.google.com/google-ads/api/docs/start'],
  ['meta','meta','v25.0','meta','meta','campaigns, ad sets, creatives, ads; complete account-label creation, renaming, deletion and existing-label attachment to ads, campaigns and creatives','meta-provision','https://developers.facebook.com/docs/marketing-apis/'],
  ['tiktok','tiktok','v1.3','tiktok-snapchat','tiktok-snapchat','campaigns, ad groups, ads','write-platforms','https://business-api.tiktok.com/portal/docs'],
  ['snapchat','snapchat','v1','tiktok-snapchat','tiktok-snapchat','campaigns, ad squads, creatives, ads; reviewed creative collection PUT and existing JSON Patch','snapchat-writes','https://developers.snap.com/marketing-api/Ads-API/introduction'],
@@ -24,7 +24,7 @@ export const providerContracts:JsonObject[]=[
  ['google_business','google_business','v1',null,null,null,'delegated-native','https://developers.google.com/my-business/reference/rest'],
 ].map(([id,gateway,version,guide,media,writes,test,docs])=>({
  id,gateway:gateway+'_native_action',
- contract_version:({google:7,reddit:3,criteo:2,dv360:2,meta:3,microsoft:3,snapchat:2,linkedin:3,x:2,tiktok:2,ga4:2,gtm:4,gsc:2,apple:3} as Record<string,number>)[String(id)]??1,
+ contract_version:({google:8,reddit:3,criteo:2,dv360:2,meta:3,microsoft:3,snapchat:2,linkedin:3,x:2,tiktok:2,ga4:2,gtm:4,gsc:2,apple:3} as Record<string,number>)[String(id)]??1,
  api_version:version,owner_role:'AMCP integration maintainer',
  reviewed_at:['google','meta','apple','dv360','gtm','reddit','criteo'].includes(String(id))?'2026-09-19':['microsoft','snapchat','linkedin','ga4','gsc'].includes(String(id))?'2026-09-18':['x','tiktok'].includes(String(id))?'2026-09-14':'2026-09-12',
  documentation:docs,guide:guide?'amcp://guides/'+guide:null,

@@ -1,5 +1,50 @@
 # Google Ads: choose the channel's actual hierarchy
 
+## Ad-group bid modifiers
+
+Use `google_ads_v23_ad_group_bid_modifier_mutate_ad_group_bid_modifiers` or its
+`CREATE_AD_GROUP_BID_MODIFIER`, `UPDATE_AD_GROUP_BID_MODIFIER` and
+`REMOVE_AD_GROUP_BID_MODIFIER` aliases. A creation specifies the discovered
+`adGroup`, one `device` or hotel criterion and an explicit `bidModifier`.
+Supported hotel criteria are date selection, advance booking window, length of
+stay, check-in weekday and check-in date range. Hotel criteria require a Hotel
+campaign. Numeric ranges require explicit ordered boundaries; dates use valid
+`YYYY-MM-DD` strings. The provider still enforces product and bidding eligibility.
+
+A modifier is a multiplier: `1.2` means +20%, `0.8` means -20%. Use values from
+0.1 to 10; zero is a device opt-out only. Do not infer a modifier from performance
+without user-approved business reasoning. Updates use the exact discovered
+composite resource name and `updateMask: "bid_modifier"`; criterion and parent
+are immutable. An existing explicit modifier requires an update. Removal can
+restore a campaign-level/default bid and increase cost; it is not a bid of zero.
+
+Inspect → prepare → review → execute with `spend_change_confirmed:true` → verify.
+AMCP freezes the selected customer's timezone/currency, parent configurations,
+budget amounts and complete modifier collections for the affected groups.
+The selected connection must retain the Ads OAuth scope and account write grant.
+Owner activation policy covers every modifier change; deletion policy also
+covers removal. The review does not convert multipliers into monetary ceilings
+or forecast billed spend. Shared portfolio strategy internals and live auction
+effects are not certified by this snapshot.
+
+Read-back verifies exact criteria and multipliers. For removal it checks that
+the local override is absent, including a native inherited `CAMPAIGN` source.
+Unknown sources, partial pages or error-bearing receipts remain unverified.
+After a lost/partial response retain the original claim; never retry the write
+automatically. A verified setting does not prove a Smart Bidding strategy uses it.
+
+Local bounds: 25 operations, 1000 modifiers across the selected groups, 1100
+total state rows, 25 pages per query, 80 requests, 4 MiB per response, 8 MiB total
+and 60 seconds per state snapshot. A batch that would exceed verification
+capacity is refused. Campaign-level bid-modifier creation remains unqualified:
+the v23 resource marks `campaign` output-only and the create operation says no
+resource name is expected; the correct parent-binding request needs additional
+provider evidence. Do not send a guessed campaign field or temporary identity.
+
+References checked 2026-09-19: [v23 resource](https://developers.google.com/google-ads/api/reference/rpc/v23/AdGroupBidModifier),
+[selectable fields](https://developers.google.com/google-ads/api/fields/v23/ad_group_bid_modifier),
+[bidding workflow](https://developers.google.com/google-ads/api/docs/campaigns/bidding/manage-bid-modifiers).
+
 Use `google_ads_native_action`; `google_ads_v23_google_ads_search` accepts `payload.query` for GAQL. Read the campaign's `advertising_channel_type`, currency, timezone and budget before choosing a write family. Send string resource names (`customers/<id>/...`); updates require an explicit field mask.
 
 The v23 campaign fields are `start_date_time` / `end_date_time` (or their camelCase wire names), formatted `YYYY-MM-DD HH:mm:ss` in the customer timezone. Date-only business recipes produce `00:00:00` at the start and `23:59:59` on the inclusive end date. Do not use removed `start_date`/`end_date` fields in native v23 requests. New recipes use the current fields; an old unsubmitted saved plan containing removed fields needs correction and a new review. Never edit a submitted/uncertain request or its idempotency key. `INVALID_VENDOR_BODY` identifies fields/types/enums incompatible with the pinned official Discovery schema. `VENDOR_SCHEMA_UNAVAILABLE` means the maintainer must repair or regenerate schema evidence; do not bypass validation. Schema evidence does not establish business eligibility or project access. [v23 Campaign fields](https://developers.google.com/google-ads/api/reference/rpc/v23/Campaign).

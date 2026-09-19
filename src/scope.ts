@@ -12,6 +12,7 @@ import {authorizeQualifiedProviderRead} from './provider-read-contracts.js';
 import {authorizeCriteoInternalRead,assertCriteoReadScope} from './criteo-targeting-writes.js';
 import {assertGoogleGenerationScope} from './google-generation.js';
 import {assertMetaLabelScope,metaLabelIdentities} from './meta-label-writes.js';
+import {assertGoogleBidScope} from './google-bid-modifiers.js';
 
 export function normalizeAccount(gateway:string,id:unknown):string{
  const value=String(id);return gateway==='meta_native_action'?value.replace(/^act_/,''):gateway==='google_ads_native_action'?value.replaceAll('-',''):value;
@@ -57,6 +58,7 @@ export class ScopeGuard {
   };
   walk(plan.query);walk(plan.body);walk(decoded,'path');
   assertGoogleGenerationScope(plan,connection);
+  if(plan.gateway==='google_ads_native_action'&&plan.action==='AMCP_GOOGLE_BID_READ')assertGoogleBidScope(connection);
   if(plan.gateway==='meta_native_action'&&(plan.action==='AMCP_META_LABEL_READ'||plan.method==='GET'&&/^\/v25\.0\/act_\d+\/adlabels$/.test(plan.path)))assertMetaLabelScope(connection);
   if(plan.gateway==='criteo_native_action'&&plan.action==='AMCP_CRITEO_TARGET_READ')assertCriteoReadScope(connection);
   if(authorizeQualifiedProviderRead(plan,connection,id))return id;

@@ -52,8 +52,8 @@ qualification dependencies, not a reason to omit locally implementable code.
 
 ## Current checkpoint (2026-09-19)
 
-The working tree now inventories **3,241 actions**, including **372 reviewed-family
-rows**. **942 mapped writes, 105 unmapped actions, 31 unqualified reads and eight
+The working tree now inventories **3,241 actions**, including **376 reviewed-family
+rows**. **938 mapped writes, 105 unmapped actions, 31 unqualified reads and eight
 input-dependent adapters remain incomplete**. Four routes are now explicitly
 **provider_unsupported**, including three previously blocked writes and one read;
 these are not counted as implemented. The first batch added 68 reviewed action
@@ -214,3 +214,20 @@ Q's failed log remains visible and no failed candidate was pushed.
 Candidate R passed: 918 tests, zero failures, one FFmpeg skip; four capture tests
 also passed. Meta labels are qualified within their documented local bounds.
 The separate Google bid-modifier draft is not included in this qualification.
+
+Meta label batch is pushed as `1b82ba0`. Four Google ad-group bid-modifier rows
+now implement create/update/remove for device and all five hotel criterion types.
+The complete group/campaign/budget/modifier state is read with bounds, current
+Ads scope and policy checks, inherited-source-aware deletion verification and
+durable recovery. Initial 14 tests passed; malformed bypass fixtures failed
+input validation before reaching the intended guard and were corrected to the
+real gateway schema. Final 56 focused/compatibility/guide tests passed. Candidate S
+full release validation follows. Campaign-level creation, other bidding families,
+and live auction/provider compatibility remain open.
+
+Candidate S passed the entire sanitized release check: 939 tests passed, zero
+failures, one FFmpeg skip, plus four capture tests passed. Strict generated,
+provider, guide, web and lifecycle checks passed. These results qualify the
+documented bid-modifier contract locally; live acceptance and auction behavior
+remain unverified. Remaining counts are 938 blocked writes, 105 unmapped actions
+and 31 unqualified reads; the backlog is not complete.

@@ -832,3 +832,75 @@ All generated/guide/provider/web/lifecycle checks passed. Logs: `install-r.log`
 and `release-check-r.log`. A subsequent unregistered draft Google bid-modifier
 module is excluded from this candidate and this Meta commit. No live provider
 mutations, container checks or deployment were performed.
+
+## Google ad-group bid modifiers
+
+`adGroupBidModifiers:mutate` and its three legacy create/update/remove aliases
+now use a dedicated reviewed contract. Device and all five hotel criteria have
+native oneof, parent, range/date and multiplier validation. The native multiplier
+is dimensionless; 1.2 means +20%, not 1.2 currency units. Zero is a device opt-out
+only. Criterion and parent are immutable; updates accept only an explicit
+`bid_modifier` mask. Existing explicit criteria must be updated, not recreated.
+
+Server reads freeze the selected customer, all selected parent groups and their
+campaigns/budget amounts, and the complete modifier collection. Explicit resource
+identities, criterion IDs and source are checked. The selected Ads scope, account
+grants and owner activation/deletion controls apply before dispatch and throughout
+reads. An inherited override can become explicit; deletion can restore inherited
+bidding. Read-back checks source and value, never treating HTTP 404 as a valid
+deletion. Native receipts must cover the exact batch and parent identities;
+partial, foreign, unknown and lost receipts retain their durable single claim.
+
+Bounds: 25 operations, 1000 modifiers, 1100 total state rows, 25 pages per query,
+80 requests, 4 MiB per response, 8 MiB total, 60 seconds using a monotonic clock.
+Total-result counts and continuation types/loops are verified. Capacity checks
+cover the entire creation batch. Semantically equal hotel int64 encodings are
+normalized only in state/identity comparison; mutation inputs are preserved.
+Query cost and envelope metadata do not participate in state hashes. Changes
+to parent bids, campaign targets, budgets or sibling modifiers do conflict.
+
+Official sources checked 2026-09-19:
+
+- [AdGroupBidModifier v23 proto](https://github.com/googleapis/googleapis/blob/master/google/ads/googleads/v23/resources/ad_group_bid_modifier.proto)
+- [Complete v23 selectable modifier fields](https://developers.google.com/google-ads/api/fields/v23/ad_group_bid_modifier), updated 2026-09-10
+- [Bid-modifier workflow](https://developers.google.com/google-ads/api/docs/campaigns/bidding/manage-bid-modifiers)
+- [Bid-modifier targeting](https://developers.google.com/google-ads/api/docs/targeting/bid-modifiers)
+- [CampaignBudget selectable fields](https://developers.google.com/google-ads/api/fields/v23/campaign_budget)
+- [CampaignBidModifier v23](https://developers.google.com/google-ads/api/reference/rpc/v23/CampaignBidModifier)
+
+The modifier field table is pinned with source hash and a regeneration/check
+script in `tools/google-bid-field-evidence.mjs`. Direct HTML fetch failed and the
+general campaign/ad-group field pages were unavailable through the web tool;
+parent queries have local fixture/schema evidence, not live GAQL validation.
+Shared portfolio strategy internals are not snapshotted by this contract.
+No assertion is made that Smart Bidding uses a positive multiplier or that the
+provider accepts every combination of channel, bidding type and criterion.
+Those require credentialed read-only/validate-only staging and approved live
+qualification. Campaign-level creation remains blocked: the resource documents
+`campaign` as output-only while its create operation expects no resource name.
+No parent field or temporary criterion ID was invented to work around that gap.
+
+First build of the isolated draft required explicit TypeScript narrowing after
+an unknown response envelope check; fixed without changing runtime validation.
+Fourteen initial tests passed (`google-bids-first.log`). Expanded tests initially
+passed 18 and failed one; a native-bypass fixture supplied unsupported
+`before_state`, then a non-UUID idempotency key, so it never reached the intended
+guard. Both were corrected while retaining the exact `WRITE_REVIEW_REQUIRED`
+assertion. `google-bids-expanded.log` and `google-bids-final-focused.log` retain
+the failures. Final `google-bids-qualified.log`: 56 passed, zero failures, including
+21 dedicated bid tests, schema/policy/state/ledger and executable guides. Tests
+cover all six criteria through create/update/remove/read-back; legacy aliases;
+pagination and inherited removal; actual configuration drift; negative shapes,
+foreign/missing parents, scope/grant revocation and native bypass; ignored,
+partial/lost receipts; concurrent one-dispatch and completed/uncertain SQLite
+restart; exact capacity/byte/time boundaries and numeric identity equivalence.
+Counts: 3241 actions, 376 reviewed-family, 938 blocked writes, 105 unmapped,
+31 unqualified reads. Candidate S full sanitized validation follows.
+
+Candidate S passed: 939 tests, zero failures, one FFmpeg skip, and four capture
+tests passed. Source tree hash
+`30c176477a1632c59d338664d894000403be06ad711e72a1ba62f6bd67e78c00`, 477 files.
+Evidence: `install-s.log`, `release-check-s.log` in the runtime evidence directory.
+The entire check command completed successfully, including strict generation,
+provider, contract, guide, website and lifecycle checks. FFmpeg, containers and
+live provider behavior remain unverified; no live mutations were made.
