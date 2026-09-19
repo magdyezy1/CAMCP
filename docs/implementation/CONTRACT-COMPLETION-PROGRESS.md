@@ -350,3 +350,31 @@ passed 29 tests. Manifest: 497 files, SHA-256
 `3523764e716ed7679d7097fd0fc47935e5d3a33619f7ab1c09aa22d0f1733492`.
 The conversion-goal draft is excluded. Remaining inventory is 922 blocked writes,
 104 unmapped actions and 31 unqualified reads; no all-platform completion claim.
+
+
+DV360 targeting search is pushed as `38b2d96`. Google conversion goals now have
+four native reviewed RPC contracts and two legacy aliases. Standard goals/configs
+are update-only; custom definitions support create/update/remove. Reviews bind the
+complete current non-App graph, local conversion customer/actions and financial
+campaign dependencies; read-back verifies inheritance and level switching. A
+verified custom goal can feed a separately approved campaign attachment step.
+Manager-shared tracking remains explicitly outside this client-account contract.
+
+Initial integration: 26 passed, three fixture errors (two missing policy
+confirmation fields; one missing native idempotency key). Correct public fixtures
+then passed 29. Expanded lifecycle/capacity/provenance tests passed 37; focused and
+compatibility checks passed 80. Field evidence covers all 18 official v23 goal
+fields. Public HTTP fetch attempts timed out twice; web-tool extraction succeeded.
+Generated inventory: 397 reviewed-family rows, 916 blocked writes, 104 unmapped,
+31 unqualified reads. Candidate AC full sanitized release validation follows.
+
+
+Candidate AC passed the entire sanitized release check: 1,127 tests passed,
+zero failed, one FFmpeg skip; all four capture tests passed. Every subsequent
+report, web, provider, lifecycle, generated-contract and action-inventory check
+exited successfully. The field-evidence regeneration check also passed.
+Manifest: 501 files, SHA-256
+`9808ca186ac22ce9dc4880717dd7de1e8c01db62e6fdf2be4211ef837d702c18`.
+Live Google acceptance, FFmpeg-required and container checks remain unverified.
+An evidence-log print hit Windows console encoding; no product check failed.
+The conversion-goal batch is ready for the authorized Codex-branch push.

@@ -1,0 +1,109 @@
+{
+  "api_version": "v23",
+  "resources": {
+    "customer_conversion_goal": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/customer_conversion_goal",
+      "checked_at": "2026-09-20",
+      "method": "Public field heading/table extraction through the web tool; not a live account query",
+      "source_text_sha256": "c807d70ffb02887f25aadf706dfcff063e504c185943ba1a19dccbb4ec0c6f17",
+      "fields": {
+        "biddable": {
+          "selectable": true,
+          "repeated": false
+        },
+        "category": {
+          "selectable": true,
+          "repeated": false
+        },
+        "origin": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "campaign_conversion_goal": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/campaign_conversion_goal",
+      "checked_at": "2026-09-20",
+      "method": "Public field heading/table extraction through the web tool; not a live account query",
+      "source_text_sha256": "c807d70ffb02887f25aadf706dfcff063e504c185943ba1a19dccbb4ec0c6f17",
+      "fields": {
+        "biddable": {
+          "selectable": true,
+          "repeated": false
+        },
+        "campaign": {
+          "selectable": true,
+          "repeated": false
+        },
+        "category": {
+          "selectable": true,
+          "repeated": false
+        },
+        "origin": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "conversion_goal_campaign_config": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/conversion_goal_campaign_config",
+      "checked_at": "2026-09-20",
+      "method": "Public field heading/table extraction through the web tool; not a live account query",
+      "source_text_sha256": "c807d70ffb02887f25aadf706dfcff063e504c185943ba1a19dccbb4ec0c6f17",
+      "fields": {
+        "campaign": {
+          "selectable": true,
+          "repeated": false
+        },
+        "custom_conversion_goal": {
+          "selectable": true,
+          "repeated": false
+        },
+        "goal_config_level": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "custom_conversion_goal": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/custom_conversion_goal",
+      "checked_at": "2026-09-20",
+      "method": "Public field heading/table extraction through the web tool; not a live account query",
+      "source_text_sha256": "c807d70ffb02887f25aadf706dfcff063e504c185943ba1a19dccbb4ec0c6f17",
+      "fields": {
+        "conversion_actions": {
+          "selectable": true,
+          "repeated": true
+        },
+        "id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    }
+  }
+}

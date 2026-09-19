@@ -1323,3 +1323,91 @@ Manifest SHA-256 `3523764e716ed7679d7097fd0fc47935e5d3a33619f7ab1c09aa22d0f17334
 (497 files). Logs: `install-ab.log`, `release-check-ab.log` and
 `dv360-search-capture.log` under `.runtime/contract-completion-20260919/`.
 Live provider availability, required-FFmpeg and container checks remain unverified.
+
+
+## Google conversion goals — 2026-09-20
+
+Predecessor DV360 targeting search is pushed as `38b2d96`. Six more action rows
+now use explicit `google_conversion_goals` contracts: customer goal biddability,
+campaign goal biddability, campaign goal configuration and custom definitions.
+The first three support native updates; custom definitions support atomic create,
+update and remove. The exact four Discovery request types have no partialFailure
+field. Two legacy campaign/config aliases use the same qualified native path.
+
+This change captures the whole current non-App goal graph plus customer conversion
+ownership, current conversion definitions, campaign budgets and portfolio targets.
+Response telemetry and defined membership sets are normalized, while material and
+unknown configuration remain conflict-sensitive. Complete pagination, duplicate
+identity checks, bounded reads and a second goal-graph read prevent partial state
+from becoming successful empty state. The optimistic guard cannot provide a
+provider-side multi-resource transaction; concurrent external writes remain a
+provider limitation and post-write mismatch stays inconclusive.
+
+Customer defaults propagate to current CUSTOMER-level campaigns. Campaign-specific
+edits and custom attachment switch to CAMPAIGN level. Resetting CUSTOMER verifies
+restored biddability and treats retained custom references as inactive. Custom
+membership includes secondary actions and does not disable other standard goals.
+The guide requires explicit business choices and separate reviews for each step.
+A durable create-custom-goal -> attach-to-campaign fixture verifies actual native
+receipts and automatic inheritance effects. Preflight now symbolizes this exact
+parent action as a custom goal, with actual ownership checked when preparing the
+resolved step. It never grants ownership from a preview placeholder.
+
+Scopes, same-connection account grants, tenant/actor rights, deployment controls,
+review immutability/expiry, spend confirmation, activation/deletion policies,
+concurrent claims and restart recovery remain enforced. Unattached custom creation
+has no serving effect; a mixed create/edit batch cannot borrow that exception.
+Uncertain mutation results retain the original claim. Missing inheritance effects
+produce an inconclusive verification even with a successful-looking receipt.
+
+Limits: client accounts using their own conversion customer; current non-App
+campaigns only. Shared manager conversion tracking, App selective optimization,
+tracking correctness, historical conversion recalculation and actual bid learning
+need separate scopes/contracts or live evidence. Bounds are 25 atomic operations,
+100 custom members, 2,000 campaigns/actions/custom definitions and 10,000 campaign
+goals, plus total request/row/byte/time limits. No provider call was live.
+
+Official evidence checked 2026-09-20:
+- https://developers.google.com/google-ads/api/docs/conversions/goals/overview
+- https://developers.google.com/google-ads/api/docs/conversions/goals/customer-goals
+- https://developers.google.com/google-ads/api/docs/conversions/goals/campaign-goals
+- https://developers.google.com/google-ads/api/fields/v23/customer_conversion_goal
+- https://developers.google.com/google-ads/api/fields/v23/campaign_conversion_goal
+- https://developers.google.com/google-ads/api/fields/v23/conversion_goal_campaign_config
+- https://developers.google.com/google-ads/api/fields/v23/custom_conversion_goal
+
+The field pages were updated 2026-09-10. `tools/google-goal-field-evidence.mjs`
+extracts all 18 field tables from public web-tool text into a source-hashed fixture.
+Pinned official Discovery validates native wire shapes independently. Two direct
+public HTTP fetch attempts timed out; public web-tool extraction succeeded. The
+initial extracted text accidentally matched the find-query header and was rejected
+as empty; the fixture uses the actual source headings, with exact field counts.
+
+Verification: `npm.cmd run build`; `node --test dist/tests/google-conversion-goals.test.js`;
+field-evidence extraction/check; contract/action generators; guidance coverage;
+compatibility tests for goals, bidding events, campaign recovery, write review and
+all guide examples. Logs remain under `.runtime/contract-completion-20260919/`.
+Initial integration: 26 passes, three fixture errors (missing confirmed policy
+flag and missing native idempotency key); corrected: 29 passes. Expanded: 37 passes;
+compatibility: 80 passes. No assertions or safeguards weakened. Candidate AC full
+release checks follow. Current inventory: 3,241 actions, 397 reviewed-family rows,
+916 blocked writes, 104 unmapped, 31 unqualified reads, eight input-dependent
+adapters and four explicit provider-unsupported actions. All-platform completion
+and live acceptance remain unclaimed.
+
+Separate unresolved research: campaign bid-modifier creation is not enabled merely
+from a route. The v23 resource marks campaign output-only while the operation
+creation description disallows a preassigned resourceName; no reliable campaign
+selection contract has yet been established. Update/remove must be qualified
+separately; do not silently reuse the ad-group wire shape or multiplier range.
+
+
+Candidate AC passed the entire sanitized release check: 1,127 tests passed,
+zero failed, one FFmpeg skip; all four capture tests passed. Every subsequent
+report, web, provider, lifecycle, generated-contract and action-inventory check
+exited successfully. The field-evidence regeneration check also passed.
+Manifest: 501 files, SHA-256
+`9808ca186ac22ce9dc4880717dd7de1e8c01db62e6fdf2be4211ef837d702c18`.
+Live Google acceptance, FFmpeg-required and container checks remain unverified.
+An evidence-log print hit Windows console encoding; no product check failed.
+The conversion-goal batch is ready for the authorized Codex-branch push.

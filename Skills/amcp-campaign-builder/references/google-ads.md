@@ -381,3 +381,68 @@ Sources checked 2026-09-19: [v23 seasonality fields](https://developers.google.c
 and [portfolio configuration fields](https://developers.google.com/google-ads/api/fields/v23/bidding_strategy).
 Field/reference fixtures and isolated lifecycle tests are synthetic; these actions
 have not been verified against a live Ads account.
+
+
+## Conversion goals and campaign inheritance
+
+The four v23 conversion-goal RPCs and the existing
+`UPDATE_CAMPAIGN_CONVERSION_GOAL` / `UPDATE_CONVERSION_GOAL_CAMPAIGN_CONFIG`
+aliases have reviewed contracts. Google creates standard customer/campaign goals
+and campaign configs automatically: update them, never invent a create or remove.
+Custom goals support create, rename, complete conversion-action replacement and
+remove. Inspect the selected action before preparing its exact native body.
+
+Ask the user which conversion actions and campaigns should optimize for which
+business outcomes. Discover their actual IDs, ownership, status and definitions.
+Do not choose a goal from its name, assume secondary actions are excluded, or
+infer that a working tag records the right business event. This contract requires
+a client account that is its own conversion customer. Manager-shared tracking and
+App selective optimization need separate contracts and must stop here.
+
+Changing a customer goal propagates to campaigns using CUSTOMER defaults.
+Changing campaign biddability or attaching a custom goal switches to CAMPAIGN
+configuration. Attaching a custom goal also includes secondary actions and leaves
+standard goals active. Disable unwanted standard goals through separately reviewed
+changes. Resetting goalConfigLevel to CUSTOMER restores inherited biddability; any
+retained custom-goal reference is inactive. Explicitly clearing customConversionGoal
+uses an empty string and its exact mask. Do not promise that clearing also resets
+the configuration level.
+
+Use 1–25 atomic operations. These four native request types have no partialFailure
+field, even false. Standard/config updates require masks covering exactly the
+explicit fields; immutable IDs/category/origin/campaign are not update fields.
+Custom creation requires a unique name and 1–100 distinct enabled local conversion
+actions. Membership updates replace the complete set. Delete only after separately
+detaching from all current campaign-level configurations. Unattached creation has
+no serving effect; subsequent edits/attachments/removals require spending approval
+and obey owner activation/deletion policies.
+
+A durable two-step plan may create a custom goal and then reference its verified
+receipt using `{$ref:"goal#/data/results/0/resourceName"}` in the dependent config
+step. Each step gets its own frozen review and approval. IDs from unverified or
+uncertain results must not be used. Inspect both the requested changes and the
+inheritance effects before executing.
+
+Reviews bind the complete current non-App goal graph, conversion definitions,
+campaigns, budgets and local portfolios. They follow bounded pages and exclude
+response cost telemetry. They support at most 2,000 campaigns/actions/custom goals
+and 10,000 campaign goals, with additional total request/row/byte/deadline limits.
+`INVALID_CONVERSION_GOAL` names an invalid or unqualified input or prerequisite.
+`CONVERSION_GOAL_STATE_UNVERIFIED` means the complete scoped state could not be
+established; resolve the stated cause and prepare again. Never use a partial read
+as an empty account. A changed hash requires reviewing actual changed fields.
+
+Read-back verifies saved configuration and inheritance, not tracking accuracy,
+historical conversion counts or bidding performance. Keep the original review and
+idempotency key after lost responses; reconcile before any corrective mutation.
+Local fixtures exercise these rules. No live acceptance is claimed.
+
+Sources checked 2026-09-20: [conversion-goal overview](https://developers.google.com/google-ads/api/docs/conversions/goals/overview),
+[customer defaults](https://developers.google.com/google-ads/api/docs/conversions/goals/customer-goals),
+[campaign goals](https://developers.google.com/google-ads/api/docs/conversions/goals/campaign-goals),
+[v23 customer fields](https://developers.google.com/google-ads/api/fields/v23/customer_conversion_goal),
+[campaign fields](https://developers.google.com/google-ads/api/fields/v23/campaign_conversion_goal),
+[config fields](https://developers.google.com/google-ads/api/fields/v23/conversion_goal_campaign_config),
+[custom fields](https://developers.google.com/google-ads/api/fields/v23/custom_conversion_goal),
+and pinned official v23 Discovery request models. The public field pages were
+updated 2026-09-10; the evidence fixture records extraction provenance.

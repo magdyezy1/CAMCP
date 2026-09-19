@@ -6,17 +6,42 @@
     {
       "gateway": "google_ads_native_action",
       "arguments": {
+        "action": "google_ads_v23_custom_conversion_goal_mutate_custom_conversion_goals",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "name": "User-approved qualified leads",
+                "conversionActions": [
+                  "customers/123/conversionActions/900"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
         "action": "google_ads_v23_bidding_seasonality_adjustment_mutate_bidding_seasonality_adjustments",
         "account_id": "123",
         "payload": {
-          "operations": [{"create": {
-            "name": "Business-approved short sale",
-            "scope": "CAMPAIGN",
-            "campaigns": ["customers/123/campaigns/100"],
-            "startDateTime": "2098-12-01 00:00:00",
-            "endDateTime": "2098-12-04 00:00:00",
-            "conversionRateModifier": 1.5
-          }}]
+          "operations": [
+            {
+              "create": {
+                "name": "Business-approved short sale",
+                "scope": "CAMPAIGN",
+                "campaigns": [
+                  "customers/123/campaigns/100"
+                ],
+                "startDateTime": "2098-12-01 00:00:00",
+                "endDateTime": "2098-12-04 00:00:00",
+                "conversionRateModifier": 1.5
+              }
+            }
+          ]
         }
       }
     },
@@ -45,7 +70,10 @@
                 "name": "Approved search-intent definition",
                 "type": "SEARCH",
                 "members": [
-                  {"memberType": "KEYWORD", "keyword": "family homes"}
+                  {
+                    "memberType": "KEYWORD",
+                    "keyword": "family homes"
+                  }
                 ]
               }
             }

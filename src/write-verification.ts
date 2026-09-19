@@ -5,6 +5,7 @@ import {metaLabelKind,metaLabelVerification,readMetaLabels,assertMetaLabelScope}
 import {googleBidKind,googleBidVerification,readGoogleBidState,isGoogleBidRead,assertGoogleBidScope} from './google-bid-modifiers.js';
 import {assertGoogleAdsScope} from './google-contracts.js';
 import {googleSegmentKind} from './google-custom-segments.js';
+import {googleConversionGoalKind,verifyGoogleConversionGoal} from './google-conversion-goals.js';
 import {googleBiddingEventKind,verifyGoogleBiddingEvent} from './google-bidding-events.js';
 import {xDraftKind,verifyXDraft} from './x-draft-writes.js';
 import {linkedinConversionKind,linkedinConversionVerification,readLinkedInConversions,isLinkedInConversionRead,assertLinkedInConversionScope} from './linkedin-conversion-links.js';
@@ -117,7 +118,7 @@ export class WriteVerifier{
   if(criteoTargetingKind(plan))assertCriteoReadScope(c);
   if(metaLabelKind(plan))assertMetaLabelScope(c);
   if(googleBidKind(plan))assertGoogleBidScope(c);
-  if(googleSegmentKind(plan)||googleBiddingEventKind(plan))assertGoogleAdsScope(c);
+  if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan))assertGoogleAdsScope(c);
   if(linkedinConversionKind(plan)||linkedinRuleKind(plan))assertLinkedInConversionScope(c);
   if(result.success!==true)bad('Inspect the retained partial failure before recovery.','WRITE_PARTIAL_OR_FAILED');
   const cached=optional(this.store,actor.tenantId,'write_verification',reviewId);if(cached?.status==='verified'&&Date.now()-cached.checked_at<10000)return {...cached,cached:true};
@@ -132,9 +133,9 @@ export class WriteVerifier{
     const response=await this.transport.request(page,current,auth);this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);
     if(!current.scopes.includes('adsread'))bad('Reddit post verification requires adsread.','INSUFFICIENT_SCOPE');new ScopeGuard(this.registry,this.store).authorize(page,current);return response;
    }));status=verified.status;checks=verified.checks;resources=verified.resources??[];
-  }else if(googleBiddingEventKind(plan)){
-   const verified=await verifyGoogleBiddingEvent(plan,result,review.state,async read=>{
-    if(!independentlyReadOnly(read))bad('Bidding-event verification must remain read-only.','VERIFICATION_UNSUPPORTED');
+  }else if(googleBiddingEventKind(plan)||googleConversionGoalKind(plan)){
+   const verified=await (googleConversionGoalKind(plan)?verifyGoogleConversionGoal:verifyGoogleBiddingEvent)(plan,result,review.state,async read=>{
+    if(!independentlyReadOnly(read))bad('Google goal and bidding-event verification must remain read-only.','VERIFICATION_UNSUPPORTED');
     this.store.assertActorActive(actor);let current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertGoogleAdsScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);
     const auth=await this.credentials.get(current);this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertGoogleAdsScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);
     const response=await this.transport.request(read,current,auth);this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertGoogleAdsScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);return response;
