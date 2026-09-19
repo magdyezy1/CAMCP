@@ -4,6 +4,19 @@
   "qualification": "Synthetic local contract examples. Replace business facts and IDs with user-supplied or discovered values. These requests inspect contracts; none authorizes or executes a mutation.",
   "inspections": [
     {
+      "gateway": "x_ads_native_action",
+      "arguments": {
+        "action": "x_accounts_account_id_draft_tweets_post",
+        "account_id": "123",
+        "payload": {
+          "as_user_id": "456",
+          "text": "Business-approved unpublished draft",
+          "name": "Review copy",
+          "nullcast": true
+        }
+      }
+    },
+    {
       "gateway": "google_ads_native_action",
       "arguments": {
         "action": "google_ads_v23_custom_audience_mutate_custom_audiences",

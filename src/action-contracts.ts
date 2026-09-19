@@ -20,6 +20,7 @@ import type {Action,CompiledRequest,JsonObject} from './types.js';
 export type ContractStatus='native_read'|'reviewed_write_family'|'media_workflow'|'local_workflow'|'adapter_requires_input'|'blocked_write'|'unmapped'|'unqualified_read'|'provider_unsupported';
 export interface ActionContract {gateway:string;operation?:string;action:string;aliases:string[];method:string|null;path:string|null;origin?:string;status:ContractStatus;family?:string;implementation:string;reason:string;source:string;tests:string[];live_qualification:'unverified';}
 const familyFiles:Record<string,[string,string[]]>={
+ x_drafts:['src/x-draft-writes.ts',['tests/x-draft-writes.test.ts']],
  linkedin_conversion_rules:['src/linkedin-conversion-rules.ts',['tests/linkedin-conversion-rules.test.ts']],
  linkedin_conversion_links:['src/linkedin-conversion-links.ts',['tests/linkedin-conversion-links.test.ts']],
  google_bid_modifiers:['src/google-bid-modifiers.ts',['tests/google-bid-modifiers.test.ts']],

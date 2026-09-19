@@ -52,8 +52,8 @@ qualification dependencies, not a reason to omit locally implementable code.
 
 ## Current checkpoint (2026-09-19)
 
-The working tree now inventories **3,241 actions**, including **385 reviewed-family
-rows**. **929 mapped writes, 104 unmapped actions, 31 unqualified reads and eight
+The working tree now inventories **3,241 actions**, including **389 reviewed-family
+rows**. **925 mapped writes, 104 unmapped actions, 31 unqualified reads and eight
 input-dependent adapters remain incomplete**. Four routes are now explicitly
 **provider_unsupported**, including three previously blocked writes and one read;
 these are not counted as implemented. The first batch added 68 reviewed action
@@ -292,3 +292,20 @@ one FFmpeg skip, plus four capture tests passed. Final guide/inventory/segment
 qualification passed 31 tests, including 20 dedicated segment tests. All generated,
 provider and release checks passed. A later unregistered X draft-workflow file is
 excluded from this Google qualification and commit. Live eligibility remains open.
+
+Google custom segments are pushed as `112ee45`. All four X draft routes now have
+reviewed contracts for unpublished creation, editing, hard deletion and explicitly
+requested device previews. Exact FULL author, registered media, ordered images,
+native form encoding, complete absence verification and retained claims are tested.
+Preview verification certifies provider acceptance only; device delivery stays
+unverified. Initial 17 tests passed and one fixture failed its connection UUID
+format before reaching the intended native bypass guard; the fixture now uses a
+valid UUID. Expanded compatibility tests passed 54 and final qualification passed
+33 (22 dedicated). Candidate Y full release checks follow. No live X call occurred.
+
+Candidate Y passed the full sanitized check: 1,040 tests passed, zero failures,
+one FFmpeg skip, plus four capture tests passed. Generated contracts, guidance,
+provider and release checks passed. Source manifest SHA-256:
+`cc4e8e539c75781e9e1617b3c2fe82a48b456c9d2c125248f9bb34ac60de7332`
+(490 files). The X draft batch is locally qualified; preview device delivery,
+live provider acceptance, FFmpeg-required and container checks remain unverified.

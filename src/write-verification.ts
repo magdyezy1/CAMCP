@@ -5,6 +5,7 @@ import {metaLabelKind,metaLabelVerification,readMetaLabels,assertMetaLabelScope}
 import {googleBidKind,googleBidVerification,readGoogleBidState,isGoogleBidRead,assertGoogleBidScope} from './google-bid-modifiers.js';
 import {assertGoogleAdsScope} from './google-contracts.js';
 import {googleSegmentKind} from './google-custom-segments.js';
+import {xDraftKind,verifyXDraft} from './x-draft-writes.js';
 import {linkedinConversionKind,linkedinConversionVerification,readLinkedInConversions,isLinkedInConversionRead,assertLinkedInConversionScope} from './linkedin-conversion-links.js';
 import {linkedinRuleKind,linkedinRuleVerification,readLinkedInRules,isLinkedInRuleRead} from './linkedin-conversion-rules.js';
 import {Store} from './store.js';
@@ -130,6 +131,13 @@ export class WriteVerifier{
     const response=await this.transport.request(page,current,auth);this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);
     if(!current.scopes.includes('adsread'))bad('Reddit post verification requires adsread.','INSUFFICIENT_SCOPE');new ScopeGuard(this.registry,this.store).authorize(page,current);return response;
    }));status=verified.status;checks=verified.checks;resources=verified.resources??[];
+  }else if(xDraftKind(plan)){
+   const verified=await verifyXDraft(plan,result,review.state,async read=>{
+    if(!independentlyReadOnly(read))bad('Draft verification must remain read-only.','VERIFICATION_UNSUPPORTED');
+    this.store.assertActorActive(actor);let current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(read,current);
+    const auth=await this.credentials.get(current);this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(read,current);
+    const response=await this.transport.request(read,current,auth);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));return response;
+   });status=verified.status;checks=verified.checks;
   }else if(xCreativeKind(plan)){
    for(let attempt=0;attempt<3;attempt++){
     if(attempt)await delay(attempt*250);

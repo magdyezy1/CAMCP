@@ -178,3 +178,53 @@ Default recovery is to create a new card/Tweet and review replacement promotions
 X_CREATIVE_STATE_UNVERIFIED means dependency/usage coverage could not be proven, and the override does not bypass it. X_CREATIVE_DISCOVERY_LIMIT means the bounded scan exceeded 25 pages per collection, 20,000 rows, 250 requests or the between-request 60-second budget. Follow provider cooldowns; do not hide missing pages. Large accounts may require a scoped discovery design before edits can be allowed safely.
 
 After an allowed edit, read each affected line item. The returned recovery plan prepares fresh promotions only for associations confirmed missing. It never executes them, guarantees original IDs, or assumes provider idempotence. An uncertain write must retain its original review/key across retries and restarts. Do not re-promote everything automatically. The guard cannot prevent an external actor changing X after AMCP's last read; minimize that interval and coordinate concurrent edits.
+
+### X unpublished drafts and requested device previews
+
+The four captured draft routes now use `amcp_write`: create, update, hard delete
+and device preview. Select an explicit connection UUID, Ads account and current
+FULL promotable author; discover these before asking the user to supply IDs.
+Creation saves unpublished content. Explicit `nullcast` records its intended
+publication mode; it does not publish or promote the draft. Publishing, scheduling
+and promotion remain separate actions. Reusing a draft never implies approval
+of its copy or permission to send it.
+
+Use `x_accounts_account_id_draft_tweets_post` with `as_user_id`, `nullcast` and
+text or `media_keys`. The latter is a comma-separated native string: up to four
+images, one GIF or one video already registered and processed in this account.
+A discovered `card_uri` can accompany text. The qualified format does not combine
+a card with direct media. Continue the existing server-side Drive import/library
+workflow for new media; do not ask the LLM to download or relay bytes.
+
+Use `x_accounts_account_id_draft_tweets_draft_tweet_id_put` for explicit changes.
+An empty `card_uri` or `media_keys` clears that attachment; omitted fields stay.
+Preserve image order. Author changes and scheduling fields are refused. Delete
+through `x_accounts_account_id_draft_tweets_draft_tweet_id_delete` only after
+reviewing the saved content; removal is permanent and respects owner deletion
+controls. It does not delete previously published copies.
+
+`x_accounts_account_id_draft_tweets_preview_draft_tweet_id_post` sends device
+notifications. Only prepare/execute it when the user requests that preview.
+Read-back labels provider acceptance separately from notification delivery and
+rendering, which cannot be checked. Never automatically resend after an uncertain
+response. Do not represent the preview as an ordinary read.
+
+`INVALID_X_DRAFT` means the supplied shape, attachment combination or local input
+bound is invalid. Correct it before a new prepare. `X_DRAFT_STATE_UNVERIFIED`
+means the author, draft, dependency or complete collection could not be verified;
+use scoped discovery or reconnect as indicated by the underlying access error.
+`X_DRAFT_DISCOVERY_LIMIT` means the bounded scan exceeded capacity; narrow the
+selected author or retry reads after provider cooldowns. No flag bypasses these
+checks. Local limits: 1000 drafts per author, 25 pages per collection, 64 reads,
+4 MiB per response, 8 MiB total and 60 seconds of monotonic elapsed time.
+Draft text has an 8192-code-point local payload bound; X still validates weighted
+Tweet length and URLs. That bound is not a publishable text-length allowance.
+Names have an 80-character bound. IDs must remain exact strings.
+
+Verification checks saved configuration or complete author-scoped absence after
+deletion; a 404 alone is insufficient. Errors and lost responses retain durable
+claims. Use the original review/key to inspect the outcome, then read current
+state before reviewing a correction. Native eligibility and actual device
+rendering remain unverified live. Contract source checked 2026-09-19:
+[X v12 creative reference](https://docs.x.com/x-ads-api/creatives/reference) and
+[response envelopes](https://docs.x.com/x-ads-api/fundamentals/error-codes-and-responses).

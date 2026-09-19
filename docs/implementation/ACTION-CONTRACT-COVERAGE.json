@@ -234,10 +234,10 @@
       "gateway": "x_ads_native_action",
       "actions": 186,
       "counts": {
-        "blocked_write": 74,
+        "blocked_write": 70,
         "media_workflow": 1,
         "native_read": 95,
-        "reviewed_write_family": 16
+        "reviewed_write_family": 20
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -49540,7 +49540,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -49558,7 +49559,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -49591,7 +49593,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -49609,7 +49612,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -49627,7 +49631,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -49645,7 +49650,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -49678,7 +49684,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -49715,7 +49722,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -49753,7 +49761,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -49790,7 +49799,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -49808,7 +49818,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -49844,7 +49855,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -49880,7 +49892,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -49913,7 +49926,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -49946,7 +49960,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -49994,7 +50009,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50012,7 +50028,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50078,7 +50095,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50111,7 +50129,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50144,7 +50163,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50162,7 +50182,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50195,7 +50216,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50228,7 +50250,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50276,7 +50299,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50309,7 +50333,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50372,7 +50397,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50399,12 +50425,15 @@
       ],
       "method": "DELETE",
       "path": "/12/accounts/{account_id}/draft_tweets/{draft_tweet_id}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/x-draft-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/x-draft-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "x_drafts"
     },
     {
       "gateway": "x_ads_native_action",
@@ -50420,7 +50449,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50432,12 +50462,15 @@
       ],
       "method": "PUT",
       "path": "/12/accounts/{account_id}/draft_tweets/{draft_tweet_id}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/x-draft-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/x-draft-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "x_drafts"
     },
     {
       "gateway": "x_ads_native_action",
@@ -50453,7 +50486,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50465,12 +50499,15 @@
       ],
       "method": "POST",
       "path": "/12/accounts/{account_id}/draft_tweets",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/x-draft-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/x-draft-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "x_drafts"
     },
     {
       "gateway": "x_ads_native_action",
@@ -50480,12 +50517,15 @@
       ],
       "method": "POST",
       "path": "/12/accounts/{account_id}/draft_tweets/preview/{draft_tweet_id}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/x-draft-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/x-draft-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "x_drafts"
     },
     {
       "gateway": "x_ads_native_action",
@@ -50516,7 +50556,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50564,7 +50605,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50597,7 +50639,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50630,7 +50673,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50648,7 +50692,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50681,7 +50726,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50729,7 +50775,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50766,7 +50813,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50822,7 +50870,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50855,7 +50904,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50888,7 +50938,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50921,7 +50972,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -50972,7 +51024,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51020,7 +51073,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51053,7 +51107,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51071,7 +51126,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51089,7 +51145,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51137,7 +51194,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51155,7 +51213,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51210,7 +51269,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51243,7 +51303,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51261,7 +51322,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51279,7 +51341,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51327,7 +51390,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51345,7 +51409,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51393,7 +51458,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51426,7 +51492,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51474,7 +51541,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51530,7 +51598,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51563,7 +51632,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51581,7 +51651,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51614,7 +51685,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51662,7 +51734,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51713,7 +51786,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51732,7 +51806,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51768,7 +51843,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51801,7 +51877,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51834,7 +51911,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51927,7 +52005,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51945,7 +52024,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51978,7 +52058,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -51996,7 +52077,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52014,7 +52096,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52050,7 +52133,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52098,7 +52182,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52116,7 +52201,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52164,7 +52250,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52212,7 +52299,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52261,7 +52349,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52327,7 +52416,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52345,7 +52435,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52363,7 +52454,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52381,7 +52473,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52399,7 +52492,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52432,7 +52526,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52465,7 +52560,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52483,7 +52579,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52501,7 +52598,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52519,7 +52617,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52537,7 +52636,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52555,7 +52655,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52573,7 +52674,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52591,7 +52693,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52609,7 +52712,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52627,7 +52731,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52645,7 +52750,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -52663,7 +52769,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/x-creative-writes.test.ts",
-        "tests/x-targeting-writes.test.ts"
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts"
       ],
       "live_qualification": "unverified"
     }

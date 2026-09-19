@@ -1142,3 +1142,59 @@ Logs: `install-x.log`, `release-check-x.log`. All strict generation, contract,
 provider, guide, web and lifecycle checks passed. The later unregistered X draft
 workflow is excluded from this qualification and the Google commit. Live calls,
 FFmpeg-required and container checks were not performed.
+
+## X unpublished draft lifecycle and device preview
+
+Google custom segments are pushed as `112ee45`. Four captured v12 draft routes
+now have a dedicated reviewed family: create, update, hard delete and preview.
+The account path, author, exact string IDs and closed native fields are validated;
+FULL promotable access, registered processed media and discovered cards are read
+under the selected connection. An update cannot change authors. Text-only,
+image/video/GIF and card variants are supported within documented bounds; combined
+card and direct-media formats remain unqualified. Drafts do not publish or promote
+content; choosing nullcast false records future intent, not immediate publication.
+
+Preview is an explicit notification side effect requiring normal reviewed-write
+confirmation. Its receipt must name the exact account/draft. Verification records
+provider acceptance separately from unverified device delivery/rendering, and does
+not resend. Draft creation IDs must be new to the bounded author collection;
+read-back checks current author and exact configuration. Hard deletion uses complete
+author-scoped absence, never an ambiguous 404. Current AMCP grants are rechecked on
+every read and after credential acquisition. No ownership is granted by a receipt.
+
+Image order remains meaningful. Signed playback links and documented observation
+fields do not enter review hashes, while content, author, metadata and unknown
+configuration do. The draft and author are reread after dependencies to detect
+in-flight changes. Bounds: 1000 drafts/author, 25 pages/collection, 64 requests,
+4 MiB per response, 8 MiB total and a 60-second monotonic deadline, checked after
+responses too. The 8192-character text input cap is a local payload bound; native
+weighted Tweet limits still apply. Existing public/nullcast publishing, scheduling,
+promotion and other X families are not silently included by this draft contract.
+
+Sources checked 2026-09-19: [X v12 creative reference](https://docs.x.com/x-ads-api/creatives/reference)
+and [native response/error envelopes](https://docs.x.com/x-ads-api/fundamentals/error-codes-and-responses).
+Campaign-management reference URLs were not accessible through the web tool in
+this pass, so batch campaign contracts were not inferred from creative examples.
+No notification, publishing, account modification or other live request was made.
+
+Initial TypeScript checks caught missing object annotations in the new helper and
+fixture; those were corrected. Initial runtime tests passed 17 and failed one
+fixture: its literal connection ID was not the UUID required by the public gateway,
+so validation stopped before the intended bypass guard. The corrected UUID fixture
+reaches and asserts WRITE_REVIEW_REQUIRED. `x-drafts-first.log` retains the failure.
+Expanded existing creative/targeting/spend compatibility passed 54 tests
+(`x-drafts-expanded.log`). Final inventory/example qualification passed 33 tests,
+including 22 dedicated draft tests (`x-drafts-qualified.log`). Candidate Y follows.
+Native availability, weighted-text acceptance, device delivery, FFmpeg-required and
+container checks remain external. Inventory: 3,241 rows, 389 reviewed-family rows,
+925 blocked writes, 104 unmapped actions and 31 unqualified reads; work remains open.
+
+Candidate Y (`.release/contract-batch-20260919-y`) completed `npm ci
+--ignore-scripts --no-audit --no-fund` and `npm run check` successfully. Tests:
+1,040 passed, zero failures, one FFmpeg skip; four capture tests also passed.
+All subsequent generated-contract, guidance, provider and release checks passed.
+Source manifest: 490 files, SHA-256
+`cc4e8e539c75781e9e1617b3c2fe82a48b456c9d2c125248f9bb34ac60de7332`.
+Exact output is retained in `.runtime/contract-completion-20260919/install-y.log`
+and `release-check-y.log`. No required-FFmpeg, container or live-provider claim
+is inferred from this successful local command.

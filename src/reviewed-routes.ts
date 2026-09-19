@@ -11,6 +11,7 @@ import {googleTargetingKind} from './google-targeting-writes.js';
 import {googleAssetLinkKind} from './google-asset-links.js';
 import {googleConfigurationKind} from './google-configuration-writes.js';
 import {xCreativeKind} from './x-creative-writes.js';
+import {xDraftKind} from './x-draft-writes.js';
 import {linkedinDSC} from './linkedin-posts.js';
 import {redditWriteKind} from './reddit-writes.js';
 import {microsoftContracts,microsoftGateway} from './microsoft-native.js';
@@ -51,6 +52,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(p.gateway==='snapchat_native_action')return method==='POST'&&/^\/v1\/(adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives)|campaigns\/[^/]+\/adsquads|adsquads\/[^/]+\/ads)$/.test(route)||method==='PUT'&&/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives)$/.test(route)||method==='PATCH'&&/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives)\/[^/]+$/.test(route)||method==='DELETE'&&/^\/v1\/(campaigns|adsquads|ads)\/[^/]+$/.test(route)?'snapchat_entities':undefined;
  if(p.gateway==='tiktok_native_action')return method==='POST'&&/^\/v1\.3\/(campaign|adgroup|ad)\/(?:status\/)?(create|update|delete)\/$/.test(route)?'tiktok_entities':undefined;
  if(p.gateway==='x_ads_native_action'){
+  if(xDraftKind(p))return 'x_drafts';
   if(xCreativeKind(p))return 'x_creatives';
   return method==='POST'&&/^\/12\/accounts\/[^/]+\/(campaigns|line_items|targeting_criteria)$/.test(route)||['PUT','DELETE'].includes(method)&&/^\/12\/accounts\/[^/]+\/(campaigns|line_items)\/[^/]+$/.test(route)||method==='DELETE'&&/^\/12\/accounts\/[^/]+\/(targeting_criteria|promoted_tweets)\/[^/]+$/.test(route)?'x_entities':undefined;
  }

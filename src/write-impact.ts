@@ -4,6 +4,7 @@ import {keywordPlanKind} from './google-keyword-plan-writes.js';
 import {metaLabelImpact} from './meta-label-writes.js';
 import {googleBidKind,googleBidImpact} from './google-bid-modifiers.js';
 import {googleSegmentKind,googleSegmentImpact} from './google-custom-segments.js';
+import {xDraftKind,xDraftImpact} from './x-draft-writes.js';
 import {linkedinConversionKind,linkedinConversionImpact} from './linkedin-conversion-links.js';
 import {linkedinRuleKind,linkedinRuleImpact} from './linkedin-conversion-rules.js';
 import {redditPostCreation,redditPromotedSource} from './reddit-post-creation.js';
@@ -37,6 +38,7 @@ function assertSnapchatReplacement(plan:CompiledRequest,state:unknown[]){
  }
 }
 export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolean,connectionId:string):JsonObject|undefined{
+ if(xDraftKind(plan))return xDraftImpact(plan);
  if(linkedinConversionKind(plan))return linkedinConversionImpact;
  if(linkedinRuleKind(plan))return linkedinRuleImpact;
  if(googleBidKind(plan))return googleBidImpact;
