@@ -1,5 +1,6 @@
 import {keywordPlanKind} from './google-keyword-plan-writes.js';
 import {linkedinConversionKind} from './linkedin-conversion-links.js';
+import {linkedinRuleServing} from './linkedin-conversion-rules.js';
 import {criteoTargetingKind} from './criteo-targeting-writes.js';
 import type {Actor,CompiledRequest,JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
@@ -22,6 +23,7 @@ export function authorizeExecution(actor:Actor,plan:CompiledRequest,input:JsonOb
  if(policy.requireBeforeState&&!verifiedBeforeState)throw new MirrorError('WRITE_REVIEW_REQUIRED','Use amcp_write prepare and execute; caller-supplied before_state is not a verified snapshot.');
  if(xPromotion(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','X promotion may serve immediately. Review the parent delivery state and provide spend_change_confirmed=true.');
  if(linkedinConversionKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Campaign conversion associations can affect optimization. Review the selected campaigns and conversion rules and confirm the spending impact.');
+ if(linkedinRuleServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Conversion-rule enablement, attribution and matching can affect optimization. Review every associated campaign and confirm this impact.');
  if(criteoTargetingKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Criteo targeting can change delivery immediately. Review the complete scope and members and provide spend_change_confirmed=true.');
  if(appleEntityServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Apple shared budgets, exclusions, creative edits and serving settings can affect existing campaigns. Provide spend_change_confirmed=true.');
  if(dv360ListAffectsServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','DV360 shared-list membership can change serving eligibility. Provide spend_change_confirmed=true.');

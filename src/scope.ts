@@ -13,6 +13,7 @@ import {authorizeCriteoInternalRead,assertCriteoReadScope} from './criteo-target
 import {assertGoogleGenerationScope} from './google-generation.js';
 import {assertMetaLabelScope,metaLabelIdentities} from './meta-label-writes.js';
 import {authorizeLinkedInConversion} from './linkedin-conversion-links.js';
+import {authorizeLinkedInRule} from './linkedin-conversion-rules.js';
 import {metaAdLibraryRead} from './meta-ad-library.js';
 import {assertGoogleBidScope} from './google-bid-modifiers.js';
 
@@ -66,6 +67,7 @@ export class ScopeGuard {
   if(plan.gateway==='criteo_native_action'&&plan.action==='AMCP_CRITEO_TARGET_READ')assertCriteoReadScope(connection);
   if(authorizeQualifiedProviderRead(plan,connection,id))return id;
   if(authorizeLinkedInConversion(plan,connection,id))return id;
+  if(authorizeLinkedInRule(plan,connection,id))return id;
   if(authorizeCriteoInternalRead(plan,connection,id))return id;
   if(plan.gateway==='google_ads_native_action'&&plan.readOnly&&plan.method==='POST'&&/^\/v23:[A-Za-z]+$/.test(decoded)&&googleGlobalReadMethods.has(decoded.slice(5)))return id;
   if(authorizeLinkedInSpecial(plan,connection,this.store,id))return id;

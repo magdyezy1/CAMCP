@@ -4,6 +4,7 @@ import {redditPostCreation,verifyRedditPostCreation} from './reddit-post-creatio
 import {metaLabelKind,metaLabelVerification,readMetaLabels,assertMetaLabelScope} from './meta-label-writes.js';
 import {googleBidKind,googleBidVerification,readGoogleBidState,isGoogleBidRead,assertGoogleBidScope} from './google-bid-modifiers.js';
 import {linkedinConversionKind,linkedinConversionVerification,readLinkedInConversions,isLinkedInConversionRead,assertLinkedInConversionScope} from './linkedin-conversion-links.js';
+import {linkedinRuleKind,linkedinRuleVerification,readLinkedInRules,isLinkedInRuleRead} from './linkedin-conversion-rules.js';
 import {Store} from './store.js';
 import {Registry} from './catalog.js';
 import {NativeTransport} from './transport.js';
@@ -36,6 +37,7 @@ function differing(expected:any,actual:any,path='',out:string[]=[]):string[]{
  else if(fingerprint(expected)!==fingerprint(actual??null))out.push(path);return out;
 }
 function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Registry,before:unknown[]=[]):{read:CompiledRequest;expected:JsonObject;id:string}[]{
+ if(linkedinRuleKind(plan))return linkedinRuleVerification(plan,result,before);
  if(linkedinConversionKind(plan))return linkedinConversionVerification(plan);
  if(googleBidKind(plan))return googleBidVerification(plan,result);
  if(criteoTargetingKind(plan))return criteoTargetingVerification(plan,before);
@@ -79,7 +81,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
  return [];
 }
 function entity(plan:CompiledRequest,data:JsonObject):JsonObject{
- if(isLinkedInConversionRead(plan))return data;
+ if(isLinkedInConversionRead(plan)||isLinkedInRuleRead(plan))return data;
  if(isGoogleBidRead(plan))return data;
  if(plan.gtmWorkspaceState)return gtmWorkspaceObserved(plan,data);
  if(data.amcp_absent===true)return data;
@@ -111,7 +113,7 @@ export class WriteVerifier{
   if(criteoTargetingKind(plan))assertCriteoReadScope(c);
   if(metaLabelKind(plan))assertMetaLabelScope(c);
   if(googleBidKind(plan))assertGoogleBidScope(c);
-  if(linkedinConversionKind(plan))assertLinkedInConversionScope(c);
+  if(linkedinConversionKind(plan)||linkedinRuleKind(plan))assertLinkedInConversionScope(c);
   if(result.success!==true)bad('Inspect the retained partial failure before recovery.','WRITE_PARTIAL_OR_FAILED');
   const cached=optional(this.store,actor.tenantId,'write_verification',reviewId);if(cached?.status==='verified'&&Date.now()-cached.checked_at<10000)return {...cached,cached:true};
   let reads:ReturnType<typeof verificationReads>=[],status='unverified',checks:JsonObject[]=[],resources:JsonObject[]=[];
@@ -142,7 +144,7 @@ export class WriteVerifier{
    const expected=normalize(item.expected),readback=await readConsistently(async()=>{
     this.store.assertActorActive(actor);checkAppleAccounts();const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(item.read,current);
     const auth=await this.credentials.get(current);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));
-    let response;try{response=await readLinkedInConversions(item.read,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readGtmWorkspace(criteoPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.transport.request(page,latest,auth);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(page,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));return result;})))))));}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
+    let response;try{response=await readLinkedInRules(item.read,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readGtmWorkspace(criteoPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.transport.request(page,latest,auth);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(page,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));return result;}))))))));}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
     checkAppleAccounts();return normalize(entity(item.read,response.data as JsonObject));
    },actual=>differing(expected,actual).length===0);
    const actual=readback.value,changed=differing(expected,actual),phase=readback.consistent?measurementVerificationPhase(item.read,actual):'inconclusive';checks.push({resource_id:item.id,status:phase,code:readback.consistent?undefined:'VERIFICATION_INCONCLUSIVE',read_attempts:readback.attempts,changed_fields:changed,expected_hash:fingerprint(expected),actual_hash:fingerprint(actual??null),checked_fields:Object.keys(expected)});

@@ -6,6 +6,38 @@
     {
       "gateway": "linkedin_native_action",
       "arguments": {
+        "action": "linkedin_rest_conversions_post",
+        "account_id": "123",
+        "restli_method": "CREATE",
+        "query": {
+          "account": "urn:li:sponsoredAccount:123"
+        },
+        "payload": {
+          "name": "Approved completed-purchase rule",
+          "type": "PURCHASE",
+          "enabled": false,
+          "attributionType": "LAST_TOUCH_BY_CONVERSION",
+          "postClickAttributionWindowSize": 7,
+          "viewThroughAttributionWindowSize": 1,
+          "value": {
+            "amount": "10.00",
+            "currencyCode": "USD"
+          },
+          "valueType": "FIXED",
+          "urlMatchRuleExpression": [
+            [
+              {
+                "matchType": "EXACT",
+                "matchValue": "example.com/thank-you"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "linkedin_native_action",
+      "arguments": {
         "action": "linkedin_rest_campaign_conversions_campaign_conversion_id_put",
         "account_id": "123",
         "path_params": {

@@ -26,6 +26,19 @@ Use native `targetingCriteria`; do not force an irreversible migration of an exi
 
 ## Reviewed LinkedIn campaign conversion associations
 
+Conversion reads return two different collections: `campaigns` contains campaign
+URNs, while `associatedCampaigns` contains association records with campaign and
+conversion URNs. Do not treat the records as strings. AMCP compares membership
+semantically and excludes association/callback timestamps, while retaining unknown
+configuration. A rule's callback time is tracking telemetry, not an edit.
+
+`CONVERSION_STATE_UNVERIFIED` means the provider returned malformed, duplicate,
+foreign or inconsistent campaign membership or a malformed URL-expression shape.
+Stop the write and inspect current account-scoped conversion data. Do not replace
+missing membership with an empty list. Correct the data/contract and prepare a
+fresh review; retain any already submitted claim. `CONVERSION_RULE_STATE_UNVERIFIED`
+also covers failed/incomplete reads, missing Insight Tags and review bounds.
+
 Use `linkedin_rest_campaign_conversions_campaign_conversion_id_put` to associate
 an existing conversion with a selected campaign. Pass `path_params.campaign_conversion_id`
 as `(campaign:urn:li:sponsoredCampaign:<id>,conversion:urn:lla:llaPartnerConversion:<id>)`
@@ -54,6 +67,64 @@ complete membership read, never a 404. Incomplete state, per-key errors and lost
 responses require reconciliation; keep the original claim and do not repeat the
 batch. The contract does not certify an installed Insight Tag, event receipt,
 attribution accuracy, auction delivery or current provider approval.
+
+## Reviewed LinkedIn conversion rules
+
+Use `linkedin_rest_conversions_post` with `restli_method: CREATE`, the selected
+`account_id`, `query.account: urn:li:sponsoredAccount:<id>` and native payload.
+Creation requires a user-supplied `name` and conversion `type`, and an existing
+Insight Tag on the selected account. `enabled: false` stages a disabled rule;
+omission uses the provider's enabled default and must be reviewed accordingly.
+Supply the exact account in the query or each created body. `BATCH_CREATE` uses
+`payload.elements` (1–25 rules per AMCP review; provider maximum is 100).
+
+Update through `linkedin_rest_conversions_conversion_id_post`, exact
+`path_params.conversion_id`, `query.account`, `restli_method: PARTIAL_UPDATE` and
+`payload: {patch: {$set: {name: "Approved name"}}}`. Batch updates use the collection
+action with `BATCH_PARTIAL_UPDATE`, `query.ids: ["id1", "id2"]` and an exact
+`payload.entities` map of IDs to `{patch: {$set: ...}}`. Use 1–25 distinct IDs;
+every ID must belong to the selected account. No account transfers, method
+tunneling, arbitrary nested patches or caller-supplied state are permitted.
+
+Qualified fields are name, type, enabled, attributionType, both attribution
+windows, value, valueType and urlMatchRuleExpression. Windows are 1, 7 or 30 days;
+the model is LAST_TOUCH_BY_CAMPAIGN or LAST_TOUCH_BY_CONVERSION. Decide these from
+the measurement brief, not a conversion's name. Type is ADD_TO_CART, DOWNLOAD,
+INSTALL, KEY_PAGE_VIEW, LEAD, PURCHASE, SIGN_UP or OTHER. `value.amount` is a decimal
+string in account currency, and represents conversion value, not advertising
+spend. FIXED requires a value; DYNAMIC and NO_VALUE follow the native contract.
+
+URL expressions are an OR array of AND arrays of `{matchType, matchValue}` terms.
+Use EXACT, STARTS_WITH or CONTAINS with literal match text, not regular expressions.
+Updates replace the entire expression; include every intended term. AMCP supports
+25 OR groups/100 terms and preserves semantic grouping. It compares equivalent
+OR/AND ordering and decimal representations without ignoring real rule edits.
+Omitting the expression at creation selects event-specific tracking. A rule alone
+does not install a website tag, inject markup or prove event collection.
+
+All current conversion records are read for creation. Updates read each selected
+rule and every associated campaign, including budgets and delivery status. Current
+scope/grants are checked before every provider call. Enabling new rules or changing
+existing rules requires spending-impact confirmation and an owner policy that
+permits activation; a disabled unassociated create can obey an activation ban.
+Verification reads the exact created IDs and expected settings; receipt IDs alone
+grant no resource ownership. A new rule can enter a subsequent association review
+through fresh account-scoped discovery. Partial batches and lost receipts retain
+their original idempotency claim across retries/restarts. Never repeat an uncertain
+creation or silently recreate a rule whose read-back disagrees.
+
+Bounds: 1000 rules in a complete collection, 25 pages, 50 affected campaigns,
+80 reads, 4 MiB per response, 8 MiB total and 60 seconds. Automatic association
+(`autoAssociationType`), direct campaign-array edits, conversion event ingestion,
+Insight Tag creation/sharing and tag installation remain separate unqualified
+payloads/workflows. Associate chosen campaigns through the reviewed link contract.
+Unsubmitted reviews from before the corrected state projection may need a fresh
+prepare; never clear a submitted claim as part of this upgrade.
+
+Sources: [LinkedIn conversion tracking, version 202605](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/conversion-tracking?view=li-lms-2026-05)
+and [REST.li protocol](https://linkedin.github.io/rest.li/spec/protocol), checked
+2026-09-19. Local tests qualify the exact contract. Provider role/product access,
+native acceptance, installed tracking and attribution outcomes need live evidence.
 
 X's hierarchy is account → campaign (budget/funding) → line item (objective, bidding, placements) → promoted Tweet/media creative. Use `x_ads_native_action`. Monetary fields ending `_local_micro` use account currency × 1,000,000. Read an existing funding instrument rather than inventing one or assuming a CREATE_FUNDING_INSTRUMENT catalog entry provisions credit.
 

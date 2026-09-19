@@ -52,8 +52,8 @@ qualification dependencies, not a reason to omit locally implementable code.
 
 ## Current checkpoint (2026-09-19)
 
-The working tree now inventories **3,241 actions**, including **381 reviewed-family
-rows**. **933 mapped writes, 104 unmapped actions, 31 unqualified reads and eight
+The working tree now inventories **3,241 actions**, including **383 reviewed-family
+rows**. **931 mapped writes, 104 unmapped actions, 31 unqualified reads and eight
 input-dependent adapters remain incomplete**. Four routes are now explicitly
 **provider_unsupported**, including three previously blocked writes and one read;
 these are not counted as implemented. The first batch added 68 reviewed action
@@ -257,3 +257,22 @@ remaining writes and live provider qualification are still open.
 Candidate U passed: 973 tests, zero failures, one FFmpeg skip, plus four capture
 tests passed. This qualifies the Meta Ad Library workflow locally. Later LinkedIn
 state corrections and conversion-rule drafts are excluded and remain under test.
+
+Meta Ad Library is pushed as `65c7f90`. LinkedIn conversion rules now implement
+single/batch creation and partial updates under two captured POST routes. The
+same batch corrects native associatedCampaigns records and callback telemetry in
+association reviews. Initial 38 tests and expanded 67 tests pass; final guide and
+inventory qualification follows. Actual tracking, auto-association and event
+ingestion remain separate limits. Candidate V full validation is next.
+
+Candidate V passed its 996 tests and four capture tests (one FFmpeg skip) but
+failed the following guidance check: CONVERSION_STATE_UNVERIFIED needed explicit
+cause/recovery guidance. The guide is corrected without relaxing the check.
+Candidate W will repeat the full command. Google drafts remain excluded.
+
+Candidate W passed the full sanitized check: 996 tests passed, zero failures,
+one FFmpeg skip, plus four capture tests passed. Guidance, generated contracts,
+provider and lifecycle checks passed. The LinkedIn batch is locally qualified;
+Google custom-segment drafts are excluded. Remaining inventory: 931 blocked
+writes, 104 unmapped actions and 31 unqualified reads. Live provider acceptance,
+FFmpeg-required and container validation remain open.

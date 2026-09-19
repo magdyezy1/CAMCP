@@ -4,6 +4,7 @@ import {keywordPlanKind} from './google-keyword-plan-writes.js';
 import {metaLabelImpact} from './meta-label-writes.js';
 import {googleBidKind,googleBidImpact} from './google-bid-modifiers.js';
 import {linkedinConversionKind,linkedinConversionImpact} from './linkedin-conversion-links.js';
+import {linkedinRuleKind,linkedinRuleImpact} from './linkedin-conversion-rules.js';
 import {redditPostCreation,redditPromotedSource} from './reddit-post-creation.js';
 import {microsoftAssociationWrite,microsoftAssociationActivates} from './microsoft-associations.js';
 import {xCreativeImpact} from './x-creative-writes.js';
@@ -36,6 +37,7 @@ function assertSnapchatReplacement(plan:CompiledRequest,state:unknown[]){
 }
 export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolean,connectionId:string):JsonObject|undefined{
  if(linkedinConversionKind(plan))return linkedinConversionImpact;
+ if(linkedinRuleKind(plan))return linkedinRuleImpact;
  if(googleBidKind(plan))return googleBidImpact;
  const meta=metaLabelImpact(plan);if(meta)return meta;
  if(criteoTargetingKind(plan))return {provider:'criteo',effect:'Changes targeting of an existing preferred line item and may affect delivery immediately. Removing the last target or changing include/exclude can broaden or eliminate eligibility.',verification:'Fresh filtered account membership, parent campaign, retailer and complete target identifiers are checked before submission and read-back. Audience definitions must belong to this same account and retailer.',limits:'100 membership changes per review; 1000 retained targets; 24 requests and 8 MiB per state read. PUT changes scope while preserving exact current membership; use append/delete for membership changes. Product/category/store validity and provider eligibility remain provider checks.',recovery:'HTTP 200 errors, partial or lost responses do not permit replay. Keep the original review/key; inspect actual membership and prepare any correction separately.'};

@@ -1011,3 +1011,76 @@ Logs: `install-u.log`, `release-check-u.log`. All strict generation, provider,
 contract, web and lifecycle checks passed. Subsequent LinkedIn state corrections
 and conversion-rule drafts are excluded from U and the Meta commit. No live
 calls or advertising mutations were performed; FFmpeg/container checks remain open.
+
+## LinkedIn conversion rules and native-state correction
+
+Meta Ad Library was pushed as `65c7f90`. Both captured `/rest/conversions` POST
+routes now implement their explicit single/batch creation and partial-update
+contracts. Requests retain native account binding, version headers, per-ID patch
+maps, decimal-string value/currency, attribution settings and OR-of-AND matching.
+Creation checks the existing account Insight Tag and complete conversion list;
+updates freeze every affected rule and associated campaign. Creation defaults
+are documented and verified, including the documented omitted DYNAMIC valueType.
+No automatic campaign association, account transfer, event ingestion, tag creation,
+sharing or website installation is implicitly qualified by these two route rows.
+
+Research revealed an error in the preceding association batch: native
+`associatedCampaigns` contains records, while `campaigns` contains URNs. The old
+fixture omitted populated native records. The shared projection now checks both
+forms, exact conversion identity, duplicates and consistency; it excludes
+associatedAt and documented callback times. Callback telemetry and membership
+order cannot cause false conflicts. Unknown configuration, changed budgets,
+attribution windows and matching text remain protected. Logical OR/AND order and
+decimal formatting normalize only within these documented fields.
+
+Single and batch receipts are validated independently; failures, missing/foreign
+IDs, partial results and lost responses retain durable claims. Created IDs must
+not exist in the frozen list and require fresh scoped read-back. A subsequent
+association prepare reads the new conversion in the exact selected account;
+receipt data alone never grants ownership. Current scopes, AMCP write grants,
+owner activation controls and spending-impact confirmation apply. Conversion
+value is not counted as spend. A disabled unassociated create can respect an
+activation prohibition without weakening existing-rule controls.
+
+Local bounds: 25 mutation entries, 1000 complete conversion records, 25 pages,
+50 affected campaigns, 80 reads, 4 MiB/response, 8 MiB total and 60 seconds.
+These are AMCP review bounds, not claims of native provider maxima. Unsubmitted
+reviews using the prior projection may require a new prepare. No migration clears
+submitted idempotency claims; no database format or runtime dependency changes.
+
+Official sources checked 2026-09-19:
+
+- [LinkedIn conversion tracking, 202605](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/conversion-tracking?view=li-lms-2026-05): field semantics, account scope, native association records, telemetry and conversion lifecycle.
+- [REST.li protocol](https://linkedin.github.io/rest.li/spec/protocol) and [server guide](https://linkedin.github.io/rest.li/user_guide/restli_server): patch/batch shapes, positional creation receipts and per-ID update errors.
+
+Twenty-three association tests passed after the record correction. The shared
+projection build initially caught missing TypeScript parameter annotations; fixed
+without changing runtime behavior. Initial combined rules/links tests: 38 passed
+(`linkedin-rules-first.log`). Expanded compiler/REST.li/spend compatibility: 67
+passed (`linkedin-rules-expanded.log`). New fixtures cover native defaults,
+empty 201, partial updates, capacity, same IDs on other connections, fresh created
+ID handoff, clock deadlines and restart/concurrent replay. Candidate V follows.
+No live account permission, provider mutation, installed tracking, event receipt
+or attribution outcome has been verified. Remaining counts are explicit.
+
+Final links/rules/inventory/guidance qualification passed 55 tests
+(`linkedin-rules-qualified.log`), including 21 dedicated rule tests and 23
+association tests. The updated action inventory retains 3,241 rows: 383 reviewed
+families, 931 blocked writes, 104 unmapped actions and 31 unqualified reads.
+
+Candidate V passed its test phase (996 tests, zero failures, one FFmpeg skip, plus
+four capture tests) but failed the subsequent guidance check. The new refusal
+`CONVERSION_STATE_UNVERIFIED` lacked an explicit guide entry. Its cause and safe
+recovery are now documented; the check is unchanged. Source tree hash
+`f6975a3608a07f5b05cd18a3987b5b88fc2ca2bd71fb0d44e26d70a7dcdbc621`, 484 files.
+Logs: `install-v.log`, `release-check-v.log`. Later provider, contract, web and
+lifecycle checks did not run. Candidate W will repeat the full command. The later
+Google custom-segment drafts are excluded from this LinkedIn qualification.
+
+Candidate W passed the entire sanitized check: 996 tests passed, zero failures,
+one FFmpeg skip, plus four capture tests passed. Source tree hash
+`4baf358341b10c836d0e2fa9296c1629011bfc51c4fe217572e9c84cf63932d6`, 484 files.
+Logs: `install-w.log`, `release-check-w.log`. Guidance, generated contract,
+provider, web and lifecycle checks passed. The Google custom-segment draft and
+its tests are excluded. Live provider acceptance, FFmpeg-required and container
+checks remain unverified; no advertising mutation or deployment was performed.

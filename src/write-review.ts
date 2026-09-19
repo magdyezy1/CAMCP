@@ -1,6 +1,7 @@
 import {readRedditProfiles,validateRedditProfiles,validateRedditCreativePrerequisites,assertRedditCreativeAvailable} from './reddit-creative-writes.js';
 import {readKeywordPlanTree,validateKeywordPlanTree} from './google-keyword-plan-writes.js';
 import {reviewedWriteFamily} from './reviewed-routes.js';
+import {linkedinRuleKind,assertLinkedInRule,linkedinRuleSnapshots,readLinkedInRules,isLinkedInRuleRead,validateLinkedInRuleState,linkedinRulePrerequisites,linkedinRuleOutcome} from './linkedin-conversion-rules.js';
 import {googleBidKind,assertGoogleBid,assertGoogleBidScope,googleBidSnapshots,readGoogleBidState,isGoogleBidRead,validateGoogleBidState,googleBidPrerequisites,googleBidOutcome} from './google-bid-modifiers.js';
 import {linkedinConversionKind,assertLinkedInConversion,assertLinkedInConversionScope,linkedinConversionSnapshots,readLinkedInConversions,isLinkedInConversionRead,validateLinkedInConversionState,linkedinConversionPrerequisites,linkedinConversionOutcome} from './linkedin-conversion-links.js';
 import {metaLabelKind,assertMetaLabel,assertMetaLabelScope,metaLabelSnapshots,readMetaLabels,validateMetaLabelState,validateMetaLabelPrerequisites,metaLabelOutcome} from './meta-label-writes.js';
@@ -68,6 +69,7 @@ export function writeOutcome(result:TransportResult,plan?:CompiledRequest,before
  return {success:errors.length===0,executed:true,outcome:errors.length?'partial_or_failed':'succeeded',data:plan?.gateway==='gtm_native_action'?gtmSafeConfiguration(result.data):result.data,status:result.status,headers:result.headers,...(result.headers['x-restli-id']?{created_id:result.headers['x-restli-id']}:{ }),...(errors.length?{failures:plan?.gateway==='gtm_native_action'?gtmSafeConfiguration(errors):errors,retry_safe:false}:{}),...(plan&&gtmWorkspaceKind(plan)?gtmWorkspaceReceipt(plan,result):{})};
 }
 function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,before:unknown[]):boolean {
+ if(linkedinRuleKind(plan))return linkedinRuleOutcome(plan,result);
  if(linkedinConversionKind(plan))return linkedinConversionOutcome(plan,result);
  if(googleBidKind(plan))return googleBidOutcome(plan,result);
  if(metaLabelKind(plan))return metaLabelOutcome(plan,result,before);
@@ -109,6 +111,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  return false;
 }
 export function validateState(read:CompiledRequest,result:TransportResult):void {
+ if(isLinkedInRuleRead(read)){validateLinkedInRuleState(read,result);return;}
  if(isLinkedInConversionRead(read)){validateLinkedInConversionState(read,result);return;}
  if(isGoogleBidRead(read)){validateGoogleBidState(read,result);return;}
  if(read.metaLabelState){validateMetaLabelState(read,result);return;}
@@ -191,6 +194,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(plan.gateway==='reddit_native_action'){assertRedditWrite(plan);return;}
  if(plan.gateway===microsoftGateway){assertMicrosoftWrite(plan);return;}
  if(plan.specialTransport)fail('WRITE_CONTRACT_UNAVAILABLE','For Google Drive media imports, use amcp_media prepare and execute. Other binary transports need a dedicated upload contract.');
+ if(linkedinRuleKind(plan)){assertLinkedInRule(plan);return;}
  if(linkedinConversionKind(plan)){assertLinkedInConversion(plan);return;}
  if(plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['CREATE','PARTIAL_UPDATE','DELETE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))fail('WRITE_CONTRACT_UNAVAILABLE','This REST.li method override is not qualified for reviewed execution.');
  if(gtmWorkflowKind(plan)){assertGtmWorkflow(plan);return;}
@@ -246,6 +250,7 @@ export function assertWriteShape(plan:CompiledRequest){
 
 /** Reads are explicitly derived from the target, never supplied by the caller as proof. */
 export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRequest[]{
+ if(linkedinRuleKind(plan))return linkedinRuleSnapshots(plan);
  if(linkedinConversionKind(plan))return linkedinConversionSnapshots(plan);
  if(googleBidKind(plan))return googleBidSnapshots(plan);
  if(metaLabelKind(plan))return metaLabelSnapshots(plan);
@@ -332,7 +337,7 @@ export class WriteReviewService {
   if(criteoTargetingKind(plan))assertCriteoTargetingScopes(c);
   if(metaLabelKind(plan))assertMetaLabelScope(c,true);
   if(googleBidKind(plan))assertGoogleBidScope(c);
-  if(linkedinConversionKind(plan))assertLinkedInConversionScope(c,true);
+  if(linkedinConversionKind(plan)||linkedinRuleKind(plan))assertLinkedInConversionScope(c,true);
   if(dv360ListKind(plan)&&!c.scopes.includes('https://www.googleapis.com/auth/display-video'))fail('PROVIDER_WRITE_SCOPE_REQUIRED','Reconnect DV360 with the display-video OAuth scope.');
   if(plan.gateway===microsoftGateway&&!c.scopes.some(s=>s===microsoftScope||s==='msads.manage'))fail('INSUFFICIENT_SCOPE','Reconnect Microsoft Advertising with msads.manage permission.');
   plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);assertMeasurementScopes(plan,c);return c;
@@ -345,7 +350,7 @@ export class WriteReviewService {
   });
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
-   try{result=await readLinkedInConversions(read,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.transport.request(page,current,auth);this.access(actor,plan,connectionId);return response;}))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
+   try{result=await readLinkedInRules(read,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.transport.request(page,current,auth);this.access(actor,plan,connectionId);return response;})))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
    this.access(actor,plan,connectionId);validateState(read,result);
    if(appleEntityKind(plan)==='shared_budget'&&read.path===plan.path){
     const accounts=appleSharedAccounts(plan,result.data),frozen=plan.scopeContext?.appleSharedAccountIds;
@@ -362,6 +367,7 @@ export class WriteReviewService {
   validateMetaLabelPrerequisites(plan,values);
   googleBidPrerequisites(plan,values);
   linkedinConversionPrerequisites(plan,values);
+  linkedinRulePrerequisites(plan,values);
   validateAppleEntityPrerequisites(plan,reads,values);
   validateGtmWorkflowPrerequisites(plan,values);
   validateGtmWorkspacePrerequisites(plan,values);

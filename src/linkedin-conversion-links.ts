@@ -1,5 +1,6 @@
 import {MirrorError} from './errors.js';
 import {parseLinkedInValue,linkedinQuery} from './linkedin-restli.js';
+import {linkedinConversionConfiguration} from './linkedin-conversion-state.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -71,9 +72,7 @@ export async function readLinkedInConversions(p:CompiledRequest,request:(p:Compi
  }
  for(const id of [...new Set(pairs.map(v=>v.conversion))].sort()){
   const row=await fetch('/rest/conversions/'+id.split(':').at(-1),{account:accountUrn(p)});if(!nativeId(row.id,id.split(':').at(-1)!)||row.account!==accountUrn(p)||typeof row.name!=='string'||typeof row.enabled!=='boolean'||typeof row.type!=='string')stateFail('A conversion was missing, foreign or incomplete.');
-  // These documented campaign-URN collections are sets; arbitrary arrays stay ordered.
-  for(const field of ['campaigns','associatedCampaigns'])if(row[field]!==undefined){if(!Array.isArray(row[field])||row[field].some((v:unknown)=>!urn(v,'li:sponsoredCampaign'))||new Set(row[field]).size!==row[field].length)stateFail('Conversion campaign membership is malformed.');row[field]=[...row[field]].sort();}
-  conversions[id]=row;
+  conversions[id]=linkedinConversionConfiguration(row);
  }
  let start=0,total:number|undefined;
  for(let page=0;;page++){
