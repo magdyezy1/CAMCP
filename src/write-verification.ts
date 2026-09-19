@@ -1,3 +1,4 @@
+import {metaReportKind,assertMetaReportScope,verifyMetaReport,metaReportReadResult,observeMetaReportRead} from './meta-insights-jobs.js';
 import {redditCreativeKind,redditCreativeVerification,readRedditProfiles} from './reddit-creative-writes.js';
 import {criteoTargetingKind,criteoTargetingVerification,readCriteoTargeting,assertCriteoReadScope} from './criteo-targeting-writes.js';
 import {redditPostCreation,verifyRedditPostCreation} from './reddit-post-creation.js';
@@ -116,6 +117,7 @@ export class WriteVerifier{
   if(linkedinDSC(plan))assertLinkedInDSCGrant(plan,c,false);
   if(redditPostCreation(plan)&&!c.scopes.includes('adsread'))bad('Reddit post verification requires adsread.','INSUFFICIENT_SCOPE');
   if(criteoTargetingKind(plan))assertCriteoReadScope(c);
+  if(metaReportKind(plan))assertMetaReportScope(c);
   if(metaLabelKind(plan))assertMetaLabelScope(c);
   if(googleBidKind(plan))assertGoogleBidScope(c);
   if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan))assertGoogleAdsScope(c);
@@ -133,6 +135,12 @@ export class WriteVerifier{
     const response=await this.transport.request(page,current,auth);this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);
     if(!current.scopes.includes('adsread'))bad('Reddit post verification requires adsread.','INSUFFICIENT_SCOPE');new ScopeGuard(this.registry,this.store).authorize(page,current);return response;
    }));status=verified.status;checks=verified.checks;resources=verified.resources??[];
+  }else if(metaReportKind(plan)){
+   const verified=await verifyMetaReport(plan,result,reviewId,async read=>{
+    if(!independentlyReadOnly(read))bad('Report verification must remain read-only.','VERIFICATION_UNSUPPORTED');
+    const access=()=>{this.store.assertActorActive(actor);const active=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertMetaReportScope(active);new ScopeGuard(this.registry,this.store).authorize(read,active);return active;};
+    const current=access(),auth=await this.credentials.get(current);access();const response=await this.transport.request(read,current,auth),active=access(),data=metaReportReadResult(read,response)!;observeMetaReportRead(read,active,this.store,data);return {...response,data};
+   });status=verified.status;checks=verified.checks;resources=verified.resources??[];for(const resource of resources)resource.read_result.arguments.connection_id=c.id;
   }else if(googleBiddingEventKind(plan)||googleConversionGoalKind(plan)){
    const verified=await (googleConversionGoalKind(plan)?verifyGoogleConversionGoal:verifyGoogleBiddingEvent)(plan,result,review.state,async read=>{
     if(!independentlyReadOnly(read))bad('Google goal and bidding-event verification must remain read-only.','VERIFICATION_UNSUPPORTED');

@@ -95,3 +95,84 @@ Inspect currency before expressing budgets in native minor units; account curren
 The live AMCP generic Meta `compile_entity_payload` probe returned `META_USE_NATIVE_TOOLS` on 2026-09-08. Use the native flow above. A historical manual describing generic form compilation is not current acceptance evidence.
 
 Primary field reference: [Meta's maintained SDK](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adaccount.py).
+
+## Asynchronous Insights reports
+
+Use `amcp_write` inspect → prepare → execute for `meta_report_task_create`
+(alias of `meta_ad_account_id_insights_report_create`),
+`meta_campaign_id_insights_report_create` or `meta_ad_set_id_insights_report_create`.
+Choose the exact `account_id` and `connection_id`; campaign/ad-set routes also
+need `path_params.campaign_id` / `path_params.ad_set_id` with established ownership.
+The selected login needs `ads_read` or `ads_management`. Submission consumes
+provider processing/quota and therefore requires enabled deployment writes, an
+operator, an AMCP account write grant and explicit reviewed confirmation. It has
+no advertising activation or budget effect. Do not seek broader OAuth permissions
+when the missing permission is an AMCP grant.
+
+The native payload requires `fields`, `level` and explicit inclusive
+`time_range: {since, until}`. Select account, campaign, adset or ad grain within
+the chosen target. Include `account_id`, `date_start`, `date_stop`, and all parent
+and entity IDs at that grain (`campaign_id`, then `adset_id`, then `ad_id`).
+Use account currency from the verified account; Insights spend is native currency
+value, not campaign-budget minor units. Preserve zero, null and missing metrics
+as different values. Do not add reach across days/accounts or average native
+ratios without the correct denominators. Action-type arrays retain their native
+conversion definitions; do not sum overlapping action types.
+
+Optional inputs: `time_increment` as the **string** `all_days`, `monthly` or
+`1`–`90`; `action_report_time` as `impression`, `conversion` or `mixed`; one of
+`use_account_attribution_setting` / `use_unified_attribution_setting` as a boolean.
+Do not invent attribution choices: preserve explicit user preferences or leave
+provider defaults visible as unspecified. Names/currency/IDs/date fields and
+20 native metric columns are currently qualified. Inspect rejects unknown fields.
+Relative presets, breakdowns, filters, exports, sorting and summaries are outside
+this initial payload contract. These four actions are not full Insights-API coverage.
+
+After execution, retain `review_id`, `idempotency_key` and `report_run_id`.
+Call `amcp_campaign {action: "verify", review_id}`. The worker polls pending jobs
+with bounded backoff; it never recreates them. Verification requires the selected
+account, matching dates/definition, `Job Completed` and 100% completion. A
+successful receipt alone grants no general resource ownership. `verified` here
+means job/definition verified, **not** report rows downloaded or delivery reconciled.
+Follow `resources[].read_result` with its original connection. Its native alias
+`meta_report_run_insights_get` currently uses `params: {ad_id: report_run_id}`;
+do not invent a `report_run_id` path parameter for that captured alias.
+
+Result reads validate account, date and target identities on every row/page.
+Use `aggregate_pages: true` for bounded aggregation. `report.complete` is true
+only after retrieval from the first page through the last page in that call.
+On truncation, use the returned `report.next_call` exactly. Resumed calls set
+`retrieved_from_start: false`; `remaining_pages_complete` never implies the
+earlier segment is present. Keep both segments and reconcile grain/date IDs.
+These calls return native rows and provenance, not inferred totals. Provider
+pagination links are validated and rebuilt server-side; never copy access tokens,
+signed report URLs or private export links to another service.
+
+`META_REPORT_INVALID`: correct the named unsupported definition before submission.
+`META_REPORT_PENDING`: poll the original review, then retrieve its completed job.
+`META_REPORT_GENERATION_FAILED`: inspect the retained job failure; a new report
+requires a new explicit review, never an automatic resubmission.
+`META_REPORT_STATE_UNVERIFIED`: account, definition, status, envelope, pagination
+or limits could not be established; retry/reconcile reads without repeating creation.
+`WRITE_OUTCOME_UNCERTAIN`: retain the original claim; a lost receipt is not safe
+to retry under another key. `RESOURCE_SCOPE_REQUIRED` on an accepted job means
+verify its original review with the original connection first. Revoked grants
+and expired credentials still require the usual access remediation.
+
+Bounds: 40 requested columns, 366 inclusive days, 1–1000 rows/page, at most
+25 pages and 25,000 rows per call, 4 MiB per response, 8 MiB total and a 60-second
+monotonic retrieval deadline. Local report bindings expire after seven days of
+inactivity; that is an AMCP retention window, not a promise about Meta job lifetime.
+Provider expiration, processing delays, app approval, field eligibility and exact
+definition echoes require live verification. Audience Network reports have a
+separate, still unqualified contract.
+
+Official evidence checked 2026-09-20, pinned Python SDK tag 25.0.3:
+[account](https://github.com/facebook/facebook-python-business-sdk/blob/25.0.3/facebook_business/adobjects/adaccount.py),
+[campaign](https://github.com/facebook/facebook-python-business-sdk/blob/25.0.3/facebook_business/adobjects/campaign.py),
+[ad set](https://github.com/facebook/facebook-python-business-sdk/blob/25.0.3/facebook_business/adobjects/adset.py),
+[report run](https://github.com/facebook/facebook-python-business-sdk/blob/25.0.3/facebook_business/adobjects/adreportrun.py),
+[native metrics](https://github.com/facebook/facebook-python-business-sdk/blob/25.0.3/facebook_business/adobjects/adsinsights.py).
+The source-hashed extraction in `tests/fixtures/meta-insights-sdk-v25.json` is
+regenerated with `tools/meta-insights-evidence.mjs --source-dir <public-sdk-files>`.
+Local lifecycle and adversarial fixtures are not live provider acceptance evidence.

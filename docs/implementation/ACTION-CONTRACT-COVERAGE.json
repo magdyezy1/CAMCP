@@ -173,8 +173,8 @@
         "blocked_write": 136,
         "media_workflow": 4,
         "native_read": 420,
-        "reviewed_write_family": 26,
-        "unqualified_read": 5
+        "reviewed_write_family": 30,
+        "unqualified_read": 1
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -23870,7 +23870,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23901,7 +23902,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23919,7 +23921,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23937,7 +23940,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23955,7 +23959,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -23973,7 +23978,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24004,7 +24010,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24038,7 +24045,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24056,7 +24064,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24074,7 +24083,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24120,7 +24130,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24138,7 +24149,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24172,7 +24184,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24203,7 +24216,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24234,7 +24248,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24265,7 +24280,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24299,7 +24315,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24317,7 +24334,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24335,7 +24353,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24353,7 +24372,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24387,7 +24407,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24446,7 +24467,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24477,7 +24499,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24495,7 +24518,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24513,7 +24537,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24557,7 +24582,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24588,7 +24614,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24606,7 +24633,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24637,7 +24665,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24668,7 +24697,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24686,7 +24716,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24704,7 +24735,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24722,7 +24754,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24769,7 +24802,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24787,7 +24821,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24805,7 +24840,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24823,7 +24859,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24867,7 +24904,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24898,7 +24936,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24929,7 +24968,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24947,7 +24987,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24965,7 +25006,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -24983,7 +25025,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25001,7 +25044,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25019,7 +25063,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25037,7 +25082,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25055,7 +25101,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25073,7 +25120,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25083,12 +25131,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v25.0/act_{ad_account_id}/insights",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "reviewed_write_family",
+      "implementation": "src/meta-insights-jobs.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/meta-insights-jobs.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "meta_insights_jobs"
     },
     {
       "gateway": "meta_native_action",
@@ -25104,7 +25155,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25122,7 +25174,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25140,7 +25193,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25158,7 +25212,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25176,7 +25231,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25194,7 +25250,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25212,7 +25269,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25230,7 +25288,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25261,7 +25320,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25279,7 +25339,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25297,7 +25358,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25328,7 +25390,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25346,7 +25409,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25377,7 +25441,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25408,7 +25473,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25426,7 +25492,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25444,7 +25511,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25462,7 +25530,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25480,7 +25549,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25498,7 +25568,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25542,7 +25613,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25560,7 +25632,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25578,7 +25651,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25596,7 +25670,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25614,7 +25689,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25632,7 +25708,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25650,7 +25727,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25681,7 +25759,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25699,7 +25778,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25717,7 +25797,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25762,6 +25843,7 @@
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
         "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -25780,7 +25862,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25798,7 +25881,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25816,7 +25900,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25851,7 +25936,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25922,7 +26008,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -25985,7 +26072,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26003,7 +26091,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26021,7 +26110,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26039,7 +26129,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26057,7 +26148,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26093,7 +26185,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26111,7 +26204,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26129,7 +26223,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26147,7 +26242,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26165,7 +26261,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26217,7 +26314,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26235,7 +26333,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26253,7 +26352,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26271,7 +26371,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26289,7 +26390,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26307,7 +26409,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26325,7 +26428,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26356,7 +26460,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26374,7 +26479,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26405,7 +26511,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26439,7 +26546,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26457,7 +26565,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26475,7 +26584,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26493,7 +26603,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26503,12 +26614,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v25.0/{ad_set_id}/insights",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "reviewed_write_family",
+      "implementation": "src/meta-insights-jobs.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/meta-insights-jobs.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "meta_insights_jobs"
     },
     {
       "gateway": "meta_native_action",
@@ -26524,7 +26638,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26542,7 +26657,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26560,7 +26676,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26578,7 +26695,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26612,7 +26730,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26630,7 +26749,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26648,7 +26768,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26666,7 +26787,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26684,7 +26806,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26702,7 +26825,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26733,7 +26857,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26807,7 +26932,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26827,7 +26953,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26847,7 +26974,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26883,7 +27011,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26916,7 +27045,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26936,7 +27066,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -26982,7 +27113,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27026,7 +27158,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27057,7 +27190,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27075,7 +27209,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27106,7 +27241,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27124,7 +27260,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27142,7 +27279,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27160,7 +27298,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27178,7 +27317,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27196,7 +27336,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27227,7 +27368,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27245,7 +27387,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27263,7 +27406,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27281,7 +27425,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27299,7 +27444,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27317,7 +27463,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27335,7 +27482,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27353,7 +27501,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27371,7 +27520,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27402,7 +27552,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27446,7 +27597,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27477,7 +27629,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27495,7 +27648,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27513,7 +27667,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27531,7 +27686,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27549,7 +27705,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27567,7 +27724,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27585,7 +27743,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27603,7 +27762,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27621,7 +27781,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27639,7 +27800,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27670,7 +27832,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27688,7 +27851,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27706,7 +27870,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27724,7 +27889,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27742,7 +27908,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27760,7 +27927,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27778,7 +27946,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27796,7 +27965,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27814,7 +27984,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27832,7 +28003,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27863,7 +28035,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27881,7 +28054,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27899,7 +28073,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27917,7 +28092,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27935,7 +28111,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27953,7 +28130,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -27971,7 +28149,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28002,7 +28181,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28020,7 +28200,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28051,7 +28232,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28095,7 +28277,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28113,7 +28296,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28131,7 +28315,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28162,7 +28347,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28193,7 +28379,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28237,7 +28424,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28255,7 +28443,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28273,7 +28462,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28291,7 +28481,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28309,7 +28500,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28327,7 +28519,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28358,7 +28551,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28376,7 +28570,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28407,7 +28602,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28425,7 +28621,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28456,7 +28653,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28474,7 +28672,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28492,7 +28691,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28510,7 +28710,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28528,7 +28729,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28546,7 +28748,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28564,7 +28767,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28582,7 +28786,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28600,7 +28805,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28618,7 +28824,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28636,7 +28843,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28654,7 +28862,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28672,7 +28881,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28690,7 +28900,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28708,7 +28919,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28726,7 +28938,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28744,7 +28957,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28762,7 +28976,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28780,7 +28995,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28798,7 +29014,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28816,7 +29033,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28834,7 +29052,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28852,7 +29071,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28870,7 +29090,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28888,7 +29109,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28906,7 +29128,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28924,7 +29147,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28942,7 +29166,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28960,7 +29185,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -28978,7 +29204,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29022,7 +29249,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29040,7 +29268,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29058,7 +29287,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29076,7 +29306,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29094,7 +29325,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29125,7 +29357,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29143,7 +29376,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29161,7 +29395,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29192,7 +29427,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29225,7 +29461,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29243,7 +29480,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29261,7 +29499,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29279,7 +29518,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29297,7 +29537,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29315,7 +29556,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29333,7 +29575,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29351,7 +29594,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29369,7 +29613,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29387,7 +29632,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29405,7 +29651,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29423,7 +29670,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29454,7 +29702,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29502,7 +29751,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29588,7 +29838,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29606,7 +29857,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29624,7 +29876,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29658,7 +29911,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29676,7 +29930,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29694,7 +29949,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29725,7 +29981,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29756,7 +30013,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29790,7 +30048,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29808,7 +30067,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29818,12 +30078,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v25.0/{campaign_id}/insights",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "reviewed_write_family",
+      "implementation": "src/meta-insights-jobs.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/meta-insights-jobs.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "meta_insights_jobs"
     },
     {
       "gateway": "meta_native_action",
@@ -29855,7 +30118,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29875,7 +30139,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29895,7 +30160,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29944,7 +30210,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -29979,7 +30246,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30045,7 +30313,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30079,7 +30348,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30110,7 +30380,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30128,7 +30399,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30161,7 +30433,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30181,7 +30454,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30246,7 +30520,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30290,7 +30565,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30308,7 +30584,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30326,7 +30603,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30357,7 +30635,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30375,7 +30654,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30393,7 +30673,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30411,7 +30692,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30429,7 +30711,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30447,7 +30730,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30504,7 +30788,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30535,7 +30820,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30555,7 +30841,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30590,7 +30877,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30608,7 +30896,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30626,7 +30915,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30657,7 +30947,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30675,7 +30966,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30693,7 +30985,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30711,7 +31004,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30729,7 +31023,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30749,7 +31044,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30786,7 +31082,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30804,7 +31101,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30835,7 +31133,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30853,7 +31152,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30871,7 +31171,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30902,7 +31203,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30920,7 +31222,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30938,7 +31241,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30969,7 +31273,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -30987,7 +31292,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31005,7 +31311,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31036,7 +31343,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31080,7 +31388,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31098,7 +31407,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31116,7 +31426,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31160,7 +31471,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31193,7 +31505,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31211,7 +31524,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31229,7 +31543,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31247,7 +31562,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31265,7 +31581,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31283,7 +31600,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31301,7 +31619,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31319,7 +31638,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31337,7 +31657,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31355,7 +31676,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31373,7 +31695,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31391,7 +31714,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31409,7 +31733,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31427,7 +31752,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31445,7 +31771,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31476,7 +31803,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31494,7 +31822,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31512,7 +31841,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31530,7 +31860,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31548,7 +31879,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31566,7 +31898,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31584,7 +31917,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31602,7 +31936,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31620,7 +31955,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31638,7 +31974,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31656,7 +31993,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31674,7 +32012,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31692,7 +32031,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31736,7 +32076,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31754,7 +32095,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31772,7 +32114,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31790,7 +32133,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31808,7 +32152,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31841,7 +32186,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31861,7 +32207,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31879,7 +32226,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31923,7 +32271,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31941,7 +32290,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31972,7 +32322,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -31990,7 +32341,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32008,7 +32360,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32052,7 +32405,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32070,7 +32424,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32088,7 +32443,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32106,7 +32462,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32124,7 +32481,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32142,7 +32500,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32160,7 +32519,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32191,7 +32551,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32209,7 +32570,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32227,7 +32589,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32245,7 +32608,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32276,7 +32640,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32294,7 +32659,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32312,7 +32678,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32343,7 +32710,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32374,7 +32742,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32405,7 +32774,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32436,7 +32806,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32493,7 +32864,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32524,7 +32896,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32542,7 +32915,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32560,7 +32934,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32591,7 +32966,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32622,7 +32998,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32640,7 +33017,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32671,7 +33049,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32689,7 +33068,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32720,7 +33100,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32738,7 +33119,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32769,7 +33151,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32787,7 +33170,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32805,7 +33189,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32823,7 +33208,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32841,7 +33227,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32872,7 +33259,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32903,7 +33291,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32921,7 +33310,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32939,7 +33329,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32957,7 +33348,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -32988,7 +33380,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33006,7 +33399,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33024,7 +33418,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33042,7 +33437,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33060,7 +33456,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33091,7 +33488,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33109,7 +33507,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33144,7 +33543,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33164,7 +33564,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33182,7 +33583,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33202,7 +33604,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33214,12 +33617,15 @@
       ],
       "method": "POST",
       "path": "/v25.0/act_{ad_account_id}/insights",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "reviewed_write_family",
+      "implementation": "src/meta-insights-jobs.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/meta-insights-jobs.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "meta_insights_jobs"
     },
     {
       "gateway": "meta_native_action",
@@ -33261,7 +33667,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33279,7 +33686,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33297,7 +33705,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33315,7 +33724,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33350,7 +33760,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33368,7 +33779,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33386,7 +33798,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33404,7 +33817,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33422,7 +33836,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33440,7 +33855,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33458,7 +33874,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33476,7 +33893,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33494,7 +33912,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33512,7 +33931,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33530,7 +33950,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33548,7 +33969,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33566,7 +33988,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33586,7 +34009,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33606,7 +34030,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33626,7 +34051,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33646,7 +34072,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33666,7 +34093,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33723,7 +34151,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33780,7 +34209,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33811,7 +34241,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -33831,7 +34262,8 @@
         "tests/meta-provision.test.ts",
         "tests/meta-contracts.test.ts",
         "tests/meta-label-writes.test.ts",
-        "tests/meta-ad-library.test.ts"
+        "tests/meta-ad-library.test.ts",
+        "tests/meta-insights-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },

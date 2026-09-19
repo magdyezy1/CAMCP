@@ -1,3 +1,4 @@
+import {metaReportReadResult,observeMetaReportRead,runMetaReportRead} from './meta-insights-jobs.js';
 import {campaignPreflight} from './campaign-preflight.js';
 import {searchMetaAdLibrary} from './meta-ad-library.js';
 import {assertProviderActionAvailable} from './retired-provider-actions.js';
@@ -135,8 +136,8 @@ export class MirrorService {
   const credentials=await this.credentials.get(connection);
   this.store.appendAudit(actor.tenantId,requestId,{event:'request_started',actor:actor.userId,request:plan});
   try{
-   const fetchPage=async(p:CompiledRequest)=>{const current=this.store.resolveConnection(actor,p.gateway,p.accountId,connection.id);scope.authorize(p,current);const result=await this.transport.request(p,current,credentials),{data,status}=result;const active=this.store.resolveConnection(actor,p.gateway,p.accountId,current.id);scope.authorize(p,active);this.delegatedCompiler.validateResponse(p,data,status);validateAppleResponse(p,data);if(p.gateway===microsoftGateway)validateMicrosoftResponse(p,result);scope.observe(p,active,data);if(p.gateway===microsoftGateway&&p.reportDownload)return this.microsoftDownload(p,data as JsonObject,actor,active.id);return data;};
-   const result=dv360TargetingSearchRoute(plan)?await runDV360TargetingSearch(plan,fetchPage,!!(input.aggregate_pages||input.paginate||input.allPages),Number(input.max_pages??25)):input.aggregate_pages||input.paginate||input.allPages?await paginate(plan,fetchPage,Number(input.max_pages??25)):{data:await fetchPage(plan),pages:1,truncated:false};
+   const fetchPage=async(p:CompiledRequest)=>{const current=this.store.resolveConnection(actor,p.gateway,p.accountId,connection.id);scope.authorize(p,current);const result=await this.transport.request(p,current,credentials),{data,status}=result;const active=this.store.resolveConnection(actor,p.gateway,p.accountId,current.id);scope.authorize(p,active);this.delegatedCompiler.validateResponse(p,data,status);validateAppleResponse(p,data);if(p.gateway===microsoftGateway)validateMicrosoftResponse(p,result);const reportData=metaReportReadResult(p,result);if(reportData){observeMetaReportRead(p,active,this.store,reportData);return reportData;}scope.observe(p,active,data);if(p.gateway===microsoftGateway&&p.reportDownload)return this.microsoftDownload(p,data as JsonObject,actor,active.id);return data;};
+   const result=plan.metaReportRead?await runMetaReportRead(plan,fetchPage,!!input.aggregate_pages,Number(input.max_pages??25)):dv360TargetingSearchRoute(plan)?await runDV360TargetingSearch(plan,fetchPage,!!(input.aggregate_pages||input.paginate||input.allPages),Number(input.max_pages??25)):input.aggregate_pages||input.paginate||input.allPages?await paginate(plan,fetchPage,Number(input.max_pages??25)):{data:await fetchPage(plan),pages:1,truncated:false};
    const projected=projectResponse(result.data,plan.responseControls);
    const generation=googleGenerationResult(plan,result.data);
    const outcome={success:true,action:plan.action,dry_run:false,...result,data:projected.data,...(generation?{generation}:{}),truncated:result.truncated||projected.truncated,...(projected.truncated?{response_truncated:true}:{})};

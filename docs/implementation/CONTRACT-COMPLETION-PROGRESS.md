@@ -50,10 +50,10 @@ Live advertising mutations, permission changes, production deployment and real
 customer-data uploads are outside this implementation authorization. They are
 qualification dependencies, not a reason to omit locally implementable code.
 
-## Current checkpoint (2026-09-19)
+## Current checkpoint (2026-09-20)
 
-The working tree now inventories **3,241 actions**, including **391 reviewed-family
-rows**. **922 mapped writes, 104 unmapped actions, 31 unqualified reads and eight
+The working tree now inventories **3,241 actions**, including **401 reviewed-family
+rows**. **916 mapped writes, 104 unmapped actions, 27 unqualified reads and eight
 input-dependent adapters remain incomplete**. Four routes are now explicitly
 **provider_unsupported**, including three previously blocked writes and one read;
 these are not counted as implemented. The first batch added 68 reviewed action
@@ -378,3 +378,55 @@ Manifest: 501 files, SHA-256
 Live Google acceptance, FFmpeg-required and container checks remain unverified.
 An evidence-log print hit Windows console encoding; no product check failed.
 The conversion-goal batch is ready for the authorized Codex-branch push.
+
+
+## Meta asynchronous Insights reports (2026-09-20; qualification in progress)
+
+Google conversion goals are pushed as `bc4ffd0`. The next batch adds reviewed
+account/campaign/ad-set Insights creation and its account alias: four catalog
+rows formerly labeled read-only but correctly refused as side-effecting jobs.
+Native creation, exact definition polling, scoped retrieval, partial-page recovery
+and worker retry lifecycle are implemented. Completed processing never implies
+rows downloaded. Resumed calls distinguish remaining-page completion from complete
+first-to-last retrieval. Scoped report receipts grant no generic resource ownership.
+
+Public official Python SDK tag 25.0.3 confirms three creation edges, response
+models and the supported native fields/parameters. Five source hashes and a
+reproducible extractor are committed as schema evidence; no live Meta acceptance
+is claimed. Breakdowns, filters, exports, summary and other parameter families
+remain explicitly outside this initial contract. Audience Network reports remain
+unqualified. Jobs require an operator, deployment writes and a write grant;
+subsequent authorized reads work for readers and read-only deployments.
+
+Initial compiler integration: one pass, 12 failures because Graph field selectors
+were flattened to CSV. Async creation now freezes native list parameters before
+hashing/transport. The next run had seven passes and six fixture failures because
+the stub coerced the native string time_increment to a number; fixed the stub
+using the official SDK types. Corrected initial suite: 13/13. Expanded suite:
+29/29, including restart/concurrency, worker polling, scope revocation, malformed
+HTTP-200 pages/receipts, incomplete downloads, native null/zero handling, limits,
+expiry and immutable reviews. Compatibility and guide examples: 73/73.
+The initial TypeScript narrowing error was also corrected before those runs.
+No assertions or safeguards were relaxed. All original logs remain in
+`.runtime/contract-completion-20260919/meta-reports-*.log`.
+
+Commands: `npm.cmd run build`; contract/action generators;
+`node tools/meta-insights-evidence.mjs --source-dir .runtime/contract-completion-20260919/meta-sdk --check`;
+`node --test dist/tests/meta-insights-jobs.test.js`; the compatibility suite also
+ran meta-label-writes, meta-contracts, meta-action-aliases, write-review and all
+guide-contract examples. Guidance coverage reports no missing codes or gateways.
+Candidate AD will run the complete sanitized release check.
+
+Inventory: 3,241 actions, 401 reviewed-family rows, 916 blocked writes, 104
+unmapped, 27 unqualified reads, eight input-dependent adapters and four explicit
+provider-unsupported actions. These are catalog rows, not all provider APIs or
+all payload variants. FFmpeg-required, container and live checks remain open.
+
+
+Candidate AD passed the entire sanitized release check: 1,156 tests passed,
+zero failed, one FFmpeg skip; four capture tests passed. Generation, report, web,
+provider integrity/lifecycle, generated-contract and action-inventory checks all
+completed with exit zero. Manifest: 505 files, source-tree SHA-256
+`cb5f0baf00cf83a2e7ec2f13395205a185c6e404532fc0568067acde004fa166`.
+No live Meta acceptance, required-FFmpeg run or container smoke was performed.
+This batch is ready for the authorized Codex-branch push.

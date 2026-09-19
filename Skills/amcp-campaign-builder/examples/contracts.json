@@ -970,6 +970,33 @@
           }
         }
       }
+    },
+    {
+      "gateway": "meta_native_action",
+      "arguments": {
+        "action": "meta_report_task_create",
+        "account_id": "123",
+        "payload": {
+          "fields": [
+            "account_id",
+            "account_currency",
+            "date_start",
+            "date_stop",
+            "campaign_id",
+            "impressions",
+            "spend",
+            "reach",
+            "actions"
+          ],
+          "level": "campaign",
+          "time_range": {
+            "since": "2026-08-01",
+            "until": "2026-08-03"
+          },
+          "time_increment": "1",
+          "use_unified_attribution_setting": true
+        }
+      }
     }
   ],
   "recipe_business": {

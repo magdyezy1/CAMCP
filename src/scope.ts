@@ -1,3 +1,4 @@
+import {authorizeMetaReportRead,assertMetaReportScope} from './meta-insights-jobs.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {Registry} from './catalog.js';
@@ -75,6 +76,8 @@ export class ScopeGuard {
   if(authorizeLinkedInRule(plan,connection,id))return id;
   if(authorizeCriteoInternalRead(plan,connection,id))return id;
   if(plan.gateway==='google_ads_native_action'&&plan.readOnly&&plan.method==='POST'&&/^\/v23:[A-Za-z]+$/.test(decoded)&&googleGlobalReadMethods.has(decoded.slice(5)))return id;
+  if(plan.gateway==='meta_native_action'&&plan.action==='AMCP_META_REPORT_READ')assertMetaReportScope(connection);
+  if(authorizeMetaReportRead(plan,connection,this.store,id))return id;
   if(authorizeLinkedInSpecial(plan,connection,this.store,id))return id;
   if(authorizeRedditPostRead(plan,connection,this.store,id))return id;
   const patterns:Record<string,RegExp>={

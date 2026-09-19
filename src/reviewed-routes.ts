@@ -1,3 +1,4 @@
+import {metaReportKind} from './meta-insights-jobs.js';
 import {redditCreativeKind} from './reddit-creative-writes.js';
 import {linkedinConversionKind} from './linkedin-conversion-links.js';
 import {linkedinRuleKind} from './linkedin-conversion-rules.js';
@@ -30,6 +31,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(p.readOnly||p.specialTransport)return;
  if(linkedinConversionKind(p))return 'linkedin_conversion_links';
  if(linkedinRuleKind(p))return 'linkedin_conversion_rules';
+ if(metaReportKind(p))return 'meta_insights_jobs';
  if(metaLabelKind(p))return 'meta_labels';
  if(googleBidKind(p))return 'google_bid_modifiers';
  if(googleBiddingEventKind(p))return 'google_bidding_events';

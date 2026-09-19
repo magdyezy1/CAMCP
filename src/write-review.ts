@@ -1,3 +1,4 @@
+import {metaReportKind,assertMetaReport,assertMetaReportScope,metaReportSnapshots,readMetaReportState,metaReportOutcome} from './meta-insights-jobs.js';
 import {readRedditProfiles,validateRedditProfiles,validateRedditCreativePrerequisites,assertRedditCreativeAvailable} from './reddit-creative-writes.js';
 import {readKeywordPlanTree,validateKeywordPlanTree} from './google-keyword-plan-writes.js';
 import {reviewedWriteFamily} from './reviewed-routes.js';
@@ -79,6 +80,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(googleBidKind(plan))return googleBidOutcome(plan,result);
  if(googleBiddingEventKind(plan))return googleBiddingEventOutcome(plan,result,before);
  if(googleConversionGoalKind(plan))return googleConversionGoalOutcome(plan,result,before);
+ if(metaReportKind(plan))return metaReportOutcome(plan,result);
  if(metaLabelKind(plan))return metaLabelOutcome(plan,result,before);
  if(criteoTargetingKind(plan))return criteoTargetingOutcome(plan,result);
  if(gtmWorkspaceKind(plan))return gtmWorkspaceOutcome(plan,result,before);
@@ -215,6 +217,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(!supported)fail('WRITE_CONTRACT_UNAVAILABLE','This route is outside the reviewed campaign-management execution contracts. Use a local dry run.');
  if(dv360ListKind(plan))assertDV360ListWrite(plan);
  if(criteoTargetingKind(plan))assertCriteoTargeting(plan);
+ if(metaReportKind(plan))assertMetaReport(plan);
  if(metaLabelKind(plan))assertMetaLabel(plan);
  if(plan.gateway==='meta_native_action'&&route.endsWith('/adcreatives'))validateMetaCreative(body);
  if(Object.keys(plan.query).some(k=>!(plan.gateway==='dv360_native_action'&&k==='updateMask'||plan.gateway==='gtm_native_action'&&k==='fingerprint')))fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed writes accept body fields and qualified concurrency parameters only.');
@@ -266,6 +269,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(googleBidKind(plan))return googleBidSnapshots(plan);
  if(googleBiddingEventKind(plan))return googleBiddingEventSnapshots(plan);
  if(googleConversionGoalKind(plan))return googleConversionGoalSnapshots(plan);
+ if(metaReportKind(plan))return metaReportSnapshots(plan);
  if(metaLabelKind(plan))return metaLabelSnapshots(plan);
  if(criteoTargetingKind(plan))return criteoTargetingSnapshots(plan);
  if(gtmWorkflowKind(plan))return gtmWorkflowSnapshots(plan);
@@ -348,6 +352,7 @@ export class WriteReviewService {
   for(const account of appleSharedAccounts(plan)){this.store.resolveConnection(actor,plan.gateway,account,c.id);assertAccountWrite(this.store,c,account);}
   if(plan.gateway==='reddit_native_action')assertRedditWriteScopes(c);
   if(criteoTargetingKind(plan))assertCriteoTargetingScopes(c);
+  if(metaReportKind(plan))assertMetaReportScope(c);
   if(metaLabelKind(plan))assertMetaLabelScope(c,true);
   if(googleBidKind(plan))assertGoogleBidScope(c);
   if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan))assertGoogleAdsScope(c);
@@ -357,6 +362,11 @@ export class WriteReviewService {
   plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);assertMeasurementScopes(plan,c);return c;
  }
  private async state(actor:Actor,plan:CompiledRequest,connectionId:string,reads:CompiledRequest[]):Promise<unknown[]> {
+  if(metaReportKind(plan))return readMetaReportState(plan,async read=>{
+   if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Report prerequisites must remain read-only.');
+   const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));
+   const result=await this.transport.request(read,c,auth);this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));return result;
+  });
   if(googleBiddingEventKind(plan)||googleConversionGoalKind(plan))return (googleConversionGoalKind(plan)?readGoogleConversionGoalState:readGoogleBiddingEventState)(plan,async read=>{
    if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Google goal and bidding-event dependency checks must be read-only.');
    const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);
