@@ -108,10 +108,10 @@
       "actions": 456,
       "counts": {
         "adapter_requires_input": 8,
-        "blocked_write": 123,
+        "blocked_write": 117,
         "media_workflow": 2,
         "native_read": 175,
-        "reviewed_write_family": 146,
+        "reviewed_write_family": 152,
         "unqualified_read": 2
       },
       "captured_catalog_complete": true,
@@ -9005,12 +9005,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/customers/{customer_id=*}/customerUserAccessInvitations:mutate",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-user-access.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-user-access.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_user_access"
     },
     {
       "gateway": "google_ads_native_action",
@@ -11388,12 +11391,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/customers/{customer_id=*}/customerUserAccessInvitations:mutate",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-user-access.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-user-access.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_user_access"
     },
     {
       "gateway": "google_ads_native_action",
@@ -11401,12 +11407,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/customers/{customer_id=*}/customerUserAccesses:mutate",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-user-access.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-user-access.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_user_access"
     },
     {
       "gateway": "google_ads_native_action",
@@ -15580,12 +15589,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/customers/{customer_id=*}/customerUserAccesses:mutate",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-user-access.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-user-access.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_user_access"
     },
     {
       "gateway": "google_ads_native_action",
@@ -15593,12 +15605,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/customers/{customer_id=*}/customerUserAccessInvitations:mutate",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-user-access.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-user-access.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_user_access"
     },
     {
       "gateway": "google_ads_native_action",
@@ -16310,12 +16325,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/customers/{customer_id=*}/customerUserAccesses:mutate",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-user-access.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-user-access.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_user_access"
     },
     {
       "gateway": "google_ads_native_action",

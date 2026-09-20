@@ -3,6 +3,7 @@ import {placeActionKind,assertPlaceActionScope,verifyPlaceAction} from './google
 import {businessNotificationKind,assertBusinessNotificationActor,assertBusinessNotificationScope,verifyBusinessNotification} from './google-business-notifications.js';
 import {businessAccessKind,assertBusinessAccessActor,assertBusinessAccessScope,verifyBusinessAccess} from './google-business-access.js';
 import {googleDismissalKind,verifyGoogleDismissal} from './google-recommendation-dismissal.js';
+import {googleAccessKind,assertGoogleAccessActor,verifyGoogleAccess} from './google-user-access.js';
 import {redditCreativeKind,redditCreativeVerification,readRedditProfiles} from './reddit-creative-writes.js';
 import {criteoTargetingKind,criteoTargetingVerification,readCriteoTargeting,assertCriteoReadScope} from './criteo-targeting-writes.js';
 import {redditPostCreation,verifyRedditPostCreation} from './reddit-post-creation.js';
@@ -125,7 +126,8 @@ export class WriteVerifier{
   if(placeActionKind(plan))assertPlaceActionScope(c);
   if(businessNotificationKind(plan)){assertBusinessNotificationActor(plan,actor);assertBusinessNotificationScope(c);}
   if(businessAccessKind(plan)){assertBusinessAccessActor(plan,actor);assertBusinessAccessScope(c);}
-  if(googleDismissalKind(plan))assertGoogleAdsScope(c);
+  if(googleDismissalKind(plan)||googleAccessKind(plan))assertGoogleAdsScope(c);
+  assertGoogleAccessActor(plan,actor);
   if(metaLabelKind(plan))assertMetaLabelScope(c);
   if(googleBidKind(plan))assertGoogleBidScope(c);
   if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan))assertGoogleAdsScope(c);
@@ -143,6 +145,12 @@ export class WriteVerifier{
     const response=await this.transport.request(page,current,auth);this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);
     if(!current.scopes.includes('adsread'))bad('Reddit post verification requires adsread.','INSUFFICIENT_SCOPE');new ScopeGuard(this.registry,this.store).authorize(page,current);return response;
    }));status=verified.status;checks=verified.checks;resources=verified.resources??[];
+  }else if(googleAccessKind(plan)){
+   const verified=await verifyGoogleAccess(plan,result,review.state,async read=>{
+    if(!independentlyReadOnly(read))bad('Google access verification must remain read-only.','VERIFICATION_UNSUPPORTED');
+    const access=()=>{this.store.assertActorActive(actor);assertGoogleAccessActor(plan,actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertGoogleAdsScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);return current;};
+    const current=access(),auth=await this.credentials.get(current);access();const response=await this.transport.request(read,current,auth);access();return response;
+   });status=verified.status;checks=verified.checks;
   }else if(googleDismissalKind(plan)){
    const verified=await verifyGoogleDismissal(plan,review.state,async read=>{
     if(!independentlyReadOnly(read))bad('Dismissal verification must remain read-only.','VERIFICATION_UNSUPPORTED');

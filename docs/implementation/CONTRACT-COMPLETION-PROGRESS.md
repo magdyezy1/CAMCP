@@ -1,5 +1,70 @@
 # Provider action implementation progress
 
+Latest stop/resume checkpoint: [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md).
+Earlier numbered checkpoints below are historical; the AN entry and handoff
+record the newest inventory and validation results.
+
+## AN — Google Ads client-account user access (2026-09-20)
+
+User requested finishing only the in-progress batch and documenting all remaining
+work before stopping for the usage-limit refresh. No further family was started.
+
+Six mapped writes now share google_user_access: the native user and invitation
+mutation RPCs plus CREATE/REMOVE_CUSTOMER_USER_ACCESS_INVITATION and
+UPDATE/REMOVE_CUSTOMER_USER_ACCESS. Native singular operation/result, exact mutable
+role masks, administrator/test-account checks, current account write grants and
+adwords scope are enforced. Client membership and invitation collections are read
+completely twice, with semantic projections and bounded pages/bytes/deadlines.
+Duplicate recipient, no-op role, pending authorization, nonpending revocation,
+manager-wide effects and last-direct-admin removal/demotion are refused explicitly.
+New/increased access obeys owner activation policy; removals/demotion obey deletion
+policy. POST singular removals now have destructive metadata as well as policy
+checks. No invitation or native permission was changed live.
+
+Exact target receipts and independent read-back distinguish a sent PENDING
+invitation from accepted account access. No AMCP ownership is inferred. The final
+Discovery/proto comparison exposed the optional multiPartyAuthReview receipt field;
+it is now validated and retained. Pending native authorization remains inconclusive.
+A receipt containing only that review ID without a target remains uncertain and
+cannot be resent; approval/rejection and manager-wide recovery are separate gaps.
+
+Tests cover lifecycle, both action surfaces, malformed/native options, masks,
+cross-account/workspace access, revocation, owner-policy changes, meaningful state
+conflicts versus telemetry, paging/count/response bounds, lost/partial/foreign
+receipts, pending authorization, concurrency, review tampering/expiry and SQLite
+restart replay. Twenty-five new tests plus existing compatibility/guidance tests:
+75 passed, zero failed or skipped. Build, nine-proto evidence regeneration,
+contract/action generators and guidance checks passed (88 modules, 14 gateways,
+no missing codes/gateways). Initial build narrowing errors are retained in
+google-access-build-1.log; build-2/build-3 and final passed. Initial 21 tests passed;
+the expanded final suite includes schema-driven receipt and verification cases.
+Logs: .runtime/contract-completion-20260919/google-access-*.log.
+
+Provider descriptor Google version 14 and two executable guide examples are
+updated. Official evidence URLs/hashes, version constraints and recovery guidance
+are in Skills/amcp-campaign-builder/references/google-ads.md,
+tests/fixtures/google-user-access-v23.json and tools/google-access-evidence.mjs.
+No new runtime dependency or database migration.
+
+Recomputed inventory: 3241 actions; 423 reviewed-family, 894 blocked mapped writes,
+91 unmapped, 27 unqualified reads, eight input-dependent, four provider-unsupported,
+1704 native reads, 74 local workflows and 16 media workflows. Pinned vendor
+denominator: 1208 methods, 454 with no mapped action; Apple 99/58 unmapped.
+These totals do not certify all payload variants or live provider behavior.
+Candidate AN completed successfully: npm ci --ignore-scripts and npm run check
+both exited 0. Main suite: 1380 tests, 1379 passed, zero failed, one optional
+FFmpeg skip; four capture tests passed. Every subsequent check stage passed.
+Candidate manifest: 533 files, source_tree_hash
+59489cbcc71ce291eb451d2b7becf92cac5c4b2bc5fa04bbec8797cf5a03d61c.
+Logs: install-an.log and release-check-an.log under
+.runtime/contract-completion-20260919. No executable source changed after the
+candidate was assembled; only stop/resume documentation was completed.
+Required FFmpeg mode, Docker and live provider/permission workflows remain unrun.
+The user requested stopping here; remaining scope and exact resumption commands
+are in RESUME-HANDOFF-2026-09-20.md, with all 1024 remaining/unsupported action
+rows frozen separately. No next family is in progress.
+
+
 Started 2026-09-19 from `d7f3fad8f4fc499123e6be71f4d0d11408befcd4` on
 `Codex-branch`. The development checkout and `.release/AMCP` are separate and
 remain untouched. Implementation and pushes are restricted to `Codex-branch`.

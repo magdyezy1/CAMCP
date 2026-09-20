@@ -1,0 +1,68 @@
+{
+  "date": "2026-09-20",
+  "branch": "Codex-branch",
+  "remote": "https://github.com/magdyezy1/AMCP.git",
+  "precommit_revision": "e961eb851add20015849fa10145e8fbf05b43cf4",
+  "environment": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "shell": "PowerShell",
+    "os": "Windows"
+  },
+  "candidate": {
+    "path": ".release/contract-batch-20260919-an",
+    "source_tree_hash": "59489cbcc71ce291eb451d2b7becf92cac5c4b2bc5fa04bbec8797cf5a03d61c",
+    "files": 533,
+    "unchanged_executable_sources": true,
+    "documentation_delta": [
+      "docs/implementation/CONTRACT-COMPLETION-2026-09-19.md",
+      "docs/implementation/CONTRACT-COMPLETION-PROGRESS.md"
+    ],
+    "additional_checkpoint_docs": [
+      "RESUME-HANDOFF-2026-09-20.md",
+      "REMAINING-ACTIONS-2026-09-20.csv",
+      "VERIFICATION-CHECKPOINT-2026-09-20.json"
+    ]
+  },
+  "checks": [
+    {
+      "command": "npm.cmd ci --ignore-scripts",
+      "exit_code": 0,
+      "log": ".runtime/contract-completion-20260919/install-an.log",
+      "log_sha256": "b1b7c9e05a5ba83776b1a2e6c682c729f2fbb8cd9b254eed4036373b852371d6"
+    },
+    {
+      "command": "npm.cmd run check",
+      "exit_code": 0,
+      "log": ".runtime/contract-completion-20260919/release-check-an.log",
+      "main": {
+        "tests": 1380,
+        "pass": 1379,
+        "fail": 0,
+        "skip": 1
+      },
+      "capture": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "skip": 0
+      },
+      "log_sha256": "ab740eaa8d843ba3c6a82a0013829381f6f95fc479df01d17b1d7a992e2b7750"
+    },
+    {
+      "command": "AN focused compatibility command in the handoff",
+      "tests": 75,
+      "pass": 75,
+      "fail": 0,
+      "skip": 0
+    }
+  ],
+  "unrun": [
+    "AMCP_REQUIRE_FFMPEG=true required-binary mode",
+    "Docker smoke",
+    "Live provider/account/app qualification",
+    "Live permission changes or invitation acceptance",
+    "Production deployment and restore"
+  ],
+  "meaning": "Synthetic/local qualification; historical private account responses excluded. Published action families are not full payload or live-provider coverage."
+}

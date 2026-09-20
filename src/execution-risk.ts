@@ -63,7 +63,7 @@ export function applyExecutionRisk(plan:CompiledRequest):CompiledRequest{
  const readOnly=independentlyReadOnly(plan);
  // Google's RPC remains POST for remove operations. Catalog method/risk flags
  // cannot decide whether the frozen operation deletes an association or entity.
- const googleRemoval=plan.gateway==='google_ads_native_action'&&plan.method==='POST'&&plan.path.endsWith(':mutate')&&Array.isArray((plan.body as any)?.operations)&&(plan.body as any).operations.some((op:any)=>op&&typeof op.remove==='string');
+ const googleRemoval=plan.gateway==='google_ads_native_action'&&plan.method==='POST'&&plan.path.endsWith(':mutate')&&[...(Array.isArray((plan.body as any)?.operations)?(plan.body as any).operations:[]),(plan.body as any)?.operation].some((op:any)=>op&&typeof op.remove==='string');
  const warnings=[...plan.warnings,...xCreativeWarnings(plan),...(plan.readOnly&&!readOnly?['Catalog read-only metadata is not sufficient for this route; execution is treated as a mutation or an unqualified operation.']:[])];
  return {...plan,readOnly,destructive:plan.destructive||googleDismissalKind(plan)||businessNotificationDisables(plan)||googleRemoval||googleSegmentRemoval(plan)||!!criteoTargetingKind(plan)&&plan.path.endsWith('/delete')||xCreativeEdit(plan)||dv360ListRemoves(plan)||gtmWorkflowDestructive(plan)||gtmWorkspaceDestructive(plan),requiresConfirmation:plan.requiresConfirmation||!readOnly,warnings:[...new Set(warnings)]};
 }

@@ -534,3 +534,80 @@ Official sources checked 2026-09-20:
 and [official dismissal sample](https://developers.google.com/google-ads/api/samples/dismiss-recommendation).
 The sample currently uses newer versions; execution remains pinned to the
 unchanged v23 Discovery route and request/response fields, which tests check.
+
+## Client-account user access and invitations
+
+Six actions now share the administrator-only user-access contract:
+`CREATE_CUSTOMER_USER_ACCESS_INVITATION`, `REMOVE_CUSTOMER_USER_ACCESS_INVITATION`,
+`UPDATE_CUSTOMER_USER_ACCESS`, `REMOVE_CUSTOMER_USER_ACCESS`, and the two RPCs
+`google_ads_v23_customer_user_access_invitation_mutate_customer_user_access_invitation`
+and `google_ads_v23_customer_user_access_mutate_customer_user_access`.
+Select the exact Google Ads login and client account. Ask for the recipient and
+intended role; never infer permission changes from an advertising campaign brief.
+Discover native user/invitation resource names before changing or removing them.
+
+The native body contains one `operation`, with one create, update or remove.
+It has no `operations` array, `partialFailure`, `validateOnly` or response override.
+Invitation create takes `emailAddress` and `accessRole`. Existing user update takes
+`resourceName`, `accessRole` and the exact `updateMask: "accessRole"`. Removal takes
+the full native resource string. Roles are ADMIN, STANDARD, READ_ONLY and EMAIL_ONLY;
+Google enforces eligibility. User email is output-only; invitations are immutable.
+The machine-checked examples show both RPC and friendly legacy payload forms.
+
+A current AMCP administrator, selected-account write grant and adwords scope are
+required. `ADMIN_REQUIRED` also refuses reviewer test accounts for these external
+permission changes. The local administrator role does not establish Google admin
+authority. Domain restrictions, provider approval, scope and native role are
+separate prerequisites. Google sign-in, Analytics and Sheets scopes do not grant
+Google Ads administration. Owner activation controls cover new/increased access;
+owner deletion controls cover removal/demotion. No advertising budget changes.
+
+Prepare reads the customer, complete direct memberships and all invitations twice.
+Snapshots compare native identities, roles, email, invitation state and pending
+multi-party authorization, excluding request telemetry and creation timestamps.
+The limits are 1000 members and 1000 invitations, 25 pages per collection,
+104 requests, 2 MiB per response, 8 MiB total and a 60-second monotonic deadline.
+Paging, unknown responses, duplicates, partial counts and changing state fail closed.
+Member/invitation ordering does not cause a conflict; real changes return
+STATE_CHANGED with exact fields before submission. Current grants, actor and
+scopes are checked around each read and at execution.
+
+This contract covers client customers, not manager-wide access affecting
+descendants. Removing or demoting the last direct administrator is blocked until
+a separate contract verifies owner-manager recovery. Existing recipient/pending
+invitation, no-op role change, nonpending revocation and another pending native
+authorization review require inspection instead of resubmission. These are explicit
+AMCP limits, not claims that every variant is forbidden by Google.
+
+Inspect the exact recipient, previous/new role and effect; execute the frozen
+review with its original key only after user authorization. An invitation sends
+an email, not accepted account access. Read-back proves a newly observed PENDING
+invitation; `access_granted` remains false. Google allows acceptance by a different
+Google account email. A disappeared invitation or newly seen member cannot prove
+acceptance. Never grant AMCP ownership from this receipt.
+
+Native receipts can include `multiPartyAuthReview`. With an exact target resource,
+AMCP retains it and reads back actual configuration. A still-pending change remains
+inconclusive. A receipt with only a review ID and no target is retained as uncertain;
+that variant and approval/rejection of native reviews need a separate contract.
+Neither a receipt nor an HTTP 200 establishes that permission was applied.
+Preserve the original review, idempotency claim and receipt after any uncertainty.
+Retry `amcp_campaign verify` reads, never the mutation under a new key.
+
+`INVALID_GOOGLE_ACCESS` explains a malformed/unqualified request or prerequisite.
+`GOOGLE_ACCESS_STATE_UNVERIFIED` means a complete stable scoped baseline could not
+be established. Resolve the named issue and prepare again only if nothing was
+submitted; after submission reconcile the original result first. Removing the
+acting Google user may also remove the ability to read back; do not mistake failed
+verification for permission to retry the removal.
+
+Official evidence checked 2026-09-20:
+[v23 user fields](https://developers.google.com/google-ads/api/fields/v23/customer_user_access),
+[v23 invitation fields](https://developers.google.com/google-ads/api/fields/v23/customer_user_access_invitation),
+[native user service](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/services/customer_user_access_service.proto),
+[native invitation service](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/services/customer_user_access_invitation_service.proto),
+and [invitation sample](https://developers.google.com/google-ads/api/samples/invite-user-with-access-role).
+The sample uses a newer version; runtime contracts remain pinned to v23 Discovery
+and nine source-hashed official protos in `google-user-access-v23.json`, reproduced
+by `tools/google-access-evidence.mjs`. Local lifecycle, negative and restart tests
+use synthetic accounts. No live invitation or permission change was performed.

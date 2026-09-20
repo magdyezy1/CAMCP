@@ -47,7 +47,7 @@ test('asset links and measurement routes appear in the same families execution u
   ['gtm_native_action','CREATE_TAG','gtm_entities'],
   ['reddit_native_action','CREATE_SAVED_AUDIENCE','reddit_classic']
  ])assert.equal(rows.find(r=>r.gateway===gateway&&r.action===action)?.family,family,action);
- const dangerous=rows.find(r=>r.gateway==='google_ads_native_action'&&r.path?.includes('customerUserAccessInvitations:mutate'));assert.equal(dangerous?.status,'blocked_write');
+ const administrative=rows.find(r=>r.gateway==='google_ads_native_action'&&r.path?.includes('customerUserAccessInvitations:mutate'));assert.equal(administrative?.family,'google_user_access');assert.ok(administrative.tests.includes('tests/google-user-access.test.ts'));
  assert.equal(rows.find(r=>r.gateway==='google_ads_native_action'&&r.action==='ADD_EXTENSIONS')?.status,'adapter_requires_input');
 });
 test('contract inventory is paginated, locally readable without credentials, and does not change authorization',async()=>{

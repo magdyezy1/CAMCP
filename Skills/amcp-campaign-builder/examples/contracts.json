@@ -101,6 +101,22 @@
     {
       "gateway": "google_ads_native_action",
       "arguments": {
+        "action": "google_ads_v23_customer_user_access_invitation_mutate_customer_user_access_invitation",
+        "account_id": "123",
+        "payload": {"operation": {"create": {"emailAddress": "invited@example.test", "accessRole": "READ_ONLY"}}}
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "UPDATE_CUSTOMER_USER_ACCESS",
+        "account_id": "123",
+        "payload": {"resource": {"resource_name": "customers/123/customerUserAccesses/20", "access_role": "STANDARD"}, "update_mask": "access_role"}
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
         "action": "google_ads_v23_recommendation_dismiss_recommendation",
         "account_id": "123",
         "payload": {
