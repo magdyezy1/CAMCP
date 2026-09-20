@@ -1,0 +1,145 @@
+{
+  "api_version": "v25.0",
+  "sdk_tag": "25.0.3",
+  "checked_at": "2026-09-20",
+  "meaning": "Official SDK schemas and read edges only; permissions, content eligibility and live responses require provider qualification.",
+  "sources": {
+    "page": {
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/25.0.3/facebook_business/adobjects/page.py",
+      "sha256": "ea86aa97c54b67eb08bd72fd868b57a602ea45978d1495ed7dacf85bde8d1c63"
+    },
+    "pagepost": {
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/25.0.3/facebook_business/adobjects/pagepost.py",
+      "sha256": "b0b2009a0667ad57914423284877b104068dca1af4bdfb7f6543b0bec41f0b16"
+    },
+    "iguser": {
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/25.0.3/facebook_business/adobjects/iguser.py",
+      "sha256": "b9e5fc8f9347acc9fcdcd9033cf14ed1c4dc2d784b9756d4dba9e3757cafe2e8"
+    },
+    "igmedia": {
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/25.0.3/facebook_business/adobjects/igmedia.py",
+      "sha256": "243afd286ea7157747fd8dd1768a9b830867268a407f181684ce8c69dfd74aad"
+    },
+    "adaccount": {
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/25.0.3/facebook_business/adobjects/adaccount.py",
+      "sha256": "7349d7ec8da801a33d37f7a02c67e163cfa7ebcc23eb2a5969adcc093d0a2b7e"
+    }
+  },
+  "routes": {
+    "page.get_posts": {
+      "method": "GET",
+      "edge": "/posts"
+    },
+    "iguser.get_media": {
+      "method": "GET",
+      "edge": "/media"
+    },
+    "adaccount.get_promote_pages": {
+      "method": "GET",
+      "edge": "/promote_pages"
+    },
+    "adaccount.get_instagram_accounts": {
+      "method": "GET",
+      "edge": "/instagram_accounts"
+    }
+  },
+  "fields": {
+    "pagepost": {
+      "actions": "list",
+      "admin_creator": "Object",
+      "allowed_advertising_objectives": "list<string>",
+      "application": "Application",
+      "backdated_time": "datetime",
+      "call_to_action": "Object",
+      "can_reply_privately": "bool",
+      "child_attachments": "list",
+      "comments_mirroring_domain": "string",
+      "coordinates": "Object",
+      "created_time": "datetime",
+      "event": "Event",
+      "expanded_height": "unsigned int",
+      "expanded_width": "unsigned int",
+      "feed_targeting": "Object",
+      "from": "Object",
+      "full_picture": "string",
+      "height": "unsigned int",
+      "icon": "string",
+      "id": "string",
+      "instagram_eligibility": "string",
+      "is_app_share": "bool",
+      "is_eligible_for_dark_post": "bool",
+      "is_eligible_for_promotion": "bool",
+      "is_expired": "bool",
+      "is_fb_live_videos": "bool",
+      "is_hidden": "bool",
+      "is_inline_created": "bool",
+      "is_instagram_eligible": "bool",
+      "is_live_clip": "bool",
+      "is_popular": "bool",
+      "is_published": "bool",
+      "is_spherical": "bool",
+      "message": "string",
+      "message_tags": "list",
+      "multi_share_end_card": "bool",
+      "multi_share_optimized": "bool",
+      "parent_id": "string",
+      "permalink_url": "string",
+      "picture": "string",
+      "place": "Place",
+      "privacy": "Privacy",
+      "promotable_id": "string",
+      "promotion_status": "string",
+      "properties": "list",
+      "scheduled_publish_time": "float",
+      "shares": "Object",
+      "status_type": "string",
+      "story": "string",
+      "story_tags": "list",
+      "subscribed": "bool",
+      "target": "Profile",
+      "targeting": "Object",
+      "timeline_visibility": "string",
+      "updated_time": "datetime",
+      "via": "Object",
+      "video_buying_eligibility": "list<string>",
+      "was_fb_live_videos": "bool",
+      "width": "unsigned int"
+    },
+    "igmedia": {
+      "alt_text": "string",
+      "audio_id": "string",
+      "boost_eligibility_info": "IGMediaBoostEligibilityInfo",
+      "caption": "string",
+      "comments_count": "int",
+      "copyright_check_information": "IGVideoCopyrightCheckMatchesInformation",
+      "current_live_viewer_count": "int",
+      "has_poll": "bool",
+      "has_slider": "bool",
+      "id": "string",
+      "ig_id": "string",
+      "is_ai_generated": "bool",
+      "is_comment_enabled": "bool",
+      "is_shared_to_feed": "bool",
+      "legacy_instagram_media_id": "string",
+      "like_count": "int",
+      "media_audio_type": "string",
+      "media_product_type": "string",
+      "media_type": "string",
+      "media_url": "string",
+      "owner": "IGUser",
+      "permalink": "string",
+      "reposts_count": "int",
+      "saved_count": "int",
+      "shares_count": "int",
+      "shortcode": "string",
+      "thumbnail_url": "string",
+      "timestamp": "datetime",
+      "total_comments_count": "int",
+      "total_like_count": "int",
+      "total_views_count": "int",
+      "username": "string",
+      "video_title": "string",
+      "view_count": "int"
+    }
+  }
+}

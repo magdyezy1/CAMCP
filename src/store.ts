@@ -60,6 +60,24 @@ export class Store {
   }catch(e){this.db.close();throw e;}
  }
  close(){this.db.close();}
+ /** Encrypted read continuations are bound to the current tenant, actor and
+  * exact workflow selection. They require no database rows and survive workers
+  * and restarts sharing the master key; they never authorize a provider write. */
+ sealReadCursor(actor:Actor,binding:string,value:JsonObject):string{
+  this.assertActorActive(actor);if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Read continuations require the configured encryption key.');
+  const issued=Date.now(),data={version:1,issued,expires:issued+900000,value};
+  if(Buffer.byteLength(JSON.stringify(data))>16384)throw new MirrorError('INVALID_READ_CURSOR','The read continuation exceeds its size limit.');
+  return 'v1.'+this.box.seal(data,scopeKey(actor.tenantId,actor.userId,'read-cursor',binding));
+ }
+ openReadCursor(actor:Actor,binding:string,token:string):JsonObject{
+  this.assertActorActive(actor);
+  try{
+   if(!this.box||typeof token!=='string'||token.length>32768||!token.startsWith('v1.'))throw Error();
+   const encoded=token.slice(3).split('.');if(encoded.length!==3||encoded.some(s=>!s||Buffer.from(s,'base64').toString('base64')!==s)||Buffer.from(encoded[0]!,'base64').length!==12||Buffer.from(encoded[1]!,'base64').length!==16)throw Error();
+   const data=this.box.open<JsonObject>(token.slice(3),scopeKey(actor.tenantId,actor.userId,'read-cursor',binding)),now=Date.now();
+   if(data.version!==1||!Number.isSafeInteger(data.issued)||data.expires!==data.issued+900000||now<data.issued||now>=data.expires||!data.value||typeof data.value!=='object'||Array.isArray(data.value))throw Error();return data.value;
+  }catch{throw new MirrorError('INVALID_READ_CURSOR','The read continuation expired or does not match this actor, connection and request. Restart from the first page.');}
+ }
  saveUploadSession(tenant:string,id:string,value:JsonObject,expiresAt:number){if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Upload sessions require encryption.');this.putDocument(tenant,'upload_session',id,{secret:this.box.seal(value,scopeKey(tenant,'upload-session',id)),expires_at:expiresAt});}
  uploadSession(tenant:string,id:string):JsonObject|undefined{const row=this.db.prepare("SELECT data FROM documents WHERE tenant_id=? AND kind='upload_session' AND id=?").get(tenant,id) as JsonObject|undefined;if(!row)return;const data=JSON.parse(row.data);if(data.expires_at<=Date.now())return;return this.box!.open<JsonObject>(data.secret,scopeKey(tenant,'upload-session',id));}
  mediaAdmission(tenant:string){

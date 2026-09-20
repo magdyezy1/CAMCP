@@ -4,6 +4,7 @@ import {connectionDisconnectKind,connectionDisconnect} from './connection-discon
 import {placeActionReadKind,validatePlaceActionRead,placeActionReadResult,runPlaceActionDiscovery} from './google-place-action-discovery.js';
 import {campaignPreflight} from './campaign-preflight.js';
 import {searchMetaAdLibrary} from './meta-ad-library.js';
+import {fetchMetaExistingPosts,redactMetaPostInput} from './meta-existing-posts.js';
 import {assertProviderActionAvailable} from './retired-provider-actions.js';
 import {gtmDiagnosticOperations,gtmDiagnostics} from './gtm-diagnostics.js';
 import {randomUUID} from 'node:crypto';
@@ -79,7 +80,7 @@ export class MirrorService {
    const media=input.dry_run===false||hasMediaSource?nativeMediaInput(plan,this.connectionId(input)):undefined;
    if(media)return this.wrap(input.dry_run===false?mediaNext(await this.media().call(media,actor)):mediaPreview(media),requestId,start,tool);
    return this.wrap(await this.runPlan(plan,input,actor,requestId),requestId,start,tool);
-  }catch(e){const result=errorResult(e,requestId,Date.now()-start);this.store.appendAudit(actor.tenantId,requestId,{tool,input:redact(redactConnectionInput(tool,redactPlaceActionInput(tool,input))),outcome:result});return result;}
+  }catch(e){const result=errorResult(e,requestId,Date.now()-start);this.store.appendAudit(actor.tenantId,requestId,{tool,input:redact(redactConnectionInput(tool,redactPlaceActionInput(tool,redactMetaPostInput(tool,input)))),outcome:result});return result;}
  }
  /**
   * Campaign names, ad copy, creative and media metadata, report rows and account labels are
@@ -171,6 +172,7 @@ export class MirrorService {
   if(connectionDisconnectKind(gateway,operation,args.action))return connectionDisconnect(this.store,gateway,operation,args,actor);
   if(connectionDiagnosticKind(gateway,operation,args.action))return connectionDiagnostics(this.store,gateway,operation,args,actor,this.policy.allowWrites);
   if(gateway==='amcp_native_action'&&operation==='search_ads_library')return searchMetaAdLibrary(this.registry,this.store,this.transport,this.credentials,args,actor,requestId);
+  if(gateway==='amcp_native_action'&&operation==='fetch_meta_existing_posts')return fetchMetaExistingPosts(this.store,this.transport,this.credentials,args,actor,requestId);
   if(gateway==='amcp_native_action'&&operation==='inspect_google_drive_media'){this.store.assertActorActive(actor);return inspectDrive(args.link,this.mediaFetcher);}
   if(gateway==='amcp_native_action'&&operation==='platform_media_upload'){
    if(args.action==='FINALIZE_UPLOAD_SESSION'){

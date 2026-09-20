@@ -3,57 +3,241 @@
   "owner_role": "AMCP integration maintainer",
   "qualification": "Synthetic local contract examples. Replace business facts and IDs with user-supplied or discovered values. These requests inspect contracts; none authorizes or executes a mutation.",
   "connection_diagnostics": [
-    {"gateway":"ga4_native_action","operation":"ga4_connection_ops","arguments":{"action":"status"}},
-    {"gateway":"google_search_console_native_action","operation":"gsc_connection_ops","arguments":{"action":"status"}},
-    {"gateway":"google_business_native_action","operation":"gmb_connection_ops","arguments":{"action":"status"}},
-    {"gateway":"google_business_native_action","operation":"gmb_qanda_ops","arguments":{"action":"status"}}
+    {
+      "gateway": "ga4_native_action",
+      "operation": "ga4_connection_ops",
+      "arguments": {
+        "action": "status"
+      }
+    },
+    {
+      "gateway": "google_search_console_native_action",
+      "operation": "gsc_connection_ops",
+      "arguments": {
+        "action": "status"
+      }
+    },
+    {
+      "gateway": "google_business_native_action",
+      "operation": "gmb_connection_ops",
+      "arguments": {
+        "action": "status"
+      }
+    },
+    {
+      "gateway": "google_business_native_action",
+      "operation": "gmb_qanda_ops",
+      "arguments": {
+        "action": "status"
+      }
+    }
   ],
   "connection_disconnect_previews": [
-    {"gateway":"ga4_native_action","operation":"ga4_connection_ops","arguments":{"action":"disconnect","connection_id":"336ecb51-2df8-4967-8bd3-cba64d552296","dry_run":true}},
-    {"gateway":"google_search_console_native_action","operation":"gsc_connection_ops","arguments":{"action":"disconnect","connection_id":"336ecb51-2df8-4967-8bd3-cba64d552296","dry_run":true}},
-    {"gateway":"google_business_native_action","operation":"gmb_connection_ops","arguments":{"action":"disconnect","connection_id":"336ecb51-2df8-4967-8bd3-cba64d552296","dry_run":true}}
+    {
+      "gateway": "ga4_native_action",
+      "operation": "ga4_connection_ops",
+      "arguments": {
+        "action": "disconnect",
+        "connection_id": "336ecb51-2df8-4967-8bd3-cba64d552296",
+        "dry_run": true
+      }
+    },
+    {
+      "gateway": "google_search_console_native_action",
+      "operation": "gsc_connection_ops",
+      "arguments": {
+        "action": "disconnect",
+        "connection_id": "336ecb51-2df8-4967-8bd3-cba64d552296",
+        "dry_run": true
+      }
+    },
+    {
+      "gateway": "google_business_native_action",
+      "operation": "gmb_connection_ops",
+      "arguments": {
+        "action": "disconnect",
+        "connection_id": "336ecb51-2df8-4967-8bd3-cba64d552296",
+        "dry_run": true
+      }
+    }
   ],
   "place_action_read_previews": [
-    {"gateway":"google_business_native_action","operation":"gmb_engagement_ops","arguments":{"action":"LIST_PLACE_ACTION_TYPE_METADATA","location_id":"456","query":{"languageCode":"en-US"},"dry_run":true}},
-    {"gateway":"google_business_native_action","operation":"gmb_engagement_ops","arguments":{"action":"LIST_PLACE_ACTION_LINKS","location_id":"456","query":{"pageSize":100},"dry_run":true}},
-    {"gateway":"google_business_native_action","operation":"gmb_engagement_ops","arguments":{"action":"GET_PLACE_ACTION_LINK","location_id":"456","place_action_link_id":"100","dry_run":true}}
+    {
+      "gateway": "google_business_native_action",
+      "operation": "gmb_engagement_ops",
+      "arguments": {
+        "action": "LIST_PLACE_ACTION_TYPE_METADATA",
+        "location_id": "456",
+        "query": {
+          "languageCode": "en-US"
+        },
+        "dry_run": true
+      }
+    },
+    {
+      "gateway": "google_business_native_action",
+      "operation": "gmb_engagement_ops",
+      "arguments": {
+        "action": "LIST_PLACE_ACTION_LINKS",
+        "location_id": "456",
+        "query": {
+          "pageSize": 100
+        },
+        "dry_run": true
+      }
+    },
+    {
+      "gateway": "google_business_native_action",
+      "operation": "gmb_engagement_ops",
+      "arguments": {
+        "action": "GET_PLACE_ACTION_LINK",
+        "location_id": "456",
+        "place_action_link_id": "100",
+        "dry_run": true
+      }
+    }
   ],
   "inspections": [
     {
-      "gateway":"google_ads_native_action",
-      "arguments":{"action":"google_ads_v23_recommendation_dismiss_recommendation","account_id":"123","payload":{"operations":[{"resourceName":"customers/123/recommendations/user_selected_id"}],"partialFailure":false}}
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "google_ads_v23_recommendation_dismiss_recommendation",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "resourceName": "customers/123/recommendations/user_selected_id"
+            }
+          ],
+          "partialFailure": false
+        }
+      }
     },
     {
-      "gateway":"google_business_native_action",
-      "arguments":{"operation":"gmb_account_ops","arguments":{"action":"PATCH_ACCOUNT","account_id":"123","payload":{"accountName":"User-approved business account name"},"query":{"updateMask":"accountName"}}}
+      "gateway": "google_business_native_action",
+      "arguments": {
+        "operation": "gmb_account_ops",
+        "arguments": {
+          "action": "PATCH_ACCOUNT",
+          "account_id": "123",
+          "payload": {
+            "accountName": "User-approved business account name"
+          },
+          "query": {
+            "updateMask": "accountName"
+          }
+        }
+      }
     },
     {
-      "gateway":"google_business_native_action",
-      "arguments":{"operation":"gmb_account_ops","arguments":{"action":"CREATE_ACCOUNT_ADMIN","account_id":"123","payload":{"admin":"approved-invitee@example.com","role":"MANAGER"}}}
+      "gateway": "google_business_native_action",
+      "arguments": {
+        "operation": "gmb_account_ops",
+        "arguments": {
+          "action": "CREATE_ACCOUNT_ADMIN",
+          "account_id": "123",
+          "payload": {
+            "admin": "approved-invitee@example.com",
+            "role": "MANAGER"
+          }
+        }
+      }
     },
     {
-      "gateway":"google_business_native_action",
-      "arguments":{"operation":"gmb_account_ops","arguments":{"action":"CREATE_LOCATION_ADMIN","location_id":"456","payload":{"account":"accounts/999","role":"MANAGER"}}}
+      "gateway": "google_business_native_action",
+      "arguments": {
+        "operation": "gmb_account_ops",
+        "arguments": {
+          "action": "CREATE_LOCATION_ADMIN",
+          "location_id": "456",
+          "payload": {
+            "account": "accounts/999",
+            "role": "MANAGER"
+          }
+        }
+      }
     },
     {
-      "gateway":"google_business_native_action",
-      "arguments":{"operation":"gmb_account_ops","arguments":{"action":"PATCH_LOCATION_ADMIN","location_id":"456","admin_id":"20","payload":{"role":"MANAGER"},"query":{"updateMask":"role"}}}
+      "gateway": "google_business_native_action",
+      "arguments": {
+        "operation": "gmb_account_ops",
+        "arguments": {
+          "action": "PATCH_LOCATION_ADMIN",
+          "location_id": "456",
+          "admin_id": "20",
+          "payload": {
+            "role": "MANAGER"
+          },
+          "query": {
+            "updateMask": "role"
+          }
+        }
+      }
     },
     {
-      "gateway":"google_business_native_action",
-      "arguments":{"operation":"gmb_account_ops","arguments":{"action":"DELETE_ACCOUNT_ADMIN","account_id":"123","admin_id":"20"}}
+      "gateway": "google_business_native_action",
+      "arguments": {
+        "operation": "gmb_account_ops",
+        "arguments": {
+          "action": "DELETE_ACCOUNT_ADMIN",
+          "account_id": "123",
+          "admin_id": "20"
+        }
+      }
     },
     {
-      "gateway":"google_business_native_action",
-      "arguments":{"operation":"gmb_notification_ops","arguments":{"action":"UPDATE_NOTIFICATION_SETTING","account_id":"123","payload":{"name":"accounts/123/notificationSetting","pubsubTopic":"projects/amcp-test/topics/reviews","notificationTypes":["NEW_REVIEW","UPDATED_REVIEW"]},"query":{"updateMask":"pubsubTopic,notificationTypes"}}}
+      "gateway": "google_business_native_action",
+      "arguments": {
+        "operation": "gmb_notification_ops",
+        "arguments": {
+          "action": "UPDATE_NOTIFICATION_SETTING",
+          "account_id": "123",
+          "payload": {
+            "name": "accounts/123/notificationSetting",
+            "pubsubTopic": "projects/amcp-test/topics/reviews",
+            "notificationTypes": [
+              "NEW_REVIEW",
+              "UPDATED_REVIEW"
+            ]
+          },
+          "query": {
+            "updateMask": "pubsubTopic,notificationTypes"
+          }
+        }
+      }
     },
     {
-      "gateway":"google_business_native_action",
-      "arguments":{"operation":"gmb_engagement_ops","arguments":{"action":"CREATE_PLACE_ACTION_LINK","location_id":"456","payload":{"uri":"https://example.com/book","placeActionType":"APPOINTMENT","isPreferred":true}}}
+      "gateway": "google_business_native_action",
+      "arguments": {
+        "operation": "gmb_engagement_ops",
+        "arguments": {
+          "action": "CREATE_PLACE_ACTION_LINK",
+          "location_id": "456",
+          "payload": {
+            "uri": "https://example.com/book",
+            "placeActionType": "APPOINTMENT",
+            "isPreferred": true
+          }
+        }
+      }
     },
     {
-      "gateway":"google_ads_native_action",
-      "arguments":{"action":"google_ads_v23_campaign_bid_modifier_mutate_campaign_bid_modifiers","account_id":"123","payload":{"operations":[{"update":{"resourceName":"customers/123/campaignBidModifiers/100~500","bidModifier":1.2},"updateMask":"bid_modifier"}]}}
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "google_ads_v23_campaign_bid_modifier_mutate_campaign_bid_modifiers",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "update": {
+                "resourceName": "customers/123/campaignBidModifiers/100~500",
+                "bidModifier": 1.2
+              },
+              "updateMask": "bid_modifier"
+            }
+          ]
+        }
+      }
     },
     {
       "gateway": "google_ads_native_action",
@@ -1201,6 +1385,68 @@
           "pageSize": 100
         },
         "paginate": true
+      }
+    }
+  ],
+  "meta_existing_post_reads": [
+    {
+      "gateway": "amcp_native_action",
+      "arguments": {
+        "operation": "fetch_meta_existing_posts",
+        "arguments": {
+          "action": "GET_PAGE_POSTS",
+          "account_id": "123",
+          "page_id": "77",
+          "limit": 25
+        }
+      }
+    },
+    {
+      "gateway": "amcp_native_action",
+      "arguments": {
+        "operation": "fetch_meta_existing_posts",
+        "arguments": {
+          "action": "LIST_IG_MEDIA",
+          "account_id": "123",
+          "page_id": "77",
+          "instagram_user_id": "88"
+        }
+      }
+    },
+    {
+      "gateway": "amcp_native_action",
+      "arguments": {
+        "operation": "fetch_meta_existing_posts",
+        "arguments": {
+          "action": "GET_POST_BY_ID",
+          "account_id": "123",
+          "page_id": "77",
+          "post_id": "77_1"
+        }
+      }
+    },
+    {
+      "gateway": "amcp_native_action",
+      "arguments": {
+        "operation": "fetch_meta_existing_posts",
+        "arguments": {
+          "action": "GET_IG_MEDIA",
+          "account_id": "123",
+          "page_id": "77",
+          "post_id": "501"
+        }
+      }
+    },
+    {
+      "gateway": "amcp_native_action",
+      "arguments": {
+        "operation": "fetch_meta_existing_posts",
+        "arguments": {
+          "action": "LOOKUP_POST_BY_URL",
+          "account_id": "123",
+          "page_id": "77",
+          "url": "https://www.instagram.com/reel/Code501/"
+        }
       }
     }
   ]
