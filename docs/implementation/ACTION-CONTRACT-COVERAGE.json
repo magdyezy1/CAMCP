@@ -108,10 +108,10 @@
       "actions": 456,
       "counts": {
         "adapter_requires_input": 8,
-        "blocked_write": 125,
+        "blocked_write": 123,
         "media_workflow": 2,
         "native_read": 175,
-        "reviewed_write_family": 144,
+        "reviewed_write_family": 146,
         "unqualified_read": 2
       },
       "captured_catalog_complete": true,
@@ -9216,12 +9216,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/customers/{customer_id=*}/recommendations:dismiss",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-recommendation-dismissal.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-recommendation-dismissal.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_recommendation_dismissal"
     },
     {
       "gateway": "google_ads_native_action",
@@ -9267,7 +9270,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9289,7 +9293,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9311,7 +9316,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9333,7 +9339,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9355,7 +9362,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9377,7 +9385,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9399,7 +9408,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9436,7 +9446,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9458,7 +9469,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9480,7 +9492,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9517,7 +9530,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9539,7 +9553,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9561,7 +9576,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9584,6 +9600,7 @@
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts",
         "tests/google-generation.test.ts"
       ],
       "live_qualification": "unverified"
@@ -9606,7 +9623,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9628,7 +9646,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9650,7 +9669,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9672,7 +9692,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -9695,6 +9716,7 @@
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts",
         "tests/google-generation.test.ts"
       ],
       "live_qualification": "unverified"
@@ -9731,6 +9753,7 @@
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts",
         "tests/google-generation.test.ts"
       ],
       "live_qualification": "unverified"
@@ -9753,7 +9776,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10047,6 +10071,7 @@
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts",
         "tests/google-generation.test.ts"
       ],
       "live_qualification": "unverified"
@@ -10070,6 +10095,7 @@
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts",
         "tests/google-generation.test.ts"
       ],
       "live_qualification": "unverified"
@@ -10206,7 +10232,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10228,7 +10255,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10250,7 +10278,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10272,7 +10301,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10294,7 +10324,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10316,7 +10347,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10338,7 +10370,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10360,7 +10393,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10421,7 +10455,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10469,7 +10504,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10491,7 +10527,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10513,7 +10550,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10535,7 +10573,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10557,7 +10596,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10637,7 +10677,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10775,7 +10816,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10929,7 +10971,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -10951,7 +10994,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11252,7 +11296,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11464,7 +11509,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11525,7 +11571,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11560,7 +11607,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11582,7 +11630,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11617,7 +11666,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11639,7 +11689,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11661,7 +11712,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11709,7 +11761,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11731,7 +11784,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11821,7 +11875,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11843,7 +11898,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11865,7 +11921,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11887,7 +11944,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -11926,7 +11984,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12043,7 +12102,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12130,7 +12190,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12152,7 +12213,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12174,7 +12236,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12196,7 +12259,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12218,7 +12282,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12240,7 +12305,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12263,12 +12329,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/customers/{customer_id=*}/recommendations:dismiss",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-recommendation-dismissal.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-recommendation-dismissal.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_recommendation_dismissal"
     },
     {
       "gateway": "google_ads_native_action",
@@ -12289,6 +12358,7 @@
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts",
         "tests/google-generation.test.ts"
       ],
       "live_qualification": "unverified"
@@ -12354,7 +12424,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12421,7 +12492,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12456,7 +12528,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12478,7 +12551,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12500,7 +12574,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12535,7 +12610,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12650,7 +12726,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12672,7 +12749,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12694,7 +12772,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12716,7 +12795,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12738,7 +12818,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12760,7 +12841,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12782,7 +12864,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12804,7 +12887,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12826,7 +12910,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12848,7 +12933,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12870,7 +12956,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12892,7 +12979,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12914,7 +13002,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12936,7 +13025,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12958,7 +13048,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -12980,7 +13071,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13002,7 +13094,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13024,7 +13117,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13046,7 +13140,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13068,7 +13163,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13090,7 +13186,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13112,7 +13209,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13134,7 +13232,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13156,7 +13255,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13178,7 +13278,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13215,7 +13316,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13237,7 +13339,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13259,7 +13362,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13281,7 +13385,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13303,7 +13408,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13325,7 +13431,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13347,7 +13454,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13369,7 +13477,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13391,7 +13500,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13413,7 +13523,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13435,7 +13546,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13457,7 +13569,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13479,7 +13592,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13501,7 +13615,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13523,7 +13638,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13545,7 +13661,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13567,7 +13684,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13589,7 +13707,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13611,7 +13730,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13633,7 +13753,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13655,7 +13776,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13677,7 +13799,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13699,7 +13822,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13721,7 +13845,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13743,7 +13868,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13765,7 +13891,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13787,7 +13914,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13809,7 +13937,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13831,7 +13960,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13853,7 +13983,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13875,7 +14006,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13897,7 +14029,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13919,7 +14052,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13941,7 +14075,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13963,7 +14098,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -13985,7 +14121,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14007,7 +14144,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14029,7 +14167,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14051,7 +14190,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14073,7 +14213,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14095,7 +14236,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14117,7 +14259,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14139,7 +14282,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14161,7 +14305,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14183,7 +14328,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14205,7 +14351,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14227,7 +14374,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14249,7 +14397,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14271,7 +14420,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14293,7 +14443,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14315,7 +14466,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14337,7 +14489,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14359,7 +14512,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14381,7 +14535,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14403,7 +14558,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14425,7 +14581,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14447,7 +14604,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14469,7 +14627,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14491,7 +14650,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14513,7 +14673,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14535,7 +14696,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14557,7 +14719,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14579,7 +14742,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14601,7 +14765,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14623,7 +14788,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14645,7 +14811,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14667,7 +14834,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14689,7 +14857,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14711,7 +14880,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14733,7 +14903,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14755,7 +14926,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14777,7 +14949,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14799,7 +14972,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -14821,7 +14995,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -15529,7 +15704,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -15577,7 +15753,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -15599,7 +15776,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -15621,7 +15799,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -15755,7 +15934,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -15777,7 +15957,8 @@
         "tests/google-custom-segments.test.ts",
         "tests/google-bidding-events.test.ts",
         "tests/google-conversion-goals.test.ts",
-        "tests/google-campaign-bid-modifiers.test.ts"
+        "tests/google-campaign-bid-modifiers.test.ts",
+        "tests/google-recommendation-dismissal.test.ts"
       ],
       "live_qualification": "unverified"
     },

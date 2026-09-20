@@ -2,6 +2,7 @@ import {metaReportKind,assertMetaReport,assertMetaReportScope,metaReportSnapshot
 import {placeActionKind,assertPlaceAction,assertPlaceActionScope,placeActionSnapshots,readPlaceActionState,placeActionOutcome,placeActionSafe,placeActionSafeError} from './google-place-action-links.js';
 import {businessNotificationKind,assertBusinessNotification,assertBusinessNotificationActor,assertBusinessNotificationScope,businessNotificationSnapshots,readBusinessNotificationState,businessNotificationOutcome} from './google-business-notifications.js';
 import {businessAccessKind,assertBusinessAccess,assertBusinessAccessActor,assertBusinessAccessScope,businessAccessSnapshots,readBusinessAccessState,businessAccessOutcome} from './google-business-access.js';
+import {googleDismissalKind,assertGoogleDismissal,assertGoogleDismissalPrerequisites,googleDismissalSnapshots,readGoogleDismissalState,googleDismissalOutcome} from './google-recommendation-dismissal.js';
 import {readRedditProfiles,validateRedditProfiles,validateRedditCreativePrerequisites,assertRedditCreativeAvailable} from './reddit-creative-writes.js';
 import {readKeywordPlanTree,validateKeywordPlanTree} from './google-keyword-plan-writes.js';
 import {reviewedWriteFamily} from './reviewed-routes.js';
@@ -81,6 +82,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(placeActionKind(plan))return placeActionOutcome(plan,result,before);
  if(businessNotificationKind(plan))return businessNotificationOutcome(plan,result,before);
  if(businessAccessKind(plan))return businessAccessOutcome(plan,result,before);
+ if(googleDismissalKind(plan))return googleDismissalOutcome(plan,result);
  if(linkedinRuleKind(plan))return linkedinRuleOutcome(plan,result);
  if(linkedinConversionKind(plan))return linkedinConversionOutcome(plan,result);
  if(googleBidKind(plan))return googleBidOutcome(plan,result);
@@ -212,6 +214,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(placeActionKind(plan)){assertPlaceAction(plan);return;}
  if(businessNotificationKind(plan)){assertBusinessNotification(plan);return;}
  if(businessAccessKind(plan)){assertBusinessAccess(plan);return;}
+ if(googleDismissalKind(plan)){assertGoogleDismissal(plan);return;}
  if(linkedinRuleKind(plan)){assertLinkedInRule(plan);return;}
  if(linkedinConversionKind(plan)){assertLinkedInConversion(plan);return;}
  if(xDraftKind(plan)){assertXDraft(plan);return;}
@@ -275,6 +278,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(placeActionKind(plan))return placeActionSnapshots(plan);
  if(businessNotificationKind(plan))return businessNotificationSnapshots(plan);
  if(businessAccessKind(plan))return businessAccessSnapshots(plan);
+ if(googleDismissalKind(plan))return googleDismissalSnapshots(plan);
  if(xDraftKind(plan))return xDraftSnapshots(plan);
  if(linkedinRuleKind(plan))return linkedinRuleSnapshots(plan);
  if(linkedinConversionKind(plan))return linkedinConversionSnapshots(plan);
@@ -372,6 +376,7 @@ export class WriteReviewService {
   if(businessAccessKind(plan))assertBusinessAccessScope(c);
   if(metaLabelKind(plan))assertMetaLabelScope(c,true);
   if(googleBidKind(plan))assertGoogleBidScope(c);
+  if(googleDismissalKind(plan))assertGoogleAdsScope(c);
   if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan))assertGoogleAdsScope(c);
   if(linkedinConversionKind(plan)||linkedinRuleKind(plan))assertLinkedInConversionScope(c,true);
   if(dv360ListKind(plan)&&!c.scopes.includes('https://www.googleapis.com/auth/display-video'))fail('PROVIDER_WRITE_SCOPE_REQUIRED','Reconnect DV360 with the display-video OAuth scope.');
@@ -379,6 +384,11 @@ export class WriteReviewService {
   plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);assertMeasurementScopes(plan,c);return c;
  }
  private async state(actor:Actor,plan:CompiledRequest,connectionId:string,reads:CompiledRequest[]):Promise<unknown[]> {
+  if(googleDismissalKind(plan))return readGoogleDismissalState(plan,async read=>{
+   if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Recommendation dismissal prerequisites must remain read-only.');
+   const access=()=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,current);return current;};
+   const c=access(),auth=await this.credentials.get(c);access();const result=await this.transport.request(read,c,auth);access();return result;
+  });
   if(businessAccessKind(plan))return readBusinessAccessState(plan,async read=>{
    if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Business access prerequisites must remain read-only.');
    const access=()=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,current);return current;};
@@ -451,6 +461,7 @@ export class WriteReviewService {
    }
    assertWriteShape(plan);assertRedditCreativeAvailable(plan);const c=this.access(actor,plan,input.connection_id??nativeArgs.connection_id),reads=snapshotPlans(plan,this.registry),state=await this.state(actor,plan,c.id,reads);
    validateGoogleAssetLinkState(plan,state,true);
+   assertGoogleDismissalPrerequisites(plan,state);
    validateGoogleConfigurationState(plan,state,true);
    validateDV360ListPrerequisites(plan,state,true);
    validateGtmWorkflowPrerequisites(plan,state,true);
@@ -492,6 +503,7 @@ export class WriteReviewService {
   const current=await this.state(actor,plan,review.connection_id,review.reads),expectedHash=reviewStateHash(expectedState),actualHash=reviewStateHash(current);
   const creativeImpact=writeImpact(plan,current,review.creative_edit_confirmed===true,review.connection_id);
   if(actualHash!==expectedHash)fail('STATE_CHANGED','The provider configuration changed after preparation. Prepare and review a fresh request.',{expected_state_hash:expectedHash,actual_state_hash:actualHash,changed_fields:changedStateFields(expectedState,current)});
+  assertGoogleDismissalPrerequisites(plan,current);
   const c=this.access(actor,plan,review.connection_id),auth=await this.credentials.get(c);this.access(actor,plan,review.connection_id);
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Review expired during state verification.');
   assertRedditCreativeAvailable(plan);

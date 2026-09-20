@@ -814,3 +814,69 @@ exited zero. The 522-file release manifest records source-tree SHA256
 Commands: release assembly, npm.cmd ci --ignore-scripts, npm.cmd run check with
 the configured AMCP_SCHEMA_PYTHON. Logs: install-ak.log and release-check-ak.log.
 Required FFmpeg mode, Docker and live/deployment qualification remain unrun.
+
+## 2026-09-20 — Google Ads recommendation dismissal (candidate AL)
+
+Added the v23 dismissal RPC and legacy DISMISS_RECOMMENDATION reviewed family.
+Both accept 1-100 distinct selected-customer resource names in one atomic,
+same-native-type batch. Partial-failure execution, invented validation fields,
+header/query overrides and implicit replacement recommendations are refused.
+Dismissal does not apply suggestions or alter provider auto-apply subscriptions.
+
+Preparation reads the client customer and complete selected recommendations
+twice. It freezes dismissal status, type and exact campaign/ad-group/budget
+associations. Unordered campaign membership is compared as a set; provider
+query cost, request IDs and forecast impact are excluded. No proposed campaign
+configuration is executed by this contract. Changed state retains exact field
+diagnostics. Failed, duplicate, foreign, moving, count-incomplete, expired or
+unexpected results are never accepted as successful empty state.
+Bounds: 25 pages/query, 100 total requests, 100 selected rows/collection,
+2 MiB/response, 8 MiB total, 60-second monotonic deadline. Native opaque IDs
+remain strings; current selected connection, manager routing, grants and adwords
+scope are rechecked before and after reads. Owner deletion policy covers POST
+dismissal; activation/monetary controls do not misclassify it as a budget edit.
+
+A receipt must name every selected ID exactly once. Verification must actually
+read dismissed:true for those IDs with unchanged associations. Expiry/disappearance
+after execution remains inconclusive rather than proof of dismissal. Lost or
+partial responses preserve the original claim; deterministic concurrency and
+SQLite-reopen tests prove a single submission without automatic retries.
+
+Initial test compilation exposed stale fixture assumptions (a nonexistent Store
+deleteConnection helper and omitted Compiler options), corrected using the
+actual shared disconnect function and compiler contract. Initial runtime:
+16/18 passed. One real diagnostic defect placed prerequisites ahead of state
+comparison, masking STATE_CHANGED with already-dismissed input advice; separated
+preparation prerequisites and reapplied them after the execution comparison.
+The other fixture attempted unsupported public fields and expected a later gate;
+it now checks that schema refusal and independently asserts WRITE_REVIEW_REQUIRED
+for a forged direct runPlan. No guard or assertion was removed.
+
+Expanded compatibility passed 80/80 across dismissal, Business Profile access,
+Google schemas, snapshot projection, execution risk, policies and executable
+guides. The final 22-test dismissal suite plus the latter shared tests passed
+52/52 after adding opaque-ID, manager-routing, native-parent and review-integrity
+cases. Build, contract generators and guidance checks passed (85 modules,
+14 reviewed gateways). All initial and final logs are retained as
+recommendation-dismiss-*.log in .runtime/contract-completion-20260919.
+
+Official v23 request/response references checked 2026-09-20 (updated 2026-02-23),
+native recommendation field reference and official retrieval/dismissal guide.
+They document the 100-operation same-type atomic constraint, explicit dismissed
+field and recommendation expiry. The current sample uses a newer API version;
+runtime remains pinned to v23 Discovery, independently checked in tests.
+Exact URLs and limitations are in the maintained Google Ads guide and a new
+executable no-egress inspect example. Provider contract version is 13.
+
+Inventory: 3241 actions, 417 reviewed-family rows, 900 blocked writes, 97 unmapped,
+27 unqualified reads, eight input-dependent, four provider-unsupported, 1704
+native reads, 68 local workflows and 16 media workflows. This qualifies only
+dismissal; recommendation application/subscriptions remain separate work.
+Candidate AL full verification passed: npm ci --ignore-scripts and npm run check
+both exited 0 in .release/contract-batch-20260919-al. Main suite: 1324 passed,
+zero failed, one optional FFmpeg skip; four capture tests passed. All remaining
+check stages passed. Sanitized manifest: 524 files, source_tree_hash
+65ee83022b57f31a6b1a068a1761c0b7f397b6c82839bb027a1841a00cb483a3.
+Logs: install-al.log and release-check-al.log under
+.runtime/contract-completion-20260919. Required FFmpeg mode, Docker and live
+Google Ads mutation remain unrun; no provider access or permission was changed.

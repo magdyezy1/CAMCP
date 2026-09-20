@@ -20,6 +20,10 @@
   ],
   "inspections": [
     {
+      "gateway":"google_ads_native_action",
+      "arguments":{"action":"google_ads_v23_recommendation_dismiss_recommendation","account_id":"123","payload":{"operations":[{"resourceName":"customers/123/recommendations/user_selected_id"}],"partialFailure":false}}
+    },
+    {
       "gateway":"google_business_native_action",
       "arguments":{"operation":"gmb_account_ops","arguments":{"action":"PATCH_ACCOUNT","account_id":"123","payload":{"accountName":"User-approved business account name"},"query":{"updateMask":"accountName"}}}
     },

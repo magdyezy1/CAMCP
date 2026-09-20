@@ -25,6 +25,7 @@ export type ContractStatus='native_read'|'reviewed_write_family'|'media_workflow
 export interface ActionContract {gateway:string;operation?:string;action:string;aliases:string[];method:string|null;path:string|null;origin?:string;status:ContractStatus;family?:string;implementation:string;reason:string;source:string;tests:string[];live_qualification:'unverified';}
 const familyFiles:Record<string,[string,string[]]>={
  google_business_access:['src/google-business-access.ts',['tests/google-business-access.test.ts']],
+ google_recommendation_dismissal:['src/google-recommendation-dismissal.ts',['tests/google-recommendation-dismissal.test.ts']],
  google_business_notifications:['src/google-business-notifications.ts',['tests/google-business-notifications.test.ts']],
  google_place_actions:['src/google-place-action-links.ts',['tests/google-place-action-links.test.ts']],
  meta_insights_jobs:['src/meta-insights-jobs.ts',['tests/meta-insights-jobs.test.ts']],

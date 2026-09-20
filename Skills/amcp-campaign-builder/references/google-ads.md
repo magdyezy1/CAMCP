@@ -476,3 +476,61 @@ Sources checked 2026-09-20: [conversion-goal overview](https://developers.google
 [custom fields](https://developers.google.com/google-ads/api/fields/v23/custom_conversion_goal),
 and pinned official v23 Discovery request models. The public field pages were
 updated 2026-09-10; the evidence fixture records extraction provenance.
+
+## Google Ads recommendation dismissal
+
+Use `google_ads_v23_recommendation_dismiss_recommendation` or the existing
+`DISMISS_RECOMMENDATION` alias with the explicitly selected connection/customer
+and native `payload.operations: [{resourceName: "customers/{id}/recommendations/{id}"}]`.
+Copy complete discovered recommendation names, including opaque IDs; never turn
+them into numeric IDs. Ask the user which recommendations they intend to dismiss.
+A provider recommendation or optimization score is not authority to apply it.
+
+The contract supports 1-100 distinct operations with `partialFailure` omitted or
+false. Google requires every operation in an atomic request to have the same
+recommendation type; AMCP verifies that from current native reads. Prepare separate
+reviews for different types. Already-dismissed or expired IDs are not recreated
+or silently replaced. No `validateOnly`, response-content override or arbitrary
+parameters are part of the native dismissal request.
+
+Prepare freezes the exact client customer, recommendation IDs/types, dismissed
+state and campaign/ad-group/budget associations. Complete pages are read twice,
+with 25 pages per query, 100 requests per discovery, 100 recommendation rows per
+collection, 2 MiB per response, 8 MiB total and a 60-second monotonic deadline.
+Duplicates, missing targets, foreign parents, incomplete counts and changing
+snapshots stop the review. Campaign association order, request IDs, query cost
+and estimated performance do not cause false conflicts. A changed target or
+state still reports STATE_CHANGED with its exact JSON field paths. The state
+projection is for dismissal only; it does not qualify applying suggested values.
+
+Review the exact IDs, types and affected native parents, then execute with the
+original review/key and confirmation. This action does not edit an advertising
+budget, activate a campaign or change auto-apply subscriptions. Owner deletion
+policy covers dismissal even though its method is POST. Names/opaque IDs that
+contain budget or bid words do not require false spend-change acknowledgment.
+The selected account's manager routing, current adwords scope and grants are
+checked throughout the workflow; another login cannot substitute its access.
+
+A successful native receipt must identify every selected target exactly once.
+Read-back must observe `dismissed: true` for those same identities and unchanged
+associations. A disappeared recommendation remains inconclusive: recommendations
+can expire and receive replacement IDs independently. A successful HTTP response
+or absent query result is not proof of dismissal. Lost, partial or foreign
+receipts retain the original submission claim; never blindly repeat a mutation.
+`amcp_campaign verify` retries only the read. Applying recommendations and managing
+subscriptions remain separate, unqualified write families.
+
+`INVALID_RECOMMENDATION_DISMISSAL` identifies malformed requests, mixed types or
+already-dismissed prerequisites. `RECOMMENDATION_STATE_UNVERIFIED` identifies
+failed, missing, malformed, moving or bounded-out native state. The module and
+negative tests use synthetic provider responses; no live dismissal was performed.
+
+Official sources checked 2026-09-20:
+[v23 dismissal request and atomic-type limit](https://developers.google.com/google-ads/api/reference/rpc/v23/DismissRecommendationRequest),
+[v23 response and partial errors](https://developers.google.com/google-ads/api/reference/rpc/v23/DismissRecommendationResponse)
+(both updated 2026-02-23),
+[v23 native recommendation fields](https://developers.google.com/google-ads/api/fields/v23/recommendation),
+[retrieval, dismissal and recommendation expiry](https://developers.google.com/google-ads/api/docs/recommendations),
+and [official dismissal sample](https://developers.google.com/google-ads/api/samples/dismiss-recommendation).
+The sample currently uses newer versions; execution remains pinned to the
+unchanged v23 Discovery route and request/response fields, which tests check.
