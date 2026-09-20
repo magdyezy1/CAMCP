@@ -290,14 +290,14 @@
         {
           "operation": "gmb_account_ops",
           "action": "CREATE_ACCOUNT_ADMIN",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_access"
         },
         {
           "operation": "gmb_account_ops",
           "action": "CREATE_LOCATION_ADMIN",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_access"
         }
       ],
       "mapping_status": "mapped",
@@ -316,14 +316,14 @@
         {
           "operation": "gmb_account_ops",
           "action": "DELETE_ACCOUNT_ADMIN",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_access"
         },
         {
           "operation": "gmb_account_ops",
           "action": "DELETE_LOCATION_ADMIN",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_access"
         }
       ],
       "mapping_status": "mapped",
@@ -342,20 +342,20 @@
         {
           "operation": "gmb_account_ops",
           "action": "PATCH_ACCOUNT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_access"
         },
         {
           "operation": "gmb_account_ops",
           "action": "PATCH_ACCOUNT_ADMIN",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_access"
         },
         {
           "operation": "gmb_account_ops",
           "action": "PATCH_LOCATION_ADMIN",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_access"
         }
       ],
       "mapping_status": "mapped",
@@ -440,20 +440,20 @@
         {
           "operation": "gmb_account_ops",
           "action": "PATCH_ACCOUNT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_access"
         },
         {
           "operation": "gmb_account_ops",
           "action": "PATCH_ACCOUNT_ADMIN",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_access"
         },
         {
           "operation": "gmb_account_ops",
           "action": "PATCH_LOCATION_ADMIN",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_access"
         }
       ],
       "mapping_status": "mapped",
@@ -552,14 +552,14 @@
         {
           "operation": "gmb_account_ops",
           "action": "CREATE_ACCOUNT_ADMIN",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_access"
         },
         {
           "operation": "gmb_account_ops",
           "action": "CREATE_LOCATION_ADMIN",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_access"
         }
       ],
       "mapping_status": "mapped",
@@ -578,14 +578,14 @@
         {
           "operation": "gmb_account_ops",
           "action": "DELETE_ACCOUNT_ADMIN",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_access"
         },
         {
           "operation": "gmb_account_ops",
           "action": "DELETE_LOCATION_ADMIN",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_access"
         }
       ],
       "mapping_status": "mapped",
@@ -604,20 +604,20 @@
         {
           "operation": "gmb_account_ops",
           "action": "PATCH_ACCOUNT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_access"
         },
         {
           "operation": "gmb_account_ops",
           "action": "PATCH_ACCOUNT_ADMIN",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_access"
         },
         {
           "operation": "gmb_account_ops",
           "action": "PATCH_LOCATION_ADMIN",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_access"
         }
       ],
       "mapping_status": "mapped",

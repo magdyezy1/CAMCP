@@ -1775,3 +1775,75 @@ stages exited zero. Its 520-file manifest records source-tree SHA256
 Evidence: install-aj.log and release-check-aj.log, using npm.cmd ci --ignore-scripts
 and npm.cmd run check with the configured AMCP_SCHEMA_PYTHON. Required FFmpeg mode,
 Docker and live provider/deployment checks remain unrun.
+
+## 2026-09-20 — Business Profile account and administrator access (candidate AK)
+
+Added seven reviewed gmb_account_ops actions: accountName-only PATCH_ACCOUNT and
+CREATE/PATCH/DELETE_ACCOUNT_ADMIN and CREATE/PATCH/DELETE_LOCATION_ADMIN. Current
+AMCP administrator status, exact native parent read/write grant, business.manage
+and all shared deployment/review/idempotency guards remain mandatory. Reviewer
+test accounts cannot change external administrator access. Account administration
+also requires a native non-personal business account with owner authority.
+
+Preparation reads the exact parent and complete native membership twice.
+accountAdmins and admins are distinct unpaginated wrappers; unknown, empty,
+duplicate, foreign, changing or unexpectedly paginated responses fail closed.
+Bounds: 1000 members, 2 MiB per response, 8 MiB total, 30-second monotonic deadline.
+All prerequisite reads recheck current actor, scopes and grants before/after
+credential retrieval and egress, including separately granted invitee groups.
+Active display names and verification/vetting telemetry are excluded from state;
+pending email, native group, stable ID, role and invitation state remain protected.
+
+Invitation requires exactly one user-approved email or, for a location, a
+currently readable LOCATION_GROUP on that same login. Creation receipt must
+bind a new native ID to that exact principal/role. Read-back separates pending
+acceptance from active access. A verified pending-email receipt permits only
+the subsequent acceptance transition; changed roles/groups/other members remain
+inconclusive and never report verified access. Role-only masks, exact recipients,
+active-primary-owner preservation and immutable fields are enforced. New or
+increased access obeys activation policy; deletion/demotion obeys deletion policy.
+Account names containing budget terms do not produce false spend confirmation.
+
+Native location lists do not identify the acting Google user: the review explicitly
+leaves native owner authority/seven-day restrictions to provider enforcement.
+PRIMARY_OWNER transfers, native account creation, invitation acceptance/decline
+and validateOnly remain separate unqualified contracts. No live access changes
+were attempted. Generic friendly-resource parsing also rejects trailing resource
+paths instead of silently truncating them; valid complete GA4 names still work.
+
+Validation: initial build found one test-fixture syntax error, corrected. Initial
+25-test execution passed 20 and failed five because fixtures omitted policy
+confirmation/nesting, violated Store's write-grant subset invariant, assumed an
+in-flight duplicate completed, or expected review gating before the earlier
+confirmation gate. Corrected fixtures now assert the exact current contracts and
+deterministically hold a provider mutation to verify concurrency. The expanded
+run then found a malformed JSON example and an assertion using an internal
+resources field instead of public verified_resources; both corrected. All
+initial logs remain. No guard or assertion was disabled to pass tests.
+
+Twenty-nine new tests plus related Business Profile/delegated compatibility
+passed; the final expanded run passed 133/133 across access, delegated compiler,
+GA4/GSC/Apple/GTM measurement writes and executable guide families. Build, both
+contract generators and guidance validation passed (84 modules, 14 reviewed
+gateways). Evidence: business-access-*.log in .runtime/contract-completion-20260919.
+The 100-test intermediate compatibility run also passed before four extra cases.
+
+Current inventory: 3241 actions, 415 reviewed-family rows, 902 blocked writes,
+97 unmapped, 27 unqualified reads, eight input-dependent, four provider-unsupported,
+1704 native reads, 68 local workflows, 16 media workflows. Counts qualify action
+families only; permitted payload limits and all live qualification gaps remain.
+Official v1 Account/Admin, create/patch/delete/list references checked 2026-09-20
+(reference pages updated 2024-10-16), plus owner-permission help. Exact URLs,
+pending-versus-accepted behavior and recovery are in dv360-and-measurement.md;
+five new inspect examples execute without credentials or network. Provider
+descriptor version is 7. Pinned native Discovery is unchanged.
+
+Sanitized candidate AK full verification is pending. Required FFmpeg, Docker,
+provider approval and live/deployment behavior are not established by fixtures.
+Candidate AK completed the full sanitized check: 1302 passed, zero failed,
+one optional FFmpeg skip, plus four capture tests passed. Every check stage
+exited zero. The 522-file release manifest records source-tree SHA256
+6eb154b00650be00080b925ca15ebbd348c6d0fb496cb880a7f8207e6cf4be02.
+Commands: release assembly, npm.cmd ci --ignore-scripts, npm.cmd run check with
+the configured AMCP_SCHEMA_PYTHON. Logs: install-ak.log and release-check-ak.log.
+Required FFmpeg mode, Docker and live/deployment qualification remain unrun.

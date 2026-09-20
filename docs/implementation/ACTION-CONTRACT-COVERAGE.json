@@ -122,10 +122,10 @@
       "gateway": "google_business_native_action",
       "actions": 59,
       "counts": {
-        "blocked_write": 19,
+        "blocked_write": 12,
         "local_workflow": 3,
         "native_read": 28,
-        "reviewed_write_family": 4,
+        "reviewed_write_family": 11,
         "unmapped": 5
       },
       "captured_catalog_complete": true,
@@ -16292,12 +16292,15 @@
       "method": "POST",
       "path": "/v1/{+parent}/admins",
       "origin": "https://mybusinessaccountmanagement.googleapis.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-business-access.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://mybusinessaccountmanagement.googleapis.com/$discovery/rest?version=v1",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-business-access.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_business_access"
     },
     {
       "gateway": "google_business_native_action",
@@ -16307,12 +16310,15 @@
       "method": "POST",
       "path": "/v1/{+parent}/admins",
       "origin": "https://mybusinessaccountmanagement.googleapis.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-business-access.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://mybusinessaccountmanagement.googleapis.com/$discovery/rest?version=v1",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-business-access.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_business_access"
     },
     {
       "gateway": "google_business_native_action",
@@ -16337,12 +16343,15 @@
       "method": "DELETE",
       "path": "/v1/{+name}",
       "origin": "https://mybusinessaccountmanagement.googleapis.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-business-access.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://mybusinessaccountmanagement.googleapis.com/$discovery/rest?version=v1",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-business-access.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_business_access"
     },
     {
       "gateway": "google_business_native_action",
@@ -16352,12 +16361,15 @@
       "method": "DELETE",
       "path": "/v1/{+name}",
       "origin": "https://mybusinessaccountmanagement.googleapis.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-business-access.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://mybusinessaccountmanagement.googleapis.com/$discovery/rest?version=v1",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-business-access.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_business_access"
     },
     {
       "gateway": "google_business_native_action",
@@ -16373,7 +16385,8 @@
       "source": "https://mybusinessaccountmanagement.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16391,7 +16404,8 @@
       "source": "https://mybusinessaccountmanagement.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16409,7 +16423,8 @@
       "source": "https://mybusinessaccountmanagement.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16427,7 +16442,8 @@
       "source": "https://mybusinessaccountmanagement.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16445,7 +16461,8 @@
       "source": "https://mybusinessaccountmanagement.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16457,12 +16474,15 @@
       "method": "PATCH",
       "path": "/v1/{+name}",
       "origin": "https://mybusinessaccountmanagement.googleapis.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-business-access.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://mybusinessaccountmanagement.googleapis.com/$discovery/rest?version=v1",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-business-access.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_business_access"
     },
     {
       "gateway": "google_business_native_action",
@@ -16472,12 +16492,15 @@
       "method": "PATCH",
       "path": "/v1/{+name}",
       "origin": "https://mybusinessaccountmanagement.googleapis.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-business-access.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://mybusinessaccountmanagement.googleapis.com/$discovery/rest?version=v1",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-business-access.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_business_access"
     },
     {
       "gateway": "google_business_native_action",
@@ -16487,12 +16510,15 @@
       "method": "PATCH",
       "path": "/v1/{+name}",
       "origin": "https://mybusinessaccountmanagement.googleapis.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-business-access.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://mybusinessaccountmanagement.googleapis.com/$discovery/rest?version=v1",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-business-access.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_business_access"
     },
     {
       "gateway": "google_business_native_action",
@@ -16523,7 +16549,8 @@
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16541,7 +16568,8 @@
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16559,7 +16587,8 @@
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16577,7 +16606,8 @@
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16595,7 +16625,8 @@
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16853,7 +16884,8 @@
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16871,7 +16903,8 @@
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16889,7 +16922,8 @@
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16907,7 +16941,8 @@
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16925,7 +16960,8 @@
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16958,7 +16994,8 @@
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -16991,7 +17028,8 @@
       "source": "https://mybusinesslodging.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17009,7 +17047,8 @@
       "source": "https://mybusinesslodging.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17042,7 +17081,8 @@
       "source": "https://mybusinessnotifications.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17078,7 +17118,8 @@
       "source": "https://businessprofileperformance.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17096,7 +17137,8 @@
       "source": "https://businessprofileperformance.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17114,7 +17156,8 @@
       "source": "https://businessprofileperformance.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17163,7 +17206,8 @@
       "source": "https://mybusinessverifications.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17196,7 +17240,8 @@
       "source": "https://mybusinessverifications.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17214,7 +17259,8 @@
       "source": "https://mybusinessverifications.googleapis.com/$discovery/rest?version=v1",
       "tests": [
         "tests/google-place-action-links.test.ts",
-        "tests/google-business-notifications.test.ts"
+        "tests/google-business-notifications.test.ts",
+        "tests/google-business-access.test.ts"
       ],
       "live_qualification": "unverified"
     },

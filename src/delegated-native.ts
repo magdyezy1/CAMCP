@@ -37,7 +37,7 @@ function singleValue(key:string,bags:JsonObject[],extra:string[]=[]):unknown{
 function resourceId(value:unknown,resource:string):string|undefined{
  if(value===undefined)return undefined;
  if(typeof value!=='string'&&typeof value!=='number')throw new MirrorError('INVALID_RESOURCE_NAME','Resource identifier must be a string.',{resource});
- const v=String(value);if(v.startsWith(resource+'/'))return v.slice(resource.length+1).split('/')[0];
+ const v=String(value);if(v.startsWith(resource+'/')){const id=v.slice(resource.length+1);if(!id||id.includes('/'))throw new MirrorError('INVALID_RESOURCE_NAME','Use the exact resource ID or matching resource name, without trailing path segments.',{resource});return id;}
  return v;
 }
 function sameResource(left:unknown,right:unknown,resource:string):boolean{return resourceId(left,resource)===resourceId(right,resource);}

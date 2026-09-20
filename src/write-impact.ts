@@ -41,6 +41,7 @@ function assertSnapchatReplacement(plan:CompiledRequest,state:unknown[]){
  }
 }
 export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolean,connectionId:string):JsonObject|undefined{
+ if(businessAccessKind(plan))return businessAccessImpact(plan,state);
  if(businessNotificationKind(plan))return businessNotificationImpact(plan,state);
  if(placeActionKind(plan))return placeActionImpact(plan,state);
  if(xDraftKind(plan))return xDraftImpact(plan);
@@ -75,3 +76,4 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
 import {googleConfigurationKind,googleConfigurationServing} from './google-configuration-writes.js';
 import {placeActionKind,placeActionImpact} from './google-place-action-links.js';
 import {businessNotificationKind,businessNotificationImpact} from './google-business-notifications.js';
+import {businessAccessKind,businessAccessImpact} from './google-business-access.js';

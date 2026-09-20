@@ -1,6 +1,7 @@
 import {authorizeMetaReportRead,assertMetaReportScope} from './meta-insights-jobs.js';
 import {authorizePlaceActionRead} from './google-place-action-links.js';
 import {authorizePlaceActionDiscovery} from './google-place-action-discovery.js';
+import {authorizeBusinessAccessRead} from './google-business-access.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {Registry} from './catalog.js';
@@ -75,6 +76,7 @@ export class ScopeGuard {
   if(authorizeQualifiedProviderRead(plan,connection,id))return id;
   if(authorizePlaceActionRead(plan,connection,id))return id;
   if(authorizePlaceActionDiscovery(plan,connection,id))return id;
+  if(authorizeBusinessAccessRead(plan,connection,id))return id;
   if(authorizeDV360TargetingSearch(plan,connection,id))return id;
   if(authorizeLinkedInConversion(plan,connection,id))return id;
   if(authorizeLinkedInRule(plan,connection,id))return id;

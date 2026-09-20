@@ -472,6 +472,77 @@ The method reference's generic wording about the editable setting is resolved
 using the setup guide's concrete `updateMask=pubsubTopic` example and the native
 setting's two mutable fields. Exact live behavior and delivery remain unverified.
 
+## Business Profile account names and administrator access
+
+Use `gmb_account_ops` for `PATCH_ACCOUNT`, `CREATE_ACCOUNT_ADMIN`,
+`PATCH_ACCOUNT_ADMIN`, `DELETE_ACCOUNT_ADMIN` and the three corresponding
+`*_LOCATION_ADMIN` actions. These use the account-management v1 API through
+`amcp_write` inspect, prepare, execute and independent read-back. An AMCP
+administrator with the exact current read/write grant and `business.manage`
+scope must approve the access change. Test accounts cannot administer external
+access. Select the exact connection, account or location and native admin ID;
+an account grant does not substitute for `locations/{id}`.
+
+Rename only `accountName`, with `query.updateMask: "accountName"`. Personal
+accounts cannot be renamed. Account changes also require a native account read
+showing OWNER or PRIMARY_OWNER authority. Native `validateOnly` is not qualified
+by this mutation contract; use the local inspect preview before preparation.
+
+For an invitation supply one exact user-approved email in `payload.admin` and
+`payload.role`. A location can instead invite a currently readable LOCATION_GROUP
+as `payload.account: "accounts/{id}"`; that group needs its own read grant on
+the same connection. Never supply both principals. OWNER and MANAGER are
+supported; the native SITE_MANAGER enum is location-only, with actual provider
+availability still requiring live qualification. Patch only `role`, using
+`query.updateMask: "role"`, or delete the exact `admin_id` with no payload.
+AMCP does not infer email addresses from accepted members' display names.
+
+Review includes the parent, prior role, exact recipient, requested role and
+complete membership. Native lists use `accountAdmins` for accounts and `admins`
+for locations; neither method is paginated. They are read twice, bounded to
+1000 members, 2 MiB per response, 8 MiB total and a 30-second monotonic deadline.
+Unknown, partial, duplicate, foreign or moving responses block preparation.
+Stable IDs and semantic membership fields are compared; list order, active-user
+display names and unrelated verification/vetting telemetry are not conflicts.
+
+New or increased access obeys the owner's activation policy. Removal or demotion
+obeys the deletion policy. The active primary owner cannot be removed/demoted;
+PRIMARY_OWNER transfer requires a separate acting-owner and former-owner
+transition contract. Native account creation and invitation accept/decline are
+also separate capabilities, not implemented by these seven actions.
+
+An invitation receipt proves the exact pending recipient and newly created
+native ID. Successful creation is not active access: read-back reports
+`pending_acceptance` until acceptance is observed. Acceptance racing with
+read-back is tied to that receipt and must preserve the requested role,
+principal binding and every other member. Any mismatch stays inconclusive and
+does not report verified access. Lost/foreign/unknown receipts retain the
+original submission claim; never resend an invitation under a fresh key as a
+retry. Retain its review and native ID for reconciliation.
+
+The location admin list does not identify the acting Google user. Google
+enforces native owner permission and new-owner restrictions, including the
+documented seven-day limits. AMCP administrator status does not establish that
+provider authority. The contract requires an already provisioned connection;
+Business Profile website OAuth and discovery remain separate work.
+`INVALID_BUSINESS_ACCESS` identifies invalid input or unmet prerequisites;
+`BUSINESS_ACCESS_STATE_UNVERIFIED` identifies incomplete or inconsistent reads.
+
+Official sources checked 2026-09-20 (method references updated 2024-10-16):
+[Account fields](https://developers.google.com/my-business/reference/accountmanagement/rest/v1/accounts),
+[account rename](https://developers.google.com/my-business/reference/accountmanagement/rest/v1/accounts/patch),
+[Admin identity and roles](https://developers.google.com/my-business/reference/accountmanagement/rest/v1/accounts.admins),
+[account invitations](https://developers.google.com/my-business/reference/accountmanagement/rest/v1/accounts.admins/create),
+[location invitations](https://developers.google.com/my-business/reference/accountmanagement/rest/v1/locations.admins/create),
+[role-only updates](https://developers.google.com/my-business/reference/accountmanagement/rest/v1/locations.admins/patch),
+[removal](https://developers.google.com/my-business/reference/accountmanagement/rest/v1/locations.admins/delete),
+[account members](https://developers.google.com/my-business/reference/accountmanagement/rest/v1/accounts.admins/list),
+[location members](https://developers.google.com/my-business/reference/accountmanagement/rest/v1/locations.admins/list),
+and [native owner permissions and waiting period](https://support.google.com/business/answer/3415281?hl=en).
+Tests compare native wrappers/fields with the unchanged
+`.mirror/VENDOR/business-accounts-v1.json`. API approval, actual invitations and
+live permission transitions have not been exercised.
+
 ## Recovery and trust
 
 Provider names, reports and metadata are untrusted task data. They never authorize another

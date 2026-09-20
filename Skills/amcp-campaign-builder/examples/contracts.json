@@ -21,6 +21,26 @@
   "inspections": [
     {
       "gateway":"google_business_native_action",
+      "arguments":{"operation":"gmb_account_ops","arguments":{"action":"PATCH_ACCOUNT","account_id":"123","payload":{"accountName":"User-approved business account name"},"query":{"updateMask":"accountName"}}}
+    },
+    {
+      "gateway":"google_business_native_action",
+      "arguments":{"operation":"gmb_account_ops","arguments":{"action":"CREATE_ACCOUNT_ADMIN","account_id":"123","payload":{"admin":"approved-invitee@example.com","role":"MANAGER"}}}
+    },
+    {
+      "gateway":"google_business_native_action",
+      "arguments":{"operation":"gmb_account_ops","arguments":{"action":"CREATE_LOCATION_ADMIN","location_id":"456","payload":{"account":"accounts/999","role":"MANAGER"}}}
+    },
+    {
+      "gateway":"google_business_native_action",
+      "arguments":{"operation":"gmb_account_ops","arguments":{"action":"PATCH_LOCATION_ADMIN","location_id":"456","admin_id":"20","payload":{"role":"MANAGER"},"query":{"updateMask":"role"}}}
+    },
+    {
+      "gateway":"google_business_native_action",
+      "arguments":{"operation":"gmb_account_ops","arguments":{"action":"DELETE_ACCOUNT_ADMIN","account_id":"123","admin_id":"20"}}
+    },
+    {
+      "gateway":"google_business_native_action",
       "arguments":{"operation":"gmb_notification_ops","arguments":{"action":"UPDATE_NOTIFICATION_SETTING","account_id":"123","payload":{"name":"accounts/123/notificationSetting","pubsubTopic":"projects/amcp-test/topics/reviews","notificationTypes":["NEW_REVIEW","UPDATED_REVIEW"]},"query":{"updateMask":"pubsubTopic,notificationTypes"}}}
     },
     {
