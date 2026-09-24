@@ -1,6 +1,7 @@
 import {googlePreviewKind,verifyGooglePreview} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaignScopes,verifyCriteoCampaign} from './criteo-campaign-writes.js';
 import {metaReportKind,assertMetaReportScope,verifyMetaReport,metaReportReadResult,observeMetaReportRead} from './meta-insights-jobs.js';
+import {tiktokReportKind,verifyTiktokReport} from './tiktok-report-jobs.js';
 import {criteoReportKind,assertCriteoReportScopes,verifyCriteoReport,criteoReportReadResult,observeCriteoReportRead} from './criteo-report-jobs.js';
 import {placeActionKind,assertPlaceActionScope,verifyPlaceAction} from './google-place-action-links.js';
 import {businessNotificationKind,assertBusinessNotificationActor,assertBusinessNotificationScope,verifyBusinessNotification} from './google-business-notifications.js';
@@ -140,7 +141,7 @@ export class WriteVerifier{
   if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan)||googlePortfolioKind(plan))assertGoogleAdsScope(c);
   if(linkedinConversionKind(plan)||linkedinRuleKind(plan))assertLinkedInConversionScope(c);
   if(result.success!==true)bad('Inspect the retained partial failure before recovery.','WRITE_PARTIAL_OR_FAILED');
-  const cached=optional(this.store,actor.tenantId,'write_verification',reviewId);if(!googlePreviewKind(plan)&&cached?.status==='verified'&&Date.now()-cached.checked_at<10000)return {...cached,cached:true};
+  const cached=optional(this.store,actor.tenantId,'write_verification',reviewId);if(!tiktokReportKind(plan)&&!googlePreviewKind(plan)&&cached?.status==='verified'&&Date.now()-cached.checked_at<10000)return {...cached,cached:true};
   let reads:ReturnType<typeof verificationReads>=[],status='unverified',checks:JsonObject[]=[],resources:JsonObject[]=[];
   try{if(redditPostCreation(plan)){
    const verified=await verifyRedditPostCreation(plan,result,reviewId,c,this.store,read=>readRedditProfiles(read,async page=>{
@@ -198,6 +199,12 @@ export class WriteVerifier{
     const current=access(),auth=await this.credentials.get(current);credentialHash??=sha256(stable(auth));access();const response=await this.transport.request(read,current,auth);access();return response;
    });status=verified.status;checks=verified.checks;resources=verified.resources;
    if(status==='verified')for(const resource of resources){const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertCriteoCampaignScopes(current);this.store.rememberResource(current,plan.accountId!,'criteo-report-target/campaigns/'+resource.resource_id);resource.read_result.arguments.arguments.connection_id=c.id;}
+  }else if(tiktokReportKind(plan)){
+   const verified=await verifyTiktokReport(plan,result,async read=>{
+    if(!independentlyReadOnly(read))bad('Report verification must remain read-only.','VERIFICATION_UNSUPPORTED');
+    const access=()=>{this.store.assertActorActive(actor);const active=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(read,active);return active;};
+    const current=access(),auth=await this.credentials.get(current);access();const response=await this.transport.request(read,current,auth);access();return response;
+   });status=verified.status;checks=verified.checks;resources=verified.resources;for(const resource of resources)resource.read_result.arguments.connection_id=c.id;
   }else if(criteoReportKind(plan)){
    const verified=await verifyCriteoReport(plan,result,reviewId,async read=>{
     if(!independentlyReadOnly(read))bad('Report verification must remain read-only.','VERIFICATION_UNSUPPORTED');

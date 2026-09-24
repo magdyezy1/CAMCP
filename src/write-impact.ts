@@ -1,6 +1,7 @@
 import {googlePreviewKind,googlePreviewImpact} from './google-preview-writes.js';
 import {criteoCampaignKind,criteoCampaignImpact} from './criteo-campaign-writes.js';
 import {metaReportKind,metaReportImpact} from './meta-insights-jobs.js';
+import {tiktokReportKind,tiktokReportImpact} from './tiktok-report-jobs.js';
 import {criteoReportKind,criteoReportImpact} from './criteo-report-jobs.js';
 import {redditCreativeKind,redditCreativeServing,redditLeadFormSunset,redditLeadFormSource} from './reddit-creative-writes.js';
 import {criteoTargetingKind} from './criteo-targeting-writes.js';
@@ -60,6 +61,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  if(googlePortfolioKind(plan))return googlePortfolioImpact;
  if(metaReportKind(plan))return metaReportImpact;
  if(criteoCampaignKind(plan))return criteoCampaignImpact;
+ if(tiktokReportKind(plan))return tiktokReportImpact;
  if(criteoReportKind(plan))return criteoReportImpact;
  if(googleConversionGoalKind(plan))return {...googleConversionGoalImpact,may_affect_serving:googleConversionGoalServing(plan),creation_effect:'New custom goals remain unattached until a separate campaign configuration update.'};
  const meta=metaLabelImpact(plan);if(meta)return meta;

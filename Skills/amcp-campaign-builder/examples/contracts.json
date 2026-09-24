@@ -99,6 +99,42 @@
   ],
   "inspections": [
     {
+      "gateway": "tiktok_native_action",
+      "arguments": {
+        "action": "tiktok_report_task_create",
+        "account_id": "123",
+        "payload": {
+          "advertiser_id": "123",
+          "report_type": "BASIC",
+          "data_level": "AUCTION_CAMPAIGN",
+          "dimensions": [
+            "campaign_id",
+            "stat_time_day"
+          ],
+          "metrics": [
+            "spend",
+            "clicks",
+            "impressions"
+          ],
+          "start_date": "2026-08-01",
+          "end_date": "2026-08-02",
+          "output_format": "CSV_STRING",
+          "enable_report_title_translation": false
+        }
+      }
+    },
+    {
+      "gateway": "tiktok_native_action",
+      "arguments": {
+        "action": "tiktok_report_task_cancel",
+        "account_id": "123",
+        "payload": {
+          "advertiser_id": "123",
+          "task_id": "original-reviewed-task-id"
+        }
+      }
+    },
+    {
       "gateway": "criteo_native_action",
       "arguments": {
         "operation": "criteo_reporting_ops",

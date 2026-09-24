@@ -140,9 +140,9 @@ export class NativeTransport {
    if(attempt===0){const circuit=this.circuits.get(circuitKey),now=performance.now();if(circuit&&(circuit.until>now||circuit.probing))throw new MirrorError('CIRCUIT_OPEN','Repeated transient provider failures paused this connection/account. A request will probe recovery after the cooldown.',{retry_after_ms:Math.max(1000,Math.ceil(circuit.until-now)),last_error_code:circuit.code,last_http_status:circuit.status},503,true);if(circuit?.until){circuit.probing=true;ownedProbe=circuit;}}
    this.metrics.requests++;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'requests');
    try{
-    const deadline=plan.gateway==='criteo_native_action'&&plan.readOnly&&plan.method==='GET'?(plan.criteoReportRead?plan.criteoReportDeadline:plan.action==='AMCP_CRITEO_CAMPAIGN_READ'?plan.criteoCampaignDeadline:undefined):undefined;
+    const deadline=plan.gateway==='tiktok_native_action'&&plan.readOnly&&plan.method==='GET'?plan.tiktokReportDeadline:plan.gateway==='criteo_native_action'&&plan.readOnly&&plan.method==='GET'?(plan.criteoReportRead?plan.criteoReportDeadline:plan.action==='AMCP_CRITEO_CAMPAIGN_READ'?plan.criteoCampaignDeadline:undefined):undefined;
     const reportDeadline=deadline!==undefined,remaining=reportDeadline?deadline-performance.now():this.timeoutMs;
-    if(reportDeadline&&(!Number.isFinite(remaining)||remaining<=0))throw new MirrorError(plan.criteoReportRead?'CRITEO_REPORT_STATE_UNVERIFIED':'CRITEO_CAMPAIGN_STATE_UNVERIFIED','Criteo retrieval exceeded its monotonic deadline.',{},502);
+    if(reportDeadline&&(!Number.isFinite(remaining)||remaining<=0))throw new MirrorError(plan.tiktokReportDeadline!==undefined?'TIKTOK_REPORT_STATE_UNVERIFIED':plan.criteoReportRead?'CRITEO_REPORT_STATE_UNVERIFIED':'CRITEO_CAMPAIGN_STATE_UNVERIFIED','Criteo retrieval exceeded its monotonic deadline.',{},502);
     const response=await this.fetcher(url,{method:plan.method,headers,body,redirect:'error',signal:AbortSignal.timeout(reportDeadline?Math.max(1,Math.ceil(Math.min(this.timeoutMs,remaining))):this.timeoutMs)});
     const retryDelay=providerRetryDelay(response,plan.gateway);
     if(response.status===429){this.metrics.rateLimits++;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'rate_limits');}
@@ -150,8 +150,9 @@ export class NativeTransport {
     if([502,503,504].includes(response.status)&&retryDelay===undefined&&attempt+1<maxAttempts){await response.body?.cancel();this.metrics.retries++;await this.sleeper(200*2**attempt);continue;}
     const documentedEmpty=response.status===200&&(plan.gateway==='google_search_console_native_action'&&['PUT','DELETE'].includes(plan.method)&&/^\/webmasters\/v3\/sites\//.test(plan.path)||plan.gateway==='gtm_native_action'&&plan.method==='DELETE'||plan.gateway==='linkedin_native_action'&&plan.method==='POST'&&plan.path==='/rest/videos'&&plan.query.action==='finalizeUpload'||plan.gateway==='google_ads_native_action'&&plan.method==='POST'&&/^\/resumable\/upload\/v23\/customers\/\d+\/youTubeVideoUploads:create$/.test(plan.path)&&response.headers.has('x-goog-upload-url'));
     let bodyIntegrity:TransportResult['bodyIntegrity'];
+    const tiktokCsv=plan.gateway==='tiktok_native_action'&&plan.tiktokReportRead?.kind==='download'&&plan.method==='GET'&&plan.path==='/v1.3/report/task/download/';
     const reportOutput=plan.gateway==='criteo_native_action'&&plan.criteoReportRead?.kind==='output'&&plan.method==='GET'&&/^\/2026-01\/retail-media\/reports\/[a-f0-9-]+\/output$/i.test(plan.path);
-    const data=await this.readBody(response,plan.method==='HEAD'||!plan.readOnly&&(documentedEmpty||[204,205].includes(response.status)||plan.gateway==='linkedin_native_action'&&response.status===201&&response.headers.has('x-restli-id')),reportOutput?bytes=>{bodyIntegrity={bytes:bytes.length,md5:createHash('md5').update(bytes).digest('hex')};}:undefined);
+    const data=await this.readBody(response,plan.method==='HEAD'||!plan.readOnly&&(documentedEmpty||[204,205].includes(response.status)||plan.gateway==='linkedin_native_action'&&response.status===201&&response.headers.has('x-restli-id')),reportOutput?bytes=>{bodyIntegrity={bytes:bytes.length,md5:createHash('md5').update(bytes).digest('hex')};}:undefined,tiktokCsv);
     const errorDetails=()=>({upstream:redact(data),http_status:response.status,...(retryDelay===undefined?{}:{retry_after_ms:retryDelay}),request_id:response.headers.get('request-id')??response.headers.get('x-request-id')??response.headers.get('x-fb-trace-id'),...(response.status===403?{scope_denial:providerHttpErrorCode(403,data,response.headers.get('www-authenticate'))==='INSUFFICIENT_SCOPE'}:{}),...(plan.gateway==='google_ads_native_action'?{login_customer_id:headers['login-customer-id']??null}:{})});
     if(!response.ok){const code=providerHttpErrorCode(response.status,data,response.headers.get('www-authenticate'));throw new MirrorError(code,'Platform returned HTTP '+response.status,errorDetails(),response.status,response.status===429||response.status>=500);}
     if(data&&typeof data==='object'){
@@ -213,12 +214,14 @@ export class NativeTransport {
   await response.body?.cancel();if(!response.ok)throw new MirrorError('MEDIA_UPLOAD_FAILED','LinkedIn binary upload returned HTTP '+response.status,{},502);
   return response.headers.get('etag')?.replace(/^"|"$/g,'');
  }
- private async readBody(response:Response,allowEmpty:boolean,integrity?:(bytes:Buffer)=>void):Promise<unknown>{
+ private async readBody(response:Response,allowEmpty:boolean,integrity?:(bytes:Buffer)=>void,csv=false):Promise<unknown>{
   const reader=response.body?.getReader();let size=0;const chunks:Uint8Array[]=[];
   if(reader)try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>this.maximumBytes){await reader.cancel();throw new MirrorError('RESPONSE_TOO_LARGE','Platform response exceeds the configured size limit. Use smaller pages.');}chunks.push(value);}}finally{reader.releaseLock();}
   const bytes=Buffer.concat(chunks);let text:string;
-  try{text=integrity?new TextDecoder('utf-8',{fatal:true}).decode(bytes):bytes.toString('utf8');}catch{throw new MirrorError('UPSTREAM_RESPONSE_INVALID','Report output contains invalid UTF-8.',{},502);}
+  const declared=response.headers.get('content-length');if(csv&&response.ok&&!response.headers.has('content-encoding')&&declared!==null&&(!/^\d+$/.test(declared)||Number(declared)!==bytes.length))throw new MirrorError('UPSTREAM_RESPONSE_INVALID','CSV transfer length differs from its declared length.',{},502);
+  try{text=integrity||csv?new TextDecoder('utf-8',{fatal:true}).decode(bytes):bytes.toString('utf8');}catch{throw new MirrorError('UPSTREAM_RESPONSE_INVALID','Report output contains invalid UTF-8.',{},502);}
   integrity?.(bytes);
+  if(csv&&response.ok&&!/application\/(?:[a-z0-9.+-]*\+)?json/i.test(response.headers.get('content-type')??''))return text;
   if(!text.trim()&&(!response.ok||allowEmpty))return null;
   // Node 24's source-aware reviver preserves native int64 values even in compact
   // array rows. The checksum above covers the original bytes, never reserialized JSON.

@@ -1,0 +1,292 @@
+{
+  "format_version": 1,
+  "date": "2026-09-25",
+  "branch": "Codex-branch",
+  "base_revision": "45dc9bd33f2d1874f70a98a36164d89566bf4953",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "shell": "PowerShell",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true
+  },
+  "candidate": {
+    "path": ".release/tiktok-reports-20260925-b",
+    "files": 584,
+    "source_tree_hash": "4ceea69a653412f02faf77b6579860acb33345dd61634eaef797ebbb4f615dc4",
+    "index_code_test_guidance_files_compared": 392,
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/tiktok-reports-20260925-b",
+    "install": "npm.cmd ci --offline --ignore-scripts --cache '../../.runtime/npm-cache'",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm.cmd run check",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=<bundled Python>",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/contract-completion-20260924/tiktok-report-baseline.log",
+      "sha256": "03428d24ba82e0ac1f7f21d7cdfe365fbbdd4acedae0509024b9ae4379cf3156",
+      "counts": [
+        {
+          "tests": 2
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 2
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1512.8097
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/tiktok-report-expanded.log",
+      "sha256": "164daa27af144fe26ecdbcf4747915370787a677bd7841a55a2723ba01d4f75b",
+      "counts": [
+        {
+          "tests": 24
+        },
+        {
+          "pass": 23
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 4048.0406
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/tiktok-report-focused.log",
+      "sha256": "8a92824f3390f8b30f05767920a04c494281015ac81c9d03a9eea5e5c649f4f5",
+      "counts": [
+        {
+          "tests": 27
+        },
+        {
+          "pass": 26
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 4269.1689
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/tiktok-revocation-first.log",
+      "sha256": "6a75f926cdf7424547ad497b3958eeda071645514d49fee266621416254a6f93",
+      "counts": [
+        {
+          "tests": 1
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1553.4737
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/tiktok-report-combined.log",
+      "sha256": "8723bedc9369d5724218a9429d48232375b6ee5f2c2da6b705add694672ee428",
+      "counts": [
+        {
+          "tests": 81
+        },
+        {
+          "pass": 81
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 14042.3887
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/tiktok-projection-baseline.log",
+      "sha256": "e7f674cbc9e3e0d063aea4979ae795004f7536b6fd03674add7916ad2a67f7d5",
+      "counts": [
+        {
+          "tests": 1
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1600.0999
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/criteo-projection-baseline.log",
+      "sha256": "e0ff79c35137814582cc48e883e5537649249e7b5b1a751ec71c12831a524187",
+      "counts": [
+        {
+          "tests": 1
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1452.1892
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/tiktok-report-projection-fixed.log",
+      "sha256": "30a8b2967718cabdbf2629de42a9f8ae0871c6071b60ea04e884191ec526172c",
+      "counts": [
+        {
+          "tests": 38
+        },
+        {
+          "pass": 38
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 4506.5876
+        }
+      ]
+    },
+    {
+      "path": ".release/tiktok-reports-20260924-a/tiktok-check.log",
+      "sha256": "ec35717661c50ff58f449a4d5fcfa3e0da5fcbc811c1240261d8d8cfdf9f634d",
+      "counts": [
+        {
+          "tests": 1550
+        },
+        {
+          "pass": 1550
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 340935.949
+        },
+        {
+          "tests": 4
+        },
+        {
+          "pass": 4
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 73.7235
+        }
+      ]
+    },
+    {
+      "path": ".release/tiktok-reports-20260925-b/tiktok-check.log",
+      "sha256": "165508246476ee4b987330de74714c4f3435188e905a596f1ea88bf362020b59",
+      "counts": [
+        {
+          "tests": 1550
+        },
+        {
+          "pass": 1550
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 343929.2773
+        },
+        {
+          "tests": 4
+        },
+        {
+          "pass": 4
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 75.318
+        }
+      ]
+    }
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 1550,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "initial_failure": "Candidate A passed 1550 main and four capture tests, then failed guidance coverage for undocumented TIKTOK_REPORT_TOKEN_CHANGED. Documented the actual recovery without exempting the code; fresh candidate B passed the entire check.",
+  "rejected_hypothesis": "Criteo projection attempt used unsupported captured input and is not a confirmed Criteo bug.",
+  "limitations": [
+    "No live TikTok credentials, tasks, reports or cancellation used.",
+    "Provider metric/header compatibility and account permission require live qualification.",
+    "No native total/checksum supplied: completeness is fenced transfer/parser evidence, not independent reconciliation.",
+    "Signed CSV/XLSX modes and dashboard async integration remain separate contracts.",
+    "Docker and deployment verification unavailable."
+  ]
+}

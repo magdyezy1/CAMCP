@@ -40,6 +40,9 @@ export interface CompiledRequest {
   queryArrayEncoding?:'json'|'repeat';
   responseControls?:import('./projection.js').ResponseControls;
   metaReportRead?:JsonObject;
+  /** Server-derived original TikTok task binding and process-local deadline. */
+  tiktokReportRead?:JsonObject;
+  tiktokReportDeadline?:number;
   /** Server-derived Criteo report binding. External inputs cannot set this. */
   criteoReportRead?:JsonObject;
   criteoReportReviewId?:string;

@@ -1,0 +1,145 @@
+{
+  "version": "v1.3",
+  "checked_at": "2026-09-24",
+  "models": {
+    "ReportTaskCreateBody": {
+      "url": "https://raw.githubusercontent.com/tiktok/tiktok-business-api-sdk/main/python_sdk/docs/ReportTaskCreateBody.md",
+      "sha256": "e1032f7402594d2c8d0b9f14403d44acc33c94de321836606a42e1480a467bb8",
+      "fields": [
+        {
+          "name": "advertiser_id",
+          "required": false
+        },
+        {
+          "name": "advertiser_ids",
+          "required": false
+        },
+        {
+          "name": "data_level",
+          "required": false
+        },
+        {
+          "name": "dimensions",
+          "required": true
+        },
+        {
+          "name": "enable_report_title_translation",
+          "required": false
+        },
+        {
+          "name": "end_date",
+          "required": false
+        },
+        {
+          "name": "file_name",
+          "required": false
+        },
+        {
+          "name": "filtering",
+          "required": false
+        },
+        {
+          "name": "metrics",
+          "required": false
+        },
+        {
+          "name": "order_field",
+          "required": false
+        },
+        {
+          "name": "order_type",
+          "required": false
+        },
+        {
+          "name": "output_format",
+          "required": false
+        },
+        {
+          "name": "query_lifetime",
+          "required": false
+        },
+        {
+          "name": "report_type",
+          "required": true
+        },
+        {
+          "name": "service_type",
+          "required": false
+        },
+        {
+          "name": "start_date",
+          "required": false
+        }
+      ]
+    },
+    "TaskCancelBody": {
+      "url": "https://raw.githubusercontent.com/tiktok/tiktok-business-api-sdk/main/python_sdk/docs/TaskCancelBody.md",
+      "sha256": "e972a9b244be8fd1c308ad9266bb7db4f6222e717843302220fad6118761ef36",
+      "fields": [
+        {
+          "name": "advertiser_id",
+          "required": true
+        },
+        {
+          "name": "task_id",
+          "required": true
+        }
+      ]
+    }
+  },
+  "manual_browser_evidence": {
+    "meaning": "Native response/lifecycle fields read from the rendered official portal, not generated from the captured action catalog. No live API calls.",
+    "sources": [
+      "https://business-api.tiktok.com/portal/docs/create-an-asynchronous-report-task/v1.3",
+      "https://business-api.tiktok.com/portal/docs/get-the-status-of-an-async-report-task/v1.3",
+      "https://business-api.tiktok.com/portal/docs/download-the-output-of-an-async-report-task/v1.3",
+      "https://business-api.tiktok.com/portal/docs/cancel-an-asynchronous-report-task/v1.3",
+      "https://business-api.tiktok.com/portal/docs/get-ad-account-details/v1.3"
+    ],
+    "origin": "https://business-api.tiktok.com",
+    "prefix": "/open_api/v1.3/report/task/",
+    "response_envelope": [
+      "code",
+      "message",
+      "request_id",
+      "data"
+    ],
+    "create_data": [
+      "task_id"
+    ],
+    "check_data": [
+      "status",
+      "message"
+    ],
+    "cancel_data": [
+      "status"
+    ],
+    "statuses": [
+      "QUEUING",
+      "PROCESSING",
+      "SUCCESS",
+      "FAILED",
+      "CANCELED"
+    ],
+    "cancel_status": "CANCELED",
+    "stream_format": "CSV_STRING",
+    "signed_formats": [
+      "CSV_DOWNLOAD",
+      "XLSX_DOWNLOAD"
+    ],
+    "task_validity_days": 30,
+    "signed_url_validity_seconds": 3600,
+    "same_access_token_required": true,
+    "pagination_supported": false,
+    "create_app_qps": 1,
+    "create_account_hourly_limit": 500,
+    "known_dimension_alias": {
+      "country_code": "country_name"
+    },
+    "account_fields": [
+      "advertiser_id",
+      "currency",
+      "timezone"
+    ]
+  }
+}

@@ -1,5 +1,6 @@
 import {authorizeCriteoCampaign} from './criteo-campaign-writes.js';
 import {authorizeMetaReportRead,assertMetaReportScope} from './meta-insights-jobs.js';
+import {authorizeTiktokReport} from './tiktok-report-jobs.js';
 import {authorizeCriteoReport,observeCriteoReportTargets,assertCriteoReportScopes} from './criteo-report-jobs.js';
 import {authorizePlaceActionRead} from './google-place-action-links.js';
 import {authorizePlaceActionDiscovery} from './google-place-action-discovery.js';
@@ -79,6 +80,7 @@ export class ScopeGuard {
   if(plan.gateway==='criteo_native_action'&&plan.action==='AMCP_CRITEO_TARGET_READ')assertCriteoReadScope(connection);
   if(plan.gateway==='criteo_native_action'&&plan.action==='AMCP_CRITEO_REPORT_READ')assertCriteoReportScopes(connection);
   if(authorizeCriteoCampaign(plan,connection,this.store,id))return id;
+  if(authorizeTiktokReport(plan,connection,this.store,id))return id;
   if(authorizeCriteoReport(plan,connection,this.store,id))return id;
   if(authorizeQualifiedProviderRead(plan,connection,id))return id;
   if(authorizePlaceActionRead(plan,connection,id))return id;

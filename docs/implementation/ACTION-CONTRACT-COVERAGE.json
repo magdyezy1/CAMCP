@@ -222,11 +222,11 @@
       "gateway": "tiktok_native_action",
       "actions": 561,
       "counts": {
-        "blocked_write": 221,
+        "blocked_write": 219,
         "media_workflow": 4,
         "native_read": 310,
-        "reviewed_write_family": 12,
-        "unqualified_read": 14
+        "reviewed_write_family": 16,
+        "unqualified_read": 12
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -49566,12 +49566,15 @@
       ],
       "method": "POST",
       "path": "/v1.3/report/task/cancel/",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/tiktok-report-jobs.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/tiktok-report-jobs.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "tiktok_report_jobs"
     },
     {
       "gateway": "tiktok_native_action",
@@ -49582,12 +49585,13 @@
       "method": "GET",
       "path": "/v1.3/report/task/check/",
       "status": "native_read",
-      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
-      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/tiktok-report-jobs.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Exact original task/advertiser/connection/token binding; bounded untranslated CSV_STRING retrieval with fresh status, row/date checks and explicit pending/failed/cancelled states.",
       "source": "OBSERVED",
       "tests": [
         "tests/write-platforms.test.ts",
-        "tests/creative-chain-audit.test.ts"
+        "tests/creative-chain-audit.test.ts",
+        "tests/tiktok-report-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -49599,12 +49603,15 @@
       ],
       "method": "POST",
       "path": "/v1.3/report/task/create/",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "reviewed_write_family",
+      "implementation": "src/tiktok-report-jobs.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/tiktok-report-jobs.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "tiktok_report_jobs"
     },
     {
       "gateway": "tiktok_native_action",
@@ -49615,12 +49622,13 @@
       "method": "GET",
       "path": "/v1.3/report/task/download/",
       "status": "native_read",
-      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
-      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/tiktok-report-jobs.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Exact original task/advertiser/connection/token binding; bounded untranslated CSV_STRING retrieval with fresh status, row/date checks and explicit pending/failed/cancelled states.",
       "source": "OBSERVED",
       "tests": [
         "tests/write-platforms.test.ts",
-        "tests/creative-chain-audit.test.ts"
+        "tests/creative-chain-audit.test.ts",
+        "tests/tiktok-report-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -49664,12 +49672,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v1.3/report/task/cancel/",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/tiktok-report-jobs.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/tiktok-report-jobs.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "tiktok_report_jobs"
     },
     {
       "gateway": "tiktok_native_action",
@@ -49678,12 +49689,13 @@
       "method": "GET",
       "path": "/v1.3/report/task/check/",
       "status": "native_read",
-      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
-      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/tiktok-report-jobs.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Exact original task/advertiser/connection/token binding; bounded untranslated CSV_STRING retrieval with fresh status, row/date checks and explicit pending/failed/cancelled states.",
       "source": "OBSERVED",
       "tests": [
         "tests/write-platforms.test.ts",
-        "tests/creative-chain-audit.test.ts"
+        "tests/creative-chain-audit.test.ts",
+        "tests/tiktok-report-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -49693,12 +49705,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v1.3/report/task/create/",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "reviewed_write_family",
+      "implementation": "src/tiktok-report-jobs.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/tiktok-report-jobs.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "tiktok_report_jobs"
     },
     {
       "gateway": "tiktok_native_action",
@@ -49707,12 +49722,13 @@
       "method": "GET",
       "path": "/v1.3/report/task/download/",
       "status": "native_read",
-      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
-      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/tiktok-report-jobs.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Exact original task/advertiser/connection/token binding; bounded untranslated CSV_STRING retrieval with fresh status, row/date checks and explicit pending/failed/cancelled states.",
       "source": "OBSERVED",
       "tests": [
         "tests/write-platforms.test.ts",
-        "tests/creative-chain-audit.test.ts"
+        "tests/creative-chain-audit.test.ts",
+        "tests/tiktok-report-jobs.test.ts"
       ],
       "live_qualification": "unverified"
     },

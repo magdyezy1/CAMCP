@@ -1,5 +1,6 @@
 import {criteoCampaignKind} from './criteo-campaign-writes.js';
 import {metaReportKind} from './meta-insights-jobs.js';
+import {tiktokReportKind} from './tiktok-report-jobs.js';
 import {criteoReportKind} from './criteo-report-jobs.js';
 import {placeActionKind} from './google-place-action-links.js';
 import {businessNotificationKind} from './google-business-notifications.js';
@@ -50,5 +51,5 @@ export function authorizeExecution(actor:Actor,plan:CompiledRequest,input:JsonOb
  const statusPatch=Array.isArray(plan.body)&&plan.body.some(op=>op&&/\/(status|intendedStatus|intended_status|entity_status|operation_status)$/.test(String(op.path))&&['ACTIVE','ENABLE','ENABLED'].includes(op.value));
  // Segment effects are decided by the contract above. Native ENABLED denotes
  // an available definition; a keyword containing "budget" is not a budget edit.
- if(!criteoReportKind(plan)&&!googlePortfolioKind(plan)&&!googleAccessKind(plan)&&!googleDismissalKind(plan)&&!businessAccessKind(plan)&&!businessNotificationKind(plan)&&!placeActionKind(plan)&&!metaReportKind(plan)&&!keywordPlanKind(plan)&&!googleSegmentKind(plan)&&!googleConversionGoalKind(plan)&&!xDraftKind(plan)&&(statusPatch||/budget|bid|spend|"(?:status|intendedStatus|intended_status|entity_status|entityStatus|operation_status)"\s*:\s*"(?:ACTIVE|ENABLE|ENABLED|ENTITY_STATUS_ACTIVE)"/i.test(JSON.stringify({query:plan.query,body:plan.body})))&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Spend-affecting writes need spend_change_confirmed=true.');
+ if(!tiktokReportKind(plan)&&!criteoReportKind(plan)&&!googlePortfolioKind(plan)&&!googleAccessKind(plan)&&!googleDismissalKind(plan)&&!businessAccessKind(plan)&&!businessNotificationKind(plan)&&!placeActionKind(plan)&&!metaReportKind(plan)&&!keywordPlanKind(plan)&&!googleSegmentKind(plan)&&!googleConversionGoalKind(plan)&&!xDraftKind(plan)&&(statusPatch||/budget|bid|spend|"(?:status|intendedStatus|intended_status|entity_status|entityStatus|operation_status)"\s*:\s*"(?:ACTIVE|ENABLE|ENABLED|ENTITY_STATUS_ACTIVE)"/i.test(JSON.stringify({query:plan.query,body:plan.body})))&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Spend-affecting writes need spend_change_confirmed=true.');
 }

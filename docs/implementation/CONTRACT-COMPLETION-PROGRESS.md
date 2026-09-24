@@ -8,6 +8,26 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## AW — TikTok asynchronous reporting and output completeness (2026-09-25)
+
+Added one scoped reviewed family for four task/async create/cancel aliases and
+qualified four status/download aliases. Complete local lifecycle covers exact
+advertiser metadata, original-token/task binding, native status, bounded server
+CSV parsing, cancellation, quota pacing across SQLite workers, durable claims
+and restart recovery. TikTok result projection now reports omitted rows instead
+of falsely describing sliced output as complete. No signed URLs or raw report
+rows enter the audit log. No new service, schema migration or runtime dependency.
+
+[Implementation/limits](TIKTOK-REPORTS-2026-09-24.md) and
+[verification](TIKTOK-REPORTS-VERIFICATION-2026-09-24.json) retain initial failures.
+Fresh candidate B passes the complete required-FFmpeg check: 1550 main and four
+capture tests, zero failures/skips. The catalog now has 438 reviewed-family
+actions, 886 blocked writes and 23 unqualified reads; the remaining CSV contains
+1009 rows including four retired actions. Neither live permissions/reporting nor
+the remaining provider actions are claimed complete. Existing dashboard and
+scheduled CSV/Sheets paths remain intact; async dashboard integration needs its
+own semantic crosswalk and resumable schedule contract.
+
 ## AV — Reviewed Google shareable previews (2026-09-24)
 
 Both native/legacy v23 preview-generation routes now use one reviewed family.

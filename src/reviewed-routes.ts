@@ -1,6 +1,7 @@
 import {googlePreviewKind} from './google-preview-writes.js';
 import {criteoCampaignKind} from './criteo-campaign-writes.js';
 import {metaReportKind} from './meta-insights-jobs.js';
+import {tiktokReportKind} from './tiktok-report-jobs.js';
 import {criteoReportKind} from './criteo-report-jobs.js';
 import {placeActionKind} from './google-place-action-links.js';
 import {businessNotificationKind} from './google-business-notifications.js';
@@ -48,6 +49,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(linkedinRuleKind(p))return 'linkedin_conversion_rules';
  if(metaReportKind(p))return 'meta_insights_jobs';
  if(criteoCampaignKind(p))return 'criteo_campaigns';
+ if(tiktokReportKind(p))return 'tiktok_report_jobs';
  if(criteoReportKind(p))return 'criteo_report_jobs';
  if(metaLabelKind(p))return 'meta_labels';
  if(googleBidKind(p))return 'google_bid_modifiers';

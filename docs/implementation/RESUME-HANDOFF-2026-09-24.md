@@ -52,6 +52,13 @@ recovery, native result limits and external verification needs are recorded in
 
 ## Remaining implementation — not complete
 
+The [TikTok report batch](TIKTOK-REPORTS-2026-09-24.md) now passes the complete
+required-FFmpeg check: 1550 main/four capture, zero failures/skips. Its eight
+task/async aliases cover reviewed create/cancel plus bound status and CSV output.
+Original-token recovery, concurrent quotas, partial-output projection and initial
+failures are recorded in the machine evidence. Signed formats, dashboard async
+selection and actual account/provider qualification remain explicit follow-ups.
+
 The next implementation pass added client-owned portfolio bidding strategies and
 fixed the existing bidding-event GAQL sortability defect. See
 [portfolio verification and rollout](PORTFOLIO-AND-GAQL-2026-09-24.md).
@@ -62,7 +69,7 @@ FFmpeg 9.0.2 and zero skips. Portable verified binaries now exist in
 installed globally or included in Git. Docker and live validation remain outstanding.
 
 The latest action check supersedes the September 20 inventory: 3241 actions,
-434 reviewed-family, 888 blocked writes, 88 unmapped, 25 unqualified reads, eight
+438 reviewed-family, 886 blocked writes, 88 unmapped, 23 unqualified reads, eight
 input-dependent and four provider-unsupported. The latter four were retired by the
 provider. The separate vendor denominator remains 1208 pinned methods, including
 451 unmapped; it overlaps rather than adding directly to the action denominator.
@@ -73,8 +80,8 @@ report creation contracts and scoped status/output recovery. It supplies native
 JSON/compact outputs with checked bytes, checksum, count and account/date/entity
 identities. Criteo website OAuth, dashboard integration, other formats, multi-
 account aggregation, remaining writes and the 2026.07 redesign remain separate.
-The updated remaining-action CSV has 1015 rows, including retired/unsupported
-entries. Latest complete check and manifest are in the Criteo evidence report.
+The updated remaining-action CSV has 1009 rows, including retired/unsupported
+entries. Latest complete check and manifest are in the TikTok evidence report.
 
 The [Criteo campaign batch](CRITEO-CAMPAIGNS-2026-09-24.md) adds standard auction
 campaign create/update with complete PUT fields, stable scoped funding/line-item
