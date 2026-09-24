@@ -1822,8 +1822,8 @@
         {
           "operation": "criteo_campaign_ops",
           "action": "CREATE_CAMPAIGNS_BY_ACCOUNT_ID",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_campaigns"
         }
       ],
       "mapping_status": "mapped",
@@ -2502,8 +2502,8 @@
         {
           "operation": "criteo_campaign_ops",
           "action": "UPDATE_CAMPAIGN_BY_CAMPAIGN_ID",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_campaigns"
         }
       ],
       "mapping_status": "mapped",

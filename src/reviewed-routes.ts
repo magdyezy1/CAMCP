@@ -1,3 +1,4 @@
+import {criteoCampaignKind} from './criteo-campaign-writes.js';
 import {metaReportKind} from './meta-insights-jobs.js';
 import {criteoReportKind} from './criteo-report-jobs.js';
 import {placeActionKind} from './google-place-action-links.js';
@@ -44,6 +45,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(linkedinConversionKind(p))return 'linkedin_conversion_links';
  if(linkedinRuleKind(p))return 'linkedin_conversion_rules';
  if(metaReportKind(p))return 'meta_insights_jobs';
+ if(criteoCampaignKind(p))return 'criteo_campaigns';
  if(criteoReportKind(p))return 'criteo_report_jobs';
  if(metaLabelKind(p))return 'meta_labels';
  if(googleBidKind(p))return 'google_bid_modifiers';

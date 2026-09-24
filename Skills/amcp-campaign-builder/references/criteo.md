@@ -1,8 +1,8 @@
-# Criteo Retail Media targeting and asynchronous reports
+# Criteo Retail Media campaigns, targeting and reports
 
 AMCP qualifies nine targeting writes for **existing preferred line items** on
-Retail Media API 2026-01. It does not yet create Criteo campaigns/line items or
-connect Criteo through the website. An administrator must provision an encrypted
+Retail Media API 2026-01, plus the bounded auction campaign and report families
+below. Line-item creation and website OAuth are still unqualified. An administrator must provision an encrypted
 native connection with the chosen account, an explicit AMCP write grant and
 recorded `RetailMedia_Campaign_Read` and `RetailMedia_Campaign_Manage` permissions.
 Provider approval and retailer access remain independent requirements.
@@ -53,6 +53,90 @@ response and 8 MiB combined. Filtered discovery must return a complete exact
 target; partial pages and arbitrary next URLs are refused. Large targeting sets
 need a qualified larger-scope workflow. Local fixtures cover these contracts;
 live retailer acceptance, serving and provider account approval are unverified.
+
+## Auction campaigns with explicit spend limits (2026.01)
+
+Maintainer: AMCP integration maintainer; reviewed 2026-09-24. This family supports
+standard Criteo-budget auction campaigns. Select one login/account with current
+`RetailMedia_Accounts_Read`, `RetailMedia_Campaign_Read`,
+`RetailMedia_Campaign_Manage` and `RetailMedia_Balance_Read` permissions plus an
+AMCP write grant. Verification needs the three read permissions; it does not
+require retained manage permission. Website connection setup remains separate.
+
+Use `operation: criteo_campaign_ops` and `CREATE_CAMPAIGNS_BY_ACCOUNT_ID` or
+`UPDATE_CAMPAIGN_BY_CAMPAIGN_ID`. For updates first call
+`GET_CAMPAIGNS_BY_ACCOUNT_ID` with `params: {limitToId: ["<campaign ID>"],
+pageIndex: 0, pageSize: 2}` in this account and connection. Select balance IDs
+from the same account's `criteo_budget_ops / GET_BALANCES_BY_ACCOUNT_ID`.
+AMCP independently checks their current membership; guessed global IDs and
+administrative path bindings cannot replace these checks.
+
+Both actions use `payload: {data: {type: "Campaign", attributes: {...}}}`.
+Update also requires `params: {campaignId: "<campaign ID>"}` and the matching
+`payload.data.id`. Every request must explicitly include these attributes:
+
+- `name`, `budget`, `dailyPacing`, `monthlyPacing`, `isAutoDailyPacing`;
+- `startDate`, `endDate`, `clickAttributionWindow`, `viewAttributionWindow`;
+- `clickAttributionScope`, `viewAttributionScope`, `companyName`, `onBehalfCompanyName`.
+
+Creation additionally requires `type: "auction"` and `drawableBalanceIds`, an
+explicit array of up to 50 account-owned standard Criteo-budget Onsite balances
+(or an explicitly empty array). An empty set cannot fund delivery. Do not invent
+funding or add money to make campaign creation work. Updates preserve current
+balance mappings and campaign type; those fields do not belong in PUT attributes.
+
+For this family `budget` is finite and nonnegative, daily/monthly pacing is finite
+and positive, and `isAutoDailyPacing` is `false`. Amounts use the account currency's
+native decimal units. Read currency/timezone before asking for missing amounts.
+Require explicit offset ISO timestamps with an end later than start; a date-only
+value would otherwise default to UTC. Preserve the requested instants. Ask for
+missing business dates, budgets, attribution or company identity; never invent them.
+Company names are text up to 255 characters or explicit null, subject to provider
+eligibility. Window values are native `7D`/`14D`/`30D` and `none`/`1D`/`7D`/`14D`/`30D`;
+view cannot exceed click. Use `sameSku`, `sameSkuCategory` or `sameSkuCategoryBrand`
+for both scopes. Synthetic executable examples must be replaced with real approved
+inputs before preparing a client's campaign.
+
+**PUT can clear omitted values.** Start from the current record and explicitly
+preserve every unchanged writable field. `CRITEO_CAMPAIGN_INVALID` identifies an
+unqualified field/value; `INVALID_VENDOR_BODY` identifies a pinned-schema violation.
+Do not send `status`: Criteo derives campaign status from its line items. Do not
+set a fictitious PAUSED value. This family does not qualify preferred campaigns,
+retailer-budget campaigns/balances, automatic or uncapped pacing, budget overrides,
+retailer assignment, balance reassignment/funding, or line-item creation. Do not
+clear an existing financial safeguard merely to get past a contract limitation.
+
+Run `amcp_write inspect`, prepare, review all limits/dates/attribution and current
+account/campaign/balance/line-item dependencies, then execute once with the original
+review/key, `confirmed: true` and `spend_change_confirmed: true`. Owner activation
+policy applies conservatively to every campaign create/update. The owner maximum
+applies to each of the three spend limits. Positive increases in all three are
+reserved cumulatively without netting decreases; this is conservative requested
+capacity, not billed spend. Criteo's automatic campaign status is not evidence
+that an AMCP activation restriction can be bypassed.
+
+Dependencies are read twice for consistency, with an empty terminal page proving
+line-item enumeration. Spend/remaining-balance telemetry is excluded from hashes;
+budget, attribution, funding configuration, meaningful status, targets and schedules
+remain protected. `CRITEO_CAMPAIGN_STATE_UNVERIFIED` means dependencies are partial,
+unknown, changed while reading, unsupported or outside the bounds. Stop and inspect
+the cause. `STATE_CHANGED` gives expected/actual hashes and exact changed fields.
+Only unsubmitted work may receive a fresh review after a conflict.
+
+Verify using `amcp_campaign action=verify` and the original review. A receipt ID
+does not grant ownership. Only successful independent account-scoped read-back
+enables the new campaign's immediate use and returns a working `read_result` call.
+Read-back establishes saved configuration, not retailer approval or ad delivery.
+Lost/partial responses retain the original claim across restart and are never
+automatically resubmitted. Keep completed/uncertain claims during rollback.
+
+Bounds: one campaign, 50 balances, 1000 dependent line items, 16 requests, 8 MiB and
+60 seconds per dependency read. External response URLs are never followed. Live
+provider payload acceptance, permissions, billing eligibility and serving remain
+unverified. Source: [campaign workflow](https://developers.criteo.com/retail-media/v2026.01/docs/campaigns-endpoints)
+and [pinned OpenAPI](https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json).
+The guide's shortened PUT example omits fields required by the pinned schema;
+AMCP preserves the full contract instead of copying that example blindly.
 
 ## Asynchronous DSP reports (2026.01)
 

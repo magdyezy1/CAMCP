@@ -107,6 +107,7 @@ export class DelegatedNativeCompiler {
  private ajv=new Ajv({strict:false,allErrors:true,useDefaults:false,coerceTypes:false,removeAdditional:false});
  constructor(data?:VendorRoutes){
   (addFormatsModule as unknown as (ajv:Ajv)=>void)(this.ajv);
+  this.ajv.addFormat('long-id',{type:'string',validate:(value:string)=>/^[1-9][0-9]{0,18}$/.test(value)&&BigInt(value)<=9223372036854775807n});
   const source=data??JSON.parse(fs.readFileSync(fileURLToPath(new URL('../../generated/vendor-routes.json',import.meta.url)),'utf8'));
   // Direct Google Ads compilation and ProtoJSON validation have their own entry
   // point. A vendor snapshot must not accidentally create a second delegated API.
@@ -170,10 +171,10 @@ export class DelegatedNativeCompiler {
   for(const key of Object.keys({...params,...queryInput}))if(!Object.keys(route.parameters).some(p=>[p,...(extraAliases[p]??[]),...aliases(p)].some(alias=>normalize(alias)===normalize(key)))&&!(Object.values(route.parameters).some(s=>s.location==='path'&&s.pattern)&&friendlyResourceKeys.has(normalize(key))))throw new MirrorError('UNKNOWN_VENDOR_PARAMETER','Unknown vendor parameter; body fields belong in payload/request.',{parameter:key,vendor_method:route.vendorMethod});
   if(route.bodyRequired&&gateway!=='ga4_native_action'&&args.payload===undefined&&action!=='INSPECT_URL')body={};
   if(!bodyAllowed&&Object.keys(body).length&&gateway!=='ga4_native_action')throw new MirrorError('UNEXPECTED_BODY','This vendor method does not accept a JSON body.',{vendor_method:route.vendorMethod});
-  if(gateway==='reddit_native_action'&&route.requestSchema){
+  if((gateway==='reddit_native_action'||gateway==='criteo_native_action'&&route.responseSchemas)&&route.requestSchema){
    const key=this.key(gateway,operation,action);let validator=this.validators.get(key);
    if(!validator){validator=this.ajv.compile({...route.requestSchema,components:this.data.schemaComponents?.[route.sourceFile]});this.validators.set(key,validator);}
-   if(!validator(body))throw new MirrorError('INVALID_VENDOR_BODY','Request body does not satisfy the published Reddit API schema.',{errors:validator.errors});
+   if(!validator(body))throw new MirrorError('INVALID_VENDOR_BODY',gateway==='reddit_native_action'?'Request body does not satisfy the published Reddit API schema.':'Request body does not satisfy the pinned Criteo campaign schema.',{errors:validator.errors});
    if(action==='GET_INSIGHTS'){
     const data=body.data;
     if(!/^\d{4}-\d{2}-\d{2}T\d{2}:00:00Z$/.test(data.starts_at)||!/^\d{4}-\d{2}-\d{2}T\d{2}:00:00Z$/.test(data.ends_at)||Date.parse(data.starts_at)>=Date.parse(data.ends_at))throw new MirrorError('INVALID_REPORT_WINDOW','Reddit reports require increasing UTC timestamps aligned to complete hours.');

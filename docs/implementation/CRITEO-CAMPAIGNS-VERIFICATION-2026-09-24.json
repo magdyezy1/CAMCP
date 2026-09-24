@@ -1,0 +1,267 @@
+{
+  "format_version": 1,
+  "date": "2026-09-24",
+  "branch": "Codex-branch",
+  "base_revision": "6065847f96edde164b9b697cecc1f0500ad81ccc",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "shell": "PowerShell",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/criteo-campaigns-20260924-a",
+    "install": "npm.cmd ci --offline --ignore-scripts --cache '../../.runtime/npm-cache'",
+    "focused": "npm.cmd run build; node --test dist/tests/criteo-campaign-writes.test.js",
+    "full": "npm.cmd run check",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=<bundled Python>",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>",
+      "AMCP_REQUIRE_FFMPEG=true"
+    ]
+  },
+  "initial_runs": [
+    {
+      "log": ".runtime/contract-completion-20260924/criteo-campaign-baseline.log",
+      "sha256": "777fc715dbbe530555bdbfd4f00dd18ff4fb3ce186af5dd20f6fb1199210ff9f",
+      "counts": [
+        {
+          "tests": 2
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 2
+        },
+        {
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "log": ".runtime/contract-completion-20260924/criteo-campaign-first.log",
+      "sha256": "655c3eedd313174c57cba09d15b0efbd01c6a4f2fb76b6801ffdee170f0a051d",
+      "counts": [
+        {
+          "tests": 2
+        },
+        {
+          "pass": 2
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "log": ".runtime/contract-completion-20260924/criteo-campaign-expanded.log",
+      "sha256": "ce7260910c7ea799ad649cc3effceb775d214f00497ea1da7e48414c43eb21e4",
+      "counts": [
+        {
+          "tests": 17
+        },
+        {
+          "pass": 16
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "log": ".runtime/contract-completion-20260924/criteo-campaign-integrated.log",
+      "sha256": "a3fade8edeeaf523047a87f854a31f36c8a656d05088e36f57c28a4d4da1bc8d",
+      "counts": [
+        {
+          "tests": 81
+        },
+        {
+          "pass": 80
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "log": ".runtime/contract-completion-20260924/criteo-campaign-integrated-2.log",
+      "sha256": "620b2a62e927d7728ca29c93fb80ec0b376187aa92a0a21d8d8cdd771a7f7a10",
+      "counts": [
+        {
+          "tests": 81
+        },
+        {
+          "pass": 81
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "log": ".runtime/contract-completion-20260924/criteo-campaign-native-schema.log",
+      "sha256": "95c25b276f650a1da4a5d8349a2e8c57a59288c1f3bb58455b2d5e101d614645",
+      "counts": [
+        {
+          "tests": 17
+        },
+        {
+          "pass": 8
+        },
+        {
+          "fail": 9
+        },
+        {
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "log": ".runtime/contract-completion-20260924/criteo-campaign-native-schema-2.log",
+      "sha256": "92d035a7036ca9c8125de666ff4e969425873d0652b8f0b16fa947e79ae4096b",
+      "counts": [
+        {
+          "tests": 17
+        },
+        {
+          "pass": 17
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "log": ".runtime/contract-completion-20260924/criteo-campaign-final-focused.log",
+      "sha256": "e6bc3471ac3951edcde115199deaefe08cd6a12f22acd75d8ca2b6741092a89a",
+      "counts": [
+        {
+          "tests": 94
+        },
+        {
+          "pass": 93
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "log": ".runtime/contract-completion-20260924/criteo-campaign-focused-21.log",
+      "sha256": "3c5937dfbbcbee878621034e826f2cc67cb44fddb26374f24fdfd197ce51e3be",
+      "counts": [
+        {
+          "tests": 21
+        },
+        {
+          "pass": 21
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        }
+      ]
+    }
+  ],
+  "full": {
+    "candidate": ".release/criteo-campaigns-20260924-a",
+    "source_tree_hash": "7560219762811847ad47196bb8a9854bce253f8d89e784c14a1eaf4f68581ceb",
+    "files": 566,
+    "log": "criteo-campaign-check.log",
+    "log_sha256": "f61c70c4ea43922b00bdc43534632575c5aa7040f3c54d9ad4764450778adfde",
+    "install_log_sha256": "98fd6a1c7082b1ff58e0af709912b294001bf1d37d00899f914a6dfdb1e53fed",
+    "exit_code": 0,
+    "main": {
+      "pass": 1481,
+      "fail": 0,
+      "skipped": 0
+    },
+    "capture": {
+      "pass": 4,
+      "fail": 0,
+      "skipped": 0
+    }
+  },
+  "inventory": {
+    "actions": 3241,
+    "reviewed_write_family": 432,
+    "blocked_write": 888,
+    "unmapped": 88,
+    "unqualified_read": 27,
+    "adapter_requires_input": 8,
+    "provider_unsupported": 4,
+    "remaining_rows": 1015,
+    "criteo": {
+      "actions": 108,
+      "reviewed_write_family": 14,
+      "native_read": 51,
+      "blocked_write": 43
+    }
+  },
+  "boundaries": [
+    "Synthetic fixtures and local real FFmpeg only; no provider calls, account mutations or production changes",
+    "Docker/Linux/hosted CI, current credentials, provider payload acceptance and serving state are unverified",
+    "Only standard Criteo-budget auction campaigns with the documented complete editable field set are qualified"
+  ],
+  "final_delta": {
+    "base_tree": "7560219762811847ad47196bb8a9854bce253f8d89e784c14a1eaf4f68581ceb",
+    "final_tree": "833609765f97f68d54dcb58d46affce4cb4802ac2e61d1ab8ec486a6ee202478",
+    "final_files": 568,
+    "changed": [
+      "Skills/amcp-campaign-builder/examples/contracts.json",
+      "Skills/amcp-campaign-builder/references/criteo.md",
+      "docs/implementation/CONTRACT-COMPLETION-PROGRESS.md",
+      "docs/implementation/REMAINING-ACTIONS-2026-09-24.csv",
+      "docs/implementation/RESUME-HANDOFF-2026-09-24.md",
+      "docs/implementation/STARTUP-DNS-2026-09-24.md",
+      "docs/implementation/CRITEO-CAMPAIGNS-2026-09-24.md",
+      "docs/implementation/CRITEO-CAMPAIGNS-VERIFICATION-2026-09-24.json"
+    ],
+    "production_tests_generated_identical": true,
+    "example_semantics_identical": true,
+    "guidance": {
+      "pass": 2,
+      "fail": 0,
+      "skipped": 0
+    },
+    "examples_and_creative_guidance": {
+      "pass": 8,
+      "fail": 0,
+      "skipped": 0
+    },
+    "logs": [
+      {
+        "name": "final-guidance.log",
+        "sha256": "365a798481825b6ff04ca29666233799e147955f0903b28a90fa8679541f5f5e"
+      },
+      {
+        "name": "final-examples.log",
+        "sha256": "77fc334912bac21e7951da4db045f74b1ecb3fc02ed9601cc494bd1ed80fcfe0"
+      }
+    ]
+  }
+}

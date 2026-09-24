@@ -131,3 +131,47 @@ Remaining post-candidate edits only record documentation and verification eviden
 Rollback: reverting only this HTTP patch does not migrate stored data, but restores
 misleading startup and false-success handling. Do not roll back report definitions,
 monthly schedules or uncertain-write receipts as a DNS workaround.
+
+## Public recheck and Hostinger handoff, 19:08 UTC
+
+Two independent public DNS-over-HTTPS resolvers (Google and Cloudflare) still
+returned status 3 / NXDOMAIN for amcp.shop, with .shop authority SOA serial
+1790276407. System DNS timed out. A prior unauthenticated HEAD returned HTTP 200,
+which does not prove public delegation is healthy when these resolvers disagree
+with that connection path. Registrar status and the cause remain unconfirmed.
+
+Initial Node trust-store requests failed SELF_SIGNED_CERT_IN_CHAIN. Rechecking
+with Node --use-system-ca retained certificate verification and returned the DNS
+results above. No TLS validation, DNSSEC or production controls were disabled.
+Local evidence: .runtime/contract-completion-20260924/public-dns-recheck.json and
+public-dns-recheck-system-ca.json. No registrar/hosting account was accessed.
+
+To check Hostinger: open Domains, manage amcp.shop, then Domain Overview. Inspect
+status (active/pending verification/hold), expiration and nameservers. If contact
+verification is pending, use the dashboard verification/resend flow and the domain
+owner's email. Compare the displayed nameservers to the existing assigned
+Cloudflare pair. Do not replace them with Hostinger defaults: AMCP uses its existing
+Cloudflare/Railway setup. An active paid hosting plan alone does not prove domain
+registry delegation or app availability. A shown hold or mismatch needs Hostinger
+support or authorized registrar repair; NXDOMAIN alone does not identify its cause.
+
+Official sources inspected September 24:
+[Hostinger Domains overview](https://www.hostinger.com/support/6940479-how-to-use-the-domains-section-in-hostinger-dashboard/),
+[contact verification](https://www.hostinger.com/support/1583442-how-to-fix-a-domain-suspended-due-to-pending-icann-verification-at-hostinger/),
+[domain status](https://www.hostinger.com/support/6614690-how-to-check-a-domain-status-on-whois-at-hostinger/) and
+[clientHold](https://www.hostinger.com/support/how-to-resolve-a-clienthold-domain-status-at-hostinger/).
+
+## User-confirmed availability and current HTTPS result, 19:17 UTC
+
+The user reports the website is working. Fresh TLS-verified HEAD requests to both
+https://amcp.shop/ and /healthz returned HTTP 200 with no redirect, corroborating
+current availability from the user and this HTTP connection path. Google and
+Cloudflare DNS-over-HTTPS still returned NXDOMAIN with the previous .shop SOA.
+These observations disagree; resolver caching/propagation is possible but its cause
+is not proven. Do not describe the application as down or demand registrar repair
+from the historical probe. No DNS/configuration change was made or is proposed
+on the strength of that stale outage report. Keep the resolver discrepancy as an
+unresolved public observation until independently reconciled. Local evidence:
+.runtime/contract-completion-20260924/public-site-recheck-user-working.json,
+checked 2026-09-24T19:17:44.806Z. This is public availability evidence, not proof
+of authenticated workflows, provider permissions or production revision.

@@ -1294,6 +1294,74 @@
           "use_unified_attribution_setting": true
         }
       }
+    },
+    {
+      "gateway": "criteo_native_action",
+      "arguments": {
+        "operation": "criteo_campaign_ops",
+        "arguments": {
+          "action": "CREATE_CAMPAIGNS_BY_ACCOUNT_ID",
+          "account_id": "123",
+          "payload": {
+            "data": {
+              "type": "Campaign",
+              "attributes": {
+                "name": "Example only - replace with approved client inputs",
+                "budget": 1000,
+                "dailyPacing": 25,
+                "monthlyPacing": 500,
+                "isAutoDailyPacing": false,
+                "startDate": "2030-08-01T00:00:00Z",
+                "endDate": "2030-08-31T23:59:59Z",
+                "clickAttributionWindow": "30D",
+                "viewAttributionWindow": "1D",
+                "clickAttributionScope": "sameSkuCategory",
+                "viewAttributionScope": "sameSku",
+                "companyName": null,
+                "onBehalfCompanyName": null,
+                "type": "auction",
+                "drawableBalanceIds": [
+                  "987"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "gateway": "criteo_native_action",
+      "arguments": {
+        "operation": "criteo_campaign_ops",
+        "arguments": {
+          "action": "UPDATE_CAMPAIGN_BY_CAMPAIGN_ID",
+          "account_id": "123",
+          "params": {
+            "campaignId": "456"
+          },
+          "payload": {
+            "data": {
+              "type": "Campaign",
+              "id": "456",
+              "attributes": {
+                "name": "Example only - replace with approved client inputs",
+                "budget": 1000,
+                "dailyPacing": 25,
+                "monthlyPacing": 500,
+                "isAutoDailyPacing": false,
+                "startDate": "2030-08-01T00:00:00Z",
+                "endDate": "2030-08-31T23:59:59Z",
+                "clickAttributionWindow": "30D",
+                "viewAttributionWindow": "1D",
+                "clickAttributionScope": "sameSkuCategory",
+                "viewAttributionScope": "sameSku",
+                "companyName": null,
+                "onBehalfCompanyName": null
+              }
+            }
+          }
+        }
+      }
     }
   ],
   "recipe_business": {

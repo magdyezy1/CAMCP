@@ -1433,6 +1433,11 @@
       "requestSchema": {
         "$ref": "#/components/schemas/PostCampaignV202301"
       },
+      "responseSchemas": {
+        "201": {
+          "$ref": "#/components/schemas/JsonApiSingleResponseOfCampaignV202301"
+        }
+      },
       "bodyRequired": true,
       "scopes": [],
       "evidence": "VENDOR_DOCUMENTED_INDEPENDENT_MAPPING"
@@ -1896,6 +1901,11 @@
       },
       "requestSchema": {
         "$ref": "#/components/schemas/PutCampaignV202301"
+      },
+      "responseSchemas": {
+        "200": {
+          "$ref": "#/components/schemas/JsonApiSingleResponseOfCampaignV202301"
+        }
       },
       "bodyRequired": true,
       "scopes": [],
@@ -55032,6 +55042,589 @@
   ],
   "gaps": [],
   "schemaComponents": {
+    "criteo-retail-2026-01": {
+      "schemas": {
+        "CampaignAttributesV202301": {
+          "required": [
+            "name",
+            "isAutoDailyPacing"
+          ],
+          "type": "object",
+          "properties": {
+            "budget": {
+              "type": "number",
+              "format": "double",
+              "nullable": true
+            },
+            "clickAttributionScope": {
+              "enum": [
+                "unknown",
+                "sameSku",
+                "sameSkuCategory",
+                "sameSkuCategoryBrand"
+              ],
+              "type": "string",
+              "nullable": true
+            },
+            "clickAttributionWindow": {
+              "enum": [
+                "7D",
+                "14D",
+                "30D",
+                "unknown"
+              ],
+              "type": "string",
+              "default": "30D"
+            },
+            "companyName": {
+              "type": "string",
+              "nullable": true
+            },
+            "dailyPacing": {
+              "type": "number",
+              "format": "double",
+              "nullable": true
+            },
+            "drawableBalanceIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "long-id"
+              }
+            },
+            "endDate": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            },
+            "isAutoDailyPacing": {
+              "type": "boolean"
+            },
+            "monthlyPacing": {
+              "type": "number",
+              "format": "double",
+              "nullable": true
+            },
+            "name": {
+              "maxLength": 255,
+              "minLength": 0,
+              "type": "string"
+            },
+            "onBehalfCompanyName": {
+              "type": "string",
+              "nullable": true
+            },
+            "retailerId": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "startDate": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            },
+            "type": {
+              "enum": [
+                "unknown",
+                "auction",
+                "preferred"
+              ],
+              "type": "string",
+              "default": "auction"
+            },
+            "viewAttributionScope": {
+              "enum": [
+                "unknown",
+                "sameSku",
+                "sameSkuCategory",
+                "sameSkuCategoryBrand"
+              ],
+              "type": "string",
+              "nullable": true
+            },
+            "viewAttributionWindow": {
+              "enum": [
+                "none",
+                "1D",
+                "7D",
+                "14D",
+                "30D",
+                "unknown"
+              ],
+              "type": "string",
+              "default": "none"
+            }
+          },
+          "description": "An object that represents the available options to set when creating a Retail Media Campaign"
+        },
+        "CampaignV202301": {
+          "required": [
+            "accountId",
+            "createdAt",
+            "updatedAt",
+            "name",
+            "isAutoDailyPacing"
+          ],
+          "type": "object",
+          "properties": {
+            "accountId": {
+              "type": "string",
+              "format": "long-id"
+            },
+            "budget": {
+              "type": "number",
+              "format": "double",
+              "nullable": true
+            },
+            "budgetRemaining": {
+              "type": "number",
+              "format": "double",
+              "nullable": true
+            },
+            "budgetSpent": {
+              "type": "number",
+              "format": "double",
+              "nullable": true
+            },
+            "clickAttributionScope": {
+              "enum": [
+                "unknown",
+                "sameSku",
+                "sameSkuCategory",
+                "sameSkuCategoryBrand"
+              ],
+              "type": "string",
+              "nullable": true
+            },
+            "clickAttributionWindow": {
+              "enum": [
+                "7D",
+                "14D",
+                "30D",
+                "unknown"
+              ],
+              "type": "string",
+              "default": "30D"
+            },
+            "companyName": {
+              "type": "string",
+              "nullable": true
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "dailyPacing": {
+              "type": "number",
+              "format": "double",
+              "nullable": true
+            },
+            "drawableBalanceIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "long-id"
+              }
+            },
+            "endDate": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            },
+            "isAutoDailyPacing": {
+              "type": "boolean"
+            },
+            "monthlyPacing": {
+              "type": "number",
+              "format": "double",
+              "nullable": true
+            },
+            "name": {
+              "maxLength": 255,
+              "minLength": 0,
+              "type": "string"
+            },
+            "onBehalfCompanyName": {
+              "type": "string",
+              "nullable": true
+            },
+            "promotedBrandIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "long-id"
+              }
+            },
+            "retailerId": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "startDate": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            },
+            "status": {
+              "enum": [
+                "unknown",
+                "active",
+                "inactive",
+                "scheduled",
+                "ended"
+              ],
+              "type": "string"
+            },
+            "type": {
+              "enum": [
+                "unknown",
+                "auction",
+                "preferred"
+              ],
+              "type": "string",
+              "default": "auction"
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "viewAttributionScope": {
+              "enum": [
+                "unknown",
+                "sameSku",
+                "sameSkuCategory",
+                "sameSkuCategoryBrand"
+              ],
+              "type": "string",
+              "nullable": true
+            },
+            "viewAttributionWindow": {
+              "enum": [
+                "none",
+                "1D",
+                "7D",
+                "14D",
+                "30D",
+                "unknown"
+              ],
+              "type": "string",
+              "default": "none"
+            }
+          },
+          "description": "A Retail Media Campaign used to represent an advertiser's marketing objective"
+        },
+        "CommonError": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "(REQUIRED) A machine-readable unique error code, expressed as a string value. The format used must be kebab-case.",
+              "nullable": true
+            },
+            "detail": {
+              "type": "string",
+              "description": "(RECOMMENDED) A human-readable explanation specific to this occurrence of the problem.",
+              "nullable": true
+            },
+            "instance": {
+              "type": "string",
+              "description": "(REQUIRED) A URI reference that identifies the specific occurrence of the problem.",
+              "nullable": true
+            },
+            "source": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "(OPTIONAL) A machine-readable structure to reference to the exact location(s) causing the error(s)",
+              "nullable": true
+            },
+            "stackTrace": {
+              "type": "string",
+              "description": "(NEVER IN PRODUCTION) A human-readable stacktrace produced by the implementation technology",
+              "nullable": true
+            },
+            "title": {
+              "type": "string",
+              "description": "(RECOMMENDED) A short, human-readable summary of the problem type.",
+              "nullable": true
+            },
+            "traceId": {
+              "type": "string",
+              "description": "(REQUIRED) The Correlation ID provided by the Gateway. It is also a unique identifier for this particular occurrence of the problem.",
+              "nullable": true
+            },
+            "type": {
+              "enum": [
+                "unknown",
+                "access-control",
+                "authentication",
+                "authorization",
+                "availability",
+                "deprecation",
+                "quota",
+                "validation"
+              ],
+              "type": "string",
+              "description": "(REQUIRED) The classification of the error.",
+              "nullable": true
+            }
+          },
+          "additionalProperties": false,
+          "description": "A JSON:API Common error structure"
+        },
+        "CommonWarning": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "(REQUIRED) A machine-readable unique error code, expressed as a string value. The format used must be kebab-case.",
+              "nullable": true
+            },
+            "detail": {
+              "type": "string",
+              "description": "(RECOMMENDED) A human-readable explanation specific to this occurrence of the problem.",
+              "nullable": true
+            },
+            "instance": {
+              "type": "string",
+              "description": "(REQUIRED) A URI reference that identifies the specific occurrence of the problem.",
+              "nullable": true
+            },
+            "source": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "(OPTIONAL) A machine-readable structure to reference to the exact location(s) causing the error(s)",
+              "nullable": true
+            },
+            "stackTrace": {
+              "type": "string",
+              "description": "(NEVER IN PRODUCTION) A human-readable stacktrace produced by the implementation technology",
+              "nullable": true
+            },
+            "title": {
+              "type": "string",
+              "description": "(RECOMMENDED) A short, human-readable summary of the problem type.",
+              "nullable": true
+            },
+            "traceId": {
+              "type": "string",
+              "description": "(REQUIRED) The Correlation ID provided by the Gateway. It is also a unique identifier for this particular occurrence of the problem.",
+              "nullable": true
+            },
+            "type": {
+              "enum": [
+                "unknown",
+                "access-control",
+                "authentication",
+                "authorization",
+                "availability",
+                "deprecation",
+                "quota",
+                "validation"
+              ],
+              "type": "string",
+              "description": "(REQUIRED) The classification of the error.",
+              "nullable": true
+            }
+          },
+          "additionalProperties": false,
+          "description": "A JSON:API Base common warning"
+        },
+        "EditableCampaignAttributesV202301": {
+          "required": [
+            "name",
+            "isAutoDailyPacing",
+            "clickAttributionWindow",
+            "viewAttributionWindow"
+          ],
+          "type": "object",
+          "properties": {
+            "budget": {
+              "type": "number",
+              "format": "double",
+              "nullable": true
+            },
+            "clickAttributionScope": {
+              "enum": [
+                "unknown",
+                "sameSku",
+                "sameSkuCategory",
+                "sameSkuCategoryBrand"
+              ],
+              "type": "string",
+              "nullable": true
+            },
+            "clickAttributionWindow": {
+              "enum": [
+                "7D",
+                "14D",
+                "30D",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            "companyName": {
+              "type": "string",
+              "nullable": true
+            },
+            "dailyPacing": {
+              "type": "number",
+              "format": "double",
+              "nullable": true
+            },
+            "endDate": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            },
+            "isAutoDailyPacing": {
+              "type": "boolean"
+            },
+            "monthlyPacing": {
+              "type": "number",
+              "format": "double",
+              "nullable": true
+            },
+            "name": {
+              "maxLength": 255,
+              "minLength": 0,
+              "type": "string"
+            },
+            "onBehalfCompanyName": {
+              "type": "string",
+              "nullable": true
+            },
+            "startDate": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            },
+            "viewAttributionScope": {
+              "enum": [
+                "unknown",
+                "sameSku",
+                "sameSkuCategory",
+                "sameSkuCategoryBrand"
+              ],
+              "type": "string",
+              "nullable": true
+            },
+            "viewAttributionWindow": {
+              "enum": [
+                "none",
+                "1D",
+                "7D",
+                "14D",
+                "30D",
+                "unknown"
+              ],
+              "type": "string"
+            }
+          },
+          "description": "An object that represents the available options to set when editing a Retail Media Campaign"
+        },
+        "JsonApiBodyWithExternalIdOfEditableCampaignAttributesV202301AndCampaignV202301": {
+          "required": [
+            "id",
+            "type"
+          ],
+          "type": "object",
+          "properties": {
+            "attributes": {
+              "$ref": "#/components/schemas/EditableCampaignAttributesV202301"
+            },
+            "id": {
+              "type": "string",
+              "format": "long-id"
+            },
+            "type": {
+              "type": "string"
+            }
+          },
+          "description": "A JSON:API wrapper class to format a <typeparamref name=\"TAttributes\" /> with Id, Type, and\r\nAttributes properties"
+        },
+        "JsonApiBodyWithIdOfInt64AndCampaignV202301AndCampaignV202301": {
+          "required": [
+            "id",
+            "type"
+          ],
+          "type": "object",
+          "properties": {
+            "attributes": {
+              "$ref": "#/components/schemas/CampaignV202301"
+            },
+            "id": {
+              "type": "string",
+              "format": "long-id"
+            },
+            "type": {
+              "type": "string"
+            }
+          },
+          "description": "A JSON:API wrapper class to format a <typeparamref name=\"TAttributes\" /> with Id, Type, and\r\nAttributes properties"
+        },
+        "JsonApiBodyWithoutIdOfCampaignAttributesV202301AndCampaignV202301": {
+          "required": [
+            "type"
+          ],
+          "type": "object",
+          "properties": {
+            "attributes": {
+              "$ref": "#/components/schemas/CampaignAttributesV202301"
+            },
+            "type": {
+              "type": "string"
+            }
+          },
+          "description": "A JSON:API wrapper class to format a <typeparamref name=\"TAttributes\" /> with Type, and\r\nAttributes properties"
+        },
+        "JsonApiSingleResponseOfCampaignV202301": {
+          "required": [
+            "data"
+          ],
+          "type": "object",
+          "properties": {
+            "data": {
+              "$ref": "#/components/schemas/JsonApiBodyWithIdOfInt64AndCampaignV202301AndCampaignV202301"
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CommonError"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CommonWarning"
+              }
+            }
+          },
+          "description": "A JSON:API wrapper class to add one JSON:API <typeparamref name=\"T\" /> within a data property"
+        },
+        "PostCampaignV202301": {
+          "type": "object",
+          "properties": {
+            "data": {
+              "$ref": "#/components/schemas/JsonApiBodyWithoutIdOfCampaignAttributesV202301AndCampaignV202301"
+            }
+          },
+          "description": "An object that represents the available options to set when creating a Retail Media Campaign"
+        },
+        "PutCampaignV202301": {
+          "type": "object",
+          "properties": {
+            "data": {
+              "$ref": "#/components/schemas/JsonApiBodyWithExternalIdOfEditableCampaignAttributesV202301AndCampaignV202301"
+            }
+          },
+          "description": "An object that represents the available options to set when editing a Retail Media Campaign"
+        }
+      }
+    },
     "reddit-v3": {
       "parameters": {
         "components_parameters_page_token": {

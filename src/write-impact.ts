@@ -1,3 +1,4 @@
+import {criteoCampaignKind,criteoCampaignImpact} from './criteo-campaign-writes.js';
 import {metaReportKind,metaReportImpact} from './meta-insights-jobs.js';
 import {criteoReportKind,criteoReportImpact} from './criteo-report-jobs.js';
 import {redditCreativeKind,redditCreativeServing,redditLeadFormSunset,redditLeadFormSource} from './reddit-creative-writes.js';
@@ -56,6 +57,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  if(googleBiddingEventKind(plan))return googleBiddingEventImpact;
  if(googlePortfolioKind(plan))return googlePortfolioImpact;
  if(metaReportKind(plan))return metaReportImpact;
+ if(criteoCampaignKind(plan))return criteoCampaignImpact;
  if(criteoReportKind(plan))return criteoReportImpact;
  if(googleConversionGoalKind(plan))return {...googleConversionGoalImpact,may_affect_serving:googleConversionGoalServing(plan),creation_effect:'New custom goals remain unattached until a separate campaign configuration update.'};
  const meta=metaLabelImpact(plan);if(meta)return meta;

@@ -140,9 +140,9 @@ export class NativeTransport {
    if(attempt===0){const circuit=this.circuits.get(circuitKey),now=performance.now();if(circuit&&(circuit.until>now||circuit.probing))throw new MirrorError('CIRCUIT_OPEN','Repeated transient provider failures paused this connection/account. A request will probe recovery after the cooldown.',{retry_after_ms:Math.max(1000,Math.ceil(circuit.until-now)),last_error_code:circuit.code,last_http_status:circuit.status},503,true);if(circuit?.until){circuit.probing=true;ownedProbe=circuit;}}
    this.metrics.requests++;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'requests');
    try{
-    const reportDeadline=plan.gateway==='criteo_native_action'&&plan.criteoReportRead&&plan.criteoReportDeadline!==undefined&&plan.readOnly&&plan.method==='GET';
-    const remaining=reportDeadline?plan.criteoReportDeadline!-performance.now():this.timeoutMs;
-    if(reportDeadline&&(!Number.isFinite(remaining)||remaining<=0))throw new MirrorError('CRITEO_REPORT_STATE_UNVERIFIED','Report retrieval exceeded its monotonic deadline.',{},502);
+    const deadline=plan.gateway==='criteo_native_action'&&plan.readOnly&&plan.method==='GET'?(plan.criteoReportRead?plan.criteoReportDeadline:plan.action==='AMCP_CRITEO_CAMPAIGN_READ'?plan.criteoCampaignDeadline:undefined):undefined;
+    const reportDeadline=deadline!==undefined,remaining=reportDeadline?deadline-performance.now():this.timeoutMs;
+    if(reportDeadline&&(!Number.isFinite(remaining)||remaining<=0))throw new MirrorError(plan.criteoReportRead?'CRITEO_REPORT_STATE_UNVERIFIED':'CRITEO_CAMPAIGN_STATE_UNVERIFIED','Criteo retrieval exceeded its monotonic deadline.',{},502);
     const response=await this.fetcher(url,{method:plan.method,headers,body,redirect:'error',signal:AbortSignal.timeout(reportDeadline?Math.max(1,Math.ceil(Math.min(this.timeoutMs,remaining))):this.timeoutMs)});
     const retryDelay=providerRetryDelay(response,plan.gateway);
     if(response.status===429){this.metrics.rateLimits++;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'rate_limits');}

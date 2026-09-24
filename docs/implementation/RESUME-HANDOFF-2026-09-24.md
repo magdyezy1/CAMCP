@@ -37,10 +37,12 @@ The later [HTTP startup/DNS incident](STARTUP-DNS-2026-09-24.md) fixes misleadin
 stderr/localhost startup logs and ignored Express 5 bind errors. Combined full
 check: 1417 main tests pass, zero fail, one optional FFmpeg skip; four capture
 tests pass. Final test-only safe-port adjustment passes 15 compatibility tests;
-production files are identical. Public DNS resolution remains an external issue: assigned Cloudflare
-authorities and routed HTTPS health work, while tested recursive resolvers and one
-.shop authority return NXDOMAIN. Await the user's Hostinger status/delegation
-information; do not invent a hold or make unrequested production DNS changes.
+production files are identical. Current site availability is corroborated by the user and fresh TLS-verified
+HTTP 200 responses from / and /healthz at 19:17 UTC. Independent public DNS
+resolvers still return NXDOMAIN; keep that discrepancy unresolved without
+describing the application as down or requiring an unproven registrar repair.
+See the incident record for historical observations and the latest public evidence.
+No production DNS changes were made.
 
 ## Remaining implementation — not complete
 
@@ -54,7 +56,7 @@ FFmpeg 9.0.2 and zero skips. Portable verified binaries now exist in
 installed globally or included in Git. Docker and live validation remain outstanding.
 
 The latest action check supersedes the September 20 inventory: 3241 actions,
-430 reviewed-family, 890 blocked writes, 88 unmapped, 27 unqualified reads, eight
+432 reviewed-family, 888 blocked writes, 88 unmapped, 27 unqualified reads, eight
 input-dependent and four provider-unsupported. The latter four were retired by the
 provider. The separate vendor denominator remains 1208 pinned methods, including
 451 unmapped; it overlaps rather than adding directly to the action denominator.
@@ -65,8 +67,14 @@ report creation contracts and scoped status/output recovery. It supplies native
 JSON/compact outputs with checked bytes, checksum, count and account/date/entity
 identities. Criteo website OAuth, dashboard integration, other formats, multi-
 account aggregation, remaining writes and the 2026.07 redesign remain separate.
-The updated remaining-action CSV has 1017 rows, including retired/unsupported
+The updated remaining-action CSV has 1015 rows, including retired/unsupported
 entries. Latest complete check and manifest are in the Criteo evidence report.
+
+The [Criteo campaign batch](CRITEO-CAMPAIGNS-2026-09-24.md) adds standard auction
+campaign create/update with complete PUT fields, stable scoped funding/line-item
+reads, owner policies and durable verification. Candidate A passed 1481 main plus
+four capture tests with required FFmpeg, zero failures/skips. Preferred campaigns,
+retailer budgets, auto pacing, overrides and other Criteo writes remain unqualified.
 
 Continue the exact rows in [remaining actions](REMAINING-ACTIONS-2026-09-24.csv),
 checked against `contracts:actions:check`, and tickets R2–R12 in the

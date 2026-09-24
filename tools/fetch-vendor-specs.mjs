@@ -105,12 +105,14 @@ const criteoMethods=Object.entries(criteo.document.paths).flatMap(([path,item])=
 const readPost=new Set(['AccountFeesSearch','SearchSellers','SearchBrands','searchAudienceSegments','searchAudiences','SearchAccountRetailers','GetCpcMinBidsBySkuIdsV1','GetRecommendedCategories','SearchCategory','RecommendedKeywords','SearchAccountCreatives']);
 // Captured legacy names bind to these exact 2026.01 operation IDs. Never strip
 // arbitrary version suffixes or classify report submission as a retryable read.
+const criteoCampaignResponses=new Set(['CreateCampaignsByAccountId','UpdateCampaignByCampaignId']);
 const criteoReportAliases={GENERATE_ASYNC_ACCOUNTS_REPORT:'GenerateAsyncAccountsReportV2',GENERATE_ASYNC_CAMPAIGNS_REPORT:'GenerateAsyncCampaignsReportV2',GENERATE_ASYNC_LINE_ITEMS_REPORT:'GenerateAsyncLineItemsReportV2'};
 for(const op of registry.tools.find(t=>t.name==='criteo_native_action').operations)for(const action of op.argumentsSchema.properties.action.enum){
  const found=criteoMethods.filter(m=>normal(m.op.operationId)===normal(criteoReportAliases[action]??action));
  if(found.length!==1){gaps.push({gateway:'criteo_native_action',operation:op.operation,action,reason:found.length?'Ambiguous vendor operation IDs':'No exact vendor operation ID; request shape is not inferred'});continue;}
  const m=found[0],content=m.op.requestBody?.content??{},json=content['application/json'];
- routes.push({gateway:'criteo_native_action',operation:op.operation,action,vendorMethod:m.op.operationId,source:criteo.source,sourceFile:'criteo-retail-2026-01',origin:'https://api.criteo.com',path:m.path,method:m.method,readOnly:['GET','HEAD'].includes(m.method)||readPost.has(m.op.operationId),parameters:Object.fromEntries(m.parameters.map(p=>[p.name,{...p,...p.schema,location:p.in}])),requestSchema:json?.schema,bodyRequired:m.op.requestBody?.required===true,scopes:[],...(Object.keys(content).length&&!json?{unsupportedMedia:Object.keys(content)}:{}),evidence:'VENDOR_DOCUMENTED_INDEPENDENT_MAPPING'});
+ const responseSchemas=criteoCampaignResponses.has(m.op.operationId)?Object.fromEntries(Object.entries(m.op.responses??{}).filter(([status])=>/^2\d\d$/.test(status)).map(([status,response])=>[status,response.content?.['application/json']?.schema]).filter(([,schema])=>schema)):undefined;
+ routes.push({gateway:'criteo_native_action',operation:op.operation,action,vendorMethod:m.op.operationId,source:criteo.source,sourceFile:'criteo-retail-2026-01',origin:'https://api.criteo.com',path:m.path,method:m.method,readOnly:['GET','HEAD'].includes(m.method)||readPost.has(m.op.operationId),parameters:Object.fromEntries(m.parameters.map(p=>[p.name,{...p,...p.schema,location:p.in}])),requestSchema:json?.schema,...(responseSchemas?{responseSchemas}:{}),bodyRequired:m.op.requestBody?.required===true,scopes:[],...(Object.keys(content).length&&!json?{unsupportedMedia:Object.keys(content)}:{}),evidence:'VENDOR_DOCUMENTED_INDEPENDENT_MAPPING'});
 }
 const reddit=docs.get('reddit-v3');
 if(!reddit)throw Error('Fetch the official Reddit OpenAPI document before generation.');
@@ -124,8 +126,19 @@ for(const op of registry.tools.find(t=>t.name==='reddit_native_action').operatio
  const responseSchemas=Object.fromEntries(Object.entries(m.op.responses??{}).filter(([status])=>/^2\d\d$/.test(status)).map(([status,response])=>[status,resolveReddit(response)?.content?.['application/json']?.schema]).filter(([,schema])=>schema));
  routes.push({gateway:'reddit_native_action',operation:op.operation,action,vendorMethod:m.op.operationId,source:reddit.source,sourceFile:'reddit-v3',origin:server.origin,path:server.pathname+m.path,method:m.method,readOnly:m.method==='GET'||m.op.operationId==='Get A Report',parameters:Object.fromEntries(m.parameters.map(p=>[p.name,{...p,...resolveReddit(p.schema),location:p.in}])),requestSchema:json?.schema,responseSchemas,bodyRequired:request?.required===true||!!json,scopes:m.op.security?.flatMap(s=>Object.values(s).flat())??[],evidence:'VENDOR_DOCUMENTED_INDEPENDENT_MAPPING'});
 }
+// Retain only the transitive schema definitions used by the qualified campaign
+// requests/responses. The source vendor capture remains the provenance anchor.
+const criteoSchemas={},retainCriteoSchema=value=>{
+ if(!value||typeof value!=='object')return;
+ if(typeof value.$ref==='string'&&value.$ref.startsWith('#/components/schemas/')){
+  const name=value.$ref.slice('#/components/schemas/'.length);
+  if(!Object.hasOwn(criteoSchemas,name)){const schema=criteo.document.components.schemas[name];if(!schema)throw Error('Missing pinned Criteo schema: '+name);criteoSchemas[name]=schema;retainCriteoSchema(schema);}
+ }
+ for(const v of Object.values(value))retainCriteoSchema(v);
+};
+for(const route of routes)if(route.gateway==='criteo_native_action'&&route.responseSchemas){retainCriteoSchema(route.requestSchema);retainCriteoSchema(route.responseSchemas);}
 routes.sort((a,b)=>(a.gateway+'/'+a.operation+'/'+a.action).localeCompare(b.gateway+'/'+b.operation+'/'+b.action));
-const artifact=JSON.stringify({formatVersion:1,evidence:'VENDOR_DOCUMENTED_INDEPENDENT_MAPPING',description:'Method/path mapping is independently designed from official vendor discovery; AMCP response or compiler parity has not been established.',sourceIntegrity:Object.fromEntries([...docs].map(([name,e])=>[name,{source:e.source,document_sha256:hash(e.document),revision:e.document.revision??null}])),routes,gaps,schemaComponents:{'reddit-v3':reddit.document.components,'google-ads-v23':{schemas:ads.document.schemas}}},null,2)+'\n';
+const artifact=JSON.stringify({formatVersion:1,evidence:'VENDOR_DOCUMENTED_INDEPENDENT_MAPPING',description:'Method/path mapping is independently designed from official vendor discovery; AMCP response or compiler parity has not been established.',sourceIntegrity:Object.fromEntries([...docs].map(([name,e])=>[name,{source:e.source,document_sha256:hash(e.document),revision:e.document.revision??null}])),routes,gaps,schemaComponents:{'criteo-retail-2026-01':{schemas:Object.fromEntries(Object.entries(criteoSchemas).sort(([a],[b])=>a.localeCompare(b,'en')))},'reddit-v3':reddit.document.components,'google-ads-v23':{schemas:ads.document.schemas}}},null,2)+'\n';
 const output='generated/vendor-routes.json';
 if(process.argv.includes('--check')){if(!fs.existsSync(output)||fs.readFileSync(output,'utf8')!==artifact)throw Error('Vendor routes are stale; run node tools/fetch-vendor-specs.mjs --generate-only');}
 else fs.writeFileSync(output,artifact);

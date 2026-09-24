@@ -1,3 +1,4 @@
+import {criteoCampaignKind,assertCriteoCampaignScopes,verifyCriteoCampaign} from './criteo-campaign-writes.js';
 import {metaReportKind,assertMetaReportScope,verifyMetaReport,metaReportReadResult,observeMetaReportRead} from './meta-insights-jobs.js';
 import {criteoReportKind,assertCriteoReportScopes,verifyCriteoReport,criteoReportReadResult,observeCriteoReportRead} from './criteo-report-jobs.js';
 import {placeActionKind,assertPlaceActionScope,verifyPlaceAction} from './google-place-action-links.js';
@@ -126,6 +127,7 @@ export class WriteVerifier{
   if(redditPostCreation(plan)&&!c.scopes.includes('adsread'))bad('Reddit post verification requires adsread.','INSUFFICIENT_SCOPE');
   if(criteoTargetingKind(plan))assertCriteoReadScope(c);
   if(metaReportKind(plan))assertMetaReportScope(c);
+  if(criteoCampaignKind(plan))assertCriteoCampaignScopes(c);
   if(criteoReportKind(plan))assertCriteoReportScopes(c);
   if(placeActionKind(plan))assertPlaceActionScope(c);
   if(businessNotificationKind(plan)){assertBusinessNotificationActor(plan,actor);assertBusinessNotificationScope(c);}
@@ -180,6 +182,14 @@ export class WriteVerifier{
     const access=()=>{this.store.assertActorActive(actor);assertBusinessNotificationActor(plan,actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertPlaceActionScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);return current;};
     const current=access(),auth=await this.credentials.get(current);access();const response=await this.transport.request(read,current,auth);access();return response;
    });status=verified.status;checks=verified.checks;resources=verified.resources;
+  }else if(criteoCampaignKind(plan)){
+   let credentialHash:string|undefined;
+   const verified=await verifyCriteoCampaign(plan,result,review.state,async read=>{
+    if(!independentlyReadOnly(read))bad('Campaign verification must remain read-only.','VERIFICATION_UNSUPPORTED');
+    const access=()=>{this.store.assertActorActive(actor);const active=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertCriteoCampaignScopes(active);new ScopeGuard(this.registry,this.store).authorize(read,active);if(credentialHash&&sha256(stable(this.store.credentials(actor.tenantId,active.id)))!==credentialHash)bad('The selected login changed during campaign verification.','REAUTHORIZATION_REQUIRED');return active;};
+    const current=access(),auth=await this.credentials.get(current);credentialHash??=sha256(stable(auth));access();const response=await this.transport.request(read,current,auth);access();return response;
+   });status=verified.status;checks=verified.checks;resources=verified.resources;
+   if(status==='verified')for(const resource of resources){const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertCriteoCampaignScopes(current);this.store.rememberResource(current,plan.accountId!,'criteo-report-target/campaigns/'+resource.resource_id);resource.read_result.arguments.arguments.connection_id=c.id;}
   }else if(criteoReportKind(plan)){
    const verified=await verifyCriteoReport(plan,result,reviewId,async read=>{
     if(!independentlyReadOnly(read))bad('Report verification must remain read-only.','VERIFICATION_UNSUPPORTED');

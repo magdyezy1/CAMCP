@@ -8,6 +8,21 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## AT — Scoped Criteo auction campaigns (2026-09-24)
+
+Two exact create/update routes now have qualified Campaign request/response
+contracts, complete PUT field preservation, fresh account-scoped ownership,
+stable campaign/funding/line snapshots, owner policies and durable read-back.
+See [implementation and rollout](CRITEO-CAMPAIGNS-2026-09-24.md) and
+[machine evidence](CRITEO-CAMPAIGNS-VERIFICATION-2026-09-24.json).
+The initial two desired journeys failed with WRITE_CONTRACT_UNAVAILABLE.
+Final family: 21 pass. Full sanitized required-FFmpeg suite: 1481 main plus four
+capture pass, zero fail/skip. Initial fixture/generator failures remain recorded.
+Current inventory: 432 reviewed-family, 888 blocked writes; 1015 remaining rows
+including four retired operations. No live/provider/deployment claim is made.
+Preferred, retailer-funded, auto-paced and override-bearing campaigns stay outside
+this bounded family. Shared decimal spending arithmetic remains a follow-up.
+
 ## AS — Scoped Criteo asynchronous DSP reports (2026-09-24)
 
 The [Criteo evidence and rollout](CRITEO-REPORTS-2026-09-24.md) records three
