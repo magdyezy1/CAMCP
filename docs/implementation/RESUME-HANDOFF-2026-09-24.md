@@ -44,6 +44,12 @@ describing the application as down or requiring an unproven registrar repair.
 See the incident record for historical observations and the latest public evidence.
 No production DNS changes were made.
 
+The [Google preview batch](GOOGLE-PREVIEWS-2026-09-24.md) now passes the full
+required-FFmpeg check: 1520 main / four capture, zero fail/skip. Two native/legacy
+actions moved into one reviewed family. Original failures, encrypted receipt
+recovery, native result limits and external verification needs are recorded in
+[its machine evidence](GOOGLE-PREVIEWS-VERIFICATION-2026-09-24.json).
+
 ## Remaining implementation — not complete
 
 The next implementation pass added client-owned portfolio bidding strategies and
@@ -56,7 +62,7 @@ FFmpeg 9.0.2 and zero skips. Portable verified binaries now exist in
 installed globally or included in Git. Docker and live validation remain outstanding.
 
 The latest action check supersedes the September 20 inventory: 3241 actions,
-432 reviewed-family, 888 blocked writes, 88 unmapped, 27 unqualified reads, eight
+434 reviewed-family, 888 blocked writes, 88 unmapped, 25 unqualified reads, eight
 input-dependent and four provider-unsupported. The latter four were retired by the
 provider. The separate vendor denominator remains 1208 pinned methods, including
 451 unmapped; it overlaps rather than adding directly to the action denominator.

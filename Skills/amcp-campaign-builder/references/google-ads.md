@@ -693,3 +693,54 @@ Seven public source hashes and extracted fields/enums are pinned in
 regenerates it from explicitly supplied public source files. Runtime remains v23;
 newer guide examples do not silently upgrade it. The machine-checked inspection
 examples and synthetic lifecycle tests establish local behavior, not live acceptance.
+
+## Shareable previews
+
+`GENERATE_SHAREABLE_PREVIEWS` and
+`google_ads_v23_shareable_preview_generate_shareable_previews` now use a reviewed
+v23 contract. These calls create shareable links, so use `amcp_write inspect`,
+`prepare`, and confirmed `execute`. They require the selected Ads connection,
+adwords scope, operator role, account write grant and enabled deployment writes.
+They do not publish, activate or edit ads and do not require spend confirmation.
+
+Supply 1–25 distinct `shareablePreviews` records. For Performance Max use
+`{"assetGroupIdentifier":{"assetGroupId":"7"},"previewType":"UI_PREVIEW"}`.
+For an existing eligible YouTube video/audio ad use
+`{"adGroupAd":"customers/123/adGroupAds/5~9","previewType":"YOUTUBE_LIVE_PREVIEW"}`.
+The IDs here are synthetic examples; discover current IDs in the selected account.
+Never substitute Search or Display ads. Google decides exact format eligibility
+in its per-item result; an account grant alone does not establish that eligibility.
+Do not copy v24 identifier shapes into the pinned v23 request.
+
+Ask before sharing the resulting link with another person. A preview link is a
+private capability, not proof of provider approval. AMCP retains validated links
+encrypted for at most 24 hours and hides them from ordinary receipts/audit.
+`previews.results` contains the validated link(s), target, status and provider
+expiration when supplied. Open UI previews in a separate tab; Google forbids
+iframe embedding. AMCP does not fetch the link or claim the creative rendered.
+The accepted URL hosts are ads.google.com and, for YouTube mode, youtube.com,
+www.youtube.com and tv.youtube.com. Unexpected hosts need contract review.
+
+Preparation checks current source/parent identity, channel, status, names and
+destination URLs twice. Provider telemetry and row ordering are excluded from
+the state hash. The rendering can include inherited assets, feeds or later source
+changes: this is a review to generate a preview, not a frozen-content approval.
+For campaign/creative edits, prepare those operations separately.
+
+HTTP 200 can contain a mixture of generated previews and native errors. Inspect
+every result; a partial response is not successful completion. Keep the original
+review/key. Repeating `execute` returns its saved outcome and retained links without
+another generation. A lost provider response stays uncertain; never manufacture
+a new key to retry it. Expired/unavailable links are explicit and require a new
+user-authorized generation. `amcp_campaign verify` checks the original receipt and
+current sources, without generating/fetching another preview. Source disagreement
+is inconclusive, not permission to repeat the operation.
+
+Official evidence checked 2026-09-24:
+[v23 service and restrictions](https://developers.google.com/google-ads/api/reference/rpc/v23/ShareablePreviewService),
+[native protocol](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/services/shareable_preview_service.proto),
+[v23 input](https://developers.google.com/google-ads/api/reference/rpc/v23/ShareablePreview),
+and [native per-item result](https://developers.google.com/google-ads/api/reference/rpc/v23/ShareablePreviewOrError).
+The fixture and `tools/google-preview-evidence.mjs` pin and check protocol fields,
+route, scope and oneofs. Local tests use synthetic data; live format acceptance,
+link expiry/lifetime and rendering remain unverified.

@@ -1,3 +1,4 @@
+import {googlePreviewKind} from './google-preview-writes.js';
 import {criteoCampaignKind} from './criteo-campaign-writes.js';
 import {metaReportKind} from './meta-insights-jobs.js';
 import {criteoReportKind} from './criteo-report-jobs.js';
@@ -37,6 +38,7 @@ import {gtmWorkspaceKind} from './gtm-workspace-writes.js';
 export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  const route=p.path,method=p.method,action=p.action.split('/').at(-1)!;
  if(p.readOnly||p.specialTransport)return;
+ if(googlePreviewKind(p))return 'google_shareable_previews';
  if(placeActionKind(p))return 'google_place_actions';
  if(businessNotificationKind(p))return 'google_business_notifications';
  if(businessAccessKind(p))return 'google_business_access';

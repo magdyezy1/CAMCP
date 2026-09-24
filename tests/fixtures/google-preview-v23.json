@@ -1,0 +1,59 @@
+{
+  "version": "v23",
+  "checked_at": "2026-09-24",
+  "meaning": "Public native protocol evidence, not live format eligibility or permission.",
+  "source": {
+    "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/services/shareable_preview_service.proto",
+    "sha256": "ba404673ce08d4de5bf798e97351d1f474f776c976106df35551080755a8f4d3"
+  },
+  "route": "/v23/customers/{customer_id=*}:generateShareablePreviews",
+  "scope": "https://www.googleapis.com/auth/adwords",
+  "fields": {
+    "GenerateShareablePreviewsRequest": [
+      "customer_id",
+      "shareable_previews"
+    ],
+    "ShareablePreview": [
+      "ad_group_ad",
+      "asset_group_identifier",
+      "preview_type"
+    ],
+    "AssetGroupIdentifier": [
+      "asset_group_id"
+    ],
+    "GenerateShareablePreviewsResponse": [
+      "responses"
+    ],
+    "ShareablePreviewOrError": [
+      "ad_group_ad",
+      "asset_group_identifier",
+      "partial_failure_error",
+      "shareable_preview_result"
+    ],
+    "ShareablePreviewResult": [
+      "expiration_date_time",
+      "shareable_preview_url",
+      "youtube_live_preview_result"
+    ],
+    "YouTubeLivePreviewResult": [
+      "youtube_preview_url",
+      "youtube_tv_preview_url"
+    ]
+  },
+  "oneofs": {
+    "GenerateShareablePreviewsRequest": [],
+    "ShareablePreview": [
+      "identifier"
+    ],
+    "AssetGroupIdentifier": [],
+    "GenerateShareablePreviewsResponse": [],
+    "ShareablePreviewOrError": [
+      "generate_shareable_preview_response",
+      "identifier"
+    ],
+    "ShareablePreviewResult": [
+      "result"
+    ],
+    "YouTubeLivePreviewResult": []
+  }
+}

@@ -110,8 +110,7 @@
         "blocked_write": 113,
         "media_workflow": 2,
         "native_read": 175,
-        "reviewed_write_family": 156,
-        "unqualified_read": 2
+        "reviewed_write_family": 158
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -9902,12 +9901,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/customers/{customer_id=*}:generateShareablePreviews",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-preview-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-preview-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_shareable_previews"
     },
     {
       "gateway": "google_ads_native_action",
@@ -12711,12 +12713,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/customers/{customer_id=*}:generateShareablePreviews",
-      "status": "unqualified_read",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-preview-writes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-preview-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_shareable_previews"
     },
     {
       "gateway": "google_ads_native_action",

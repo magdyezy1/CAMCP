@@ -8,6 +8,20 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## AV — Reviewed Google shareable previews (2026-09-24)
+
+Both native/legacy v23 preview-generation routes now use one reviewed family.
+PMax UI and supported YouTube candidates validate source/parent identities,
+projection hashes, native oneofs and per-item results. Private links have encrypted
+24-hour recovery; uncertain submissions never retry. The customer-level RPC
+colon parsing defect is fixed without accepting foreign customer resources.
+See [implementation](GOOGLE-PREVIEWS-2026-09-24.md) and
+[verification](GOOGLE-PREVIEWS-VERIFICATION-2026-09-24.json). Full sanitized check:
+1520 main plus four capture tests pass, zero fail/skip, required FFmpeg enabled.
+Initial two unavailable-contract failures and subsequent fixture/guard failures
+remain recorded. Coverage: 434 reviewed-family, 888 blocked writes, 25 unqualified
+reads. Preview URLs/rendering/subtype eligibility are not live-qualified.
+
 ## AU — Exact financial limits and native cap safeguards (2026-09-24)
 
 [Financial findings and rollout](FINANCIAL-POLICY-2026-09-24.md) and

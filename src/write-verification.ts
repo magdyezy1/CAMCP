@@ -1,3 +1,4 @@
+import {googlePreviewKind,verifyGooglePreview} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaignScopes,verifyCriteoCampaign} from './criteo-campaign-writes.js';
 import {metaReportKind,assertMetaReportScope,verifyMetaReport,metaReportReadResult,observeMetaReportRead} from './meta-insights-jobs.js';
 import {criteoReportKind,assertCriteoReportScopes,verifyCriteoReport,criteoReportReadResult,observeCriteoReportRead} from './criteo-report-jobs.js';
@@ -132,14 +133,14 @@ export class WriteVerifier{
   if(placeActionKind(plan))assertPlaceActionScope(c);
   if(businessNotificationKind(plan)){assertBusinessNotificationActor(plan,actor);assertBusinessNotificationScope(c);}
   if(businessAccessKind(plan)){assertBusinessAccessActor(plan,actor);assertBusinessAccessScope(c);}
-  if(googleDismissalKind(plan)||googleAccessKind(plan))assertGoogleAdsScope(c);
+  if(googlePreviewKind(plan)||googleDismissalKind(plan)||googleAccessKind(plan))assertGoogleAdsScope(c);
   assertGoogleAccessActor(plan,actor);
   if(metaLabelKind(plan))assertMetaLabelScope(c);
   if(googleBidKind(plan))assertGoogleBidScope(c);
   if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan)||googlePortfolioKind(plan))assertGoogleAdsScope(c);
   if(linkedinConversionKind(plan)||linkedinRuleKind(plan))assertLinkedInConversionScope(c);
   if(result.success!==true)bad('Inspect the retained partial failure before recovery.','WRITE_PARTIAL_OR_FAILED');
-  const cached=optional(this.store,actor.tenantId,'write_verification',reviewId);if(cached?.status==='verified'&&Date.now()-cached.checked_at<10000)return {...cached,cached:true};
+  const cached=optional(this.store,actor.tenantId,'write_verification',reviewId);if(!googlePreviewKind(plan)&&cached?.status==='verified'&&Date.now()-cached.checked_at<10000)return {...cached,cached:true};
   let reads:ReturnType<typeof verificationReads>=[],status='unverified',checks:JsonObject[]=[],resources:JsonObject[]=[];
   try{if(redditPostCreation(plan)){
    const verified=await verifyRedditPostCreation(plan,result,reviewId,c,this.store,read=>readRedditProfiles(read,async page=>{
@@ -151,6 +152,13 @@ export class WriteVerifier{
     const response=await this.transport.request(page,current,auth);this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);
     if(!current.scopes.includes('adsread'))bad('Reddit post verification requires adsread.','INSUFFICIENT_SCOPE');new ScopeGuard(this.registry,this.store).authorize(page,current);return response;
    }));status=verified.status;checks=verified.checks;resources=verified.resources??[];
+  }else if(googlePreviewKind(plan)){
+   let credentialHash:string|undefined;
+   const verified=await verifyGooglePreview(plan,review.state,result,this.store.previewReceipt(actor.tenantId,reviewId),async read=>{
+    if(!independentlyReadOnly(read))bad('Preview verification must remain read-only.','VERIFICATION_UNSUPPORTED');
+    const access=()=>{this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertGoogleAdsScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);if(credentialHash&&sha256(stable(this.store.credentials(actor.tenantId,current.id)))!==credentialHash)bad('The selected login changed during preview verification.','REAUTHORIZATION_REQUIRED');return current;};
+    const current=access(),auth=await this.credentials.get(current);credentialHash??=sha256(stable(auth));access();const response=await this.transport.request(read,current,auth);access();return response;
+   });status=verified.status;checks=verified.checks;
   }else if(googlePortfolioKind(plan)){
    let credentialHash:string|undefined;
    const verified=await verifyGooglePortfolio(plan,result,review.state,async read=>{

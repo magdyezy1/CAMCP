@@ -1,3 +1,4 @@
+import {googlePreviewKind,assertGooglePreview,googlePreviewSnapshots,readGooglePreviewState,googlePreviewOutcome,googlePreviewDelivery,googlePreviewSafeOutcome} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaign,assertCriteoCampaignScopes,criteoCampaignSnapshots,readCriteoCampaignState,criteoCampaignOutcome} from './criteo-campaign-writes.js';
 import {metaReportKind,assertMetaReport,assertMetaReportScope,metaReportSnapshots,readMetaReportState,metaReportOutcome} from './meta-insights-jobs.js';
 import {criteoReportKind,assertCriteoReport,assertCriteoReportScopes,criteoReportSnapshots,readCriteoReportState,criteoReportOutcome} from './criteo-report-jobs.js';
@@ -83,6 +84,7 @@ export function writeOutcome(result:TransportResult,plan?:CompiledRequest,before
  const outcome={success:errors.length===0,executed:true,outcome:errors.length?'partial_or_failed':'succeeded',data:plan?.gateway==='gtm_native_action'?gtmSafeConfiguration(result.data):result.data,status:result.status,headers:result.headers,...(result.headers['x-restli-id']?{created_id:result.headers['x-restli-id']}:{ }),...(errors.length?{failures:plan?.gateway==='gtm_native_action'?gtmSafeConfiguration(errors):errors,retry_safe:false}:{}),...(plan&&gtmWorkspaceKind(plan)?gtmWorkspaceReceipt(plan,result):{})}; return plan&&(placeActionKind(plan)||businessNotificationKind(plan)||businessAccessKind(plan))?placeActionSafe(outcome):outcome;
 }
 function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,before:unknown[]):boolean {
+ if(googlePreviewKind(plan))return googlePreviewOutcome(plan,result);
  if(xDraftKind(plan))return xDraftOutcome(plan,result,before);
  if(placeActionKind(plan))return placeActionOutcome(plan,result,before);
  if(businessNotificationKind(plan))return businessNotificationOutcome(plan,result,before);
@@ -217,6 +219,7 @@ export function assertWriteShape(plan:CompiledRequest){
  validateMetaCampaign(plan);
  if(!writeContractGateways.has(plan.gateway))fail('WRITE_CONTRACT_UNAVAILABLE','This platform has no reviewed mutation contract.');
  if(plan.readOnly)fail('MUTATION_REQUIRED','Use the original native gateway to perform this read.');
+ if(googlePreviewKind(plan)){assertGooglePreview(plan);return;}
  if(plan.gateway==='reddit_native_action'){assertRedditWrite(plan);return;}
  if(plan.gateway===microsoftGateway){assertMicrosoftWrite(plan);return;}
  if(plan.specialTransport)fail('WRITE_CONTRACT_UNAVAILABLE','For Google Drive media imports, use amcp_media prepare and execute. Other binary transports need a dedicated upload contract.');
@@ -288,6 +291,7 @@ export function assertWriteShape(plan:CompiledRequest){
 
 /** Reads are explicitly derived from the target, never supplied by the caller as proof. */
 export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRequest[]{
+ if(googlePreviewKind(plan))return googlePreviewSnapshots(plan);
  if(placeActionKind(plan))return placeActionSnapshots(plan);
  if(businessNotificationKind(plan))return businessNotificationSnapshots(plan);
  if(businessAccessKind(plan))return businessAccessSnapshots(plan);
@@ -396,7 +400,7 @@ export class WriteReviewService {
   if(businessAccessKind(plan))assertBusinessAccessScope(c);
   if(metaLabelKind(plan))assertMetaLabelScope(c,true);
   if(googleBidKind(plan))assertGoogleBidScope(c);
-  if(googleDismissalKind(plan)||googleAccessKind(plan))assertGoogleAdsScope(c);
+  if(googlePreviewKind(plan)||googleDismissalKind(plan)||googleAccessKind(plan))assertGoogleAdsScope(c);
   if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan)||googlePortfolioKind(plan))assertGoogleAdsScope(c);
   if(linkedinConversionKind(plan)||linkedinRuleKind(plan))assertLinkedInConversionScope(c,true);
   if(dv360ListKind(plan)&&!c.scopes.includes('https://www.googleapis.com/auth/display-video'))fail('PROVIDER_WRITE_SCOPE_REQUIRED','Reconnect DV360 with the display-video OAuth scope.');
@@ -420,9 +424,9 @@ export class WriteReviewService {
     const c=access(),auth=await this.credentials.get(c);credentialHash??=sha256(stable(auth));access();const response=await this.transport.request(read,c,auth);access();return response;
    });
   }
-  if(googlePortfolioKind(plan)){
+  if(googlePreviewKind(plan)||googlePortfolioKind(plan)){
    let credentialHash:string|undefined;
-   return readGooglePortfolioState(plan,async read=>{
+   return (googlePreviewKind(plan)?readGooglePreviewState:readGooglePortfolioState)(plan,async read=>{
     if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Portfolio prerequisites must remain read-only.');
     const access=()=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,current);if(credentialHash&&sha256(stable(this.store.credentials(actor.tenantId,current.id)))!==credentialHash)fail('REAUTHORIZATION_REQUIRED','The selected login changed during portfolio checks. Prepare again with the current login.');return current;};
     const c=access(),auth=await this.credentials.get(c);credentialHash??=sha256(stable(auth));access();const response=await this.transport.request(read,c,auth);access();return response;
@@ -548,7 +552,7 @@ export class WriteReviewService {
   if(input.creative_edit_confirmed===true&&review.creative_edit_confirmed!==true)fail('REVIEW_CHANGED','Prepare a new review to acknowledge creative-edit risk. Execute cannot add an override.');
   const fingerprint=sha256(stable({tenant:actor.tenantId,user:actor.userId,connection:review.connection_id,plan,...(review.creative_edit_confirmed===true?{creative_edit_confirmed:true}:{})}));if(fingerprint!==review.fingerprint)fail('REVIEW_CHANGED','The stored reviewed request failed its integrity check.');
   const previous=this.store.db.prepare('SELECT state,result,fingerprint FROM idempotency WHERE tenant_id=? AND key=?').get(actor.tenantId,input.idempotency_key) as JsonObject|undefined;
-  if(previous){if(previous.fingerprint!==fingerprint)fail('IDEMPOTENCY_CONFLICT','The key is bound to another request.');if(previous.state==='complete')return {...JSON.parse(previous.result),replayed:true};fail('WRITE_OUTCOME_UNCERTAIN','This review was already submitted. Inspect provider state; do not retry with a new key.');}
+  if(previous){if(previous.fingerprint!==fingerprint)fail('IDEMPOTENCY_CONFLICT','The key is bound to another request.');if(previous.state==='complete'){const saved={...JSON.parse(previous.result),replayed:true};return googlePreviewKind(plan)?googlePreviewDelivery(plan,saved,this.store.previewReceipt(actor.tenantId,input.review_id)):saved;}fail('WRITE_OUTCOME_UNCERTAIN','This review was already submitted. Inspect provider state; do not retry with a new key.');}
   assertRedditCreativeAvailable(plan);
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Prepare and review a fresh request.');
   // Reproject saved envelopes as well: a still-valid review prepared before an
@@ -564,25 +568,29 @@ export class WriteReviewService {
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Review expired during state verification.');
   assertRedditCreativeAvailable(plan);
   const actorBinding=this.store.bindJobActor(actor,input.review_id);
-  const claim=this.store.transaction(()=>{checkSpendPolicy(this.store,actor,plan,current,input.review_id);return this.store.claim(actor.tenantId,input.idempotency_key,fingerprint);});if(!claim.fresh)return {...object(claim.result),replayed:true};
+  const claim=this.store.transaction(()=>{checkSpendPolicy(this.store,actor,plan,current,input.review_id);return this.store.claim(actor.tenantId,input.idempotency_key,fingerprint);});if(!claim.fresh){const saved={...object(claim.result),replayed:true};return googlePreviewKind(plan)?googlePreviewDelivery(plan,saved,this.store.previewReceipt(actor.tenantId,input.review_id)):saved;}
+  let completed=false;
   try{
    this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_started',request:plan,fingerprint,before_state:current});
-   const response=await this.transport.request(plan,c,auth);this.delegated.validateResponse(plan,response.data,response.status);const result=writeOutcome(response,plan,current);
+   const response=await this.transport.request(plan,c,auth);this.delegated.validateResponse(plan,response.data,response.status);const rawResult=writeOutcome(response,plan,current),result=googlePreviewKind(plan)?googlePreviewSafeOutcome(plan,rawResult):rawResult;
    const outcome:JsonObject={...result,review_id:input.review_id,action:plan.action,fingerprint,...(creativeImpact?{creative_impact:creativeImpact}:{})};
    this.store.transaction(()=>{
+    if(googlePreviewKind(plan)&&object(response.data)===response.data)this.store.savePreviewReceipt(actor.tenantId,input.review_id,response.data as JsonObject);
     if(result.success===true)new ScopeGuard(this.registry,this.store).observeCreated(plan,c,response.data);
     if(result.success===true){
      const job=this.store.enqueue(actor.tenantId,'write_verification',{review_id:input.review_id,actor_binding:actorBinding});
      outcome.verification={status:'queued',job_id:job,next_call:{tool:'amcp_campaign',arguments:{action:'verify',review_id:input.review_id}}};
     }
     this.store.complete(actor.tenantId,input.idempotency_key,outcome);this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_completed',outcome});
-   });return outcome;
+   });completed=true;
+   if(googlePreviewKind(plan)){this.access(actor,plan,review.connection_id);return googlePreviewDelivery(plan,outcome,this.store.previewReceipt(actor.tenantId,input.review_id));}
+   return outcome;
   // The spend reservation taken above is deliberately NOT released here. A write that failed in
   // transport may still have reached the provider — that is why the outcome is recorded as
   // uncertain rather than failed — and releasing the reservation would let repeated "failures"
   // walk past the owner's cumulative daily cap. The accepted cost is that a deterministic
   // rejection, which certainly did not land, still consumes part of the day's allowance. Only
   // release on errors provably raised before dispatch, never on transport-layer uncertainty.
-  }catch(e){this.store.uncertain(actor.tenantId,input.idempotency_key);this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_uncertain',code:e instanceof MirrorError?e.code:'INTERNAL_ERROR'});throw placeActionKind(plan)||businessNotificationKind(plan)||businessAccessKind(plan)?placeActionSafeError(e):e;}
+  }catch(e){if(!completed)this.store.uncertain(actor.tenantId,input.idempotency_key);this.store.appendAudit(actor.tenantId,input.review_id,{event:completed?'write_result_withheld':'write_uncertain',code:e instanceof MirrorError?e.code:'INTERNAL_ERROR'});throw placeActionKind(plan)||businessNotificationKind(plan)||businessAccessKind(plan)?placeActionSafeError(e):e;}
  }
 }

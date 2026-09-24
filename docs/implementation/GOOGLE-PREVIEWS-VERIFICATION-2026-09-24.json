@@ -1,0 +1,258 @@
+{
+  "format_version": 1,
+  "date": "2026-09-24",
+  "branch": "Codex-branch",
+  "base_revision": "92b53b082f19ea24cc30390d743b45a12e6d660a",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "shell": "PowerShell",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true
+  },
+  "candidate": {
+    "path": ".release/google-preview-20260924-a",
+    "files": 578,
+    "source_tree_hash": "309aae38f300dad026b7c202651faac837614eba93de0a77dcb8285a38418d68",
+    "code_test_guidance_files_compared": 361,
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/google-preview-20260924-a",
+    "install": "npm.cmd ci --offline --ignore-scripts --cache '../../.runtime/npm-cache'",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm.cmd run check",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=<bundled Python>",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/contract-completion-20260924/google-preview-baseline.log",
+      "sha256": "522122f2254ea3a80f2abb5276eb9ef5379d754ca24be7118be9d6299d85a68d",
+      "counts": [
+        {
+          "tests": 2
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 2
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1979.517
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/google-preview-build-first.log",
+      "sha256": "e2ed2abf748dccbaddc6ce7d731abb6278dc043fc7a97e55b44f03d25a857508",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/google-preview-first.log",
+      "sha256": "ccdd868139568b3fbdd7af510092efd62bb9d99cec02553df0d819bd2f54c7ec",
+      "counts": [
+        {
+          "tests": 2
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 2
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1761.7035
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/google-preview-second.log",
+      "sha256": "0649ba26553fa9b55ffaa3ad80d107e74ed9e822d166a158f209768699ef25a4",
+      "counts": [
+        {
+          "tests": 2
+        },
+        {
+          "pass": 2
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1906.9229
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/google-preview-expanded.log",
+      "sha256": "625ba569a5fa869cd8121de0d299c0f9dc49cc1d5de10c044bc996390fbe98d8",
+      "counts": [
+        {
+          "tests": 15
+        },
+        {
+          "pass": 13
+        },
+        {
+          "fail": 2
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 19389.5106
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/google-preview-focused.log",
+      "sha256": "5fd66c89c8c4e726404c6bafab8fa4be63a131dfd38c44dfe81133730598f7cd",
+      "counts": [
+        {
+          "tests": 50
+        },
+        {
+          "pass": 50
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 23024.9103
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/google-preview-evidence-tests.log",
+      "sha256": "efeeb51c30774a498b4314a587d1a50db4cd80afd26c9283be9846b306bd0a37",
+      "counts": [
+        {
+          "tests": 24
+        },
+        {
+          "pass": 24
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 21461.62
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/google-preview-delivery-tests.log",
+      "sha256": "0b63e9e364d8333f1063657369495fe6069952f23a4b1e6de57f9fbfecb72594",
+      "counts": [
+        {
+          "tests": 24
+        },
+        {
+          "pass": 24
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 22466.4971
+        }
+      ]
+    },
+    {
+      "path": ".release/google-preview-20260924-a/preview-install.log",
+      "sha256": "98fd6a1c7082b1ff58e0af709912b294001bf1d37d00899f914a6dfdb1e53fed",
+      "counts": []
+    },
+    {
+      "path": ".release/google-preview-20260924-a/preview-check.log",
+      "sha256": "078cf3e20a76450311d178fe39591effc1c44e29eeff38ce813f968523585f26",
+      "counts": [
+        {
+          "tests": 1520
+        },
+        {
+          "pass": 1520
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 350696.9677
+        },
+        {
+          "tests": 4
+        },
+        {
+          "pass": 4
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 85.1384
+        }
+      ]
+    }
+  ],
+  "final": {
+    "exit_code": 0,
+    "main": {
+      "tests": 1520,
+      "pass": 1520,
+      "fail": 0,
+      "skipped": 0
+    },
+    "capture": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "skipped": 0
+    },
+    "all_check_stages_pass": true
+  },
+  "inventory": {
+    "actions": 3241,
+    "reviewed_write_family": 434,
+    "blocked_write": 888,
+    "unmapped": 88,
+    "unqualified_read": 25,
+    "adapter_requires_input": 8,
+    "provider_unsupported": 4,
+    "remaining_rows": 1013
+  },
+  "limits": [
+    "Synthetic/local checks only; no provider or deployment mutation.",
+    "Docker unavailable; Linux container and live provider qualification outstanding.",
+    "Earlier focused output predates final safe-outcome projection; full candidate covers final code.",
+    "No new claim of whole-provider support."
+  ]
+}

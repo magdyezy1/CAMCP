@@ -1362,6 +1362,38 @@
           }
         }
       }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "GENERATE_SHAREABLE_PREVIEWS",
+        "account_id": "123",
+        "payload": {
+          "shareablePreviews": [
+            {
+              "assetGroupIdentifier": {
+                "assetGroupId": "7"
+              },
+              "previewType": "UI_PREVIEW"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "google_ads_v23_shareable_preview_generate_shareable_previews",
+        "account_id": "123",
+        "payload": {
+          "shareablePreviews": [
+            {
+              "adGroupAd": "customers/123/adGroupAds/5~9",
+              "previewType": "YOUTUBE_LIVE_PREVIEW"
+            }
+          ]
+        }
+      }
     }
   ],
   "recipe_business": {

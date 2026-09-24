@@ -52,7 +52,9 @@ export class ScopeGuard {
   let decoded:string;try{decoded=decodeURIComponent(plan.path);}catch{throw new MirrorError('INVALID_PATH','Malformed path encoding.');}
   const compare=(value:unknown,field:string)=>{for(const item of Array.isArray(value)?value:[value])if(normalizeAccount(plan.gateway,item)!==id)mismatch(field);};
   const walk=(value:unknown,field='$'):void=>{
-   if(typeof value==='string'&&plan.gateway==='google_ads_native_action')for(const m of value.matchAll(/\bcustomers\/([^/\s'"),]+)/g))compare(m[1],field);
+   // Customer-level RPCs use customers/{id}:method. The colon ends the ID,
+   // just like the slash in customers/{id}/resources; it is not account data.
+   if(typeof value==='string'&&plan.gateway==='google_ads_native_action')for(const m of value.matchAll(/\bcustomers\/([^/:\s'"),]+)/g))compare(m[1],field);
    if(typeof value==='string'&&plan.gateway==='linkedin_native_action')for(const m of value.matchAll(/urn:li:sponsoredAccount:(\d+)/g))compare(m[1],field);
    if(Array.isArray(value)){value.forEach(v=>walk(v,field));return;}
    if(value&&typeof value==='object'&&plan.gateway==='snapchat_native_action'&&plan.method==='PATCH'){

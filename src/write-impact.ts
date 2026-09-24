@@ -1,3 +1,4 @@
+import {googlePreviewKind,googlePreviewImpact} from './google-preview-writes.js';
 import {criteoCampaignKind,criteoCampaignImpact} from './criteo-campaign-writes.js';
 import {metaReportKind,metaReportImpact} from './meta-insights-jobs.js';
 import {criteoReportKind,criteoReportImpact} from './criteo-report-jobs.js';
@@ -44,6 +45,7 @@ function assertSnapchatReplacement(plan:CompiledRequest,state:unknown[]){
  }
 }
 export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolean,connectionId:string):JsonObject|undefined{
+ if(googlePreviewKind(plan))return googlePreviewImpact;
  if(googleDismissalKind(plan))return googleDismissalImpact(plan,state);
  if(googleAccessKind(plan))return googleAccessImpact(plan,state);
  if(businessAccessKind(plan))return businessAccessImpact(plan,state);
