@@ -93,10 +93,10 @@
       "gateway": "ga4_native_action",
       "actions": 24,
       "counts": {
-        "local_workflow": 2,
+        "local_workflow": 3,
         "native_read": 16,
         "reviewed_write_family": 2,
-        "unmapped": 4
+        "unmapped": 3
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -134,10 +134,10 @@
       "gateway": "google_search_console_native_action",
       "actions": 16,
       "counts": {
-        "local_workflow": 2,
+        "local_workflow": 3,
         "native_read": 6,
         "reviewed_write_family": 4,
-        "unmapped": 4
+        "unmapped": 3
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -8325,11 +8325,13 @@
       "aliases": [],
       "method": null,
       "path": null,
-      "status": "unmapped",
-      "implementation": "",
-      "reason": "No provider request mapping exists. The advertised name is not executable.",
+      "status": "local_workflow",
+      "implementation": "src/measurement-connection-sync.ts / src/google-measurement-assets.ts",
+      "reason": "Administrator-scoped GA4 properties or Search Console sites discovery with dry-run default, bounded native GETs and atomic complete metadata persistence. Preserves selections/write grants; scopes, login, concurrent sync and current authority are fenced. No OAuth grant change or provider mutation.",
       "source": "INFERRED_OUTER_ENVELOPE",
-      "tests": [],
+      "tests": [
+        "tests/measurement-connection-sync.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -18075,11 +18077,13 @@
       "aliases": [],
       "method": null,
       "path": null,
-      "status": "unmapped",
-      "implementation": "",
-      "reason": "No provider request mapping exists. The advertised name is not executable.",
+      "status": "local_workflow",
+      "implementation": "src/measurement-connection-sync.ts / src/google-measurement-assets.ts",
+      "reason": "Administrator-scoped GA4 properties or Search Console sites discovery with dry-run default, bounded native GETs and atomic complete metadata persistence. Preserves selections/write grants; scopes, login, concurrent sync and current authority are fenced. No OAuth grant change or provider mutation.",
       "source": "INFERRED_OUTER_ENVELOPE",
-      "tests": [],
+      "tests": [
+        "tests/measurement-connection-sync.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {

@@ -56,6 +56,8 @@ export interface CompiledRequest {
   googleState?:{resource:string;names:string[];allowMissing:boolean;removedAsAbsent?:boolean;exactFields?:string[]};
   /** Complete bounded Google feed membership/content read; never caller supplied. */
   googleAssetSetState?:{names:string[]};
+  /** Server-derived bound for Google measurement discovery; never caller-supplied. */
+  measurementSyncDeadline?:number;
   /** Complete saved planning hierarchy, derived from exact native resource bindings. */
   googleKeywordPlanState?:{names:string[]};
   /** Bounded current account/profile discovery for Reddit metadata writes. */

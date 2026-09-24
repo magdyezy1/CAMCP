@@ -7,6 +7,8 @@ import {platforms,selectionKind} from './platform-oauth.js';
 import {microsoftCustomerOrigin} from '../src/microsoft-native.js';
 import {googleAccountDiscovery} from './google-account-discovery.js';
 import {assetSyncDiagnostic,assetSyncErrorMessage} from '../src/report-errors.js';
+import {collectMeasurementAssets} from '../src/google-measurement-assets.js';
+import {sha256,stable} from '../src/security.js';
 
 export interface WorkspaceAsset {id:string;kind:string;name:string;parentId?:string;currency?:string;timezone?:string;status?:string;loginCustomerId?:string;readVerified?:boolean;manager?:boolean;hidden?:boolean;testAccount?:boolean;source:'vendor'|'configured_binding'}
 export interface AssetGroup {checkedAt?:number;kind:string;assets:WorkspaceAsset[];complete:boolean;error?:string;diagnostics?:JsonObject[]}
@@ -52,6 +54,8 @@ export class AssetDiscovery {
   const groups:AssetGroup[]=[];let label:string|undefined,credentials:Credentials;
   const failure=(kind:string,error:unknown):AssetGroup=>{const diagnostic=assetSyncDiagnostic(error,p.id,connection.id,kind);return {kind,assets:[],complete:false,error:assetSyncErrorMessage(diagnostic),diagnostics:[diagnostic]};};
   try{credentials=await this.credentials.get(connection);}catch(e){return {groups:selected.map(kind=>failure(kind,e))};}
+  const measurementFingerprint=sha256(stable(credentials));
+  const measurementRead=async(plan:CompiledRequest)=>{const check=()=>{if(sha256(stable(this.store.connectionCredentials(connection)))!==measurementFingerprint)throw new MirrorError('CONNECTION_CHANGED','The selected login changed during discovery.',{},409);};check();const out=await this.transport.request(plan,connection,credentials);check();return out.data;};
   for(const kind of selected){
    try{
     let assets:WorkspaceAsset[]=[];
@@ -121,11 +125,7 @@ export class AssetDiscovery {
      groups.push(await googleAccountDiscovery(this.transport,connection,credentials));continue;
     }else if(p.id==='ga4'){
      if(kind==='properties'){
-      const accounts=await this.pages(connection,credentials,'/v1beta/accountSummaries',{pageSize:200},d=>d.accountSummaries??[],'https://analyticsadmin.googleapis.com');
-      for(const account of accounts){
-       if(typeof account.account!=='string'||!/^accounts\/\d+$/.test(account.account)||account.propertySummaries!==undefined&&!Array.isArray(account.propertySummaries))throw new MirrorError('ASSET_RESPONSE_INVALID','GA4 returned an invalid account summary.',{},502);
-       for(const row of account.propertySummaries??[]){if(typeof row?.property!=='string'||!/^properties\/\d+$/.test(row.property))throw new MirrorError('ASSET_ID_INVALID','GA4 returned an invalid property identifier.',{},502);assets.push(this.asset({id:row.property.slice(11),name:row.displayName},kind,account.account));}
-      }
+      assets=(await collectMeasurementAssets(connection.gateway,measurementRead,{maxPages:25,deadline:performance.now()+60000})).assets;
      }else{
       if(!connection.accounts.length)throw new MirrorError('SELECT_ACCOUNT_FIRST','Select GA4 properties before syncing their data streams.',{},409);
       for(const id of connection.accounts){if(!/^\d+$/.test(id))throw new MirrorError('ASSET_ID_INVALID','GA4 property identifiers must be numeric.',{},400);
@@ -146,8 +146,7 @@ export class AssetDiscovery {
      }
     }else if(p.id==='gsc'){
      if(kind==='sites'){
-      const rows=await this.pages(connection,credentials,'/webmasters/v3/sites',{},d=>d.siteEntry??[],'https://www.googleapis.com');
-      assets=rows.filter(row=>row.permissionLevel!=='siteUnverifiedUser').map(row=>{if(typeof row.siteUrl!=='string'||!validSearchConsoleSite(row.siteUrl)||!['siteOwner','siteFullUser','siteRestrictedUser'].includes(row.permissionLevel))throw new MirrorError('ASSET_ID_INVALID','Search Console returned an invalid site or permission level.',{},502);return this.asset({id:row.siteUrl,name:row.siteUrl,status:row.permissionLevel},kind);});
+      assets=(await collectMeasurementAssets(connection.gateway,measurementRead,{deadline:performance.now()+60000})).assets;
      }else{
       if(!connection.accounts.length)throw new MirrorError('SELECT_ACCOUNT_FIRST','Select Search Console sites before syncing their sitemaps.',{},409);
       for(const id of connection.accounts){if(!validSearchConsoleSite(id))throw new MirrorError('ASSET_ID_INVALID','Search Console site identifier is invalid.',{},400);

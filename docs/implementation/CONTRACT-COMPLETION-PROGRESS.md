@@ -8,6 +8,23 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## AY — GA4/Search Console discovery through MCP (2026-09-25)
+
+Completed the two advertised-but-unmapped measurement sync commands. An explicit
+administrator/connection previews locally, runs bounded native discovery and
+persists complete metadata while preserving account selections and write grants.
+Website and MCP share their parser. Current identity/grants, metadata revisions,
+SQLite leases, native pagination/details and stale failure states are checked.
+No provider mutations or native OAuth exchange are added.
+
+[Implementation](MEASUREMENT-CONNECTION-SYNC-2026-09-25.md) and
+[verification](MEASUREMENT-CONNECTION-SYNC-VERIFICATION-2026-09-25.json) retain
+initial failures. Final required-FFmpeg check: 1603 main plus four capture,
+zero failed/skipped. Inventory: 438 reviewed-family / 886 blocked writes /
+86 unmapped / 23 unqualified reads; 1007 remaining rows including retired actions.
+Live account qualification and the remaining OAuth/Business Profile paths remain
+separate, explicit work.
+
 ## AX — Credential-refresh fencing and atomic connection replacement (2026-09-25)
 
 Confirmed and fixed stale refreshes overwriting a newer login across all 14 shared

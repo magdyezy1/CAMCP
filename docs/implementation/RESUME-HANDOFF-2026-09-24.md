@@ -52,6 +52,12 @@ recovery, native result limits and external verification needs are recorded in
 
 ## Remaining implementation — not complete
 
+The [measurement connection-sync batch](MEASUREMENT-CONNECTION-SYNC-2026-09-25.md)
+passes the full required-FFmpeg check: 1603 main/four capture, zero failed/skipped.
+GA4 property sync and Search Console site sync execute through MCP, preserve
+selections/grants and share parsing with website discovery. Bounded native reads,
+stale-result protection and durable metadata failure handling are implemented.
+
 The [credential-refresh correction](CREDENTIAL-REFRESH-2026-09-25.md) passes the
 full required-FFmpeg check: 1578 main/four capture, zero failures/skips. It fences
 late refresh responses across all 14 shared adapters, validates bounded token
@@ -76,7 +82,7 @@ FFmpeg 9.0.2 and zero skips. Portable verified binaries now exist in
 installed globally or included in Git. Docker and live validation remain outstanding.
 
 The latest action check supersedes the September 20 inventory: 3241 actions,
-438 reviewed-family, 886 blocked writes, 88 unmapped, 23 unqualified reads, eight
+438 reviewed-family, 886 blocked writes, 86 unmapped, 23 unqualified reads, eight
 input-dependent and four provider-unsupported. The latter four were retired by the
 provider. The separate vendor denominator remains 1208 pinned methods, including
 451 unmapped; it overlaps rather than adding directly to the action denominator.
@@ -87,8 +93,8 @@ report creation contracts and scoped status/output recovery. It supplies native
 JSON/compact outputs with checked bytes, checksum, count and account/date/entity
 identities. Criteo website OAuth, dashboard integration, other formats, multi-
 account aggregation, remaining writes and the 2026.07 redesign remain separate.
-The updated remaining-action CSV has 1009 rows, including retired/unsupported
-entries. Latest complete check and manifest are in the TikTok evidence report.
+The updated remaining-action CSV has 1007 rows, including retired/unsupported
+entries. Latest complete check and manifest are in the measurement-sync evidence report.
 
 The [Criteo campaign batch](CRITEO-CAMPAIGNS-2026-09-24.md) adds standard auction
 campaign create/update with complete PUT fields, stable scoped funding/line-item

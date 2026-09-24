@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "meaning": "Administrator-only local discovery previews. Substitute the chosen connection UUID; dry_run false reads Google and persists metadata without changing account or write grants.",
+  "examples": [
+    {
+      "gateway": "ga4_native_action",
+      "input": {
+        "operation": "ga4_sync_properties",
+        "arguments": {
+          "connection_id": "336ecb51-2df8-4967-8bd3-cba64d552296",
+          "include_details": true,
+          "max_pages": 10,
+          "dry_run": true
+        }
+      }
+    },
+    {
+      "gateway": "google_search_console_native_action",
+      "input": {
+        "operation": "gsc_connection_ops",
+        "arguments": {
+          "action": "sync_sites",
+          "connection_id": "336ecb51-2df8-4967-8bd3-cba64d552296",
+          "dry_run": true
+        }
+      }
+    }
+  ]
+}

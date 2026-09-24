@@ -1,0 +1,249 @@
+{
+  "format_version": 1,
+  "date": "2026-09-25",
+  "branch": "Codex-branch",
+  "base_revision": "3068197b390ae032584b612bdc9f86428a96c6aa",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true
+  },
+  "candidate": {
+    "path": ".release/measurement-sync-20260925-a",
+    "files": 594,
+    "source_tree_hash": "8f12ad087dc1d66ade7dc854344781231fad452ba196b0e8ba75b43ca9ca7a65",
+    "index_code_test_guidance_files_compared": 398,
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/measurement-sync-20260925-a",
+    "install": "npm.cmd ci --offline --ignore-scripts --cache '../../.runtime/npm-cache'",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm.cmd run check",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=<bundled Python>",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/contract-completion-20260924/measurement-sync-baseline-build-corrected.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/measurement-sync-baseline-build.log",
+      "sha256": "8fa8660a532065327a44397bebce6274f57f306c348036644c9284506cc776e9",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/measurement-sync-baseline.log",
+      "sha256": "2c1a257eb58fd898533cedc3de0e75dd86498116bf33504e755b8db31e30abc0",
+      "counts": [
+        {
+          "tests": 2
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 2
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1638.3579
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/measurement-sync-expanded-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/measurement-sync-expanded.log",
+      "sha256": "1332e0dc701fe127def396b507bd8e961235943527d49253775c464a31d66c33",
+      "counts": [
+        {
+          "tests": 48
+        },
+        {
+          "pass": 47
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 6799.5068
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/measurement-sync-final-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/measurement-sync-final.log",
+      "sha256": "f136863d40d3a790d6bddda6edee1d89024deb491fb89f161db47f5c8aa67a15",
+      "counts": [
+        {
+          "tests": 81
+        },
+        {
+          "pass": 81
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 10451.0417
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/measurement-sync-first-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/measurement-sync-first.log",
+      "sha256": "eaefb5628eb91e40bc9617ff57a18f2408ffd3aa98344c712caf73eaac279ae8",
+      "counts": [
+        {
+          "tests": 2
+        },
+        {
+          "pass": 2
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1507.6421
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/measurement-sync-guidance-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/measurement-sync-guidance.log",
+      "sha256": "f03c1c7beade69e8a8d19c10cfec52ecf83cd1eed1d991f6ce200dff21fcf00e",
+      "counts": [
+        {
+          "tests": 26
+        },
+        {
+          "pass": 26
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 3663.654
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/measurement-sync-inventory.log",
+      "sha256": "6103ef8e2bae92dd87a15d4736dc0719a4320882953245407d0b68292f1f3860",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/measurement-sync-workers-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/measurement-sync-workers.log",
+      "sha256": "997b9f0f7f4e682271f6e90b9006a8c84482a3ac638cd181e7aeff6da3a70cd7",
+      "counts": [
+        {
+          "tests": 86
+        },
+        {
+          "pass": 86
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 11163.934
+        }
+      ]
+    },
+    {
+      "path": ".release/measurement-sync-20260925-a/measurement-check.log",
+      "sha256": "5612c7e2d83ae487607f17d7c2a174da196526cefdfe866efe0538dc697cad12",
+      "counts": [
+        {
+          "tests": 1603
+        },
+        {
+          "pass": 1603
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 345572.214
+        },
+        {
+          "tests": 4
+        },
+        {
+          "pass": 4
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 75.9565
+        }
+      ]
+    }
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 1603,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials or account mutations.",
+    "Provider permissions, live output compatibility, Docker and deployment remain separately unverified.",
+    "See the matching implementation report for explicit contract limits, initial failures and primary references."
+  ]
+}
