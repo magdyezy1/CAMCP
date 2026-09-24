@@ -40,6 +40,11 @@ export interface CompiledRequest {
   queryArrayEncoding?:'json'|'repeat';
   responseControls?:import('./projection.js').ResponseControls;
   metaReportRead?:JsonObject;
+  /** Server-derived Criteo report binding. External inputs cannot set this. */
+  criteoReportRead?:JsonObject;
+  criteoReportReviewId?:string;
+  /** Process-local monotonic deadline for a server-derived report retrieval. */
+  criteoReportDeadline?:number;
   scopeContext?:{metaReportReviewId?:string;campaignId?:string;linkedinPostReviewId?:string;microsoftExtensionTypes?:string[];microsoftAssociationPairs?:{entityId:string;extensionId:string}[];appleSharedAccountIds?:string[];appleSharedResultAccounts?:string[];appleSharedOrgId?:string;appleCurrency?:string;gtmPriorAuthHash?:string;redditProfileId?:string;redditProfileUserId?:string;redditPostReviewId?:string;criteoVerifiedLineId?:string};
   reportDownload?:{offset:number;limit:number};
   contractEvidence?:JsonObject;

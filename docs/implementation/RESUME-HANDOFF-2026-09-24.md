@@ -54,12 +54,19 @@ FFmpeg 9.0.2 and zero skips. Portable verified binaries now exist in
 installed globally or included in Git. Docker and live validation remain outstanding.
 
 The latest action check supersedes the September 20 inventory: 3241 actions,
-427 reviewed-family, 890 blocked writes, 91 unmapped, 27 unqualified reads, eight
+430 reviewed-family, 890 blocked writes, 88 unmapped, 27 unqualified reads, eight
 input-dependent and four provider-unsupported. The latter four were retired by the
 provider. The separate vendor denominator remains 1208 pinned methods, including
-454 unmapped; it overlaps rather than adding directly to the action denominator.
+451 unmapped; it overlaps rather than adding directly to the action denominator.
 Reporting and the Meta guard added no new native action family; the portfolio
-pass moves four native/legacy routes into one qualified reviewed family.
+pass moves four native/legacy routes into one qualified reviewed family. The
+[Criteo report batch](CRITEO-REPORTS-2026-09-24.md) adds three exact 2026.01 DSP
+report creation contracts and scoped status/output recovery. It supplies native
+JSON/compact outputs with checked bytes, checksum, count and account/date/entity
+identities. Criteo website OAuth, dashboard integration, other formats, multi-
+account aggregation, remaining writes and the 2026.07 redesign remain separate.
+The updated remaining-action CSV has 1017 rows, including retired/unsupported
+entries. Latest complete check and manifest are in the Criteo evidence report.
 
 Continue the exact rows in [remaining actions](REMAINING-ACTIONS-2026-09-24.csv),
 checked against `contracts:actions:check`, and tickets R2–R12 in the

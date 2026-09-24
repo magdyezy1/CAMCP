@@ -26,7 +26,7 @@ export const reviewedWriteGateways=[
  'meta_native_action','google_ads_native_action','tiktok_native_action','snapchat_native_action',
  'linkedin_native_action','x_ads_native_action','dv360_native_action','reddit_native_action',
  'microsoft_ads_native_action','apple_ads_native_action','ga4_native_action','gtm_native_action',
- 'google_search_console_native_action','google_business_native_action',
+ 'google_search_console_native_action','google_business_native_action','criteo_native_action',
 ];
 
 /**

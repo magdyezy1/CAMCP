@@ -1,4 +1,5 @@
 import {authorizeMetaReportRead,assertMetaReportScope} from './meta-insights-jobs.js';
+import {authorizeCriteoReport,observeCriteoReportTargets,assertCriteoReportScopes} from './criteo-report-jobs.js';
 import {authorizePlaceActionRead} from './google-place-action-links.js';
 import {authorizePlaceActionDiscovery} from './google-place-action-discovery.js';
 import {authorizeBusinessAccessRead} from './google-business-access.js';
@@ -73,6 +74,8 @@ export class ScopeGuard {
   if(googleSegmentKind(plan)||plan.gateway==='google_ads_native_action'&&plan.action==='AMCP_CONFIG_READ'&&googleSegmentResource(plan.googleState?.resource??''))assertGoogleAdsScope(connection);
   if(plan.gateway==='meta_native_action'&&(plan.action==='AMCP_META_LABEL_READ'||plan.method==='GET'&&/^\/v25\.0\/act_\d+\/adlabels$/.test(plan.path)))assertMetaLabelScope(connection);
   if(plan.gateway==='criteo_native_action'&&plan.action==='AMCP_CRITEO_TARGET_READ')assertCriteoReadScope(connection);
+  if(plan.gateway==='criteo_native_action'&&plan.action==='AMCP_CRITEO_REPORT_READ')assertCriteoReportScopes(connection);
+  if(authorizeCriteoReport(plan,connection,this.store,id))return id;
   if(authorizeQualifiedProviderRead(plan,connection,id))return id;
   if(authorizePlaceActionRead(plan,connection,id))return id;
   if(authorizePlaceActionDiscovery(plan,connection,id))return id;
@@ -159,6 +162,7 @@ export class ScopeGuard {
  observe(plan:CompiledRequest,connection:Connection,data:unknown):void{
   if(!plan.readOnly)return;
   const id=this.authorize(plan,connection),d=data as JsonObject;
+  observeCriteoReportTargets(plan,connection,this.store,data);
   if(plan.gateway===microsoftGateway&&plan.action==='SubmitGenerateReport'&&typeof d?.ReportRequestId==='string'){
    this.store.rememberResource(connection,id,'report/'+d.ReportRequestId);
    this.store.db.prepare("DELETE FROM documents WHERE tenant_id=? AND kind='microsoft_report' AND json_extract(data,'$.expires_at')<=?").run(connection.tenantId,Date.now());

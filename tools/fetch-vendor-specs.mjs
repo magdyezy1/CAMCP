@@ -103,8 +103,11 @@ for(const [file,ops] of Object.entries(businessMappings))for(const [operation,ac
 const criteo=docs.get('criteo-retail-2026-01'),normal=x=>x.replace(/[^a-z0-9]/gi,'').toLowerCase();
 const criteoMethods=Object.entries(criteo.document.paths).flatMap(([path,item])=>Object.entries(item).filter(([method,op])=>op.operationId&&['get','post','put','patch','delete','head'].includes(method)).map(([method,op])=>({path,method:method.toUpperCase(),op,parameters:[...(item.parameters??[]),...(op.parameters??[])]})));
 const readPost=new Set(['AccountFeesSearch','SearchSellers','SearchBrands','searchAudienceSegments','searchAudiences','SearchAccountRetailers','GetCpcMinBidsBySkuIdsV1','GetRecommendedCategories','SearchCategory','RecommendedKeywords','SearchAccountCreatives']);
+// Captured legacy names bind to these exact 2026.01 operation IDs. Never strip
+// arbitrary version suffixes or classify report submission as a retryable read.
+const criteoReportAliases={GENERATE_ASYNC_ACCOUNTS_REPORT:'GenerateAsyncAccountsReportV2',GENERATE_ASYNC_CAMPAIGNS_REPORT:'GenerateAsyncCampaignsReportV2',GENERATE_ASYNC_LINE_ITEMS_REPORT:'GenerateAsyncLineItemsReportV2'};
 for(const op of registry.tools.find(t=>t.name==='criteo_native_action').operations)for(const action of op.argumentsSchema.properties.action.enum){
- const found=criteoMethods.filter(m=>normal(m.op.operationId)===normal(action));
+ const found=criteoMethods.filter(m=>normal(m.op.operationId)===normal(criteoReportAliases[action]??action));
  if(found.length!==1){gaps.push({gateway:'criteo_native_action',operation:op.operation,action,reason:found.length?'Ambiguous vendor operation IDs':'No exact vendor operation ID; request shape is not inferred'});continue;}
  const m=found[0],content=m.op.requestBody?.content??{},json=content['application/json'];
  routes.push({gateway:'criteo_native_action',operation:op.operation,action,vendorMethod:m.op.operationId,source:criteo.source,sourceFile:'criteo-retail-2026-01',origin:'https://api.criteo.com',path:m.path,method:m.method,readOnly:['GET','HEAD'].includes(m.method)||readPost.has(m.op.operationId),parameters:Object.fromEntries(m.parameters.map(p=>[p.name,{...p,...p.schema,location:p.in}])),requestSchema:json?.schema,bodyRequired:m.op.requestBody?.required===true,scopes:[],...(Object.keys(content).length&&!json?{unsupportedMedia:Object.keys(content)}:{}),evidence:'VENDOR_DOCUMENTED_INDEPENDENT_MAPPING'});

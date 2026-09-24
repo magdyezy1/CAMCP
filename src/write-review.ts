@@ -1,4 +1,5 @@
 import {metaReportKind,assertMetaReport,assertMetaReportScope,metaReportSnapshots,readMetaReportState,metaReportOutcome} from './meta-insights-jobs.js';
+import {criteoReportKind,assertCriteoReport,assertCriteoReportScopes,criteoReportSnapshots,readCriteoReportState,criteoReportOutcome} from './criteo-report-jobs.js';
 import {metaCreativeCreate,metaCreativeIdentityReads,metaCreativeState} from './meta-creative-state.js';
 import {placeActionKind,assertPlaceAction,assertPlaceActionScope,placeActionSnapshots,readPlaceActionState,placeActionOutcome,placeActionSafe,placeActionSafeError} from './google-place-action-links.js';
 import {businessNotificationKind,assertBusinessNotification,assertBusinessNotificationActor,assertBusinessNotificationScope,businessNotificationSnapshots,readBusinessNotificationState,businessNotificationOutcome} from './google-business-notifications.js';
@@ -94,6 +95,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(googlePortfolioKind(plan))return googlePortfolioOutcome(plan,result,before);
  if(googleConversionGoalKind(plan))return googleConversionGoalOutcome(plan,result,before);
  if(metaReportKind(plan))return metaReportOutcome(plan,result);
+ if(criteoReportKind(plan))return criteoReportOutcome(plan,result);
  if(metaLabelKind(plan))return metaLabelOutcome(plan,result,before);
  if(criteoTargetingKind(plan))return criteoTargetingOutcome(plan,result);
  if(gtmWorkspaceKind(plan))return gtmWorkspaceOutcome(plan,result,before);
@@ -236,6 +238,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(dv360ListKind(plan))assertDV360ListWrite(plan);
  if(criteoTargetingKind(plan))assertCriteoTargeting(plan);
  if(metaReportKind(plan))assertMetaReport(plan);
+ if(criteoReportKind(plan))assertCriteoReport(plan);
  if(metaLabelKind(plan))assertMetaLabel(plan);
  if(plan.gateway==='meta_native_action'&&route.endsWith('/adcreatives'))validateMetaCreative(body);
  if(Object.keys(plan.query).some(k=>!(plan.gateway==='dv360_native_action'&&k==='updateMask'||plan.gateway==='gtm_native_action'&&k==='fingerprint')))fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed writes accept body fields and qualified concurrency parameters only.');
@@ -295,6 +298,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(googlePortfolioKind(plan))return googlePortfolioSnapshots(plan);
  if(googleConversionGoalKind(plan))return googleConversionGoalSnapshots(plan);
  if(metaReportKind(plan))return metaReportSnapshots(plan);
+ if(criteoReportKind(plan))return criteoReportSnapshots(plan);
  if(metaLabelKind(plan))return metaLabelSnapshots(plan);
  if(criteoTargetingKind(plan))return criteoTargetingSnapshots(plan);
  if(gtmWorkflowKind(plan))return gtmWorkflowSnapshots(plan);
@@ -381,6 +385,7 @@ export class WriteReviewService {
   if(plan.gateway==='reddit_native_action')assertRedditWriteScopes(c);
   if(criteoTargetingKind(plan))assertCriteoTargetingScopes(c);
   if(metaReportKind(plan))assertMetaReportScope(c);
+  if(criteoReportKind(plan))assertCriteoReportScopes(c,criteoReportKind(plan));
   if(placeActionKind(plan))assertPlaceActionScope(c);
   if(businessNotificationKind(plan))assertBusinessNotificationScope(c);
   if(businessAccessKind(plan))assertBusinessAccessScope(c);
@@ -394,6 +399,14 @@ export class WriteReviewService {
   plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);assertMeasurementScopes(plan,c);return c;
  }
  private async state(actor:Actor,plan:CompiledRequest,connectionId:string,reads:CompiledRequest[]):Promise<unknown[]> {
+  if(criteoReportKind(plan)){
+   let credentialHash:string|undefined;
+   return readCriteoReportState(plan,async read=>{
+    if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Report prerequisites must remain read-only.');
+    const access=()=>{const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);if(credentialHash&&sha256(stable(this.store.credentials(actor.tenantId,c.id)))!==credentialHash)fail('REAUTHORIZATION_REQUIRED','The selected login changed during report preparation. Prepare again.');return c;};
+    const c=access(),auth=await this.credentials.get(c);credentialHash??=sha256(stable(auth));access();const response=await this.transport.request(read,c,auth);access();return response;
+   });
+  }
   if(googlePortfolioKind(plan)){
    let credentialHash:string|undefined;
    return readGooglePortfolioState(plan,async read=>{

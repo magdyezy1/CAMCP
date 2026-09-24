@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import {DelegatedNativeCompiler,type VendorRoute} from '../src/delegated-native.js';
 import {MirrorError} from '../src/errors.js';
 import {applyExecutionRisk} from '../src/execution-risk.js';
+import {assertWriteShape} from '../src/write-review.js';
 const compiler=new DelegatedNativeCompiler();
 const compile=(gateway:string,operation:string,args:Record<string,unknown>)=>compiler.compile(gateway,{operation,arguments:args});
 const code=(expected:string)=>(e:unknown)=>e instanceof MirrorError&&e.code===expected;
@@ -17,7 +18,7 @@ test('all generated delegated routes retain their official discovery method and 
   else {function visit(x:any){for(const m of Object.values(x.methods??{}) as any[])if(m.id===r.vendorMethod)found=m;for(const child of Object.values(x.resources??{}))visit(child);}visit(d);assert.equal(found?.httpMethod,r.method);assert.equal('/'+(d.servicePath??'')+found?.path,r.path);assert.equal(new URL(d.rootUrl).origin,r.origin);}
   assert.equal(r.evidence,'VENDOR_DOCUMENTED_INDEPENDENT_MAPPING');covered++;
  }
- assert.equal(covered,339);
+ assert.equal(covered,342); // Three exact 2026.01 Criteo DSP report mappings.
  const names=new Set(compiler.data.routes.map(r=>r.gateway+'/'+r.operation+'/'+r.action));assert.equal(names.size,covered);
 });
 
@@ -36,7 +37,7 @@ test('every JSON-capable route compiles an official path fixture without a netwo
   assert.equal(p.path,r.path.replace(/\{(\+?)([^}]+)\}/g,(_,plus,key)=>plus?String(params[key]).split('/').map(encodeURIComponent).join('/'):encodeURIComponent(String(params[key]))));
   assert.equal(p.method,r.method);assert.equal(p.origin,r.origin);assert.equal(p.readOnly,r.readOnly);count++;
  }
- assert.equal(count,338);
+ assert.equal(count,341);
 });
 
 // Minimal schema fixtures exercise template expansion only; focused tests below
@@ -122,9 +123,10 @@ test('delegated path, account and property conflicts fail closed',()=>{
 });
 
 test('unsupported contracts and upload media give actionable failures without false previews',()=>{
- assert.throws(()=>compile('criteo_native_action','criteo_reporting_ops',{action:'GENERATE_ASYNC_ACCOUNTS_REPORT'}),(e:unknown)=>code('DELEGATED_ROUTE_UNAVAILABLE')(e)&&!!(e as MirrorError).details.next_step);
+ // A report route is now mapped, but an empty definition is not executable.
+ assert.throws(()=>assertWriteShape(compile('criteo_native_action','criteo_reporting_ops',{action:'GENERATE_ASYNC_ACCOUNTS_REPORT'})),code('CRITEO_REPORT_INVALID'));
  assert.throws(()=>compile('criteo_native_action','criteo_creative_ops',{action:'CREATE_ASSET',payload:{}}),code('SPECIAL_TRANSPORT_REQUIRED'));
- assert.throws(()=>compile('ga4_native_action','ga4_connection_ops',{action:'exchange'}),code('DELEGATED_ROUTE_UNAVAILABLE'));
+ assert.throws(()=>compile('ga4_native_action','ga4_connection_ops',{action:'exchange'}),(e:unknown)=>code('DELEGATED_ROUTE_UNAVAILABLE')(e)&&!!(e as MirrorError).details.next_step);
  assert.throws(()=>compile('gtm_native_action','gtm_ops',{action:'GET_ACCOUNT',account_id:'123',params:{access_token:'untrusted'}}),code('CREDENTIAL_PARAMETER_FORBIDDEN'));
  assert.throws(()=>compile('gtm_native_action','gtm_ops',{action:'GET_ACCOUNT',account_id:'123',params:{x_http_method_override:'DELETE'}}),code('UNKNOWN_VENDOR_PARAMETER'));
  assert.throws(()=>compile('gtm_native_action','gtm_ops',{action:'LIST_CONTAINERS',account_id:'123',params:{pageToken:{bad:true}}}),code('INVALID_PARAMETER'));

@@ -1,0 +1,177 @@
+{
+  "format_version": 1,
+  "date": "2026-09-24",
+  "branch": "Codex-branch",
+  "base_revision": "1cfc82e74982445105d0f5381b244382f07ea58c",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "shell": "PowerShell",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true
+  },
+  "isolation": {
+    "candidate_assembler": "node tools/prepare-public-release.mjs .release/<candidate>",
+    "private_fixture": "replaced with [] without reading the historical source file",
+    "dependencies": "npm.cmd ci --offline --ignore-scripts --cache ../../.runtime/npm-cache"
+  },
+  "commands": {
+    "focused": "npm.cmd run build; node --test dist/tests/criteo-report-jobs.test.js",
+    "deadline_focused": "npm.cmd run build; node --test dist/tests/criteo-report-jobs.test.js dist/tests/transport.test.js",
+    "full": "npm.cmd run check",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=<bundled Python>",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>",
+      "AMCP_REQUIRE_FFMPEG=true"
+    ],
+    "railway_config": "node deploy/check-railway.mjs"
+  },
+  "baseline": {
+    "path": ".runtime/contract-completion-20260924/criteo-baseline.json",
+    "sha256": "7dbdb271b1dbe182d3df0cfe1cebef4efdebf819a087d4e5add62dc3af84e754",
+    "result": "All three report aliases return DELEGATED_ROUTE_UNAVAILABLE with base vendor routes."
+  },
+  "candidates": [
+    {
+      "candidate": ".release/criteo-reports-20260924-a",
+      "base_revision": "1cfc82e74982445105d0f5381b244382f07ea58c",
+      "source_tree_hash": "4c40d751eef154598e9e2a82c32a700a7fbf4fc420eaff3bdd8b6b9e88f5d2fe",
+      "files": 562,
+      "log": "criteo-focused.log",
+      "log_sha256": "f279ee78fedcd6464d28af7f4d459bee57ea3a0890271f1384126c53f284f5ef",
+      "pass": 7,
+      "fail": 9,
+      "skipped": 0,
+      "exit_code": 1
+    },
+    {
+      "candidate": ".release/criteo-reports-20260924-b",
+      "base_revision": "1cfc82e74982445105d0f5381b244382f07ea58c",
+      "source_tree_hash": "182f3ffee5b632b71306d7bdd95cc5e0abf0262b050800ebd0e16f8f5f69b783",
+      "files": 562,
+      "log": "criteo-focused.log",
+      "log_sha256": "39ce82056effc811813ad405ad2047d0dd63ac39da74067086598f4121b6c0fb",
+      "pass": 15,
+      "fail": 1,
+      "skipped": 0,
+      "exit_code": 1
+    },
+    {
+      "candidate": ".release/criteo-reports-20260924-c",
+      "base_revision": "1cfc82e74982445105d0f5381b244382f07ea58c",
+      "source_tree_hash": "ebe99334b5dbb6af9bd0c898a226e76df6b7b4119a5c3d1cfab940ed935cbaab",
+      "files": 562,
+      "log": "criteo-focused.log",
+      "log_sha256": "895ac0e9a16ffd1224dd05803af4a77d550eb4c06d20f88b1ef8f0dc1677fcb9",
+      "pass": 11,
+      "fail": 6,
+      "skipped": 0,
+      "exit_code": 1
+    },
+    {
+      "candidate": ".release/criteo-reports-20260924-d",
+      "base_revision": "1cfc82e74982445105d0f5381b244382f07ea58c",
+      "source_tree_hash": "129c999899c74a3981a061c9ddf4b79eec14620dea04ba120f7207587350a79d",
+      "files": 562,
+      "log": "criteo-focused.log",
+      "log_sha256": "d43fed94cb42e4f0b4b7530c7c45f095e3eb2bef3dd8ebadf644d00b46e69066",
+      "pass": 17,
+      "fail": 0,
+      "skipped": 0,
+      "exit_code": 0
+    },
+    {
+      "candidate": ".release/criteo-reports-20260924-e",
+      "base_revision": "1cfc82e74982445105d0f5381b244382f07ea58c",
+      "source_tree_hash": "087dee672f035e3b3c230e5a8a743600de129d7a1cf8e8088a6fe91a32991828",
+      "files": 562,
+      "log": "criteo-check.log",
+      "log_sha256": "6aa03e91ec7ab2f71b1609eae36706c1eda73c93fad61a09240c9e1a5608d745",
+      "pass": 1455,
+      "fail": 3,
+      "skipped": 0,
+      "exit_code": 1
+    },
+    {
+      "candidate": ".release/criteo-reports-20260924-f",
+      "base_revision": "1cfc82e74982445105d0f5381b244382f07ea58c",
+      "source_tree_hash": "e66e940c9d05a27744e940c4419a70d274b596351609b2f581e45122cf00620e",
+      "files": 563,
+      "log": "criteo-check.log",
+      "log_sha256": "c13969b9b74eb85edf38d2d05d3acd1cd210bca94a566b4db5e9a29cb3040ba0",
+      "pass": 1458,
+      "fail": 0,
+      "skipped": 0,
+      "capture_pass": 4,
+      "exit_code": 0
+    },
+    {
+      "candidate": ".release/criteo-reports-20260924-g",
+      "base_revision": "1cfc82e74982445105d0f5381b244382f07ea58c",
+      "source_tree_hash": "238f151cc4ee3060397229e63ccae14b467948778552ee9688fc655a2a70dc91",
+      "files": 563,
+      "log": "criteo-focused.log",
+      "log_sha256": "cd08f1f662d59603979a88d96850daaaa1bad5cf4ce973be40e1060662a44456",
+      "pass": 28,
+      "fail": 0,
+      "skipped": 0,
+      "exit_code": 0
+    },
+    {
+      "candidate": ".release/criteo-reports-20260924-h",
+      "base_revision": "1cfc82e74982445105d0f5381b244382f07ea58c",
+      "source_tree_hash": "ff5e4cfe7b239f84475ebfb0d5bf71ddebaf1431f8228d59cdf7f776a3f6ccb6",
+      "files": 563,
+      "log": "criteo-check.log",
+      "log_sha256": "787be5288e73c1e8b010e2bb096bd5a04b21121ffec041ee9ae4b429510c3c55",
+      "pass": 1460,
+      "fail": 0,
+      "skipped": 0,
+      "capture_pass": 4,
+      "exit_code": 0
+    }
+  ],
+  "final_check_candidate": "h",
+  "full_check_stages": [
+    "generate:check",
+    "generate:vendor:check",
+    "generate:wsdl:check",
+    "generate:feeds:check",
+    "test",
+    "test:capture",
+    "report",
+    "check:web",
+    "providers:check",
+    "providers:lifecycle",
+    "contracts:check",
+    "contracts:actions:check"
+  ],
+  "railway_config_result": "pass",
+  "not_established": [
+    "Docker/container smoke",
+    "Linux execution",
+    "GitHub hosted CI",
+    "production deployment",
+    "live provider request acceptance",
+    "live reconciliation and permissions"
+  ],
+  "action_counts": {
+    "total": 3241,
+    "reviewed_write_family": 430,
+    "blocked_write": 890,
+    "unmapped": 88,
+    "unqualified_read": 27,
+    "adapter_requires_input": 8,
+    "provider_unsupported": 4,
+    "native_read": 1704,
+    "local_workflow": 74,
+    "media_workflow": 16
+  },
+  "vendor_method_counts": {
+    "total": 1208,
+    "unmapped": 451
+  },
+  "completion": "Bounded Criteo reports family only; remaining providers/actions and product work are not complete."
+}

@@ -1,4 +1,5 @@
 import {metaReportReadResult,observeMetaReportRead,runMetaReportRead} from './meta-insights-jobs.js';
+import {criteoReportReadResult,observeCriteoReportRead,runCriteoReportRead} from './criteo-report-jobs.js';
 import {connectionDiagnosticKind,connectionDiagnostics,redactConnectionInput} from './connection-diagnostics.js';
 import {connectionDisconnectKind,connectionDisconnect} from './connection-disconnect.js';
 import {placeActionReadKind,validatePlaceActionRead,placeActionReadResult,runPlaceActionDiscovery} from './google-place-action-discovery.js';
@@ -18,7 +19,7 @@ import {NativeTransport} from './transport.js';
 import {authorizeExecution,readOnlyPolicy,type ExecutionPolicy} from './preflight.js';
 import {redactPlaceActionInput,placeActionSafeError} from './google-place-action-links.js';
 import {errorResult,MirrorError,untrustedProviderContent} from './errors.js';
-import {redact} from './security.js';
+import {redact,sha256,stable} from './security.js';
 import {paginate} from './pagination.js';
 import {ScopeGuard} from './scope.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
@@ -143,8 +144,9 @@ export class MirrorService {
   const credentials=await this.credentials.get(connection);
   this.store.appendAudit(actor.tenantId,requestId,{event:'request_started',actor:actor.userId,request:plan});
   try{
-   const fetchPage=async(p:CompiledRequest)=>{const current=this.store.resolveConnection(actor,p.gateway,p.accountId,connection.id);scope.authorize(p,current);const result=await this.transport.request(p,current,credentials),{data,status}=result;const active=this.store.resolveConnection(actor,p.gateway,p.accountId,current.id);scope.authorize(p,active);this.delegatedCompiler.validateResponse(p,data,status);validateAppleResponse(p,data);if(p.gateway===microsoftGateway)validateMicrosoftResponse(p,result);if(placeActionReadKind(p))return placeActionReadResult(p,data,status);const reportData=metaReportReadResult(p,result);if(reportData){observeMetaReportRead(p,active,this.store,reportData);return reportData;}scope.observe(p,active,data);if(p.gateway===microsoftGateway&&p.reportDownload)return this.microsoftDownload(p,data as JsonObject,actor,active.id);return data;};
-   const result=placeActionReadKind(plan)?await runPlaceActionDiscovery(plan,fetchPage,connection.id):plan.metaReportRead?await runMetaReportRead(plan,fetchPage,!!input.aggregate_pages,Number(input.max_pages??25)):dv360TargetingSearchRoute(plan)?await runDV360TargetingSearch(plan,fetchPage,!!(input.aggregate_pages||input.paginate||input.allPages),Number(input.max_pages??25)):input.aggregate_pages||input.paginate||input.allPages?await paginate(plan,fetchPage,Number(input.max_pages??25)):{data:await fetchPage(plan),pages:1,truncated:false};
+   const reportAccess=(p:CompiledRequest)=>{if(p.criteoReportRead){this.store.assertActorActive(actor);if(sha256(stable(this.store.credentials(actor.tenantId,connection.id)))!==sha256(stable(credentials)))throw new MirrorError('REAUTHORIZATION_REQUIRED','The selected login changed during report retrieval.',{},403);}};
+   const fetchPage=async(p:CompiledRequest)=>{const current=this.store.resolveConnection(actor,p.gateway,p.accountId,connection.id);scope.authorize(p,current);reportAccess(p);const result=await this.transport.request(p,current,credentials),{data,status}=result;const active=this.store.resolveConnection(actor,p.gateway,p.accountId,current.id);scope.authorize(p,active);reportAccess(p);this.delegatedCompiler.validateResponse(p,data,status);validateAppleResponse(p,data);if(p.gateway===microsoftGateway)validateMicrosoftResponse(p,result);if(placeActionReadKind(p))return placeActionReadResult(p,data,status);const criteoData=criteoReportReadResult(p,result);if(criteoData){observeCriteoReportRead(p,active,this.store,criteoData);return criteoData;}const reportData=metaReportReadResult(p,result);if(reportData){observeMetaReportRead(p,active,this.store,reportData);return reportData;}scope.observe(p,active,data);if(p.gateway===microsoftGateway&&p.reportDownload)return this.microsoftDownload(p,data as JsonObject,actor,active.id);return data;};
+   const result=plan.criteoReportRead?await runCriteoReportRead(plan,fetchPage):placeActionReadKind(plan)?await runPlaceActionDiscovery(plan,fetchPage,connection.id):plan.metaReportRead?await runMetaReportRead(plan,fetchPage,!!input.aggregate_pages,Number(input.max_pages??25)):dv360TargetingSearchRoute(plan)?await runDV360TargetingSearch(plan,fetchPage,!!(input.aggregate_pages||input.paginate||input.allPages),Number(input.max_pages??25)):input.aggregate_pages||input.paginate||input.allPages?await paginate(plan,fetchPage,Number(input.max_pages??25)):{data:await fetchPage(plan),pages:1,truncated:false};
    const projected=projectResponse(result.data,plan.responseControls);
    const generation=googleGenerationResult(plan,result.data);
    const outcome={success:true,action:plan.action,dry_run:false,...result,data:projected.data,...(generation?{generation}:{}),truncated:result.truncated||projected.truncated,...(projected.truncated?{response_truncated:true}:{})};

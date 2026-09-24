@@ -99,6 +99,27 @@
   ],
   "inspections": [
     {
+      "gateway": "criteo_native_action",
+      "arguments": {
+        "operation": "criteo_reporting_ops",
+        "arguments": {"action": "GENERATE_ASYNC_ACCOUNTS_REPORT", "account_id": "123", "payload": {"data": {"attributes": {"accountIds": ["123"], "startDate": "2026-08-01", "endDate": "2026-08-31", "timezone": "UTC", "format": "json-compact", "dimensions": ["accountId", "date", "campaignId"], "metrics": ["impressions", "clicks", "spend"]}}}}
+      }
+    },
+    {
+      "gateway": "criteo_native_action",
+      "arguments": {
+        "operation": "criteo_reporting_ops",
+        "arguments": {"action": "GENERATE_ASYNC_CAMPAIGNS_REPORT", "account_id": "123", "payload": {"data": {"attributes": {"ids": ["456"], "startDate": "2026-08-01", "endDate": "2026-08-07", "timezone": "UTC", "format": "json", "dimensions": ["accountId", "date", "campaignId"], "metrics": ["impressions", "spend", "winRate"], "campaignType": "sponsoredProducts"}}}}
+      }
+    },
+    {
+      "gateway": "criteo_native_action",
+      "arguments": {
+        "operation": "criteo_reporting_ops",
+        "arguments": {"action": "GENERATE_ASYNC_LINE_ITEMS_REPORT", "account_id": "123", "payload": {"data": {"attributes": {"id": "789", "startDate": "2026-08-01", "endDate": "2026-08-07", "timezone": "UTC", "format": "json-compact", "dimensions": ["accountId", "date", "campaignId", "lineItemId"], "metrics": ["impressions", "spend", "videoViews"], "clickAttributionWindow": "7D", "viewAttributionWindow": "1D"}}}}
+      }
+    },
+    {
       "gateway": "google_ads_native_action",
       "arguments": {
         "action": "google_ads_v23_bidding_strategy_mutate_bidding_strategies",

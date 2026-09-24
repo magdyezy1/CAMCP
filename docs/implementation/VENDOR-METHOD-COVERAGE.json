@@ -86,8 +86,8 @@
       "captured_at": "2026-09-04T23:58:43.710Z",
       "sha256": "8e6782adc10a3f295eff7d12329f1f766aa7c06f6018de74048645d7bdb72ab1",
       "methods": 108,
-      "mapped": 105,
-      "no_mapped_action": 3,
+      "mapped": 108,
+      "no_mapped_action": 0,
       "meaning": "Complete for this pinned document, not all provider APIs or account access."
     },
     {
@@ -3318,8 +3318,15 @@
       "method": "POST",
       "path": "/2026-01/retail-media/reports/accounts",
       "origin": "https://api.criteo.com",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": "criteo_reporting_ops",
+          "action": "GENERATE_ASYNC_ACCOUNTS_REPORT",
+          "status": "reviewed_write_family",
+          "family": "criteo_report_jobs"
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified"
     },
     {
@@ -3331,8 +3338,15 @@
       "method": "POST",
       "path": "/2026-01/retail-media/reports/campaigns",
       "origin": "https://api.criteo.com",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": "criteo_reporting_ops",
+          "action": "GENERATE_ASYNC_CAMPAIGNS_REPORT",
+          "status": "reviewed_write_family",
+          "family": "criteo_report_jobs"
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified"
     },
     {
@@ -3364,8 +3378,15 @@
       "method": "POST",
       "path": "/2026-01/retail-media/reports/line-items",
       "origin": "https://api.criteo.com",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": "criteo_reporting_ops",
+          "action": "GENERATE_ASYNC_LINE_ITEMS_REPORT",
+          "status": "reviewed_write_family",
+          "family": "criteo_report_jobs"
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified"
     },
     {

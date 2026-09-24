@@ -8,6 +8,30 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## AS — Scoped Criteo asynchronous DSP reports (2026-09-24)
+
+The [Criteo evidence and rollout](CRITEO-REPORTS-2026-09-24.md) records three
+previously unmapped aliases now qualified as reviewed 2026.01 account/campaign/
+line-item report jobs. Existing status/output routes now require the retained
+original job binding, current account/connection grants and complete metadata.
+Retrieval verifies original bytes/MD5, size, count, column and account/date/entity
+scope, with stable status checks before/after output. JSON and compact JSON keep
+nulls and lossless int64 identities. No advertising configuration is mutated.
+
+Nineteen report tests cover six complete journeys and negative, concurrent,
+restart and deadline cases; the expanded report/transport check passes 28 tests.
+The full required-FFmpeg run initially passed 1455
+tests and failed three legacy assertions for the newly changed mapping inventory.
+Their exact counts and incomplete-request assertions are updated; the final full
+check, hashes, initial failures and live limits are recorded in the linked report.
+
+Current inventory: 3241 actions, 430 reviewed-family, 890 blocked writes,
+88 unmapped, 27 unqualified reads, eight input-dependent and four provider-
+unsupported. The separate 1208-method vendor inventory has 451 unmapped methods.
+Criteo's 108 pinned methods now all map; 45 Criteo writes still lack qualified
+contracts. Website OAuth, dashboard Criteo integration, other native formats,
+presets, large/multi-account outputs and 2026.07 migration remain explicit work.
+
 ## AR — Client portfolios, native GAQL sortability and real FFmpeg (2026-09-24)
 
 The [portfolio and GAQL evidence](PORTFOLIO-AND-GAQL-2026-09-24.md) records four

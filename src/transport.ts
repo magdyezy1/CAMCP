@@ -1,4 +1,4 @@
-import {createHmac,randomUUID} from 'node:crypto';
+import {createHash,createHmac,randomUUID} from 'node:crypto';
 import {setTimeout as delay} from 'node:timers/promises';
 import {MirrorError,providerHttpErrorCode} from './errors.js';
 import type {CompiledRequest,Connection,Credentials,JsonObject} from './types.js';
@@ -42,7 +42,7 @@ export function oauth1(method:string,url:URL,credentials:Credentials,bodyParams?
  return 'OAuth '+Object.entries({...oauth,oauth_signature:signature}).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>pct(k)+'="'+pct(v)+'"').join(', ');
 }
 const camelKeys=googleJson;
-export interface TransportResult {data:unknown;status:number;headers:Record<string,string>}
+export interface TransportResult {data:unknown;status:number;headers:Record<string,string>;bodyIntegrity?:{bytes:number;md5:string}}
 export interface BinaryUpload {field:string;bytes:Buffer;filename:string;mime:string;format?:'related'}
 export function providerRetryDelay(response:Response,gateway:string,now=Date.now()):number|undefined{
  const header=response.headers.get('retry-after');let delay:number|undefined;
@@ -140,13 +140,18 @@ export class NativeTransport {
    if(attempt===0){const circuit=this.circuits.get(circuitKey),now=performance.now();if(circuit&&(circuit.until>now||circuit.probing))throw new MirrorError('CIRCUIT_OPEN','Repeated transient provider failures paused this connection/account. A request will probe recovery after the cooldown.',{retry_after_ms:Math.max(1000,Math.ceil(circuit.until-now)),last_error_code:circuit.code,last_http_status:circuit.status},503,true);if(circuit?.until){circuit.probing=true;ownedProbe=circuit;}}
    this.metrics.requests++;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'requests');
    try{
-    const response=await this.fetcher(url,{method:plan.method,headers,body,redirect:'error',signal:AbortSignal.timeout(this.timeoutMs)});
+    const reportDeadline=plan.gateway==='criteo_native_action'&&plan.criteoReportRead&&plan.criteoReportDeadline!==undefined&&plan.readOnly&&plan.method==='GET';
+    const remaining=reportDeadline?plan.criteoReportDeadline!-performance.now():this.timeoutMs;
+    if(reportDeadline&&(!Number.isFinite(remaining)||remaining<=0))throw new MirrorError('CRITEO_REPORT_STATE_UNVERIFIED','Report retrieval exceeded its monotonic deadline.',{},502);
+    const response=await this.fetcher(url,{method:plan.method,headers,body,redirect:'error',signal:AbortSignal.timeout(reportDeadline?Math.max(1,Math.ceil(Math.min(this.timeoutMs,remaining))):this.timeoutMs)});
     const retryDelay=providerRetryDelay(response,plan.gateway);
     if(response.status===429){this.metrics.rateLimits++;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'rate_limits');}
     if((response.status===429||response.status===503)&&retryDelay!==undefined){const rateKey=plan.gateway==='x_ads_native_action'&&response.headers.has('x-account-rate-limit-reset')?accountRateKey:userRateKey;this.cooldowns.set(rateKey,performance.now()+retryDelay);this.coordination?.providerCooldown(rateKey,retryDelay);}
     if([502,503,504].includes(response.status)&&retryDelay===undefined&&attempt+1<maxAttempts){await response.body?.cancel();this.metrics.retries++;await this.sleeper(200*2**attempt);continue;}
     const documentedEmpty=response.status===200&&(plan.gateway==='google_search_console_native_action'&&['PUT','DELETE'].includes(plan.method)&&/^\/webmasters\/v3\/sites\//.test(plan.path)||plan.gateway==='gtm_native_action'&&plan.method==='DELETE'||plan.gateway==='linkedin_native_action'&&plan.method==='POST'&&plan.path==='/rest/videos'&&plan.query.action==='finalizeUpload'||plan.gateway==='google_ads_native_action'&&plan.method==='POST'&&/^\/resumable\/upload\/v23\/customers\/\d+\/youTubeVideoUploads:create$/.test(plan.path)&&response.headers.has('x-goog-upload-url'));
-    const data=await this.readBody(response,plan.method==='HEAD'||!plan.readOnly&&(documentedEmpty||[204,205].includes(response.status)||plan.gateway==='linkedin_native_action'&&response.status===201&&response.headers.has('x-restli-id')));
+    let bodyIntegrity:TransportResult['bodyIntegrity'];
+    const reportOutput=plan.gateway==='criteo_native_action'&&plan.criteoReportRead?.kind==='output'&&plan.method==='GET'&&/^\/2026-01\/retail-media\/reports\/[a-f0-9-]+\/output$/i.test(plan.path);
+    const data=await this.readBody(response,plan.method==='HEAD'||!plan.readOnly&&(documentedEmpty||[204,205].includes(response.status)||plan.gateway==='linkedin_native_action'&&response.status===201&&response.headers.has('x-restli-id')),reportOutput?bytes=>{bodyIntegrity={bytes:bytes.length,md5:createHash('md5').update(bytes).digest('hex')};}:undefined);
     const errorDetails=()=>({upstream:redact(data),http_status:response.status,...(retryDelay===undefined?{}:{retry_after_ms:retryDelay}),request_id:response.headers.get('request-id')??response.headers.get('x-request-id')??response.headers.get('x-fb-trace-id'),...(response.status===403?{scope_denial:providerHttpErrorCode(403,data,response.headers.get('www-authenticate'))==='INSUFFICIENT_SCOPE'}:{}),...(plan.gateway==='google_ads_native_action'?{login_customer_id:headers['login-customer-id']??null}:{})});
     if(!response.ok){const code=providerHttpErrorCode(response.status,data,response.headers.get('www-authenticate'));throw new MirrorError(code,'Platform returned HTTP '+response.status,errorDetails(),response.status,response.status===429||response.status>=500);}
     if(data&&typeof data==='object'){
@@ -156,7 +161,7 @@ export class NativeTransport {
     googleGenerationResult(plan,data);
     if(dv360TargetingSearchRoute(plan))dv360TargetingSearchResult(plan,data);
     this.circuits.delete(circuitKey);this.metrics.totalLatencyMs+=performance.now()-start;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'latency_ms',performance.now()-start);
-    return {data,status:response.status,headers:Object.fromEntries(['request-id','x-request-id','x-fb-trace-id','x-restli-id','retry-after',...(plan.gateway==='google_ads_native_action'&&plan.path.startsWith('/resumable/upload/')?['x-goog-upload-url','x-goog-upload-chunk-granularity']:[])].map(k=>[k,response.headers.get(k)]).filter((p):p is [string,string]=>p[1]!==null))};
+    return {data,status:response.status,...(bodyIntegrity?{bodyIntegrity}:{}),headers:Object.fromEntries(['request-id','x-request-id','x-fb-trace-id','x-restli-id','retry-after',...(plan.gateway==='google_ads_native_action'&&plan.path.startsWith('/resumable/upload/')?['x-goog-upload-url','x-goog-upload-chunk-granularity']:[])].map(k=>[k,response.headers.get(k)]).filter((p):p is [string,string]=>p[1]!==null))};
    }catch(error){
     const e=error instanceof MirrorError?error:new MirrorError(plan.readOnly?'UPSTREAM_UNAVAILABLE':'WRITE_OUTCOME_UNCERTAIN',plan.readOnly?'Platform request failed or timed out.':'The write response was lost. Do not retry with a new key; inspect platform state.',{},502,plan.readOnly);
     if(plan.readOnly&&e.retryable&&e.details.retry_after_ms===undefined&&attempt+1<maxAttempts){this.metrics.retries++;await this.sleeper(200*2**attempt);continue;}
@@ -208,12 +213,16 @@ export class NativeTransport {
   await response.body?.cancel();if(!response.ok)throw new MirrorError('MEDIA_UPLOAD_FAILED','LinkedIn binary upload returned HTTP '+response.status,{},502);
   return response.headers.get('etag')?.replace(/^"|"$/g,'');
  }
- private async readBody(response:Response,allowEmpty:boolean):Promise<unknown>{
+ private async readBody(response:Response,allowEmpty:boolean,integrity?:(bytes:Buffer)=>void):Promise<unknown>{
   const reader=response.body?.getReader();let size=0;const chunks:Uint8Array[]=[];
   if(reader)try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>this.maximumBytes){await reader.cancel();throw new MirrorError('RESPONSE_TOO_LARGE','Platform response exceeds the configured size limit. Use smaller pages.');}chunks.push(value);}}finally{reader.releaseLock();}
-  const text=Buffer.concat(chunks).toString('utf8');
+  const bytes=Buffer.concat(chunks);let text:string;
+  try{text=integrity?new TextDecoder('utf-8',{fatal:true}).decode(bytes):bytes.toString('utf8');}catch{throw new MirrorError('UPSTREAM_RESPONSE_INVALID','Report output contains invalid UTF-8.',{},502);}
+  integrity?.(bytes);
   if(!text.trim()&&(!response.ok||allowEmpty))return null;
-  let data:unknown;try{data=JSON.parse(text);}catch{
+  // Node 24's source-aware reviver preserves native int64 values even in compact
+  // array rows. The checksum above covers the original bytes, never reserialized JSON.
+  let data:unknown;try{data=integrity?JSON.parse(text,((_key:string,value:unknown,context?:{source:string})=>typeof value==='number'&&Number.isInteger(value)&&!Number.isSafeInteger(value)?context?.source??value:value) as any):JSON.parse(text);}catch{
    if(!response.ok)return {content_type:response.headers.get('content-type'),body:text};
    throw new MirrorError('UPSTREAM_RESPONSE_INVALID','Platform returned an empty or malformed JSON response.',{status:response.status},502);
   }

@@ -3935,6 +3935,44 @@
     {
       "gateway": "criteo_native_action",
       "operation": "criteo_reporting_ops",
+      "action": "GENERATE_ASYNC_ACCOUNTS_REPORT",
+      "vendorMethod": "GenerateAsyncAccountsReportV2",
+      "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
+      "sourceFile": "criteo-retail-2026-01",
+      "origin": "https://api.criteo.com",
+      "path": "/2026-01/retail-media/reports/accounts",
+      "method": "POST",
+      "readOnly": false,
+      "parameters": {},
+      "requestSchema": {
+        "$ref": "#/components/schemas/AsyncAccountsReportRequest"
+      },
+      "bodyRequired": true,
+      "scopes": [],
+      "evidence": "VENDOR_DOCUMENTED_INDEPENDENT_MAPPING"
+    },
+    {
+      "gateway": "criteo_native_action",
+      "operation": "criteo_reporting_ops",
+      "action": "GENERATE_ASYNC_CAMPAIGNS_REPORT",
+      "vendorMethod": "GenerateAsyncCampaignsReportV2",
+      "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
+      "sourceFile": "criteo-retail-2026-01",
+      "origin": "https://api.criteo.com",
+      "path": "/2026-01/retail-media/reports/campaigns",
+      "method": "POST",
+      "readOnly": false,
+      "parameters": {},
+      "requestSchema": {
+        "$ref": "#/components/schemas/AsyncCampaignsReportRequest"
+      },
+      "bodyRequired": true,
+      "scopes": [],
+      "evidence": "VENDOR_DOCUMENTED_INDEPENDENT_MAPPING"
+    },
+    {
+      "gateway": "criteo_native_action",
+      "operation": "criteo_reporting_ops",
       "action": "GENERATE_ASYNC_FILL_RATE_REPORT",
       "vendorMethod": "GenerateAsyncFillRateReport",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
@@ -3946,6 +3984,25 @@
       "parameters": {},
       "requestSchema": {
         "$ref": "#/components/schemas/AsyncFillRateReportRequest"
+      },
+      "bodyRequired": true,
+      "scopes": [],
+      "evidence": "VENDOR_DOCUMENTED_INDEPENDENT_MAPPING"
+    },
+    {
+      "gateway": "criteo_native_action",
+      "operation": "criteo_reporting_ops",
+      "action": "GENERATE_ASYNC_LINE_ITEMS_REPORT",
+      "vendorMethod": "GenerateAsyncLineItemsReportV2",
+      "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
+      "sourceFile": "criteo-retail-2026-01",
+      "origin": "https://api.criteo.com",
+      "path": "/2026-01/retail-media/reports/line-items",
+      "method": "POST",
+      "readOnly": false,
+      "parameters": {},
+      "requestSchema": {
+        "$ref": "#/components/schemas/AsyncLineItemsReportRequest"
       },
       "bodyRequired": true,
       "scopes": [],
@@ -54973,26 +55030,7 @@
       "evidence": "VENDOR_DOCUMENTED_INDEPENDENT_MAPPING"
     }
   ],
-  "gaps": [
-    {
-      "gateway": "criteo_native_action",
-      "operation": "criteo_reporting_ops",
-      "action": "GENERATE_ASYNC_ACCOUNTS_REPORT",
-      "reason": "No exact vendor operation ID; request shape is not inferred"
-    },
-    {
-      "gateway": "criteo_native_action",
-      "operation": "criteo_reporting_ops",
-      "action": "GENERATE_ASYNC_CAMPAIGNS_REPORT",
-      "reason": "No exact vendor operation ID; request shape is not inferred"
-    },
-    {
-      "gateway": "criteo_native_action",
-      "operation": "criteo_reporting_ops",
-      "action": "GENERATE_ASYNC_LINE_ITEMS_REPORT",
-      "reason": "No exact vendor operation ID; request shape is not inferred"
-    }
-  ],
+  "gaps": [],
   "schemaComponents": {
     "reddit-v3": {
       "parameters": {

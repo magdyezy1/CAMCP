@@ -1,4 +1,5 @@
 import {metaReportKind,assertMetaReportScope,verifyMetaReport,metaReportReadResult,observeMetaReportRead} from './meta-insights-jobs.js';
+import {criteoReportKind,assertCriteoReportScopes,verifyCriteoReport,criteoReportReadResult,observeCriteoReportRead} from './criteo-report-jobs.js';
 import {placeActionKind,assertPlaceActionScope,verifyPlaceAction} from './google-place-action-links.js';
 import {businessNotificationKind,assertBusinessNotificationActor,assertBusinessNotificationScope,verifyBusinessNotification} from './google-business-notifications.js';
 import {businessAccessKind,assertBusinessAccessActor,assertBusinessAccessScope,verifyBusinessAccess} from './google-business-access.js';
@@ -125,6 +126,7 @@ export class WriteVerifier{
   if(redditPostCreation(plan)&&!c.scopes.includes('adsread'))bad('Reddit post verification requires adsread.','INSUFFICIENT_SCOPE');
   if(criteoTargetingKind(plan))assertCriteoReadScope(c);
   if(metaReportKind(plan))assertMetaReportScope(c);
+  if(criteoReportKind(plan))assertCriteoReportScopes(c);
   if(placeActionKind(plan))assertPlaceActionScope(c);
   if(businessNotificationKind(plan)){assertBusinessNotificationActor(plan,actor);assertBusinessNotificationScope(c);}
   if(businessAccessKind(plan)){assertBusinessAccessActor(plan,actor);assertBusinessAccessScope(c);}
@@ -178,6 +180,14 @@ export class WriteVerifier{
     const access=()=>{this.store.assertActorActive(actor);assertBusinessNotificationActor(plan,actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertPlaceActionScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);return current;};
     const current=access(),auth=await this.credentials.get(current);access();const response=await this.transport.request(read,current,auth);access();return response;
    });status=verified.status;checks=verified.checks;resources=verified.resources;
+  }else if(criteoReportKind(plan)){
+   const verified=await verifyCriteoReport(plan,result,reviewId,async read=>{
+    if(!independentlyReadOnly(read))bad('Report verification must remain read-only.','VERIFICATION_UNSUPPORTED');
+    const access=()=>{this.store.assertActorActive(actor);const active=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertCriteoReportScopes(active);new ScopeGuard(this.registry,this.store).authorize(read,active);return active;};
+    const current=access(),auth=await this.credentials.get(current);access();const response=await this.transport.request(read,current,auth),active=access();
+    if(stable(this.store.credentials(actor.tenantId,active.id))!==stable(auth))bad('The login changed while checking this report.','REAUTHORIZATION_REQUIRED');
+    const data=criteoReportReadResult(read,response)!;observeCriteoReportRead(read,active,this.store,data);return response;
+   });status=verified.status;checks=verified.checks;resources=verified.resources;for(const resource of resources)resource.read_result.arguments.arguments.connection_id=c.id;
   }else if(metaReportKind(plan)){
    const verified=await verifyMetaReport(plan,result,reviewId,async read=>{
     if(!independentlyReadOnly(read))bad('Report verification must remain read-only.','VERIFICATION_UNSUPPORTED');
@@ -223,7 +233,7 @@ export class WriteVerifier{
    if(metaLabelKind(plan)&&readback.consistent&&item.expected.label?.present===true){const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertMetaLabelScope(current);this.store.rememberResource(current,plan.accountId!,item.id);}
   }status=reads.length?(checks.some(c=>c.status==='failed')?'failed':checks.every(c=>c.status==='verified')?'verified':checks.some(c=>c.status==='pending')?'pending':'inconclusive'):'unsupported';}}
   catch(e){if(redditPostCreation(plan)&&e instanceof MirrorError&&e.retryable)status='pending';checks.push({status:status==='pending'?'pending':'unverified',code:e instanceof MirrorError?e.code:'READ_FAILED',message:e instanceof MirrorError?e.message:'Verification read failed.'});}
-  this.store.assertActorActive(actor);const receipt={review_id:reviewId,connection_id:c.id,account_id:plan.accountId,action:plan.action,status,...(status==='inconclusive'?{code:'VERIFICATION_INCONCLUSIVE'}:{}),checks,checked_at:Date.now(),automatic_retry_of_mutation:false,recovery:'Preserve successful resources. Field disagreement after bounded reads is inconclusive, not permission to repeat a mutation. Corrective writes need a new review; verification never resets idempotency.',...(['pending','inconclusive'].includes(status)?{retry_read_after_ms:1000,next_call:{tool:'amcp_campaign',arguments:{action:'verify',review_id:reviewId}}}:{})};
+  this.store.assertActorActive(actor);const receipt={review_id:reviewId,connection_id:c.id,account_id:plan.accountId,action:plan.action,status,...(status==='inconclusive'?{code:'VERIFICATION_INCONCLUSIVE'}:{}),checks,checked_at:Date.now(),automatic_retry_of_mutation:false,recovery:'Preserve successful resources. Field disagreement after bounded reads is inconclusive, not permission to repeat a mutation. Corrective writes need a new review; verification never resets idempotency.',...(['pending','inconclusive'].includes(status)?{retry_read_after_ms:criteoReportKind(plan)?6000:1000,next_call:{tool:'amcp_campaign',arguments:{action:'verify',review_id:reviewId}}}:{})};
   if(resources.length)Object.assign(receipt,{verified_resources:resources});
   this.store.putDocument(actor.tenantId,'write_verification',reviewId,receipt);audit(this.store,actor,'write_verification',{connection_id:c.id,account_id:plan.accountId,review_id:reviewId,status});return receipt;
  }
