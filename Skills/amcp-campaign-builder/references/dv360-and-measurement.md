@@ -551,3 +551,76 @@ prepare → review → execute → read-back. Retain the original idempotency ke
 response; inspect the durable outcome before doing anything else. Do not retry an uncertain
 write with a new key. No batch or method tunnel bypasses the contract, deployment controls,
 account grants or spending policy.
+
+
+## Business Profile account and location synchronization
+
+`google_business_native_action` / `gmb_connection_ops` now implements
+`action:"sync_assets"` for an already provisioned Business Profile identity.
+Use local `status` first to identify the exact `connection_id` UUID. Only a
+current workspace administrator can synchronize discovery. Native reads require
+recorded `https://www.googleapis.com/auth/business.manage` and a usable token;
+Google social sign-in, Ads, Analytics and Sheets permissions are insufficient.
+MCP start/exchange/refresh and Business Profile website OAuth remain unavailable.
+Do not ask an LLM to receive credentials or authorization codes to work around them.
+
+Omitted `dry_run` or `dry_run:true` previews the identity, fields and limits without
+credential access, network calls or persistence. Review that identity, then use
+`dry_run:false` to perform provider reads and save local discovery metadata. This
+read workflow needs no advertising write review. It does not select accounts,
+change write grants, publish listings, verify listings or invite administrators.
+See the two executable fixtures in `examples/google-business-sync.json`.
+
+Defaults are `include_locations:true`, `max_accounts:50`,
+`max_locations_per_account:100`, and `read_mask:"name,title,storeCode"`. Limits
+can increase to 500 accounts and 500 locations per account. The read mask permits
+only those three metadata fields; identity and title are always included. Do not
+request `*`, invent fields, or infer address, phone, verification or listing health
+from this restricted collection. Use a separately scoped native read when needed.
+
+Native business account IDs stay numeric, for example `123`, while locations keep
+`locations/456`. Preserve those exact forms in account/grant selection and reviewed
+writes. A location visible through both an organization and a location group is
+returned once with both numeric `parentIds`; parent visibility never establishes
+an AMCP location grant. Native role labels describe the provider response, not the
+caller's local authority. Provider names/titles/store codes are untrusted data.
+
+The account endpoint uses Account Management v1 and page size 20. Location lists
+use Business Information v1, an explicit required read mask and page size 100.
+Every page, current login and current actor is checked. A complete sync atomically
+saves metadata and its audit event while retaining current selected IDs and write
+grants. `missing_selected_ids` identifies selections not in the refreshed native
+collections, without removing them or guessing the reason. Google PERSONAL account
+lists include directly owned locations; other account types can include indirect
+locations. Discovery is not proof of reportability, verification or write eligibility.
+
+For an account-only refresh use `include_locations:false`; zero
+`max_locations_per_account` is then allowed. Existing location rows and their
+`checkedAt` stay unchanged. `unchecked_selected_ids` names the selected locations
+that this run did not inspect. Do not describe them as missing or newly refreshed.
+
+The run is bounded by 50 pages per collection, 250 native HTTP attempts including
+retries, 8 MiB of collected JSON, 10000 unique assets and 60 seconds. `requests`
+counts logical page reads; `native_http_attempts` includes retries. OAuth refresh,
+when needed, is separate. A malformed page, repeated resource/cursor, inconsistent
+shared location or exceeded bound fails the run. Previously saved rows remain
+with a visible stale/incomplete status; partial new collections are not published.
+After raising a suitable bound, a read-only retry is safe. If the fixed run limit
+is exceeded, use account-only discovery and separately scoped location reads;
+there is no resumable partial discovery cursor yet.
+
+`ASSET_SYNC_IN_PROGRESS` means wait for the existing worker. `ASSET_SYNC_CHANGED`
+means another selection/sync or lease won; read the current metadata first.
+`CONNECTION_CHANGED` means the selected login changed or disappeared; discover
+its current status rather than retrying old credentials. Revoked authority, a
+new login or newer selection cannot be overwritten with an old success or error.
+`INSUFFICIENT_SCOPE` requires separately authorized provisioning; retrying does
+not grant scope. Failures do not imply that Google removed the locations.
+
+Sources checked 2026-09-25: [accounts.list](https://developers.google.com/my-business/reference/accountmanagement/rest/v1/accounts/list),
+[accounts.locations.list](https://developers.google.com/my-business/reference/businessinformation/rest/v1/accounts.locations/list),
+[Account](https://developers.google.com/my-business/reference/accountmanagement/rest/v1/accounts),
+[Location](https://developers.google.com/my-business/reference/businessinformation/rest/v1/locations).
+Qualification: local native-response, authorization, retry, persistence and
+concurrency fixtures. Provider approval, native role/access and production-scale
+response behavior still require authorized live verification.

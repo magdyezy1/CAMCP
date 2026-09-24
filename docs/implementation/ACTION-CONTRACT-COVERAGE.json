@@ -122,10 +122,10 @@
       "actions": 59,
       "counts": {
         "blocked_write": 12,
-        "local_workflow": 3,
+        "local_workflow": 4,
         "native_read": 28,
         "reviewed_write_family": 11,
-        "unmapped": 5
+        "unmapped": 4
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -17098,7 +17098,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17117,7 +17118,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17136,7 +17138,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17155,7 +17158,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17174,7 +17178,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17262,7 +17267,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17281,7 +17287,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17300,7 +17307,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17319,7 +17327,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17338,7 +17347,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17423,11 +17433,13 @@
       "aliases": [],
       "method": null,
       "path": null,
-      "status": "unmapped",
-      "implementation": "",
-      "reason": "No provider request mapping exists. The advertised name is not executable.",
+      "status": "local_workflow",
+      "implementation": "src/google-business-sync.ts / src/google-business-assets.ts",
+      "reason": "Administrator-scoped Business Profile account and optional location discovery. Bounded native GETs, required read mask, shared location parents, current authority and per-attempt login fencing; complete groups persist atomically without changing selections or grants. No website OAuth or provider mutation.",
       "source": "INFERRED_OUTER_ENVELOPE",
-      "tests": [],
+      "tests": [
+        "tests/google-business-sync.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -17597,7 +17609,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17616,7 +17629,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17635,7 +17649,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17654,7 +17669,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17673,7 +17689,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17707,7 +17724,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17741,7 +17759,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17760,7 +17779,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17794,7 +17814,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17831,7 +17852,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17850,7 +17872,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17869,7 +17892,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17919,7 +17943,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17953,7 +17978,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -17972,7 +17998,8 @@
       "tests": [
         "tests/google-place-action-links.test.ts",
         "tests/google-business-notifications.test.ts",
-        "tests/google-business-access.test.ts"
+        "tests/google-business-access.test.ts",
+        "tests/google-business-sync.test.ts"
       ],
       "live_qualification": "unverified"
     },

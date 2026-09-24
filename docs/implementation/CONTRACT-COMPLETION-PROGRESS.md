@@ -8,6 +8,26 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## BA — Business Profile MCP account/location synchronization (2026-09-25)
+
+The missing sync_assets adapter now uses explicit administrator/identity/scope
+checks, fixed native GETs, required read masks and complete paginated collections.
+Shared locations retain all discovered parent IDs without granting access.
+Metadata/audit commit together; current selections and write grants remain intact.
+Preview, per-attempt authority, request/time limits, stale failure, concurrent
+selection, lease fencing and restart behavior have focused evidence: 187 tests
+passed, including 24 new Business Profile tests and the shared deadline matrix.
+Initial failures remain visible in [the implementation record](GOOGLE-BUSINESS-SYNC-2026-09-25.md).
+Full fresh candidate A passes 1671 main/four capture tests, zero failures/skips,
+required FFmpeg enabled. Exact staged-source evidence is recorded in
+[verification](GOOGLE-BUSINESS-SYNC-VERIFICATION-2026-09-25.json); post-push CI is separate.
+
+Inventory: 1000 remaining rows, including 886 blocked writes, 79 unmapped,
+23 unqualified reads, eight input-dependent and four retired. There are 438
+reviewed-family and 83 local workflows. Website Business Profile OAuth/discovery,
+MCP OAuth start/exchange/refresh and live provider qualification remain separate.
+This checkpoint does not mark those capabilities or every platform complete.
+
 ## AZ — Adjust native reporting and the confirmed CI deadline defect (2026-09-25)
 
 Six Adjust workflows now execute local configured bindings and native app/filter,

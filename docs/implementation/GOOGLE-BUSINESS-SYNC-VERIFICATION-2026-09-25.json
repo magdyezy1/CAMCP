@@ -1,0 +1,219 @@
+{
+  "format_version": 1,
+  "date": "2026-09-25",
+  "branch": "Codex-branch",
+  "base_revision": "b372c660a4d11df1fee2e37b55891ded1085f1b6",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true
+  },
+  "candidate": {
+    "path": ".release/business-profile-sync-20260925-a",
+    "files": 609,
+    "source_tree_hash": "0f4099b4b1e7d3d2a292af99be6d9e5852079c128d1e6357370f269387b966e1",
+    "index_code_test_guidance_files_compared": 563,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/business-profile-sync-20260925-a",
+    "install": "npm.cmd ci --offline --ignore-scripts --cache '../../.runtime/npm-cache'",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm.cmd run check",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=<bundled Python>",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/contract-completion-20260924/business-sync-adversarial-build.log",
+      "sha256": "0dc9307f2834ac7e38a62a27481488817654640af5758235fc82d88410426af4",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/business-sync-adversarial2-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/business-sync-adversarial2.log",
+      "sha256": "b5fa6cd3214808f5969279b2a235e69bc0dbf56de8434a90537e651ca72b5326",
+      "counts": [
+        {
+          "tests": 32
+        },
+        {
+          "pass": 32
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 2720.079
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/business-sync-baseline-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/business-sync-baseline.log",
+      "sha256": "43c4d45bddaac23e13f7da405cd0d8aefc6aa5e2e5dcd8d952de1fbf385980be",
+      "counts": [
+        {
+          "tests": 3
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 3
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1648.4254
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/business-sync-expanded-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/business-sync-expanded.log",
+      "sha256": "7e053c171b472bf6adb2ee6f1b60e62da91652b6967ae152b6098fc0e23dc71d",
+      "counts": [
+        {
+          "tests": 187
+        },
+        {
+          "pass": 186
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 17296.5191
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/business-sync-final-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/business-sync-final.log",
+      "sha256": "f94256eb260c76d7b10291d06e016ca8063e0e445ab898f10deed5260db3bb78",
+      "counts": [
+        {
+          "tests": 187
+        },
+        {
+          "pass": 187
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 17128.0263
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/business-sync-first-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/business-sync-first.log",
+      "sha256": "14cec6812ac5cc83ec09f707b4732ac3b85539b164a2794f50aad8352cc4b284",
+      "counts": [
+        {
+          "tests": 3
+        },
+        {
+          "pass": 3
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1804.2974
+        }
+      ]
+    },
+    {
+      "path": ".release/business-profile-sync-20260925-a/release-check.log",
+      "sha256": "1eb4969e81089b724b22522df9e38a214a097ccbd3a74cc3be8533b84c9016a1",
+      "counts": [
+        {
+          "tests": 1671
+        },
+        {
+          "pass": 1671
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 410184.695
+        },
+        {
+          "tests": 4
+        },
+        {
+          "pass": 4
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 77.0374
+        }
+      ]
+    }
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 1671,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials or account mutations.",
+    "Provider permissions, live output compatibility, Docker and deployment remain separately unverified.",
+    "See the matching implementation report for explicit contract limits, initial failures and primary references."
+  ]
+}

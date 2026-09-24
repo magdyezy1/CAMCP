@@ -1,0 +1,16 @@
+{
+  "contract_version": 1,
+  "qualification": "Synthetic local fixtures. Replace the connection UUID with the selected provisioned identity; never send tokens or authorization codes.",
+  "examples": [
+    {
+      "name": "Preview Business Profile accounts and locations",
+      "gateway": "google_business_native_action",
+      "input": {"operation": "gmb_connection_ops", "arguments": {"action": "sync_assets", "connection_id": "336ecb51-2df8-4967-8bd3-cba64d552296", "include_locations": true, "max_accounts": 50, "max_locations_per_account": 100, "read_mask": "name,title,storeCode", "dry_run": true}}
+    },
+    {
+      "name": "Preview account-only discovery while retaining old location freshness",
+      "gateway": "google_business_native_action",
+      "input": {"operation": "gmb_connection_ops", "arguments": {"action": "sync_assets", "connection_id": "336ecb51-2df8-4967-8bd3-cba64d552296", "include_locations": false, "max_locations_per_account": 0, "dry_run": true}}
+    }
+  ]
+}

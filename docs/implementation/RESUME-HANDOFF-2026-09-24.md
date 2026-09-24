@@ -52,24 +52,33 @@ recovery, native result limits and external verification needs are recorded in
 
 ## Remaining implementation — not complete
 
-Latest completed source batch: [Adjust reporting](ADJUST-REPORTING-2026-09-25.md)
-plus [the CI deadline correction](CI-DEADLINES-2026-09-25.md). Fresh required-FFmpeg
-candidate B passes 1646 main/four capture tests, zero failures/skips; initial
-failures are retained in the [verification record](ADJUST-REPORTING-VERIFICATION-2026-09-25.json).
-The GitHub browser can inspect this repository's Actions even though the connector
-returns 404. Run #96 at bc7eca5 failed one Criteo deadline assertion; five stable
-reproductions confirm the shared retry defect. The original assertion remains
-unchanged and passed twenty repetitions after repair. Confirm the new commit's
-actual Actions run, Docker build and both smoke modes after push.
+Latest pushed source: `b372c660a4d11df1fee2e37b55891ded1085f1b6`,
+[Adjust reporting](ADJUST-REPORTING-2026-09-25.md) plus
+[the CI deadline correction](CI-DEADLINES-2026-09-25.md).
+[GitHub run #97](https://github.com/magdyezy1/AMCP/actions/runs/36067336279)
+succeeded in 17m 28s: required-FFmpeg npm check, Railway config, Docker build,
+and both container smoke modes. Local candidate B passes 1646 main/four capture
+with no failures/skips. The original failure and deterministic reproductions
+remain visible; no assertion, test or guard was weakened.
 
-Inventory now has 1001 remaining rows (886 blocked writes, 80 unmapped, 23
-unqualified reads, eight input-dependent and four retired), with 438 reviewed-family
-actions. Six Adjust reads are implemented; twenty-three Adjust operations remain
-unmapped. Its native reporting is distinct from normalized dashboard/scheduling.
-The following older batch totals are historical. Business Profile sync research
-is in progress: preserve numeric account grants versus locations/{id}, deduplicate
-shared location membership across parents, and never infer grants from discovery.
-No website OAuth or Business Profile sync completion is claimed yet.
+The next [Business Profile sync batch](GOOGLE-BUSINESS-SYNC-2026-09-25.md) has
+187 focused/shared tests passing and a fresh full required-FFmpeg candidate with
+1671 main/four capture tests, zero failures/skips. Its tested Git index matches
+the 609-file sanitized candidate. Confirm the exact branch commit/CI after push.
+A separate follow-on is now in progress: five failing fixtures show retries after
+actor revocation in native reads, review preparation, Meta post discovery and
+GA4/GSC sync. Do not confuse this unstaged hardening with the tested Business
+Profile source; finish its own regression/full check before committing it.
+The MCP sync preserves numeric account and locations/{id} grants, merges shared
+parents, fences retry authority and persists complete groups with stale failure
+handling. Website Business Profile OAuth/discovery and MCP start/exchange/refresh
+remain separate work, not completed by this metadata adapter.
+
+Current source inventory has 1000 remaining rows: 886 blocked writes, 79 unmapped,
+23 unqualified reads, eight input-dependent and four retired. There are 438
+reviewed-family actions and 83 local workflows. Six Adjust reads are implemented;
+twenty-three Adjust operations remain unmapped. Native Adjust reporting is still
+distinct from normalized dashboard/scheduling. Older totals below are historical.
 
 The [measurement connection-sync batch](MEASUREMENT-CONNECTION-SYNC-2026-09-25.md)
 passes the full required-FFmpeg check: 1603 main/four capture, zero failed/skipped.

@@ -8,6 +8,7 @@ const cases:[string,Partial<CompiledRequest>,string][]=[
  ['Criteo report',{gateway:'criteo_native_action',action:'AMCP_CRITEO_REPORT_READ',origin:'https://api.criteo.com',path:'/2026-01/retail-media/reports/synthetic/status',criteoReportRead:{kind:'status'},criteoReportDeadline:1200},'CRITEO_REPORT_STATE_UNVERIFIED'],
  ['TikTok report',{gateway:'tiktok_native_action',action:'AMCP_TIKTOK_REPORT_READ',origin:'https://business-api.tiktok.com',path:'/v1.3/report/task/check/',tiktokReportDeadline:1200},'TIKTOK_REPORT_STATE_UNVERIFIED'],
  ['Google discovery',{gateway:'ga4_native_action',action:'AMCP_MEASUREMENT_ASSET_SYNC',origin:'https://analyticsadmin.googleapis.com',path:'/v1beta/accountSummaries',measurementSyncDeadline:1200},'ASSET_SYNC_LIMIT'],
+ ['Business Profile discovery',{gateway:'google_business_native_action',action:'AMCP_BUSINESS_ASSET_SYNC',origin:'https://mybusinessaccountmanagement.googleapis.com',path:'/v1/accounts',measurementSyncDeadline:1200},'ASSET_SYNC_LIMIT'],
  ['Adjust report',{gateway:'adjust_native_action',action:'AMCP_ADJUST_REPORT_READ',origin:'https://automate.adjust.com',path:'/reports-service/report',adjustReportRead:true,adjustReportDeadline:1200},'ADJUST_REPORT_LIMIT']
 ];
 function request(partial:Partial<CompiledRequest>):CompiledRequest{return {gateway:'',action:'',method:'GET',path:'/',query:{},headers:{},readOnly:true,destructive:false,requiresConfirmation:false,evidence:'synthetic deadline regression',warnings:[],...partial};}

@@ -73,3 +73,14 @@ configuration is changed. There is no migration or dependency update. Reverting
 the transport change restores the demonstrated retry defect, so prefer a forward
 fix if a compatibility issue appears. Local Windows validation and Ubuntu/Docker
 CI are separate evidence; neither proves live provider approval or account writes.
+
+
+## Confirmed GitHub CI result
+
+[Run #97](https://github.com/magdyezy1/AMCP/actions/runs/36067336279) for
+`b372c660a4d11df1fee2e37b55891ded1085f1b6` on `Codex-branch` succeeded,
+observed directly in the authenticated GitHub browser on 2026-09-25 (Cairo).
+Total verify duration: 17m 28s. Required-FFmpeg npm check took 7m 42s; Docker
+build took 8m 27s; both container smoke modes took 5s and succeeded. Railway
+configuration validation and evidence upload also completed. This closes the
+post-push CI gate for this commit, without claiming live provider qualification.

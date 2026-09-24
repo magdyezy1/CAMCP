@@ -103,3 +103,14 @@ Roll out code and maintained guide together; use a read-only canary with known
 app/date/currency and reconcile native output. Rollback retains existing connection
 data but returns these six operations to unsupported status. Preserve shared
 cooldown documents and audit records during rollback.
+
+
+## Confirmed GitHub CI result
+
+[Run #97](https://github.com/magdyezy1/AMCP/actions/runs/36067336279) for
+`b372c660a4d11df1fee2e37b55891ded1085f1b6` on `Codex-branch` succeeded,
+observed directly in the authenticated GitHub browser on 2026-09-25 (Cairo).
+Total verify duration: 17m 28s. Required-FFmpeg npm check took 7m 42s; Docker
+build took 8m 27s; both container smoke modes took 5s and succeeded. Railway
+configuration validation and evidence upload also completed. This closes the
+post-push CI gate for this commit, without claiming live provider qualification.

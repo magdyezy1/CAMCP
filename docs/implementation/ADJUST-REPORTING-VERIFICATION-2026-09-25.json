@@ -653,5 +653,42 @@
     "pass": 20,
     "fail": 0,
     "unchanged_original_test": true
+  },
+  "github_ci": {
+    "commit": "b372c660a4d11df1fee2e37b55891ded1085f1b6",
+    "branch": "Codex-branch",
+    "run_number": 97,
+    "run_id": "36067336279",
+    "job_id": "107860051087",
+    "url": "https://github.com/magdyezy1/AMCP/actions/runs/36067336279",
+    "observed_at": "2026-09-25 Africa/Cairo",
+    "evidence": "Authenticated GitHub Actions browser: Status Success; verify succeeded; exact commit linked. Step names and elapsed durations observed in job view.",
+    "conclusion": "success",
+    "duration_seconds": 1048,
+    "steps": {
+      "required_ffmpeg_check": {
+        "conclusion": "success",
+        "duration_seconds": 462
+      },
+      "railway_config_check": {
+        "conclusion": "success"
+      },
+      "docker_build": {
+        "conclusion": "success",
+        "duration_seconds": 507
+      },
+      "read_smoke": {
+        "conclusion": "success",
+        "duration_seconds": 5
+      },
+      "write_smoke": {
+        "conclusion": "success",
+        "duration_seconds": 5
+      }
+    },
+    "limits": [
+      "No live advertising or deployed provider qualification.",
+      "CI numeric test totals were not separately extracted from the virtualized log; local totals are recorded independently."
+    ]
   }
 }
