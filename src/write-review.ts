@@ -29,6 +29,7 @@ import {validateGoogleRequest,assertGoogleAdsScope} from './google-contracts.js'
 import {googleSegmentKind} from './google-custom-segments.js';
 import {googleConversionGoalKind,assertGoogleConversionGoal,googleConversionGoalSnapshots,readGoogleConversionGoalState,googleConversionGoalOutcome} from './google-conversion-goals.js';
 import {googleBiddingEventKind,assertGoogleBiddingEvent,googleBiddingEventSnapshots,readGoogleBiddingEventState,googleBiddingEventOutcome} from './google-bidding-events.js';
+import {googlePortfolioKind,assertGooglePortfolio,googlePortfolioSnapshots,readGooglePortfolioState,googlePortfolioOutcome} from './google-portfolio-strategies.js';
 import {linkedinDSC,assertLinkedInDSC,linkedinDSCReads,linkedinMediaProjection,linkedinPostId} from './linkedin-posts.js';
 import {writeImpact} from './write-impact.js';
 import {executionEvidence} from './contract-evidence.js';
@@ -90,6 +91,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(linkedinConversionKind(plan))return linkedinConversionOutcome(plan,result);
  if(googleBidKind(plan))return googleBidOutcome(plan,result);
  if(googleBiddingEventKind(plan))return googleBiddingEventOutcome(plan,result,before);
+ if(googlePortfolioKind(plan))return googlePortfolioOutcome(plan,result,before);
  if(googleConversionGoalKind(plan))return googleConversionGoalOutcome(plan,result,before);
  if(metaReportKind(plan))return metaReportOutcome(plan,result);
  if(metaLabelKind(plan))return metaLabelOutcome(plan,result,before);
@@ -273,6 +275,7 @@ export function assertWriteShape(plan:CompiledRequest){
   assertGoogleConfiguration(plan);
   assertGoogleBid(plan);
   assertGoogleBiddingEvent(plan);
+  assertGooglePortfolio(plan);
   assertGoogleConversionGoal(plan);
  }
 }
@@ -289,6 +292,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(linkedinConversionKind(plan))return linkedinConversionSnapshots(plan);
  if(googleBidKind(plan))return googleBidSnapshots(plan);
  if(googleBiddingEventKind(plan))return googleBiddingEventSnapshots(plan);
+ if(googlePortfolioKind(plan))return googlePortfolioSnapshots(plan);
  if(googleConversionGoalKind(plan))return googleConversionGoalSnapshots(plan);
  if(metaReportKind(plan))return metaReportSnapshots(plan);
  if(metaLabelKind(plan))return metaLabelSnapshots(plan);
@@ -383,13 +387,21 @@ export class WriteReviewService {
   if(metaLabelKind(plan))assertMetaLabelScope(c,true);
   if(googleBidKind(plan))assertGoogleBidScope(c);
   if(googleDismissalKind(plan)||googleAccessKind(plan))assertGoogleAdsScope(c);
-  if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan))assertGoogleAdsScope(c);
+  if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan)||googlePortfolioKind(plan))assertGoogleAdsScope(c);
   if(linkedinConversionKind(plan)||linkedinRuleKind(plan))assertLinkedInConversionScope(c,true);
   if(dv360ListKind(plan)&&!c.scopes.includes('https://www.googleapis.com/auth/display-video'))fail('PROVIDER_WRITE_SCOPE_REQUIRED','Reconnect DV360 with the display-video OAuth scope.');
   if(plan.gateway===microsoftGateway&&!c.scopes.some(s=>s===microsoftScope||s==='msads.manage'))fail('INSUFFICIENT_SCOPE','Reconnect Microsoft Advertising with msads.manage permission.');
   plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);assertMeasurementScopes(plan,c);return c;
  }
  private async state(actor:Actor,plan:CompiledRequest,connectionId:string,reads:CompiledRequest[]):Promise<unknown[]> {
+  if(googlePortfolioKind(plan)){
+   let credentialHash:string|undefined;
+   return readGooglePortfolioState(plan,async read=>{
+    if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Portfolio prerequisites must remain read-only.');
+    const access=()=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,current);if(credentialHash&&sha256(stable(this.store.credentials(actor.tenantId,current.id)))!==credentialHash)fail('REAUTHORIZATION_REQUIRED','The selected login changed during portfolio checks. Prepare again with the current login.');return current;};
+    const c=access(),auth=await this.credentials.get(c);credentialHash??=sha256(stable(auth));access();const response=await this.transport.request(read,c,auth);access();return response;
+   });
+  }
   if(metaCreativeCreate(plan)){
    const read=reads[0]!,access=()=>this.access(actor,plan,connectionId),c=access();new ScopeGuard(this.registry,this.store).authorize(read,c);
    const auth=await this.credentials.get(c);access();const result=await this.transport.request(read,c,auth);access();validateState(read,result);

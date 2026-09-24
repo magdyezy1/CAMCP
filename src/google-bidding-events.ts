@@ -61,7 +61,9 @@ export function assertGoogleBiddingEvent(p:CompiledRequest){
 }
 const camel=(v:string)=>v.replace(/_([a-z])/g,(_,c:string)=>c.toUpperCase());
 function read(p:CompiledRequest,query:string):CompiledRequest{return {...p,action:'AMCP_BIDDING_EVENT_READ',method:'POST',path:'/v23/customers/'+account(p)+'/googleAds:search',body:{query},query:{},headers:{},readOnly:true,destructive:false,requiresConfirmation:false,responseControls:undefined};}
-const query=(resource:string,fields:string[],where='')=>'SELECT '+fields.map(f=>resource+'.'+f).join(', ')+' FROM '+resource+(where?' WHERE '+where:'')+(resource==='customer'?' LIMIT 1':' ORDER BY '+resource+'.resource_name');
+// RESOURCE_NAME is selectable/filterable but not sortable in these v23 resources.
+// Native page tokens traverse the result; identity-keyed state handles ordering.
+const query=(resource:string,fields:string[],where='')=>'SELECT '+fields.map(f=>resource+'.'+f).join(', ')+' FROM '+resource+(where?' WHERE '+where:'')+(resource==='customer'?' LIMIT 1':'');
 function reader(p:CompiledRequest,send:Send){let requests=0,bytes=0,rows=0;const started=performance.now();
  const fetch=async(resource:string,fields:string[],where='')=>{const result:JsonObject[]=[],tokens=new Set<string>();let token:string|undefined,total:string|undefined;
   for(let page=0;;page++){

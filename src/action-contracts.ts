@@ -37,6 +37,7 @@ const familyFiles:Record<string,[string,string[]]>={
  linkedin_conversion_links:['src/linkedin-conversion-links.ts',['tests/linkedin-conversion-links.test.ts']],
  google_bid_modifiers:['src/google-bid-modifiers.ts / src/google-campaign-bid-modifiers.ts',['tests/google-bid-modifiers.test.ts','tests/google-campaign-bid-modifiers.test.ts']],
  google_bidding_events:['src/google-bidding-events.ts',['tests/google-bidding-events.test.ts']],
+ google_portfolio_strategies:['src/google-portfolio-strategies.ts',['tests/google-portfolio-strategies.test.ts']],
  meta_labels:['src/meta-label-writes.ts',['tests/meta-label-writes.test.ts']],
  criteo_targeting:['src/criteo-targeting-writes.ts',['tests/criteo-targeting-writes.test.ts']],
  reddit_creatives:['src/reddit-creative-writes.ts / src/reddit-post-creation.ts',['tests/reddit-creative-writes.test.ts','tests/reddit-post-creation.test.ts']],

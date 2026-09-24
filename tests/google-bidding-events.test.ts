@@ -27,6 +27,7 @@ function fixture(exclusion=false,file=':memory:'){
   const body=JSON.parse(String(init?.body)),path=new URL(String(url)).pathname;calls.push({path,body});
   if(path.endsWith('/googleAds:search')){
    reads++;const resource=/ FROM ([a-z_]+)/.exec(body.query)![1]!,camel=resource.replace(/_([a-z])/g,(_,c:string)=>c.toUpperCase());hook?.(resource);
+   if(/ORDER BY [a-z_]+\.resource_name/.test(body.query))return Response.json({error:{code:400,message:'Non-sortable RESOURCE_NAME field'}},{status:400});
    if(mode==='error')return Response.json({error:{code:403,message:'Synthetic'}});if(mode==='partial_read')return Response.json({results:[],partialFailureError:{code:3}});
    let rows:JsonObject[]=resource==='customer'?[customer]:resource==='campaign'?[...campaigns.values()]:resource==='campaign_budget'?[...budgets.values()]:resource==='bidding_strategy'?[...strategies.values()]:resource===resources[exclusion?1:0]?[...events.values()]:[...related.values()];
    const ids=[...String(body.query).matchAll(/'(customers\/[^']+)'/g)].map(v=>v[1]);if(ids.length)rows=rows.filter(v=>ids.includes(v.resourceName));

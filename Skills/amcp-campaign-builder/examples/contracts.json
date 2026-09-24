@@ -101,6 +101,30 @@
     {
       "gateway": "google_ads_native_action",
       "arguments": {
+        "action": "google_ads_v23_bidding_strategy_mutate_bidding_strategies",
+        "account_id": "123",
+        "payload": {"operations": [{"create": {"name": "Client approved CPA portfolio", "targetCpa": {"targetCpaMicros": "15000000", "cpcBidCeilingMicros": "5000000"}}}]}
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "UPDATE_BIDDING_STRATEGY",
+        "account_id": "123",
+        "payload": {"resource_name": "customers/123/biddingStrategies/500", "resource": {"target_cpa": {"cpc_bid_floor_micros": "0"}}, "update_mask": "target_cpa.cpc_bid_floor_micros"}
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "REMOVE_BIDDING_STRATEGY",
+        "account_id": "123",
+        "payload": {"resource_name": "customers/123/biddingStrategies/500"}
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
         "action": "google_ads_v23_customer_user_access_invitation_mutate_customer_user_access_invitation",
         "account_id": "123",
         "payload": {"operation": {"create": {"emailAddress": "invited@example.test", "accessRole": "READ_ONLY"}}}

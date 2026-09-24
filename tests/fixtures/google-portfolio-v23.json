@@ -1,0 +1,138 @@
+{
+  "version": "v23",
+  "checked_at": "2026-09-24",
+  "meaning": "Public source-hashed protocol evidence; not live eligibility or permission.",
+  "sources": {
+    "resources/bidding_strategy": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/resources/bidding_strategy.proto",
+      "sha256": "4bae48c2546cbc5a4103d5de0558951d40c13c7933daee36e8ec3257d721405b"
+    },
+    "services/bidding_strategy_service": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/services/bidding_strategy_service.proto",
+      "sha256": "d93c462bed46045069fca4974884f3581a8b62ae318c895237ef276fafedf862"
+    },
+    "common/bidding": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/common/bidding.proto",
+      "sha256": "be53631c8679407c828a4cf8b801b56906ffa535fa9cf4db16ee4fd70bb60d38"
+    },
+    "enums/bidding_strategy_status": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/enums/bidding_strategy_status.proto",
+      "sha256": "9dbbdc1af2ee24ea2155a4ee1a785b1fdfcc1813b442dc3179f92409663cfa7b"
+    },
+    "enums/bidding_strategy_type": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/enums/bidding_strategy_type.proto",
+      "sha256": "08b2c068e762d1f28b958301bbb68171f636a921c371f5362a10c9acfebd19dd"
+    },
+    "enums/target_impression_share_location": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/enums/target_impression_share_location.proto",
+      "sha256": "28b64595f617cfe03c54746ebb408b4e2cba5d5a7905e8442a4962276a3779fd"
+    },
+    "errors/bidding_strategy_error": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/errors/bidding_strategy_error.proto",
+      "sha256": "6b3ddef8b63fe97df70884824d301ae467386d2dd5f32819b20fe5233c8b2b19"
+    }
+  },
+  "resourcePattern": "customers/{customer_id}/biddingStrategies/{bidding_strategy_id}",
+  "route": "/v23/customers/{customer_id=*}/biddingStrategies:mutate",
+  "resourceFields": [
+    "aligned_campaign_budget_id",
+    "campaign_count",
+    "currency_code",
+    "effective_currency_code",
+    "enhanced_cpc",
+    "id",
+    "maximize_conversion_value",
+    "maximize_conversions",
+    "name",
+    "non_removed_campaign_count",
+    "resource_name",
+    "status",
+    "target_cpa",
+    "target_impression_share",
+    "target_roas",
+    "target_spend",
+    "type"
+  ],
+  "fields": {
+    "TargetCpa": [
+      "cpc_bid_ceiling_micros",
+      "cpc_bid_floor_micros",
+      "target_cpa_micros"
+    ],
+    "TargetRoas": [
+      "cpc_bid_ceiling_micros",
+      "cpc_bid_floor_micros",
+      "target_roas",
+      "target_roas_tolerance_percent_millis"
+    ],
+    "MaximizeConversions": [
+      "cpc_bid_ceiling_micros",
+      "cpc_bid_floor_micros",
+      "target_cpa_micros"
+    ],
+    "MaximizeConversionValue": [
+      "cpc_bid_ceiling_micros",
+      "cpc_bid_floor_micros",
+      "target_roas",
+      "target_roas_tolerance_percent_millis"
+    ],
+    "TargetImpressionShare": [
+      "cpc_bid_ceiling_micros",
+      "location",
+      "location_fraction_micros"
+    ],
+    "TargetSpend": [
+      "cpc_bid_ceiling_micros",
+      "target_spend_micros"
+    ]
+  },
+  "enums": {
+    "bidding_strategy_status": {
+      "UNSPECIFIED": 0,
+      "UNKNOWN": 1,
+      "ENABLED": 2,
+      "REMOVED": 4
+    },
+    "bidding_strategy_type": {
+      "UNSPECIFIED": 0,
+      "UNKNOWN": 1,
+      "COMMISSION": 16,
+      "ENHANCED_CPC": 2,
+      "FIXED_CPM": 19,
+      "FIXED_SHARE_OF_VOICE": 22,
+      "INVALID": 17,
+      "MANUAL_CPA": 18,
+      "MANUAL_CPC": 3,
+      "MANUAL_CPM": 4,
+      "MANUAL_CPV": 13,
+      "MAXIMIZE_CONVERSIONS": 10,
+      "MAXIMIZE_CONVERSION_VALUE": 11,
+      "PAGE_ONE_PROMOTED": 5,
+      "PERCENT_CPC": 12,
+      "TARGET_CPA": 6,
+      "TARGET_CPC": 21,
+      "TARGET_CPM": 14,
+      "TARGET_CPV": 20,
+      "TARGET_IMPRESSION_SHARE": 15,
+      "TARGET_OUTRANK_SHARE": 7,
+      "TARGET_ROAS": 8,
+      "TARGET_SPEND": 9
+    },
+    "target_impression_share_location": {
+      "UNSPECIFIED": 0,
+      "UNKNOWN": 1,
+      "ANYWHERE_ON_PAGE": 2,
+      "TOP_OF_PAGE": 3,
+      "ABSOLUTE_TOP_OF_PAGE": 4
+    },
+    "bidding_strategy_error": {
+      "UNSPECIFIED": 0,
+      "UNKNOWN": 1,
+      "DUPLICATE_NAME": 2,
+      "CANNOT_CHANGE_BIDDING_STRATEGY_TYPE": 3,
+      "CANNOT_REMOVE_ASSOCIATED_STRATEGY": 4,
+      "BIDDING_STRATEGY_NOT_SUPPORTED": 5,
+      "INCOMPATIBLE_BIDDING_STRATEGY_AND_BIDDING_STRATEGY_GOAL_TYPE": 6
+    }
+  }
+}

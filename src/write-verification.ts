@@ -13,6 +13,7 @@ import {assertGoogleAdsScope} from './google-contracts.js';
 import {googleSegmentKind} from './google-custom-segments.js';
 import {googleConversionGoalKind,verifyGoogleConversionGoal} from './google-conversion-goals.js';
 import {googleBiddingEventKind,verifyGoogleBiddingEvent} from './google-bidding-events.js';
+import {googlePortfolioKind,verifyGooglePortfolio} from './google-portfolio-strategies.js';
 import {xDraftKind,verifyXDraft} from './x-draft-writes.js';
 import {linkedinConversionKind,linkedinConversionVerification,readLinkedInConversions,isLinkedInConversionRead,assertLinkedInConversionScope} from './linkedin-conversion-links.js';
 import {linkedinRuleKind,linkedinRuleVerification,readLinkedInRules,isLinkedInRuleRead} from './linkedin-conversion-rules.js';
@@ -23,6 +24,7 @@ import {CredentialProvider} from './auth.js';
 import {ScopeGuard} from './scope.js';
 import {independentlyReadOnly} from './execution-risk.js';
 import {MirrorError} from './errors.js';
+import {sha256,stable} from './security.js';
 import {setTimeout as delay} from 'node:timers/promises';
 import {readConsistently} from './read-consistency.js';
 import {linkedinDSC,assertLinkedInDSCGrant,rememberLinkedInPost} from './linkedin-posts.js';
@@ -130,7 +132,7 @@ export class WriteVerifier{
   assertGoogleAccessActor(plan,actor);
   if(metaLabelKind(plan))assertMetaLabelScope(c);
   if(googleBidKind(plan))assertGoogleBidScope(c);
-  if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan))assertGoogleAdsScope(c);
+  if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan)||googlePortfolioKind(plan))assertGoogleAdsScope(c);
   if(linkedinConversionKind(plan)||linkedinRuleKind(plan))assertLinkedInConversionScope(c);
   if(result.success!==true)bad('Inspect the retained partial failure before recovery.','WRITE_PARTIAL_OR_FAILED');
   const cached=optional(this.store,actor.tenantId,'write_verification',reviewId);if(cached?.status==='verified'&&Date.now()-cached.checked_at<10000)return {...cached,cached:true};
@@ -145,6 +147,13 @@ export class WriteVerifier{
     const response=await this.transport.request(page,current,auth);this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);
     if(!current.scopes.includes('adsread'))bad('Reddit post verification requires adsread.','INSUFFICIENT_SCOPE');new ScopeGuard(this.registry,this.store).authorize(page,current);return response;
    }));status=verified.status;checks=verified.checks;resources=verified.resources??[];
+  }else if(googlePortfolioKind(plan)){
+   let credentialHash:string|undefined;
+   const verified=await verifyGooglePortfolio(plan,result,review.state,async read=>{
+    if(!independentlyReadOnly(read))bad('Portfolio verification must remain read-only.','VERIFICATION_UNSUPPORTED');
+    const access=()=>{this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertGoogleAdsScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);if(credentialHash&&sha256(stable(this.store.credentials(actor.tenantId,current.id)))!==credentialHash)bad('The selected login changed during portfolio verification.','REAUTHORIZATION_REQUIRED');return current;};
+    const current=access(),auth=await this.credentials.get(current);credentialHash??=sha256(stable(auth));access();const response=await this.transport.request(read,current,auth);access();return response;
+   });status=verified.status;checks=verified.checks;
   }else if(googleAccessKind(plan)){
    const verified=await verifyGoogleAccess(plan,result,review.state,async read=>{
     if(!independentlyReadOnly(read))bad('Google access verification must remain read-only.','VERIFICATION_UNSUPPORTED');

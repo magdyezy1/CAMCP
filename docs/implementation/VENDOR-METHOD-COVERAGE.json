@@ -12934,26 +12934,26 @@
         {
           "operation": null,
           "action": "CREATE_BIDDING_STRATEGY",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_portfolio_strategies"
         },
         {
           "operation": null,
           "action": "google_ads_v23_bidding_strategy_mutate_bidding_strategies",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_portfolio_strategies"
         },
         {
           "operation": null,
           "action": "REMOVE_BIDDING_STRATEGY",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_portfolio_strategies"
         },
         {
           "operation": null,
           "action": "UPDATE_BIDDING_STRATEGY",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_portfolio_strategies"
         }
       ],
       "mapping_status": "mapped",

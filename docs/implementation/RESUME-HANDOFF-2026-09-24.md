@@ -44,14 +44,24 @@ information; do not invent a hold or make unrequested production DNS changes.
 
 ## Remaining implementation — not complete
 
-The latest action check still matches the September 20 inventory: 3241 actions,
-423 reviewed-family, 894 blocked writes, 91 unmapped, 27 unqualified reads, eight
+The next implementation pass added client-owned portfolio bidding strategies and
+fixed the existing bidding-event GAQL sortability defect. See
+[portfolio verification and rollout](PORTFOLIO-AND-GAQL-2026-09-24.md).
+Candidate C passed the full check (1440 main / four capture tests; zero failures,
+one optional FFmpeg skip); the required seven-test media run then passed with real
+FFmpeg 9.0.2 and zero skips. Portable verified binaries now exist in
+`.runtime/contract-completion-20260924/ffmpeg-9.0.2/` for local reuse. They are not
+installed globally or included in Git. Docker and live validation remain outstanding.
+
+The latest action check supersedes the September 20 inventory: 3241 actions,
+427 reviewed-family, 890 blocked writes, 91 unmapped, 27 unqualified reads, eight
 input-dependent and four provider-unsupported. The latter four were retired by the
 provider. The separate vendor denominator remains 1208 pinned methods, including
 454 unmapped; it overlaps rather than adding directly to the action denominator.
-Neither reporting nor the Meta guard adds a new native action family.
+Reporting and the Meta guard added no new native action family; the portfolio
+pass moves four native/legacy routes into one qualified reviewed family.
 
-Continue the exact rows in [remaining actions](REMAINING-ACTIONS-2026-09-20.csv),
+Continue the exact rows in [remaining actions](REMAINING-ACTIONS-2026-09-24.csv),
 checked against `contracts:actions:check`, and tickets R2–R12 in the
 [earlier handoff](RESUME-HANDOFF-2026-09-20.md). Priorities:
 
@@ -82,9 +92,10 @@ are synthetic; retained logs are under `.runtime/reporting-20260924/`.
 Node 24.19.0/npm 11.17.0/PowerShell. Offline install works with
 `npm.cmd ci --offline --ignore-scripts --cache <implementation>/.runtime/npm-cache`.
 Set `AMCP_SCHEMA_PYTHON` to the existing bundled Python path for generator checks.
-FFmpeg/ffprobe/Docker were unavailable locally. Required FFmpeg mode, container
-smoke, deployment, live permissions/quotas/provider payload acceptance and restore
-are not qualified by these results. The GitHub connector returned 404 for Actions;
+FFmpeg/ffprobe were initially unavailable; the portable 9.0.2 paths above now pass
+required media tests. Docker remains unavailable. Container smoke, deployment,
+live permissions/quotas/provider payload acceptance and restore are not qualified
+by these results. The GitHub connector returned 404 for Actions;
 Git push and ref verification worked with network-enabled execution. Do not obtain
 or print stored credentials to work around connector access.
 

@@ -351,6 +351,10 @@ events and actual campaign/bidding configuration before preparing. Do not invent
 a sale uplift, outage or conversion-delay window. A data exclusion affects the
 click data used for Smart Bidding; it does not erase or repair reporting. A planned
 future outage is an explicit user decision, not an inferred routine optimization.
+The Ads Help page describes advance scheduling, while the API guide and v23 field
+reference describe a past start with a past or future end. Local acceptance of a
+future start does not resolve this documentation mismatch or prove API eligibility.
+Do not promise advance scheduling through the API without qualified provider evidence.
 
 Use account-local `yyyy-MM-dd HH:mm:ss` values: inclusive start, exclusive end,
 more than zero and at most 14 elapsed days. Ambiguous/nonexistent DST boundaries
@@ -611,3 +615,81 @@ The sample uses a newer version; runtime contracts remain pinned to v23 Discover
 and nine source-hashed official protos in `google-user-access-v23.json`, reproduced
 by `tools/google-access-evidence.mjs`. Local lifecycle, negative and restart tests
 use synthetic accounts. No live invitation or permission change was performed.
+
+## Client-owned portfolio bidding strategies
+
+`CREATE_BIDDING_STRATEGY`, `UPDATE_BIDDING_STRATEGY`, `REMOVE_BIDDING_STRATEGY` and
+`google_ads_v23_bidding_strategy_mutate_bidding_strategies` share one reviewed
+contract. Select the exact client account and connection with the adwords scope
+and an administrator account write grant. Social sign-in and Analytics scopes
+do not authorize this workflow. Manager-owned/cross-customer portfolios and
+aligned campaign budgets need separate authority/alignment contracts.
+
+Ask for the business objective and explicit target/limits when missing. Discover
+existing portfolios, account currency and campaign associations before selecting
+a strategy. Do not infer a CPA, ROAS, tolerance or CPC ceiling from its name.
+Create an unattached strategy, verify its returned native resource, then separately
+review campaign assignment. A saved portfolio is not an activated campaign.
+
+The six schemes are target CPA, target ROAS, maximize conversions, maximize
+conversion value, target impression share and target spend (maximize clicks).
+Choose one scheme; its type is immutable. Creating a different scheme and moving
+campaigns is a separate sequence of reviewed changes. Enhanced CPC and the
+deprecated `targetSpend.targetSpendMicros` field are not enabled. Native names
+must be unique, trimmed and 1–255 UTF-8 bytes; a character count is insufficient.
+
+Use exact decimal-string account-currency micros for CPA/CPC fields. For example,
+`targetCpaMicros: "15000000"` means 15 currency units per acquisition, not a daily
+budget. `targetRoas: 3` means a 300% ratio; native target ROAS accepts 0.01–1000.
+Impression share uses 1–1,000,000 micros (`500000` is 50%) and needs a native
+location and positive CPC ceiling. ROAS tolerance uses percent-millis (`10000`
+is 10%); AMCP bounds it to 0–100% without claiming provider entitlement. Provider
+eligibility and currency-specific minimum billable units still apply.
+
+The native payload has 1–25 atomic `operations`, each with exactly one create,
+update or remove. Updates require the full resource name and an exact leaf mask,
+such as `targetCpa.cpcBidFloorMicros`. Supply every masked leaf and mask every
+supplied leaf. Whole-scheme masks, wildcards, output fields and implicit clearing
+are refused. Use explicit zero only for optional limits/targets; required CPA,
+ROAS and impression-share targets cannot be cleared. Snake and camel spellings
+map to the same native request, but cannot be supplied together.
+
+Preparation and execution each read the complete affected portfolios, current
+campaign membership, budgets and other campaigns sharing those budgets twice.
+Native campaign counts must agree with discovered membership. Only names from
+unrelated portfolios enter a name-changing review; their targets and query
+telemetry do not. Identity maps make collection order irrelevant. No GAQL query
+sorts by `resource_name`, which is not sortable in these v23 resources.
+Meaningful target, status, budget or membership changes return `STATE_CHANGED`
+with changed fields. `PORTFOLIO_STATE_UNVERIFIED` means a complete consistent
+baseline could not be established; resolve that issue before preparing again.
+
+Target/limit changes require `spend_change_confirmed: true` and obey the owner's
+activation policy, including for currently paused campaigns. Rename-only changes
+and unattached creation do not pretend to change spend. CPA/CPC values are not
+compared with budget caps or charged to cumulative budget increases. Removal
+obeys deletion policy and requires zero total campaign associations; even a
+historical association remains a conservative AMCP limit pending qualification.
+
+Inspect the frozen request and affected resources, execute using the original
+review/key, and call `amcp_campaign` with `action: "verify"` and that review ID.
+The receipt must contain the correct fresh/existing native resource for every
+operation. Read-back checks saved configuration or complete active-collection
+absence. It does not establish auction effects, target achievement or provider
+approval. Partial, malformed or lost receipts retain their original claim. Never
+submit a new key to recover an uncertain write; inspect the retained result first.
+
+Local bounds: 1000 strategies, 25 pages per collection, 128 requests, 20,000 rows
+across consistency reads, 4 MiB per response, 8 MiB total and a 60-second monotonic
+deadline. Revoked grants, disconnect and login changes during reads stop progress.
+
+Official evidence checked 2026-09-24: [v23 strategy fields](https://developers.google.com/google-ads/api/fields/v23/bidding_strategy),
+[native mutation service](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/services/bidding_strategy_service.proto),
+[native bidding fields](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/common/bidding.proto),
+[immutable type and association errors](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/errors/bidding_strategy_error.proto),
+and [current scheme contexts](https://developers.google.com/google-ads/api/docs/campaigns/bidding/strategy-types).
+Seven public source hashes and extracted fields/enums are pinned in
+`tests/fixtures/google-portfolio-v23.json`; `tools/google-portfolio-evidence.mjs`
+regenerates it from explicitly supplied public source files. Runtime remains v23;
+newer guide examples do not silently upgrade it. The machine-checked inspection
+examples and synthetic lifecycle tests establish local behavior, not live acceptance.

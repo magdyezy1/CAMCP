@@ -8,6 +8,31 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## AR — Client portfolios, native GAQL sortability and real FFmpeg (2026-09-24)
+
+The [portfolio and GAQL evidence](PORTFOLIO-AND-GAQL-2026-09-24.md) records four
+new reviewed routes with six qualified schemes, strict native masks/units,
+complete campaign/shared-budget state, owner controls, exact receipts/read-back
+and concurrency/restart recovery. Query telemetry and unrelated strategy targets
+do not change the review. Type changes, manager/cross-customer portfolios,
+aligned budgets and deprecated fields remain explicit unqualified variants.
+
+Also fixed the pre-existing bidding-event readers' `ORDER BY resource_name`,
+which official v23 field references mark non-sortable. Three strict-provider
+regressions fail before the correction and pass afterward. Existing event and
+new portfolio fixtures now reject that invalid GAQL. No live query was sent.
+
+Candidate C full check passed: 1440 main tests, zero failed, one optional FFmpeg
+skip, plus four capture tests. The skipped media test then passed with real,
+checksum-verified portable FFmpeg 9.0.2 in required mode: seven media tests,
+zero failed/skipped. No binary is committed or shipped. Initial failures,
+commands, candidate manifest and hashes are retained in the linked evidence.
+
+Current action denominator: 3241; 427 reviewed-family, 890 blocked writes,
+91 unmapped, 27 unqualified reads, eight input-dependent and four retired
+provider-unsupported routes. The refreshed remaining-action ledger and R2–R12
+roadmap remain active; this is not complete provider coverage or live qualification.
+
 ## AQ — HTTP startup diagnostics and DNS investigation (2026-09-24)
 
 Successful HTTP startup now logs the actual bound address on stdout at info level.

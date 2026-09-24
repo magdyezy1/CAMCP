@@ -7,6 +7,7 @@ import {googleBidKind,googleBidImpactFor} from './google-bid-modifiers.js';
 import {googleSegmentKind,googleSegmentImpact} from './google-custom-segments.js';
 import {googleConversionGoalKind,googleConversionGoalServing,googleConversionGoalImpact} from './google-conversion-goals.js';
 import {googleBiddingEventKind,googleBiddingEventImpact} from './google-bidding-events.js';
+import {googlePortfolioKind,googlePortfolioImpact} from './google-portfolio-strategies.js';
 import {xDraftKind,xDraftImpact} from './x-draft-writes.js';
 import {linkedinConversionKind,linkedinConversionImpact} from './linkedin-conversion-links.js';
 import {linkedinRuleKind,linkedinRuleImpact} from './linkedin-conversion-rules.js';
@@ -52,6 +53,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  if(googleBidKind(plan))return googleBidImpactFor(plan);
  if(googleSegmentKind(plan))return {...googleSegmentImpact,may_affect_serving:googleConfigurationServing(plan)};
  if(googleBiddingEventKind(plan))return googleBiddingEventImpact;
+ if(googlePortfolioKind(plan))return googlePortfolioImpact;
  if(metaReportKind(plan))return metaReportImpact;
  if(googleConversionGoalKind(plan))return {...googleConversionGoalImpact,may_affect_serving:googleConversionGoalServing(plan),creation_effect:'New custom goals remain unattached until a separate campaign configuration update.'};
  const meta=metaLabelImpact(plan);if(meta)return meta;

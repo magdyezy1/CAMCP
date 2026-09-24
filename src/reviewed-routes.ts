@@ -12,6 +12,7 @@ import {metaLabelKind} from './meta-label-writes.js';
 import {googleBidKind} from './google-bid-modifiers.js';
 import {googleConversionGoalKind} from './google-conversion-goals.js';
 import {googleBiddingEventKind} from './google-bidding-events.js';
+import {googlePortfolioKind} from './google-portfolio-strategies.js';
 import type {CompiledRequest} from './types.js';
 import {appleEntityKind} from './apple-entity-writes.js';
 import {dv360ListKind} from './dv360-list-writes.js';
@@ -45,6 +46,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(metaLabelKind(p))return 'meta_labels';
  if(googleBidKind(p))return 'google_bid_modifiers';
  if(googleBiddingEventKind(p))return 'google_bidding_events';
+ if(googlePortfolioKind(p))return 'google_portfolio_strategies';
  if(googleConversionGoalKind(p))return 'google_conversion_goals';
  if(criteoTargetingKind(p))return 'criteo_targeting';
  if(gtmWorkflowKind(p))return 'gtm_workflows';
