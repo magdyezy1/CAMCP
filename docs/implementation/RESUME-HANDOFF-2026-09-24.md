@@ -52,6 +52,13 @@ recovery, native result limits and external verification needs are recorded in
 
 ## Remaining implementation — not complete
 
+The [credential-refresh correction](CREDENTIAL-REFRESH-2026-09-25.md) passes the
+full required-FFmpeg check: 1578 main/four capture, zero failures/skips. It fences
+late refresh responses across all 14 shared adapters, validates bounded token
+responses and atomically invalidates old ownership during login replacement.
+Normal grant edits preserve rotation. No action-count increase or live credential
+qualification is claimed; original failing races and cleanup failure are retained.
+
 The [TikTok report batch](TIKTOK-REPORTS-2026-09-24.md) now passes the complete
 required-FFmpeg check: 1550 main/four capture, zero failures/skips. Its eight
 task/async aliases cover reviewed create/cancel plus bound status and CSV output.

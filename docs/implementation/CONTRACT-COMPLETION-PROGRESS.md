@@ -8,6 +8,21 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## AX — Credential-refresh fencing and atomic connection replacement (2026-09-25)
+
+Confirmed and fixed stale refreshes overwriting a newer login across all 14 shared
+refresh adapters, stale gateway objects receiving another provider's credentials,
+and non-atomic replacement/ownership cleanup. Shared bounded token parsing rejects
+invalid UTF-8, oversized responses, invalid Bearer/refresh metadata and overflowing
+expiry. Metadata/grant edits still retain valid token rotation and current grants.
+No credential, role, scope or provider grant is broadened; no database migration.
+
+[Evidence and limitations](CREDENTIAL-REFRESH-2026-09-25.md) retain 17 original
+failures and the failed transaction reproduction. Full fresh required-FFmpeg
+check: 1578 main plus four capture, zero failures/skips. The action inventory
+does not change. Provider rotation lost before persistence, live authorization
+and independently stored replicas remain separate verification/recovery concerns.
+
 ## AW — TikTok asynchronous reporting and output completeness (2026-09-25)
 
 Added one scoped reviewed family for four task/async create/cancel aliases and

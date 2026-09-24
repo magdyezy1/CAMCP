@@ -195,10 +195,12 @@ export class Store {
   if(connection.accountCustomers!==undefined&&(typeof connection.accountCustomers!=='object'||Array.isArray(connection.accountCustomers)||Object.entries(connection.accountCustomers).some(([id,v])=>!connection.accounts.includes(id)||typeof v!=='string'||! /^[1-9][0-9]*$/.test(v))))throw new MirrorError('INVALID_ACCOUNT_BINDING','Microsoft parent customers must map selected accounts to decimal identifiers.');
   if(connection.accountLoginCustomers!==undefined&&(!connection.accountLoginCustomers||connection.gateway!=='google_ads_native_action'||typeof connection.accountLoginCustomers!=='object'||Array.isArray(connection.accountLoginCustomers)||Object.entries(connection.accountLoginCustomers).some(([id,v])=>!connection.accounts.includes(id)||typeof v!=='string'||!/^\d+$/.test(v))))throw new MirrorError('INVALID_ACCOUNT_BINDING','Google login customers must map selected accounts to decimal identifiers.');
   for(const binding of connection.resourceBindings??[])if(!connection.accounts.includes(binding.accountId)||!/^\/[a-zA-Z0-9]/.test(binding.pathPrefix)||binding.pathPrefix.endsWith('/')||/[?%#\\]|\/\.\.?($|\/)/.test(binding.pathPrefix))throw new MirrorError('INVALID_RESOURCE_BINDING','Resource bindings require an exact safe path prefix and a configured account.');
-  this.ensureTenant(actor.tenantId);
-  const secret='v2:'+this.box.seal(credentials,scopeKey(connection.tenantId,connection.id));
-  this.db.prepare('INSERT INTO connections(id,tenant_id,data,secret) VALUES(?,?,?,?) ON CONFLICT(tenant_id,id) DO UPDATE SET data=excluded.data,secret=excluded.secret').run(connection.id,connection.tenantId,JSON.stringify(connection),secret);
-  this.db.prepare('DELETE FROM resource_ownership WHERE tenant_id=? AND connection_id=?').run(connection.tenantId,connection.id);
+  this.transaction(()=>{
+   this.ensureTenant(actor.tenantId);
+   const secret='v2:'+this.box!.seal(credentials,scopeKey(connection.tenantId,connection.id));
+   this.db.prepare('INSERT INTO connections(id,tenant_id,data,secret) VALUES(?,?,?,?) ON CONFLICT(tenant_id,id) DO UPDATE SET data=excluded.data,secret=excluded.secret').run(connection.id,connection.tenantId,JSON.stringify(connection),secret);
+   this.db.prepare('DELETE FROM resource_ownership WHERE tenant_id=? AND connection_id=?').run(connection.tenantId,connection.id);
+  });
  }
  listConnections(tenantId:string):Connection[]{return (this.db.prepare('SELECT data FROM connections WHERE tenant_id=?').all(tenantId) as {data:string}[]).map(x=>JSON.parse(x.data));}
  credentials(tenantId:string,id:string):Credentials{
@@ -210,6 +212,19 @@ export class Store {
   const value=this.box.open<Credentials>(row.secret,tenantId+'/'+id);this.replaceCredentials(tenantId,id,value);return value;
  }
  replaceCredentials(tenantId:string,id:string,value:Credentials){if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Credential encryption unavailable.');const result=this.db.prepare('UPDATE connections SET secret=? WHERE tenant_id=? AND id=?').run('v2:'+this.box.seal(value,scopeKey(tenantId,id)),tenantId,id);if(!result.changes)throw new MirrorError('CONNECTION_REQUIRED','Connection was removed.');}
+ /** Read the current login without sending another gateway's credentials to a stale caller. */
+ connectionCredentials(connection:Connection):Credentials{return this.transaction(()=>{
+  const row=this.db.prepare('SELECT data FROM connections WHERE tenant_id=? AND id=?').get(connection.tenantId,connection.id) as {data:string}|undefined;
+  if(!row)throw new MirrorError('CONNECTION_REQUIRED','Connection was removed.',{},403);
+  if(JSON.parse(row.data).gateway!==connection.gateway)throw new MirrorError('CONNECTION_CHANGED','The selected connection changed. Resolve the current login before retrying.',{connection_id:connection.id},409);
+  return this.credentials(connection.tenantId,connection.id);
+ });}
+ /** Fence a refresh by the login actually used, not randomized encryption or mutable account grants. */
+ completeCredentialRefresh(connection:Connection,previous:Credentials,next:Credentials):void{this.transaction(()=>{
+  const current=this.connectionCredentials(connection);
+  if(stable(current)!==stable(previous))throw new MirrorError('CONNECTION_CHANGED','The selected login changed while refreshing. Its newer credentials were preserved.',{connection_id:connection.id},409);
+  this.replaceCredentials(connection.tenantId,connection.id,next);
+ });}
  rememberResource(connection:Connection,accountId:string,resource:string,ttlMs=300000){
   this.db.prepare('INSERT INTO resource_ownership VALUES(?,?,?,?,?) ON CONFLICT(tenant_id,connection_id,account_id,resource) DO UPDATE SET expires_at=excluded.expires_at').run(connection.tenantId,connection.id,accountId,resource,Date.now()+Math.min(ttlMs,300000));
  }

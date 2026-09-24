@@ -1,5 +1,13 @@
 # Durable campaign and decision workflows
 
+`CONNECTION_CHANGED` means the selected provider/login changed while an operation
+was obtaining credentials. AMCP preserves the newer login instead of overwriting
+it with an older refresh response. Resolve the current connection and account;
+retry a read with current authority, or prepare a fresh review for an unsubmitted
+write. Keep submitted and uncertain receipts. Do not switch identities silently
+or request tokens from the user. Connection renames and account-grant edits do
+not undo legitimate token rotation, and refreshing never restores revoked grants.
+
 After a media session completes through its original safe resume path, use `amcp_campaign` with `action: reconcile_step`, the saved plan `id` and `step_id`. This accepts only a completed receipt under the original review/key and performs scoped read-back; it never resubmits a mutation or accepts an unverified resource ID. Dependent steps stay blocked until readiness is verified. `RECOVERY_NOT_SAFE` means no completed original receipt exists or the step cannot be reconciled this way. Unknown provider outcomes still require investigation. The Campaign page exposes this as “Reconcile completed step.”
 
 `JOB_REAUTHORIZATION_REQUIRED` means a legacy job has no trustworthy stored actor binding.
