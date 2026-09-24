@@ -52,6 +52,25 @@ recovery, native result limits and external verification needs are recorded in
 
 ## Remaining implementation — not complete
 
+Latest completed source batch: [Adjust reporting](ADJUST-REPORTING-2026-09-25.md)
+plus [the CI deadline correction](CI-DEADLINES-2026-09-25.md). Fresh required-FFmpeg
+candidate B passes 1646 main/four capture tests, zero failures/skips; initial
+failures are retained in the [verification record](ADJUST-REPORTING-VERIFICATION-2026-09-25.json).
+The GitHub browser can inspect this repository's Actions even though the connector
+returns 404. Run #96 at bc7eca5 failed one Criteo deadline assertion; five stable
+reproductions confirm the shared retry defect. The original assertion remains
+unchanged and passed twenty repetitions after repair. Confirm the new commit's
+actual Actions run, Docker build and both smoke modes after push.
+
+Inventory now has 1001 remaining rows (886 blocked writes, 80 unmapped, 23
+unqualified reads, eight input-dependent and four retired), with 438 reviewed-family
+actions. Six Adjust reads are implemented; twenty-three Adjust operations remain
+unmapped. Its native reporting is distinct from normalized dashboard/scheduling.
+The following older batch totals are historical. Business Profile sync research
+is in progress: preserve numeric account grants versus locations/{id}, deduplicate
+shared location membership across parents, and never infer grants from discovery.
+No website OAuth or Business Profile sync completion is claimed yet.
+
 The [measurement connection-sync batch](MEASUREMENT-CONNECTION-SYNC-2026-09-25.md)
 passes the full required-FFmpeg check: 1603 main/four capture, zero failed/skipped.
 GA4 property sync and Search Console site sync execute through MCP, preserve

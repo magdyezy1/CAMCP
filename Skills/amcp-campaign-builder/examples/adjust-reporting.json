@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "meaning": "Synthetic read-only examples executed by tests/adjust-reporting.test.ts. Substitute discovered connection/app IDs and confirmed metric definitions. No live qualification or write authorization.",
+  "examples": [
+    {
+      "gateway": "adjust_native_action",
+      "input": {
+        "operation": "adjust_list_assets",
+        "arguments": {}
+      }
+    },
+    {
+      "gateway": "adjust_native_action",
+      "input": {
+        "operation": "adjust_reporting",
+        "arguments": {
+          "action": "LIST_APPS",
+          "label": "336ecb51-2df8-4967-8bd3-cba64d552296",
+          "payload": {}
+        }
+      }
+    },
+    {
+      "gateway": "adjust_native_action",
+      "input": {
+        "operation": "adjust_reporting",
+        "arguments": {
+          "action": "LIST_FILTERS",
+          "label": "336ecb51-2df8-4967-8bd3-cba64d552296",
+          "payload": {
+            "requiredFilters": [
+              "countries"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "gateway": "adjust_native_action",
+      "input": {
+        "operation": "adjust_reporting",
+        "arguments": {
+          "action": "LIST_EVENTS",
+          "label": "336ecb51-2df8-4967-8bd3-cba64d552296",
+          "payload": {
+            "appTokens": [
+              "abcdefghijkl"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "gateway": "adjust_native_action",
+      "input": {
+        "operation": "adjust_reporting",
+        "arguments": {
+          "action": "GET_REPORT",
+          "label": "336ecb51-2df8-4967-8bd3-cba64d552296",
+          "payload": {
+            "request": {
+              "dimensions": [
+                "app_token",
+                "day"
+              ],
+              "metrics": [
+                "installs",
+                "network_cost"
+              ],
+              "date_period": "2026-09-01:2026-09-02",
+              "app_token__in": "abcdefghijkl",
+              "currency": "USD",
+              "utc_offset": "+00:00"
+            }
+          }
+        }
+      }
+    },
+    {
+      "gateway": "adjust_native_action",
+      "input": {
+        "operation": "adjust_reporting",
+        "arguments": {
+          "action": "GET_PIVOT",
+          "label": "336ecb51-2df8-4967-8bd3-cba64d552296",
+          "payload": {
+            "request": {
+              "dimensions": [
+                "app_token",
+                "day"
+              ],
+              "metrics": [
+                "installs",
+                "network_cost"
+              ],
+              "date_period": "2026-09-01:2026-09-02",
+              "app_token__in": "abcdefghijkl",
+              "currency": "USD",
+              "utc_offset": "+00:00",
+              "index": [
+                "app_token"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
+}

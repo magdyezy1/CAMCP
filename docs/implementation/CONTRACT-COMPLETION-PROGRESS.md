@@ -8,6 +8,31 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## AZ — Adjust native reporting and the confirmed CI deadline defect (2026-09-25)
+
+Six Adjust workflows now execute local configured bindings and native app/filter,
+event, JSON and app-indexed pivot reads. Current permissions are checked on every
+attempt; shared budgets/cooldowns span SQLite workers. Exact monetary text, nulls,
+warnings, incomplete totals and unsupported shapes remain explicit. Maintained
+schemas, discoverable guidance and six executable examples agree with the adapter.
+
+The supplied GitHub #96 failure exposed operation-deadline timeouts being retried.
+Five deterministic reproductions failed before correction. The shared transport
+now makes a deadline-budget timer terminal while retaining shorter-attempt retry
+recovery. The original Criteo assertion is unchanged and passed twenty repetitions.
+See [Adjust implementation](ADJUST-REPORTING-2026-09-25.md),
+[CI analysis](CI-DEADLINES-2026-09-25.md) and
+[combined verification](ADJUST-REPORTING-VERIFICATION-2026-09-25.json).
+
+Fresh candidate B: 1646 main/four capture tests, zero failures/skips, required
+FFmpeg enabled. Candidate A's two outdated deployment-guide count assertions and
+the original CI failure remain visible. Actual Ubuntu/Docker verification is a
+separate post-push check, not inferred from this local result.
+Inventory: 438 reviewed-family, 886 blocked writes, 80 unmapped, 23 unqualified
+reads; 1001 remaining rows including four retired actions. Adjust adds no write
+contract or normalized dashboard. Business Profile sync is next implementation
+work; its provisional collector is outside this completed staged batch.
+
 ## AY — GA4/Search Console discovery through MCP (2026-09-25)
 
 Completed the two advertised-but-unmapped measurement sync commands. An explicit

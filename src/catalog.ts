@@ -11,6 +11,7 @@ import {extendRedditTool} from './reddit-extensions.js';
 import {extendDV360Tool} from './dv360-extensions.js';
 import {extendGoogleBusinessTool} from './google-business-extensions.js';
 import {extendMetaPostWorkflow} from './meta-post-extensions.js';
+import {extendAdjustTool} from './adjust-extensions.js';
 import {metaActionOverride} from './meta-contracts.js';
 const addFormats=addFormatsModule as unknown as (ajv:Ajv)=>void;
 export class Registry {
@@ -20,7 +21,7 @@ export class Registry {
  constructor(data?:RegistryData){
   this.data=data??JSON.parse(fs.readFileSync(fileURLToPath(new URL('../../generated/registry.json',import.meta.url)),'utf8'));
   addFormats(this.ajv);
-  for(const original of this.data.tools){const tool=original.name==='reddit_native_action'?extendRedditTool(original):original.name==='dv360_native_action'?extendDV360Tool(original):original.name==='google_business_native_action'?extendGoogleBusinessTool(original):original.name==='amcp_native_action'?extendMetaPostWorkflow(original):original;this.tools.set(tool.name,tool);this.validators.set(tool.name,this.ajv.compile(tool.inputSchema));for(const op of tool.operations??[])this.validators.set(tool.name+'/'+op.operation,this.ajv.compile(op.argumentsSchema));}
+  for(const original of this.data.tools){const tool=original.name==='reddit_native_action'?extendRedditTool(original):original.name==='dv360_native_action'?extendDV360Tool(original):original.name==='google_business_native_action'?extendGoogleBusinessTool(original):original.name==='amcp_native_action'?extendMetaPostWorkflow(original):original.name==='adjust_native_action'?extendAdjustTool(original):original;this.tools.set(tool.name,tool);this.validators.set(tool.name,this.ajv.compile(tool.inputSchema));for(const op of tool.operations??[])this.validators.set(tool.name+'/'+op.operation,this.ajv.compile(op.argumentsSchema));}
   for(const original of this.data.catalogs){const catalog=original.gateway==='meta_native_action'?{...original,actions:original.actions.map(metaActionOverride)}:original;this.catalogs.set(catalog.gateway,catalog);for(const action of catalog.actions)this.register(catalog.gateway,action);}
   for(const action of this.data.supplemental)this.register(action.gateway!,action,false);
   if(this.tools.has('apple_ads_native_action'))for(const action of appleActions)this.register('apple_ads_native_action',action,false);

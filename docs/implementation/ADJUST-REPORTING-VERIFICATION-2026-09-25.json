@@ -1,0 +1,657 @@
+{
+  "format_version": 1,
+  "date": "2026-09-25",
+  "branch": "Codex-branch",
+  "base_revision": "bc7eca59cb1fa42ec0edf8c91f164762c96ce6ba",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true
+  },
+  "candidate": {
+    "path": ".release/adjust-reporting-20260925-b",
+    "files": 603,
+    "source_tree_hash": "2c4f177384ff5137d46e3c924cd8e8f571dbff9f200cb953a770c6a2860d8993",
+    "index_code_test_guidance_files_compared": 559,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/adjust-reporting-20260925-b",
+    "install": "npm.cmd ci --offline --ignore-scripts --cache '../../.runtime/npm-cache'",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm.cmd run check",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=<bundled Python>",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/contract-completion-20260924/adjust-reporting-baseline-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/adjust-reporting-baseline.log",
+      "sha256": "b0227ec9a41ca4b2835b4b86ac45bd258abe4ba024b510d9b1f8910558a25b2e",
+      "counts": [
+        {
+          "tests": 6
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 6
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1897.2031
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/adjust-reporting-descriptor-build.log",
+      "sha256": "77a0f81a4972f45eb1c1786e6faf6aaa7f6b0016635f1a7a22a4d11cc706e566",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/adjust-reporting-descriptor2-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/adjust-reporting-descriptor2.log",
+      "sha256": "3bb783335620835b94f0c575654eb18e6c332ac4fa3f9695693b5201b62c49cf",
+      "counts": [
+        {
+          "tests": 37
+        },
+        {
+          "pass": 37
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 7903.394
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/adjust-reporting-expanded-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/adjust-reporting-expanded.log",
+      "sha256": "325fd0cad1e6179406c1c4e63a5bb80fd8aeb85e1f59388700a1db27ddddbbc9",
+      "counts": [
+        {
+          "tests": 77
+        },
+        {
+          "pass": 77
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 8220.4445
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/adjust-reporting-final-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/adjust-reporting-final.log",
+      "sha256": "ef257cd4dddba89b779db63845f9df1444cf31dd6996500de2e6318e39601b82",
+      "counts": [
+        {
+          "tests": 87
+        },
+        {
+          "pass": 87
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 10420.4917
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/adjust-reporting-first-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/adjust-reporting-first.log",
+      "sha256": "439ffaf09e0d68389a5c5b42fe95a22b0ff8c42c2a070de0eb84caffed768509",
+      "counts": [
+        {
+          "tests": 6
+        },
+        {
+          "pass": 6
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1799.9585
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/adjust-reporting-inventory.log",
+      "sha256": "36ce43cf3aa1a0bc3a7f5b794108087e88fe2810a479e57bfcaca7470452cf41",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/ci-deadline-baseline-build.log",
+      "sha256": "75c6448d98f08cda9922e8bc3048d133be5d71dbeb3f93d18f8e8216e8b3a47b",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/ci-deadline-baseline2-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/ci-deadline-baseline2.log",
+      "sha256": "c8f181fc1b0ce8ea3032ccb05dd61c6c75c106438bd03e666d2fc5f3d1bd1dbf",
+      "counts": [
+        {
+          "tests": 5
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 5
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 213.5616
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/ci-deadline-expanded-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/ci-deadline-expanded.log",
+      "sha256": "0f8a8f3da4cc5a70b8272c255b6026ac0ee0bc7cfc721aaaf7d747596de6a585",
+      "counts": [
+        {
+          "tests": 117
+        },
+        {
+          "pass": 117
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 15428.9475
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/ci-deadline-first-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/ci-deadline-first.log",
+      "sha256": "509d69fbea1c3858e5d46b1eb9a7cdaedf300d589d50c39e3e412ed6d1bd56c9",
+      "counts": [
+        {
+          "tests": 35
+        },
+        {
+          "pass": 35
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 8470.6289
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/ci-deadline-repeat.log",
+      "sha256": "f8c5a7f46d1762a8b79e5be078669900a9e03a1125b9b529728afd27d2a11153",
+      "counts": [
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 869.7323
+        },
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 874.5099
+        },
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 847.7238
+        },
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 887.349
+        },
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 875.9507
+        },
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 879.4304
+        },
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 900.7877
+        },
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 926.8073
+        },
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 926.1783
+        },
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 969.3593
+        },
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 924.9555
+        },
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 899.5113
+        },
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 924.8024
+        },
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 922.4766
+        },
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 882.0278
+        },
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 889.4478
+        },
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 873.6508
+        },
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 893.7403
+        },
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 898.6836
+        },
+        {
+          "tests": 1
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 917.4664
+        }
+      ]
+    },
+    {
+      "path": ".release/adjust-reporting-20260925-b/release-check-adjust.log",
+      "sha256": "421c04a50eb980613876302c42b2aa1764d977769291280bdb1807be4cf42ca3",
+      "counts": [
+        {
+          "tests": 1646
+        },
+        {
+          "pass": 1646
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 356230.6347
+        },
+        {
+          "tests": 4
+        },
+        {
+          "pass": 4
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 92.5442
+        }
+      ]
+    },
+    {
+      "path": ".release/adjust-reporting-20260925-a/release-check-adjust.log",
+      "sha256": "fd7bf33fab2a60352fa0805c344a0c1cff28811a5c08bbfca8ab2325754b99ba",
+      "counts": [
+        {
+          "tests": 1635
+        },
+        {
+          "pass": 1633
+        },
+        {
+          "fail": 2
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 380368.8486
+        }
+      ]
+    }
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 1646,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials or account mutations.",
+    "Provider permissions, live output compatibility, Docker and deployment remain separately unverified.",
+    "See the matching implementation report for explicit contract limits, initial failures and primary references."
+  ],
+  "prior_github_failure": {
+    "run_id": 36063643340,
+    "url": "https://github.com/magdyezy1/AMCP/actions/runs/36063643340",
+    "commit": "bc7eca59cb1fa42ec0edf8c91f164762c96ce6ba",
+    "main_tests": 1603,
+    "pass": 1602,
+    "fail": 1,
+    "skip": 0,
+    "failure": "Criteo campaign dependency deadline dispatched more than one request after timeout",
+    "source_log_sha256": "09811190364e06eb225a1515188b75b6d263af6dd1db423a4b063562dda18e66",
+    "evidence": "User-supplied CI log; run, branch and commit confirmed in GitHub browser",
+    "original_assertion_unchanged": true
+  },
+  "new_github_verification": {
+    "status": "pending push",
+    "meaning": "Local results do not establish the new Ubuntu/Docker job status. Inspect the exact new commit run."
+  },
+  "real_timer_repetition": {
+    "runs": 20,
+    "pass": 20,
+    "fail": 0,
+    "unchanged_original_test": true
+  }
+}

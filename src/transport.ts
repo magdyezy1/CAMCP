@@ -76,7 +76,7 @@ export class NativeTransport {
   budget.tokens--;this.budgets.set(key,budget);
   if(waitMs)await this.sleeper(waitMs);
  }
- async request(plan:CompiledRequest,connection:Connection,credentials:Credentials,upload?:BinaryUpload):Promise<TransportResult>{
+ async request(plan:CompiledRequest,connection:Connection,credentials:Credentials,upload?:BinaryUpload,hooks:{beforeAttempt?:()=>void}={}):Promise<TransportResult>{
   validateGoogleRequest(plan);
   validateGoogleGeneration(plan);
   validateDV360TargetingSearch(plan);
@@ -132,18 +132,27 @@ export class NativeTransport {
   // Return a single attempt; callers explicitly decide whether to generate again.
   const start=performance.now(),circuitKey=scopeKey(key,connection.id,plan.accountId??'',url.origin),endpoint=url.pathname.replace(/\/accounts\/[^/]+/,'/accounts/:account'),userRateKey=plan.gateway==='x_ads_native_action'?scopeKey(key,'x-rate',sha256(credentials.accessToken??''),url.origin,endpoint.startsWith('/12/stats/accounts/')?'analytics':endpoint):key,accountRateKey=plan.gateway==='x_ads_native_action'&&plan.accountId?scopeKey(userRateKey,plan.accountId):userRateKey;
   const maxAttempts=plan.readOnly&&!googleGenerationKind(plan)&&!(plan.gateway===microsoftGateway&&plan.action==='SubmitGenerateReport')?3:1;
+  const adjustRead=plan.gateway==='adjust_native_action'&&plan.action==='AMCP_ADJUST_REPORT_READ'&&plan.adjustReportRead===true&&plan.readOnly&&plan.method==='GET'&&url.origin==='https://automate.adjust.com'&&['/reports-service/filters_data','/reports-service/events','/reports-service/report','/reports-service/pivot_report'].includes(plan.path);
+  const deadline=adjustRead?plan.adjustReportDeadline:plan.action==='AMCP_MEASUREMENT_ASSET_SYNC'&&['ga4_native_action','google_search_console_native_action'].includes(plan.gateway)&&plan.readOnly&&plan.method==='GET'?plan.measurementSyncDeadline:plan.gateway==='tiktok_native_action'&&plan.readOnly&&plan.method==='GET'?plan.tiktokReportDeadline:plan.gateway==='criteo_native_action'&&plan.readOnly&&plan.method==='GET'?(plan.criteoReportRead?plan.criteoReportDeadline:plan.action==='AMCP_CRITEO_CAMPAIGN_READ'?plan.criteoCampaignDeadline:undefined):undefined;
+  const reportDeadline=deadline!==undefined,deadlineFailure=()=>new MirrorError(adjustRead?'ADJUST_REPORT_LIMIT':plan.measurementSyncDeadline!==undefined?'ASSET_SYNC_LIMIT':plan.tiktokReportDeadline!==undefined?'TIKTOK_REPORT_STATE_UNVERIFIED':plan.criteoReportRead?'CRITEO_REPORT_STATE_UNVERIFIED':'CRITEO_CAMPAIGN_STATE_UNVERIFIED','Provider retrieval exceeded its monotonic deadline.',{},502);
   let ownedProbe:{probing?:boolean}|undefined;
   try{
   for(let attempt=0;attempt<maxAttempts;attempt++){
+   // Runtime hook only: never serialize authority checks into a provider request.
+   hooks.beforeAttempt?.();
    for(const rateKey of new Set([userRateKey,accountRateKey])){const until=this.cooldowns.get(rateKey)??0;if(until>performance.now())throw new MirrorError('PLATFORM_RATE_LIMIT','Provider cooldown is active; wait until the reported reset time.',{retry_after_ms:Math.ceil(until-performance.now())},429,true);this.coordination?.assertProviderCooldown(rateKey);}
    this.coordination?.providerPermit(key);
    if(attempt===0){const circuit=this.circuits.get(circuitKey),now=performance.now();if(circuit&&(circuit.until>now||circuit.probing))throw new MirrorError('CIRCUIT_OPEN','Repeated transient provider failures paused this connection/account. A request will probe recovery after the cooldown.',{retry_after_ms:Math.max(1000,Math.ceil(circuit.until-now)),last_error_code:circuit.code,last_http_status:circuit.status},503,true);if(circuit?.until){circuit.probing=true;ownedProbe=circuit;}}
    this.metrics.requests++;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'requests');
+   let requestSignal:AbortSignal|undefined,deadlineTimer=false;
+   const expired=()=>reportDeadline&&(!Number.isFinite(deadline)||performance.now()>=deadline!||deadlineTimer&&requestSignal?.aborted);
    try{
-    const deadline=plan.action==='AMCP_MEASUREMENT_ASSET_SYNC'&&['ga4_native_action','google_search_console_native_action'].includes(plan.gateway)&&plan.readOnly&&plan.method==='GET'?plan.measurementSyncDeadline:plan.gateway==='tiktok_native_action'&&plan.readOnly&&plan.method==='GET'?plan.tiktokReportDeadline:plan.gateway==='criteo_native_action'&&plan.readOnly&&plan.method==='GET'?(plan.criteoReportRead?plan.criteoReportDeadline:plan.action==='AMCP_CRITEO_CAMPAIGN_READ'?plan.criteoCampaignDeadline:undefined):undefined;
-    const reportDeadline=deadline!==undefined,remaining=reportDeadline?deadline-performance.now():this.timeoutMs;
-    if(reportDeadline&&(!Number.isFinite(remaining)||remaining<=0))throw new MirrorError(plan.measurementSyncDeadline!==undefined?'ASSET_SYNC_LIMIT':plan.tiktokReportDeadline!==undefined?'TIKTOK_REPORT_STATE_UNVERIFIED':plan.criteoReportRead?'CRITEO_REPORT_STATE_UNVERIFIED':'CRITEO_CAMPAIGN_STATE_UNVERIFIED','Provider retrieval exceeded its monotonic deadline.',{},502);
-    const response=await this.fetcher(url,{method:plan.method,headers,body,redirect:'error',signal:AbortSignal.timeout(reportDeadline?Math.max(1,Math.ceil(Math.min(this.timeoutMs,remaining))):this.timeoutMs)});
+    const remaining=reportDeadline?deadline!-performance.now():this.timeoutMs;
+    if(reportDeadline&&(!Number.isFinite(remaining)||remaining<=0))throw deadlineFailure();
+    deadlineTimer=reportDeadline&&remaining<=this.timeoutMs;
+    requestSignal=AbortSignal.timeout(reportDeadline?Math.max(1,Math.ceil(Math.min(this.timeoutMs,remaining))):this.timeoutMs);
+    const response=await this.fetcher(url,{method:plan.method,headers,body,redirect:'error',signal:requestSignal});
+    if(expired()){await response.body?.cancel();throw deadlineFailure();}
     const retryDelay=providerRetryDelay(response,plan.gateway);
     if(response.status===429){this.metrics.rateLimits++;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'rate_limits');}
     if((response.status===429||response.status===503)&&retryDelay!==undefined){const rateKey=plan.gateway==='x_ads_native_action'&&response.headers.has('x-account-rate-limit-reset')?accountRateKey:userRateKey;this.cooldowns.set(rateKey,performance.now()+retryDelay);this.coordination?.providerCooldown(rateKey,retryDelay);}
@@ -152,7 +161,8 @@ export class NativeTransport {
     let bodyIntegrity:TransportResult['bodyIntegrity'];
     const tiktokCsv=plan.gateway==='tiktok_native_action'&&plan.tiktokReportRead?.kind==='download'&&plan.method==='GET'&&plan.path==='/v1.3/report/task/download/';
     const reportOutput=plan.gateway==='criteo_native_action'&&plan.criteoReportRead?.kind==='output'&&plan.method==='GET'&&/^\/2026-01\/retail-media\/reports\/[a-f0-9-]+\/output$/i.test(plan.path);
-    const data=await this.readBody(response,plan.method==='HEAD'||!plan.readOnly&&(documentedEmpty||[204,205].includes(response.status)||plan.gateway==='linkedin_native_action'&&response.status===201&&response.headers.has('x-restli-id')),reportOutput?bytes=>{bodyIntegrity={bytes:bytes.length,md5:createHash('md5').update(bytes).digest('hex')};}:undefined,tiktokCsv);
+    const data=await this.readBody(response,adjustRead&&response.status===204||plan.method==='HEAD'||!plan.readOnly&&(documentedEmpty||[204,205].includes(response.status)||plan.gateway==='linkedin_native_action'&&response.status===201&&response.headers.has('x-restli-id')),reportOutput||adjustRead?bytes=>{bodyIntegrity={bytes:bytes.length,md5:createHash('md5').update(bytes).digest('hex')};}:undefined,tiktokCsv,adjustRead);
+    if(expired())throw deadlineFailure();
     const errorDetails=()=>({upstream:redact(data),http_status:response.status,...(retryDelay===undefined?{}:{retry_after_ms:retryDelay}),request_id:response.headers.get('request-id')??response.headers.get('x-request-id')??response.headers.get('x-fb-trace-id'),...(response.status===403?{scope_denial:providerHttpErrorCode(403,data,response.headers.get('www-authenticate'))==='INSUFFICIENT_SCOPE'}:{}),...(plan.gateway==='google_ads_native_action'?{login_customer_id:headers['login-customer-id']??null}:{})});
     if(!response.ok){const code=providerHttpErrorCode(response.status,data,response.headers.get('www-authenticate'));throw new MirrorError(code,'Platform returned HTTP '+response.status,errorDetails(),response.status,response.status===429||response.status>=500);}
     if(data&&typeof data==='object'){
@@ -164,7 +174,10 @@ export class NativeTransport {
     this.circuits.delete(circuitKey);this.metrics.totalLatencyMs+=performance.now()-start;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'latency_ms',performance.now()-start);
     return {data,status:response.status,...(bodyIntegrity?{bodyIntegrity}:{}),headers:Object.fromEntries(['request-id','x-request-id','x-fb-trace-id','x-restli-id','retry-after',...(plan.gateway==='google_ads_native_action'&&plan.path.startsWith('/resumable/upload/')?['x-goog-upload-url','x-goog-upload-chunk-granularity']:[])].map(k=>[k,response.headers.get(k)]).filter((p):p is [string,string]=>p[1]!==null))};
    }catch(error){
-    const e=error instanceof MirrorError?error:new MirrorError(plan.readOnly?'UPSTREAM_UNAVAILABLE':'WRITE_OUTCOME_UNCERTAIN',plan.readOnly?'Platform request failed or timed out.':'The write response was lost. Do not retry with a new key; inspect platform state.',{},502,plan.readOnly);
+    // A timer limited by the remaining operation budget is terminal. Its abort is
+    // authoritative even when performance.now() is fractionally before the deadline.
+    // Shorter per-attempt timeouts may still retry within the original budget.
+    const e=expired()?deadlineFailure():error instanceof MirrorError?error:new MirrorError(plan.readOnly?'UPSTREAM_UNAVAILABLE':'WRITE_OUTCOME_UNCERTAIN',plan.readOnly?'Platform request failed or timed out.':'The write response was lost. Do not retry with a new key; inspect platform state.',{},502,plan.readOnly);
     if(plan.readOnly&&e.retryable&&e.details.retry_after_ms===undefined&&attempt+1<maxAttempts){this.metrics.retries++;await this.sleeper(200*2**attempt);continue;}
     this.metrics.errors++;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'errors');
     const transient=e.code==='UPSTREAM_UNAVAILABLE'||e.code==='WRITE_OUTCOME_UNCERTAIN'||e.code==='UPSTREAM_ERROR'&&e.status>=500;
@@ -214,7 +227,7 @@ export class NativeTransport {
   await response.body?.cancel();if(!response.ok)throw new MirrorError('MEDIA_UPLOAD_FAILED','LinkedIn binary upload returned HTTP '+response.status,{},502);
   return response.headers.get('etag')?.replace(/^"|"$/g,'');
  }
- private async readBody(response:Response,allowEmpty:boolean,integrity?:(bytes:Buffer)=>void,csv=false):Promise<unknown>{
+ private async readBody(response:Response,allowEmpty:boolean,integrity?:(bytes:Buffer)=>void,csv=false,losslessNumbers=false):Promise<unknown>{
   const reader=response.body?.getReader();let size=0;const chunks:Uint8Array[]=[];
   if(reader)try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>this.maximumBytes){await reader.cancel();throw new MirrorError('RESPONSE_TOO_LARGE','Platform response exceeds the configured size limit. Use smaller pages.');}chunks.push(value);}}finally{reader.releaseLock();}
   const bytes=Buffer.concat(chunks);let text:string;
@@ -225,7 +238,7 @@ export class NativeTransport {
   if(!text.trim()&&(!response.ok||allowEmpty))return null;
   // Node 24's source-aware reviver preserves native int64 values even in compact
   // array rows. The checksum above covers the original bytes, never reserialized JSON.
-  let data:unknown;try{data=integrity?JSON.parse(text,((_key:string,value:unknown,context?:{source:string})=>typeof value==='number'&&Number.isInteger(value)&&!Number.isSafeInteger(value)?context?.source??value:value) as any):JSON.parse(text);}catch{
+  let data:unknown;try{data=integrity||losslessNumbers?JSON.parse(text,((_key:string,value:unknown,context?:{source:string})=>typeof value==='number'&&(losslessNumbers||Number.isInteger(value)&&!Number.isSafeInteger(value))?context?.source??String(value):value) as any):JSON.parse(text);}catch{
    if(!response.ok)return {content_type:response.headers.get('content-type'),body:text};
    throw new MirrorError('UPSTREAM_RESPONSE_INVALID','Platform returned an empty or malformed JSON response.',{status:response.status},502);
   }

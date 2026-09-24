@@ -7,7 +7,8 @@
       "gateway": "adjust_native_action",
       "actions": 29,
       "counts": {
-        "unmapped": 29
+        "local_workflow": 6,
+        "unmapped": 23
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -576,11 +577,13 @@
       "aliases": [],
       "method": null,
       "path": null,
-      "status": "unmapped",
-      "implementation": "",
-      "reason": "No provider request mapping exists. The advertised name is not executable.",
-      "source": "INFERRED_OUTER_ENVELOPE",
-      "tests": [],
+      "status": "local_workflow",
+      "implementation": "src/adjust-reporting.ts",
+      "reason": "Scoped Adjust app/event/filter discovery and bounded native JSON or app-indexed pivot reporting. Encrypted token transport, current grants, exact numeric strings, documented no-content, warning/completeness metadata and no provider writes. Local asset listing describes configured bindings only.",
+      "source": "https://dev.adjust.com/en/api/rs-api/",
+      "tests": [
+        "tests/adjust-reporting.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -590,11 +593,13 @@
       "aliases": [],
       "method": null,
       "path": null,
-      "status": "unmapped",
-      "implementation": "",
-      "reason": "No provider request mapping exists. The advertised name is not executable.",
-      "source": "INFERRED_OUTER_ENVELOPE",
-      "tests": [],
+      "status": "local_workflow",
+      "implementation": "src/adjust-reporting.ts",
+      "reason": "Scoped Adjust app/event/filter discovery and bounded native JSON or app-indexed pivot reporting. Encrypted token transport, current grants, exact numeric strings, documented no-content, warning/completeness metadata and no provider writes. Local asset listing describes configured bindings only.",
+      "source": "https://dev.adjust.com/en/api/rs-api/",
+      "tests": [
+        "tests/adjust-reporting.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -604,11 +609,13 @@
       "aliases": [],
       "method": null,
       "path": null,
-      "status": "unmapped",
-      "implementation": "",
-      "reason": "No provider request mapping exists. The advertised name is not executable.",
-      "source": "INFERRED_OUTER_ENVELOPE",
-      "tests": [],
+      "status": "local_workflow",
+      "implementation": "src/adjust-reporting.ts",
+      "reason": "Scoped Adjust app/event/filter discovery and bounded native JSON or app-indexed pivot reporting. Encrypted token transport, current grants, exact numeric strings, documented no-content, warning/completeness metadata and no provider writes. Local asset listing describes configured bindings only.",
+      "source": "https://dev.adjust.com/en/api/rs-api/",
+      "tests": [
+        "tests/adjust-reporting.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -618,11 +625,13 @@
       "aliases": [],
       "method": null,
       "path": null,
-      "status": "unmapped",
-      "implementation": "",
-      "reason": "No provider request mapping exists. The advertised name is not executable.",
-      "source": "INFERRED_OUTER_ENVELOPE",
-      "tests": [],
+      "status": "local_workflow",
+      "implementation": "src/adjust-reporting.ts",
+      "reason": "Scoped Adjust app/event/filter discovery and bounded native JSON or app-indexed pivot reporting. Encrypted token transport, current grants, exact numeric strings, documented no-content, warning/completeness metadata and no provider writes. Local asset listing describes configured bindings only.",
+      "source": "https://dev.adjust.com/en/api/rs-api/",
+      "tests": [
+        "tests/adjust-reporting.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -632,11 +641,13 @@
       "aliases": [],
       "method": null,
       "path": null,
-      "status": "unmapped",
-      "implementation": "",
-      "reason": "No provider request mapping exists. The advertised name is not executable.",
-      "source": "INFERRED_OUTER_ENVELOPE",
-      "tests": [],
+      "status": "local_workflow",
+      "implementation": "src/adjust-reporting.ts",
+      "reason": "Scoped Adjust app/event/filter discovery and bounded native JSON or app-indexed pivot reporting. Encrypted token transport, current grants, exact numeric strings, documented no-content, warning/completeness metadata and no provider writes. Local asset listing describes configured bindings only.",
+      "source": "https://dev.adjust.com/en/api/rs-api/",
+      "tests": [
+        "tests/adjust-reporting.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -646,11 +657,13 @@
       "aliases": [],
       "method": null,
       "path": null,
-      "status": "unmapped",
-      "implementation": "",
-      "reason": "No provider request mapping exists. The advertised name is not executable.",
-      "source": "INFERRED_OUTER_ENVELOPE",
-      "tests": [],
+      "status": "local_workflow",
+      "implementation": "src/adjust-reporting.ts",
+      "reason": "Scoped Adjust app/event/filter discovery and bounded native JSON or app-indexed pivot reporting. Encrypted token transport, current grants, exact numeric strings, documented no-content, warning/completeness metadata and no provider writes. Local asset listing describes configured bindings only.",
+      "source": "https://dev.adjust.com/en/api/rs-api/",
+      "tests": [
+        "tests/adjust-reporting.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {

@@ -4,6 +4,7 @@ import {criteoReportReadResult,observeCriteoReportRead,runCriteoReportRead} from
 import {connectionDiagnosticKind,connectionDiagnostics,redactConnectionInput} from './connection-diagnostics.js';
 import {connectionDisconnectKind,connectionDisconnect} from './connection-disconnect.js';
 import {measurementConnectionSyncKind,syncMeasurementConnection} from './measurement-connection-sync.js';
+import {adjustReportingKind,adjustReporting} from './adjust-reporting.js';
 import {placeActionReadKind,validatePlaceActionRead,placeActionReadResult,runPlaceActionDiscovery} from './google-place-action-discovery.js';
 import {campaignPreflight} from './campaign-preflight.js';
 import {searchMetaAdLibrary} from './meta-ad-library.js';
@@ -176,6 +177,7 @@ export class MirrorService {
   return {...parsed,rows,status:'Success',report_request_id:reportId,download_complete:true,offset,limit,has_more:hasMore,...(hasMore?{next_call:next(offset+rows.length)}:{})};
  }
  private async delegated(gateway:string,operation:string,args:JsonObject,actor:Actor,requestId:string):Promise<unknown>{
+  if(gateway==='adjust_native_action'&&adjustReportingKind(operation,args.action))return adjustReporting(this.store,this.transport,this.credentials,operation,args,actor,requestId);
   if(measurementConnectionSyncKind(gateway,operation,args.action))return syncMeasurementConnection(this.store,this.transport,this.credentials,gateway,operation,args,actor,requestId);
   if(connectionDisconnectKind(gateway,operation,args.action))return connectionDisconnect(this.store,gateway,operation,args,actor);
   if(connectionDiagnosticKind(gateway,operation,args.action))return connectionDiagnostics(this.store,gateway,operation,args,actor,this.policy.allowWrites);

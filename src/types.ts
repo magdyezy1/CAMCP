@@ -58,6 +58,9 @@ export interface CompiledRequest {
   googleAssetSetState?:{names:string[]};
   /** Server-derived bound for Google measurement discovery; never caller-supplied. */
   measurementSyncDeadline?:number;
+  /** Exact internal Adjust read marker/deadline; unavailable to external inputs. */
+  adjustReportRead?:boolean;
+  adjustReportDeadline?:number;
   /** Complete saved planning hierarchy, derived from exact native resource bindings. */
   googleKeywordPlanState?:{names:string[]};
   /** Bounded current account/profile discovery for Reddit metadata writes. */
