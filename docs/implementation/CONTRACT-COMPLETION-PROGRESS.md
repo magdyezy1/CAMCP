@@ -8,6 +8,23 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## BC — Website discovery and OAuth authority (2026-09-25)
+
+Operation-local guards cover all 15 website provider discovery paths, Google
+reauthorization hierarchy/selected-account reads and late metadata persistence.
+OAuth callbacks recheck administrator identity/role, including between Meta token
+exchanges. Google resumable chunks and recovery queries also check the original
+transfer login and private Drive grant, preserving the byte journal. Forty-five
+added website regressions plus compatibility coverage pass: 118
+focused tests. The preceding immutable release fails 45 of 76 baseline cases.
+Website-only full candidate A passes 1742 main/four capture. Four additional
+Google media regressions fail against A and pass after correction; all 70 focused
+media tests pass with FFmpeg required. Combined candidate B passes **1746 main
+and four capture tests**, zero failures/skips, including all generated-contract
+and website checks. Exact post-push CI remains a separate gate. See the
+[implementation and original failures](WEBSITE-DISCOVERY-AUTHORITY-2026-09-25.md).
+No provider action counts or grant rules change.
+
 ## BB — Per-attempt authority and accepted-write receipt preservation (2026-09-25)
 
 Five initial reproductions exposed retries after key revocation; 21 of the 25
@@ -18,7 +35,8 @@ review, verification, media and diagnostic paths. Accepted write receipts persis
 before delivery is denied. Fresh candidate C passes all 1697 main/four capture
 tests with FFmpeg required and zero failures/skips. Candidate A's five failures
 remain recorded, with error compatibility and bounded Windows cleanup corrected.
-Post-push CI remains separate. See [evidence and exact remaining boundaries](RETRY-AUTHORITY-2026-09-25.md).
+Exact GitHub run #99 also passes, including Docker and both smoke modes. See
+[evidence and exact remaining boundaries](RETRY-AUTHORITY-2026-09-25.md).
 No inventory count or provider capability is inflated by this hardening.
 
 ## BA — Business Profile MCP account/location synchronization (2026-09-25)

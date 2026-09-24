@@ -89,6 +89,16 @@ test('disconnect, session revocation and concurrent reauthorization cannot be un
  }
 });
 
+for(const stage of ['root','selected'] as const)for(const mode of ['session','login'] as const)test('Google reauthorization stops '+stage+' retries after '+mode+' changes without replacing newer credentials',async()=>{
+ const store=fixture();let calls=0,active=true;try{const newer={...credentials,accessToken:'newer-authorized-token'};const fetcher:typeof fetch=async(url,init)=>{calls++;const path=new URL(String(url)).pathname;
+  if(stage==='root'||path.includes('/100/')){if(mode==='session')active=false;else store.putConnection(actor,connection,newer);return Response.json({},{status:503});}
+  if(path.endsWith(':listAccessibleCustomers'))return Response.json({resourceNames:['customers/200']});
+  if(String(init?.body).includes('FROM customer_client'))return Response.json({results:[{customerClient:{id:'100',clientCustomer:'customers/100',manager:false}}]});
+  return Response.json({results:[{customer:{id:'200',manager:true}}]});
+ };await assert.rejects(renew(store,fetcher,{assertActive:()=>{if(!active)throw new MirrorError('SIGN_IN_REQUIRED','Synthetic session ended.',{},401);}}),(e:MirrorError)=>e.code===(mode==='session'?'SIGN_IN_REQUIRED':'CONNECTION_CHANGED'));assert.equal(calls,stage==='root'?1:4);assert.deepEqual(store.credentials('local',connection.id),mode==='session'?credentials:newer);assert.equal(googleAuthorizationRevision(store,'local',connection.id),null);
+ }finally{store.close();}
+});
+
 test('reauthorization requires reporting scope and offline access, and coordinates with active token refresh',async()=>{
  const store=fixture();try{
   for(const extra of [{scopes:['openid']},{credentials:{...fresh,refreshToken:undefined}}]){let calls=0;await assert.rejects(()=>renew(store,async()=>{calls++;throw Error('No egress expected');},extra));assert.equal(calls,0);}

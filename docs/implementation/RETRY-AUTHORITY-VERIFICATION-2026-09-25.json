@@ -293,11 +293,25 @@
     "fail": 0,
     "skip": 0,
     "live_verified": false,
-    "docker_verified": false
+    "docker_verified": true
   },
   "limitations": [
     "Synthetic validation only; no live provider credentials or account mutations.",
-    "Provider permissions, live output compatibility, Docker and deployment remain separately unverified.",
+    "Provider permissions, live output compatibility and deployed behavior remain unverified; Docker and both smoke modes passed in the exact GitHub run.",
     "See the matching implementation report for explicit contract limits, initial failures and primary references."
-  ]
+  ],
+  "github_ci": {
+    "url": "https://github.com/magdyezy1/AMCP/actions/runs/36073072256",
+    "job": "107878182680",
+    "commit": "796c22660d16c68a7ecde71cb0d9363b3bf824bd",
+    "status": "success",
+    "duration": "14m 56s",
+    "required_ffmpeg_check": "passed (6m 37s)",
+    "deployment_config": "passed",
+    "docker_build": "passed",
+    "read_container_smoke": "passed",
+    "write_container_smoke": "passed",
+    "observed": "2026-09-25 through authenticated GitHub Actions UI",
+    "numeric_ci_test_totals": "not separately extracted; local exact-source totals are recorded above"
+  }
 }

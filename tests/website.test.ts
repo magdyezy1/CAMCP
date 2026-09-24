@@ -81,6 +81,13 @@ test('an in-flight sync cannot restore deselected accounts or resurrect disconne
   arrived=new Promise<void>(r=>started=r);gate=new Promise<void>(r=>unblock=r);const removed=s.request('/api/connections/'+c.id+'/sync','POST',{},s.headers);await arrived;await s.request('/api/connections/'+c.id,'DELETE',undefined,s.headers);unblock();assert.equal((await removed).status,404);assert.equal(s.store.listConnections('local').length,0);
  }finally{await s.close();}
 });
+
+for(const change of ['session','login'] as const)for(const retry of [true,false])test('website sync cannot persist assets after '+change+' changes '+(retry?'before retry':'during a successful read'),async()=>{
+ let calls=0;const s=await site(async()=>{calls++;if(change==='session')s.store.db.exec('DELETE FROM amcp_web_sessions');else s.store.putConnection(owner,c,{accessToken:'replacement'});return new Response(JSON.stringify({data:[{id:'act_111',name:'Late provider result'}]}),{status:retry?503:200,headers:{'Content-Type':'application/json'}});});
+ try{s.store.putConnection(owner,c,{accessToken:'synthetic'});const saved={groups:[{kind:'ad_accounts',complete:true,assets:[{id:'111',name:'Retained account',kind:'ad_accounts',source:'vendor'}]}],selected:['ad_accounts:111'],lastSync:123,error:null};s.store.putDocument('local','website_assets',c.id,saved);
+  const before=s.store.document('local','website_assets',c.id),result=await s.request('/api/connections/'+c.id+'/sync','POST',{},s.headers);assert.equal(result.status,change==='session'?401:409);assert.equal((await result.json()).error.code,change==='session'?'SIGN_IN_REQUIRED':'CONNECTION_CHANGED');assert.equal(calls,1);assert.deepEqual(s.store.document('local','website_assets',c.id),before);assert.equal(s.store.listConnections('local')[0]!.label,c.label);
+ }finally{await s.close();}
+});
 test('browser provider OAuth adapters preserve callback, state, PKCE and provider-specific token encoding',async()=>{
  const store=new Store(':memory:',master),web=new WebStore(store,{origin,masterKey:master,adminPassword:password}),session=web.signIn(password,'test'),env:NodeJS.ProcessEnv={};for(const p of platforms){env['AMCP_'+p.env+'_CLIENT_ID']='synthetic-client';env['AMCP_'+p.env+'_CLIENT_SECRET']='synthetic-secret';}
  env.AMCP_MICROSOFT_DEVELOPER_TOKEN='synthetic-developer';

@@ -61,23 +61,31 @@ and both container smoke modes. Local candidate B passes 1646 main/four capture
 with no failures/skips. The original failure and deterministic reproductions
 remain visible; no assertion, test or guard was weakened.
 
-Latest pushed source: `8672f3a992fd423b99351a75ee904d4100988e04`.
+Previous pushed source: `8672f3a992fd423b99351a75ee904d4100988e04`.
 The [Business Profile sync batch](GOOGLE-BUSINESS-SYNC-2026-09-25.md) has
 187 focused/shared tests passing and a fresh full required-FFmpeg candidate with
 1671 main/four capture tests, zero failures/skips. Its tested Git index matches
 the 609-file sanitized candidate. [GitHub run #98](https://github.com/magdyezy1/AMCP/actions/runs/36069983914)
 passed in 16m 41s, including the unchanged required-FFmpeg/Docker smoke workflow.
-A separate [authorization follow-on](RETRY-AUTHORITY-2026-09-25.md) is staged:
+Latest pushed source: `796c22660d16c68a7ecde71cb0d9363b3bf824bd`.
+The [authorization follow-on](RETRY-AUTHORITY-2026-09-25.md) is complete:
 25 new race fixtures fail 21 times against the preceding immutable release, then
 pass after repair. It rechecks actor/login/grants before HTTP attempts and keeps
 accepted mutation receipts before denying a caller who lost authority. Candidate
 A failed five of 1696 tests (error compatibility and Windows cleanup); all five
 are corrected, with 150 focused tests green. Fresh candidate C passes 1697 main
-and four capture tests, zero failed/skipped, FFmpeg required. Staged source is
-compared against that tested candidate before commit; confirm its exact GitHub
-run after push. Do not hide A. Separate website discovery/Google reauthorization
-hardening remains unstaged, with eight failing baseline fixtures and its own
-regression suite in progress; it is not covered by candidate C.
+and four capture tests, zero failed/skipped, FFmpeg required. Its 565 staged
+code/test/guidance files match that tested candidate. Exact [GitHub run #99](https://github.com/magdyezy1/AMCP/actions/runs/36073072256)
+passed in 14m 56s, including Docker and both smoke modes. Do not hide A.
+Separate [website/OAuth and Google media hardening](WEBSITE-DISCOVERY-AUTHORITY-2026-09-25.md)
+has 118 website and 70 required-FFmpeg media tests passing. Website-only candidate
+A passes 1742 main/four capture; the subsequent four Google chunk regressions
+fail against A and pass after correction. Combined candidate B passes **1746
+main/four capture tests**, zero failures/skips, required FFmpeg enabled. Its
+617-file manifest hash is recorded with the exact staged-code comparison in
+the verification JSON. Confirm the exact post-push GitHub run before marking
+this follow-on released. All original failures and the optional media-tool skip
+remain in hashed logs. These batches do not complete the remaining action inventory.
 The MCP sync preserves numeric account and locations/{id} grants, merges shared
 parents, fences retry authority and persists complete groups with stale failure
 handling. Website Business Profile OAuth/discovery and MCP start/exchange/refresh

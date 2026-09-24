@@ -1,0 +1,376 @@
+{
+  "format_version": 1,
+  "date": "2026-09-25",
+  "branch": "Codex-branch",
+  "base_revision": "796c22660d16c68a7ecde71cb0d9363b3bf824bd",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true
+  },
+  "candidate": {
+    "path": ".release/website-discovery-authority-20260925-b",
+    "files": 617,
+    "source_tree_hash": "4e32648a7ff776286a6015f14e22657e77e44fc8936196c768c1455fc1b06274",
+    "index_code_test_guidance_files_compared": 567,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/website-discovery-authority-20260925-b",
+    "install": "npm.cmd ci --offline --ignore-scripts --cache '../../.runtime/npm-cache'",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm.cmd run check",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=<bundled Python>",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/contract-completion-20260924/media-chunk-authority-baseline.log",
+      "sha256": "6e9e474845e143d016c738154b2622f65ce0fdd91bb9c7a5a2767f5fd7c564ae",
+      "counts": [
+        {
+          "tests": 2
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 2
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 3412.3736
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/media-chunk-authority-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/media-chunk-authority-expanded-baseline.log",
+      "sha256": "c33085c3171352434acc8d2a95da32a1815a95505cdd67fa9c416486336edc99",
+      "counts": [
+        {
+          "tests": 4
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 4
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 2350.5123
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/media-chunk-authority-fixed.log",
+      "sha256": "fe29d7256be1889c3548979389d147eeb257d44ad66d2d34a4a6bd2a589d1439",
+      "counts": [
+        {
+          "tests": 68
+        },
+        {
+          "pass": 67
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 1
+        },
+        {
+          "duration_ms": 10708.6368
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/media-chunk-authority-required-ffmpeg.log",
+      "sha256": "ee8e6681366e36a5370ba1aacbc7ee890763f176438263b0c0c18b4943dc4ce7",
+      "counts": [
+        {
+          "tests": 70
+        },
+        {
+          "pass": 70
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 11702.4733
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/website-discovery-authority-baseline.log",
+      "sha256": "41ed288d9bda2f66b8ec842e83c245ce5bcf1cc148e807257a3de8978840160c",
+      "counts": [
+        {
+          "tests": 8
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 8
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 266.4332
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/website-discovery-authority-compatible-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/website-discovery-authority-compatible.log",
+      "sha256": "b40fbfe290c9fcfd4af93acb8c870884d15d7f81414c0c6700b5a53c44d9eb9e",
+      "counts": [
+        {
+          "tests": 118
+        },
+        {
+          "pass": 118
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 44913.3025
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/website-discovery-authority-expanded-baseline.log",
+      "sha256": "68d5ec6f9a08c41100cda095958c2671768cad6ae885190c2f4f297c6ae9b92a",
+      "counts": [
+        {
+          "tests": 76
+        },
+        {
+          "pass": 31
+        },
+        {
+          "fail": 45
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 39766.5449
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/website-discovery-authority-expanded-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/website-discovery-authority-expanded.log",
+      "sha256": "c5f225fad53e45da5672063b420b72913902f1b984e094908288ac3054f62061",
+      "counts": [
+        {
+          "tests": 47
+        },
+        {
+          "pass": 45
+        },
+        {
+          "fail": 2
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 16107.9533
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/website-discovery-authority-final-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/website-discovery-authority-final.log",
+      "sha256": "166fe78774abc7120796a56607e40f5b58f803d82504c794ee3e42685a95f031",
+      "counts": [
+        {
+          "tests": 118
+        },
+        {
+          "pass": 114
+        },
+        {
+          "fail": 4
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 47512.0087
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/website-discovery-authority-first-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/website-discovery-authority-first.log",
+      "sha256": "e4df4156141ee481373021f398faab3318b9ac0b6d3565b5b08efbfc6bd0db02",
+      "counts": [
+        {
+          "tests": 56
+        },
+        {
+          "pass": 56
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 13553.9644
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/website-discovery-authority-oauth-baseline.log",
+      "sha256": "b0cb7648dc064e11b3c62c90719d93980b73a430576b36fac421c4b9862f7cf5",
+      "counts": [
+        {
+          "tests": 2
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 2
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1893.2648
+        }
+      ]
+    },
+    {
+      "path": ".release/website-discovery-authority-20260925-b/release-check.log",
+      "sha256": "ef78e20d6698fa1737587e795520509e6741a4022bbf829be46a5c93648a6bf7",
+      "counts": [
+        {
+          "tests": 1746
+        },
+        {
+          "pass": 1746
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 415162.5515
+        },
+        {
+          "tests": 4
+        },
+        {
+          "pass": 4
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 89.4996
+        }
+      ]
+    },
+    {
+      "path": ".release/website-discovery-authority-20260925-a/release-check.log",
+      "sha256": "ae9313c19bbc1e8a76ef862e2176fcbef90ce3f9760c10f40099064b9f4d79ec",
+      "counts": [
+        {
+          "tests": 1742
+        },
+        {
+          "pass": 1742
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 431094.7284
+        },
+        {
+          "tests": 4
+        },
+        {
+          "pass": 4
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 92.8185
+        }
+      ]
+    }
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 1746,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials or account mutations.",
+    "Provider permissions, live output compatibility, Docker and deployment remain separately unverified.",
+    "See the matching implementation report for explicit contract limits, initial failures and primary references."
+  ]
+}

@@ -5,10 +5,10 @@ import type {AssetGroup,WorkspaceAsset} from './asset-discovery.js';
 import {assetSyncDiagnostic,assetSyncErrorMessage} from '../src/report-errors.js';
 
 /** Discover every status beneath each directly accessible root, without granting account access. */
-export async function googleAccountDiscovery(transport:NativeTransport,connection:Connection,credentials:Credentials):Promise<AssetGroup>{
+export async function googleAccountDiscovery(transport:NativeTransport,connection:Connection,credentials:Credentials,assertActive:()=>void=()=>{}):Promise<AssetGroup>{
  const plan=(path:string,body?:JsonObject):CompiledRequest=>({gateway:connection.gateway,action:'AMCP_GOOGLE_DISCOVERY',path,query:{},method:body?'POST':'GET',body,headers:{},readOnly:true,destructive:false,requiresConfirmation:false,evidence:'INDEPENDENT_ACCOUNT_DISCOVERY',warnings:[]});
  const request=async(p:CompiledRequest,c:Credentials,stage:string)=>{
-  try{return await transport.request(p,connection,c);}catch(e){if(e instanceof MirrorError)throw new MirrorError(e.code,e.message,{...e.details,report_request:{stage,method:p.method,path:p.path}},e.status,e.retryable);throw e;}
+  try{assertActive();const result=await transport.request(p,connection,c,undefined,{beforeAttempt:assertActive});assertActive();return result;}catch(e){assertActive();if(e instanceof MirrorError)throw new MirrorError(e.code,e.message,{...e.details,report_request:{stage,method:p.method,path:p.path}},e.status,e.retryable);throw e;}
  };
  const result=await request(plan('/v23/customers:listAccessibleCustomers'),{...credentials,loginCustomerId:undefined},'account_list');
  const names=(result.data as JsonObject).resourceNames;
@@ -43,6 +43,7 @@ export async function googleAccountDiscovery(transport:NativeTransport,connectio
   const rows=await search(root,'SELECT customer_client.id, customer_client.client_customer, customer_client.descriptive_name, customer_client.currency_code, customer_client.time_zone, customer_client.status, customer_client.manager, customer_client.hidden, customer_client.test_account, customer_client.level FROM customer_client');
   for(const row of rows){const asset=account(row.customerClient,root,true);if(!assets.has(asset.id)||assets.get(asset.id)!.status===undefined)assets.set(asset.id,asset);}
   if(assets.size>10000)throw new MirrorError('ASSET_SYNC_LIMIT','Google account discovery exceeded 10,000 accounts.',{},409);
- }catch(e){failures.push(assetSyncDiagnostic(e,'google',connection.id,'ad_accounts',root));}
+ }catch(e){assertActive();failures.push(assetSyncDiagnostic(e,'google',connection.id,'ad_accounts',root));}
+ assertActive();
  return {kind:'ad_accounts',assets:[...assets.values()],complete:failures.length===0,...(failures.length?{error:'Some Google account details could not be synced. '+failures.map(assetSyncErrorMessage).join(' '),diagnostics:failures}:{})};
 }

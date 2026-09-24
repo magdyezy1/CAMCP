@@ -206,7 +206,7 @@ test('a revoked test session cannot create a connection after token exchange',as
   assert.equal((await s.request('/api/auth/meta/callback?'+new URLSearchParams({state,code:'synthetic'}),'GET',undefined,s.headers)).status,303);
   assert.deepEqual(s.store.listConnections(s.actor.tenantId),[]);
   assert.equal((await s.request('/api/oauth/progress/'+attempt.attemptId,'GET',undefined,s.headers)).status,401);
-  assert.ok(s.calls.every(call=>call.endsWith('/oauth/access_token')),'revocation must stop discovery');
+  assert.ok(s.calls.every(call=>call.endsWith('/oauth/access_token')),'revocation must stop discovery');assert.equal(s.calls.length,1,'revocation must prevent the second Meta exchange');
  }finally{await s.close();}
 });
 
@@ -218,5 +218,11 @@ test('named test workspace viewers cannot initiate or manage connections',async(
    const r=await s.request(path!,method,{},s.headers);assert.equal(r.status,403);assert.equal((await r.json()).error.code,'FORBIDDEN');
   }
   assert.equal(s.calls.length,0);assert.equal(s.store.listConnections(s.actor.tenantId).length,1);
+ }finally{await s.close();}
+});
+
+test('administrator demotion during OAuth exchange cannot persist a connection or begin discovery',async()=>{
+ const s=await site('named');try{const attempt=await s.start();s.control.beforeExchange=()=>{s.store.db.prepare("UPDATE workspace_memberships SET role='viewer' WHERE tenant_id=? AND user_id=?").run(s.actor.tenantId,s.actor.userId);};const state=new URL(attempt.url).searchParams.get('state')!;
+  assert.equal((await s.request('/api/auth/meta/callback?'+new URLSearchParams({state,code:'synthetic'}),'GET',undefined,s.headers)).status,303);assert.deepEqual(s.store.listConnections(s.actor.tenantId),[]);const progress=await (await s.request('/api/oauth/progress/'+attempt.attemptId,'GET',undefined,s.headers)).json();assert.equal(progress.state,'failed');assert.equal(progress.exchange,false);assert.ok(s.calls.every(call=>call.endsWith('/oauth/access_token')));assert.equal(s.calls.length,1);
  }finally{await s.close();}
 });

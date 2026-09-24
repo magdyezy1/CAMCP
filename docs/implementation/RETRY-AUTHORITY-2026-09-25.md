@@ -132,3 +132,13 @@ checks stop subsequent attempts and result delivery; they do not claim provider
 token revocation or cancellation of an accepted mutation. Existing provider
 permissions, spend policies, reviewed state comparisons, frozen requests,
 idempotency, read-back and deployment controls remain required.
+
+## Exact pushed CI result
+
+Commit `796c22660d16c68a7ecde71cb0d9363b3bf824bd` is pushed to `Codex-branch`.
+[GitHub run #99](https://github.com/magdyezy1/AMCP/actions/runs/36073072256) passed
+in 14m 56s: required-FFmpeg check, deployment-config validation, Docker build,
+image capture and read/write container smoke modes. GitHub's check step took
+6m 37s; CI test totals were not separately extracted from the virtualized logs.
+The local exact-source totals remain 1697 main/four capture. This does not prove
+deployed provider behavior or qualify the separate website/media follow-on.

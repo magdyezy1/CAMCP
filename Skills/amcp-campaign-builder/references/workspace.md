@@ -289,3 +289,11 @@ Keep the original review/idempotency key, inspect its receipt with an authorized
 identity, and reconcile/read back the result. Never turn a permission error into
 a retry with a new key. A stopped pre-dispatch attempt can still carry an uncertain
 local claim and reserved allowance; do not bypass those controls to force a retry.
+
+Website connection sync also stops if its administrator session ends, its login
+changes or recorded permissions are removed. `CONNECTION_CHANGED` means the
+current login was kept: refresh Connections and sync with the intended identity.
+New unselected connections can still discover their provider inventory; discovery
+does not grant AMCP account access. Interrupted Google reauthorization preserves
+the current connection and requires a new consent attempt. An administrator who
+loses that role during OAuth must regain authorized access before reconnecting.

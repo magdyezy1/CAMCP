@@ -91,9 +91,9 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   const assets=savedAssets(tenant,c),meta=readDocument(tenant,'website_connection',c.id);
   return {id:c.id,name:c.label,enabled:c.enabled,isDefault:c.isDefault===true,defaultWriteAccess:c.defaultWriteAccess===true,accounts:c.accounts,writeAccounts:(c.writeAccounts??[]).filter(id=>c.accounts.includes(id)),expiresAt:meta.expiresAt??null,lastSync:assets.lastSync??null,error:assets.error??null,selected:assets.selected??[],groups:assets.groups??[],status:assets.error?'attention':c.enabled?'connected':'selection_required',...(c.gateway==='google_ads_native_action'?{authorization:googleAuthorizationInfo(store,c,oauth.config(platform('google')).clientId)}:{})};
  };
- const sync=async(tenant:string,c:Connection,kinds?:string[])=>{
+ const sync=async(tenant:string,c:Connection,assertActive:()=>void,kinds?:string[])=>{
   const authorizationRevision=c.gateway==='google_ads_native_action'?googleAuthorizationRevision(store,tenant,c.id):null;
-  const result=await discovery.sync(c,kinds);
+  const result=await discovery.sync(c,kinds,assertActive);result.assertCurrent();
   if(c.gateway==='google_ads_native_action'&&googleAuthorizationRevision(store,tenant,c.id)!==authorizationRevision)throw new MirrorError('CONNECTION_CHANGED','Google was reauthorized while this sync was running. Refresh the connection to see its current assets.',{},409);
   // A sync may overlap selection, default changes, or disconnect. Never restore its old grants.
   c=connection(tenant,c.id);const previous=savedAssets(tenant,c),groups:AssetGroup[]=[...(previous.groups??[])];
@@ -140,12 +140,13 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   const c:Connection={id:connectionId,tenantId:tenant,gateway:p.gateway,accounts:[],...(p.id==='reddit'?{userAgent:oauth.redditUserAgent()}:{}),defaultWriteAccess:allowWrites,label:result.label,enabled:false,scopes:result.scopes,isDefault:!store.listConnections(tenant).some(c=>c.gateway===p.gateway&&c.isDefault)};
   store.putConnection(session.actor,c,result.credentials);store.putDocument(tenant,'website_connection',connectionId,{platform:id,expiresAt:result.credentials.expiresAt??null,createdAt:Date.now()});
   store.appendAudit(tenant,attemptId,{event:'website_api_connected',platform:id,connection_id:connectionId,vendor_writes:0});
-  let error:string|null=null;try{error=(await sync(tenant,c)).error;}catch(e){error=e instanceof MirrorError?e.message:'Asset sync could not be completed. Retry from the connection manager.';}
+  let error:string|null=null;try{error=(await sync(tenant,c,()=>{web.requireAdminMutation(req);})).error;}catch(e){error=e instanceof MirrorError?e.message:'Asset sync could not be completed. Retry from the connection manager.';}
   store.putDocument(tenant,'oauth_progress',attemptId,{platform:id,state:error?'sync_attention':'complete',authorization:true,exchange:true,sync:!error,connectionId,createdAt:Date.now(),message:error??'Connection secured. Choose the assets AMCP can use.'});
   res.json({url:'/oauth/result?attempt='+encodeURIComponent(attemptId),attemptId});
  }));
  const callback=handler(async(req,res)=>{
   const session=web.requireSession(req),id=String(req.params.platform),query:Record<string,string>={};platform(id);
+  const assertActive=()=>{const current=web.requireSession(req);if(current.actor.role!=='admin'||current.actor.tenantId!==session.actor.tenantId||current.actor.userId!==session.actor.userId)throw new MirrorError('FORBIDDEN','A current workspace administrator session is required.',{},403);};assertActive();
   for(const [k,v]of Object.entries(req.query)){if(typeof v!=='string'||v.length>8192)throw new MirrorError('OAUTH_CALLBACK_INVALID','The provider returned invalid callback parameters.',{},400);query[k]=v;}
   if(!query.state)throw new MirrorError('OAUTH_STATE_INVALID','The callback is missing its security state.',{},400);
   const pending=web.consumeOAuth(session,id,query.state),attemptId=String(pending.attemptId),tenant=session.actor.tenantId,p=platform(id);
@@ -153,20 +154,20 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   let securedConnectionId:string|undefined;
   try{
    progress({state:'exchange',authorization:true,exchange:false,sync:false});
-   const result=await oauth.exchange(id,pending,query),connectionId=pending.reauthorization?.connectionId??randomUUID();
+   const result=await oauth.exchange(id,pending,query,assertActive),connectionId=pending.reauthorization?.connectionId??randomUUID();
    // A completed token exchange must not restore access after the initiating session ended.
-   web.requireSession(req);
+   assertActive();
    if(pending.reauthorization){
     if(id!=='google')throw new MirrorError('OAUTH_STATE_INVALID','This reauthorization does not match Google.',{},400);
     progress({state:'sync',authorization:true,exchange:true,sync:false,connectionId});
-    await reauthorizeGoogleConnection({store,actor:session.actor,connectionId,revision:pending.reauthorization.revision??null,credentials:result.credentials,scopes:result.scopes,allowWrites:allowWrites&&pending.requestedWriteAccess===true,fetcher:options.fetcher,assertActive:()=>{if(web.requireSession(req).actor.role!=='admin')throw new MirrorError('FORBIDDEN','A workspace administrator is required.',{},403);}});
+    await reauthorizeGoogleConnection({store,actor:session.actor,connectionId,revision:pending.reauthorization.revision??null,credentials:result.credentials,scopes:result.scopes,allowWrites:allowWrites&&pending.requestedWriteAccess===true,fetcher:options.fetcher,assertActive});
     securedConnectionId=connectionId;progress({state:'complete',authorization:true,exchange:true,sync:true,connectionId,message:'Google authorization renewed and account access verified. Your account selections, saved reports and schedules are preserved.'});
     res.redirect(303,'/oauth/result?attempt='+encodeURIComponent(attemptId));return;
    }
    const c:Connection={id:connectionId,tenantId:tenant,gateway:p.gateway,accounts:[],...(p.id==='reddit'?{userAgent:oauth.redditUserAgent()}:{}),defaultWriteAccess:p.reviewedWrites!==false&&allowWrites&&pending.requestedWriteAccess===true,label:result.label,enabled:false,scopes:result.scopes,isDefault:!store.listConnections(tenant).some(c=>c.gateway===p.gateway&&c.isDefault)};
    store.putConnection(session.actor,c,result.credentials);securedConnectionId=connectionId;store.putDocument(tenant,'website_connection',connectionId,{platform:id,expiresAt:result.credentials.expiresAt??null,providerId:result.providerId??null,createdAt:Date.now()});
    store.appendAudit(tenant,attemptId,{event:'website_oauth_connected',platform:id,connection_id:connectionId});progress({state:'sync',authorization:true,exchange:true,sync:false,connectionId});
-   const synced=await sync(tenant,c);progress({state:synced.error?'sync_attention':'complete',authorization:true,exchange:true,sync:!synced.error,connectionId,message:synced.error??'Connection secured. Choose the assets AMCP can use.'});
+   const synced=await sync(tenant,c,assertActive);progress({state:synced.error?'sync_attention':'complete',authorization:true,exchange:true,sync:!synced.error,connectionId,message:synced.error??'Connection secured. Choose the assets AMCP can use.'});
   }catch(e){const diagnostics=e instanceof MirrorError&&Array.isArray(e.details.diagnostics)?e.details.diagnostics:[];progress({state:securedConnectionId?'sync_attention':'failed',authorization:!query.error&&!query.denied,exchange:!!securedConnectionId,sync:false,connectionId:securedConnectionId??pending.reauthorization?.connectionId,message:e instanceof MirrorError?e.message:'The connection could not be completed. Start again from AMCP.',...(diagnostics.length?{diagnostics}:{})});if(pending.reauthorization)store.appendAudit(tenant,attemptId,{event:'website_oauth_reauthorization_failed',platform:id,connection_id:pending.reauthorization.connectionId,error:{code:e instanceof MirrorError?e.code:'REAUTHORIZATION_FAILED',message:e instanceof MirrorError?e.message:'Google reauthorization failed.'},diagnostics,vendor_writes:0});}
   res.redirect(303,'/oauth/result?attempt='+encodeURIComponent(attemptId));
  });
@@ -180,7 +181,7 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
  }));
  router.post('/api/connections/:id/sync',express.json({limit:'8kb'}),handler(async(req,res)=>{
   const s=web.requireAdminMutation(req),c=connection(s.actor.tenantId,String(req.params.id));const kinds=req.body?.kinds;
-  if(kinds!==undefined&&(!Array.isArray(kinds)||kinds.length>8||kinds.some((k:unknown)=>typeof k!=='string')))throw new MirrorError('INVALID_ARGUMENT','Select valid asset types.');res.json(await sync(s.actor.tenantId,c,kinds));
+  if(kinds!==undefined&&(!Array.isArray(kinds)||kinds.length>8||kinds.some((k:unknown)=>typeof k!=='string')))throw new MirrorError('INVALID_ARGUMENT','Select valid asset types.');res.json(await sync(s.actor.tenantId,c,()=>{web.requireAdminMutation(req);},kinds));
  }));
  router.patch('/api/connections/:id/assets',express.json({limit:'256kb'}),handler((req,res)=>{
   const s=web.requireAdminMutation(req),tenant=s.actor.tenantId,c=connection(tenant,String(req.params.id)),assets=savedAssets(tenant,c),selected=req.body?.selected;

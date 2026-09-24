@@ -97,7 +97,8 @@ export class PlatformOAuth {
   this.web.beginOAuth(session,id,data,state);this.web.store.putDocument(session.actor.tenantId,'oauth_progress',attemptId,{platform:id,state:'authorization',createdAt:Date.now(),authorization:false,exchange:false,sync:false});
   return {url:url.href,attemptId};
  }
- async exchange(id:string,stored:JsonObject,query:Record<string,string>):Promise<{credentials:Credentials;label:string;scopes:string[];providerId?:string}>{
+ async exchange(id:string,stored:JsonObject,query:Record<string,string>,assertActive:()=>void=()=>{}):Promise<{credentials:Credentials;label:string;scopes:string[];providerId?:string}>{
+  assertActive();
   const p=platform(id),c=this.config(p);if(!c.configured)throw new MirrorError('PROVIDER_SETUP_REQUIRED','Provider credentials are unavailable.',{},503);
   if(p.authType)throw new MirrorError('SERVICE_CONNECTION_REQUIRED','Apple Ads does not use an authorization-code callback.');
   if(query.error||query.denied)throw new MirrorError('OAUTH_CANCELLED','Authorization was cancelled. Your existing connections were not changed.',{},400);
@@ -108,7 +109,7 @@ export class PlatformOAuth {
    // X binds access to the original request token. Never replace that token or
    // request a new access type during exchange when deployment settings change.
    const url=new URL(p.token),authorization=signOAuth1('POST',url,c.clientId!,c.clientSecret!,stored.requestToken,stored.requestSecret,{oauth_verifier:query.oauth_verifier});
-   result=await this.readResponse(await this.fetcher(url,{method:'POST',headers:{Authorization:authorization},redirect:'error',signal:AbortSignal.timeout(15000)}),'form');
+   result=await this.readResponse(await this.fetcher(url,{method:'POST',headers:{Authorization:authorization},redirect:'error',signal:AbortSignal.timeout(15000)}),'form');assertActive();
    if(typeof result.oauth_token!=='string'||typeof result.oauth_token_secret!=='string')throw new MirrorError('OAUTH_RESPONSE_INVALID','X did not return usable user credentials.',{},502);
    return {credentials:{consumerKey:c.clientId,consumerSecret:c.clientSecret,accessToken:result.oauth_token,tokenSecret:result.oauth_token_secret},label:result.screen_name?'@'+result.screen_name:'X login',scopes:[],providerId:result.user_id};
   }
@@ -121,12 +122,12 @@ export class PlatformOAuth {
   const redditHeaders=id==='reddit'?{Authorization:'Basic '+Buffer.from(c.clientId+':'+c.clientSecret).toString('base64'),'User-Agent':this.redditUserAgent()}:undefined;
   if(redditHeaders){body.delete('client_id');body.delete('client_secret');}
   const tokenUrl=new URL(p.token);if(id==='meta'){body.delete('grant_type');tokenUrl.search=body.toString();}
-  result=await this.readResponse(await this.fetcher(tokenUrl,{method:id==='meta'?'GET':'POST',body:id==='meta'?undefined:id==='tiktok'?JSON.stringify({app_id:c.clientId,secret:c.clientSecret,auth_code:code}):body,headers:id==='tiktok'?{'Content-Type':'application/json'}:redditHeaders??{},redirect:'error',signal:AbortSignal.timeout(15000)}));
+  result=await this.readResponse(await this.fetcher(tokenUrl,{method:id==='meta'?'GET':'POST',body:id==='meta'?undefined:id==='tiktok'?JSON.stringify({app_id:c.clientId,secret:c.clientSecret,auth_code:code}):body,headers:id==='tiktok'?{'Content-Type':'application/json'}:redditHeaders??{},redirect:'error',signal:AbortSignal.timeout(15000)}));assertActive();
   if(id==='tiktok'){if(result.code!==0||!result.data)throw new MirrorError('OAUTH_EXCHANGE_FAILED','TikTok rejected the authorization code.',{},502);result=result.data;}
   if(id==='meta'&&this.env.AMCP_META_LONG_LIVED_TOKEN!=='false'){
    if(typeof result.access_token!=='string'||!result.access_token)throw new MirrorError('OAUTH_RESPONSE_INVALID','Meta did not return a usable short-lived token.',{},502);
    const exchangeUrl=new URL(p.token);exchangeUrl.search=new URLSearchParams({grant_type:'fb_exchange_token',client_id:c.clientId!,client_secret:c.clientSecret!,fb_exchange_token:result.access_token}).toString();
-   const extended=await this.readResponse(await this.fetcher(exchangeUrl,{method:'GET',redirect:'error',signal:AbortSignal.timeout(15000)}));
+   const extended=await this.readResponse(await this.fetcher(exchangeUrl,{method:'GET',redirect:'error',signal:AbortSignal.timeout(15000)}));assertActive();
    // Trust only the provider's actual lifetime; never invent a 60-day expiration.
    if(typeof extended.access_token!=='string'||!extended.access_token||!Number.isFinite(Number(extended.expires_in))||Number(extended.expires_in)<=0)throw new MirrorError('OAUTH_RESPONSE_INVALID','Meta did not return a valid long-lived token and lifetime.',{},502);
    result={...result,...extended};
