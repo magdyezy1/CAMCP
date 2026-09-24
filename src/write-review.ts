@@ -1,4 +1,5 @@
 import {metaReportKind,assertMetaReport,assertMetaReportScope,metaReportSnapshots,readMetaReportState,metaReportOutcome} from './meta-insights-jobs.js';
+import {metaCreativeCreate,metaCreativeIdentityReads,metaCreativeState} from './meta-creative-state.js';
 import {placeActionKind,assertPlaceAction,assertPlaceActionScope,placeActionSnapshots,readPlaceActionState,placeActionOutcome,placeActionSafe,placeActionSafeError} from './google-place-action-links.js';
 import {businessNotificationKind,assertBusinessNotification,assertBusinessNotificationActor,assertBusinessNotificationScope,businessNotificationSnapshots,readBusinessNotificationState,businessNotificationOutcome} from './google-business-notifications.js';
 import {businessAccessKind,assertBusinessAccess,assertBusinessAccessActor,assertBusinessAccessScope,businessAccessSnapshots,readBusinessAccessState,businessAccessOutcome} from './google-business-access.js';
@@ -340,7 +341,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(plan.gateway==='meta_native_action'){
   const create=/^\/v[^/]+\/act_[^/]+\//.test(plan.path)&&plan.method==='POST';
   if(create){const reads=[base(plan.path.match(/^\/v[^/]+\/act_[^/]+/)![0],{fields:'id,account_status,currency'})];const parent=plan.path.endsWith('/adsets')?body.campaign_id:plan.path.endsWith('/ads')?body.adset_id:undefined;
-   if(plan.path.endsWith('/adsets')||plan.path.endsWith('/ads')){if(typeof parent!=='string'||!/^\d+$/.test(parent))fail('MISSING_PARAMETER','Child creates require their exact parent ID.');reads.push(base(plan.path.split('/').slice(0,2).join('/')+'/'+parent,{fields:'id,name,status'}));}return reads;}
+   if(plan.path.endsWith('/adsets')||plan.path.endsWith('/ads')){if(typeof parent!=='string'||!/^\d+$/.test(parent))fail('MISSING_PARAMETER','Child creates require their exact parent ID.');reads.push(base(plan.path.split('/').slice(0,2).join('/')+'/'+parent,{fields:'id,name,status'}));}if(metaCreativeCreate(plan))reads.push(...metaCreativeIdentityReads(plan));return reads;}
   if(/^\/v[^/]+\/\d+$/.test(plan.path)){const fields=new Set(['id','name','status']);for(const k of Object.keys(body))if(/^[a-z_]+$/.test(k)&&!['execution_options','fields'].includes(k))fields.add(k);return [base(plan.path,{fields:[...fields].join(',')})];}
  }
  if(plan.gateway==='snapchat_native_action'&&plan.method==='PUT'){
@@ -389,6 +390,11 @@ export class WriteReviewService {
   plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);assertMeasurementScopes(plan,c);return c;
  }
  private async state(actor:Actor,plan:CompiledRequest,connectionId:string,reads:CompiledRequest[]):Promise<unknown[]> {
+  if(metaCreativeCreate(plan)){
+   const read=reads[0]!,access=()=>this.access(actor,plan,connectionId),c=access();new ScopeGuard(this.registry,this.store).authorize(read,c);
+   const auth=await this.credentials.get(c);access();const result=await this.transport.request(read,c,auth);access();validateState(read,result);
+   return [normalizeSnapshot(read,result.data),{creative_source:await metaCreativeState(plan,this.store,this.transport,this.credentials,actor,access)}];
+  }
   if(googleAccessKind(plan))return readGoogleAccessState(plan,async read=>{
    if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Google access prerequisites must remain read-only.');
    const access=()=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,current);return current;};

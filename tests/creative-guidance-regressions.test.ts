@@ -7,8 +7,15 @@ import {NativeTransport} from '../src/transport.js';
 const actor={tenantId:'t',userId:'u',role:'admin' as const},key=Buffer.alloc(32,93).toString('base64'),policy={allowWrites:true,maxBudgetChange:0,requireBeforeState:true};
 
 test('Meta existing Instagram creative uses Instagram identity without a fabricated Facebook story',async()=>{
- const store=new Store(':memory:',key),c={id:'c',tenantId:'t',gateway:'meta_native_action',accounts:['123'],writeAccounts:['123'],enabled:true,label:'Synthetic',scopes:['ads_management']};store.putConnection(actor,c,{accessToken:'synthetic'});let writes=0;
- const s=new MirrorService(new Registry(),store,new NativeTransport(async(url,init)=>{if(init?.method==='GET')return Response.json({id:'act_123',currency:'USD',account_status:1});writes++;const b=new URLSearchParams(String(init?.body));assert.equal(b.get('source_instagram_media_id'),'777');assert.equal(b.get('instagram_user_id'),'888');assert.equal(b.has('object_story_id'),false);return Response.json({id:'999'});}),undefined,policy);
+ const store=new Store(':memory:',key),c={id:'c',tenantId:'t',gateway:'meta_native_action',accounts:['123'],writeAccounts:['123'],enabled:true,label:'Synthetic',scopes:['ads_management','pages_show_list','pages_read_engagement','instagram_basic']};store.putConnection(actor,c,{accessToken:'synthetic'});let writes=0;
+ const s=new MirrorService(new Registry(),store,new NativeTransport(async(url,init)=>{if(init?.method==='GET'){
+  const path=new URL(String(url)).pathname;
+  if(path==='/v25.0/act_123')return Response.json({id:'act_123',currency:'USD',account_status:1});
+  if(path==='/v25.0/act_123/promote_pages')return Response.json({data:[{id:'500',instagram_business_account:{id:'888'}}]});
+  if(path==='/v25.0/act_123/instagram_accounts')return Response.json({data:[{id:'888'}]});
+  if(path==='/v25.0/500')return Response.json({id:'500',access_token:'synthetic-page-token',instagram_business_account:{id:'888'}});
+  assert.equal(path,'/v25.0/777');assert.equal(new Headers(init.headers).get('Authorization'),'Bearer synthetic-page-token');return Response.json({id:'777',owner:{id:'888'},media_type:'VIDEO'});
+ }writes++;const b=new URLSearchParams(String(init?.body));assert.equal(b.get('source_instagram_media_id'),'777');assert.equal(b.get('instagram_user_id'),'888');assert.equal(b.has('object_story_id'),false);return Response.json({id:'999'});}),undefined,policy);
  const args={action:'meta_creative_create',account_id:'123',payload:{name:'IG existing Reel',source_instagram_media_id:'777',instagram_user_id:'888'}};
  try{
   const p=await s.call('amcp_write',{action:'prepare',gateway:c.gateway,arguments:args},actor);assert.equal(p.success,true,JSON.stringify(p));const e=await s.call('amcp_write',{action:'execute',review_id:p.data.review_id,idempotency_key:p.data.idempotency_key,confirmed:true},actor);assert.equal(e.success,true);assert.equal(store.ownsResource(c,'123','999'),true);

@@ -1,9 +1,46 @@
 # Provider action implementation progress
 
-Latest product batch: [2026-09-24 reporting continuation](REPORTING-2026-09-24-PROGRESS.md),
+Latest resume entry: [2026-09-24 handoff](RESUME-HANDOFF-2026-09-24.md).
+Latest incident: [2026-09-24 HTTP startup and DNS](STARTUP-DNS-2026-09-24.md).
+Completed follow-on: [2026-09-24 Meta source ownership](META-CREATIVE-OWNERSHIP-2026-09-24.md).
+Completed product batch: [2026-09-24 reporting continuation](REPORTING-2026-09-24-PROGRESS.md),
 with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
+
+## AQ — HTTP startup diagnostics and DNS investigation (2026-09-24)
+
+Successful HTTP startup now logs the actual bound address on stdout at info level.
+Express 5 bind errors now log a distinct failure and exit nonzero after worker/store
+shutdown. Combined sanitized full check: 1417 main tests passed, zero failed,
+one optional FFmpeg skip; four capture tests passed, all check stages exit 0.
+Final test-only reuse of the safe-port allocator passed 15 compatibility tests in
+a second sanitized candidate with identical production files. See the incident
+record for exact commands, hashes, initial failures and verification boundaries.
+
+Public read-only probes reproduce recursive NXDOMAIN while both assigned Cloudflare
+authorities return records and TLS-verified HTTPS /healthz returns 200 when routed
+through those records. One .shop authority returns NXDOMAIN; another times out.
+The remaining public resolution issue needs current Hostinger/registry status and
+delegation repair, not an application bypass. Exact cause remains unproven; no DNS,
+registrar, Cloudflare or Railway settings were changed.
+
+## AP — Direct Meta creative ownership (2026-09-24)
+
+Closed R1's reproduced direct-write Page/Instagram source ownership gap. Preparation
+and execution now complete bounded advertiser identity reads, verify Page linkage
+and content ownership, recheck current authority through private Page-token reads,
+and retain only stable proof in state comparison. Alternate top-level source/actor
+fields fail before egress until they have equivalent qualified contracts. Positive
+owned-content, media-chain and existing-post workflows remain supported.
+
+Final Meta candidate B: full check exit 0, 1413 main tests passed, zero failed,
+one optional FFmpeg skip; four capture tests passed. Concurrency/lost-response,
+real content changes, token/counter changes, revoked identities and in-flight
+reauthorization are covered. Meta descriptor version 7 and generated contracts/
+guidance updated. No DB migration or runtime dependency. Advanced/partnership
+variants, new-story media ownership and live acceptance remain separate work.
+Native action totals remain unchanged: 3241 / 423 reviewed-family / 894 blocked.
 
 ## AO — Independent reporting and X recovery (2026-09-24)
 

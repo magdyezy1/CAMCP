@@ -26,7 +26,7 @@ function fixture(platform:string){
   const b=raw instanceof FormData?Object.fromEntries(raw):raw?type==='application/json'?JSON.parse(String(raw)):Object.fromEntries(new URLSearchParams(String(raw))):{};
   calls.push({path,method,body:b,query:Object.fromEntries(url.searchParams)});
   if(platform==='meta'){
-   if(method==='GET'){if(path==='/v25.0/act_123')return Response.json({id:'act_123',account_status:1,currency:'USD'});if(path.endsWith('/adimages'))return Response.json({data:[{hash:'imagehash123'}]});return Response.json(records.get(path.split('/').at(-1)!)??{id:'200',name:'Parent',status:'PAUSED'});}
+   if(method==='GET'){if(path==='/v25.0/act_123')return Response.json({id:'act_123',account_status:1,currency:'USD'});if(path==='/v25.0/act_123/promote_pages')return Response.json({data:[{id:'500'}]});if(path.endsWith('/adimages'))return Response.json({data:[{hash:'imagehash123'}]});return Response.json(records.get(path.split('/').at(-1)!)??{id:'200',name:'Parent',status:'PAUSED'});}
    if(path.endsWith('/adimages')){assert.equal(b.bytes,png.toString('base64'));return Response.json({images:{image:{hash:'imagehash123'}}});}
    const creative=path.endsWith('/adcreatives'),id=creative?'300':'400',row:JsonObject={id,...Object.fromEntries(Object.entries(b).map(([k,v])=>[k,typeof v==='string'&&v.startsWith('{')?JSON.parse(v):v]))};
    if(creative)assert.equal(row.object_story_spec.link_data.image_hash,'imagehash123');else {assert.equal(row.creative.creative_id,'300');row.creative={id:'300'};}records.set(id,row);return Response.json({id});

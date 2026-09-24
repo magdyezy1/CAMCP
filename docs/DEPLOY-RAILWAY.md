@@ -17,6 +17,7 @@ Add these service variables:
 | Variable | Value |
 | --- | --- |
 | `PORT` | Railway's supplied port, or an explicit value such as `8080`; match the domain target port |
+| `MIRROR_HOST` | `0.0.0.0` in the container; do not override this with localhost for a public Railway service |
 | `MIRROR_DB` | `/data/mirror.sqlite` |
 | `MIRROR_MASTER_KEY` | A new random 32-byte base64 key |
 | `AMCP_ADMIN_PASSWORD` | A unique strong password, at least 16 characters |
@@ -26,7 +27,14 @@ Add these service variables:
 
 Generate the encryption key locally using `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. Put it directly in Railway variables and a password manager. Do not commit it. Preserve this key across deployments: changing it makes existing credentials unreadable. Do not copy your local test database or previously shared provider tokens into this deployment.
 
-The app uses Railway's `PORT`. Networking → Generate Domain supplies the initial HTTPS URL. If you omit `AMCP_PUBLIC_ORIGIN`, AMCP can use Railway's `RAILWAY_PUBLIC_DOMAIN` when supplied; set an explicit origin before registering provider callbacks. Redeploy after changing variables. `/healthz` should return status `up` and `live_writes` matching your `MIRROR_ALLOW_WRITES` setting. Sign in and check Settings. An unconfigured provider displays “Setup needed.”
+The app uses Railway's `PORT`. Networking → Generate Domain supplies the initial HTTPS URL. If you omit `AMCP_PUBLIC_ORIGIN`, AMCP can use Railway's `RAILWAY_PUBLIC_DOMAIN` when supplied; set an explicit origin before registering provider callbacks. Redeploy after changing variables. `/healthz` returns liveness only (`status: up`); inspect write readiness through the authenticated workspace health operation. Sign in and check Settings. An unconfigured provider displays “Setup needed.”
+
+Successful HTTP startup emits one JSON `http_listening` event at `level: info` on
+stdout, with the actual bound `host`/`port` and configured `public_origin`. A bind
+failure emits `http_listen_failed` at `level: error` and exits nonzero. The earlier
+plain startup message was sent to stderr and replaced `0.0.0.0` with
+`127.0.0.1`; Railway consequently showed a healthy startup as an error. That old
+message alone cannot establish either a failed listener or a localhost binding.
 
 ## 2. Connect amcp.shop
 
@@ -35,6 +43,31 @@ Add `amcp.shop` as a Railway custom domain. Copy Railway's actual CNAME target a
 For `www`, use Cloudflare's documented proxied CNAME and a redirect to `https://amcp.shop`, preserving path and query string. The app has one canonical origin. Avoid rewriting OAuth query parameters. Keep account/API responses out of Cloudflare cache rules. MCP clients cannot complete browser challenges on `/mcp`, `/authorize`, `/token`, `/register`, `/revoke`, or `/.well-known/*`; configure any custom challenge rules accordingly.
 
 References: [Railway custom domains and Cloudflare](https://docs.railway.com/networking/domains/working-with-domains), [Railway volumes](https://docs.railway.com/volumes), [Railway health checks](https://docs.railway.com/deployments/healthchecks).
+
+### Diagnose DNS before changing application settings
+
+`DNS_PROBE_FINISHED_NXDOMAIN` occurs during name resolution, before HTTPS or AMCP.
+Compare the system resolver, independent recursive resolvers, the domain's assigned
+authoritative nameservers and the parent-zone delegation. Timeouts are not
+NXDOMAIN. If authoritative records work but the parent zone has no delegation,
+check the registrar's domain status/contact verification and ask the registrar to
+restore the delegation. Do not replace working Cloudflare records, change AMCP
+authentication/host validation, or disable TLS checks to mask a DNS failure.
+
+On Windows, read-only starting checks are:
+
+```powershell
+Resolve-DnsName amcp.shop -Type A -DnsOnly
+Resolve-DnsName amcp.shop -Type A -Server 1.1.1.1 -DnsOnly
+Resolve-DnsName amcp.shop -Type NS -Server 8.8.8.8 -DnsOnly
+```
+
+Use the actual current nameservers from the registrar when checking authority.
+Once DNS resolves normally, verify HTTPS `/healthz`, a public policy page, and
+MCP's normal unauthenticated refusal before checking signed-in workflows. A local
+health check or a request routed to an authoritative address proves only that
+specific path. Never pin a Cloudflare address in application code or in the hosts
+file as a permanent fix. See the [September 24 incident evidence](implementation/STARTUP-DNS-2026-09-24.md).
 
 ## 3. Register provider apps
 

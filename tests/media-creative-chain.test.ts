@@ -16,7 +16,7 @@ test('Meta campaign → adset → Drive image → creative → paused ad shares 
  let downloads=0;
  const service=new MirrorService(registry,store,new NativeTransport((async(input,init)=>{
   const u=new URL(String(input));assert.equal(u.hostname,'graph.facebook.com');
-  if(init?.method==='GET'){const id=u.pathname.split('/').at(-1);return Response.json(id==='act_123'?{id,account_status:1,currency:'USD'}:{id,name:'Target',status:'PAUSED'});}
+  if(init?.method==='GET'){if(u.pathname==='/v25.0/act_123/promote_pages')return Response.json({data:[{id:'500'}]});const id=u.pathname.split('/').at(-1);return Response.json(id==='act_123'?{id,account_status:1,currency:'USD'}:{id,name:'Target',status:'PAUSED'});}
   const body=Object.fromEntries(new URLSearchParams(String(init?.body))),kind=u.pathname.split('/').at(-1)!;writes.push({kind,body});
   if(kind==='adimages'){assert.equal(body.bytes,png.toString('base64'));return Response.json({images:{asset:{hash:'imagehash123'}}});}
   if(kind==='adcreatives'){const story=JSON.parse(body.object_story_spec!);assert.equal(story.page_id,'500');assert.equal(story.link_data.image_hash,'imagehash123');assert.equal(story.link_data.link,'https://example.com/product');}
