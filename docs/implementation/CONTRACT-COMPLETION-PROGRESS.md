@@ -8,6 +8,23 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## AU — Exact financial limits and native cap safeguards (2026-09-24)
+
+[Financial findings and rollout](FINANCIAL-POLICY-2026-09-24.md) and
+[machine evidence](FINANCIAL-POLICY-VERIFICATION-2026-09-24.json) retain three
+failed decimal-boundary regressions, five failed cap regressions and a large
+SQLite-aggregate failure before their corrections. Native decimal strings and
+integer micros keep their units; new exact reservation metadata is additive.
+Configured numeric owner policies refuse unquantified cap clearing; Snapchat
+lifetime caps use the same positive-increase controls as daily budgets. Real
+cap changes still invalidate reviews and two SQLite workers cannot overbook.
+Final focused run: 97 pass, zero fail/skip. Full required-FFmpeg candidate B:
+1502 main and four capture pass, zero failed/skipped; every check stage exits 0.
+Action counts remain 432 reviewed-family and 888 blocked writes. No provider,
+credential or production configuration changed. Site access is user-confirmed
+and corroborated by public HTTP 200 checks; historical DNS observations do not
+establish that the app is currently down.
+
 ## AT — Scoped Criteo auction campaigns (2026-09-24)
 
 Two exact create/update routes now have qualified Campaign request/response

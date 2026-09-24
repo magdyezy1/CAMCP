@@ -76,6 +76,15 @@ reads, owner policies and durable verification. Candidate A passed 1481 main plu
 four capture tests with required FFmpeg, zero failures/skips. Preferred campaigns,
 retailer budgets, auto pacing, overrides and other Criteo writes remain unqualified.
 
+The [financial-policy batch](FINANCIAL-POLICY-2026-09-24.md) fixes exact decimal
+limits/reservations, cap-removal enforcement and Snapchat lifetime-cap mapping.
+Original decimal/cap regressions failed before correction; 97 focused tests now
+pass. The final complete required-FFmpeg check passed: 1502 main and four capture
+tests, zero failed/skipped; exact hashes and initial failures are in its evidence. Legacy reservations remain intact;
+there is no SQL migration. Financial-cap removal, budget inheritance, implicit
+PUT clearing and shared-budget reference transitions still require exact provider
+contracts; the new guard is not blanket qualification of those variants.
+
 Continue the exact rows in [remaining actions](REMAINING-ACTIONS-2026-09-24.csv),
 checked against `contracts:actions:check`, and tickets R2–R12 in the
 [earlier handoff](RESUME-HANDOFF-2026-09-20.md). Priorities:

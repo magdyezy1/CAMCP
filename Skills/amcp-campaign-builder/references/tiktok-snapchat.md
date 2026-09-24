@@ -20,6 +20,15 @@ For native tiktok_ad_create, put exactly **one** ad record in payload.creatives 
 
 Snapchat: campaign → ad squad → ad; uploaded media feeds a creative, then the ad references that creative. Use `snapchat_native_action`, with `ad_account_id` or `account_id`. Native collections wrap objects, for example `campaigns: [...]` or `creatives: [...]`. New campaigns/ad squads/ads require `PAUSED`; creative objects themselves do not require a fabricated status field.
 
+Snapchat campaign `lifetime_spend_cap_micro` and `daily_budget_micro` are separate
+native microcurrency limits. Owner absolute, percentage and cumulative controls
+apply to either field in POST, collection PUT and JSON Patch. One currency unit
+is 1,000,000 microcurrency units. Cap removal can permit further delivery, so a
+configured numeric owner policy requires a finite replacement; do not treat
+`remove` or null as zero spending. Native reductions also depend on money already
+spent and other account/ad-squad constraints, which AMCP's requested-increase
+policy does not replace. [Official campaign rules](https://developers.snap.com/marketing-api/Ads-API/campaigns).
+
 For `POST /v1/campaigns/{id}/adsquads`, the review reads that exact campaign at preparation and execution. Delivery-status array ordering is not a concurrent configuration edit. AMCP ignores delivery telemetry and normalizes only explicitly qualified set-valued fields while preserving ordered arrays, budget, targeting and schedule differences. A newly created campaign can immediately be used as the child write's parent.
 
 Snapchat creative updates use the discovered `snapchat_creative_update` action and native JSON Patch under the account. AMCP reviews the exact creative GET before executing the patch. Do not convert JSON Patch into a PUT collection payload.

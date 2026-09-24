@@ -118,6 +118,30 @@ The policy supports five independent settings, all optional:
   `POLICY_DAILY_INCREASE_LIMIT`. The window is the **UTC** calendar day, not the account
   timezone, and it counts requested increases rather than billed spend.
 
+Budget comparisons and cumulative reservations use exact decimal arithmetic in
+the native unit; `33.10 + 33.20` fits a `66.30` ceiling. Native decimal strings
+retain their precision, and Google integer micros are not converted to currency
+amounts by this safeguard. Numeric JSON fields can only retain the value already
+parsed from JSON. The response adds `requested_increase_decimal` and
+`reserved_today_decimal` alongside the compatible numeric fields; use the decimal
+fields to explain an exact boundary. Limits themselves remain numeric policy
+settings. Decreases never offset another requested increase.
+
+Existing reservations remain authoritative across restarts, including older
+numeric-only records; AMCP does not guess away historical rounding. A
+`POLICY_AMOUNT_INVALID` refusal can identify unsupported decimal syntax/range or
+inconsistent retained reservation data. Preserve the original review and record
+for operator diagnosis. Do not delete a reservation, round down the requested
+amount or widen a policy to hide the error.
+
+When any numeric owner limit is configured, explicit removal or clearing of a
+budget/cap is refused with `POLICY_AMOUNT_UNSUPPORTED`: an unlimited or unknown
+replacement cannot be compared with that ceiling. This includes JSON Patch
+`remove`, REST.li `$delete` and null/empty money values. Use the authorized finite
+replacement amount through the normal reviewed update; never split or delete a
+cap to evade the owner policy. JSON Patch `test` is a precondition and contributes
+no budget increase. Provider acceptance of the patch remains a separate check.
+
 Two behaviours worth planning around. A percentage or daily rule needs exactly one unambiguous
 current budget: a mutation touching several resources at once raises `POLICY_BASELINE_REQUIRED`
 (409), so narrow it to one resource. And a budget field AMCP cannot map to a known native unit

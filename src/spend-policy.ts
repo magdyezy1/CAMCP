@@ -1,3 +1,4 @@
+import {policyDecimal,decimalZero,decimalText,compareDecimal,addDecimal,positiveDecimalIncrease,multiplyDecimal} from './policy-decimal.js';
 import {criteoCampaignKind,criteoCampaignPolicyAmounts} from './criteo-campaign-writes.js';
 import {placeActionKind} from './google-place-action-links.js';
 import {businessNotificationKind,businessNotificationDisables} from './google-business-notifications.js';
@@ -67,7 +68,7 @@ export function unprotectedAccounts(store:Store,actor:Actor){
   if(!ids.has(spendPolicyKey(c.gateway,account)))rows.push({gateway:c.gateway,account_id:account,connection_id:c.id});
  return rows;
 }
-type Amount={path:string;key:string;amount:number};
+type Amount={path:string;key:string;amount:number;decimal?:string};
 /**
  * Both walks below recurse over a caller-supplied body. Without a cap, a deeply nested payload
  * inside the request size limit exhausts the stack and surfaces as an internal error rather than
@@ -79,11 +80,45 @@ const maxPayloadDepth=64;
 /**
  * Snapchat mutates through JSON Patch, so a budget or a status can arrive as an operation
  * rather than as a field. An operation is recognised by carrying a string `path` and a `value`,
- * in either key order — both the budget extractor and the activation check need the same rule,
- * and they must agree, or one control would see an operation the other does not.
+ * in either key order. Activation uses this value-bearing shape; the budget walk
+ * additionally inspects the operation name to distinguish tests and removals.
  */
 const patchOperation=(v:JsonObject)=>typeof v.path==='string'&&Object.hasOwn(v,'value')?{path:v.path,value:v.value}:undefined;
-function budgets(v:unknown,path='',out:Amount[]=[],strict=false,depth=0):Amount[]{if(depth>maxPayloadDepth)throw new MirrorError('POLICY_PAYLOAD_TOO_DEEP','This request nests more deeply than the spending policy can inspect, so its budgets cannot be verified.',{limit:maxPayloadDepth},400);if(Array.isArray(v)){v.forEach((x,i)=>budgets(x,path+'/'+i,out,strict,depth+1));return out;}if(!v||typeof v!=='object')return out;const op=patchOperation(v as JsonObject);if(op&&/budget/i.test(op.path))return budgets({[op.path.split('/').at(-1)!]:op.value},path+'/budget',out,strict,depth+1);for(const [k,x]of Object.entries(v)){const name=k.replace(/([a-z])([A-Z])/g,'$1_$2').toLowerCase(),next=path+'/'+name;if(/budget|campaign_budgets/.test(next)&&/^(daily_budget|daily_budget_micro|daily_budget_micros|daily_budget_amount_local_micro|total_budget_amount_local_micro|lifetime_budget|budget|amount|amount_micros|budget_amount_micros|budget_amount|amount_micro|daily_cap|total_cap|total_budget)$/.test(name)&&x!==null&&x!==''&&['string','number'].includes(typeof x)){const n=Number(x);if(!Number.isFinite(n)||n<0||n>Number.MAX_SAFE_INTEGER)throw new MirrorError('POLICY_AMOUNT_INVALID','Budget is outside the policy’s supported numeric range.');out.push({path:next,key:name,amount:n});}else{if(strict&&/budget/.test(next)&&!/(?:_id|_ids)$/.test(name)&&(typeof x==='number'||typeof x==='string'&&/^\d+(\.\d+)?$/.test(x)))throw new MirrorError('POLICY_AMOUNT_UNSUPPORTED','This budget field needs an explicit native unit mapping before it can be used under the owner policy.',{field:next});budgets(x,next,out,strict,depth+1);}}return out;}
+const nativeAmountField=/^(daily_budget|daily_budget_micro|daily_budget_micros|daily_budget_amount_local_micro|total_budget_amount_local_micro|lifetime_budget|lifetime_spend_cap_micro|budget|amount|amount_micros|budget_amount_micros|budget_amount|amount_micro|daily_cap|total_cap|total_budget)$/;
+const policyField=(key:string)=>key.replace(/([a-z])([A-Z])/g,'$1_$2').toLowerCase();
+const financialPath=(path:string)=>/budget|spend_cap/.test(policyField(path));
+const moneyLocation=(path:string,key:string)=>financialPath(path)&&(nativeAmountField.test(key)||/budget|spend_cap/.test(key)&&!/(?:_id|_ids|_name|_label)$/.test(key));
+function budgets(v:unknown,path='',out:Amount[]=[],strict=false,depth=0):Amount[]{
+ if(depth>maxPayloadDepth)throw new MirrorError('POLICY_PAYLOAD_TOO_DEEP','This request nests more deeply than the spending policy can inspect, so its budgets cannot be verified.',{limit:maxPayloadDepth},400);
+ const unquantified=(field:string)=>{throw new MirrorError('POLICY_AMOUNT_UNSUPPORTED','Removing or clearing a budget cap needs a qualified finite replacement under the owner monetary policy. Preserve the cap and use an explicit amount; do not discard the policy or reservation.',{field});};
+ if(Array.isArray(v)){v.forEach((x,i)=>budgets(x,path+'/'+i,out,strict,depth+1));return out;}
+ if(!v||typeof v!=='object')return out;
+ const record=v as JsonObject;
+ if(typeof record.op==='string'&&typeof record.path==='string'){
+  const next=path+policyField(record.path),name=policyField(record.path.split('/').at(-1)!);
+  if(record.op==='test')return out; // JSON Patch precondition: no budget is changed.
+  if(record.op==='remove'){if(strict&&moneyLocation(next,name))unquantified(next);return out;}
+  if(Object.hasOwn(record,'value'))return budgets({[name]:record.value},next,out,strict,depth+1);
+ }
+ if(strict&&Object.hasOwn(record,'$delete')){
+  // REST.li deletes are field names, not numeric values, including nested patches.
+  if(!Array.isArray(record.$delete)||record.$delete.some((key:unknown)=>typeof key!=='string'))unquantified(path+'/$delete');
+  for(const key of record.$delete){const name=policyField(key),next=path+'/'+name;if(moneyLocation(next,name))unquantified(next);}
+ }
+ for(const [k,x]of Object.entries(record)){
+  const name=policyField(k),next=path+'/'+name;
+  if(strict&&moneyLocation(next,name)&&(x===null||x===''||typeof x==='boolean'||typeof x==='object'&&x!==null&&!Object.keys(x).length))unquantified(next);
+  if(financialPath(next)&&nativeAmountField.test(name)&&x!==null&&x!==''&&['string','number'].includes(typeof x)){
+   const exact=policyDecimal(x);
+   if(compareDecimal(exact,policyDecimal(Number.MAX_SAFE_INTEGER))>0)throw new MirrorError('POLICY_AMOUNT_INVALID','Budget is outside the policy’s supported numeric range.');
+   const decimal=decimalText(exact);out.push({path:next,key:name,amount:Number(decimal),decimal});
+  }else{
+   if(strict&&financialPath(next)&&!/(?:_id|_ids)$/.test(name)&&(typeof x==='number'||typeof x==='string'&&/^\d+(\.\d+)?$/.test(x)))throw new MirrorError('POLICY_AMOUNT_UNSUPPORTED','This budget field needs an explicit native unit mapping before it can be used under the owner policy.',{field:next});
+   budgets(x,next,out,strict,depth+1);
+  }
+ }
+ return out;
+}
 /**
  * Activation is a per-provider fact, so it is declared per gateway and matched against the
  * payload structure. Matching a serialized string cannot see a field name the pattern was not
@@ -165,9 +200,52 @@ function checkAccountSpendPolicy(store:Store,actor:Actor,plan:CompiledRequest,be
   const id=accountRow?accountKey:workspaceDefaultPolicyId,row=accountRow??read(workspaceDefaultPolicyId);
   if(row)assertBusinessAccessPolicy(plan,before,JSON.parse(row.data));
   if(row)assertGoogleAccessPolicy(plan,before,JSON.parse(row.data));
-  if(!row)return {configured:false,unprotected:true,advice:'No spending policy protects this account. An owner can set one for this account, or a workspace default that covers every account, with amcp_workspace save_spend_policy.'};const policy=JSON.parse(row.data);if(policy.allow_deletion===false&&applyExecutionRisk(plan).destructive)throw new MirrorError('POLICY_DELETION_FORBIDDEN','The owner policy forbids resource deletion.',{policy_id:id},403);if(policy.allow_activation===false){if(!Object.hasOwn(activationFields,plan.gateway))throw new MirrorError('POLICY_ACTIVATION_FORBIDDEN','The owner policy forbids activation and this platform has no declared activation contract, so the request cannot be shown to leave entities paused.',{policy_id:id,gateway:plan.gateway},403);const rule=plan.gateway==='linkedin_native_action'&&/^\/rest\/adAccounts\/[^/]+\/creatives(?:\/[^/]+)?$/.test(plan.path)?{field:'intendedStatus',active:['ACTIVE']}:activationFields[plan.gateway];if(rule&&(businessNotificationKind(plan)&&!businessNotificationDisables(plan)||placeActionKind(plan)&&placeActionKind(plan)!=='delete'||linkedinConversionKind(plan)||linkedinRuleServing(plan)||googleBidKind(plan)||googleBiddingEventKind(plan)||googlePortfolioServing(plan)||googleConversionGoalServing(plan)||!!criteoCampaignKind(plan)||!!criteoTargetingKind(plan)||xPromotion(plan)||redditCreativeServing(plan)||googleAssetLinkActivates(plan)||googleConfigurationServing(plan)||appleEntityServing(plan)||dv360ListAffectsServing(plan)||microsoftAssociationActivates(plan)||!googleSegmentKind(plan)&&!googleConversionGoalKind(plan)&&activatesEntity({query:plan.query,body:plan.body},rule)))throw new MirrorError('POLICY_ACTIVATION_FORBIDDEN','The owner policy forbids activation.',{policy_id:id,field:rule.field},403);}const campaignAmounts=criteoCampaignPolicyAmounts(plan,before),amounts=campaignAmounts?.amounts??budgets({body:plan.body,query:plan.query},/budget/i.test(plan.path)?'/budget':'',[],['max_budget_native','max_budget_increase_percent','max_daily_increase_native'].some(k=>policy[k]!==undefined)),old=campaignAmounts?.old??budgets(appleBudgetState(plan,before));let increase=0;const restli=(plan.headers['X-RestLi-Method']??'').toUpperCase(),updatesExisting=['UPDATE','BATCH_UPDATE','PARTIAL_UPDATE','BATCH_PARTIAL_UPDATE'].includes(restli)||/_(?:id|urn)_post$/.test(plan.action);for(const b of amounts){if(policy.max_budget_native!==undefined&&b.amount>policy.max_budget_native)throw new MirrorError('POLICY_BUDGET_LIMIT','Requested budget exceeds the account policy.',{field:b.path,requested:b.amount,limit:policy.max_budget_native,units:'native'},403);const creating=campaignAmounts?.creating??(!updatesExisting&&(/\/create\//.test(b.path)||/create|_post$|^Add/.test(plan.action)));const candidates=[...new Set(old.filter(o=>o.key===b.key).map(o=>o.amount))];if(!creating&&candidates.length!==1&&(policy.max_budget_increase_percent!==undefined||policy.max_daily_increase_native!==undefined))throw new MirrorError('POLICY_BASELINE_REQUIRED','This budget policy requires one unambiguous current budget. Narrow the mutation to one resource.',{field:b.path},409);const prior=creating?0:candidates[0]??b.amount,delta=Math.max(0,b.amount-prior);if(!creating&&delta>0&&policy.max_budget_increase_percent!==undefined&&(prior===0||delta/prior*100>policy.max_budget_increase_percent))throw new MirrorError('POLICY_INCREASE_LIMIT','The budget increase exceeds the owner’s percentage limit.',{field:b.path,before:prior,after:b.amount,maximum_percent:policy.max_budget_increase_percent},403);increase+=delta;}
- // Sum the day's reservations in SQL. Reading every reservation the workspace has ever written
- // and filtering in JS made the cost of this safeguard grow with lifetime write count, and this
- // runs twice per reviewed write, inside a transaction.
+  if(!row)return {configured:false,unprotected:true,advice:'No spending policy protects this account. An owner can set one for this account, or a workspace default that covers every account, with amcp_workspace save_spend_policy.'};const policy=JSON.parse(row.data);if(policy.allow_deletion===false&&applyExecutionRisk(plan).destructive)throw new MirrorError('POLICY_DELETION_FORBIDDEN','The owner policy forbids resource deletion.',{policy_id:id},403);if(policy.allow_activation===false){if(!Object.hasOwn(activationFields,plan.gateway))throw new MirrorError('POLICY_ACTIVATION_FORBIDDEN','The owner policy forbids activation and this platform has no declared activation contract, so the request cannot be shown to leave entities paused.',{policy_id:id,gateway:plan.gateway},403);const rule=plan.gateway==='linkedin_native_action'&&/^\/rest\/adAccounts\/[^/]+\/creatives(?:\/[^/]+)?$/.test(plan.path)?{field:'intendedStatus',active:['ACTIVE']}:activationFields[plan.gateway];if(rule&&(businessNotificationKind(plan)&&!businessNotificationDisables(plan)||placeActionKind(plan)&&placeActionKind(plan)!=='delete'||linkedinConversionKind(plan)||linkedinRuleServing(plan)||googleBidKind(plan)||googleBiddingEventKind(plan)||googlePortfolioServing(plan)||googleConversionGoalServing(plan)||!!criteoCampaignKind(plan)||!!criteoTargetingKind(plan)||xPromotion(plan)||redditCreativeServing(plan)||googleAssetLinkActivates(plan)||googleConfigurationServing(plan)||appleEntityServing(plan)||dv360ListAffectsServing(plan)||microsoftAssociationActivates(plan)||!googleSegmentKind(plan)&&!googleConversionGoalKind(plan)&&activatesEntity({query:plan.query,body:plan.body},rule)))throw new MirrorError('POLICY_ACTIVATION_FORBIDDEN','The owner policy forbids activation.',{policy_id:id,field:rule.field},403);}
+ const campaignAmounts=criteoCampaignPolicyAmounts(plan,before);
+ const amounts:Amount[]=campaignAmounts?.amounts??budgets({body:plan.body,query:plan.query},/budget/i.test(plan.path)?'/budget':'',[],['max_budget_native','max_budget_increase_percent','max_daily_increase_native'].some(k=>policy[k]!==undefined));
+ const old:Amount[]=campaignAmounts?.old??budgets(appleBudgetState(plan,before));
+ const exact=(amount:Amount)=>policyDecimal(amount.decimal??amount.amount);
+ let increase=decimalZero;
+ const restli=(plan.headers['X-RestLi-Method']??'').toUpperCase();
+ const updatesExisting=['UPDATE','BATCH_UPDATE','PARTIAL_UPDATE','BATCH_PARTIAL_UPDATE'].includes(restli)||/_(?:id|urn)_post$/.test(plan.action);
+ for(const b of amounts){
+  const requested=exact(b);
+  if(policy.max_budget_native!==undefined&&compareDecimal(requested,policyDecimal(policy.max_budget_native))>0)
+   throw new MirrorError('POLICY_BUDGET_LIMIT','Requested budget exceeds the account policy.',{field:b.path,requested:b.amount,requested_decimal:decimalText(requested),limit:policy.max_budget_native,units:'native'},403);
+  const creating=campaignAmounts?.creating??(!updatesExisting&&(/\/create\//.test(b.path)||/create|_post$|^Add/.test(plan.action)));
+  const candidates=[...new Set(old.filter(o=>o.key===b.key).map(o=>decimalText(exact(o))))];
+  if(!creating&&candidates.length!==1&&(policy.max_budget_increase_percent!==undefined||policy.max_daily_increase_native!==undefined))
+   throw new MirrorError('POLICY_BASELINE_REQUIRED','This budget policy requires one unambiguous current budget. Narrow the mutation to one resource.',{field:b.path},409);
+  const prior=creating?decimalZero:candidates.length?policyDecimal(candidates[0]):requested;
+  const delta=positiveDecimalIncrease(requested,prior);
+  // Cross multiplication avoids both rounded division and an epsilon that could
+  // authorize an amount genuinely above the owner's exact percentage ceiling.
+  if(!creating&&delta.units>0n&&policy.max_budget_increase_percent!==undefined&&(prior.units===0n||compareDecimal(multiplyDecimal(delta,policyDecimal(100)),multiplyDecimal(prior,policyDecimal(policy.max_budget_increase_percent)))>0))
+   throw new MirrorError('POLICY_INCREASE_LIMIT','The budget increase exceeds the owner’s percentage limit.',{field:b.path,before:Number(decimalText(prior)),before_decimal:decimalText(prior),after:b.amount,after_decimal:decimalText(requested),maximum_percent:policy.max_budget_increase_percent},403);
+  increase=addDecimal(increase,delta);
+ }
+ // Keep tenant/account/day filtering in SQLite and stream only matching amounts.
+ // SQL SUM on REAL values rounds just like JS addition; lifetime history must not
+ // be loaded into JS to fix it. The surrounding IMMEDIATE transaction is unchanged.
  const day=new Date().toISOString().slice(0,10);
- const used=Number((store.db.prepare("SELECT coalesce(sum(json_extract(data,'$.increase_native')),0) AS total FROM documents WHERE tenant_id=? AND kind='spend_reservation' AND json_extract(data,'$.policy_id')=? AND json_extract(data,'$.day')=? AND id<>coalesce(?,'')").get(actor.tenantId,accountKey,day,reserveId??null) as JsonObject).total);if(policy.max_daily_increase_native!==undefined&&used+increase>policy.max_daily_increase_native)throw new MirrorError('POLICY_DAILY_INCREASE_LIMIT','Cumulative budget increases would exceed the owner’s daily policy.',{day,already_reserved:used,requested_increase:increase,limit:policy.max_daily_increase_native,units:'native'},403);if(reserveId)store.putDocument(actor.tenantId,'spend_reservation',reserveId,{policy_id:accountKey,day,increase_native:increase,created_at:Date.now()});return {configured:true,policy_id:id,scope:accountRow?'account':'workspace_default',policy_revision:row.revision,requested_increase_native:increase,reserved_today_native:used,units:'native'};});}
+ // Read the filtered JSON text: extracting a large integral aggregate through
+ // SQLite's INTEGER binding can throw above MAX_SAFE_INTEGER. Casting REAL to
+ // TEXT instead would lose significant digits in legacy numeric reservations.
+ const rows=store.db.prepare("SELECT id,data FROM documents WHERE tenant_id=? AND kind='spend_reservation' AND json_extract(data,'$.policy_id')=? AND json_extract(data,'$.day')=? AND id<>coalesce(?,'')").iterate(actor.tenantId,accountKey,day,reserveId??null) as Iterable<JsonObject>;
+ let used=decimalZero;
+ for(const row of rows){
+  const reservation=JSON.parse(row.data) as JsonObject;
+  // Legacy rows have only the numeric field. Preserve their recorded value;
+  // guessing away historical rounding could incorrectly release reserved money.
+  const legacy=policyDecimal(reservation.increase_native);
+  const amount=reservation.increase_decimal==null?legacy:policyDecimal(reservation.increase_decimal);
+  if(Number(decimalText(amount))!==Number(decimalText(legacy)))throw new MirrorError('POLICY_AMOUNT_INVALID','The retained daily spending reservation has inconsistent amounts.',{reservation_id:row.id},409);
+  used=addDecimal(used,amount);
+ }
+ const requestedDecimal=decimalText(increase),usedDecimal=decimalText(used);
+ const requestedNumber=Number(requestedDecimal),usedNumber=Number(usedDecimal);
+ if(policy.max_daily_increase_native!==undefined&&compareDecimal(addDecimal(used,increase),policyDecimal(policy.max_daily_increase_native))>0)
+  throw new MirrorError('POLICY_DAILY_INCREASE_LIMIT','Cumulative budget increases would exceed the owner’s daily policy.',{day,already_reserved:usedNumber,already_reserved_decimal:usedDecimal,requested_increase:requestedNumber,requested_increase_decimal:requestedDecimal,limit:policy.max_daily_increase_native,units:'native'},403);
+ if(reserveId)store.putDocument(actor.tenantId,'spend_reservation',reserveId,{policy_id:accountKey,day,increase_native:requestedNumber,increase_decimal:requestedDecimal,created_at:Date.now()});
+ return {configured:true,policy_id:id,scope:accountRow?'account':'workspace_default',policy_revision:row.revision,requested_increase_native:requestedNumber,requested_increase_decimal:requestedDecimal,reserved_today_native:usedNumber,reserved_today_decimal:usedDecimal,units:'native'};
+ });}

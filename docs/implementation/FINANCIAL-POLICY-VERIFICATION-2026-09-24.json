@@ -1,0 +1,259 @@
+{
+  "format_version": 1,
+  "date": "2026-09-24",
+  "branch": "Codex-branch",
+  "base_revision": "1605498aaeceddabe532210a6a5ae6a0a3e5f527",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "shell": "PowerShell",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/<fresh-name>",
+    "install": "npm.cmd ci --offline --ignore-scripts --cache '../../.runtime/npm-cache'",
+    "build": "npm.cmd run build",
+    "full": "npm.cmd run check",
+    "focused": "node --test dist/tests/spend-policy-caps.test.js dist/tests/spend-policy-decimal.test.js dist/tests/spend-policy.test.js dist/tests/recommendations-hardening.test.js dist/tests/criteo-campaign-writes.test.js dist/tests/apple-entity-writes.test.js dist/tests/guidance.test.js tests/guide-contract-examples.test.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=<bundled Python>",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>",
+      "AMCP_REQUIRE_FFMPEG=true"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/contract-completion-20260924/decimal-baseline.log",
+      "sha256": "c3c005c2dbfe1361d25a1d1cffbd7bc5a5d3b0f9b6b2dfec4bafa6c22c5950c9",
+      "counts": [
+        {
+          "tests": 3
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 3
+        },
+        {
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/decimal-first.log",
+      "sha256": "22d28d2a61473981da802eb59de3cc68c0936fb9767fe8a847eaa3c6bd3ba299",
+      "counts": [
+        {
+          "tests": 51
+        },
+        {
+          "pass": 51
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/decimal-expanded.log",
+      "sha256": "5dd5d4bcfab669ffa8c6f24cb376a7c0c0e8bec0fcee1a4889e9e2595a3ec00f",
+      "counts": [
+        {
+          "tests": 12
+        },
+        {
+          "pass": 12
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/decimal-compatibility.log",
+      "sha256": "977b8e783f6a5e884180698ae41669f395dd3ddbe128e248b9c35959350072ea",
+      "counts": [
+        {
+          "tests": 82
+        },
+        {
+          "pass": 82
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/caps-baseline.log",
+      "sha256": "c69ceb0a85c75f40e2ac14207311bd55fe6a24480dc76cadb19af19dbf3d4ae5",
+      "counts": [
+        {
+          "tests": 5
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 5
+        },
+        {
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/caps-first.log",
+      "sha256": "f7a86fb2825ec76be5085e37a935998ca4ac32dc9f93935b6e975d9917e4967d",
+      "counts": [
+        {
+          "tests": 65
+        },
+        {
+          "pass": 65
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/caps-final.log",
+      "sha256": "25792a838d16895ff1190b77902a7ebfbc8c5b5547e63063cdbc6d83c968eb73",
+      "counts": [
+        {
+          "tests": 88
+        },
+        {
+          "pass": 88
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/decimal-integer-baseline.log",
+      "sha256": "f96924992683de8201f19f769d7899534e2ec9a432ac5938d7929cca0acc0c77",
+      "counts": [
+        {
+          "tests": 1
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/financial-focused-final.log",
+      "sha256": "79731af6c8003ce690742e6d353e072143a6591d96d4b431aa936e0075d32a14",
+      "counts": [
+        {
+          "tests": 97
+        },
+        {
+          "pass": 97
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        }
+      ]
+    }
+  ],
+  "initial_full": {
+    "path": ".release/decimal-policy-20260924-a",
+    "source_tree_hash": "b7cbf85f55a5a0dbf1ac1392eeea78d95c194fa3f5c2ccb66b39f7e83bcb7c9e",
+    "files": 570,
+    "base_revision": "1605498aaeceddabe532210a6a5ae6a0a3e5f527",
+    "exit_code": 0,
+    "main": {
+      "pass": 1493,
+      "fail": 0,
+      "skipped": 0
+    },
+    "capture": {
+      "pass": 4,
+      "fail": 0,
+      "skipped": 0
+    },
+    "log": "decimal-check.log",
+    "log_sha256": "32cc0123c1b14d70544d49618abd3136404bfaf32585852262146fe7d95228eb",
+    "note": "Exact decimals before additional cap-removal/lifetime-cap and large SQLite aggregate corrections."
+  },
+  "final_full": {
+    "path": ".release/financial-policy-20260924-b",
+    "source_tree_hash": "b45a78eba2f874be584a5b3d96b4d3b26aee18f2b8bd5ce0cc8f1bb7d5288300",
+    "files": 571,
+    "base_revision": "1605498aaeceddabe532210a6a5ae6a0a3e5f527",
+    "status": "passed",
+    "exit_code": 0,
+    "main": {
+      "pass": 1502,
+      "fail": 0,
+      "skipped": 0
+    },
+    "capture": {
+      "pass": 4,
+      "fail": 0,
+      "skipped": 0
+    },
+    "log": "financial-check.log",
+    "log_sha256": "7ed4351c9f147021a208c3ee95b3d7a516c18194eece96b9e0c896a861f949e5",
+    "install_log_sha256": "b6ebe3f0a3188e0db53898395a619cadcfee9b101220e0c450b99732d97df902"
+  },
+  "boundaries": [
+    "Only synthetic provider fixtures and local SQLite/worker/FFmpeg execution",
+    "No live advertising mutation, account access, permission or production configuration change",
+    "Final action denominator unchanged at 3241; 432 reviewed family, 888 blocked writes; not all variants are implemented"
+  ],
+  "source_comment_delta": {
+    "file": "src/spend-policy.ts",
+    "method": "Exact source comparison after only the named comment replacement and CRLF normalization",
+    "logic_identical": true,
+    "unavailable_probe": "TypeScript 7 package did not expose ScriptTarget.ES2023/transpileModule API; optional transpiler comparison failed before execution. Used exact controlled text-delta comparison instead.",
+    "sha256": "bc7a41dbe159ce41a0ba8b7d42fe4c163e552bf7bcae11e6056de43abb3d8339"
+  },
+  "railway_static_config": "node deploy/check-railway.mjs passed; not container or deployed validation",
+  "final_delta": {
+    "from_tree": "b45a78eba2f874be584a5b3d96b4d3b26aee18f2b8bd5ce0cc8f1bb7d5288300",
+    "to_tree": "eec1c11d151e0a790fb2fbec9ab010d3f0e15ed9e5a0d60c0eaba1f55dedfc5b",
+    "files": 573,
+    "changed": [
+      "docs/implementation/CONTRACT-COMPLETION-PROGRESS.md",
+      "docs/implementation/RESUME-HANDOFF-2026-09-24.md",
+      "src/spend-policy.ts",
+      "docs/implementation/FINANCIAL-POLICY-2026-09-24.md",
+      "docs/implementation/FINANCIAL-POLICY-VERIFICATION-2026-09-24.json"
+    ],
+    "only_docs_and_verified_comment": true,
+    "tests_generated_guidance_byte_identical": true
+  }
+}
