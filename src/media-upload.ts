@@ -1,3 +1,4 @@
+import {nativeAuthority} from './native-authority.js';
 import {createHash,randomUUID} from 'node:crypto';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {MirrorError} from './errors.js';
@@ -55,7 +56,7 @@ export class MediaUploadService {
   const c=this.access(actor,p.platform,p.account_id,p.connection_id);new ScopeGuard(this.registry,this.store).authorize(p.read,c);
   this.ownerScope(p,c);
   const auth=await this.credentials.get(c),current=this.access(actor,p.platform,p.account_id,p.connection_id);new ScopeGuard(this.registry,this.store).authorize(p.read,current);this.ownerScope(p,current);
-  const r=await this.transport.request(p.read,current,auth);validateState(p.read,r);return normalizeSnapshot(p.read,r.data);
+  const access=nativeAuthority(this.store,this.registry,actor,p.read,current,auth,()=>{const c=this.access(actor,p.platform,p.account_id,p.connection_id);this.ownerScope(p,c);if(p.source_drive)driveAccess(this.store,actor,p.source_drive.connection_id,p.source_drive.url);});const r=await this.transport.request(p.read,access(),auth,undefined,{beforeAttempt:access});access();validateState(p.read,r);return normalizeSnapshot(p.read,r.data);
  }
  private ownerScope(p:UploadPlan,c:Connection){
   if(p.platform==='linkedin'&&p.kind==='video'&&!/^urn:li:(?:organization|person):[A-Za-z0-9_-]+$/.test(p.owner_urn??''))fail('LINKEDIN_VIDEO_OWNER_REQUIRED','Prepare LinkedIn video with an explicit organization/person owner and its exact binding.');
@@ -201,7 +202,7 @@ export class MediaUploadService {
   this.ownerScope(p,current);if(p.existing_media_id)new ScopeGuard(this.registry,this.store).authorize(p.read,current);
   if(!options.readOnly&&this.executionContext.getStore()!==undefined&&this.executionContext.getStore()!<=Date.now())fail('REVIEW_EXPIRED','Media review expired before the next upload step.');
   const plan:CompiledRequest={...p.read,action:'AMCP_REVIEWED_MEDIA',method:options.method??'POST',path,body,query:options.query??{},headers:{...p.read.headers,...options.headers},origin:options.origin,readOnly:options.readOnly??false};
-  const response=await this.transport.request(plan,current,auth,options.upload);
+  const access=nativeAuthority(this.store,this.registry,actor,p.read,current,auth,()=>{const c=this.access(actor,p.platform,p.account_id,p.connection_id);this.ownerScope(p,c);if(!options.readOnly&&p.source_drive)driveAccess(this.store,actor,p.source_drive.connection_id,p.source_drive.url);if(!options.readOnly&&this.executionContext.getStore()!==undefined&&this.executionContext.getStore()!<=Date.now())fail('REVIEW_EXPIRED','Media review expired before the next upload step.');});const response=await this.transport.request(plan,access(),auth,options.upload,{beforeAttempt:access});if(plan.readOnly)access();
   const emptyFinalize=p.platform==='linkedin'&&path==='/rest/videos'&&options.query?.action==='finalizeUpload'&&[200,204].includes(response.status)&&response.data!==null&&typeof response.data==='object'&&!Array.isArray(response.data)&&Object.keys(response.data).length===0;
   const googleStart=p.platform==='google_ads'&&path.startsWith('/resumable/upload/')&&response.status===200&&response.headers['x-goog-upload-url'];
   if(!options.readOnly&&!emptyFinalize&&!googleStart&&response.data!==null&&writeOutcome(response).success!==true)fail('MEDIA_RESPONSE_INVALID','Provider did not confirm this upload step.');return response;

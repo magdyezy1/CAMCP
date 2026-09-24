@@ -45,7 +45,8 @@ import {validateState,snapshotPlans} from './write-review.js';
 import {compileMicrosoft,microsoftGateway,microsoftContracts} from './microsoft-native.js';
 import {microsoftAssociationWrite,microsoftAssociationVerification,microsoftAssociationObserved} from './microsoft-associations.js';
 import {audit,bad,fingerprint,obj,optional,read} from './workspace-core.js';
-import type {Actor,CompiledRequest,JsonObject} from './types.js';
+import type {Actor,CompiledRequest,Connection,Credentials,JsonObject} from './types.js';
+import {nativeAuthority} from './native-authority.js';
 const snake=(s:string)=>s.replace(/([a-z0-9])([A-Z])/g,'$1_$2').toLowerCase();
 const normalize=(v:any):any=>Array.isArray(v)?normalizeReviewState(v.map(normalize)):obj(v)?Object.fromEntries(Object.entries(v).map(([k,x])=>[snake(k),normalize(x)])):v;
 function differing(expected:any,actual:any,path='',out:string[]=[]):string[]{
@@ -119,6 +120,10 @@ function entity(plan:CompiledRequest,data:JsonObject):JsonObject{
 }
 export class WriteVerifier{
  constructor(private store:Store,private registry:Registry,private transport:NativeTransport,private credentials:CredentialProvider){}
+ private async request(actor:Actor,plan:CompiledRequest,connection:Connection,auth:Credentials){
+  const access=nativeAuthority(this.store,this.registry,actor,plan,connection,auth);
+  const response=await this.transport.request(plan,access(),auth,undefined,{beforeAttempt:access});access();return response;
+ }
  async verify(actor:Actor,reviewId:string):Promise<JsonObject>{
   const review=read(this.store,actor,'write_review',reviewId);if(review.user_id!==actor.userId&&actor.role!=='admin')bad('This write belongs to another actor.','FORBIDDEN');
   const row=this.store.db.prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?').get(actor.tenantId,reviewId) as JsonObject|undefined;
@@ -150,7 +155,7 @@ export class WriteVerifier{
     if(!current.scopes.includes('adsread'))bad('Reddit post verification requires adsread.','INSUFFICIENT_SCOPE');
     new ScopeGuard(this.registry,this.store).authorize(page,current);const auth=await this.credentials.get(current);
     this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(!current.scopes.includes('adsread'))bad('Reddit post verification requires adsread.','INSUFFICIENT_SCOPE');new ScopeGuard(this.registry,this.store).authorize(page,current);
-    const response=await this.transport.request(page,current,auth);this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);
+    const response=await this.request(actor,page,current,auth);this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);
     if(!current.scopes.includes('adsread'))bad('Reddit post verification requires adsread.','INSUFFICIENT_SCOPE');new ScopeGuard(this.registry,this.store).authorize(page,current);return response;
    }));status=verified.status;checks=verified.checks;resources=verified.resources??[];
   }else if(googlePreviewKind(plan)){
@@ -158,58 +163,58 @@ export class WriteVerifier{
    const verified=await verifyGooglePreview(plan,review.state,result,this.store.previewReceipt(actor.tenantId,reviewId),async read=>{
     if(!independentlyReadOnly(read))bad('Preview verification must remain read-only.','VERIFICATION_UNSUPPORTED');
     const access=()=>{this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertGoogleAdsScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);if(credentialHash&&sha256(stable(this.store.credentials(actor.tenantId,current.id)))!==credentialHash)bad('The selected login changed during preview verification.','REAUTHORIZATION_REQUIRED');return current;};
-    const current=access(),auth=await this.credentials.get(current);credentialHash??=sha256(stable(auth));access();const response=await this.transport.request(read,current,auth);access();return response;
+    const current=access(),auth=await this.credentials.get(current);credentialHash??=sha256(stable(auth));access();const response=await this.request(actor,read,current,auth);access();return response;
    });status=verified.status;checks=verified.checks;
   }else if(googlePortfolioKind(plan)){
    let credentialHash:string|undefined;
    const verified=await verifyGooglePortfolio(plan,result,review.state,async read=>{
     if(!independentlyReadOnly(read))bad('Portfolio verification must remain read-only.','VERIFICATION_UNSUPPORTED');
     const access=()=>{this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertGoogleAdsScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);if(credentialHash&&sha256(stable(this.store.credentials(actor.tenantId,current.id)))!==credentialHash)bad('The selected login changed during portfolio verification.','REAUTHORIZATION_REQUIRED');return current;};
-    const current=access(),auth=await this.credentials.get(current);credentialHash??=sha256(stable(auth));access();const response=await this.transport.request(read,current,auth);access();return response;
+    const current=access(),auth=await this.credentials.get(current);credentialHash??=sha256(stable(auth));access();const response=await this.request(actor,read,current,auth);access();return response;
    });status=verified.status;checks=verified.checks;
   }else if(googleAccessKind(plan)){
    const verified=await verifyGoogleAccess(plan,result,review.state,async read=>{
     if(!independentlyReadOnly(read))bad('Google access verification must remain read-only.','VERIFICATION_UNSUPPORTED');
     const access=()=>{this.store.assertActorActive(actor);assertGoogleAccessActor(plan,actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertGoogleAdsScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);return current;};
-    const current=access(),auth=await this.credentials.get(current);access();const response=await this.transport.request(read,current,auth);access();return response;
+    const current=access(),auth=await this.credentials.get(current);access();const response=await this.request(actor,read,current,auth);access();return response;
    });status=verified.status;checks=verified.checks;
   }else if(googleDismissalKind(plan)){
    const verified=await verifyGoogleDismissal(plan,review.state,async read=>{
     if(!independentlyReadOnly(read))bad('Dismissal verification must remain read-only.','VERIFICATION_UNSUPPORTED');
     const access=()=>{this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertGoogleAdsScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);return current;};
-    const current=access(),auth=await this.credentials.get(current);access();const response=await this.transport.request(read,current,auth);access();return response;
+    const current=access(),auth=await this.credentials.get(current);access();const response=await this.request(actor,read,current,auth);access();return response;
    });status=verified.status;checks=verified.checks;
   }else if(businessAccessKind(plan)){
    const verified=await verifyBusinessAccess(plan,result,review.state,async read=>{
     if(!independentlyReadOnly(read))bad('Business access verification must remain read-only.','VERIFICATION_UNSUPPORTED');
     const access=()=>{this.store.assertActorActive(actor);assertBusinessAccessActor(plan,actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertBusinessAccessScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);return current;};
-    const current=access(),auth=await this.credentials.get(current);access();const response=await this.transport.request(read,current,auth);access();return response;
+    const current=access(),auth=await this.credentials.get(current);access();const response=await this.request(actor,read,current,auth);access();return response;
    });status=verified.status;checks=verified.checks;resources=verified.resources;
   }else if(placeActionKind(plan)||businessNotificationKind(plan)){
    const verified=await (placeActionKind(plan)?verifyPlaceAction:verifyBusinessNotification)(plan,result,review.state,async read=>{
     if(!independentlyReadOnly(read))bad('Place-action verification must remain read-only.','VERIFICATION_UNSUPPORTED');
     const access=()=>{this.store.assertActorActive(actor);assertBusinessNotificationActor(plan,actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertPlaceActionScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);return current;};
-    const current=access(),auth=await this.credentials.get(current);access();const response=await this.transport.request(read,current,auth);access();return response;
+    const current=access(),auth=await this.credentials.get(current);access();const response=await this.request(actor,read,current,auth);access();return response;
    });status=verified.status;checks=verified.checks;resources=verified.resources;
   }else if(criteoCampaignKind(plan)){
    let credentialHash:string|undefined;
    const verified=await verifyCriteoCampaign(plan,result,review.state,async read=>{
     if(!independentlyReadOnly(read))bad('Campaign verification must remain read-only.','VERIFICATION_UNSUPPORTED');
     const access=()=>{this.store.assertActorActive(actor);const active=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertCriteoCampaignScopes(active);new ScopeGuard(this.registry,this.store).authorize(read,active);if(credentialHash&&sha256(stable(this.store.credentials(actor.tenantId,active.id)))!==credentialHash)bad('The selected login changed during campaign verification.','REAUTHORIZATION_REQUIRED');return active;};
-    const current=access(),auth=await this.credentials.get(current);credentialHash??=sha256(stable(auth));access();const response=await this.transport.request(read,current,auth);access();return response;
+    const current=access(),auth=await this.credentials.get(current);credentialHash??=sha256(stable(auth));access();const response=await this.request(actor,read,current,auth);access();return response;
    });status=verified.status;checks=verified.checks;resources=verified.resources;
    if(status==='verified')for(const resource of resources){const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertCriteoCampaignScopes(current);this.store.rememberResource(current,plan.accountId!,'criteo-report-target/campaigns/'+resource.resource_id);resource.read_result.arguments.arguments.connection_id=c.id;}
   }else if(tiktokReportKind(plan)){
    const verified=await verifyTiktokReport(plan,result,async read=>{
     if(!independentlyReadOnly(read))bad('Report verification must remain read-only.','VERIFICATION_UNSUPPORTED');
     const access=()=>{this.store.assertActorActive(actor);const active=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(read,active);return active;};
-    const current=access(),auth=await this.credentials.get(current);access();const response=await this.transport.request(read,current,auth);access();return response;
+    const current=access(),auth=await this.credentials.get(current);access();const response=await this.request(actor,read,current,auth);access();return response;
    });status=verified.status;checks=verified.checks;resources=verified.resources;for(const resource of resources)resource.read_result.arguments.connection_id=c.id;
   }else if(criteoReportKind(plan)){
    const verified=await verifyCriteoReport(plan,result,reviewId,async read=>{
     if(!independentlyReadOnly(read))bad('Report verification must remain read-only.','VERIFICATION_UNSUPPORTED');
     const access=()=>{this.store.assertActorActive(actor);const active=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertCriteoReportScopes(active);new ScopeGuard(this.registry,this.store).authorize(read,active);return active;};
-    const current=access(),auth=await this.credentials.get(current);access();const response=await this.transport.request(read,current,auth),active=access();
+    const current=access(),auth=await this.credentials.get(current);access();const response=await this.request(actor,read,current,auth),active=access();
     if(stable(this.store.credentials(actor.tenantId,active.id))!==stable(auth))bad('The login changed while checking this report.','REAUTHORIZATION_REQUIRED');
     const data=criteoReportReadResult(read,response)!;observeCriteoReportRead(read,active,this.store,data);return response;
    });status=verified.status;checks=verified.checks;resources=verified.resources;for(const resource of resources)resource.read_result.arguments.arguments.connection_id=c.id;
@@ -217,21 +222,21 @@ export class WriteVerifier{
    const verified=await verifyMetaReport(plan,result,reviewId,async read=>{
     if(!independentlyReadOnly(read))bad('Report verification must remain read-only.','VERIFICATION_UNSUPPORTED');
     const access=()=>{this.store.assertActorActive(actor);const active=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertMetaReportScope(active);new ScopeGuard(this.registry,this.store).authorize(read,active);return active;};
-    const current=access(),auth=await this.credentials.get(current);access();const response=await this.transport.request(read,current,auth),active=access(),data=metaReportReadResult(read,response)!;observeMetaReportRead(read,active,this.store,data);return {...response,data};
+    const current=access(),auth=await this.credentials.get(current);access();const response=await this.request(actor,read,current,auth),active=access(),data=metaReportReadResult(read,response)!;observeMetaReportRead(read,active,this.store,data);return {...response,data};
    });status=verified.status;checks=verified.checks;resources=verified.resources??[];for(const resource of resources)resource.read_result.arguments.connection_id=c.id;
   }else if(googleBiddingEventKind(plan)||googleConversionGoalKind(plan)){
    const verified=await (googleConversionGoalKind(plan)?verifyGoogleConversionGoal:verifyGoogleBiddingEvent)(plan,result,review.state,async read=>{
     if(!independentlyReadOnly(read))bad('Google goal and bidding-event verification must remain read-only.','VERIFICATION_UNSUPPORTED');
     this.store.assertActorActive(actor);let current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertGoogleAdsScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);
     const auth=await this.credentials.get(current);this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertGoogleAdsScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);
-    const response=await this.transport.request(read,current,auth);this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertGoogleAdsScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);return response;
+    const response=await this.request(actor,read,current,auth);this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertGoogleAdsScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);return response;
    });status=verified.status;checks=verified.checks;
   }else if(xDraftKind(plan)){
    const verified=await verifyXDraft(plan,result,review.state,async read=>{
     if(!independentlyReadOnly(read))bad('Draft verification must remain read-only.','VERIFICATION_UNSUPPORTED');
     this.store.assertActorActive(actor);let current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(read,current);
     const auth=await this.credentials.get(current);this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(read,current);
-    const response=await this.transport.request(read,current,auth);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));return response;
+    const response=await this.request(actor,read,current,auth);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));return response;
    });status=verified.status;checks=verified.checks;
   }else if(xCreativeKind(plan)){
    for(let attempt=0;attempt<3;attempt++){
@@ -240,7 +245,7 @@ export class WriteVerifier{
      if(!independentlyReadOnly(read))bad('X verification must remain read-only.','VERIFICATION_UNSUPPORTED');
      this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(read,current);
      const auth=await this.credentials.get(current);this.store.assertActorActive(actor);this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);
-     const response=await this.transport.request(read,current,auth);this.store.assertActorActive(actor);this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);return response;
+     const response=await this.request(actor,read,current,auth);this.store.assertActorActive(actor);this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);return response;
     });status=verified.status;checks=verified.checks;
     if(!xPromotion(plan)||status!=='pending')break;
    }
@@ -250,7 +255,7 @@ export class WriteVerifier{
    const expected=normalize(item.expected),readback=await readConsistently(async()=>{
     this.store.assertActorActive(actor);checkAppleAccounts();const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(item.read,current);
     const auth=await this.credentials.get(current);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));
-    let response;try{response=await readLinkedInRules(item.read,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readGtmWorkspace(criteoPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(latest);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.transport.request(page,latest,auth);this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(current);new ScopeGuard(this.registry,this.store).authorize(page,current);return result;}))))))));}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
+    let response;try{response=await readLinkedInRules(item.read,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readGtmWorkspace(criteoPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(latest);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.request(actor,page,latest,auth);this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(current);new ScopeGuard(this.registry,this.store).authorize(page,current);return result;}))))))));}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
     checkAppleAccounts();return normalize(entity(item.read,response.data as JsonObject));
    },actual=>differing(expected,actual).length===0);
    const actual=readback.value,changed=differing(expected,actual),phase=readback.consistent?measurementVerificationPhase(item.read,actual):'inconclusive';checks.push({resource_id:item.id,status:phase,code:readback.consistent?undefined:'VERIFICATION_INCONCLUSIVE',read_attempts:readback.attempts,changed_fields:changed,expected_hash:fingerprint(expected),actual_hash:fingerprint(actual??null),checked_fields:Object.keys(expected)});

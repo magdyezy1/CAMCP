@@ -273,3 +273,19 @@ blindly, reshape a request to slip past one, or split a change into smaller piec
 The Campaigns website has forms for all three existing recipes. `amcp_campaign recipe_context` accepts `recipe` and optional `profile_id`; it returns explicit login/account choices, approved defaults and prerequisites. `preview_recipe` accepts the recipe, optional profile and business inputs, returning missing business fields or a locally compiled plan. It performs no mutation. `recipe_lookup` uses an explicit Google `connection_id`, `account_id`, `lookup_kind` (`country` or `language`) and plain-text `query` to discover targeting constants. Ask for business choices; discover native IDs where an authorized lookup exists. `create_from_recipe` freezes the recipe version and each field's user/profile provenance. Preflight verifies account currency. Never interpret an approved template as approval to execute its next review.
 
 Campaign `get` includes a diagnostic execution journal. A legacy unknown phase does not grant retry permission. `recover_step` edits only a definitively unsubmitted/failed step with no retained mutation claim; `RECOVERY_NOT_SAFE` means reconcile the existing request. Owner-only `amcp_workspace support_bundle` exposes aggregate queue age, worker liveness and scoped error codes. It must not include report rows, credential values, source URLs or actor bindings. Account revocation requires explicit rebinding of queued work by a currently authorized operator.
+## Permission changes while work is running
+
+Native MCP reads, reviewed preparation/execution/read-back, media account/upload
+steps, readiness and diagnostic reads recheck authority before each provider
+attempt. A caller can lose access while pacing or a safe read retry is pending.
+`REAUTHORIZATION_REQUIRED` can mean that the selected stored login changed during
+the request; `INSUFFICIENT_SCOPE` identifies lost recorded permissions. Read current connection status and choose
+the authorized identity; do not automatically start another OAuth consent flow or
+ask the user to paste tokens. Read-only work may restart with current authorization.
+
+A permission error after an advertising write does not prove it was never sent.
+AMCP retains accepted outcomes before denying their delivery to a revoked caller.
+Keep the original review/idempotency key, inspect its receipt with an authorized
+identity, and reconcile/read back the result. Never turn a permission error into
+a retry with a new key. A stopped pre-dispatch attempt can still carry an uncertain
+local claim and reserved allowance; do not bypass those controls to force a retry.

@@ -1,0 +1,303 @@
+{
+  "format_version": 1,
+  "date": "2026-09-25",
+  "branch": "Codex-branch",
+  "base_revision": "8672f3a992fd423b99351a75ee904d4100988e04",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true
+  },
+  "candidate": {
+    "path": ".release/retry-authority-20260925-c",
+    "files": 613,
+    "source_tree_hash": "fc1ebfdd80bbf58e114d75ad8764545a0c9d870aecab3f304a47067757cb208c",
+    "index_code_test_guidance_files_compared": 565,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/retry-authority-20260925-c",
+    "install": "npm.cmd ci --offline --ignore-scripts --cache '../../.runtime/npm-cache'",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm.cmd run check",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=<bundled Python>",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/contract-completion-20260924/retry-authority-baseline.log",
+      "sha256": "9808910c5909c1fc9b14052a9c41a2f9eef2a7675e5fd27a96917938f39a3028",
+      "counts": [
+        {
+          "tests": 5
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 5
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 2611.2894
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/retry-authority-compat-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/retry-authority-compat.log",
+      "sha256": "17da3388d96004c45f584f47845fb98cdfa7286efe059d1fa727897e53f7c2fa",
+      "counts": [
+        {
+          "tests": 150
+        },
+        {
+          "pass": 150
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 20213.9777
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/retry-authority-expanded-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/retry-authority-expanded.log",
+      "sha256": "672ee6ba7beca9b431aa9c7a8346d49fa2478ada40c1e0060953d9fe5c99ce6a",
+      "counts": [
+        {
+          "tests": 164
+        },
+        {
+          "pass": 164
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 28291.9474
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/retry-authority-extra-baseline.log",
+      "sha256": "f361d8e987a2c0a174bcfced0fcf4e0c402603bd86fe66f5ac218db2ffa5a20e",
+      "counts": [
+        {
+          "tests": 25
+        },
+        {
+          "pass": 4
+        },
+        {
+          "fail": 21
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1727.4783
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/retry-authority-final-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/retry-authority-final.log",
+      "sha256": "4e6694afbd2a37b0ba61eaf2ff7b6602239f17db4643af8b521a7c53015a9a24",
+      "counts": [
+        {
+          "tests": 202
+        },
+        {
+          "pass": 202
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 33465.4844
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/retry-authority-first-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/retry-authority-first.log",
+      "sha256": "a92cbdce0726cc3fb9fc4f5ccf326c778f8e81885e67c007c43176566664a9e5",
+      "counts": [
+        {
+          "tests": 5
+        },
+        {
+          "pass": 5
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1938.9642
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/retry-authority-regressions-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/retry-authority-regressions.log",
+      "sha256": "9ac9f832e5deddd2c9931d793956654a3d38bc9ac0a5a92363a25e830c8e0c6d",
+      "counts": [
+        {
+          "tests": 23
+        },
+        {
+          "pass": 23
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 2566.6237
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/retry-authority-scope-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/retry-authority-scope.log",
+      "sha256": "bd12a1b04d52784530d9d3592c646161a97cd6971150a055263b8a8dbab53f49",
+      "counts": [
+        {
+          "tests": 88
+        },
+        {
+          "pass": 88
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 9555.9955
+        }
+      ]
+    },
+    {
+      "path": ".release/retry-authority-20260925-c/release-check.log",
+      "sha256": "c8a8d828951ac5de81fd8d7c1a0648003c7a7d6fe82826c211fd264f433288de",
+      "counts": [
+        {
+          "tests": 1697
+        },
+        {
+          "pass": 1697
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 407837.7123
+        },
+        {
+          "tests": 4
+        },
+        {
+          "pass": 4
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 87.6575
+        }
+      ]
+    },
+    {
+      "path": ".release/retry-authority-20260925-a/release-check.log",
+      "sha256": "ace738a0ff69d4b481d98f48b0812ce5588640602c75b8109e0f87b79a41d1f1",
+      "counts": [
+        {
+          "tests": 1696
+        },
+        {
+          "pass": 1691
+        },
+        {
+          "fail": 5
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 407025.4533
+        }
+      ]
+    }
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 1697,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials or account mutations.",
+    "Provider permissions, live output compatibility, Docker and deployment remain separately unverified.",
+    "See the matching implementation report for explicit contract limits, initial failures and primary references."
+  ]
+}

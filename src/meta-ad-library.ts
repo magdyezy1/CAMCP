@@ -1,3 +1,4 @@
+import {nativeAuthority} from './native-authority.js';
 import {MirrorError} from './errors.js';
 import {sha256,stable} from './security.js';
 import {ScopeGuard} from './scope.js';
@@ -46,7 +47,7 @@ export async function searchMetaAdLibrary(registry:Registry,store:Store,transpor
  for(;;){
   if(++pages>25||performance.now()-started>60000)invalid('The archive search exceeded its page/time bound. Narrow the search.','AD_LIBRARY_SEARCH_INCOMPLETE');
   const plan:CompiledRequest={gateway:'meta_native_action',action:'AMCP_META_AD_LIBRARY_READ',method:'GET',path:'/v25.0/ads_archive',origin:'https://graph.facebook.com',query:{...base,limit:Math.min(100,base.limit-ads.length),...(after?{after}:{})},headers:{},readOnly:true,destructive:false,requiresConfirmation:false,evidence:'https://www.facebook.com/ads/library/api/',warnings:[]};
-  if(!metaAdLibraryRead(plan))invalid('Internal archive request failed its contract.');let c=access();const scope=new ScopeGuard(registry,store);scope.authorize(plan,c);const auth=await credentials.get(c);c=access();scope.authorize(plan,c);const response=await transport.request(plan,c,auth);scope.authorize(plan,access());
+  if(!metaAdLibraryRead(plan))invalid('Internal archive request failed its contract.');let c=access();const scope=new ScopeGuard(registry,store);scope.authorize(plan,c);const auth=await credentials.get(c);c=access();scope.authorize(plan,c);const check=nativeAuthority(store,registry,actor,plan,c,auth,access);const response=await transport.request(plan,check(),auth,undefined,{beforeAttempt:check});check();scope.authorize(plan,access());
   const data=response.data;if(response.status!==200||!object(data)||data.error!==undefined||data.errors!==undefined||data.warnings!==undefined||!Array.isArray(data.data))invalid('Meta returned a failed or incomplete archive search.','AD_LIBRARY_RESPONSE_INVALID');
   const d=data as JsonObject,size=Buffer.byteLength(JSON.stringify(d));bytes+=size;if(size>4*1024*1024||bytes>8*1024*1024||performance.now()-started>60000)invalid('The archive search exceeded its byte/time bound.','AD_LIBRARY_SEARCH_INCOMPLETE');
   if(Object.keys(d).some(k=>!['data','paging'].includes(k))||d.data.length>plan.query.limit)invalid('Unrecognized or oversized archive envelope.','AD_LIBRARY_RESPONSE_INVALID');

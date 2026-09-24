@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## BB — Per-attempt authority and accepted-write receipt preservation (2026-09-25)
+
+Five initial reproductions exposed retries after key revocation; 21 of the 25
+expanded regressions fail against the previous sanitized candidate, including
+reviewed mutation dispatch after revocation during pacing. Current changes fence
+actor, account, scopes and login on each attempt across the shared native read,
+review, verification, media and diagnostic paths. Accepted write receipts persist
+before delivery is denied. Fresh candidate C passes all 1697 main/four capture
+tests with FFmpeg required and zero failures/skips. Candidate A's five failures
+remain recorded, with error compatibility and bounded Windows cleanup corrected.
+Post-push CI remains separate. See [evidence and exact remaining boundaries](RETRY-AUTHORITY-2026-09-25.md).
+No inventory count or provider capability is inflated by this hardening.
+
 ## BA — Business Profile MCP account/location synchronization (2026-09-25)
 
 The missing sync_assets adapter now uses explicit administrator/identity/scope
@@ -20,7 +33,8 @@ passed, including 24 new Business Profile tests and the shared deadline matrix.
 Initial failures remain visible in [the implementation record](GOOGLE-BUSINESS-SYNC-2026-09-25.md).
 Full fresh candidate A passes 1671 main/four capture tests, zero failures/skips,
 required FFmpeg enabled. Exact staged-source evidence is recorded in
-[verification](GOOGLE-BUSINESS-SYNC-VERIFICATION-2026-09-25.json); post-push CI is separate.
+[verification](GOOGLE-BUSINESS-SYNC-VERIFICATION-2026-09-25.json); exact GitHub run
+#98 also passed the full workflow, including Docker and both smoke modes.
 
 Inventory: 1000 remaining rows, including 886 blocked writes, 79 unmapped,
 23 unqualified reads, eight input-dependent and four retired. There are 438

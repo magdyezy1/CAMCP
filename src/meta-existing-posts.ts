@@ -86,7 +86,7 @@ export async function fetchMetaExistingPosts(store:Store,transport:NativeTranspo
  const request=async(path:string,query:JsonObject,token?:string):Promise<JsonObject>=>{
   if(++requests>80||performance.now()-started>60000)fail('The post read exceeded its request/time bound.','META_POST_READ_INCOMPLETE');
   const plan:CompiledRequest={gateway,action:'AMCP_META_EXISTING_POSTS_READ',method:'GET',path:version+path,origin,accountId:v.account,query,headers:{},readOnly:true,destructive:false,requiresConfirmation:false,evidence:'https://github.com/facebook/facebook-python-business-sdk/tree/25.0.3/facebook_business/adobjects',warnings:[]};
-  let response;try{response=await transport.request(plan,access(),token?{accessToken:token}:auth);}catch(e){access();throw safeProviderError(e);}access();
+  let response;try{response=await transport.request(plan,access(),token?{accessToken:token}:auth,undefined,{beforeAttempt:()=>{access();}});}catch(e){access();throw safeProviderError(e);}access();
   const data=response.data,size=Buffer.byteLength(JSON.stringify(data)??'');bytes+=size;
   if(size>2*1024*1024||bytes>8*1024*1024||performance.now()-started>60000)fail('The post read exceeded its byte/time bound.','META_POST_READ_INCOMPLETE');
   if(response.status!==200||!object(data)||data.error!==undefined||data.errors!==undefined||data.warnings!==undefined)fail('Meta returned a failed or unrecognized post response.','META_POST_RESPONSE_INVALID');

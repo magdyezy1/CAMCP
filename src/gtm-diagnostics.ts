@@ -1,3 +1,4 @@
+import {nativeAuthority} from './native-authority.js';
 import {MirrorError} from './errors.js';
 import {redact} from './security.js';
 import {Store} from './store.js';
@@ -41,7 +42,7 @@ export async function gtmDiagnostics(store:Store,registry:Registry,transport:Nat
   if(p.method!=='GET'||!p.readOnly||p.origin!=='https://tagmanager.googleapis.com')fail('STATE_READ_UNSAFE','Diagnostic requests must be scoped native GETs.');
   store.assertActorActive(actor);const current=store.resolveConnection(actor,gateway,p.accountId,connection.id);scope.authorize(p,current);
   auth??=await credentials.get(current);store.assertActorActive(actor);scope.authorize(p,store.resolveConnection(actor,gateway,p.accountId,connection.id));
-  const result=await transport.request(p,current,auth);calls++;store.assertActorActive(actor);scope.authorize(p,store.resolveConnection(actor,gateway,p.accountId,connection.id));observedAccounts.add(p.accountId!);
+  const access=nativeAuthority(store,registry,actor,p,current,auth);const result=await transport.request(p,access(),auth,undefined,{beforeAttempt:access});access();calls++;store.assertActorActive(actor);scope.authorize(p,store.resolveConnection(actor,gateway,p.accountId,connection.id));observedAccounts.add(p.accountId!);
   if(result.status!==200||!obj(result.data)||result.data.error)fail('STATE_READ_FAILED','Diagnostic read did not return a successful native object.');
   bytes+=Buffer.byteLength(JSON.stringify(result.data));if(bytes>16*1024*1024)fail('STATE_TOO_LARGE','Diagnostic read exceeded its 16 MiB bound.');return result;
  };

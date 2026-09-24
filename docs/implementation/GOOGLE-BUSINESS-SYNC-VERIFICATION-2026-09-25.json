@@ -215,5 +215,21 @@
     "Synthetic validation only; no live provider credentials or account mutations.",
     "Provider permissions, live output compatibility, Docker and deployment remain separately unverified.",
     "See the matching implementation report for explicit contract limits, initial failures and primary references."
-  ]
+  ],
+  "github_ci": {
+    "commit": "8672f3a992fd423b99351a75ee904d4100988e04",
+    "branch": "Codex-branch",
+    "run_number": 98,
+    "run_id": "36069983914",
+    "job_id": "107868427245",
+    "url": "https://github.com/magdyezy1/AMCP/actions/runs/36069983914",
+    "observed_at": "2026-09-25 Africa/Cairo",
+    "evidence": "Authenticated GitHub Actions browser: Status Success; verify completed successfully; exact commit linked. The unchanged single-job workflow includes required-FFmpeg check, Railway config, Docker build and both smoke modes.",
+    "conclusion": "success",
+    "duration_seconds": 1001,
+    "limits": [
+      "No live provider or deployed qualification.",
+      "CI numeric totals were not separately extracted from the virtualized log."
+    ]
+  }
 }

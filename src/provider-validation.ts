@@ -1,3 +1,4 @@
+import {nativeAuthority} from './native-authority.js';
 import {MirrorService} from './service.js';
 import {MirrorError} from './errors.js';
 import {ScopeGuard} from './scope.js';
@@ -14,7 +15,7 @@ export async function validateProviderRequest(service:MirrorService,actor:Actor,
  const c=service.store.resolveConnection(actor,plan.gateway,plan.accountId,input.connection_id??args.connection_id);new ScopeGuard(service.registry,service.store).authorize(plan,c);
  const body:JsonObject={...(plan.body as JsonObject),validate_only:true};delete body.validateOnly;
  const request={...plan,body},auth=await service.credentials.get(c);service.store.assertActorActive(actor);const current=service.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);
- const response=await service.transport.request(request,current,auth);service.store.assertActorActive(actor);service.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);
+ const access=nativeAuthority(service.store,service.registry,actor,request,current,auth);const response=await service.transport.request(request,access(),auth,undefined,{beforeAttempt:access});access();service.store.assertActorActive(actor);service.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);
  if(response.status>=300||(response.data as JsonObject)?.error||(response.data as JsonObject)?.partialFailureError)throw new MirrorError('PROVIDER_VALIDATION_FAILED','Provider rejected validation.',{response:response.data});
  const receipt={status:'provider_validated',gateway:plan.gateway,account_id:plan.accountId,connection_id:c.id,action:plan.action,request_hash:fingerprint(plan),checked_at:Date.now(),executed:false,objects_created:false,limitation:'Provider validation does not prove a subsequent write will succeed. Prepare and review again before execution.'};
  service.store.putDocument(actor.tenantId,'provider_validation',receipt.request_hash,receipt);audit(service.store,actor,'provider_validated',receipt);return receipt;

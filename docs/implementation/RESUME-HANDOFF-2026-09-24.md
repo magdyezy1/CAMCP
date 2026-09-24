@@ -52,7 +52,7 @@ recovery, native result limits and external verification needs are recorded in
 
 ## Remaining implementation — not complete
 
-Latest pushed source: `b372c660a4d11df1fee2e37b55891ded1085f1b6`,
+Previous pushed source: `b372c660a4d11df1fee2e37b55891ded1085f1b6`,
 [Adjust reporting](ADJUST-REPORTING-2026-09-25.md) plus
 [the CI deadline correction](CI-DEADLINES-2026-09-25.md).
 [GitHub run #97](https://github.com/magdyezy1/AMCP/actions/runs/36067336279)
@@ -61,14 +61,23 @@ and both container smoke modes. Local candidate B passes 1646 main/four capture
 with no failures/skips. The original failure and deterministic reproductions
 remain visible; no assertion, test or guard was weakened.
 
-The next [Business Profile sync batch](GOOGLE-BUSINESS-SYNC-2026-09-25.md) has
+Latest pushed source: `8672f3a992fd423b99351a75ee904d4100988e04`.
+The [Business Profile sync batch](GOOGLE-BUSINESS-SYNC-2026-09-25.md) has
 187 focused/shared tests passing and a fresh full required-FFmpeg candidate with
 1671 main/four capture tests, zero failures/skips. Its tested Git index matches
-the 609-file sanitized candidate. Confirm the exact branch commit/CI after push.
-A separate follow-on is now in progress: five failing fixtures show retries after
-actor revocation in native reads, review preparation, Meta post discovery and
-GA4/GSC sync. Do not confuse this unstaged hardening with the tested Business
-Profile source; finish its own regression/full check before committing it.
+the 609-file sanitized candidate. [GitHub run #98](https://github.com/magdyezy1/AMCP/actions/runs/36069983914)
+passed in 16m 41s, including the unchanged required-FFmpeg/Docker smoke workflow.
+A separate [authorization follow-on](RETRY-AUTHORITY-2026-09-25.md) is staged:
+25 new race fixtures fail 21 times against the preceding immutable release, then
+pass after repair. It rechecks actor/login/grants before HTTP attempts and keeps
+accepted mutation receipts before denying a caller who lost authority. Candidate
+A failed five of 1696 tests (error compatibility and Windows cleanup); all five
+are corrected, with 150 focused tests green. Fresh candidate C passes 1697 main
+and four capture tests, zero failed/skipped, FFmpeg required. Staged source is
+compared against that tested candidate before commit; confirm its exact GitHub
+run after push. Do not hide A. Separate website discovery/Google reauthorization
+hardening remains unstaged, with eight failing baseline fixtures and its own
+regression suite in progress; it is not covered by candidate C.
 The MCP sync preserves numeric account and locations/{id} grants, merges shared
 parents, fences retry authority and persists complete groups with stale failure
 handling. Website Business Profile OAuth/discovery and MCP start/exchange/refresh

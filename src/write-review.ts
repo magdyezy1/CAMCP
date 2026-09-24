@@ -46,7 +46,8 @@ import {ScopeGuard,normalizeAccount} from './scope.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {authorizeExecution,type ExecutionPolicy} from './preflight.js';
 import {guardInput,redact,sha256,stable} from './security.js';
-import type {Actor,CallOptions,CompiledRequest,Connection,JsonObject} from './types.js';
+import type {Actor,CallOptions,CompiledRequest,Connection,Credentials,JsonObject} from './types.js';
+import {nativeAuthority} from './native-authority.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {normalizeSnapshot,reviewStateHash,changedStateFields} from './review-state.js';
 import {nextPage} from './pagination.js';
@@ -383,6 +384,18 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
 
 export class WriteReviewService {
  constructor(private registry:Registry,private compiler:Compiler,private store:Store,private transport:NativeTransport,private credentials:CredentialProvider,private options:CallOptions,private policy:ExecutionPolicy,private delegated=new DelegatedNativeCompiler()){}
+ private authority(actor:Actor,reviewPlan:CompiledRequest,request:CompiledRequest,connection:Connection,auth:Credentials){
+  return nativeAuthority(this.store,this.registry,actor,request,connection,auth,()=>{
+   this.access(actor,reviewPlan,connection.id);
+   if(tiktokReportKind(reviewPlan)&&sha256(this.store.credentials(actor.tenantId,connection.id).accessToken??'')!==sha256(auth.accessToken??''))fail('TIKTOK_REPORT_TOKEN_CHANGED','The original task access token changed. Preserve existing reviews and task receipts; do not automatically regenerate the task.');
+  });
+ }
+ private async request(actor:Actor,reviewPlan:CompiledRequest,request:CompiledRequest,connection:Connection,auth:Credentials){
+  const access=this.authority(actor,reviewPlan,request,connection,auth);
+  const response=await this.transport.request(request,access(),auth,undefined,{beforeAttempt:access});
+  // A received mutation outcome must be retained before any post-response permission check.
+  if(request.readOnly)access();return response;
+ }
  private access(actor:Actor,plan:CompiledRequest,connectionId?:string):Connection {
   this.store.assertActorActive(actor);
   assertGtmWorkflowActor(plan,actor);
@@ -417,7 +430,7 @@ export class WriteReviewService {
    return readCriteoCampaignState(plan,async read=>{
     if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Campaign prerequisites must remain read-only.');
     const access=()=>{const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);if(credentialHash&&sha256(stable(this.store.credentials(actor.tenantId,c.id)))!==credentialHash)fail('REAUTHORIZATION_REQUIRED','The selected login changed during campaign preparation. Prepare again.');return c;};
-    const c=access(),auth=await this.credentials.get(c);credentialHash??=sha256(stable(auth));access();const response=await this.transport.request(read,c,auth);access();return response;
+    const c=access(),auth=await this.credentials.get(c);credentialHash??=sha256(stable(auth));access();const response=await this.request(actor,plan,read,c,auth);access();return response;
    });
   }
   if(tiktokReportKind(plan)){
@@ -425,7 +438,7 @@ export class WriteReviewService {
    return readTiktokReportState(plan,async read=>{
     if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Report prerequisites must remain read-only.');
     const access=()=>{const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const token=this.store.credentials(actor.tenantId,c.id).accessToken;if(!token||tokenHash&&sha256(token)!==tokenHash)fail('TIKTOK_REPORT_TOKEN_CHANGED','The original task access token changed. Preserve the task; do not automatically regenerate it.');return c;};
-    const c=access(),auth=await this.credentials.get(c);tokenHash??=sha256(auth.accessToken??'');access();const response=await this.transport.request(read,c,auth);access();return response;
+    const c=access(),auth=await this.credentials.get(c);tokenHash??=sha256(auth.accessToken??'');access();const response=await this.request(actor,plan,read,c,auth);access();return response;
    },()=>tokenHash!);
   }
   if(criteoReportKind(plan)){
@@ -433,7 +446,7 @@ export class WriteReviewService {
    return readCriteoReportState(plan,async read=>{
     if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Report prerequisites must remain read-only.');
     const access=()=>{const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);if(credentialHash&&sha256(stable(this.store.credentials(actor.tenantId,c.id)))!==credentialHash)fail('REAUTHORIZATION_REQUIRED','The selected login changed during report preparation. Prepare again.');return c;};
-    const c=access(),auth=await this.credentials.get(c);credentialHash??=sha256(stable(auth));access();const response=await this.transport.request(read,c,auth);access();return response;
+    const c=access(),auth=await this.credentials.get(c);credentialHash??=sha256(stable(auth));access();const response=await this.request(actor,plan,read,c,auth);access();return response;
    });
   }
   if(googlePreviewKind(plan)||googlePortfolioKind(plan)){
@@ -441,52 +454,52 @@ export class WriteReviewService {
    return (googlePreviewKind(plan)?readGooglePreviewState:readGooglePortfolioState)(plan,async read=>{
     if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Portfolio prerequisites must remain read-only.');
     const access=()=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,current);if(credentialHash&&sha256(stable(this.store.credentials(actor.tenantId,current.id)))!==credentialHash)fail('REAUTHORIZATION_REQUIRED','The selected login changed during portfolio checks. Prepare again with the current login.');return current;};
-    const c=access(),auth=await this.credentials.get(c);credentialHash??=sha256(stable(auth));access();const response=await this.transport.request(read,c,auth);access();return response;
+    const c=access(),auth=await this.credentials.get(c);credentialHash??=sha256(stable(auth));access();const response=await this.request(actor,plan,read,c,auth);access();return response;
    });
   }
   if(metaCreativeCreate(plan)){
    const read=reads[0]!,access=()=>this.access(actor,plan,connectionId),c=access();new ScopeGuard(this.registry,this.store).authorize(read,c);
-   const auth=await this.credentials.get(c);access();const result=await this.transport.request(read,c,auth);access();validateState(read,result);
+   const auth=await this.credentials.get(c);access();const result=await this.request(actor,plan,read,c,auth);access();validateState(read,result);
    return [normalizeSnapshot(read,result.data),{creative_source:await metaCreativeState(plan,this.store,this.transport,this.credentials,actor,access)}];
   }
   if(googleAccessKind(plan))return readGoogleAccessState(plan,async read=>{
    if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Google access prerequisites must remain read-only.');
    const access=()=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,current);return current;};
-   const c=access(),auth=await this.credentials.get(c);access();const result=await this.transport.request(read,c,auth);access();return result;
+   const c=access(),auth=await this.credentials.get(c);access();const result=await this.request(actor,plan,read,c,auth);access();return result;
   });
   if(googleDismissalKind(plan))return readGoogleDismissalState(plan,async read=>{
    if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Recommendation dismissal prerequisites must remain read-only.');
    const access=()=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,current);return current;};
-   const c=access(),auth=await this.credentials.get(c);access();const result=await this.transport.request(read,c,auth);access();return result;
+   const c=access(),auth=await this.credentials.get(c);access();const result=await this.request(actor,plan,read,c,auth);access();return result;
   });
   if(businessAccessKind(plan))return readBusinessAccessState(plan,async read=>{
    if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Business access prerequisites must remain read-only.');
    const access=()=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,current);return current;};
-   const c=access(),auth=await this.credentials.get(c);access();const result=await this.transport.request(read,c,auth);access();return result;
+   const c=access(),auth=await this.credentials.get(c);access();const result=await this.request(actor,plan,read,c,auth);access();return result;
   });
   if(placeActionKind(plan)||businessNotificationKind(plan))return (placeActionKind(plan)?readPlaceActionState:readBusinessNotificationState)(plan,async read=>{
    if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Place-action prerequisites must remain read-only.');
    const access=()=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,current);return current;};
-   const c=access(),auth=await this.credentials.get(c);access();const result=await this.transport.request(read,c,auth);access();return result;
+   const c=access(),auth=await this.credentials.get(c);access();const result=await this.request(actor,plan,read,c,auth);access();return result;
   });
   if(metaReportKind(plan))return readMetaReportState(plan,async read=>{
    if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Report prerequisites must remain read-only.');
    const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));
-   const result=await this.transport.request(read,c,auth);this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));return result;
+   const result=await this.request(actor,plan,read,c,auth);this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));return result;
   });
   if(googleBiddingEventKind(plan)||googleConversionGoalKind(plan))return (googleConversionGoalKind(plan)?readGoogleConversionGoalState:readGoogleBiddingEventState)(plan,async read=>{
    if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Google goal and bidding-event dependency checks must be read-only.');
    const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);
-   const result=await this.transport.request(read,c,auth);this.access(actor,plan,connectionId);return result;
+   const result=await this.request(actor,plan,read,c,auth);this.access(actor,plan,connectionId);return result;
   });
   if(xCreativeKind(plan)||xDraftKind(plan))return (xDraftKind(plan)?readXDraftState:readXCreativeState)(plan,async read=>{
    if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Creative dependency checks must be read-only.');
    const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);
-   const result=await this.transport.request(read,c,auth);this.access(actor,plan,connectionId);return result;
+   const result=await this.request(actor,plan,read,c,auth);this.access(actor,plan,connectionId);return result;
   });
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
-   try{result=await readLinkedInRules(read,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.transport.request(page,current,auth);this.access(actor,plan,connectionId);return response;})))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
+   try{result=await readLinkedInRules(read,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;})))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
    this.access(actor,plan,connectionId);validateState(read,result);
    if(appleEntityKind(plan)==='shared_budget'&&read.path===plan.path){
     const accounts=appleSharedAccounts(plan,result.data),frozen=plan.scopeContext?.appleSharedAccountIds;
@@ -585,7 +598,7 @@ export class WriteReviewService {
   let completed=false;
   try{
    this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_started',request:plan,fingerprint,before_state:current});
-   const response=await this.transport.request(plan,c,auth);this.delegated.validateResponse(plan,response.data,response.status);const rawResult=writeOutcome(response,plan,current),result=googlePreviewKind(plan)?googlePreviewSafeOutcome(plan,rawResult):rawResult;
+   const response=await this.request(actor,plan,plan,c,auth);this.delegated.validateResponse(plan,response.data,response.status);const rawResult=writeOutcome(response,plan,current),result=googlePreviewKind(plan)?googlePreviewSafeOutcome(plan,rawResult):rawResult;
    const outcome:JsonObject={...result,review_id:input.review_id,action:plan.action,fingerprint,...(creativeImpact?{creative_impact:creativeImpact}:{})};
    this.store.transaction(()=>{
     if(googlePreviewKind(plan)&&object(response.data)===response.data)this.store.savePreviewReceipt(actor.tenantId,input.review_id,response.data as JsonObject);
@@ -597,7 +610,8 @@ export class WriteReviewService {
     }
     this.store.complete(actor.tenantId,input.idempotency_key,outcome);this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_completed',outcome});
    });completed=true;
-   if(tiktokReportKind(plan)){this.access(actor,plan,review.connection_id);if(sha256(this.store.credentials(actor.tenantId,c.id).accessToken??'')!==sha256(auth.accessToken??''))fail('TIKTOK_REPORT_TOKEN_CHANGED','TikTok accepted the request before the login changed. Its completed receipt is retained; do not resubmit.');}
+   // Retain accepted outcomes first, then withhold delivery if this caller lost access.
+   this.authority(actor,plan,plan,c,auth)();
    if(googlePreviewKind(plan)){this.access(actor,plan,review.connection_id);return googlePreviewDelivery(plan,outcome,this.store.previewReceipt(actor.tenantId,input.review_id));}
    return outcome;
   // The spend reservation taken above is deliberately NOT released here. A write that failed in

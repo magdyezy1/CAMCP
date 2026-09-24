@@ -30,7 +30,7 @@ export async function metaCreativeState(p:CompiledRequest,store:Store,transport:
   const rows:JsonObject[]=[],ids=new Set<string>(),cursors=new Set<string>();let after:string|undefined;
   for(let n=0;n<25;n++){
    if(++requests>50||performance.now()-started>60000)fail('Creative identity discovery exceeded its bounded request/time limit.');
-   const response=await transport.request({...read,query:{...read.query,...(after?{after}:{})}},access(),auth);access();
+   const response=await transport.request({...read,query:{...read.query,...(after?{after}:{})}},access(),auth,undefined,{beforeAttempt:()=>{access();}});access();
    const data=response.data,size=Buffer.byteLength(JSON.stringify(data)??'');bytes+=size;
    if(size>2*1024*1024||bytes>8*1024*1024||performance.now()-started>60000)fail('Creative identity discovery exceeded its byte/time limit.');
    if(response.status!==200||!object(data)||Object.keys(data).some(k=>!['data','paging'].includes(k))||!Array.isArray(data.data)||data.data.length>100)fail('Meta did not return a complete identity collection.');

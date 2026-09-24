@@ -116,3 +116,13 @@ Follow-on work: website Business Profile OAuth/discovery using the same collecto
 explicit schema-bound OAuth entry points, remaining native families, and live
 provider approval/qualification. Do not bypass scope or reviewed-write controls
 to qualify those areas.
+
+
+## Confirmed GitHub result
+
+[Run #98](https://github.com/magdyezy1/AMCP/actions/runs/36069983914) for
+`8672f3a992fd423b99351a75ee904d4100988e04` succeeded in 16m 41s, observed
+directly in the authenticated GitHub browser on 2026-09-25 (Cairo). The unchanged
+workflow includes required-FFmpeg checks, Railway config, Docker build and both
+container smoke modes. This qualifies that source batch in CI, not live provider
+access or the separate subsequent authorization hardening.

@@ -17,7 +17,7 @@ test('maximum media bytes stream to encrypted staging; two replicas share admiss
   assert.equal(bytes.length,MAX_MEDIA_BYTES);assert.equal(bytes.at(-1),81);assert.ok(peak-start<lease.bytes,'RSS delta '+(peak-start)+' exceeds conservative reservation '+lease.bytes);console.log(JSON.stringify({media_capacity:{file_bytes:bytes.length,peak_rss:peak,baseline_rss:start,delta:peak-start,reservation:lease.bytes}}));
   assert.throws(()=>b.stagedMedia('two','media'),e=>e.code==='REVIEW_EXPIRED');assert.ok(!a.db.prepare('SELECT secret FROM media_staging').get().secret.includes('QQQQ'));
   lease.release();const next=b.mediaAdmission('two');next.release();a.db.prepare('UPDATE media_staging SET expires_at=0').run();b.cleanupTransient();assert.equal(a.db.prepare('SELECT count(*) AS n FROM media_chunks').get().n,0);
- }finally{a.close();b.close();fs.rmSync(dir,{recursive:true});}
+ }finally{a.close();b.close();const resolved=fs.realpathSync(dir);assert.equal(path.dirname(resolved),fs.realpathSync(os.tmpdir()));assert.match(path.basename(resolved),/^amcp-media-capacity-/);fs.rmSync(resolved,{recursive:true,maxRetries:5,retryDelay:100});assert.equal(fs.existsSync(resolved),false);}
 });
 test('over-limit streams and cancelled staging stop consumption and erase partial chunks',async()=>{
  const store=new Store(':memory:',key);try{let cancelled=false;const stream=new ReadableStream({pull(c){c.enqueue(Buffer.alloc(1024));},cancel(){cancelled=true;}});await assert.rejects(()=>readMediaBody(new Response(stream),1000),e=>e.code==='MEDIA_TOO_LARGE');assert.equal(cancelled,true);
