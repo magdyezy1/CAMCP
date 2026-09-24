@@ -170,6 +170,7 @@ test('incomplete usage, wrong line-item bindings, repeated cursors and unreadabl
    x.seed();x.ads.push({id:'promo1',line_item_id:'line2',tweet_id:tweetId,entity_status:'ACTIVE'});
    if(mode==='missingTweet')x.tweets.clear();else if(mode==='repeatCursor'){x.controls.linePages=true;x.controls.repeatCursor=true;}else x.controls[mode as 'failList'|'wrongLine']=true;
    const r=await x.prepare(cardEdit,{creative_edit_confirmed:true});assert.equal(r.error.code,'X_CREATIVE_STATE_UNVERIFIED',JSON.stringify(r));assert.equal(x.writes().length,0);
+   if(mode==='failList'){assert.equal(r.error.details.http_status,200);assert.equal(r.error.details.provider_error_code,'PLATFORM_ERROR');assert.equal(r.error.details.upstream.errors[0].code,'SERVICE_UNAVAILABLE');}
   }finally{x.store.close();}
  }
 });

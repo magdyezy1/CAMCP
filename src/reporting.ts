@@ -5,24 +5,36 @@ import {MirrorError} from './errors.js';
 export const reportingOperations=new Set(['bind_reporting_workbook','create_reporting_query','update_reporting_query','create_reporting_schedule','update_reporting_schedule','save_workbook_preferences','execute_reporting_run','get_reporting_run','get_reporting_run_status','get_reporting_bootstrap','get_reporting_workbook_bootstrap','get_reporting_storage_overview','list_reporting_templates']);
 export function nextSchedule(schedule:JsonObject,after=Date.now()):number{
  const config=schedule.schedule_config??{},kind=schedule.schedule_kind;
- if(!['hourly','daily','weekly'].includes(kind)||!Number.isInteger(config.minute??0)||(config.minute??0)<0||(config.minute??0)>59||!Number.isInteger(config.hour??0)||(config.hour??0)<0||(config.hour??0)>23||kind==='weekly'&&(!Number.isInteger(config.weekday)||config.weekday<0||config.weekday>6))throw new MirrorError('INVALID_SCHEDULE','Use minute 0-59, hour 0-23, and weekday 0-6 (Sunday=0) for weekly schedules.');
+ if(!['hourly','daily','weekly','monthly'].includes(kind)||!Number.isInteger(config.minute??0)||(config.minute??0)<0||(config.minute??0)>59||!Number.isInteger(config.hour??0)||(config.hour??0)<0||(config.hour??0)>23||kind==='weekly'&&(!Number.isInteger(config.weekday)||config.weekday<0||config.weekday>6)||kind==='monthly'&&(!Number.isInteger(config.day??1)||(config.day??1)<1||(config.day??1)>31))throw new MirrorError('INVALID_SCHEDULE','Use minute 0-59, hour 0-23, weekday 0-6 (Sunday=0), and monthly day 1-31. Shorter months use their last day.');
  let format:Intl.DateTimeFormat;try{format=new Intl.DateTimeFormat('en-US',{timeZone:schedule.timezone,year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});}catch{throw new MirrorError('INVALID_TIMEZONE','Provide an IANA timezone.');}
+ const parts=(at:number)=>Object.fromEntries(format.formatToParts(at).map(p=>[p.type,p.value])),p=parts(after),firstDay=Date.UTC(Number(p.year),Number(p.month)-1,Number(p.day));
  const previous=schedule.next_run_at!==undefined&&schedule.next_run_at<=after?format.format(schedule.next_run_at):undefined;
- const weekdays=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
- for(let at=Math.floor(after/60000)*60000+60000;at<=after+8*86400000;at+=60000){
-  const parts=format.formatToParts(at),value=(key:string)=>parts.find(p=>p.type===key)!.value;
-  if(Number(value('minute'))===(config.minute??0)&&(kind==='hourly'||Number(value('hour'))===(config.hour??0))&&(kind!=='weekly'||weekdays.indexOf(value('weekday'))===config.weekday)&&format.format(at)!==previous)return at;
+ for(let day=0;day<=(kind==='monthly'?63:8);day++){
+  const date=new Date(firstDay+day*86400000),y=date.getUTCFullYear(),m=date.getUTCMonth(),d=date.getUTCDate();
+  if(kind==='weekly'&&date.getUTCDay()!==config.weekday||kind==='monthly'&&d!==Math.min(config.day??1,new Date(Date.UTC(y,m+1,0)).getUTCDate()))continue;
+  const candidates:number[]=[];
+  for(const hour of kind==='hourly'?Array.from({length:24},(_,i)=>i):[config.hour??0]){
+   const wall=Date.UTC(y,m,d,hour,config.minute??0),offsets=new Set<number>();
+   for(const delta of [-86400000,0,86400000]){const at=wall+delta,q=parts(at);offsets.add(Date.UTC(Number(q.year),Number(q.month)-1,Number(q.day),Number(q.hour),Number(q.minute))-at);}
+   for(const offset of offsets){const at=wall-offset,q=parts(at);if(at>after&&Number(q.year)===y&&Number(q.month)===m+1&&Number(q.day)===d&&Number(q.hour)===hour&&Number(q.minute)===(config.minute??0)&&format.format(at)!==previous)candidates.push(at);}
+  }
+  if(candidates.length)return Math.min(...candidates);
  }
- throw new MirrorError('SCHEDULE_UNRESOLVED','No occurrence was found within eight days.');
+ throw new MirrorError('SCHEDULE_UNRESOLVED','No valid local schedule occurrence was found within the bounded calendar search.');
 }
 export function resolveReportConfig(config:JsonObject,now=Date.now()):JsonObject{
  const result=structuredClone(config),range=result.date_range;
  if(!range?.preset)return result;
  if(range.offset_days!==undefined&&(!Number.isInteger(range.offset_days)||range.offset_days<0||range.offset_days>90))throw new MirrorError('INVALID_ROLLING_WINDOW','Skip 0–90 recent days to allow conversion reporting to mature.');
- if(range.preset!=='last_complete_days'||!Number.isInteger(range.days)||range.days<1||range.days>366||typeof range.timezone!=='string')throw new MirrorError('INVALID_ROLLING_WINDOW','Use {preset:last_complete_days, days:1..366, timezone:IANA_timezone}.');
+ if(!['last_complete_days','last_complete_week','last_complete_month'].includes(range.preset)||range.preset==='last_complete_days'&&(!Number.isInteger(range.days)||range.days<1||range.days>366)||typeof range.timezone!=='string')throw new MirrorError('INVALID_ROLLING_WINDOW','Choose last_complete_days (1–366 days), last_complete_week or last_complete_month with an IANA timezone.');
+ if(range.preset!=='last_complete_days'&&(range.offset_days??0)!==0)throw new MirrorError('INVALID_ROLLING_WINDOW','Calendar week/month windows do not use a recent-day offset.');
  let parts:Intl.DateTimeFormatPart[];try{parts=new Intl.DateTimeFormat('en-US',{timeZone:range.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);}catch{throw new MirrorError('INVALID_TIMEZONE','Rolling windows require an explicit IANA timezone.');}
  const part=(kind:string)=>Number(parts.find(p=>p.type===kind)!.value),today=Date.UTC(part('year'),part('month')-1,part('day'));
- result.date_range={since:new Date(today-(range.days+(range.offset_days??0))*86400000).toISOString().slice(0,10),until:new Date(today-(1+(range.offset_days??0))*86400000).toISOString().slice(0,10)};return result;
+ let since:number,until:number;
+ if(range.preset==='last_complete_month'){since=Date.UTC(part('year'),part('month')-2,1);until=Date.UTC(part('year'),part('month')-1,1)-86400000;}
+ else if(range.preset==='last_complete_week'){const monday=today-((new Date(today).getUTCDay()+6)%7)*86400000;since=monday-7*86400000;until=monday-86400000;}
+ else{since=today-(range.days+(range.offset_days??0))*86400000;until=today-(1+(range.offset_days??0))*86400000;}
+ result.date_range={since:new Date(since).toISOString().slice(0,10),until:new Date(until).toISOString().slice(0,10)};return result;
 }
 export class ReportingService {
  constructor(readonly store:Store){}

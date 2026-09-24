@@ -84,7 +84,15 @@ export function xReader(p:CompiledRequest,send:Read){
  let requests=0,rowsRead=0;const started=performance.now();
  const data=async(suffix:string,query:JsonObject={})=>{
   if(++requests>250||performance.now()-started>60000)throw new MirrorError('X_CREATIVE_DISCOVERY_LIMIT','Creative checks exceeded their bounded read budget; narrow the account or retry the read later.');
-  const r=await send(xRead(p,suffix,query)),d=r.data;
+  let r:TransportResult;
+  try{r=await send(xRead(p,suffix,query));}catch(e){
+   // Preserve the creative contract's failure signal when transport rejects a
+   // nominally successful envelope. Authentication and retryable failures keep
+   // their original recovery instructions.
+   if(e instanceof MirrorError&&e.code==='PLATFORM_ERROR'&&e.details.http_status===200)fail('X did not return a complete successful creative response.',{...e.details,provider_error_code:e.code});
+   throw e;
+  }
+  const d=r.data;
   if(r.status!==200||!object(d)||d.error||d.errors!=null&&(!Array.isArray(d.errors)||d.errors.length>0)||d.partial_failure||d.success===false||!Object.hasOwn(d,'data'))fail('X did not return a complete successful creative response.');
   if(['next','next_token','next_page_token','nextLink','paging','pagination','partial','truncated'].some(k=>d[k]!=null&&d[k]!==false))fail('X returned unsupported pagination or incomplete-result metadata.');
   return d;

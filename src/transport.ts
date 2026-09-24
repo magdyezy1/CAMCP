@@ -2,7 +2,7 @@ import {createHmac,randomUUID} from 'node:crypto';
 import {setTimeout as delay} from 'node:timers/promises';
 import {MirrorError,providerHttpErrorCode} from './errors.js';
 import type {CompiledRequest,Connection,Credentials,JsonObject} from './types.js';
-import {redact,scopeKey} from './security.js';
+import {redact,scopeKey,sha256} from './security.js';
 import {linkedinQuery} from './linkedin-restli.js';
 import {googleJson,validateGoogleRequest} from './google-contracts.js';
 import {googleGenerationKind,googleGenerationResult,validateGoogleGeneration} from './google-generation.js';
@@ -44,12 +44,19 @@ export function oauth1(method:string,url:URL,credentials:Credentials,bodyParams?
 const camelKeys=googleJson;
 export interface TransportResult {data:unknown;status:number;headers:Record<string,string>}
 export interface BinaryUpload {field:string;bytes:Buffer;filename:string;mime:string;format?:'related'}
+export function providerRetryDelay(response:Response,gateway:string,now=Date.now()):number|undefined{
+ const header=response.headers.get('retry-after');let delay:number|undefined;
+ if(header!==null){const seconds=/^\d+(?:\.\d+)?$/.test(header.trim())?Number(header):NaN,date=Date.parse(header);if(Number.isFinite(seconds))delay=seconds*1000;else if(Number.isFinite(date))delay=Math.max(0,date-now);}
+ if(gateway==='x_ads_native_action'&&response.status===429){const reset=response.headers.get('x-account-rate-limit-reset')??response.headers.get('x-rate-limit-reset'),seconds=Number(reset);if(reset&&Number.isFinite(seconds)&&seconds>0){const server=Date.parse(response.headers.get('date')??''),remaining=seconds*1000-(Number.isFinite(server)?server:now);delay=Math.max(delay??0,remaining);}}
+ if(delay===undefined&&response.status===429)delay=30000;
+ return delay===undefined?undefined:Math.max(1000,Math.min(86400000,Math.ceil(delay)));
+}
 export class NativeTransport {
  coordination?:Store;
- private circuits=new Map<string,{failures:number;until:number;at:number}>();private budgets=new Map<string,{tokens:number;at:number}>();
+ private circuits=new Map<string,{failures:number;until:number;at:number;probing?:boolean;code?:string;status?:number}>();private budgets=new Map<string,{tokens:number;at:number}>();private cooldowns=new Map<string,number>();
  readonly metrics={requests:0,retries:0,errors:0,rateLimits:0,totalLatencyMs:0};
  diagnostics(){return {...this.metrics,budget_entries:this.budgets.size,circuit_entries:this.circuits.size,scope:'Current process only; shared rate enforcement uses SQLite.'};}
- private prune(){const now=performance.now();for(const [key,b] of this.budgets)if(now-b.at>60000)this.budgets.delete(key);for(const [key,c] of this.circuits)if(now-c.at>60000&&c.until<=now)this.circuits.delete(key);if(this.budgets.size>=4096||this.circuits.size>=4096)throw new MirrorError('PROVIDER_COORDINATION_BUSY','Provider coordination is at capacity; retry after inactive entries expire.',{retry_after_ms:60000},503,true);}
+ private prune(){const now=performance.now();for(const [key,b] of this.budgets)if(now-b.at>60000)this.budgets.delete(key);for(const [key,c] of this.circuits)if(!c.probing&&now-c.at>60000&&c.until<=now)this.circuits.delete(key);for(const [key,until]of this.cooldowns)if(until<=now)this.cooldowns.delete(key);if(this.budgets.size>=4096||this.circuits.size>=4096||this.cooldowns.size>=4096)throw new MirrorError('PROVIDER_COORDINATION_BUSY','Provider coordination is at capacity; retry after inactive entries expire.',{retry_after_ms:60000},503,true);}
 
  constructor(private fetcher:typeof fetch=fetch,private sleeper:(ms:number)=>Promise<unknown>=delay,private timeoutMs=30000,private maximumBytes=8*1024*1024,private budgetBurst=30,private budgetRefillMs=250,private budgetWaitMs=2000,private environment:'production'|'sandbox'='production'){}
  /**
@@ -74,7 +81,6 @@ export class NativeTransport {
   validateGoogleGeneration(plan);
   validateDV360TargetingSearch(plan);
   this.prune();const key=scopeKey(connection.tenantId,connection.gateway);
-  const circuit=this.circuits.get(key);if(circuit&&circuit.until>performance.now())throw new MirrorError('CIRCUIT_OPEN','Platform circuit is temporarily open.',{retry_after_ms:circuit.until-performance.now()},503,true);
   await this.permit(key);
   const url=buildUrl(plan,connection,this.environment);const headers:Record<string,string>={Accept:'application/json',...plan.headers};
   if(plan.gateway==='reddit_native_action'){
@@ -124,33 +130,44 @@ export class NativeTransport {
   // Report submission creates a job even though it cannot mutate advertising configuration.
   // Generated drafts may differ on retry and consume provider generation quota.
   // Return a single attempt; callers explicitly decide whether to generate again.
-  const start=performance.now();const maxAttempts=plan.readOnly&&!googleGenerationKind(plan)&&!(plan.gateway===microsoftGateway&&plan.action==='SubmitGenerateReport')?3:1;
+  const start=performance.now(),circuitKey=scopeKey(key,connection.id,plan.accountId??'',url.origin),endpoint=url.pathname.replace(/\/accounts\/[^/]+/,'/accounts/:account'),userRateKey=plan.gateway==='x_ads_native_action'?scopeKey(key,'x-rate',sha256(credentials.accessToken??''),url.origin,endpoint.startsWith('/12/stats/accounts/')?'analytics':endpoint):key,accountRateKey=plan.gateway==='x_ads_native_action'&&plan.accountId?scopeKey(userRateKey,plan.accountId):userRateKey;
+  const maxAttempts=plan.readOnly&&!googleGenerationKind(plan)&&!(plan.gateway===microsoftGateway&&plan.action==='SubmitGenerateReport')?3:1;
+  let ownedProbe:{probing?:boolean}|undefined;
+  try{
   for(let attempt=0;attempt<maxAttempts;attempt++){
+   for(const rateKey of new Set([userRateKey,accountRateKey])){const until=this.cooldowns.get(rateKey)??0;if(until>performance.now())throw new MirrorError('PLATFORM_RATE_LIMIT','Provider cooldown is active; wait until the reported reset time.',{retry_after_ms:Math.ceil(until-performance.now())},429,true);this.coordination?.assertProviderCooldown(rateKey);}
    this.coordination?.providerPermit(key);
+   if(attempt===0){const circuit=this.circuits.get(circuitKey),now=performance.now();if(circuit&&(circuit.until>now||circuit.probing))throw new MirrorError('CIRCUIT_OPEN','Repeated transient provider failures paused this connection/account. A request will probe recovery after the cooldown.',{retry_after_ms:Math.max(1000,Math.ceil(circuit.until-now)),last_error_code:circuit.code,last_http_status:circuit.status},503,true);if(circuit?.until){circuit.probing=true;ownedProbe=circuit;}}
    this.metrics.requests++;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'requests');
    try{
     const response=await this.fetcher(url,{method:plan.method,headers,body,redirect:'error',signal:AbortSignal.timeout(this.timeoutMs)});
-    if(response.status===429){this.metrics.rateLimits++;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'rate_limits');const seconds=Number(response.headers.get('retry-after')??30);this.coordination?.providerCooldown(key,Number.isFinite(seconds)?seconds*1000:30000);}
-    if([429,502,503,504].includes(response.status)&&attempt+1<maxAttempts){await response.body?.cancel();this.metrics.retries++;const retry=Number(response.headers.get('retry-after'));await this.sleeper(Math.min(5000,Math.max(200*2**attempt,Number.isFinite(retry)?retry*1000:0)));continue;}
+    const retryDelay=providerRetryDelay(response,plan.gateway);
+    if(response.status===429){this.metrics.rateLimits++;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'rate_limits');}
+    if((response.status===429||response.status===503)&&retryDelay!==undefined){const rateKey=plan.gateway==='x_ads_native_action'&&response.headers.has('x-account-rate-limit-reset')?accountRateKey:userRateKey;this.cooldowns.set(rateKey,performance.now()+retryDelay);this.coordination?.providerCooldown(rateKey,retryDelay);}
+    if([502,503,504].includes(response.status)&&retryDelay===undefined&&attempt+1<maxAttempts){await response.body?.cancel();this.metrics.retries++;await this.sleeper(200*2**attempt);continue;}
     const documentedEmpty=response.status===200&&(plan.gateway==='google_search_console_native_action'&&['PUT','DELETE'].includes(plan.method)&&/^\/webmasters\/v3\/sites\//.test(plan.path)||plan.gateway==='gtm_native_action'&&plan.method==='DELETE'||plan.gateway==='linkedin_native_action'&&plan.method==='POST'&&plan.path==='/rest/videos'&&plan.query.action==='finalizeUpload'||plan.gateway==='google_ads_native_action'&&plan.method==='POST'&&/^\/resumable\/upload\/v23\/customers\/\d+\/youTubeVideoUploads:create$/.test(plan.path)&&response.headers.has('x-goog-upload-url'));
     const data=await this.readBody(response,plan.method==='HEAD'||!plan.readOnly&&(documentedEmpty||[204,205].includes(response.status)||plan.gateway==='linkedin_native_action'&&response.status===201&&response.headers.has('x-restli-id')));
-    const errorDetails=()=>({upstream:redact(data),http_status:response.status,request_id:response.headers.get('request-id')??response.headers.get('x-request-id')??response.headers.get('x-fb-trace-id'),...(response.status===403?{scope_denial:providerHttpErrorCode(403,data,response.headers.get('www-authenticate'))==='INSUFFICIENT_SCOPE'}:{}),...(plan.gateway==='google_ads_native_action'?{login_customer_id:headers['login-customer-id']??null}:{})});
+    const errorDetails=()=>({upstream:redact(data),http_status:response.status,...(retryDelay===undefined?{}:{retry_after_ms:retryDelay}),request_id:response.headers.get('request-id')??response.headers.get('x-request-id')??response.headers.get('x-fb-trace-id'),...(response.status===403?{scope_denial:providerHttpErrorCode(403,data,response.headers.get('www-authenticate'))==='INSUFFICIENT_SCOPE'}:{}),...(plan.gateway==='google_ads_native_action'?{login_customer_id:headers['login-customer-id']??null}:{})});
     if(!response.ok){const code=providerHttpErrorCode(response.status,data,response.headers.get('www-authenticate'));throw new MirrorError(code,'Platform returned HTTP '+response.status,errorDetails(),response.status,response.status===429||response.status>=500);}
     if(data&&typeof data==='object'){
      const d=data as JsonObject;
-     if((plan.gateway==='tiktok_native_action'&&d.code!==undefined&&d.code!==0)||d.request_status==='ERROR'||d.error)throw new MirrorError('PLATFORM_ERROR','Platform reported an unsuccessful result.',errorDetails(),502,false);
+     if((plan.gateway==='tiktok_native_action'&&d.code!==undefined&&d.code!==0)||d.request_status==='ERROR'||d.error||plan.gateway==='x_ads_native_action'&&Array.isArray(d.errors)&&d.errors.length)throw new MirrorError('PLATFORM_ERROR','Platform reported an unsuccessful result.',errorDetails(),502,false);
     }
     googleGenerationResult(plan,data);
     if(dv360TargetingSearchRoute(plan))dv360TargetingSearchResult(plan,data);
-    this.circuits.delete(key);this.metrics.totalLatencyMs+=performance.now()-start;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'latency_ms',performance.now()-start);
+    this.circuits.delete(circuitKey);this.metrics.totalLatencyMs+=performance.now()-start;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'latency_ms',performance.now()-start);
     return {data,status:response.status,headers:Object.fromEntries(['request-id','x-request-id','x-fb-trace-id','x-restli-id','retry-after',...(plan.gateway==='google_ads_native_action'&&plan.path.startsWith('/resumable/upload/')?['x-goog-upload-url','x-goog-upload-chunk-granularity']:[])].map(k=>[k,response.headers.get(k)]).filter((p):p is [string,string]=>p[1]!==null))};
    }catch(error){
     const e=error instanceof MirrorError?error:new MirrorError(plan.readOnly?'UPSTREAM_UNAVAILABLE':'WRITE_OUTCOME_UNCERTAIN',plan.readOnly?'Platform request failed or timed out.':'The write response was lost. Do not retry with a new key; inspect platform state.',{},502,plan.readOnly);
-    if(plan.readOnly&&e.retryable&&attempt+1<maxAttempts){this.metrics.retries++;await this.sleeper(200*2**attempt);continue;}
-    this.metrics.errors++;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'errors');const prior=this.circuits.get(key)?.failures??0;this.circuits.set(key,{failures:prior+1,until:prior>=4?performance.now()+30000:0,at:performance.now()});throw e;
+    if(plan.readOnly&&e.retryable&&e.details.retry_after_ms===undefined&&attempt+1<maxAttempts){this.metrics.retries++;await this.sleeper(200*2**attempt);continue;}
+    this.metrics.errors++;this.coordination?.providerMetric(connection.tenantId,connection.gateway,'errors');
+    const transient=e.code==='UPSTREAM_UNAVAILABLE'||e.code==='WRITE_OUTCOME_UNCERTAIN'||e.code==='UPSTREAM_ERROR'&&e.status>=500;
+    if(transient){const prior=this.circuits.get(circuitKey)?.failures??0;this.circuits.set(circuitKey,{failures:prior+1,until:prior>=4?performance.now()+30000:0,at:performance.now(),code:e.code,status:e.status});}else this.circuits.delete(circuitKey);
+    throw e;
    }
   }
   throw new MirrorError('UPSTREAM_UNAVAILABLE','Platform request failed.');
+  }finally{if(ownedProbe)ownedProbe.probing=false;}
  }
  /** A Google-issued upload capability stays in memory and can only target Google's upload origin. */
  async uploadGoogleVideo(raw:string,bytes:Buffer,accessToken:string,options:{granularity?:number;resume?:boolean;beforeFinalize?:()=>void;beforeChunk?:()=>void;progress?:(bytes:number)=>void}={}):Promise<TransportResult>{

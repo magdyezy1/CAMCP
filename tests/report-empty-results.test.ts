@@ -59,7 +59,7 @@ test('an empty scheduled report leaves the existing Google Sheets destination un
  const f=fixture(()=>({data:[]}));
  try{
   const destination={last_report_id:'previous-report',last_captured_at:123,sheet_id:12345};f.store.putDocument(actor.tenantId,'sheets_destination','existing',destination);
-  const queued=f.overview.queue(actor,f.overview.config(config,actor),'existing','synthetic-schedule');await f.worker.once();
+  f.store.putDocument(actor.tenantId,'overview_schedule','synthetic-schedule',{is_active:true,definition_version:1});const queued=f.overview.queue(actor,f.overview.config(config,actor),'existing','synthetic-schedule');await f.worker.once();
   const report=await f.overview.handle({action:'get',id:queued.id},actor);assert.equal(report.job.state,'complete');assert.equal(report.export.state,'skipped');assert.equal(report.export.reason,'EMPTY_REPORT');
   assert.equal(f.store.document(actor.tenantId,'sheets_destination','existing').last_report_id,'previous-report');assert.equal(f.calls.length,2);
  }finally{f.store.close();}
@@ -101,7 +101,7 @@ test('date controls preserve historical years and empty reports render without d
  const esc=(v:unknown)=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
  const root={innerHTML:''},report={id:'empty',state:'complete',row_count:0,rows:[],sources:[{source,complete:true,row_count:0}],empty_reason:'no_provider_rows',config:{...config,custom_metrics:[]},job:{state:'complete'},summary:[],exports:[]};
  const context=createContext({document:{querySelector:()=>null},Intl,URLSearchParams,esc,api:async()=>({success:true,data:report}),clearTimeout:()=>{},pollTimer:undefined,location:{pathname:'/reporting-overview'},authBind:()=>{},date:()=>'', $:(selector:string)=>selector==='#overview-results'?root:null});
- new Script(readFileSync('web/report-quality.js','utf8')).runInContext(context);new Script(readFileSync('web/reporting-overview.js','utf8')).runInContext(context);
+ new Script(readFileSync('web/report-library.js','utf8')).runInContext(context);new Script(readFileSync('web/report-quality.js','utf8')).runInContext(context);new Script(readFileSync('web/reporting-overview.js','utf8')).runInContext(context);
  assert.deepEqual(JSON.parse(new Script("JSON.stringify(reportMonthRange('2025-01'))").runInContext(context)),range);
  assert.equal(new Script("reportMonthRange('2024-02').until").runInContext(context),'2024-02-29');
  assert.equal(new Script("overviewInitialConfig('?since=2025-01-01&until=2025-01-31').date_range.since").runInContext(context),'2025-01-01');

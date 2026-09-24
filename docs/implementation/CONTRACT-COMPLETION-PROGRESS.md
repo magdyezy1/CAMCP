@@ -1,8 +1,35 @@
 # Provider action implementation progress
 
-Latest stop/resume checkpoint: [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md).
-Earlier numbered checkpoints below are historical; the AN entry and handoff
-record the newest inventory and validation results.
+Latest product batch: [2026-09-24 reporting continuation](REPORTING-2026-09-24-PROGRESS.md),
+with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
+The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
+roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
+
+## AO — Independent reporting and X recovery (2026-09-24)
+
+Added named client report/template CRUD, stable revision-checked edits, separate
+account/destination/schedule identity, daily/weekly/monthly native data periods,
+calendar windows and monthly schedules. Browser controls include new, duplicate,
+create from template, edit, delete, pause/resume, destination selection and schedule
+management. CSV and Sheets retain period metadata and missing/partial evidence.
+Stale requests/jobs cannot overwrite another selection or resurrect a deleted run.
+
+Repaired transport circuits poisoned by terminal provider errors, scoped transient
+circuits by connection/account, shared X reset cooldowns, current analytics
+placements, native null columns and resumable analytics batches. Preserved the X
+creative incomplete-state contract and its underlying provider diagnostics.
+
+Fresh sanitized candidate B: full check exit 0; 1405 main tests passed, zero failed,
+one optional FFmpeg skip, plus four capture tests. Focused reporting suite: 92;
+X compatibility: 46. Local browser exercised two clients/accounts/Sheets destinations,
+weekly/monthly schedules, daily results, CSV download and synthetic Sheets delivery.
+No live advertising calls or deployment changes. Exact commands, initial failures,
+hashes, boundaries and remaining work are in the linked progress/checkpoint files.
+
+Native inventory remains 3241 actions, 423 reviewed-family and 894 blocked writes;
+no native reviewed-write family was added by this product batch. The separate Meta
+R1 ownership hypothesis now has two failing local foreign-identity prepare repros;
+it remains unfixed here and is not a claim of a successful live provider exploit.
 
 ## AN — Google Ads client-account user access (2026-09-20)
 

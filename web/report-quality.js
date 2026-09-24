@@ -14,6 +14,6 @@ function reportQualityDetails(source){
 function refreshRecentReports(report){
  overviewState.history=[{...report,rows:undefined},...overviewState.history.filter(r=>r.id!==report.id)].slice(0,50);
  const section=document.querySelector('.report-history');if(!section)return;
- section.innerHTML='<div class="panel-header"><h2>Recent reports</h2><span class="muted">Saved snapshots with source evidence</span></div>'+overviewState.history.map(r=>`<button class="report-history-row" data-report-open="${esc(r.id)}"><span><strong>${esc(r.config.name)}</strong><small>${esc(r.config.date_range.since)} — ${esc(r.config.date_range.until)} · ${date(r.created_at)}</small></span><span class="status">${reportDisplayState(r)}</span><span>${r.row_count??0} rows ↗</span></button>`).join('');
- authBind('.report-history [data-report-open]',async b=>{overviewState.page=0;await loadOverviewReport(b.dataset.reportOpen);overviewState.config=structuredClone(overviewState.report.config);await renderReportingOverview();});
+ section.innerHTML=renderOverviewHistory(overviewState.history,typeof session!=='undefined'&&session.workspaceRole==='viewer');
+ bindOverviewHistory();
 }

@@ -1,5 +1,97 @@
 # Reporting Overview
 
+## Client reports and reusable templates
+
+Use **+ New report** for a separate setup. Give it a client label and report name,
+select the exact login/accounts, and choose metrics, formulas and objectives.
+**Save report** adds it to **Report library**. Reopen it and use **Save changes**
+to edit the same report. **Duplicate setup** starts an independent copy, with no
+destination or schedule; choose those explicitly for the new report. **+ Connect
+accounts** opens Connections; it does not create an advertising account at a provider.
+
+**Save as new template** retains report settings, metric/formula definitions,
+calendar choices, per-platform native metric defaults and objective-level targets.
+It excludes client/account identifiers, campaign-specific targets, spreadsheet
+destinations and schedules. Review business targets/currencies when reusing it.
+Open a template to edit it, or choose **Create report from template**, supply the
+client and select its current accounts. Templates never grant provider access.
+There can be up to 100 saved reports and 100 templates per workspace.
+
+**Delete report** removes that saved setup and its linked schedule, cancelling
+pending runs/deliveries. **Delete schedule** keeps the setup. Deleting a template
+does not change reports created from it. The separate **Recent snapshots → Delete**
+control removes a collected result and its reporting jobs. These operations keep
+external Google spreadsheets and tabs unchanged. Reports shared with other workspace
+members use revision checks: a stale edit or deletion must reload the current setup.
+Previously selected accounts that become unavailable remain visible until explicitly
+removed; the UI does not silently drop them from a saved report.
+
+## Data grouping versus delivery frequency
+
+**Group data by** chooses whole-period, daily, Monday–Sunday weekly or calendar-month
+rows. This is independent of when the report runs. For example, Client A can receive
+daily rows for the previous complete month on the first day of each month, while
+Client B receives a seven-day total every Monday in a different spreadsheet.
+
+Dates are inclusive. Weeks/months at the beginning or end of a custom range are
+clipped to that range. AMCP queries each period directly using the existing native
+adapter; it does not sum daily reach/users/frequency into a false monthly total.
+The table, CSV and Sheets all retain each row's period dates, currency, native
+timezone, quality and formula provenance. Summary cards separate account/period
+groups and show the first twelve; all rows remain in the paginated table and exports.
+
+Collection freezes the resolved dates. Completed periods and native async job
+checkpoints survive a retry. A rejected period remains an explicit coverage failure;
+it does not become zero activity. Successful periods are retained, but recommendations
+remain conservative for that incomplete source. Download source evidence for all
+period diagnostics. Limits remain 366 days, 30 sources and 10,000 rows per source
+**across all its periods**. Shorter ranges or fewer accounts reduce quota consumption.
+
+## X cooldowns and recovery
+
+Terminal provider input/access errors (for example 400, 401, 403 or 422) retain
+their original diagnostics; they do not trip a transient-failure circuit. Repeated
+network/server failures can still open a circuit for the affected connection,
+account and origin. One request probes recovery after cooldown. Another account's
+valid access is not blocked by that circuit.
+
+HTTP 429 observes X's account/user reset headers; 503 observes Retry-After.
+Cooldowns coordinate through SQLite, and workers wait instead of immediately
+repeating the call. Completed X analytics batches are checkpointed and are not
+counted twice on resume. Null native metric values mean no reported activity;
+absent metric columns remain unavailable. Native errors inside HTTP 200 are failures.
+No advertising mutation gains permission or automatic retry from these changes.
+
+The current X endpoint parameter reference lists ALL_ON_TWITTER, SPOTLIGHT and
+TREND; some historical examples on the same page still mention PUBLISHER_NETWORK.
+The adapter follows the current parameter enum. Official references checked
+2026-09-24: [analytics](https://docs.x.com/x-ads-api/analytics) and
+[rate limiting](https://docs.x.com/x-ads-api/fundamentals/rate-limiting).
+
+## Report-library MCP example
+
+Discover exact source and destination identifiers with `bootstrap`. The following
+is a structure example; replace synthetic IDs with authorized bootstrap values.
+
+```json
+{"action":"save","confirmed":true,"config":{"name":"Monthly awareness","client_name":"Client A","sources":[{"platform":"meta","connection_id":"selected-login","account_id":"123"}],"grain":"daily","date_range":{"preset":"last_complete_month","timezone":"Asia/Riyadh"},"metrics":["spend","impressions","clicks","cpc"]}}
+```
+
+`save` returns `id` and `revision`. To edit, send the same `id`, its
+`expected_revision`, and the complete new `config`. `save_template` follows the
+same pattern. `delete_view`/`delete_template` also require that revision.
+`schedule` can attach to `view_id` with its `expected_revision`; supply a schedule
+object containing `schedule_kind`, `timezone`, `destination_id`, and
+`schedule_config` (minute, hour, weekday for weekly or day for monthly).
+Use a stable `idempotency_key` for creation. `update_schedule` needs the schedule
+`id`/`expected_revision`; also send `expected_view_revision` when editing a loaded
+report. `remove_schedule` requires its current revision. A creation key belonging
+to a deleted schedule cannot resurrect it. An explicit new schedule uses a new key.
+
+`source_defaults` optionally stores account-free per-platform `objective` and
+`native_metrics`; unsupported fields or embedded account identities are rejected.
+Schedules keep their original identity, destination ownership and actor checks.
+
 ## Dates and empty reports
 
 For a historical month, select **Custom dates → Set a full month**. The date summary spells out the month and year before collection; for example, January 2025 means `2025-01-01` through `2025-01-31`. Report links can prefill explicit `since` and `until` dates without running a request or selecting an account. Account choices show synced account names separately from the connected login.
@@ -14,7 +106,7 @@ Failed sources expand automatically and show the provider error code/message, ac
 
 For Google HTTP 403, distinguish `USER_PERMISSION_DENIED` (identity/account access or manager routing) from developer-token/project restrictions such as `DEVELOPER_TOKEN_NOT_APPROVED` or `DEVELOPER_TOKEN_PROHIBITED`. With direct customer access, an unrelated `AMCP_GOOGLE_LOGIN_CUSTOMER_ID` should be omitted; manager access needs the correct manager ID. After changing server OAuth settings, reconnect Google Ads because existing connections retain their saved credentials/settings. The report displays the login customer ID actually sent. AMCP does not bypass a provider denial or automatically change routing. See [Google's error guide](https://developers.google.com/google-ads/api/docs/get-started/common-errors) and [Google's access model](https://developers.google.com/google-ads/api/docs/oauth/access-model).
 
-Open **Reporting overview** in workspace navigation (/reporting-overview). Select multiple platforms/accounts, a date range, objectives and metrics. Save a view or pull a new snapshot. Durable jobs freeze account selection and dates for each run.
+Open **Reporting overview** in workspace navigation (/reporting-overview). Select multiple platforms/accounts, a date range, objectives and metrics. Save a report setup or pull a new snapshot. Durable jobs freeze account selection and dates for each run.
 
 ## Metrics and decisions
 
@@ -34,7 +126,7 @@ Open **Reporting overview** in workspace navigation (/reporting-overview). Selec
 | TikTok | Integrated campaign report plus objective inventory |
 | Snapchat | Campaign totals/inventory and account-local day boundaries |
 | LinkedIn | Campaign adAnalytics; objective override when the API omits it |
-| X Ads | Four placement requests, separate mobile conversions, hourly buckets and explicit partial-coverage flags |
+| X Ads | Current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND, separate mobile conversions, resumable hourly batches and explicit partial-coverage flags |
 | Microsoft Ads | Durable Submit/Poll campaign report and secure server-side CSV download |
 | Apple Ads | Campaign report with explicit UTC range |
 | Reddit Ads | Campaign metrics/inventory, spend micro-units and explicit native conversion definitions |
@@ -62,9 +154,9 @@ CSV is also available. Download links use the browser's download behavior and by
 
 ## Scheduled delivery
 
-Choose daily/weekly/hourly cadence, an IANA timezone, rolling complete days, recent-day exclusion and destination. Each occurrence collects fresh data and replaces the destination tab. DST is handled in the chosen timezone. The UI shows next run, pause state, report progress and delivery history, with retry for failed exports.
+Choose daily/weekly/monthly/hourly delivery, an IANA timezone, a rolling/calendar window and destination. Monthly day 29–31 clamps to the last day in shorter months. Calendar windows can select the previous complete Monday–Sunday week or calendar month; recent-day exclusion applies to complete-day windows. Each occurrence collects fresh data and replaces the destination tab. DST is handled in the chosen timezone. The UI shows next run, pause state, report progress and delivery history, with retry for failed exports.
 
-**Save report & enable schedule** atomically saves a view and an independent schedule with its account selection, objectives, metrics, formulas and destination. Reopen it from **Saved views** or **Scheduled account reports → Open report setup**. Each report can use a separate spreadsheet or a separate AMCP tab in the same spreadsheet. Only one active schedule can use a destination tab, preventing different account reports from replacing one another. Stable creation keys make destination and schedule retries idempotent. Up to 50 schedules can coexist in a workspace.
+**Save report & enable schedule** atomically saves a view and an independent schedule with its account selection, objectives, metrics, formulas and destination. Reopen it from **Report library** or **All scheduled reports → Edit report & schedule**. Saving an existing report updates its same identity and linked schedule instead of making a duplicate. Each report can use a separate spreadsheet or a separate AMCP tab in the same spreadsheet. Only one active schedule can use a destination tab, preventing different account reports from replacing one another. Stable creation keys make destination and schedule retries idempotent. Up to 50 schedules can coexist in a workspace.
 
 ## Google Ads account discovery
 
@@ -86,13 +178,13 @@ Activity shows the latest 100 events for the signed-in workspace, newest first. 
 
 Google [migrated API access to Google Cloud projects on September 9, 2026](https://developers.google.com/google-ads/api/docs/api-policy/developer-token). Check the project that owns AMCP's **Google Ads** OAuth client, not a different project used for Sheets or social sign-in. [Explorer Access supports production account reads and reporting](https://developers.google.com/google-ads/api/docs/api-policy/access-levels), so a generic 403 is not evidence that Basic Access is required. `CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION` identifies a project-access restriction; older API versions can return the less specific `ACTION_NOT_PERMITTED`. `USER_PERMISSION_DENIED` concerns account identity/access or manager routing. `CUSTOMER_NOT_ENABLED` concerns the account's own status. Reconnecting cannot override Google-side restrictions, and AMCP never reactivates an account during sync.
 
-Keep the HTTP worker enabled (AMCP_RUN_WORKER=true) or run `npm run worker` with the same persistent database and master key. A stopped worker cannot execute schedules. SQLite claims each occurrence once; leases coordinate workers and fence stale/cancelled jobs. Safe transient report/export failures retry with bounded backoff. Completed sources are checkpointed; unknown ad writes never become new retry submissions.
+Keep the HTTP worker enabled (AMCP_RUN_WORKER=true) or run `npm run worker` with the same persistent database and master key. A stopped worker cannot execute schedules. SQLite claims each occurrence once; leases coordinate workers and fence stale/cancelled jobs. Safe transient report/export failures retry with bounded backoff. Completed sources, calendar periods and X analytics batches are checkpointed; unknown ad writes never become new retry submissions.
 
-Schedules recheck the creator's membership, credential and account version. Revocation, reduced roles or deselected sources/destinations stops work. Use Resume after reauthorizing to bind the schedule to your current access. Pausing affects future occurrences; cancel an already queued job separately if needed. An HTTP request already sent to Google can finish after cancellation.
+Schedules recheck the creator's membership, credential and account version. Revocation, reduced roles or deselected sources/destinations stops work. Use Resume after reauthorizing to bind the schedule to your current access. Pausing, editing or deleting a schedule cancels its queued/running report and export jobs and fences in-flight workers. Completed snapshots remain available. A cancelled run from an old schedule definition cannot be retried under new settings; pull a fresh report. An HTTP request already sent to Google can finish after cancellation.
 
 ## MCP
 
-`amcp_reporting_overview` exposes bootstrap, save, run, get, list, create_spreadsheet, bind_destination, export, export_status, schedule, delete_schedule, resume_schedule, retry and cancel. Use the schema/bootstrap for exact identifiers. Website and MCP share the implementation, permission checks and structured results.
+`amcp_reporting_overview` exposes bootstrap, save, save_template, delete_view, delete_template, delete_report, run, get, list, create_spreadsheet, bind_destination, export, export_status, schedule, update_schedule, pause_schedule, remove_schedule, resume_schedule, retry and cancel. `delete_schedule` is retained as the legacy **pause** alias. Use the schema/bootstrap for exact identifiers. Website and MCP share the implementation, permission checks and structured results.
 
 ## Acceptance
 

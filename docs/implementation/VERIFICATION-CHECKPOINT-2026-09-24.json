@@ -1,0 +1,27 @@
+{
+  "date": "2026-09-24",
+  "branch": "Codex-branch",
+  "remote": "https://github.com/magdyezy1/AMCP.git",
+  "precommit_revision": "db617803e88e76986257617e633f156d59b97977",
+  "scope": "Independent client reports/templates, revision-safe edit/delete, calendar periods/monthly schedules, X circuit and resumable analytics repair",
+  "environment": {"node": "24.19.0", "npm": "11.17.0", "shell": "PowerShell", "os": "Windows"},
+  "candidate": {
+    "path": ".release/reporting-20260924-b",
+    "files": 546,
+    "source_tree_hash": "f4821303873238e310f7f1dc7f07b7b125e72f3033a803b4ec02c22d8c0275ad",
+    "unchanged_executable_sources": true,
+    "subsequent_documentation_only": ["REPORTING-2026-09-24-PROGRESS.md", "VERIFICATION-CHECKPOINT-2026-09-24.json", "CONTRACT-COMPLETION-PROGRESS.md"]
+  },
+  "checks": [
+    {"command": "npm.cmd ci --offline --ignore-scripts --cache <implementation>/.runtime/npm-cache", "exit_code": 0, "log": ".release/reporting-20260924-b/dependency-check.log", "log_sha256": "b6ebe3f0a3188e0db53898395a619cadcfee9b101220e0c450b99732d97df902"},
+    {"command": "npm.cmd run check", "exit_code": 0, "log": ".release/reporting-20260924-b/release-check.log", "log_sha256": "12679c7596c125235920b8b007a2e20b080b5fe34e78583a32efb285cd3aacb2", "main": {"tests": 1406, "pass": 1405, "fail": 0, "skip": 1}, "capture": {"tests": 4, "pass": 4, "fail": 0, "skip": 0}},
+    {"command": "Reporting/transport/recommendation/UI compatibility command in progress ledger", "pass": 92, "fail": 0, "skip": 0},
+    {"command": "X creative/draft/transport compatibility command in progress ledger", "pass": 46, "fail": 0, "skip": 0}
+  ],
+  "retained_initial_failures": ["Six baseline reporting/circuit reproductions", "Old X placement assertion", "Invalid template default merge", "TypeScript test narrowing", "Candidate A offline npm cache miss", "Candidate A creative error-code compatibility regression"],
+  "browser": {"environment": "Loopback synthetic fixture; in-memory store; no external egress", "observed": ["Two clients and accounts", "Template creation and new report from template", "Stable edit identity", "Separate Sheets URLs and weekly/monthly schedules", "Monthly schedule edit/pause/delete", "Daily report and CSV download", "Synthetic Sheets delivery", "Mobile width and dialog keyboard focus"], "live_verified": false},
+  "separate_unfixed_finding": "Meta direct creative identity prerequisites: two isolated negative prepare tests fail; no provider mutation attempted. See progress ledger R1.",
+  "remaining_native_actions": {"blocked_writes": 894, "unmapped": 91, "unqualified_reads": 27, "input_dependent": 8, "provider_unsupported": 4},
+  "unrun": ["AMCP_REQUIRE_FFMPEG=true required-binary mode", "Docker smoke", "Live X and other provider/account/app qualification", "Production deployment and restore"],
+  "meaning": "Synthetic/local qualification. No claim that all provider actions or payload variants work, or that the deployed application has this revision."
+}
