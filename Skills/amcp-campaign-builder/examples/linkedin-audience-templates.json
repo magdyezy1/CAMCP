@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "meaning": "Executable synthetic examples, not live business inputs or permission to change an account. Discover the selected connection, account and template IDs; replace the fixture IDs and obtain the intended audience/name before preparation. Inspect is local; prepare reads LinkedIn; execute requires review confirmation; verify reads back the original review.",
+  "examples": [
+    {
+      "kind": "create",
+      "gateway": "linkedin_native_action",
+      "arguments": {
+        "action": "linkedin_rest_ad_target_templates_post",
+        "account_id": "123",
+        "connection_id": "00000000-0000-4000-8000-000000000001",
+        "payload": {
+          "account": "urn:li:sponsoredAccount:123",
+          "name": "Synthetic KSA English audience",
+          "description": "Fixture only; saving does not apply targeting to campaigns.",
+          "targetingCriteria": {
+            "include": {"and": [
+              {"or": {"urn:li:adTargetingFacet:locations": ["urn:li:country:sa"]}},
+              {"or": {"urn:li:adTargetingFacet:interfaceLocales": ["urn:li:locale:en_US"]}}
+            ]}
+          }
+        }
+      }
+    },
+    {
+      "kind": "update",
+      "gateway": "linkedin_native_action",
+      "arguments": {
+        "action": "linkedin_rest_ad_target_templates_template_id_post",
+        "account_id": "123",
+        "connection_id": "00000000-0000-4000-8000-000000000001",
+        "path_params": {"template_id": "456"},
+        "restli_method": "PARTIAL_UPDATE",
+        "payload": {"patch": {"$set": {"name": "Synthetic renamed audience", "description": ""}}}
+      }
+    },
+    {
+      "kind": "delete",
+      "gateway": "linkedin_native_action",
+      "arguments": {
+        "action": "linkedin_rest_ad_target_templates_template_id_delete",
+        "account_id": "123",
+        "connection_id": "00000000-0000-4000-8000-000000000001",
+        "path_params": {"template_id": "456"}
+      }
+    },
+    {
+      "kind": "batch",
+      "gateway": "linkedin_native_action",
+      "arguments": {
+        "action": "linkedin_rest_ad_target_templates_delete",
+        "account_id": "123",
+        "connection_id": "00000000-0000-4000-8000-000000000001",
+        "query": {"ids": ["456", "457"]}
+      }
+    }
+  ]
+}

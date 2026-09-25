@@ -12,6 +12,7 @@ import {googleDismissalKind} from './google-recommendation-dismissal.js';
 import {googleAccessKind} from './google-user-access.js';
 import {redditCreativeKind} from './reddit-creative-writes.js';
 import {linkedinConversionKind} from './linkedin-conversion-links.js';
+import {linkedinTemplateKind} from './linkedin-audience-templates.js';
 import {linkedinRuleKind} from './linkedin-conversion-rules.js';
 import {criteoTargetingKind} from './criteo-targeting-writes.js';
 import {metaLabelKind} from './meta-label-writes.js';
@@ -52,6 +53,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(businessAccessKind(p))return 'google_business_access';
  if(googleDismissalKind(p))return 'google_recommendation_dismissal';
  if(googleAccessKind(p))return 'google_user_access';
+ if(linkedinTemplateKind(p))return 'linkedin_audience_templates';
  if(linkedinConversionKind(p))return 'linkedin_conversion_links';
  if(linkedinRuleKind(p))return 'linkedin_conversion_rules';
  if(metaReportKind(p))return 'meta_insights_jobs';

@@ -1,5 +1,8 @@
 # AMCP continuation checkpoint — 2026-09-24
 
+Superseded for current resume state by the [September 25 handoff](RESUME-HANDOFF-2026-09-25.md).
+The counts and checkpoint statuses below are historical.
+
 Latest qualified continuation: [X audience estimation and action availability](AUDIENCE-AVAILABILITY-2026-09-25.md)
 and [offline encrypted backup recovery](BACKUP-RECOVERY-2026-09-25.md).
 Candidate F passes 1936 main/four capture tests without failures/skips, required

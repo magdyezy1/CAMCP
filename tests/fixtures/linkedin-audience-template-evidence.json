@@ -1,0 +1,24 @@
+{
+  "format_version": 1,
+  "checked_at": "2026-09-25",
+  "version": "202605",
+  "source": {
+    "url": "https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/advertising-targeting/saved-audience-templates?view=li-lms-2026-05",
+    "updated": "2026-06-24",
+    "content_type": "text/html",
+    "bytes": 73382,
+    "sha256": "c1a08091359f0e08bdab66925d8f7c2533a87762296b75c470b66a2eb458a17f",
+    "capture": "Anonymous HTTPS GET with normal TLS validation; exact-byte hash of public documentation, not an API response. No credentials supplied. The source is not bundled."
+  },
+  "supporting_sources": [
+    "https://linkedin.github.io/rest.li/spec/protocol#collection-metadata",
+    "https://learn.microsoft.com/en-us/linkedin/shared/references/v2/ads/targeting-criteria?view=li-lms-2026-05",
+    "https://learn.microsoft.com/en-us/linkedin/shared/references/v2/ads/targeting-criteria-facet-urns?view=li-lms-2026-05",
+    "https://learn.microsoft.com/en-us/linkedin/marketing/matched-audiences/adsegments?view=li-lms-2026-05"
+  ],
+  "documented_receipts": {"create": 201, "update": 204, "delete": 204, "batch_delete": 200, "created_id_header": "x-restli-id"},
+  "example_provenance": "Four first-party synthetic native examples live in Skills/amcp-campaign-builder/examples/linkedin-audience-templates.json and are executed through inspect, prepare, execute and verify by the regression suite. Values are deliberately synthetic; source examples are not evidence of account access.",
+  "pagination_boundary": "AMCP requires complete native REST.li paging metadata and reconciles totals when supplied. The saved-template documentation's simplified finder response omits paging and has inconsistent account IDs. That excerpt alone cannot establish live compatibility; omitted paging is rejected, never treated as a complete empty collection.",
+  "live_verified": false,
+  "amcp_limits": {"batch_deletes": 25, "private_segments": 25, "targeting_values": 500, "templates": 1000, "pages_per_pass": 20, "reads": 100, "bytes": 8388608, "milliseconds": 60000}
+}

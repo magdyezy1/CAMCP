@@ -1689,6 +1689,39 @@
           }
         ]
       }
+    },
+    {
+      "gateway": "linkedin_native_action",
+      "arguments": {
+        "action": "linkedin_rest_ad_target_templates_post",
+        "account_id": "123",
+        "connection_id": "00000000-0000-4000-8000-000000000001",
+        "payload": {
+          "account": "urn:li:sponsoredAccount:123",
+          "name": "Synthetic KSA English audience",
+          "description": "Fixture only; saving does not apply targeting to campaigns.",
+          "targetingCriteria": {
+            "include": {
+              "and": [
+                {
+                  "or": {
+                    "urn:li:adTargetingFacet:locations": [
+                      "urn:li:country:sa"
+                    ]
+                  }
+                },
+                {
+                  "or": {
+                    "urn:li:adTargetingFacet:interfaceLocales": [
+                      "urn:li:locale:en_US"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
     }
   ],
   "recipe_business": {

@@ -2,6 +2,15 @@
 
 ## Confirmed CI result
 
+[Run #102](https://github.com/magdyezy1/AMCP/actions/runs/36117668608),
+job `108015461743`, also completed successfully for the exact workflow-maintenance
+revision `5ea83ed2b5eddda004e464625a28f82f502b517b` on Codex-branch. Observed through
+the GitHub job UI on 2026-09-25: 21m 49s total, required-FFmpeg check 10m 9s,
+Docker build 10m 59s, subsequent smoke steps and evidence upload successful.
+The published evidence artifact ID is `10856227540`. This confirms the pinned
+Node 24 actions and Ubuntu 24.04 workflow integration. It does not qualify the
+subsequent LinkedIn template source changes.
+
 [Run #101](https://github.com/magdyezy1/AMCP/actions/runs/36114616532),
 job `108005657489`, completed successfully for
 `a28930443ca38afd21fc3d73048d9b61de356915` on Codex-branch. Observed through
@@ -57,7 +66,7 @@ errors; verification used the public web reader and successful git ls-remote tag
 resolution instead. No certificate protection was disabled. Local Python/Node
 YAML parsers were unavailable (ModuleNotFoundError/MODULE_NOT_FOUND); no parser
 success is claimed. The small YAML diff was manually reviewed and git diff
---check passed. The next exact GitHub run is the syntax/integration gate.
+--check passed. Run #102 above subsequently passed the syntax/integration gate.
 There is no new application code in this maintenance commit, so the 2013-test
 candidate I result remains the application baseline, not a claimed CI rerun.
 

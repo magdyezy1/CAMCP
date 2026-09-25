@@ -17,6 +17,7 @@ import {googlePortfolioKind,googlePortfolioImpact} from './google-portfolio-stra
 import {googleConversionActionKind,googleConversionActionServing,googleConversionActionImpact} from './google-conversion-actions.js';
 import {xDraftKind,xDraftImpact} from './x-draft-writes.js';
 import {xTargetingBatchRoute,xTargetingBatchImpact} from './x-targeting-batch.js';
+import {linkedinTemplateKind,linkedinTemplateImpact} from './linkedin-audience-templates.js';
 import {linkedinConversionKind,linkedinConversionImpact} from './linkedin-conversion-links.js';
 import {linkedinRuleKind,linkedinRuleImpact} from './linkedin-conversion-rules.js';
 import {redditPostCreation,redditPromotedSource} from './reddit-post-creation.js';
@@ -57,6 +58,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  if(businessAccessKind(plan))return businessAccessImpact(plan,state);
  if(businessNotificationKind(plan))return businessNotificationImpact(plan,state);
  if(placeActionKind(plan))return placeActionImpact(plan,state);
+ if(linkedinTemplateKind(plan))return linkedinTemplateImpact;
  if(xTargetingBatchRoute(plan))return xTargetingBatchImpact();
  if(xDraftKind(plan))return xDraftImpact(plan);
  if(linkedinConversionKind(plan))return linkedinConversionImpact;

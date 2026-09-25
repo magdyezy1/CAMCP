@@ -1,12 +1,32 @@
 # Provider action implementation progress
 
-Latest resume entry: [2026-09-24 handoff](RESUME-HANDOFF-2026-09-24.md).
-Latest incident: [2026-09-24 HTTP startup and DNS](STARTUP-DNS-2026-09-24.md).
+Latest resume entry: [2026-09-25 handoff](RESUME-HANDOFF-2026-09-25.md).
+Historical incident: [2026-09-24 HTTP startup and DNS](STARTUP-DNS-2026-09-24.md).
 Completed follow-on: [2026-09-24 Meta source ownership](META-CREATIVE-OWNERSHIP-2026-09-24.md).
 Completed product batch: [2026-09-24 reporting continuation](REPORTING-2026-09-24-PROGRESS.md),
 with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
+
+## BH — LinkedIn saved audiences and requested handoff (2026-09-25)
+
+Four captured create/partial-edit/single-delete/batch-delete routes now use a
+complete reviewed contract with account/private-segment ownership, two-pass native
+paging, configuration-only state, strict receipts and fresh read-back. Unknown
+outcomes retain their original claims across concurrency/restart. Thirty-nine new
+tests and executable guidance cover the exact contract; live API compatibility
+is unverified. See [implementation](LINKEDIN-TEMPLATES-2026-09-25.md),
+[qualification](LINKEDIN-TEMPLATES-VERIFICATION-2026-09-25.json) and
+[handoff](RESUME-HANDOFF-2026-09-25.md).
+
+Fresh candidate J passes **2052 main/four capture tests**, zero failures/skips,
+required FFmpeg and Railway checks. Earlier GitHub run #102 passed exact workflow
+revision `5ea83ed`, including Docker and both smoke modes; the new handoff commit
+requires its own post-push CI result. Remaining captured rows: **979** (864 blocked
+writes, 79 unmapped, 23 unqualified reads, eight input-dependent and five
+provider-unsupported). There are 458 reviewed-family actions. The separate 451
+unmapped vendor methods overlap this inventory. The user requested finishing the
+current batch and handing off; no new feature batch or background work was started.
 
 ## BG — X atomic targeting batches (2026-09-25)
 

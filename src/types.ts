@@ -46,7 +46,7 @@ export interface CompiledRequest {
   /** Server-derived original X report bindings and bounded retrieval deadline. */
   xReportRead?:JsonObject[];
   xReportDeadline?:number;xAudienceDeadline?:number;xTargetingDeadline?:number;
-  snapUpdateDeadline?:number;
+  snapUpdateDeadline?:number;linkedinTemplateDeadline?:number;
   /** Server-derived Criteo report binding. External inputs cannot set this. */
   criteoReportRead?:JsonObject;
   criteoReportReviewId?:string;

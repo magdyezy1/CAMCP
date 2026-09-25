@@ -1,0 +1,255 @@
+{
+  "format_version": 1,
+  "date": "2026-09-25",
+  "branch": "Codex-branch",
+  "base_revision": "5ea83ed2b5eddda004e464625a28f82f502b517b",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true
+  },
+  "candidate": {
+    "path": ".release/continuation-20260925-j",
+    "files": 662,
+    "source_tree_hash": "9985375a9389fe3c59245c5e224aceb0853b368730c4683151f1fa774f5c867d",
+    "index_code_test_guidance_files_compared": 597,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/continuation-20260925-j",
+    "install": "npm.cmd ci --offline --ignore-scripts --cache '../../.runtime/npm-cache'",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm.cmd run check",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=<bundled Python>",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-templates-actions-generate.log",
+      "sha256": "89234c4b5467deb8b77e3abc95d4c78f8bbf81d7bf3f536778be6f74fbbe14fa",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-templates-adversarial-1.log",
+      "sha256": "ae77a8956a77a5c08137d4f6f58f89d0b596fc562b3dd423b0dbc4b6727e8280",
+      "counts": [
+        {
+          "tests": 38
+        },
+        {
+          "pass": 37
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 4280.7253
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-templates-adversarial-2.log",
+      "sha256": "f75cb4aac962ed2ae9abff11865356188ececee3a8f4b96df2b0b7aecb3efd00",
+      "counts": [
+        {
+          "tests": 38
+        },
+        {
+          "pass": 38
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 5146.4844
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-templates-baseline.log",
+      "sha256": "0066051856c3087f4e81b75b5dde9139b99c253723c42e45e24ce7e1a967ba5a",
+      "counts": [
+        {
+          "tests": 2
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 2
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 652.7665
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-templates-build-2.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-templates-build-3.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-templates-build-final.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-templates-build.log",
+      "sha256": "2d7f0ec875e495ce5bd1925b51e4c1ee3c149b4265383a85750da89aa8b4b0c0",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-templates-contracts-generate.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-templates-core.log",
+      "sha256": "c5754ba7847db028b97ba5d9da6157180a771494ca9d3e19b9b9e48bcf7d8196",
+      "counts": [
+        {
+          "tests": 2
+        },
+        {
+          "pass": 2
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1728.0032
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-templates-focused-final.log",
+      "sha256": "99cf73019a1a8cbf76ed3dcaef53a54204ebc8edee912dda15d81eb2edd10da0",
+      "counts": [
+        {
+          "tests": 225
+        },
+        {
+          "pass": 224
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 27903.069
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-templates-guidance-final.log",
+      "sha256": "9177f73f7b728da0c42d662cad50ff25439db1cded28eb02d8b93d6b6db6a8fd",
+      "counts": [
+        {
+          "tests": 47
+        },
+        {
+          "pass": 47
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 6606.2532
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-templates-source-provenance.log",
+      "sha256": "12e1d02d684b7703229466d12513a01c50a60b9bdf2f0d866dd64dc07ef6d20f",
+      "counts": []
+    },
+    {
+      "path": ".release/continuation-20260925-j/release-check.log",
+      "sha256": "7d4184ccbea267e8ae3191419167662086c7b331e3592bc2361f06a189636d14",
+      "counts": [
+        {
+          "tests": 2052
+        },
+        {
+          "pass": 2052
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 453960.2565
+        },
+        {
+          "tests": 4
+        },
+        {
+          "pass": 4
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 73.216
+        }
+      ]
+    },
+    {
+      "path": ".release/continuation-20260925-j/railway-check.log",
+      "sha256": "f2fe3b5dc9105f0b53fa7bb913efecdf612026d6550cc05ece99384fb39cb709",
+      "counts": []
+    },
+    {
+      "path": ".release/continuation-20260925-j/install.log",
+      "sha256": "b6ebe3f0a3188e0db53898395a619cadcfee9b101220e0c450b99732d97df902",
+      "counts": []
+    }
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2052,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials or account mutations.",
+    "Provider permissions, live output compatibility, Docker and deployment remain separately unverified.",
+    "See the matching implementation report for explicit contract limits, initial failures and primary references."
+  ]
+}
