@@ -29,6 +29,15 @@ export const accountPlan=(gateway:string,id:string):CompiledRequest=>{
   default:bad('This provider uses resource-specific readiness checks.','READINESS_CONTRACT_UNAVAILABLE');
  }return p;
 };
+/** Native account reads nest the account differently per provider (Snapchat: adaccounts[0].adaccount).
+ * Readiness checks, plan preflight and reports share this reader so a currency is never lost to nesting. */
+export function accountMetadata(gateway:string,data:unknown):JsonObject{
+ const d=(data&&typeof data==='object'?data:{}) as JsonObject;
+ const m=gateway==='google_ads_native_action'?d.results?.[0]?.customer:gateway==='meta_native_action'?d:gateway==='tiktok_native_action'?d.data?.list?.[0]:gateway==='snapchat_native_action'?d.adaccounts?.[0]?.adaccount:gateway===microsoftGateway?d.Account:d.data??d;
+ return m&&typeof m==='object'&&!Array.isArray(m)?m:{};
+}
+export const accountCurrency=(gateway:string,data:unknown):string|null=>{const m=accountMetadata(gateway,data);return m.currency??m.currencyCode??m.CurrencyCode??null;};
+export const accountTimezone=(gateway:string,data:unknown):string|null=>{const m=accountMetadata(gateway,data);return m.timezone_name??m.timezone??m.timeZone??m.TimeZone??null;};
 const writeScopes:Record<string,string[]>={meta_native_action:['ads_management'],linkedin_native_action:['rw_ads'],reddit_native_action:['adsread','adsedit'],microsoft_ads_native_action:['https://ads.microsoft.com/msads.manage']};
 export class WorkspaceService{
  constructor(private store:Store,private registry:Registry,private transport:NativeTransport,private credentials:CredentialProvider,private call:ToolCall,private allowWrites:boolean){}
@@ -65,9 +74,10 @@ export class WorkspaceService{
   const assets=optional(this.store,actor.tenantId,'website_assets',c.id);if(requirements.assets!==undefined&&!Array.isArray(requirements.assets))bad('assets must be an array.');
   for(const a of requirements.assets??[]){validate(a,['kind','id']);const group=assets?.groups?.find((g:JsonObject)=>g.kind===a.kind),found=group?.assets?.some((r:JsonObject)=>r.id===a.id);check('asset:'+a.kind+':'+a.id,found&&group?.checkedAt&&Date.now()-group.checkedAt<86400000?true:group?.complete===true&&!found?false:null,found?'Found in inventory; only a sync within 24 hours passes this check.':'Required asset is not verified in this login.','Sync '+a.kind+' and select an accessible asset.');}
   if(requirements.native_request){const r=await this.call('amcp_write',{action:'inspect',gateway:c.gateway,connection_id:c.id,arguments:requirements.native_request},actor);check('write_contract',r.success&&r.data?.review_contract_supported===true,r.data?.error?.message??r.error?.message??'Local execution contract checked.');}
-  if(input.live===true&&c.enabled){try{const p=accountPlan(c.gateway,id);new ScopeGuard(this.registry,this.store).authorize(p,c);const auth=await this.credentials.get(c);this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,c.gateway,id,c.id),access=nativeAuthority(this.store,this.registry,actor,p,current,auth),r=await this.transport.request(p,access(),auth,undefined,{beforeAttempt:access});access();validateState(p,r);this.store.resolveConnection(actor,c.gateway,id,c.id);check('provider_read',true,'Provider confirmed the exact selected account.');}catch(e){check('provider_read',false,e instanceof MirrorError?e.message:'Provider account read failed.','Reconnect or resolve the provider account permission.');}}
+  let liveAccount:JsonObject|undefined;
+  if(input.live===true&&c.enabled){try{const p=accountPlan(c.gateway,id);new ScopeGuard(this.registry,this.store).authorize(p,c);const auth=await this.credentials.get(c);this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,c.gateway,id,c.id),access=nativeAuthority(this.store,this.registry,actor,p,current,auth),r=await this.transport.request(p,access(),auth,undefined,{beforeAttempt:access});access();validateState(p,r);this.store.resolveConnection(actor,c.gateway,id,c.id);liveAccount={currency:accountCurrency(c.gateway,r.data),timezone:accountTimezone(c.gateway,r.data)};check('provider_read',true,'Provider confirmed the exact selected account.');}catch(e){check('provider_read',false,e instanceof MirrorError?e.message:'Provider account read failed.','Reconnect or resolve the provider account permission.');}}
   else check('provider_read',null,'No provider request was made.');
-  this.store.assertActorActive(actor);const result={connection_id:c.id,account_id:id,checked_at:Date.now(),requirements,checks,ready:checks.every(c=>c.status==='passed'),blocked:checks.some(c=>c.status==='blocked'),live_read:checks.some(c=>c.key==='provider_read'&&c.status==='passed'),coverage:'Exact requested prerequisites only; unknown checks are not passed.'};
+  this.store.assertActorActive(actor);const result={connection_id:c.id,account_id:id,checked_at:Date.now(),requirements,checks,ready:checks.every(c=>c.status==='passed'),blocked:checks.some(c=>c.status==='blocked'),live_read:checks.some(c=>c.key==='provider_read'&&c.status==='passed'),...(liveAccount?{account:liveAccount}:{}),coverage:'Exact requested prerequisites only; unknown checks are not passed.'};
   this.store.putDocument(actor.tenantId,'readiness',fingerprint([c.id,id]),result);return result;
  }
 }

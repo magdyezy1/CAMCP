@@ -1,0 +1,98 @@
+{
+  "format_version": 1,
+  "date": "2026-09-26",
+  "branch": "Codex-branch",
+  "base_revision": "11fc25c2f4cc1e0604b033b540028fcec985ff14",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/snapchat-workflow-20260926-a",
+    "files": 664,
+    "source_tree_hash": "3a533427aea8b7696082a6d51fc492b56087be90ce5ea2b75645fca83425d64e",
+    "index_code_test_guidance_files_compared": 598,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/snapchat-workflow-20260926-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/snapchat-workflow-20260926/install.log",
+      "sha256": "ae48f9f8721d24990e1f5dce53c39d526ea0b5dc0e153929da1126e972830ba4"
+    },
+    {
+      "path": ".runtime/snapchat-workflow-20260926/check.log",
+      "sha256": "9475c4052070a8ff89c169fde16ae6a0a982331bb02d4ca095fc9dd65384a6f6",
+      "started": "2026-09-25T22:07:22Z",
+      "finished": "2026-09-25T22:15:23Z",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2062,
+          "pass": 2062,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/snapchat-workflow-20260926/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".implementation/1790373715000-snapchat-fixes-red-check.log",
+      "sha256": "c0ac4c39fa4d5db2dac14f0fc1af2e77b91ecff670c8299d6aeaf0ed009b1dc6",
+      "meaning": "New tests against 11fc25c code (helper import stubbed): expected red, 0/10 pass"
+    }
+  ],
+  "development_failures": [
+    "Review-bound ownership re-grant failed the existing test \"Snapchat accepted receipts survive an access withdrawal before delivery\" (209/210 targeted); approach removed, boundary now pinned by a new assertion.",
+    "First run of the new projection test expected status to be dropped; projection intentionally keeps status as diagnostic metadata for every provider (test expectation corrected, code unchanged).",
+    "End-to-end native read in the new test used a non-UUID connection id and was refused by the gateway schema (fixture corrected)."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2062,
+    "main_pass": 2062,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Fixes reach the AMCP connector only after its deployment is updated; not done here.",
+    "BUG-7 (get_creatives_by_ids body) left unchanged pending provider evidence.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

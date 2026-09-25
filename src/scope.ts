@@ -46,6 +46,11 @@ const accountFields:Record<string,Set<string>>={
 function mismatch(field:string):never{throw new MirrorError('ACCOUNT_SCOPE_MISMATCH','The final request targets a resource outside the selected account binding.',{field},403);}
 
 /** This guard runs on every final page, before token refresh or authenticated egress. */
+/** The global Snapchat entity that scopes a path (campaigns/<id>, adsquads/<id>, …), as held in resource ownership. */
+export function snapchatScopedResource(path:string):string|undefined{
+ let decoded:string;try{decoded=decodeURIComponent(path);}catch{return undefined;}
+ return /^\/v1\/(campaigns|adsquads|ads|creatives|media|pixels)\/([^/]+)/.exec(decoded)?.slice(1).join('/');
+}
 export class ScopeGuard {
  constructor(private registry:Registry,private store:Store){}
  authorize(plan:CompiledRequest,connection:Connection):string{
@@ -162,7 +167,7 @@ export class ScopeGuard {
    const line=/^\/2026-01\/retail-media\/preferred-line-items\/(\d+)(?:\/targeting\/(?:audiences|stores|add-to-basket)(?:\/(?:append|delete))?)?$/.exec(decoded)?.[1];
    if(line&&this.store.ownsResource(connection,id,'preferred-line-items/'+line))return id;
   }
-  const resource=plan.gateway==='meta_native_action'?/^\/v[^/]+\/([^/]+)/.exec(decoded)?.[1]:plan.gateway==='snapchat_native_action'?/^\/v1\/(campaigns|adsquads|ads|creatives|media)\/([^/]+)/.exec(decoded)?.slice(1).join('/'):undefined;
+  const resource=plan.gateway==='meta_native_action'?/^\/v[^/]+\/([^/]+)/.exec(decoded)?.[1]:plan.gateway==='snapchat_native_action'?snapchatScopedResource(plan.path):undefined;
   if(resource&&this.store.ownsResource(connection,id,resource))return id;
   // Administrative provisioning can declare otherwise unscoped Business/Profile resources.
   for(const binding of connection.resourceBindings??[]){
@@ -192,10 +197,18 @@ export class ScopeGuard {
    const labels=metaLabelIdentities(d,id);for(const label of labels)this.store.rememberResource(connection,id,label);
   }
   if(plan.gateway==='snapchat_native_action'){
-   const m=/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives|media)$/.exec(plan.path);
+   const m=/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives|media|pixels)$/.exec(plan.path);
    const kind=m?.[1];if(kind&&Array.isArray(d?.[kind]))for(const wrapped of d[kind]){
     const entity=wrapped[kind==='media'?'media':kind.slice(0,-1)]??wrapped;
     if(typeof entity?.id==='string'&&/^[\w-]+$/.test(entity.id))this.store.rememberResource(connection,id,kind+'/'+entity.id);
+   }
+   // A read of an entity authorize() already required ownership for keeps that ownership fresh when the
+   // provider names the owning account, or a parent this login still owns. It never learns a new ID.
+   const single=/^\/v1\/(campaigns|adsquads|ads|creatives|media)\/([\w-]+)$/.exec(plan.path);
+   if(single&&String(d?.request_status).toUpperCase()==='SUCCESS'){
+    const kind=single[1]!,entity=d[kind]?.[0]?.[kind==='media'?'media':kind.slice(0,-1)],parentField=kind==='adsquads'?'campaign_id':kind==='ads'?'ad_squad_id':undefined;
+    const confirmed=parentField?typeof entity?.[parentField]==='string'&&this.store.ownsResource(connection,id,(kind==='adsquads'?'campaigns/':'adsquads/')+entity[parentField]):entity?.ad_account_id===id;
+    if(entity?.id===single[2]&&confirmed)this.store.rememberResource(connection,id,kind+'/'+single[2]);
    }
   }
   if(plan.gateway==='reddit_native_action'){

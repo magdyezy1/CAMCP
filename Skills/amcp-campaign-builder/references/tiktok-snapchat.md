@@ -99,6 +99,29 @@ A reported account-specific PATCH failure is not proof that the endpoint is glob
 
 Use [the media guide](media.md) for Drive imports. Poll asynchronous video processing before using the resulting asset in a creative. Read account currency and native amount semantics before converting budgets; never treat every platform's integer budget as Meta cents.
 
+## Snapchat campaign plans
+
+- `amcp_campaign` steps may pin `expected_currency`. Preflight reads the ad account and uses
+  `adaccounts[0].adaccount.currency`. `amcp_workspace check` with `live: true` also returns the
+  account `currency` and `timezone`.
+- Preflight compares every ad squad `pixel_id` with `GET /v1/adaccounts/{id}/pixels`. Snapchat
+  accepts only pixels the ad account owns; a pixel shared through another account in Ads Manager is
+  refused with `E2405` at write time. AMCP blocks it earlier with `SNAPCHAT_PIXEL_NOT_OWNED` and the
+  owned IDs, before any step is submitted. An unreadable pixel list is deferred to the provider.
+- Snapchat never returns `placement_v2` on GET; reads show `placement: "UNSUPPORTED"`. Ad squad
+  verification therefore compares `placement_v2` with the create response and lists it under
+  `acknowledged_fields`. A missing or different echo stays `inconclusive`.
+- A step whose read-back is still inconclusive no longer stalls later steps that do not depend on it.
+  Its dependants, and any plan with a failed, uncertain or mismatched step, still wait.
+- Campaigns, ad squads, ads, creatives, media and pixels use global IDs whose ownership observation
+  lasts five minutes. Preparing a child re-reads its parent; when Snapchat names the owning ad
+  account, or a parent this login still owns, ownership is renewed for the review window.
+  Re-provisioning a connection still clears every observation: read the account collection again.
+- With `result_fields`, Snapchat lists keep every wrapped record and project inside it, for example
+  `{adsquads: [{sub_request_status, adsquad: {id, name, status}}]}`.
+- `amcp_write execute` accepts the review's own `gateway` and `connection_id`, never different ones
+  and never `arguments`.
+
 ## Snapchat nested updates
 
 Ad/ad-squad updates now use the documented native parent routes:

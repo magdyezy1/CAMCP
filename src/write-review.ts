@@ -544,7 +544,7 @@ export class WriteReviewService {
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
    try{result=await readLinkedInRules(read,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;})))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
-   this.access(actor,plan,connectionId);validateState(read,result);
+   const reader=this.access(actor,plan,connectionId);validateState(read,result);if(read.gateway==='snapchat_native_action')new ScopeGuard(this.registry,this.store).observe(read,reader,result.data);
    if(appleEntityKind(plan)==='shared_budget'&&read.path===plan.path){
     const accounts=appleSharedAccounts(plan,result.data),frozen=plan.scopeContext?.appleSharedAccountIds;
     for(const account of accounts){const current=this.store.resolveConnection(actor,plan.gateway,account,connectionId);assertAccountWrite(this.store,current,account);}
@@ -613,10 +613,13 @@ export class WriteReviewService {
    return {success:true,executed:false,review_id:reviewId,idempotency_key:reviewId,expires_at:new Date(expiresAt).toISOString(),request:redact(plan.gateway==='google_business_native_action'?placeActionSafe(plan):plan),contract_evidence:executionEvidence(plan),before_state:redact(state),spend_policy:spendPolicy,state_hash:stateHash,state_reads:reads.map(r=>({method:r.method,path:r.path})),fingerprint,confirmation_required:true,...(creativeImpact?{creative_impact:creativeImpact}:{})};
   }
   if(input.action!=='execute'||typeof input.review_id!=='string')fail('INVALID_ARGUMENT','Use prepare or execute with a review_id.');
-  if(input.arguments!==undefined||input.gateway!==undefined||input.connection_id!==undefined)fail('INVALID_ARGUMENT','Execute uses the frozen reviewed request; prepare a new review to change it.');
+  if(input.arguments!==undefined)fail('INVALID_ARGUMENT','Execute takes only review_id, idempotency_key and confirmation flags; the request was frozen at prepare. Prepare a new review to change it.');
   const review=this.store.document(actor.tenantId,'write_review',input.review_id);
   if(review.user_id!==actor.userId)throw new MirrorError('FORBIDDEN','The review belongs to a different actor.',{},403);
-  const plan=review.plan as CompiledRequest;assertWriteShape(plan);this.access(actor,plan,review.connection_id);
+  const plan=review.plan as CompiledRequest;assertWriteShape(plan);
+  // Repeating the review's own gateway/connection is harmless; a different one would silently change the request.
+  if(input.gateway!==undefined&&input.gateway!==plan.gateway||input.connection_id!==undefined&&input.connection_id!==review.connection_id)fail('INVALID_ARGUMENT','This review is bound to its original gateway and connection. Omit them, or prepare a new review to use another.',{gateway:plan.gateway,connection_id:review.connection_id});
+  this.access(actor,plan,review.connection_id);
   if(input.idempotency_key!==input.review_id)fail('IDEMPOTENCY_REQUIRED','Use the exact idempotency_key returned by prepare.');
   authorizeExecution(actor,plan,{...input,dry_run:false},this.policy,true);
   if(review.creative_edit_confirmed===true&&input.creative_edit_confirmed!==true)fail('CREATIVE_EDIT_CONFIRMATION_REQUIRED','This review permits a potentially destructive creative edit. Also provide creative_edit_confirmed=true to execute.');

@@ -3,7 +3,10 @@ import type {Action,JsonObject} from './types.js';
 import {nativeFields,assertSameAlias} from './parameters.js';
 export interface ResponseControls {fields?:string[];maxItems?:number;compact?:boolean}
 const metadata=/^(?:.*[Ee]rror.*|.*[Ff]ail.*|warnings?|paging|pagination|page_info|pageInfo|page|page_size|pageSize|total_pages|links|metadata|meta|summary|request_id|requestId|request_status|status|code|message|success|truncated|total|total_count|totalCount|totalResults|has_more|hasMore|count|offset|limit|start|cursor|next.*|previous.*)$/;
-const containers=new Set(['data','results','result','rows','list','items','elements','campaigns','campaign','adaccounts','adaccount','adsets','adset','ads','ad','creatives','creative','organizations','stats','timeseries_stats','total_stats']);
+const baseContainers=new Set(['data','results','result','rows','list','items','elements','campaigns','campaign','adaccounts','adaccount','adsets','adset','ads','ad','creatives','creative','organizations','stats','timeseries_stats','total_stats']);
+// Snapchat wraps every record as {<plural>:[{sub_request_status,<singular>:{…}}]}. Unlisted wrappers made a
+// whole ad squad list look like one record, so result_fields dropped every ad squad.
+const gatewayContainers:Record<string,Set<string>>={snapchat_native_action:new Set([...baseContainers,'adsquads','adsquad','media','pixels','pixel','segments','segment','organization','fundingsources','fundingsource','billingcenters','billingcenter','members','member','roles','role','catalogs','catalog','product_sets','product_set','product_feeds','product_feed','lead_generation_forms','lead_generation_form'])};
 const object=(v:unknown):v is JsonObject=>!!v&&typeof v==='object'&&!Array.isArray(v);
 export function responseControls(gateway:string,action:Action,input:JsonObject):ResponseControls|undefined {
  const alias=!nativeFields(gateway,action)?input.fields:undefined;
@@ -28,9 +31,9 @@ function select(value:JsonObject,fields:string[]):JsonObject {
  return out;
 }
 /** Shapes successful records after pagination/ownership checks. Diagnostic subtrees are immutable. */
-export function projectResponse(data:unknown,controls?:ResponseControls):{data:unknown;truncated:boolean} {
+export function projectResponse(data:unknown,controls?:ResponseControls,gateway?:string):{data:unknown;truncated:boolean} {
  if(!controls)return {data,truncated:false};
- let truncated=false;
+ let truncated=false;const containers=gatewayContainers[gateway??'']??baseContainers;
  function visit(value:unknown,record=false,projectRecords=true):unknown {
   if(Array.isArray(value)){
    const rows=value.filter((v,i)=>{if(controls!.maxItems===undefined||i<controls!.maxItems||failure(v))return true;truncated=true;return false;});

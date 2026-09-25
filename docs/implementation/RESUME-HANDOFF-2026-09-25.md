@@ -1,5 +1,8 @@
 # AMCP implementation handoff — 2026-09-25
 
+Superseded for current resume state by the [September 26 handoff](RESUME-HANDOFF-2026-09-26.md),
+which changes the worktree and push target. The counts and statuses below are historical.
+
 The user explicitly requested **finish the current work and hand off**. The current
 batch is LinkedIn saved-audience templates; do not infer that every remaining
 action is implemented. Resume broader work only when requested. No background

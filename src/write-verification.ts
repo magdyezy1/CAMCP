@@ -59,7 +59,8 @@ function differing(expected:any,actual:any,path='',out:string[]=[]):string[]{
  else if((typeof expected==='number'&&typeof actual==='string'||typeof expected==='string'&&typeof actual==='number')&&String(expected)===String(actual))return out;
  else if(fingerprint(expected)!==fingerprint(actual??null))out.push(path);return out;
 }
-function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Registry,before:unknown[]=[]):{read:CompiledRequest;expected:JsonObject;id:string}[]{
+type Acknowledged=Record<string,{sent:unknown;echoed:unknown}>;
+function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Registry,before:unknown[]=[]):{read:CompiledRequest;expected:JsonObject;id:string;acknowledged?:Acknowledged}[]{
  if(linkedinRuleKind(plan))return linkedinRuleVerification(plan,result,before);
  if(linkedinConversionKind(plan))return linkedinConversionVerification(plan);
  if(googleBidKind(plan))return googleBidVerification(plan,result);
@@ -95,7 +96,14 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
   const kind=Object.keys(d).find(k=>['campaigns','adsquads','ads','creatives'].includes(k));if(!kind)return [];const singular=kind==='adsquads'?'adsquad':kind.slice(0,-1);
   // Array-index patches and removes need before/after reconstruction. Do not label partial checks verified.
   if(Array.isArray(plan.body)&&plan.body.some((p:JsonObject)=>!['add','replace'].includes(p.op)||!/^\/[A-Za-z_]+$/.test(p.path)))return [];
-  return d[kind].map((r:JsonObject,i:number)=>{const id=r[singular].id,expected=b[kind]?.[i]??(Array.isArray(plan.body)?Object.fromEntries((plan.body as JsonObject[]).map(p=>[p.path.slice(1),p.value])):b);return {read:base('/v1/'+kind+'/'+id),expected,id};});
+  // Snapchat's GET never returns placement_v2 (it reads back as placement:"UNSUPPORTED"). A field no read
+  // can observe is compared with the provider's own write response instead; a missing echo stays inconclusive.
+  const writeOnly=kind==='adsquads'?['placement_v2']:[];
+  return d[kind].map((r:JsonObject,i:number)=>{
+   const id=r[singular].id,expected={...(b[kind]?.[i]??(Array.isArray(plan.body)?Object.fromEntries((plan.body as JsonObject[]).map(p=>[p.path.slice(1),p.value])):b))},acknowledged:Acknowledged={};
+   for(const field of writeOnly)if(Object.hasOwn(expected,field)){acknowledged[field]={sent:expected[field],echoed:r[singular]?.[field]};delete expected[field];}
+   return {read:base('/v1/'+kind+'/'+id),expected,id,...(Object.keys(acknowledged).length?{acknowledged}:{})};
+  });
  }
  if(gateway==='reddit_native_action'){const kind=plan.method==='POST'?plan.path.split('/').at(-1):plan.path.split('/').at(-2),id=d.data?.id;if(!id)return [];return [{read:base('/api/v3/'+kind+'/'+id),expected:b.data,id}];}
  if(gateway==='x_ads_native_action'){const records=Array.isArray(d.data)?d.data:[d.data];return records.filter(Boolean).map((r:JsonObject)=>({read:base(plan.method==='POST'?plan.path+'/'+r.id:plan.path),expected:b,id:String(r.id)}));}
@@ -283,7 +291,9 @@ export class WriteVerifier{
     let response;try{response=await readLinkedInRules(item.read,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readGtmWorkspace(criteoPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(latest);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.request(actor,page,latest,auth);this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(current);new ScopeGuard(this.registry,this.store).authorize(page,current);return result;}))))))));}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
     checkAppleAccounts();return normalize(entity(item.read,response.data as JsonObject));
    },actual=>differing(expected,actual).length===0);
-   const actual=readback.value,changed=differing(expected,actual),phase=readback.consistent?measurementVerificationPhase(item.read,actual):'inconclusive';checks.push({resource_id:item.id,status:phase,code:readback.consistent?undefined:'VERIFICATION_INCONCLUSIVE',read_attempts:readback.attempts,changed_fields:changed,expected_hash:fingerprint(expected),actual_hash:fingerprint(actual??null),checked_fields:Object.keys(expected)});
+   const actual=readback.value,changed=differing(expected,actual),acknowledged=item.acknowledged??{},unacknowledged=Object.entries(acknowledged).filter(([,v])=>differing(normalize(v.sent),normalize(v.echoed)).length).map(([k])=>'/'+k);
+   const measured=readback.consistent?measurementVerificationPhase(item.read,actual):'inconclusive',phase=measured==='verified'&&unacknowledged.length?'inconclusive':measured;
+   checks.push({resource_id:item.id,status:phase,code:phase==='inconclusive'?'VERIFICATION_INCONCLUSIVE':undefined,read_attempts:readback.attempts,changed_fields:changed,expected_hash:fingerprint(expected),actual_hash:fingerprint(actual??null),checked_fields:Object.keys(expected),...(Object.keys(acknowledged).length?{acknowledged_fields:Object.keys(acknowledged),acknowledgment:'The native read never returns these fields; they are compared with the provider write response.',...(unacknowledged.length?{unacknowledged_fields:unacknowledged}:{})}:{})});
    if(linkedinDSC(plan)&&readback.consistent)rememberLinkedInPost(this.store,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id),plan,result.headers['x-restli-id']);
    if(metaLabelKind(plan)&&readback.consistent&&item.expected.label?.present===true){const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertMetaLabelScope(current);this.store.rememberResource(current,plan.accountId!,item.id);}
   }status=reads.length?(checks.some(c=>c.status==='failed')?'failed':checks.every(c=>c.status==='verified')?'verified':checks.some(c=>c.status==='pending')?'pending':'inconclusive'):'unsupported';}}

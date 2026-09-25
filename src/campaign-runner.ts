@@ -18,6 +18,14 @@ function references(v:any,results:Map<string,JsonObject>,deps:Set<string>):any{
 }
 const structure=(steps:JsonObject[])=>steps.map(s=>Object.fromEntries(['id','kind','gateway','connection_id','account_id','arguments','depends_on','description','expected_currency'].filter(k=>s[k]!==undefined).map(k=>[k,s[k]])));
 const verificationStepStatus=(status:string)=>['verified','failed','mismatch'].includes(status)?status:'verifying';
+/** While an earlier step only awaits read-back, the first step whose declared predecessors are all verified.
+ * Failed, uncertain, mismatched or processing steps still stop the whole plan. */
+function independentStep(run:JsonObject):string|undefined{
+ if(run.steps.some((s:JsonObject)=>['uncertain','failed','mismatch','processing'].includes(s.status)))return undefined;
+ const done=new Set(run.steps.filter((s:JsonObject)=>['verified','complete'].includes(s.status)).map((s:JsonObject)=>s.id));
+ for(const status of ['executing','review_ready','pending']){const step=run.steps.find((s:JsonObject)=>s.status===status&&s.depends_on.every((d:string)=>done.has(d)));if(step)return step.id;}
+ return undefined;
+}
 export class CampaignRunner{
  constructor(private store:Store,private call:ToolCall,private verifyWrite:(actor:Actor,id:string)=>Promise<JsonObject>,private providerValidation:(actor:Actor,input:JsonObject)=>Promise<JsonObject>,private preflight?:(actor:Actor,steps:JsonObject[])=>Promise<JsonObject>){}
  private owned(actor:Actor,id:string){const p=read(this.store,actor,'campaign_run',id);if(p.user_id!==actor.userId&&actor.role!=='admin')bad('Campaign plan belongs to another actor.','FORBIDDEN');if(p.plan_hash!==fingerprint(structure(p.steps)))bad('The saved plan failed its integrity check.','PLAN_CHANGED');return p;}
@@ -50,7 +58,8 @@ export class CampaignRunner{
    if(typeof input.name!=='string'||!input.name.trim()||input.name.length>100||typeof input.brief!=='string'||input.brief.length>12000)bad('Provide a campaign name and brief.');
    const profile=input.profile_id?read(this.store,actor,'client_profile',input.profile_id):undefined,variables={...(profile?.variables??{}),...(input.variables??{}),profile:profile??{}};noSecrets(variables);
    const raw=input.steps??profile?.templates?.[input.template];if(!Array.isArray(raw)||!raw.length||raw.length>50)bad('Provide 1–50 explicit steps, or choose an approved saved template.');const steps=substitute(raw,variables),seen=new Set<string>();
-   for(const s of steps){validate(s,['id','kind','gateway','connection_id','account_id','arguments','depends_on','description','expected_currency']);if(!/^[A-Za-z][A-Za-z0-9_-]{0,50}$/.test(s.id)||seen.has(s.id)||!['write','media'].includes(s.kind)||!obj(s.arguments)||typeof s.connection_id!=='string'||typeof s.account_id!=='string'||s.expected_currency!==undefined&&!/^[A-Z]{3}$/.test(s.expected_currency))bad('Each step needs a unique ID, kind, arguments, explicit connection/account and an optional ISO currency.');
+   for(const s of steps){validate(s,['id','kind','gateway','connection_id','account_id','arguments','depends_on','description','expected_currency']);const problems=[!/^[A-Za-z][A-Za-z0-9_-]{0,50}$/.test(s.id)&&'id must start with a letter (up to 51 letters, digits, _ or -)',seen.has(s.id)&&'id must be unique',!['write','media'].includes(s.kind)&&'kind must be "write" or "media"',s.kind==='write'&&typeof s.gateway!=='string'&&'a write step needs gateway, e.g. "snapchat_native_action"',!obj(s.arguments)&&'arguments must be the native tool input object',typeof s.connection_id!=='string'&&'connection_id is required',typeof s.account_id!=='string'&&'account_id is required',s.expected_currency!==undefined&&!/^[A-Z]{3}$/.test(s.expected_currency)&&'expected_currency must be an ISO code such as "USD", or omitted'].filter(Boolean);
+     if(problems.length)bad('Step '+JSON.stringify(String(s.id??''))+': '+problems.join('; ')+'. Each step is {"id","kind":"write","gateway","connection_id","account_id","arguments":{"action","payload"},"depends_on":[earlier ids]}; later steps use results as {"$ref":"<step id>#/data/<JSON pointer>"}.');
     const deps=s.depends_on??[];if(!Array.isArray(deps)||new Set(deps).size!==deps.length||deps.some(d=>!seen.has(d)))bad('Dependencies must refer to earlier steps.');seen.add(s.id);noSecrets(s.arguments);
     const gateway=s.kind==='media'?s.arguments.platform+'_native_action':s.gateway;this.store.resolveConnection(actor,gateway,s.account_id,s.connection_id);
     if(s.kind==='media'&&(s.arguments.action!==undefined&&!['prepare','prepare_library'].includes(s.arguments.action)||s.arguments.confirmed!==undefined||s.arguments.idempotency_key!==undefined))bad('Media steps contain preparation inputs only.');
@@ -78,14 +87,17 @@ export class CampaignRunner{
   if(this.preflight&&(input.action==='preflight'||input.action==='prepare_next'&&!run.preflight)){
    run.preflight=await this.preflight(actor,run.steps);run=this.save(actor,run);if(input.action==='preflight'||run.preflight.status==='blocked')return {...run,blocked:run.preflight.status==='blocked',missing_requirements:run.preflight.checks.filter((c:JsonObject)=>c.status==='blocked')};
   }
-  const next=run.steps.find((s:JsonObject)=>!['verified','complete'].includes(s.status));if(!next)return {...run,state:'complete'};
+  let next=run.steps.find((s:JsonObject)=>!['verified','complete'].includes(s.status));if(!next)return {...run,state:'complete'};
   if(['uncertain','failed','mismatch'].includes(next.status))return {...run,blocked:true,recovery:'Inspect the retained step and provider resources. Corrective writes need a new reviewed plan; successful steps will not be resubmitted.'};
   if(next.status==='processing'){
    const status=await this.call('amcp_media',{action:'status',review_id:next.review_id},actor);if(!status.success){next.error=status.error;next.status='failed';run.state='attention';return this.save(actor,run);}next.result=status.data;
    if(!status.data.ready&&!(status.data.processing_status==='succeeded'&&run.steps.some((s:JsonObject)=>s.kind==='media'&&s.arguments.action==='prepare_library'&&s.depends_on.includes(next.id))))return {...run,next_call:status.data.next_call,blocked_by:'media_processing'};next.status='verified';run=this.save(actor,run);return {...run,next_call:{tool:'amcp_campaign',arguments:{action:'prepare_next',id:run.id}}};
   }
   if(next.status==='verifying'){
-   const v=await this.verifyWrite(actor,next.review_id);next.verification=v;next.status=verificationStepStatus(v.status);if(next.status==='verified'&&v.verified_resources)next.result={...next.result,verified_resources:v.verified_resources};run.state=run.steps.every((s:JsonObject)=>s.status==='verified')?'complete':next.status==='verified'?'in_progress':'attention';return this.save(actor,run);
+   const v=await this.verifyWrite(actor,next.review_id);next.verification=v;next.status=verificationStepStatus(v.status);if(next.status==='verified'&&v.verified_resources)next.result={...next.result,verified_resources:v.verified_resources};run.state=run.steps.every((s:JsonObject)=>s.status==='verified')?'complete':next.status==='verified'?'in_progress':'attention';
+   // A read-back that is still inconclusive or pending must not stall steps that do not depend on it.
+   const other=next.status==='verifying'?independentStep(run):undefined;if(!other)return this.save(actor,run);
+   run=this.save(actor,run);next=run.steps.find((s:JsonObject)=>s.id===other)!;
   }
   if(input.action==='prepare_next'){
    if(next.status==='executing')return {campaign_id:run.id,step_id:next.id,recovery:'Resume the original execution with the same idempotency key.',next_call:{tool:'amcp_campaign',arguments:{action:'execute_next',id:run.id,review_id:next.review_id,idempotency_key:next.review_id,confirmed:true}}};

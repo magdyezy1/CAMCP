@@ -1,12 +1,30 @@
 # Provider action implementation progress
 
-Latest resume entry: [2026-09-25 handoff](RESUME-HANDOFF-2026-09-25.md).
+Latest resume entry: [2026-09-26 handoff](RESUME-HANDOFF-2026-09-26.md) (worktree and push target changed).
 Historical incident: [2026-09-24 HTTP startup and DNS](STARTUP-DNS-2026-09-24.md).
 Completed follow-on: [2026-09-24 Meta source ownership](META-CREATIVE-OWNERSHIP-2026-09-24.md).
 Completed product batch: [2026-09-24 reporting continuation](REPORTING-2026-09-24-PROGRESS.md),
 with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
+
+## BI — Snapchat workflow defects from live use (2026-09-26)
+
+Eight of nine defects found while cloning a Snapchat campaign through AMCP on
+2026-09-25 are fixed: nested account currency in plan preflight (also TikTok/Reddit),
+ad squad `placement_v2` verified from the write acknowledgment, parent reads renewing
+ownership, independent steps no longer stalled by an inconclusive read-back, early
+pixel-ownership refusal, Snapchat `result_fields` envelopes, execute arguments and
+plan-step errors. `get_creatives_by_ids` stays unchanged pending provider evidence.
+Ten new tests fail on the base revision and pass with the fixes. See
+[implementation](SNAPCHAT-WORKFLOW-2026-09-26.md),
+[qualification](SNAPCHAT-WORKFLOW-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Fresh candidate `snapchat-workflow-20260926-a` passes **2062 main/four capture tests**,
+zero failures/skips, required FFmpeg and Railway checks. No route classification
+changed (979 remaining rows). Pushed only to CAMCP; its exact-commit CI result and
+live acceptance are pending.
 
 ## BH — LinkedIn saved audiences and requested handoff (2026-09-25)
 
