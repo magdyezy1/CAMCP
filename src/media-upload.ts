@@ -3,7 +3,7 @@ import {createHash,randomUUID} from 'node:crypto';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {MirrorError} from './errors.js';
 import {Registry} from './catalog.js';
-import {Store} from './store.js';
+import {Store,MEDIA_LEASE_MS} from './store.js';
 import {CredentialProvider} from './auth.js';
 import {NativeTransport,type BinaryUpload,type TransportResult} from './transport.js';
 import {ScopeGuard,normalizeAccount} from './scope.js';
@@ -19,9 +19,10 @@ import {mediaPlatforms} from './media-routing.js';
 import {assertAccountWrite} from './write-access.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {assertLinkedInOrganization} from './linkedin-posts.js';
+import {linkedInTransfer,linkedInPartId,linkedInResumeReason,assertLinkedInResume,assertLinkedInWaiting} from './linkedin-media-resume.js';
 
 const platforms=mediaPlatforms;
-export const mediaTool={name:'amcp_media',description:'Import a public or selected private Google Drive file into a selected advertising account. prepare downloads and encrypts the exact file for a five-minute review; execute uploads those frozen bytes after explicit confirmation. Supports PNG/JPEG and MP4/MOV across Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360 (X/LinkedIn video: MP4). Google videos are uploaded as UNLISTED on the account Google-managed YouTube channel. Normal native media actions and platform_media_upload use this same server transfer; the MCP client never downloads bytes. status reads provider processing state; prepare_library reviews adding an X video to its account library once processing succeeds. Never publishes ads or posts. Uses operator role, account write grants and durable idempotency. Files up to the configured media limit (128 MiB by default) with lower platform image limits. Private files use a separate selected Google Drive connection. variant creates an encrypted, expiring preview with explicit contain/crop presets; prepare accepts variant_id. execute_async queues the frozen confirmed review; job_status shows durable progress. list returns account-scoped receipts. reuse requires a fresh provider availability check. inspect_eligibility checks source dimensions, duration and codec against a placement preset before any provider upload; it does not certify provider policy approval.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['prepare','prepare_library','execute','resume','execute_async','job_status','status','recovery','cancel','variant','inspect_eligibility','list','reuse']},platform:{type:'string',enum:platforms},account_id:{type:'string'},connection_id:{type:'string'},drive_url:{type:'string'},drive_connection_id:{type:'string'},variant_id:{type:'string'},preset:{type:'string',enum:Object.keys(variantPresets)},fit:{type:'string',enum:['contain','crop']},reuse_existing:{type:'boolean'},asset_id:{type:'string'},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:100},name:{type:'string'},media_type:{type:'string',enum:['image','video']},expected_mime:{type:'string'},expected_size:{type:'integer',minimum:1},existing_media_id:{type:'string'},owner_urn:{type:'string'},review_id:{type:'string'},idempotency_key:{type:'string'},confirmed:{type:'boolean'}},additionalProperties:false}};
+export const mediaTool={name:'amcp_media',description:'Import a public or selected private Google Drive file into a selected advertising account. prepare downloads and encrypts the exact file for a five-minute review; execute uploads those frozen bytes after explicit confirmation. Supports PNG/JPEG and MP4/MOV across Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360 (X/LinkedIn video: MP4). Google videos are uploaded as UNLISTED on the account Google-managed YouTube channel. Normal native media actions and platform_media_upload use this same server transfer; the MCP client never downloads bytes. status reads provider processing state; prepare_library reviews adding an X video to its account library once processing succeeds. Never publishes ads or posts. Uses operator role, account write grants and durable idempotency. Files up to the configured media limit (128 MiB by default) with lower platform image limits. Private files use a separate selected Google Drive connection. variant creates an encrypted, expiring preview with explicit contain/crop presets; prepare accepts variant_id. execute_async queues the frozen confirmed review; job_status shows durable progress. list returns account-scoped receipts. recovery exposes safe continuation; resume supports Google video offsets and LinkedIn confirmed-part boundaries within the original review, never an uncertain part or finalization. reuse requires a fresh provider availability check. inspect_eligibility checks source dimensions, duration and codec against a placement preset before any provider upload; it does not certify provider policy approval.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['prepare','prepare_library','execute','resume','execute_async','job_status','status','recovery','cancel','variant','inspect_eligibility','list','reuse']},platform:{type:'string',enum:platforms},account_id:{type:'string'},connection_id:{type:'string'},drive_url:{type:'string'},drive_connection_id:{type:'string'},variant_id:{type:'string'},preset:{type:'string',enum:Object.keys(variantPresets)},fit:{type:'string',enum:['contain','crop']},reuse_existing:{type:'boolean'},asset_id:{type:'string'},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:100},name:{type:'string'},media_type:{type:'string',enum:['image','video']},expected_mime:{type:'string'},expected_size:{type:'integer',minimum:1},existing_media_id:{type:'string'},owner_urn:{type:'string'},review_id:{type:'string'},idempotency_key:{type:'string'},confirmed:{type:'boolean'}},additionalProperties:false}};
 const fail=(code:string,message:string,details:JsonObject={}):never=>{throw new MirrorError(code,message,details);};
 const responseId=(value:unknown,pattern=/^[A-Za-z0-9_-]+$/)=>{if(typeof value!=='string'||!pattern.test(value))fail('MEDIA_RESPONSE_INVALID','The provider did not return a valid media identifier.');return value as string;};
 interface UploadPlan {platform:string;account_id:string;connection_id:string;name:string;mime:string;kind:'image'|'video';filename:string;size:number;sha256:string;read:CompiledRequest;source_drive?:{connection_id:string;url:string};existing_media_id?:string;owner_urn?:string;library_media?:{id:string;key:string;source_review_id:string}}
@@ -78,8 +79,20 @@ export class MediaUploadService {
  }
  private assets(actor:Actor,input:JsonObject){return this.store.documents(actor.tenantId,'workspace_asset').filter(a=>{if(!a.platform||!a.connection_id||!a.account_id)return false;try{this.store.resolveConnection(actor,a.platform+'_native_action',a.account_id,a.connection_id);return (!input.platform||a.platform===input.platform)&&(!input.connection_id||a.connection_id===input.connection_id)&&(!input.account_id||a.account_id===normalizeAccount(a.platform+'_native_action',input.account_id));}catch{return false;}});}
  private recoveryRecord(actor:Actor,review:JsonObject){
-  const p=review.plan as UploadPlan,claim=this.store.db.prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?').get(actor.tenantId,review.id) as JsonObject|undefined,session=this.store.uploadSession(actor.tenantId,review.id),progress=Object.fromEntries(['media_id','resource_name','bytes_confirmed','total_bytes','finalization_started','updated_at'].filter(k=>review.progress?.[k]!==undefined).map(k=>[k,review.progress[k]]));
-  return {review_id:review.id,idempotency_key:review.id,fingerprint:review.fingerprint,state_hash:review.state_hash,request:Object.fromEntries(['platform','account_id','connection_id','name','mime','kind','filename','size','sha256','existing_media_id','owner_urn','library_media'].filter(k=>p[k as keyof UploadPlan]!==undefined).map(k=>[k,p[k as keyof UploadPlan]])),journal:this.store.operationJournal(actor.tenantId,review.id),progress,state:claim?.state??(review.job_id?'queued':'unsubmitted'),job_id:review.job_id??null,resume_available:!!claim&&claim.state!=='complete'&&p.platform==='google_ads'&&p.kind==='video'&&!!session&&!session.finalization_started&&review.expires_at>Date.now(),can_execute:!claim&&!review.job_id&&review.expires_at>Date.now(),expires_at:review.expires_at};
+  const p=review.plan as UploadPlan,claim=this.store.db.prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?').get(actor.tenantId,review.id) as JsonObject|undefined,session=this.store.uploadSession(actor.tenantId,review.id),progress=Object.fromEntries(['media_id','resource_name','bytes_confirmed','total_bytes','parts_confirmed','finalization_started','updated_at'].filter(k=>review.progress?.[k]!==undefined).map(k=>[k,review.progress[k]]));
+  let reason:string|undefined;
+  if(p.platform==='linkedin'&&p.kind==='video'){
+   const c=this.access(actor,p.platform,p.account_id,p.connection_id);
+   reason=linkedInResumeReason(p,session,this.store.connectionCredentials(c),c.scopes);
+   if(!reason){try{this.ownerScope(p,c);if(p.source_drive)driveAccess(this.store,actor,p.source_drive.connection_id,p.source_drive.url);}catch{reason='source_or_owner_access_changed';}}
+   // Encrypted part receipts are authoritative even if a crash preceded the public progress update.
+   if(session?.version===1&&Array.isArray(session.uploaded_part_ids)&&Array.isArray(session.upload_instructions)){
+    progress.parts_confirmed=session.uploaded_part_ids.length;
+    progress.bytes_confirmed=session.uploaded_part_ids.length?Math.min(session.upload_instructions[session.uploaded_part_ids.length-1]?.lastByte+1,p.size):0;
+   }
+  }
+  const available=!!claim&&claim.state!=='complete'&&p.kind==='video'&&!!session&&review.expires_at>Date.now()&&(p.platform==='google_ads'&&!session.finalization_started||p.platform==='linkedin'&&!reason);
+  return {review_id:review.id,idempotency_key:review.id,fingerprint:review.fingerprint,state_hash:review.state_hash,request:Object.fromEntries(['platform','account_id','connection_id','name','mime','kind','filename','size','sha256','existing_media_id','owner_urn','library_media'].filter(k=>p[k as keyof UploadPlan]!==undefined).map(k=>[k,p[k as keyof UploadPlan]])),journal:this.store.operationJournal(actor.tenantId,review.id),progress,state:claim?.state??(review.job_id?'queued':'unsubmitted'),job_id:review.job_id??null,resume_available:available,...(reason?{resume_blocked_reason:reason}:{}),can_execute:!claim&&!review.job_id&&review.expires_at>Date.now(),expires_at:review.expires_at};
  }
  private async reuse(actor:Actor,asset:JsonObject){
   const review=this.store.document(actor.tenantId,'media_review',asset.review_id),plan=review.plan as UploadPlan;
@@ -91,9 +104,17 @@ export class MediaUploadService {
  }
  async call(input:JsonObject,actor:Actor):Promise<JsonObject>{
   this.store.assertActorActive(actor);if(!['prepare','variant','inspect_eligibility','execute','resume'].includes(input.action))return this.handle(input,actor);
-  const lease=this.store.mediaAdmission(actor.tenantId),lock='media-execution:'+actor.tenantId+':'+input.review_id,lockOwner=randomUUID();const executing=['execute','resume'].includes(input.action);if(executing&&!this.store.acquireLock(lock,lockOwner,300000)){lease.release();throw new MirrorError('MEDIA_UPLOAD_BUSY','This frozen upload is already executing.',{},409,true);}let lost=false;const timer=setInterval(()=>{try{lease.check();}catch{lost=true;}},15000);timer.unref();
-  this.store.bindActorCheck(actor,()=>{if(lost)throw new MirrorError('MEDIA_ADMISSION_LOST','This operation lost its byte reservation.');});
-  try{const result=await this.handle(input,actor);this.store.assertActorActive(actor);return result;}finally{clearInterval(timer);lease.release();if(executing)this.store.releaseLock(lock,lockOwner);}
+  const lease=this.store.mediaAdmission(actor.tenantId),lock='media-execution:'+actor.tenantId+':'+input.review_id,lockOwner=randomUUID(),executing=['execute','resume'].includes(input.action);
+  if(executing&&!this.store.acquireLock(lock,lockOwner,MEDIA_LEASE_MS)){lease.release();throw new MirrorError('MEDIA_UPLOAD_BUSY','This frozen upload is already executing.',{},409,true);}
+  let ended=false,lost:unknown,lastWall=Date.now(),lastTick=performance.now();
+  const check=()=>{if(ended)return;if(lost)throw lost;try{
+   const wall=Date.now(),tick=performance.now();if(wall<lastWall||tick-lastTick>=MEDIA_LEASE_MS)throw new MirrorError('MEDIA_ADMISSION_LOST','The media lease lost its timing boundary. Inspect retained receipts before resuming.');
+   if(executing&&!this.store.renewLock(lock,lockOwner,MEDIA_LEASE_MS))throw new MirrorError('MEDIA_UPLOAD_LEASE_LOST','Another worker owns this upload or its lease expired. Inspect retained receipts before resuming.');
+   lease.check();lastWall=wall;lastTick=tick;
+  }catch(e){lost=e;throw e;}};
+  const timer=setInterval(()=>{try{check();}catch{/* The next boundary fails closed; accepted receipts are retained first. */}},15000);timer.unref();
+  this.store.bindActorCheck(actor,check);
+  try{const result=await this.handle(input,actor);this.store.assertActorActive(actor);return result;}finally{ended=true;clearInterval(timer);lease.release();if(executing)this.store.releaseLock(lock,lockOwner);}
  }
  private async handle(input:JsonObject,actor:Actor):Promise<JsonObject>{
   guardInput(input);for(const key of Object.keys(input))if(!Object.hasOwn(mediaTool.inputSchema.properties,key))fail('INVALID_ARGUMENT','Unknown media parameter.',{parameter:key});
@@ -169,8 +190,12 @@ export class MediaUploadService {
    return this.status(actor,p,receipt);
   }
   if(input.confirmed!==true||input.idempotency_key!==input.review_id)fail('CONFIRMATION_REQUIRED','Use the returned review_id and idempotency_key with confirmed:true.');
-  const resumable=this.store.uploadSession(actor.tenantId,input.review_id),resuming=input.action==='resume';if(resuming&&(!previous||p.platform!=='google_ads'||p.kind!=='video'||!resumable||resumable.finalization_started))fail('RECOVERY_NOT_SAFE','Only a retained Google upload that has never attempted finalization can resume within its original review. Inspect other uncertain outcomes.');
+  const resumable=this.store.uploadSession(actor.tenantId,input.review_id),resuming=input.action==='resume';
   if(previous){if(previous.fingerprint!==fingerprint)fail('IDEMPOTENCY_CONFLICT','This key is bound to a different request.');if(previous.state==='complete')return {...JSON.parse(previous.result),replayed:true};if(!resuming)fail('WRITE_OUTCOME_UNCERTAIN','This upload was already submitted. Inspect its allocated media; never reupload with a new key automatically.');}
+  if(resuming){
+   if(!previous||!['google_ads','linkedin'].includes(p.platform)||p.kind!=='video'||!resumable||resumable.finalization_started)fail('RECOVERY_NOT_SAFE','Only a retained video transfer with confirmed part boundaries and no finalization attempt can resume within its original review. Inspect other uncertain outcomes.');
+   if(p.platform==='linkedin'){const c=this.access(actor,p.platform,p.account_id,p.connection_id);assertLinkedInResume(p,resumable,this.store.connectionCredentials(c),c.scopes);}
+  }
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Prepare and review the media again.');
   if(input.action==='execute_async'){return this.store.transaction(()=>{const current=this.store.document(actor.tenantId,'media_review',input.review_id);if(current.job_id)return {review_id:input.review_id,job_id:current.job_id,state:this.store.job(actor.tenantId,current.job_id).state};const jobId=this.store.enqueue(actor.tenantId,'media_upload',{review_id:input.review_id});this.store.putDocument(actor.tenantId,'media_review',input.review_id,{...current,job_id:jobId,actor_binding:this.store.bindJobActor(actor,'media-job:'+input.review_id)});return {review_id:input.review_id,job_id:jobId,state:'queued',expires_at:new Date(review.expires_at).toISOString(),next_call:{tool:'amcp_media',arguments:{action:'job_status',review_id:input.review_id}}};});}
   const bytes=p.library_media?Buffer.alloc(0):this.store.stagedMedia(actor.tenantId,input.review_id);if(!p.library_media&&(bytes.length!==p.size||sha256(bytes)!==p.sha256||mediaType(bytes).mime!==p.mime))fail('REVIEW_CHANGED','The staged media failed its integrity check.');
@@ -178,7 +203,7 @@ export class MediaUploadService {
   if(actual!==expected)fail('STATE_CHANGED','Provider configuration changed. Prepare a new media review.',{expected_state_hash:expected,actual_state_hash:actual,changed_fields:changedStateFields(expectedState,current)});
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Media review expired during verification.');
   const claim=resuming?{fresh:true}:this.store.claim(actor.tenantId,input.review_id,fingerprint);if(!claim.fresh)return {...(claim.result as JsonObject),replayed:true};
-  let allocated:JsonObject={};
+  let allocated:JsonObject=resuming?{...review.progress}:{};
   const record=(data:JsonObject)=>{if(data.session){this.store.saveUploadSession(actor.tenantId,input.review_id,data.session,review.expires_at);delete data.session;}if(data.finalization_started){const session=this.store.uploadSession(actor.tenantId,input.review_id);if(session)this.store.saveUploadSession(actor.tenantId,input.review_id,{...session,finalization_started:true},review.expires_at);}allocated={...allocated,...data};const current=this.store.document(actor.tenantId,'media_review',input.review_id);this.store.putDocument(actor.tenantId,'media_review',input.review_id,{...current,progress:{...allocated,updated_at:Date.now()}});this.store.journal(actor.tenantId,input.review_id,data.bytes_confirmed!==undefined?'transferring':'allocated',allocated);this.store.appendAudit(actor.tenantId,input.review_id,{event:'media_allocated',...allocated});};
   let receipt:JsonObject;
   try{
@@ -259,20 +284,25 @@ export class MediaUploadService {
    });
    const linkedInSend=(body:JsonObject,action:string)=>send('/rest/'+(p.kind==='image'?'images':'videos'),body,{query:{action},beforeAttempt:access});
    const request={owner:p.owner_urn??'urn:li:sponsoredAccount:'+p.account_id,mediaLibraryMetadata:{associatedAccount:'urn:li:sponsoredAccount:'+p.account_id,assetName:p.name},...(p.kind==='video'?{fileSizeBytes:p.size,uploadCaptions:false,uploadThumbnail:false}:{})};
-   const d=(await linkedInSend({initializeUploadRequest:request},'initializeUpload')).data as JsonObject,v=d.value,id=responseId(v?.[p.kind],new RegExp('^urn:li:'+p.kind+':[A-Za-z0-9_-]+$'));record({media_id:id});
+   if(session){assertLinkedInResume(p,session,auth,c.scopes);access();const response=await send('/rest/videos/'+encodeURIComponent(session.media_id),undefined,{method:'GET',readOnly:true,beforeAttempt:access});assertLinkedInWaiting(p,session,response.data);access();}
+   const d=session?{value:{video:session.media_id,uploadToken:session.upload_token,uploadInstructions:session.upload_instructions,uploadUrlsExpireAt:session.upload_urls_expire_at}}:(await linkedInSend({initializeUploadRequest:request},'initializeUpload')).data as JsonObject,v=d.value,id=responseId(v?.[p.kind],new RegExp('^urn:li:'+p.kind+':[A-Za-z0-9_-]+$'));record({media_id:id});
    const instructions=p.kind==='image'?[{uploadUrl:v.uploadUrl,firstByte:0,lastByte:bytes.length-1}]:v.uploadInstructions;
    if(!Array.isArray(instructions)||!instructions.length||instructions.length>32)fail('MEDIA_RESPONSE_INVALID','LinkedIn returned invalid upload instructions.');
    let offset=0;for(const part of instructions){if(!part||typeof part!=='object'||typeof part.uploadUrl!=='string'||part.firstByte!==offset||!Number.isSafeInteger(part.lastByte)||part.lastByte<offset||part.firstByte>=bytes.length)fail('MEDIA_RESPONSE_INVALID','LinkedIn upload byte ranges do not cover the reviewed file.');offset=Math.min(part.lastByte+1,bytes.length);}
    if(offset!==bytes.length)fail('MEDIA_RESPONSE_INVALID','LinkedIn upload ranges omit file bytes.');
    if(p.kind==='video'&&typeof v.uploadToken!=='string')fail('MEDIA_RESPONSE_INVALID','LinkedIn did not return its upload token.');
-   const ids:string[]=[],transfer={provider:'linkedin',media_id:id,owner_urn:request.owner,upload_token:v.uploadToken,upload_instructions:instructions,uploaded_part_ids:ids,finalization_started:false};
+   const transfer:JsonObject=session??linkedInTransfer(p,auth,c.scopes,id,v,instructions),ids:string[]=transfer.uploaded_part_ids;
    // Keep signed instructions and part receipts encrypted. Public progress contains counts only.
-   record({session:transfer,bytes_confirmed:0,total_bytes:bytes.length,parts_confirmed:0});
-   for(const part of instructions){
+   record({session:transfer,bytes_confirmed:ids.length?Math.min(instructions[ids.length-1].lastByte+1,bytes.length):0,total_bytes:bytes.length,parts_confirmed:ids.length});
+   for(let index=ids.length;index<instructions.length;index++){
+    const part=instructions[index];
     access();
     if(v.uploadUrlsExpireAt!==undefined&&(!Number.isSafeInteger(v.uploadUrlsExpireAt)||v.uploadUrlsExpireAt<=Date.now()))fail('MEDIA_UPLOAD_URL_EXPIRED','LinkedIn upload instructions expired. Inspect the allocated media before preparing another upload.');
+    // Persist intent before binary egress. A timeout/crash cannot make an uncertain PUT repeatable.
+    transfer.part_in_flight=index;record({session:transfer});access();
     const etag=await this.transport.uploadLinkedIn(part.uploadUrl,bytes.subarray(part.firstByte,part.lastByte+1),p.mime,p.kind==='image'?auth.accessToken:undefined);
-    if(p.kind==='video'){if(!etag)fail('MEDIA_RESPONSE_INVALID','LinkedIn upload did not return its part identifier.');ids.push(etag!);}
+    if(p.kind==='video'){if(!linkedInPartId(etag))fail('MEDIA_RESPONSE_INVALID','LinkedIn upload did not return a valid part identifier.');ids.push(etag!);}
+    transfer.part_in_flight=null;
     record({session:transfer,bytes_confirmed:Math.min(part.lastByte+1,bytes.length),total_bytes:bytes.length,parts_confirmed:p.kind==='video'?ids.length:1});
    }
    if(p.kind==='video'){access();record({finalization_started:true});await linkedInSend({finalizeUploadRequest:{video:id,uploadToken:v.uploadToken,uploadedPartIds:ids}},'finalizeUpload');}

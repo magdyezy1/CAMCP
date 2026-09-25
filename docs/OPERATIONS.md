@@ -8,6 +8,16 @@ Use environment injection from a secret manager. `.env.example` documents names;
 
 Connection credentials: Meta/TikTok/Snapchat/LinkedIn use access tokens; Google Ads additionally requires a developer token and may need loginCustomerId. X requires consumerKey, consumerSecret, accessToken and tokenSecret for OAuth 1.0a. Refresh-capable connections also need their own clientId/clientSecret/refreshToken/expiresAt. Reddit uses a bearer access token, a connection userAgent, and Basic client authentication when refreshing. Tokens are refreshed shortly before expiry for supported providers; unsupported refresh modes return a reauthorization error. App registration, granted scopes and vendor approval are prerequisites and are not performed by this CLI.
 
+Media execution locks and shared byte reservations use 45-second leases renewed
+every 15 seconds and at transfer boundaries. After a worker crash, wait for lease
+expiry and inspect `amcp_media recovery` for the original review. Do not delete
+locks or create replacement uploads. Explicit resume is available only within the
+original review: Google video uses its authoritative offset; LinkedIn video uses
+versioned encrypted confirmed-part receipts and current `WAITING_UPLOAD` status.
+Unknown PUT outcomes and attempted finalization cannot resume. Old LinkedIn
+receipts without an intent marker remain unqualified. See
+[media recovery evidence](implementation/LINKEDIN-MEDIA-RECOVERY-2026-09-25.md).
+
 GA4, GTM and Search Console have website OAuth onboarding and explicit property/account/site selection. Apple Ads uses client-credentials authentication with optional automatic ES256 signing; see [measurement and Apple setup](MEASUREMENT-AND-APPLE.md). Meta initial user tokens are exchanged for long-lived tokens. TikTok's current advertiser tokens are long-term and require reauthorization if revoked; its separate short-term user-token refresh API is not used for advertiser credentials.
 
 Globally addressed Meta/Snapchat objects need recent ownership evidence from an account-scoped collection. Otherwise provision explicit resourceBindings with an accountId, exact pathPrefix and any required query invariants. These are administrator grants, not arbitrary caller input. GA4 connections bind property IDs; GTM binds account IDs; Search Console binds exact property URLs or sc-domain properties. Business Profile locations can be explicitly bound as `locations/<id>`.

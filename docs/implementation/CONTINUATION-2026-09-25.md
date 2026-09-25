@@ -322,3 +322,11 @@ Google customizer update is explicitly provider-unsupported, not an invented
 native operation. X audience estimation is a qualified read; the remaining
 inventory decreases to 984. The exact source comparison and earlier E failure
 are preserved in `AUDIENCE-BACKUP-VERIFICATION-2026-09-25.json`.
+
+The next bounded batch adds [LinkedIn confirmed-part upload recovery and renewable
+media leases](LINKEDIN-MEDIA-RECOVERY-2026-09-25.md). Candidate H qualifies the final
+source with 1979 main/four capture tests, zero failures/skips, required FFmpeg and
+Railway checks. Initial reproductions and G/H evidence remain separate in
+`LINKEDIN-MEDIA-VERIFICATION-2026-09-25.json`. The 984-row incomplete inventory is
+unchanged; these are recovery fixes, not new catalog actions. Real provider
+acceptance and container/deployment qualification remain separate evidence.

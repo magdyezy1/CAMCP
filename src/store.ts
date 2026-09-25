@@ -9,6 +9,7 @@ import {randomUUID} from 'node:crypto';
 import {MirrorError} from './errors.js';
 import {SecretBox,sha256,stable,redact,scopeKey} from './security.js';
 import type {Actor,Connection,Credentials,JsonObject} from './types.js';
+export const MEDIA_LEASE_MS=45000;
 export class Store {
  readonly db:DatabaseSync;private box?:SecretBox;
  private actorChecks=new WeakMap<Actor,()=>void>();
@@ -90,8 +91,8 @@ export class Store {
   const id=randomUUID(),bytes=6*MAX_MEDIA_BYTES,now=Date.now();
   // One maximum-sized operation by default, shared by all workers. Covers upload/base64/FFmpeg copies.
   const raw=Number(process.env.AMCP_MEDIA_MEMORY_MB??bytes/1048576),limit=Number.isSafeInteger(raw)&&raw>=bytes/1048576&&raw<=8192?raw*1048576:bytes;
-  this.transaction(()=>{this.db.prepare('DELETE FROM media_admissions WHERE expires_at<=?').run(now);const used=this.db.prepare('SELECT coalesce(sum(bytes),0) AS n FROM media_admissions').get() as JsonObject;if(used.n+bytes>limit)throw new MirrorError('MEDIA_MEMORY_BUSY','Another media operation is using the shared byte budget. Wait for it to finish, then retry preparation or the same unsubmitted review.',{retry_after_ms:5000,reserved_bytes:used.n,limit_bytes:limit},429,true);this.db.prepare('INSERT INTO media_admissions VALUES(?,?,?,?)').run(id,tenant,bytes,now+300000);});
-  return {id,bytes,limit,check:()=>{const r=this.db.prepare('UPDATE media_admissions SET expires_at=? WHERE id=? AND expires_at>?').run(Date.now()+300000,id,Date.now());if(!r.changes)throw new MirrorError('MEDIA_ADMISSION_LOST','This media operation lost its byte reservation. Inspect any submitted upload before further action.');},release:()=>{this.db.prepare('DELETE FROM media_admissions WHERE id=?').run(id);}};
+  this.transaction(()=>{this.db.prepare('DELETE FROM media_admissions WHERE expires_at<=?').run(now);const used=this.db.prepare('SELECT coalesce(sum(bytes),0) AS n FROM media_admissions').get() as JsonObject;if(used.n+bytes>limit)throw new MirrorError('MEDIA_MEMORY_BUSY','Another media operation is using the shared byte budget. Wait for it to finish, then inspect recovery for any submitted review before retrying.',{retry_after_ms:5000,reserved_bytes:used.n,limit_bytes:limit},429,true);this.db.prepare('INSERT INTO media_admissions VALUES(?,?,?,?)').run(id,tenant,bytes,now+MEDIA_LEASE_MS);});
+  return {id,bytes,limit,check:()=>{const now=Date.now(),r=this.db.prepare('UPDATE media_admissions SET expires_at=? WHERE id=? AND expires_at>?').run(now+MEDIA_LEASE_MS,id,now);if(!r.changes)throw new MirrorError('MEDIA_ADMISSION_LOST','This media operation lost its byte reservation. Inspect any submitted upload before further action.');},release:()=>{this.db.prepare('DELETE FROM media_admissions WHERE id=?').run(id);}};
  }
  mediaSink(tenant:string,id:string,check:()=>void):MediaSink{
   if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Encrypted staging is required.');
@@ -175,6 +176,7 @@ export class Store {
  }
  acquireLock(key:string,owner:string,ttl=45000):boolean{return this.transaction(()=>{const now=Date.now();this.db.prepare('DELETE FROM service_locks WHERE key=? AND expires_at<=?').run(key,now);return this.db.prepare('INSERT OR IGNORE INTO service_locks(key,owner,expires_at) VALUES(?,?,?)').run(key,owner,now+ttl).changes===1;});}
  releaseLock(key:string,owner:string){this.db.prepare('DELETE FROM service_locks WHERE key=? AND owner=?').run(key,owner);}
+ renewLock(key:string,owner:string,ttl:number){const now=Date.now();return this.db.prepare('UPDATE service_locks SET expires_at=? WHERE key=? AND owner=? AND expires_at>?').run(now+ttl,key,owner,now).changes===1;}
  // Shared across processes, so this bucket must use wall-clock time; never let a backward
  // clock correction subtract tokens. Refill pauses until the clock catches up, which is the safe direction.
  providerPermit(key:string){return this.transaction(()=>{const now=Date.now(),cooldown=this.db.prepare('SELECT until_at FROM provider_cooldowns WHERE key=?').get(key) as JsonObject|undefined;if(cooldown?.until_at>now)throw new MirrorError('PLATFORM_RATE_LIMIT','The shared provider cooldown is active.',{retry_after_ms:cooldown!.until_at-now},429,true);const record=this.db.prepare("SELECT data FROM documents WHERE tenant_id='__service_limits__' AND kind='provider_budget' AND id=?").get(sha256(key)) as JsonObject|undefined,old=record?JSON.parse(record.data):{tokens:30,at:now},tokens=Math.min(30,old.tokens+Math.max(0,now-old.at)/200);if(tokens<1)throw new MirrorError('TENANT_RATE_LIMIT','The shared platform request budget is exhausted.',{retry_after_ms:Math.ceil((1-tokens)*200)},429,true);this.putDocument('__service_limits__','provider_budget',sha256(key),{tokens:tokens-1,at:Math.max(now,old.at)});});}

@@ -1,0 +1,39 @@
+{
+  "format_version": 1,
+  "checked_at": "2026-09-25",
+  "meaning": "Public protocol evidence only. Resume safety is an AMCP inference from retained receipts, not a provider idempotency guarantee.",
+  "source": {
+    "url": "https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/videos-api?view=li-lms-2026-05&accept=text/markdown",
+    "sha256": "94f79c56788c72e28945ca15c450826ad5da12b5c774f4732d999517da435f51",
+    "requested_version": "202605",
+    "returned_default_moniker": "li-lms-2026-09",
+    "source_date": "2026-02-12T00:00:00.0000000Z"
+  },
+  "provider": {
+    "initialize_method": "POST",
+    "initialize_path": "/rest/videos?action=initializeUpload",
+    "part_method": "PUT",
+    "part_ranges": "inclusive, contiguous, ordered",
+    "part_receipt": "ETag header",
+    "finalize_path": "/rest/videos?action=finalizeUpload",
+    "finalize_fields": [
+      "video",
+      "uploadToken",
+      "uploadedPartIds"
+    ],
+    "part_ids_order": "original upload instruction order",
+    "expiry_field": "uploadUrlsExpireAt",
+    "resume_required_state": "WAITING_UPLOAD"
+  },
+  "amcp": {
+    "session_version": 1,
+    "review_ms": 300000,
+    "lease_ms": 45000,
+    "heartbeat_ms": 15000,
+    "maximum_parts": 32,
+    "unknown_part_replay": false,
+    "finalization_replay": false,
+    "legacy_session_upgrade": false,
+    "live_verified": false
+  }
+}

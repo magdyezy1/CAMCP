@@ -1,0 +1,302 @@
+{
+  "format_version": 1,
+  "date": "2026-09-25",
+  "branch": "Codex-branch",
+  "base_revision": "76680163a2ab642d8ccc7b1c33acf83f1cf29fe2",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true
+  },
+  "candidate": {
+    "path": ".release/continuation-20260925-h",
+    "files": 648,
+    "source_tree_hash": "bbd8ce98ed90c6751cd8ce28536a2bce3cc885b132052fb58ab93672d53d73c5",
+    "index_code_test_guidance_files_compared": 589,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/continuation-20260925-h",
+    "install": "npm.cmd ci --offline --ignore-scripts --cache '../../.runtime/npm-cache'",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm.cmd run check",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=<bundled Python>",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-resume-baseline.log",
+      "sha256": "97af19448060a232607541434c3b3ee0037c34eaae376ccfe185102e8eb615ae",
+      "counts": [
+        {
+          "tests": 2
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 2
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1819.9073
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-resume-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-resume-concurrency.log",
+      "sha256": "39786c543d72721ad3b4e0fc96a2a39498e9c297bc44a5e1e9176026d4c582d9",
+      "counts": [
+        {
+          "tests": 36
+        },
+        {
+          "pass": 36
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 23712.9291
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-resume-core.log",
+      "sha256": "44c34158749de3b49889694b20d711a5cbaf4e63f9469a7e7e60f1b469b9a395",
+      "counts": [
+        {
+          "tests": 65
+        },
+        {
+          "pass": 65
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 12257.366
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-resume-crash-baseline.log",
+      "sha256": "90946c9dfd936bcf2615a9c6680cd8b56b6cd003042f4f11c70c8a117346f2cb",
+      "counts": [
+        {
+          "tests": 1
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1824.4188
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-resume-expanded-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-resume-expanded.log",
+      "sha256": "a33afb0f50e606ec9180bfcd769343f779acb54b220d6463b19d904652874832",
+      "counts": [
+        {
+          "tests": 35
+        },
+        {
+          "pass": 34
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 22564.6876
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-resume-final-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-resume-inventory.log",
+      "sha256": "b5aaef9f2eaa1743fbea16eb737c601a188e156d9270fbc745be376e53c3b3f3",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-resume-leases-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-resume-leases.log",
+      "sha256": "5c81e2ab59885e8ee3fbe204e51d6918c870a1de27a9aba3e7896537fb85377b",
+      "counts": [
+        {
+          "tests": 59
+        },
+        {
+          "pass": 59
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 37778.894
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/linkedin-resume-selected.log",
+      "sha256": "713d3ce3102052fa96262133127b36a544539f77be8da0fc60fce759dbd292ba",
+      "counts": [
+        {
+          "tests": 129
+        },
+        {
+          "pass": 129
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 50787.0817
+        }
+      ]
+    },
+    {
+      "path": ".release/continuation-20260925-h/release-check.log",
+      "sha256": "23c7b369723170774510c590ef9f00dc1458089ec813abcf72863131196d3c23",
+      "counts": [
+        {
+          "tests": 1979
+        },
+        {
+          "pass": 1979
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 440873.6068
+        },
+        {
+          "tests": 4
+        },
+        {
+          "pass": 4
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 73.8783
+        }
+      ]
+    },
+    {
+      "path": ".release/continuation-20260925-g/release-check.log",
+      "sha256": "97eb56ffddaec1bf12be3164a087a76988454308a20d835fa22a08e3fbda2e41",
+      "counts": [
+        {
+          "tests": 1979
+        },
+        {
+          "pass": 1979
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 442302.8735
+        },
+        {
+          "tests": 4
+        },
+        {
+          "pass": 4
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 75.8363
+        }
+      ]
+    },
+    {
+      "path": ".release/continuation-20260925-g/railway-check.log",
+      "sha256": "f2fe3b5dc9105f0b53fa7bb913efecdf612026d6550cc05ece99384fb39cb709",
+      "counts": []
+    },
+    {
+      "path": ".release/continuation-20260925-h/railway-check.log",
+      "sha256": "f2fe3b5dc9105f0b53fa7bb913efecdf612026d6550cc05ece99384fb39cb709",
+      "counts": []
+    }
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 1979,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials or account mutations.",
+    "Provider permissions, live output compatibility, Docker and deployment remain separately unverified.",
+    "See the matching implementation report for explicit contract limits, initial failures and primary references."
+  ]
+}

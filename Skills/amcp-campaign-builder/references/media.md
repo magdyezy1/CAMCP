@@ -20,6 +20,7 @@ upload URL stops subsequent requests. The server retains ordered part receipts
 and signed instructions encrypted; the client receives allocation and byte
 progress only. Inspect the original review after an interruption. A retained
 LinkedIn part receipt does not enable automatic resume or authorize a new upload.
+Use the explicit recovery contract below to continue a fully acknowledged prefix.
 An accepted finalization keeps its completed receipt even if access changes during
 the response; obtain current authorized read-back before using the media.
 
@@ -27,10 +28,24 @@ Remote URL transfer cannot be universal: several advertising APIs require byte u
 
 Processing status verifies the exact uploaded media identity and owner/account when applicable. Ready Meta/LinkedIn/Snapchat responses stop suggesting polls. Google returns the reviewed AssetService continuation; X returns the reviewed library-attachment continuation. An explicit status call returns MEDIA_PROCESSING_FAILED for terminal rejection. The automatic post-upload check instead returns the completed receipt with processing_failed and a verification error, preserving the original successful mutation. Both record failure in workspace assets with retry_safe:false. Do not repeat the upload or prepare an ad from a failed asset. These behaviors have synthetic fixture evidence, not new live uploads. [LinkedIn media status](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/images-api), [Snap media](https://developers.snap.com/marketing-api/Ads-API/media).
 
-### Recovery, admission and work journals (contract revision 2026-09-12)
+### Recovery, admission and work journals (contract revision 2026-09-25)
 
 `amcp_media` with `action: list` also returns paginated `recovery_reviews` for the current actor and currently authorized account/login. The website Media library shows these unfinished uploads. Inspect the original frozen file hash, identity, expiry and journal before confirming execution or continuation. Source URLs and private upload capabilities are excluded from this recovery projection. A completed upload appears in the receipt library; an uncertain expired upload remains a diagnostic record without a retry button.
 
-Use `amcp_media` with `action: recovery` and the existing `review_id` to inspect allocated IDs, confirmed bytes, journal phase and `resume_available`. This is a read. Never expose a signed upload session or source token in a prompt. If and only if `resume_available` is true, the user may confirm `action: resume` with the same review ID and idempotency key. The qualified path is Google video before any finalization attempt, within the original expiry, using unchanged reviewed bytes and current grants. The server queries the authoritative upload offset before transferring more bytes. `RECOVERY_NOT_SAFE` means the retained operation cannot use this path; reconcile its provider resource. A lost finalization is uncertain and cannot be retried as a new upload. Other platforms retain their own receipt/status limitations.
+Use `amcp_media` with `action: recovery` and the existing `review_id` to inspect allocated IDs, confirmed bytes/parts, journal phase and `resume_available`. This is a read. Never expose a signed upload session or source token in a prompt. If and only if `resume_available` is true, the user may confirm `action: resume` with the same review ID and idempotency key. Both qualified paths remain within the original five-minute review, require unchanged encrypted bytes/current grants and refuse any prior finalization attempt:
 
-`MEDIA_MEMORY_BUSY` means the shared byte reservation is occupied. Wait for the reported retry interval, then retry preparation or the same unsubmitted review. Do not make a new mutation key. `MEDIA_ADMISSION_LOST` stops further transfer; inspect the retained receipt/journal. Downloading to encrypted chunks and retaining one bounded upload buffer still uses memory; the current default admits one maximum-size operation across workers. `PROVIDER_COORDINATION_BUSY` means bounded request coordination is full; wait for inactive entries to expire. It does not justify concurrency bursts, switching account identities or bypassing controls.
+- Google video queries the authoritative upload offset before transferring more bytes.
+- LinkedIn video retains a versioned encrypted session, original login/owner/account,
+  signed-URL expiry and ordered ETags. It reads the exact media and requires
+  `WAITING_UPLOAD`, then sends only parts with no prior submission. If all parts
+  have receipts, it finalizes once without uploading them again. A pending PUT,
+  missing ETag, replaced login, expired URL or legacy receipt without an intent
+  marker cannot resume. Missing metadata is not evidence of a safe retry.
+
+`RECOVERY_NOT_SAFE` names a safe diagnostic reason; reconcile the retained resource.
+A lost finalization is uncertain and cannot be retried as a new upload. A completed
+receipt replays without egress. Other platforms retain their own status limitations.
+This is an AMCP recovery protocol built on the [LinkedIn Videos API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/videos-api?view=li-lms-2026-05);
+it does not assert that LinkedIn makes repeated PUTs or finalization idempotent.
+
+`MEDIA_MEMORY_BUSY` means the shared byte reservation is occupied. Wait for the reported retry interval, then inspect recovery for any submitted review. Do not make a new mutation key. Media reservations and execution locks renew every 15 seconds with a 45-second lease, so a dead process releases capacity within the original review when enough review time remains. Each transfer boundary checks ownership; lost leases and backward clock movement stop further work after retaining any accepted receipt. `MEDIA_ADMISSION_LOST` and `MEDIA_UPLOAD_LEASE_LOST` require receipt/journal inspection. Downloading to encrypted chunks and retaining one bounded upload buffer still uses memory; the current default admits one maximum-size operation across workers. `PROVIDER_COORDINATION_BUSY` means bounded request coordination is full; wait for inactive entries to expire. It does not justify concurrency bursts, switching account identities or bypassing controls.
