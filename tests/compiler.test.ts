@@ -31,6 +31,9 @@ test('every method/path record expands deterministically from its declared templ
   for(const match of a.path.matchAll(/\{(\+?)([^{}=]+)(?:=([^{}]+))?\}/g)){params[match[2]!]=match[3]&&match[3]!=='*'?match[3].replaceAll('**','test').replaceAll('*','test'):'test';}
   for(const k of a.raw.required_path_params??[])params[k]='test';
   const input={action:a.name,params,path_params:params,payload:a.method==='GET'?undefined:params};
+  // This exact JSON read validates its native business input during compilation.
+  // Retain the path/method assertions and the full catalog denominator below.
+  if(c.gateway==='x_ads_native_action'&&a.path==='/12/accounts/{account_id}/audience_estimate')input.payload={targeting_criteria:[{targeting_type:'BROAD_KEYWORD',targeting_value:'synthetic'}]};
   const p=compiler.compile(c.gateway,input,strictOptions);assert.equal(p.method,a.method);
   // One independently documented account prefix correction; all other captured
   // templates retain the original deterministic conformance assertion.

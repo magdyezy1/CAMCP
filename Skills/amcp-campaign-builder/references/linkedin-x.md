@@ -1,5 +1,37 @@
 # LinkedIn and X
 
+## X audience planning estimates
+
+Use `x_ads_native_action` action `ESTIMATE_AUDIENCE_SIZE` (canonical
+`x_accounts_account_id_audience_estimate_post`) with the exact `account_id`,
+selected `connection_id`, and `payload.targeting_criteria`. This is a JSON POST
+read, available to readers and deployments where advertising writes are disabled.
+Set `dry_run: true` to inspect locally; `dry_run: false` retrieves the estimate.
+It does not create targeting, campaigns, reviews or spending reservations.
+
+Supply the user's intended native criteria. X requires a primary criterion:
+followers, custom audiences, interests, keywords or TV. A location alone does
+not satisfy this endpoint. Discover native values or ask for the missing business
+choice; never add an invented keyword merely to obtain a number. Criteria accept
+`targeting_type`, string `targeting_value` and optional `operator_type` (`EQ`/`NE`).
+Do not include `line_item_id`, method overrides or `paginate`. AMCP bounds each
+request to 200 criteria, 128 KiB and 25 distinct custom-audience/campaign references.
+APP_LIST/TAP exclusions and comparison operators remain unqualified for estimates.
+
+AMCP checks custom-audience targetability and campaign identity through the
+selected account. Followers/own-content engagement must identify a currently
+FULL promotable user; public lookalike-follower IDs remain distinct. These reads
+use the same selected login and stop if authorization changes. Shared audiences
+accessible in this account are not relabeled as owned. Never relay private user
+lists or download data to perform the estimate.
+
+Present `audience_size.min`–`max` as an estimated potential audience range. Preserve
+zero; missing, malformed or incomplete responses are errors. Do not sum overlapping
+estimates, substitute a midpoint as fact, or turn the range into promised reach,
+impressions, conversions, spend or policy approval. Authorization/targetability
+errors need their stated repair; transient read retries are bounded automatically.
+See [X v12 reference](https://docs.x.com/x-ads-api/campaign-management/reference#post-accounts-account-id-audience-estimate), checked 2026-09-25.
+
 LinkedIn's `organizationalEntityCreateShareAuthorizations` GET can check a
 specific company/member/account tuple before a video dark post. Discover the
 action and native composite-key parameter; retain the selected sponsored-account

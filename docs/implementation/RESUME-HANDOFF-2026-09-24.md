@@ -1,6 +1,13 @@
 # AMCP continuation checkpoint — 2026-09-24
 
-Latest continuation: [September 25 implementation and verification](CONTINUATION-2026-09-25.md).
+Latest qualified continuation: [X audience estimation and action availability](AUDIENCE-AVAILABILITY-2026-09-25.md)
+and [offline encrypted backup recovery](BACKUP-RECOVERY-2026-09-25.md).
+Candidate F passes 1936 main/four capture tests without failures/skips, required
+FFmpeg enabled; 584 staged code/test/guidance files match the sanitized candidate.
+The unresolved action inventory is **984**, including five provider-unsupported
+rows. Later LinkedIn explicit resume is separate work and must qualify separately.
+
+Earlier continuation: [September 25 implementation and verification](CONTINUATION-2026-09-25.md).
 It adds LinkedIn/Sheets authority and receipt recovery, manual Google conversion
 definitions, X async report retrieval and Snapchat nested updates. Candidate D
 passes 1899 main/four capture tests without failures/skips. Its current unresolved

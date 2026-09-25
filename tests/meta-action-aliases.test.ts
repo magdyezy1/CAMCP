@@ -36,7 +36,7 @@ for(const [alias,canonical,parameter]of aliases)test(alias+' uses the canonical 
 });
 test('canonicalizing inventory aliases never enables unrelated Meta creative, audience, access or batch writes',()=>{
  const rows=actionContracts(registry);
- assert.equal(rows.find(r=>r.gateway==='google_ads_native_action'&&r.action==='UPDATE_CUSTOMIZER_ATTRIBUTE')?.status,'blocked_write','A legacy adapter retaining its name cannot become a supported generic mutate action.');
+ assert.equal(rows.find(r=>r.gateway==='google_ads_native_action'&&r.action==='UPDATE_CUSTOMIZER_ATTRIBUTE')?.status,'provider_unsupported','The v23 operation union has no update; a legacy name cannot enable generic mutation.');
  for(const alias of ['meta_creative_update','meta_custom_audience_update','meta_business_user_update','meta_system_user_create','meta_batch_create'])assert.equal(rows.find(r=>r.gateway===gateway&&r.action===alias)?.status,'blocked_write');
  for(const catalog of registry.catalogs.values())for(const a of catalog.actions){
   if(!a.canonical_name||a.canonical_name===a.name)continue;

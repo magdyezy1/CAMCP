@@ -1,0 +1,128 @@
+{
+  "checked_at": "2026-09-25",
+  "meaning": "Public source evidence and documented examples; not live account or provider-approval evidence.",
+  "sources": {
+    "x-campaign-reference.md": {
+      "url": "https://docs.x.com/x-ads-api/campaign-management/reference.md",
+      "sha256": "499306620b247ec6ef07e504eb1ec1d791260d415e69be064e34d5d8e4aa8224"
+    },
+    "x-campaign-overview.md": {
+      "url": "https://docs.x.com/x-ads-api/campaign-management.md",
+      "sha256": "e0b3136c7ebd7bd56bf861429e48edffc57b834850844a9490d4887251f0ccea"
+    },
+    "x-audiences-reference.md": {
+      "url": "https://docs.x.com/x-ads-api/audiences/reference.md",
+      "sha256": "a4ed704ff9313b91ce2137c46f9ffd9129ccf98803bdae1ca11073a1fc404931"
+    },
+    "customizer-attribute-service.proto": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/services/customizer_attribute_service.proto",
+      "sha256": "0fab358c100ab93e8df4058c90b3b85504040de6e3e8943461834005309e9181"
+    }
+  },
+  "x": {
+    "api_version": "12",
+    "route": "/12/accounts/{account_id}/audience_estimate",
+    "method": "POST",
+    "content_type": "application/json",
+    "criterion_types": [
+      "AGE",
+      "APP_LIST",
+      "APP_STORE_CATEGORY",
+      "APP_STORE_CATEGORY_LOOKALIKE",
+      "BROAD_KEYWORD",
+      "CAMPAIGN_ENGAGEMENT",
+      "CAMPAIGN_ENGAGEMENT_LOOKALIKE",
+      "CONVERSATION",
+      "CUSTOM_AUDIENCE",
+      "CUSTOM_AUDIENCE_EXPANDED",
+      "DEVICE",
+      "ENGAGEMENT_TYPE",
+      "EVENT",
+      "EXACT_KEYWORD",
+      "FOLLOWERS_OF_USER",
+      "GENDER",
+      "INTEREST",
+      "LANGUAGE",
+      "LIVE_TV_EVENT",
+      "LOCATION",
+      "NETWORK_ACTIVATION_DURATION",
+      "NETWORK_OPERATOR",
+      "PHRASE_KEYWORD",
+      "PLATFORM",
+      "PLATFORM_VERSION",
+      "SIMILAR_TO_FOLLOWERS_OF_USER",
+      "TV_SHOW",
+      "UNORDERED_KEYWORD",
+      "USER_ENGAGEMENT",
+      "USER_ENGAGEMENT_LOOKALIKE",
+      "WIFI_ONLY"
+    ],
+    "primary_groups": [
+      "Followers",
+      "Tailored Audiences",
+      "Interests",
+      "Keywords",
+      "TV"
+    ],
+    "request_example": {
+      "targeting_criteria": [
+        {
+          "targeting_type": "BROAD_KEYWORD",
+          "targeting_value": "nba",
+          "operator_type": "EQ"
+        },
+        {
+          "targeting_type": "BROAD_KEYWORD",
+          "targeting_value": "tech",
+          "operator_type": "NE"
+        },
+        {
+          "targeting_type": "LOCATION",
+          "targeting_value": "96683cc9126741d1",
+          "operator_type": "EQ"
+        },
+        {
+          "targeting_type": "SIMILAR_TO_FOLLOWERS_OF_USER",
+          "targeting_value": "14230524"
+        },
+        {
+          "targeting_type": "SIMILAR_TO_FOLLOWERS_OF_USER",
+          "targeting_value": "90420314"
+        }
+      ]
+    },
+    "response_example": {
+      "request": {
+        "params": {
+          "targeting_criteria": null,
+          "account_id": "18ce54d4x5t"
+        }
+      },
+      "data": {
+        "audience_size": {
+          "min": 38236294,
+          "max": 42261167
+        }
+      }
+    },
+    "amcp_unqualified_types": [
+      "APP_LIST"
+    ],
+    "amcp_limits": {
+      "criteria": 200,
+      "private_references": 25,
+      "bytes": 131072,
+      "response_bytes": 2097152,
+      "deadline_ms": 60000
+    }
+  },
+  "google": {
+    "api_version": "v23",
+    "operation_message": "CustomizerAttributeOperation",
+    "supported_verbs": [
+      "create",
+      "remove"
+    ],
+    "unsupported_legacy_alias": "UPDATE_CUSTOMIZER_ATTRIBUTE"
+  }
+}

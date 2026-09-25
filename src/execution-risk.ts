@@ -11,6 +11,7 @@ import {criteoTargetingKind} from './criteo-targeting-writes.js';
 import {googleGenerationKind} from './google-generation.js';
 import {dv360TargetingSearchRoute} from './dv360-targeting-search.js';
 import {googleSegmentRemoval} from './google-custom-segments.js';
+import {xAudienceEstimateRoute} from './x-audience-estimate.js';
 
 // Read-only metadata is a compatibility observation, never sufficient execution
 // authorization. POST reads must match a separately maintained route allowlist.
@@ -20,7 +21,7 @@ const tiktokReads=new Set(['/v1.3/ad/audience_size/estimate/','/v1.3/audience/in
 // documented planning metadata reads create no customer-owned resources.
 export const googleGlobalReadMethods=new Set(['generateConversionRates','listBenchmarksAvailableDates','listBenchmarksLocations','listBenchmarksProducts','listBenchmarksSources','listPlannableLocations','listPlannableProducts','listPlannableUserInterests','listPlannableUserLists']);
 export function independentlyReadOnly(plan:CompiledRequest):boolean{
- if(!plan.readOnly&&!dv360TargetingSearchRoute(plan))return false;
+ if(!plan.readOnly&&!dv360TargetingSearchRoute(plan)&&!xAudienceEstimateRoute(plan))return false;
  if(plan.gateway===microsoftGateway)return microsoftRead(plan);
  let pathname:string;try{pathname=decodeURIComponent(plan.path);}catch{return false;}
  // Search Console encodes full property/sitemap URLs as resource segments.
@@ -45,6 +46,7 @@ export function independentlyReadOnly(plan:CompiledRequest):boolean{
  const method=override??plan.method;if(['GET','HEAD'].includes(method))return true;
  if(method!=='POST')return false;
  switch(plan.gateway){
+  case 'x_ads_native_action':return xAudienceEstimateRoute(plan);
   case 'dv360_native_action':return dv360TargetingSearchRoute(plan);
   case 'google_ads_native_action':return !!googleGenerationKind(plan)||/^\/v23\//.test(pathname)&&googleReadMethods.has(pathname.split(':').at(-1)!)||/^\/v23:[A-Za-z]+$/.test(pathname)&&googleGlobalReadMethods.has(pathname.slice(5));
   case 'tiktok_native_action':return tiktokReads.has(pathname.replace(/^\/open_api/,''));

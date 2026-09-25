@@ -310,5 +310,15 @@ has create/remove but no update oneof (despite an imprecise service comment).
 The historical UPDATE alias must not be enabled as an invented native update.
 TikTok's official SmartTextGenerateBody documents required advertiser/ad-group
 context; its portal content and exact response contract were not established here.
-Neither observation is counted as an implemented action. These are next-pass
+Neither observation was counted as an implemented action in candidate D. These were next-pass
 qualification items, along with the remaining native families and audit backlog.
+
+## Subsequent qualified continuation
+
+[X audience estimation and Google alias availability](AUDIENCE-AVAILABILITY-2026-09-25.md)
+and [offline encrypted backup recovery](BACKUP-RECOVERY-2026-09-25.md) now qualify
+in candidate F: 1936 main/four capture tests, zero failures/skips, required FFmpeg.
+Google customizer update is explicitly provider-unsupported, not an invented
+native operation. X audience estimation is a qualified read; the remaining
+inventory decreases to 984. The exact source comparison and earlier E failure
+are preserved in `AUDIENCE-BACKUP-VERIFICATION-2026-09-25.json`.

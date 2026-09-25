@@ -821,3 +821,17 @@ Sources: [v23 mutation service](https://raw.githubusercontent.com/googleapis/goo
 [campaign goal defaults](https://developers.google.com/google-ads/api/docs/conversions/goals/campaign-goals),
 and [tracking types and offline restrictions](https://developers.google.com/google-ads/api/docs/conversions/categories).
 Local synthetic tests are not live acceptance, upload authorization or tracking evidence.
+
+## Customizer attribute availability
+
+`UPDATE_CUSTOMIZER_ATTRIBUTE` is a historical alias with no Google Ads v23 update
+operation. Inspect returns `PROVIDER_ACTION_UNSUPPORTED` with its official source;
+additional confirmation cannot enable it. The native operation union supports
+create and remove, even though its service comment and `update_mask` mention
+updates. Existing `CREATE_CUSTOMIZER_ATTRIBUTE`, `REMOVE_CUSTOMIZER_ATTRIBUTE`
+and the corresponding native RPC remain reviewed writes.
+
+For a changed name/type, create a new attribute, then separately inspect and
+review replacement associations and affected ads. Do not automatically delete
+the old attribute or promise an atomic migration. Existing association values
+have their own contracts. See the [v23 service definition](https://github.com/googleapis/googleapis/blob/master/google/ads/googleads/v23/services/customizer_attribute_service.proto), checked 2026-09-25.

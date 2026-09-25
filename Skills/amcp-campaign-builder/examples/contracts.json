@@ -1881,5 +1881,30 @@
         }
       }
     }
+  ],
+  "x_audience_estimate_previews": [
+    {
+      "gateway": "x_ads_native_action",
+      "arguments": {
+        "action": "ESTIMATE_AUDIENCE_SIZE",
+        "account_id": "abc12",
+        "payload": {
+          "targeting_criteria": [
+            {
+              "targeting_type": "BROAD_KEYWORD",
+              "targeting_value": "family homes",
+              "operator_type": "EQ"
+            },
+            {
+              "targeting_type": "LOCATION",
+              "targeting_value": "96683cc9126741d1",
+              "operator_type": "EQ"
+            }
+          ]
+        },
+        "dry_run": true
+      },
+      "meaning": "Synthetic native preview: replace the advertiser, discovered geography and approved keyword with the actual user intent; these are not a campaign recommendation."
+    }
   ]
 }

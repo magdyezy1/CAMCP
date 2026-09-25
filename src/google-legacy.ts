@@ -1,5 +1,6 @@
 import mapping from './google-legacy-mapping.json' with {type:'json'};
 import {MirrorError} from './errors.js';
+import {assertProviderAliasAvailable} from './retired-provider-actions.js';
 import {guardInput,stable as stableJson} from './security.js';
 import type {Registry} from './catalog.js';
 import type {Action,JsonObject} from './types.js';
@@ -158,6 +159,7 @@ function keywords(registry:Registry,data:JsonObject,account:string,name:string):
 
 export function adaptGoogleLegacy(registry:Registry,input:JsonObject):GoogleLegacyAdaptation|undefined {
  const name=String(input.action??''),entry=entries.get(name);if(!entry)return undefined;guardInput(input);
+ assertProviderAliasAvailable(gateway,name);
  const accountRaw=input.account_id??input.customer_id??input.params?.customer_id??input.params?.account_id;if(typeof accountRaw!=='string')error('ACCOUNT_ID_REQUIRED','Provide account_id as a string for the Google legacy adapter.');const account=id(accountRaw.replaceAll('-',''),'account_id');
  let data=merge(input.path_params===undefined?{}:obj(input.path_params,'path_params'),input.params===undefined?{}:obj(input.params,'params'),input.payload===undefined?{}:obj(input.payload,'payload'));
  for(const key of ['account_id','customer_id'])if(data[key]!==undefined){if(String(data[key]).replaceAll('-','')!==account)error('ACCOUNT_SCOPE_MISMATCH','Conflicting account aliases.');delete data[key];}

@@ -1,4 +1,4 @@
-import {createEncryptedBackup,verifyEncryptedBackup} from '../src/backup.js';
+import {createEncryptedBackup,verifyEncryptedBackup,restoreEncryptedBackup} from '../src/backup.js';
 import fs from 'node:fs';
 import {randomBytes} from 'node:crypto';
 import {backup} from 'node:sqlite';
@@ -8,9 +8,15 @@ import {MirrorError} from '../src/errors.js';
 import {guardInput} from '../src/security.js';
 import type {Actor,Connection,Credentials} from '../src/types.js';
 const [command,...args]=process.argv.slice(2);
-const help='Usage: admin keygen | init <tenant> | create-key <tenant> <user> <reader|operator|admin> | revoke-key <file> | provision <json-file> | status <tenant> | audit-verify | backup <new-file> | backup-encrypted <new-file> | backup-verify <encrypted-file>';
+const help='Usage: admin keygen | init <tenant> | create-key <tenant> <user> <reader|operator|admin> | revoke-key <file> | provision <json-file> | status <tenant> | audit-verify | backup <new-file> | backup-encrypted <new-file> | backup-verify <encrypted-file> | backup-restore <encrypted-file> <new-sqlite-file>';
 if(command==='keygen'){process.stdout.write(randomBytes(32).toString('base64')+'\n');}
 else if(!command||command==='help'){process.stdout.write(help+'\n');}
+else if(command==='backup-verify'||command==='backup-restore'){
+ // Recovery must work even when MIRROR_DB is corrupt or unavailable. Never
+ // bootstrap, migrate or create the configured application database here.
+ try{if(args.length!==(command==='backup-verify'?1:2))throw new MirrorError('BACKUP_PATH_REQUIRED',help);const receipt=command==='backup-verify'?await verifyEncryptedBackup(args[0]!,process.env.MIRROR_MASTER_KEY):await restoreEncryptedBackup(args[0]!,args[1]!,process.env.MIRROR_MASTER_KEY);process.stdout.write(JSON.stringify(receipt,null,2)+'\n');}
+ catch(e){process.stderr.write((e instanceof MirrorError?e.code+': '+e.message:'BACKUP_RECOVERY_FAILED: The backup could not be read or restored. Check its path, key and filesystem permissions.')+'\n');process.exitCode=1;}
+}
 else{
  const store=new Store(process.env.MIRROR_DB??'.runtime/mirror.sqlite',process.env.MIRROR_MASTER_KEY);
  try{
@@ -32,7 +38,6 @@ else{
    case 'status':if(!args[0])throw Error(help);process.stdout.write(JSON.stringify({tenant:args[0],connections:store.listConnections(args[0]),audit_chain_valid:store.verifyAudit()},null,2)+'\n');break;
    case 'audit-verify':if(!store.verifyAudit())throw new MirrorError('AUDIT_INTEGRITY_FAILURE','Audit hash chain does not verify.');process.stdout.write('Audit hash chain verified.\n');break;
    case 'backup-encrypted':if(!args[0])throw Error(help);process.stdout.write(JSON.stringify(await createEncryptedBackup(store,args[0],process.env.MIRROR_MASTER_KEY),null,2)+'\n');break;
-   case 'backup-verify':if(!args[0])throw Error(help);process.stdout.write(JSON.stringify(await verifyEncryptedBackup(args[0],process.env.MIRROR_MASTER_KEY),null,2)+'\n');break;
    case 'backup':if(!args[0]||fs.existsSync(args[0]))throw new MirrorError('BACKUP_PATH_REQUIRED','Provide a new backup filename.');await backup(store.db,args[0]);process.stdout.write('Consistent SQLite backup created. Store the master key separately.\n');break;
    default:throw Error(help);
   }

@@ -108,9 +108,10 @@
       "actions": 456,
       "counts": {
         "adapter_requires_input": 8,
-        "blocked_write": 109,
+        "blocked_write": 108,
         "media_workflow": 2,
         "native_read": 175,
+        "provider_unsupported": 1,
         "reviewed_write_family": 162
       },
       "captured_catalog_complete": true,
@@ -237,9 +238,9 @@
       "gateway": "x_ads_native_action",
       "actions": 186,
       "counts": {
-        "blocked_write": 69,
+        "blocked_write": 68,
         "media_workflow": 1,
-        "native_read": 95,
+        "native_read": 96,
         "reviewed_write_family": 21
       },
       "captured_catalog_complete": true,
@@ -9427,6 +9428,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -9453,6 +9455,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -9479,6 +9482,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -9505,6 +9509,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -9531,6 +9536,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -9557,6 +9563,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -9583,6 +9590,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -9624,6 +9632,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -9650,6 +9659,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -9676,6 +9686,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -9717,6 +9728,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -9743,6 +9755,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -9769,6 +9782,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -9795,6 +9809,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts",
         "tests/google-generation.test.ts"
@@ -9822,6 +9837,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -9848,6 +9864,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -9874,6 +9891,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -9900,6 +9918,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -9926,6 +9945,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts",
         "tests/google-generation.test.ts"
@@ -9969,6 +9989,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts",
         "tests/google-generation.test.ts"
@@ -9996,6 +10017,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -10293,6 +10315,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts",
         "tests/google-generation.test.ts"
@@ -10320,6 +10343,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts",
         "tests/google-generation.test.ts"
@@ -10461,6 +10485,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -10487,6 +10512,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -10513,6 +10539,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -10539,6 +10566,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -10565,6 +10593,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -10591,6 +10620,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -10617,6 +10647,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -10643,6 +10674,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -10708,6 +10740,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -10760,6 +10793,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -10786,6 +10820,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -10812,6 +10847,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -10838,6 +10874,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -10864,6 +10901,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -10951,6 +10989,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -11093,6 +11132,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -11251,6 +11291,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -11277,6 +11318,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -11585,6 +11627,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -11807,6 +11850,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -11872,6 +11916,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -11911,6 +11956,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -11937,6 +11983,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -11976,6 +12023,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12002,6 +12050,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12028,6 +12077,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12080,6 +12130,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12106,6 +12157,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12200,6 +12252,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12226,6 +12279,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12252,6 +12306,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12278,6 +12333,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12321,6 +12377,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12442,6 +12499,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12533,6 +12591,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12559,6 +12618,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12585,6 +12645,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12611,6 +12672,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12637,6 +12699,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12663,6 +12726,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12718,6 +12782,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts",
         "tests/google-generation.test.ts"
@@ -12788,6 +12853,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12862,6 +12928,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12901,6 +12968,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12927,6 +12995,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12953,6 +13022,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -12992,6 +13062,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13111,6 +13182,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13137,6 +13209,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13163,6 +13236,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13189,6 +13263,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13215,6 +13290,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13241,6 +13317,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13267,6 +13344,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13293,6 +13371,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13319,6 +13398,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13345,6 +13425,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13371,6 +13452,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13397,6 +13479,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13423,6 +13506,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13449,6 +13533,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13475,6 +13560,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13501,6 +13587,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13527,6 +13614,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13553,6 +13641,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13579,6 +13668,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13605,6 +13695,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13631,6 +13722,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13657,6 +13749,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13683,6 +13776,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13709,6 +13803,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13735,6 +13830,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13776,6 +13872,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13802,6 +13899,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13828,6 +13926,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13854,6 +13953,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13880,6 +13980,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13906,6 +14007,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13932,6 +14034,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13958,6 +14061,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -13984,6 +14088,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14010,6 +14115,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14036,6 +14142,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14062,6 +14169,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14088,6 +14196,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14114,6 +14223,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14140,6 +14250,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14166,6 +14277,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14192,6 +14304,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14218,6 +14331,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14244,6 +14358,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14270,6 +14385,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14296,6 +14412,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14322,6 +14439,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14348,6 +14466,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14374,6 +14493,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14400,6 +14520,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14426,6 +14547,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14452,6 +14574,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14478,6 +14601,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14504,6 +14628,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14530,6 +14655,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14556,6 +14682,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14582,6 +14709,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14608,6 +14736,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14634,6 +14763,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14660,6 +14790,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14686,6 +14817,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14712,6 +14844,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14738,6 +14871,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14764,6 +14898,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14790,6 +14925,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14816,6 +14952,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14842,6 +14979,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14868,6 +15006,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14894,6 +15033,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14920,6 +15060,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14946,6 +15087,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14972,6 +15114,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -14998,6 +15141,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15024,6 +15168,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15050,6 +15195,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15076,6 +15222,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15102,6 +15249,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15128,6 +15276,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15154,6 +15303,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15180,6 +15330,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15206,6 +15357,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15232,6 +15384,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15258,6 +15411,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15284,6 +15438,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15310,6 +15465,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15336,6 +15492,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15362,6 +15519,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15388,6 +15546,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15414,6 +15573,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15440,6 +15600,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15466,6 +15627,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15492,6 +15654,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15518,6 +15681,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15544,6 +15708,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15570,6 +15735,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15596,6 +15762,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15622,6 +15789,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15648,6 +15816,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -15674,6 +15843,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -16398,6 +16568,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -16450,6 +16621,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -16476,6 +16648,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -16502,6 +16675,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -16640,6 +16814,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -16666,6 +16841,7 @@
         "tests/google-state-queries.test.ts",
         "tests/google-conversion-goals.test.ts",
         "tests/google-conversion-actions.test.ts",
+        "tests/provider-unavailable-actions.test.mjs",
         "tests/google-campaign-bid-modifiers.test.ts",
         "tests/google-recommendation-dismissal.test.ts"
       ],
@@ -17029,11 +17205,13 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/customers/{customer_id=*}/customizerAttributes:mutate",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
-      "source": "src/google-legacy-mapping.json",
-      "tests": [],
+      "status": "provider_unsupported",
+      "implementation": "src/retired-provider-actions.ts",
+      "reason": "The v23 CustomizerAttributeOperation oneof contains create and remove only. An update_mask field or broad service comment does not define an update operation. Create a new attribute with the correct name/type. Separately review replacement customizer associations and affected ads before considering removal of the old attribute. AMCP does not automatically migrate or delete it.",
+      "source": "https://github.com/googleapis/googleapis/blob/master/google/ads/googleads/v23/services/customizer_attribute_service.proto",
+      "tests": [
+        "tests/provider-unavailable-actions.test.mjs"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -52388,7 +52566,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52408,7 +52587,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52443,7 +52623,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52463,7 +52644,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52483,7 +52665,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52503,7 +52686,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52515,11 +52699,17 @@
       ],
       "method": "POST",
       "path": "/12/accounts/{account_id}/audience_estimate",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts / src/x-audience-estimate.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification. Native JSON potential-audience range, bounded criteria and private-reference reads, current account/login authority and explicit non-additive estimate semantics; no targeting or ad mutation.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/x-creative-writes.test.ts",
+        "tests/x-targeting-writes.test.ts",
+        "tests/x-draft-writes.test.ts",
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -52538,7 +52728,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52577,7 +52768,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52617,7 +52809,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52656,7 +52849,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52676,7 +52870,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52714,7 +52909,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52752,7 +52948,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52787,7 +52984,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52822,7 +53020,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52872,7 +53071,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52892,7 +53092,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52960,7 +53161,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52995,7 +53197,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53030,7 +53233,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53050,7 +53254,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53085,7 +53290,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53120,7 +53326,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53170,7 +53377,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53205,7 +53413,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53270,7 +53479,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53323,7 +53533,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53361,7 +53572,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53432,7 +53644,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53482,7 +53695,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53517,7 +53731,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53552,7 +53767,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53572,7 +53788,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53607,7 +53824,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53657,7 +53875,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53696,7 +53915,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53754,7 +53974,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53789,7 +54010,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53824,7 +54046,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53859,7 +54082,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53912,7 +54136,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53962,7 +54187,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53997,7 +54223,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54017,7 +54244,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54037,7 +54265,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54087,7 +54316,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54107,7 +54337,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54164,7 +54395,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54199,7 +54431,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54219,7 +54452,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54239,7 +54473,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54289,7 +54524,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54309,7 +54545,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54359,7 +54596,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54394,7 +54632,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54444,7 +54683,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54502,7 +54742,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54537,7 +54778,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54557,7 +54799,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54592,7 +54835,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54642,7 +54886,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54695,7 +54940,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54716,7 +54962,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54754,7 +55001,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54789,7 +55037,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54824,7 +55073,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54919,7 +55169,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54939,7 +55190,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54974,7 +55226,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54994,7 +55247,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55014,7 +55268,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55052,7 +55307,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55102,7 +55358,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55122,7 +55379,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55172,7 +55430,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55222,7 +55481,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55273,7 +55533,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55341,7 +55602,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55361,7 +55623,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55381,7 +55644,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55401,7 +55665,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55421,7 +55686,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55456,7 +55722,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55494,7 +55761,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55514,7 +55782,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55534,7 +55803,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55554,7 +55824,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55574,7 +55845,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55594,7 +55866,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55614,7 +55887,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55634,7 +55908,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55654,7 +55929,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55674,7 +55950,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55694,7 +55971,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55714,7 +55992,8 @@
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
         "tests/x-draft-writes.test.ts",
-        "tests/x-report-jobs.test.ts"
+        "tests/x-report-jobs.test.ts",
+        "tests/x-audience-estimate.test.mjs"
       ],
       "live_qualification": "unverified"
     }

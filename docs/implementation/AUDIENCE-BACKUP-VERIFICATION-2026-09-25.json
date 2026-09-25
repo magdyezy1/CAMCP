@@ -1,0 +1,412 @@
+{
+  "format_version": 1,
+  "date": "2026-09-25",
+  "branch": "Codex-branch",
+  "base_revision": "90d5682799e481c8d3482f9da96d8ef5869ced73",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true
+  },
+  "candidate": {
+    "path": ".release/continuation-20260925-f",
+    "files": 641,
+    "source_tree_hash": "311b632d9a69e1932d7455439b9859958a2d12c0d240b3ca5cbe240a4921e67e",
+    "index_code_test_guidance_files_compared": 584,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/continuation-20260925-f",
+    "install": "npm.cmd ci --offline --ignore-scripts --cache '../../.runtime/npm-cache'",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm.cmd run check",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=<bundled Python>",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/contract-completion-20260924/audience-availability-baseline.log",
+      "sha256": "73b8398fe5910fc651d037680d575dd007ac968778ffa6c8fc607dd9fd4b5648",
+      "counts": [
+        {
+          "tests": 3
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 3
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 2026.5316
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/audience-availability-build-fixed.log",
+      "sha256": "5529106f1fa3222e9bc912ad6844aab55360ead510bcadb88f826940c68b2ba3",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/audience-availability-build-narrowing.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/audience-availability-build.log",
+      "sha256": "5529106f1fa3222e9bc912ad6844aab55360ead510bcadb88f826940c68b2ba3",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/audience-availability-core.log",
+      "sha256": "f4090dde9c28dcd76533291b58763a65e7b8cb5976d42a077d389c792d172708",
+      "counts": [
+        {
+          "tests": 3
+        },
+        {
+          "pass": 3
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 2447.5516
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/audience-availability-expanded-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/audience-availability-expanded.log",
+      "sha256": "294e0cbe1dd9861e61422063b7c002dd37909929b8b9030cc33ff59ad817e613",
+      "counts": [
+        {
+          "tests": 19
+        },
+        {
+          "pass": 19
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 4783.5843
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/audience-availability-final-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/audience-availability-first.log",
+      "sha256": "961f25deefc9125b4281b6260265e4de41c65bfe34212711e0d88b0adc7c8421",
+      "counts": [
+        {
+          "tests": 3
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 2
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 2237.6716
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/audience-availability-inspect-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/audience-availability-selected.log",
+      "sha256": "5889f20092f4924dee8e6e9ab476327152d7db31545b1ad4d61f27ba859aab6b",
+      "counts": [
+        {
+          "tests": 135
+        },
+        {
+          "pass": 135
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 24010.2731
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/backup-recovery-baseline.log",
+      "sha256": "6ed54bd2723ba0beb5927a1a4096f27911cb8e467576e708d91f6135199205c9",
+      "counts": [
+        {
+          "tests": 2
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 2
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 281.1529
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/backup-recovery-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/backup-recovery-core.log",
+      "sha256": "f2b915c40065cc64e1c3852dcbd4ad95ff5963df3d2168e2d1e969a77500034a",
+      "counts": [
+        {
+          "tests": 2
+        },
+        {
+          "pass": 1
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 528.0145
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/backup-recovery-expanded-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/backup-recovery-expanded.log",
+      "sha256": "3aa87051c5254356bd8deaa10b730b89f850eab709fd3a1d82abdb59a6d29721",
+      "counts": [
+        {
+          "tests": 11
+        },
+        {
+          "pass": 10
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1646.1389
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/backup-recovery-final-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/backup-recovery-final-selected.log",
+      "sha256": "99c416ed7111bce42e027f77bd731be4a634e5053cf8c0e6cb6e55c813b7da6d",
+      "counts": [
+        {
+          "tests": 39
+        },
+        {
+          "pass": 39
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 4237.4559
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/backup-recovery-fixtures.log",
+      "sha256": "356eec5580da1b05d88c7adfdfaaac5fb2078b1bc8cf0df606a90dcee87320c1",
+      "counts": [
+        {
+          "tests": 11
+        },
+        {
+          "pass": 11
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 1492.6276
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/backup-recovery-selected.log",
+      "sha256": "707f40342238c01c7289e73c0e81ec2c078f6b54789a65268a9aed4194c92b69",
+      "counts": [
+        {
+          "tests": 39
+        },
+        {
+          "pass": 38
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 5202.9542
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/backup-recovery-sync-build.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/backup-recovery-sync.log",
+      "sha256": "8e0e3eeb595189f32e9eba5c4d0e158440a29a6d3ffb2595722de56d31187fe6",
+      "counts": [
+        {
+          "tests": 2
+        },
+        {
+          "pass": 2
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 503.0573
+        }
+      ]
+    },
+    {
+      "path": ".release/continuation-20260925-f/release-check.log",
+      "sha256": "4d1198b817b07c05f10735a2fbf32d8b680e7ec5ede34d2645919afd60732622",
+      "counts": [
+        {
+          "tests": 1936
+        },
+        {
+          "pass": 1936
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 412733.3446
+        },
+        {
+          "tests": 4
+        },
+        {
+          "pass": 4
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 70.0496
+        }
+      ]
+    },
+    {
+      "path": ".release/continuation-20260925-e/release-check.log",
+      "sha256": "099965d48d6749e5d3743fa41d04475d9a383f8eadf29f99ee7dbc4f03040a6b",
+      "counts": [
+        {
+          "tests": 1922
+        },
+        {
+          "pass": 1920
+        },
+        {
+          "fail": 2
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 471236.7741
+        }
+      ]
+    },
+    {
+      "path": ".release/continuation-20260925-f/railway-check.log",
+      "sha256": "f2fe3b5dc9105f0b53fa7bb913efecdf612026d6550cc05ece99384fb39cb709",
+      "counts": []
+    }
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 1936,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials or account mutations.",
+    "Provider permissions, live output compatibility, Docker and deployment remain separately unverified.",
+    "See the matching implementation report for explicit contract limits, initial failures and primary references."
+  ]
+}

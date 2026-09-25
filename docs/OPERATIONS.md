@@ -18,6 +18,38 @@ Set `MIRROR_ALLOW_WRITES=true` to expose `amcp_write`, grant specific accounts, 
 
 `npm run admin -- backup <new-file>` uses SQLite's consistent backup API. Protect database and backup files using host ACLs. Keep the master key separately and back it up in the secret manager; losing it makes encrypted tokens unrecoverable. Restore into a new path, point MIRROR_DB there, inject the same key, and run `npm run admin -- audit-verify`. Do not copy only the main SQLite file while WAL writes are active.
 
+For encrypted archives, use `npm run admin -- backup-encrypted <new-file>`.
+`npm run admin -- backup-verify <encrypted-file>` checks a disposable copy without
+opening or creating `MIRROR_DB`. To retain a verified offline restoration, use
+`npm run admin -- backup-restore <encrypted-file> <new-sqlite-file>` with the same
+`MIRROR_MASTER_KEY` injected through the environment. Never put the key on the
+command line. The destination parent must already exist and be private. The CLI
+refuses existing files, directories, links and SQLite sidecars, including a
+concurrent restore's output. It validates GCM authentication, SQLite integrity,
+foreign keys, supported schema, audit chain and connection-secret decryption
+before atomically publishing the file. Publication requires a filesystem with
+hard-link support; there is no overwrite/copy fallback. File content is synced;
+the receipt separately reports directory syncing, unavailable through this path
+on Windows and some filesystems. This is not a power-loss durability guarantee.
+
+Restore does not open the configured database, change deployment configuration,
+start the application, execute jobs, complete uncertain writes, or modify the
+source archive. Keep the new copy offline while comparing the backup timestamp
+with independently retained delivery, provider mutation, credential, membership,
+session and revocation history. A backup can contain an old queued job or omit a
+write completed after that snapshot. Stop all original writers before an explicit
+database switch; reconcile these changes before enabling workers or advertising
+writes. Restoring an old database alone cannot prove that a lost mutation is safe
+to repeat. Host storage/ACLs, off-host retention, production RPO/RTO and rollback
+qualification remain operational responsibilities requiring a deployment drill.
+
+Ordinary failures remove private staging directories. A terminated process can
+leave `amcp-backup-*` under the system temporary directory or restore destination
+parent. Preserve/inspect only the known interrupted attempt's staging directory
+and remove it after establishing that no restoration uses it; never sweep active
+operations or delete the original database. The command never publishes an
+unauthenticated or partly verified destination.
+
 The audit chain detects changes to retained records and SQL triggers prevent normal updates/deletes. It has no external checkpoint service and cannot detect rollback to a previously valid backup. Keep independent backup/checkpoint records for a production deployment. General data retention and external monitoring are not implemented yet.
 
 Local subprocess tests verified consistent backup while the source database remained open in WAL mode, restoration of encrypted credentials and committed documents, audit verification after restore, and refusal to overwrite an existing backup. Concurrent process startup now serializes database bootstrap/migrations in a transaction. Unsupported schema versions roll back attempted schema changes and close the connection. These tests do not qualify host-level disaster recovery or a production deployment.
@@ -28,7 +60,7 @@ Run `npm run worker` in a separate process on the same host/database. Jobs acqui
 
 Native jobs aggregate up to 25 pages and fail with REPORT_TRUNCATED if more remain. Split such queries before rerunning. JSON endpoints reject empty, malformed, null or scalar HTTP success payloads; endpoint-specific no-content or non-JSON handling must be added explicitly before implementing those routes. Reddit additionally validates request and response bodies against its saved official schemas. See docs/REDDIT.md for supported behavior. The CLI verification report excludes raw vendor response contents, but the local audit database retains redacted outcomes and must be protected as sensitive operational data.
 
-Schedules use local IANA clock time, and enqueue atomically with the next-occurrence update. A missed occurrence is coalesced into one current run. Generic query_config accepts explicit date ranges or `{preset:"last_complete_days",days:7,timezone:"Africa/Cairo"}` under date_range; native gateway requests preserve their explicit dates. Spring DST skipped times are skipped; autumn repeated local occurrences are deduplicated. External destinations, retention pruning, job cancellation, alert delivery and dead-letter retries require further implementation. Poll run status and audit records to see failures.
+Schedules use local IANA clock time, and enqueue atomically with the next-occurrence update. A missed occurrence is coalesced into one current run. Generic query_config accepts explicit date ranges or `{preset:"last_complete_days",days:7,timezone:"Africa/Cairo"}` under date_range; native gateway requests preserve their explicit dates. Spring DST skipped times are skipped; autumn repeated local occurrences are deduplicated. Reporting Overview separately supports independent daily/weekly/monthly Sheets delivery schedules, owned destination tabs and content-bound delivery recovery; see [reporting setup](REPORTING-OVERVIEW.md). General retention pruning, generic job cancellation, alert delivery and dead-letter retries still require further implementation. Poll run status and audit records to see failures.
 
 ## Provider request pacing
 

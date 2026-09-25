@@ -12935,7 +12935,7 @@
         {
           "operation": null,
           "action": "UPDATE_CUSTOMIZER_ATTRIBUTE",
-          "status": "blocked_write",
+          "status": "provider_unsupported",
           "family": null
         }
       ],

@@ -18,6 +18,7 @@ import {authorizeRedditPostRead,redditPostCreation} from './reddit-post-creation
 import {googleGlobalReadMethods} from './execution-risk.js';
 import {authorizeQualifiedProviderRead} from './provider-read-contracts.js';
 import {authorizeDV360TargetingSearch} from './dv360-targeting-search.js';
+import {authorizeXAudienceEstimate} from './x-audience-estimate.js';
 import {authorizeCriteoInternalRead,assertCriteoReadScope} from './criteo-targeting-writes.js';
 import {assertGoogleGenerationScope} from './google-generation.js';
 import {assertMetaLabelScope,metaLabelIdentities} from './meta-label-writes.js';
@@ -89,6 +90,7 @@ export class ScopeGuard {
   if(authorizePlaceActionDiscovery(plan,connection,id))return id;
   if(authorizeBusinessAccessRead(plan,connection,id))return id;
   if(authorizeDV360TargetingSearch(plan,connection,id))return id;
+  if(authorizeXAudienceEstimate(plan,connection,id))return id;
   if(authorizeLinkedInConversion(plan,connection,id))return id;
   if(authorizeLinkedInRule(plan,connection,id))return id;
   if(authorizeCriteoInternalRead(plan,connection,id))return id;

@@ -21,7 +21,7 @@ import {linkedinConversionKind,assertLinkedInConversion,assertLinkedInConversion
 import {metaLabelKind,assertMetaLabel,assertMetaLabelScope,metaLabelSnapshots,readMetaLabels,validateMetaLabelState,validateMetaLabelPrerequisites,metaLabelOutcome} from './meta-label-writes.js';
 import {criteoTargetingKind,assertCriteoTargeting,assertCriteoTargetingScopes,criteoTargetingSnapshots,readCriteoTargeting,validateCriteoTargetState,validateCriteoTargetingPrerequisites,criteoTargetingOutcome} from './criteo-targeting-writes.js';
 import {readAssetSetContents,validateAssetSetContents} from './google-asset-set-writes.js';
-import {assertProviderActionAvailable} from './retired-provider-actions.js';
+import {assertProviderActionAvailable,unsupportedProviderAlias} from './retired-provider-actions.js';
 import {gtmWorkspaceKind,assertGtmWorkspace,gtmWorkspaceSnapshots,validateGtmWorkspaceState,readGtmWorkspace,validateGtmWorkspacePrerequisites,gtmWorkspaceOutcome,gtmWorkspaceReceipt} from './gtm-workspace-writes.js';
 import {gtmWorkflowKind,assertGtmWorkflow,assertGtmWorkflowActor,gtmWorkflowSnapshots,validateGtmWorkflowState,readGtmWorkflow,gtmSafeConfiguration,validateGtmWorkflowPrerequisites,gtmWorkflowOutcome} from './gtm-workflow-writes.js';
 import {appleEntityKind,appleSharedAccounts,appleSharedAccountReads,validateAppleEntityPrerequisites} from './apple-entity-writes.js';
@@ -563,7 +563,9 @@ export class WriteReviewService {
    if(typeof input.gateway!=='string'||!input.arguments||typeof input.arguments!=='object'||Array.isArray(input.arguments))fail('INVALID_ARGUMENT','prepare requires gateway and arguments.');
    const isDelegated=this.registry.tools.get(input.gateway)?.mode==='delegated',nativeArgs=isDelegated?object(input.arguments.arguments):input.arguments;
    if(['aggregate_pages','paginate','allPages'].some(k=>input.arguments[k]||nativeArgs[k]))fail('MUTATION_PAGINATION_FORBIDDEN','A reviewed mutation executes exactly one request.');
-   const args=isDelegated?{...input.arguments}:{...input.arguments,dry_run:true};this.registry.validate(input.gateway,args,this.options);const plan=applyExecutionRisk(isDelegated?this.delegated.compile(input.gateway,args):this.compiler.compile(input.gateway,args,this.options));
+   const args=isDelegated?{...input.arguments}:{...input.arguments,dry_run:true};this.registry.validate(input.gateway,args,this.options);
+   const unavailable=unsupportedProviderAlias(input.gateway,nativeArgs.action);if(input.action==='inspect'&&unavailable){const e=new MirrorError('PROVIDER_ACTION_UNSUPPORTED',unavailable.reason,unavailable),remedy=errorRemedy(e);return {executed:false,network_requests:0,review_contract_supported:false,request:null,error:{code:e.code,message:e.message,details:e.details,category:remedy.category,remedy},live_permissions_verified:false,next_step:unavailable.replacement};}
+   const plan=applyExecutionRisk(isDelegated?this.delegated.compile(input.gateway,args):this.compiler.compile(input.gateway,args,this.options));
    if(input.connection_id&&nativeArgs.connection_id&&input.connection_id!==nativeArgs.connection_id)fail('CONFLICTING_PARAMETER','Connection IDs must agree.');
    if(input.action==='inspect'){
     let accountCapability:JsonObject;try{const c=this.store.resolveConnection(actor,plan.gateway,plan.accountId,input.connection_id??nativeArgs.connection_id);accountCapability={connection_id:c.id,account_id:plan.accountId,selected:true,write_granted:c.writeAccounts?.includes(plan.accountId!)??false,granted_scopes:c.scopes,provider_access:'requires live preparation'};}catch(e){accountCapability={selected:false,error:e instanceof MirrorError?{code:e.code,message:e.message}:undefined};}
