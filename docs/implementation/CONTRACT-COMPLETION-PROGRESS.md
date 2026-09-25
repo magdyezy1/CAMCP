@@ -8,6 +8,53 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## BG — X atomic targeting batches (2026-09-25)
+
+One additional captured X route now has a scoped, immutable Create/Delete review
+contract for paused line items, complete targeting pagination, private-reference
+checks, native ordered receipts and complete after-state verification. Unknown
+or partial outcomes retain one durable submission claim. All 158 focused tests
+and candidate I's **2013 main/four capture tests** pass, with required FFmpeg and
+Railway checks. See [implementation](X-TARGETING-BATCH-2026-09-25.md) and
+[exact qualification](X-TARGETING-VERIFICATION-2026-09-25.json).
+The remaining captured inventory is **983**: 868 blocked writes, 79 unmapped,
+23 unqualified reads, eight input-dependent adapters and five provider-unsupported
+actions. The independent 451 unmapped vendor methods overlap this inventory and
+must not be added to it. Live acceptance and deployment are separate gates.
+
+## BF — Media resume and worker lease recovery (2026-09-25)
+
+LinkedIn resumes an acknowledged part prefix only under its original unexpired
+review, file, login and provider session; uncertain parts and finalization remain
+blocked from replay. Renewable short media leases permit crash recovery within
+the review window while fencing stale workers. Candidate H passes **1979 main/
+four capture tests** with required FFmpeg, including real child-process/SQLite
+restart scenarios. See [recovery](LINKEDIN-MEDIA-RECOVERY-2026-09-25.md) and
+[verification](LINKEDIN-MEDIA-VERIFICATION-2026-09-25.json).
+
+## BE — Audience qualification and offline disaster recovery (2026-09-25)
+
+X audience estimation has bounded, scoped private-reference reads and explicit
+range semantics; Google's nonexistent customizer update alias is marked
+provider-unsupported. Encrypted backups can be authenticated and restored only
+to a new isolated path, with integrity/audit validation and exclusive publication.
+Candidate F passes **1936 main/four capture tests** with required FFmpeg. See
+[audiences](AUDIENCE-AVAILABILITY-2026-09-25.md),
+[backup recovery](BACKUP-RECOVERY-2026-09-25.md) and
+[verification](AUDIENCE-BACKUP-VERIFICATION-2026-09-25.json).
+
+## BD — Conversion, Snapchat, X analytics and delivery authority (2026-09-25)
+
+Google manual conversion definitions, ten nested Snapchat update aliases and X
+async analytics are qualified in bounded native contracts. In-flight media and
+Sheets delivery recheck their original authority and preserve accepted receipts.
+Candidate D passes **1899 main/four capture tests** with required FFmpeg. Separate
+client reports, grouping, independent schedules/destinations, CSV download and
+synthetic Sheets delivery were exercised in the browser. Manual deletion is
+still unverified because the browser confirmation-control API timed out; backend
+deletion/isolation regressions passed. See the [continuation evidence](CONTINUATION-2026-09-25.md)
+and [qualification](CONTINUATION-VERIFICATION-2026-09-25.json).
+
 ## BC — Website discovery and OAuth authority (2026-09-25)
 
 Operation-local guards cover all 15 website provider discovery paths, Google

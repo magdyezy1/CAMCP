@@ -28,6 +28,7 @@ import {googleAssetLinkKind} from './google-asset-links.js';
 import {googleConfigurationKind} from './google-configuration-writes.js';
 import {xCreativeKind} from './x-creative-writes.js';
 import {xDraftKind} from './x-draft-writes.js';
+import {xTargetingBatchRoute} from './x-targeting-batch.js';
 import {linkedinDSC} from './linkedin-posts.js';
 import {redditWriteKind} from './reddit-writes.js';
 import {microsoftContracts,microsoftGateway} from './microsoft-native.js';
@@ -42,6 +43,7 @@ import {gtmWorkspaceKind} from './gtm-workspace-writes.js';
 export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  const route=p.path,method=p.method,action=p.action.split('/').at(-1)!;
  if(p.readOnly||p.specialTransport)return;
+ if(xTargetingBatchRoute(p))return 'x_targeting_batch';
  if(xReportKind(p))return 'x_report_jobs';
  if(snapUpdateKind(p))return 'snapchat_nested_updates';
  if(googlePreviewKind(p))return 'google_shareable_previews';

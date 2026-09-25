@@ -238,10 +238,10 @@
       "gateway": "x_ads_native_action",
       "actions": 186,
       "counts": {
-        "blocked_write": 68,
+        "blocked_write": 67,
         "media_workflow": 1,
         "native_read": 96,
-        "reviewed_write_family": 21
+        "reviewed_write_family": 22
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -52565,6 +52565,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -52586,6 +52587,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -52622,6 +52624,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -52643,6 +52646,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -52664,6 +52668,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -52685,6 +52690,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -52706,6 +52712,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -52727,6 +52734,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -52767,6 +52775,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -52808,6 +52817,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -52848,6 +52858,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -52869,6 +52880,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -52908,6 +52920,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -52947,6 +52960,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -52983,6 +52997,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53019,6 +53034,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53070,6 +53086,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53091,6 +53108,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53160,6 +53178,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53196,6 +53215,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53232,6 +53252,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53253,6 +53274,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53289,6 +53311,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53325,6 +53348,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53376,6 +53400,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53412,6 +53437,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53478,6 +53504,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53532,6 +53559,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53571,6 +53599,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53643,6 +53672,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53694,6 +53724,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53730,6 +53761,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53766,6 +53798,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53787,6 +53820,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53823,6 +53857,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53874,6 +53909,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53914,6 +53950,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -53973,6 +54010,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54009,6 +54047,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54045,6 +54084,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54081,6 +54121,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54135,6 +54176,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54186,6 +54228,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54222,6 +54265,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54243,6 +54287,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54264,6 +54309,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54315,6 +54361,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54336,6 +54383,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54394,6 +54442,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54430,6 +54479,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54451,6 +54501,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54472,6 +54523,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54523,6 +54575,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54544,6 +54597,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54595,6 +54649,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54631,6 +54686,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54682,6 +54738,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54741,6 +54798,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54777,6 +54835,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54798,6 +54857,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54834,6 +54894,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54885,6 +54946,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54939,6 +55001,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -54961,6 +55024,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55000,6 +55064,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55036,6 +55101,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55072,6 +55138,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55146,12 +55213,15 @@
       ],
       "method": "POST",
       "path": "/12/batch/accounts/{account_id}/targeting_criteria",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/x-targeting-batch.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/x-targeting-batch.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "x_targeting_batch"
     },
     {
       "gateway": "x_ads_native_action",
@@ -55168,6 +55238,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55189,6 +55260,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55225,6 +55297,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55246,6 +55319,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55267,6 +55341,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55306,6 +55381,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55357,6 +55433,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55378,6 +55455,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55429,6 +55507,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55480,6 +55559,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55532,6 +55612,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55601,6 +55682,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55622,6 +55704,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55643,6 +55726,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55664,6 +55748,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55685,6 +55770,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55721,6 +55807,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55760,6 +55847,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55781,6 +55869,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55802,6 +55891,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55823,6 +55913,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55844,6 +55935,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55865,6 +55957,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55886,6 +55979,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55907,6 +56001,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55928,6 +56023,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55949,6 +56045,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55970,6 +56067,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"
@@ -55991,6 +56089,7 @@
       "tests": [
         "tests/x-creative-writes.test.ts",
         "tests/x-targeting-writes.test.ts",
+        "tests/x-targeting-batch.test.mjs",
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs"

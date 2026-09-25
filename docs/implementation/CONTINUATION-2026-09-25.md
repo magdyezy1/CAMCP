@@ -330,3 +330,21 @@ Railway checks. Initial reproductions and G/H evidence remain separate in
 `LINKEDIN-MEDIA-VERIFICATION-2026-09-25.json`. The 984-row incomplete inventory is
 unchanged; these are recovery fixes, not new catalog actions. Real provider
 acceptance and container/deployment qualification remain separate evidence.
+
+The [X atomic targeting batch](X-TARGETING-BATCH-2026-09-25.md) now qualifies
+Create/Delete on explicitly paused, account-scoped line items. Candidate I passes
+2013 main/four capture tests, zero failures/skips, required FFmpeg and Railway
+checks. The source comparison and all earlier focused failures are preserved in
+`X-TARGETING-VERIFICATION-2026-09-25.json`. The generated incomplete inventory
+falls from 984 to **983** rows; this qualifies one captured route with explicit
+variant limits, not every X operation.
+
+A second browser pass used candidate H's isolated in-memory fixture on port
+43287 through Chrome. Creating and editing the saved Client A report and saving
+a template succeeded; the template excluded client/account identity and kept
+the report. Clicking Delete template displayed the correctly named native
+confirmation, including its statement that existing reports are retained.
+The browser dialog-control API then timed out and reset, as did tab recovery.
+Deletion itself is still not browser-verified. No product deletion failure is
+inferred from that automation limitation, and no live provider or spreadsheet
+was accessed.

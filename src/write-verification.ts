@@ -22,6 +22,7 @@ import {googleBiddingEventKind,verifyGoogleBiddingEvent} from './google-bidding-
 import {googlePortfolioKind,verifyGooglePortfolio} from './google-portfolio-strategies.js';
 import {googleConversionActionKind,verifyGoogleConversionAction} from './google-conversion-actions.js';
 import {xDraftKind,verifyXDraft} from './x-draft-writes.js';
+import {xTargetingBatchRoute,verifyXTargetingBatch} from './x-targeting-batch.js';
 import {linkedinConversionKind,linkedinConversionVerification,readLinkedInConversions,isLinkedInConversionRead,assertLinkedInConversionScope} from './linkedin-conversion-links.js';
 import {linkedinRuleKind,linkedinRuleVerification,readLinkedInRules,isLinkedInRuleRead} from './linkedin-conversion-rules.js';
 import {Store} from './store.js';
@@ -149,7 +150,7 @@ export class WriteVerifier{
   if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan)||googlePortfolioKind(plan)||googleConversionActionKind(plan))assertGoogleAdsScope(c);
   if(linkedinConversionKind(plan)||linkedinRuleKind(plan))assertLinkedInConversionScope(c);
   if(result.success!==true)bad('Inspect the retained partial failure before recovery.','WRITE_PARTIAL_OR_FAILED');
-  const cached=optional(this.store,actor.tenantId,'write_verification',reviewId);if(!snapUpdateKind(plan)&&!xReportKind(plan)&&!tiktokReportKind(plan)&&!googlePreviewKind(plan)&&cached?.status==='verified'&&Date.now()-cached.checked_at<10000)return {...cached,cached:true};
+  const cached=optional(this.store,actor.tenantId,'write_verification',reviewId);if(!xTargetingBatchRoute(plan)&&!snapUpdateKind(plan)&&!xReportKind(plan)&&!tiktokReportKind(plan)&&!googlePreviewKind(plan)&&cached?.status==='verified'&&Date.now()-cached.checked_at<10000)return {...cached,cached:true};
   let reads:ReturnType<typeof verificationReads>=[],status='unverified',checks:JsonObject[]=[],resources:JsonObject[]=[];
   try{if(redditPostCreation(plan)){
    const verified=await verifyRedditPostCreation(plan,result,reviewId,c,this.store,read=>readRedditProfiles(read,async page=>{
@@ -246,6 +247,13 @@ export class WriteVerifier{
     this.store.assertActorActive(actor);let current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertGoogleAdsScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);
     const auth=await this.credentials.get(current);this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertGoogleAdsScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);
     const response=await this.request(actor,read,current,auth);this.store.assertActorActive(actor);current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertGoogleAdsScope(current);new ScopeGuard(this.registry,this.store).authorize(read,current);return response;
+   });status=verified.status;checks=verified.checks;
+  }else if(xTargetingBatchRoute(plan)){
+   let credentialHash:string|undefined;
+   const verified=await verifyXTargetingBatch(plan,result,review.state,async read=>{
+    if(!independentlyReadOnly(read))bad('Targeting verification must remain read-only.','VERIFICATION_UNSUPPORTED');
+    const access=()=>{this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(read,current);if(credentialHash&&sha256(stable(this.store.credentials(actor.tenantId,current.id)))!==credentialHash)bad('The selected login changed during targeting verification.','REAUTHORIZATION_REQUIRED');return current;};
+    const current=access(),auth=await this.credentials.get(current);credentialHash??=sha256(stable(auth));access();const response=await this.request(actor,read,current,auth);access();return response;
    });status=verified.status;checks=verified.checks;
   }else if(xDraftKind(plan)){
    const verified=await verifyXDraft(plan,result,review.state,async read=>{

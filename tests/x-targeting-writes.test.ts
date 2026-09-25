@@ -67,7 +67,7 @@ test('X targeting bodies are validated before any provider read',async()=>{
  }finally{x.store.close();}
 });
 
-test('X targeting deletes are reviewed against the exact criterion, and batch and PUT stay refused',async()=>{
+test('X targeting deletes are reviewed against the exact criterion, and PUT remains refused',async()=>{
  const x=setup();try{
   const p=await x.prepare({action:'x_accounts_account_id_targeting_criteria_targeting_criterion_id_delete',params:{targeting_criterion_id:'1evd48o'}}) as any;
   assert.equal(p.success,true,JSON.stringify(p));
@@ -75,8 +75,8 @@ test('X targeting deletes are reviewed against the exact criterion, and batch an
   // Identity changes must go through delete plus create, matching the Google contract.
   const put=await x.prepare({action:'x_accounts_account_id_targeting_criteria_targeting_criterion_id_put',params:{targeting_criterion_id:'1evd48o'},payload:{targeting_value:'other'}}) as any;
   assert.equal(put.error.code,'WRITE_CONTRACT_UNAVAILABLE',JSON.stringify(put));
-  // The general batch ban is untouched.
-  const batch=await x.prepare({action:'x_batch_accounts_account_id_targeting_criteria_post',payload:[{operation_type:'Create',params:criterion}]}) as any;
-  assert.equal(batch.error.code,'WRITE_CONTRACT_UNAVAILABLE',JSON.stringify(batch));
+  // Batch input now reaches its separate closed contract.
+  const batch=await x.prepare({action:'x_batch_accounts_account_id_targeting_criteria_post',payload:[{operation_type:'Update',params:criterion}]}) as any;
+  assert.equal(batch.error.code,'INVALID_X_TARGETING_BATCH',JSON.stringify(batch));
  }finally{x.store.close();}
 });

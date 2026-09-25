@@ -60,6 +60,7 @@ import {validateMetaCreative} from './creative-validation.js';
 import {googleTargetingKind,assertGoogleTargeting,googleTargetingSnapshots,validateGoogleTargetingState} from './google-targeting-writes.js';
 import {googleAssetLinkKind,assertGoogleAssetLinks,googleAssetLinkSnapshots,validateGoogleAssetLinkState,googleAssetLinkOutcome} from './google-asset-links.js';
 import {xTargetingKind,assertXTargeting,xTargetingSnapshots,validateXTargetingState} from './x-targeting-writes.js';
+import {xTargetingBatchRoute,assertXTargetingBatch,xTargetingBatchSnapshots,readXTargetingBatchState,xTargetingBatchOutcome} from './x-targeting-batch.js';
 import {assertRedditWrite,assertRedditWriteScopes,redditSnapshots,validateRedditState,redditOutcome} from './reddit-writes.js';
 import {microsoftGateway,microsoftScope,assertMicrosoftWrite,microsoftSnapshots,validateMicrosoftResponse,microsoftOutcome} from './microsoft-native.js';
 import {validateMicrosoftAssociationState} from './microsoft-associations.js';
@@ -89,6 +90,7 @@ export function writeOutcome(result:TransportResult,plan?:CompiledRequest,before
  const outcome={success:errors.length===0,executed:true,outcome:errors.length?'partial_or_failed':'succeeded',data:plan?.gateway==='gtm_native_action'?gtmSafeConfiguration(result.data):result.data,status:result.status,headers:result.headers,...(result.headers['x-restli-id']?{created_id:result.headers['x-restli-id']}:{ }),...(errors.length?{failures:plan?.gateway==='gtm_native_action'?gtmSafeConfiguration(errors):errors,retry_safe:false}:{}),...(plan&&gtmWorkspaceKind(plan)?gtmWorkspaceReceipt(plan,result):{})}; return plan&&(placeActionKind(plan)||businessNotificationKind(plan)||businessAccessKind(plan))?placeActionSafe(outcome):outcome;
 }
 function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,before:unknown[]):boolean {
+ if(xTargetingBatchRoute(plan))return xTargetingBatchOutcome(plan,result,before);
  if(googlePreviewKind(plan))return googlePreviewOutcome(plan,result);
  if(xDraftKind(plan))return xDraftOutcome(plan,result,before);
  if(placeActionKind(plan))return placeActionOutcome(plan,result,before);
@@ -228,6 +230,7 @@ export function assertWriteShape(plan:CompiledRequest){
  validateMetaCampaign(plan);
  if(!writeContractGateways.has(plan.gateway))fail('WRITE_CONTRACT_UNAVAILABLE','This platform has no reviewed mutation contract.');
  if(plan.readOnly)fail('MUTATION_REQUIRED','Use the original native gateway to perform this read.');
+ if(xTargetingBatchRoute(plan)){assertXTargetingBatch(plan);return;}
  if(googlePreviewKind(plan)){assertGooglePreview(plan);return;}
  if(plan.gateway==='reddit_native_action'){assertRedditWrite(plan);return;}
  if(plan.gateway===microsoftGateway){assertMicrosoftWrite(plan);return;}
@@ -311,6 +314,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(businessAccessKind(plan))return businessAccessSnapshots(plan);
  if(googleDismissalKind(plan))return googleDismissalSnapshots(plan);
  if(googleAccessKind(plan))return googleAccessSnapshots(plan);
+ if(xTargetingBatchRoute(plan))return xTargetingBatchSnapshots(plan);
  if(xDraftKind(plan))return xDraftSnapshots(plan);
  if(linkedinRuleKind(plan))return linkedinRuleSnapshots(plan);
  if(linkedinConversionKind(plan))return linkedinConversionSnapshots(plan);
@@ -520,6 +524,14 @@ export class WriteReviewService {
    const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);
    const result=await this.request(actor,plan,read,c,auth);this.access(actor,plan,connectionId);return result;
   });
+  if(xTargetingBatchRoute(plan)){
+   let credentialHash:string|undefined;
+   return readXTargetingBatchState(plan,async read=>{
+    if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Targeting dependencies must remain read-only.');
+    const access=()=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,current);if(credentialHash&&sha256(stable(this.store.credentials(actor.tenantId,current.id)))!==credentialHash)fail('REAUTHORIZATION_REQUIRED','The selected login changed during targeting checks.');return current;};
+    const current=access(),auth=await this.credentials.get(current);credentialHash??=sha256(stable(auth));access();const result=await this.request(actor,plan,read,current,auth);access();return result;
+   });
+  }
   if(xCreativeKind(plan)||xDraftKind(plan))return (xDraftKind(plan)?readXDraftState:readXCreativeState)(plan,async read=>{
    if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Creative dependency checks must be read-only.');
    const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);

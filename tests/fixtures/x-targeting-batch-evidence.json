@@ -1,0 +1,97 @@
+{
+  "checked_at": "2026-09-25",
+  "source": {
+    "url": "https://docs.x.com/x-ads-api/campaign-management/reference.md",
+    "sha256": "499306620b247ec6ef07e504eb1ec1d791260d415e69be064e34d5d8e4aa8224"
+  },
+  "api_version": "12",
+  "route": "/12/batch/accounts/{account_id}/targeting_criteria",
+  "method": "POST",
+  "content_type": "application/json",
+  "documented_maximum": 500,
+  "operations": [
+    "Create",
+    "Delete"
+  ],
+  "documented_atomicity": "Whole batch succeeds or fails together; response order follows request order.",
+  "request_example": [
+    {
+      "operation_type": "Create",
+      "params": {
+        "line_item_id": "6f9an",
+        "targeting_type": "LOCATION",
+        "targeting_value": "5122804691e5fecc"
+      }
+    },
+    {
+      "operation_type": "Delete",
+      "params": {
+        "targeting_criterion_id": "al2rua"
+      }
+    }
+  ],
+  "response_example": {
+    "data_type": "targeting_criterion",
+    "data": [
+      {
+        "line_item_id": "6f9an",
+        "name": "San Francisco-Oakland-San Jose CA, US",
+        "id": "al7vt2",
+        "location_type": "CITY",
+        "operator_type": "EQ",
+        "created_at": "2016-11-11T22:59:50Z",
+        "targeting_value": "5122804691e5fecc",
+        "updated_at": "2016-11-11T22:59:50Z",
+        "deleted": false,
+        "targeting_type": "LOCATION"
+      },
+      {
+        "line_item_id": "6keuo",
+        "name": "accounts",
+        "id": "al2rua",
+        "operator_type": "EQ",
+        "created_at": "2016-11-11T17:50:19Z",
+        "targeting_value": "accounts",
+        "updated_at": "2016-11-11T22:59:50Z",
+        "deleted": true,
+        "targeting_type": "BROAD_KEYWORD"
+      }
+    ],
+    "request": [
+      {
+        "params": {
+          "line_item_id": "6f9an",
+          "targeting_type": "LOCATION",
+          "targeting_value": "5122804691e5fecc",
+          "account_id": "18ce54d4x5t"
+        },
+        "operation_type": "Create"
+      },
+      {
+        "params": {
+          "targeting_criterion_id": "al2rua",
+          "account_id": "18ce54d4x5t"
+        },
+        "operation_type": "Delete"
+      }
+    ]
+  },
+  "amcp_limits": {
+    "operations": 100,
+    "line_items": 20,
+    "private_references": 25,
+    "collection_rows": 10000,
+    "requests": 320,
+    "bytes": 8388608,
+    "deadline_ms": 60000
+  },
+  "unqualified_variants": [
+    "TV_SHOW locale prerequisites",
+    "APP_LIST/TAP exclusions",
+    "preroll-only content targeting",
+    "GTE/LT comparison operators",
+    "active line items",
+    "batches above AMCP capacity bounds"
+  ],
+  "qualification": "Public documentation and synthetic tests; no live provider calls or approval evidence."
+}

@@ -1,0 +1,235 @@
+{
+  "format_version": 1,
+  "date": "2026-09-25",
+  "branch": "Codex-branch",
+  "base_revision": "a28930443ca38afd21fc3d73048d9b61de356915",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true
+  },
+  "candidate": {
+    "path": ".release/continuation-20260925-i",
+    "files": 654,
+    "source_tree_hash": "6e88e7fe283bd07310cdac13c80a5d4e57a3ba6bb6d38f72c557ed1ad5e390d3",
+    "index_code_test_guidance_files_compared": 593,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/continuation-20260925-i",
+    "install": "npm.cmd ci --offline --ignore-scripts --cache '../../.runtime/npm-cache'",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm.cmd run check",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=<bundled Python>",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/contract-completion-20260924/x-targeting-batch-adversarial-2.log",
+      "sha256": "bc2b49c265dbea903fa8b757b802fbfd83cd9ef29534916411d2b60a1ed14583",
+      "counts": [
+        {
+          "tests": 23
+        },
+        {
+          "pass": 23
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 5125.3383
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/x-targeting-batch-adversarial.log",
+      "sha256": "f00fa48b6adc33ab1037643e677a13d0127f8bcbc41d2914b5efe97337eee760",
+      "counts": [
+        {
+          "tests": 23
+        },
+        {
+          "pass": 22
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 5127.6599
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/x-targeting-batch-baseline.log",
+      "sha256": "4e61f03b7a09c8277be5c50a7cbd85a781fc7a67cdc6a51eb74cf51818b8c53b",
+      "counts": [
+        {
+          "tests": 2
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 2
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 653.7247
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/x-targeting-batch-build-2.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/x-targeting-batch-build-3.log",
+      "sha256": "455609d7469f584bb18f1ac13f434d81a4412a7916820609add8a2071fc12dbb",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/x-targeting-batch-build.log",
+      "sha256": "b6c7443a7135386ddfcd6dff545219b1eec729ff56b5aec75797e5022be96295",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/x-targeting-batch-core.log",
+      "sha256": "eb9dd103c2e4a03b43b2fae4bbc121058d3e38929d193581b6e6d17485cfab50",
+      "counts": [
+        {
+          "tests": 6
+        },
+        {
+          "pass": 6
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 2426.7159
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/x-targeting-batch-coverage.log",
+      "sha256": "9aaba801dec746b92bd66ca322af1d95cc57030a2862756ce957c26a63fb2d7c",
+      "counts": []
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/x-targeting-batch-receipt-baseline.log",
+      "sha256": "691132d7f0437f08cca0e9c4d7cb5bac1743c965532426937bcb3b8b6581ef3d",
+      "counts": [
+        {
+          "tests": 1
+        },
+        {
+          "pass": 0
+        },
+        {
+          "fail": 1
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 673.5046
+        }
+      ]
+    },
+    {
+      "path": ".runtime/contract-completion-20260924/x-targeting-batch-selected.log",
+      "sha256": "ba7903e6c185f836257af5a889814d0e4bc956fd6911452cf3c37e7e4ddb9593",
+      "counts": [
+        {
+          "tests": 158
+        },
+        {
+          "pass": 158
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 33679.0049
+        }
+      ]
+    },
+    {
+      "path": ".release/continuation-20260925-i/release-check.log",
+      "sha256": "5d77bcc238e93eb48d4a0bca387788871ee99b17e78f551dfc91b373bf3c866f",
+      "counts": [
+        {
+          "tests": 2013
+        },
+        {
+          "pass": 2013
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 450779.9492
+        },
+        {
+          "tests": 4
+        },
+        {
+          "pass": 4
+        },
+        {
+          "fail": 0
+        },
+        {
+          "skipped": 0
+        },
+        {
+          "duration_ms": 70.0478
+        }
+      ]
+    },
+    {
+      "path": ".release/continuation-20260925-i/railway-check.log",
+      "sha256": "f2fe3b5dc9105f0b53fa7bb913efecdf612026d6550cc05ece99384fb39cb709",
+      "counts": []
+    }
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2013,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials or account mutations.",
+    "Provider permissions, live output compatibility, Docker and deployment remain separately unverified.",
+    "See the matching implementation report for explicit contract limits, initial failures and primary references."
+  ]
+}

@@ -31,6 +31,7 @@ import type {Action,CompiledRequest,JsonObject} from './types.js';
 export type ContractStatus='native_read'|'reviewed_write_family'|'media_workflow'|'local_workflow'|'adapter_requires_input'|'blocked_write'|'unmapped'|'unqualified_read'|'provider_unsupported';
 export interface ActionContract {gateway:string;operation?:string;action:string;aliases:string[];method:string|null;path:string|null;origin?:string;status:ContractStatus;family?:string;implementation:string;reason:string;source:string;tests:string[];live_qualification:'unverified';}
 const familyFiles:Record<string,[string,string[]]>={
+ x_targeting_batch:['src/x-targeting-batch.ts',['tests/x-targeting-batch.test.mjs']],
  snapchat_nested_updates:['src/snapchat-nested-updates.ts',['tests/snapchat-nested-updates.test.ts']],
  x_report_jobs:['src/x-report-jobs.ts / src/x-report-download.ts',['tests/x-report-jobs.test.ts']],
  tiktok_report_jobs:['src/tiktok-report-jobs.ts',['tests/tiktok-report-jobs.test.ts']],

@@ -313,3 +313,49 @@ and historical entity reporting follow that contract. The current placements are
 ALL_ON_TWITTER, SPOTLIGHT and TREND. Segmented values may not reconcile to totals;
 recent values, attribution and billing adjustments remain estimates. These
 contracts have synthetic tests; account-specific native acceptance is unverified.
+
+### X atomic targeting batches
+
+Use `x_batch_accounts_account_id_targeting_criteria_post` through
+`amcp_write inspect → prepare → execute` to create and remove criteria together.
+Select the exact connection/account, discover the line items and current criteria,
+and ask for any missing business targeting choices. Every affected line item must
+be paused; pausing and subsequent activation are separate reviewed decisions.
+Never invent locations, interests, audience IDs or an approved audience expansion.
+
+The native JSON payload is an ordered array of operations:
+`Create` uses `params.line_item_id`, `targeting_type`, string
+`targeting_value` and optional `operator_type: EQ|NE`; `Delete` uses only
+`params.targeting_criterion_id`. The executable example in
+`examples/contracts.json` shows a replacement. Do not use Update or add budgets,
+status, account IDs, method overrides or arbitrary native fields to an item.
+Deletion policy applies even though the HTTP request is POST.
+
+AMCP resolves deletion parents, reads complete current membership twice, checks
+paused parents/campaigns and the projected audience, and validates current
+account-scoped custom audiences and FULL authors for own-content targeting.
+An audience can be shared by its provider owner; availability in this account
+does not grant AMCP ownership of its definition. Eligibility and permission
+metadata remain protected; fluctuating audience-size estimates are not a
+configuration conflict. Actual private audience members are not inspected.
+
+Local bounds: 100 operations, 20 line items, 25 private references, 10,000 criteria
+per complete collection, 320 reads, 8 MiB and 60 seconds. The vendor documents
+500 operations, but AMCP has qualified the smaller bound. Do not split one
+desired change into automatic writes to bypass a limit. TV_SHOW locale checks,
+APP_LIST/TAP exclusions, preroll-only types and GTE/LT comparisons need separate
+contracts. Their absence is not authorization to use a raw gateway.
+
+The provider promises atomic batch application and response order. AMCP validates
+every ordered receipt, preserves accepted results before late access denial, and
+reads the entire resulting set, including unaffected criteria. Use
+`amcp_campaign verify` with the original review. Unexpected extra/missing
+criteria or a changed parent are inconclusive, never permission to repeat the
+batch. Missing, partial or lost receipts retain the original one-attempt claim.
+There is no provider conditional-write mechanism joining the read snapshot to
+the mutation; an external concurrent activation remains an operational race.
+
+Reference checked 2026-09-25:
+[X v12 campaign management reference](https://docs.x.com/x-ads-api/campaign-management/reference#post-batch-accounts-account-id-targeting-criteria).
+Source hash and native examples are pinned in
+`tests/fixtures/x-targeting-batch-evidence.json`.
