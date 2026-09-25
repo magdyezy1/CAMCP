@@ -1,0 +1,304 @@
+{
+  "version": "v23",
+  "checked_at": "2026-09-25",
+  "meaning": "Public source-hashed protocol evidence. Native definition support does not establish tracking, upload eligibility or provider permissions.",
+  "sources": {
+    "resources/conversion_action": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/resources/conversion_action.proto",
+      "sha256": "f47b914460b114bcd869a58e077e49e17744e94371cf3799ace2aa0fa1b0ce2e"
+    },
+    "services/conversion_action_service": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/services/conversion_action_service.proto",
+      "sha256": "dbace5b47ab7395ee6cf41cee2d4142145ee2ba993401c4329d8425af3924b5c"
+    },
+    "enums/conversion_action_type": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/enums/conversion_action_type.proto",
+      "sha256": "944e6a1c627894f047a37f62b576a72809a26937395abf5716f892a0f83baf71"
+    },
+    "enums/conversion_action_category": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/enums/conversion_action_category.proto",
+      "sha256": "d4cc85c169a54ca08753eeb0c8c394bb7f545c9d3dae8df0c85ecb59a0aeec62"
+    },
+    "enums/conversion_action_status": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/enums/conversion_action_status.proto",
+      "sha256": "d67c5391ecca542c1a387c10ce5b6edf465596ce8cd14a56d0789240afeb401a"
+    },
+    "enums/conversion_action_counting_type": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/enums/conversion_action_counting_type.proto",
+      "sha256": "813eed7e7dc7cc1e6b2eafb7dbfc75ccf0970249d1b7f3fb89de09fe4c884ae7"
+    },
+    "enums/attribution_model": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/enums/attribution_model.proto",
+      "sha256": "21a544ca05fefbbc0798c63af2792d40100a509adbfb46f064c4d63d77eb9ad0"
+    },
+    "errors/conversion_action_error": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/errors/conversion_action_error.proto",
+      "sha256": "080a9a69065231a17ba55f0c1013b6ba10631fb88fe481b272ac5abba392ce1c"
+    }
+  },
+  "resourcePattern": "customers/{customer_id}/conversionActions/{conversion_action_id}",
+  "route": "/v23/customers/{customer_id=*}/conversionActions:mutate",
+  "fields": {
+    "ConversionAction": [
+      "always_use_default_value",
+      "app_id",
+      "attribution_model",
+      "attribution_model_settings",
+      "category",
+      "click_through_lookback_window_days",
+      "counting_type",
+      "data_driven_model_status",
+      "default_currency_code",
+      "default_value",
+      "event_name",
+      "firebase_settings",
+      "id",
+      "include_in_conversions_metric",
+      "mobile_app_vendor",
+      "name",
+      "origin",
+      "owner_customer",
+      "phone_call_duration_seconds",
+      "primary_for_goal",
+      "project_id",
+      "property_id",
+      "property_name",
+      "provider_name",
+      "resource_name",
+      "status",
+      "tag_snippets",
+      "third_party_app_analytics_settings",
+      "type",
+      "value_settings",
+      "view_through_lookback_window_days"
+    ],
+    "ValueSettings": [
+      "always_use_default_value",
+      "default_currency_code",
+      "default_value"
+    ],
+    "AttributionModelSettings": [
+      "attribution_model",
+      "data_driven_model_status"
+    ]
+  },
+  "enums": {
+    "conversion_action_type": {
+      "UNSPECIFIED": 0,
+      "UNKNOWN": 1,
+      "AD_CALL": 2,
+      "CLICK_TO_CALL": 3,
+      "GOOGLE_PLAY_DOWNLOAD": 4,
+      "GOOGLE_PLAY_IN_APP_PURCHASE": 5,
+      "UPLOAD_CALLS": 6,
+      "UPLOAD_CLICKS": 7,
+      "WEBPAGE": 8,
+      "WEBSITE_CALL": 9,
+      "STORE_SALES_DIRECT_UPLOAD": 10,
+      "STORE_SALES": 11,
+      "FIREBASE_ANDROID_FIRST_OPEN": 12,
+      "FIREBASE_ANDROID_IN_APP_PURCHASE": 13,
+      "FIREBASE_ANDROID_CUSTOM": 14,
+      "FIREBASE_IOS_FIRST_OPEN": 15,
+      "FIREBASE_IOS_IN_APP_PURCHASE": 16,
+      "FIREBASE_IOS_CUSTOM": 17,
+      "THIRD_PARTY_APP_ANALYTICS_ANDROID_FIRST_OPEN": 18,
+      "THIRD_PARTY_APP_ANALYTICS_ANDROID_IN_APP_PURCHASE": 19,
+      "THIRD_PARTY_APP_ANALYTICS_ANDROID_CUSTOM": 20,
+      "THIRD_PARTY_APP_ANALYTICS_IOS_FIRST_OPEN": 21,
+      "THIRD_PARTY_APP_ANALYTICS_IOS_IN_APP_PURCHASE": 22,
+      "THIRD_PARTY_APP_ANALYTICS_IOS_CUSTOM": 23,
+      "ANDROID_APP_PRE_REGISTRATION": 24,
+      "ANDROID_INSTALLS_ALL_OTHER_APPS": 25,
+      "FLOODLIGHT_ACTION": 26,
+      "FLOODLIGHT_TRANSACTION": 27,
+      "GOOGLE_HOSTED": 28,
+      "LEAD_FORM_SUBMIT": 29,
+      "SALESFORCE": 30,
+      "SMART_CAMPAIGN_AD_CLICKS_TO_CALL": 32,
+      "SMART_CAMPAIGN_MAP_CLICKS_TO_CALL": 33,
+      "SMART_CAMPAIGN_MAP_DIRECTIONS": 34,
+      "SMART_CAMPAIGN_TRACKED_CALLS": 35,
+      "STORE_VISITS": 36,
+      "WEBPAGE_CODELESS": 37,
+      "UNIVERSAL_ANALYTICS_GOAL": 38,
+      "UNIVERSAL_ANALYTICS_TRANSACTION": 39
+    },
+    "conversion_action_category": {
+      "UNSPECIFIED": 0,
+      "UNKNOWN": 1,
+      "DEFAULT": 2,
+      "PAGE_VIEW": 3,
+      "PURCHASE": 4,
+      "SIGNUP": 5,
+      "DOWNLOAD": 7,
+      "ADD_TO_CART": 8,
+      "BEGIN_CHECKOUT": 9,
+      "SUBSCRIBE_PAID": 10,
+      "PHONE_CALL_LEAD": 11,
+      "IMPORTED_LEAD": 12,
+      "SUBMIT_LEAD_FORM": 13,
+      "BOOK_APPOINTMENT": 14,
+      "REQUEST_QUOTE": 15,
+      "GET_DIRECTIONS": 16,
+      "OUTBOUND_CLICK": 17,
+      "CONTACT": 18,
+      "ENGAGEMENT": 19,
+      "STORE_VISIT": 20,
+      "STORE_SALE": 21,
+      "QUALIFIED_LEAD": 22,
+      "CONVERTED_LEAD": 23,
+      "YOUTUBE_FOLLOW_ON_VIEWS": 24
+    },
+    "conversion_action_status": {
+      "UNSPECIFIED": 0,
+      "UNKNOWN": 1,
+      "ENABLED": 2,
+      "REMOVED": 3,
+      "HIDDEN": 4
+    },
+    "conversion_action_counting_type": {
+      "UNSPECIFIED": 0,
+      "UNKNOWN": 1,
+      "ONE_PER_CLICK": 2,
+      "MANY_PER_CLICK": 3
+    },
+    "attribution_model": {
+      "UNSPECIFIED": 0,
+      "UNKNOWN": 1,
+      "EXTERNAL": 100,
+      "GOOGLE_ADS_LAST_CLICK": 101,
+      "GOOGLE_SEARCH_ATTRIBUTION_FIRST_CLICK": 102,
+      "GOOGLE_SEARCH_ATTRIBUTION_LINEAR": 103,
+      "GOOGLE_SEARCH_ATTRIBUTION_TIME_DECAY": 104,
+      "GOOGLE_SEARCH_ATTRIBUTION_POSITION_BASED": 105,
+      "GOOGLE_SEARCH_ATTRIBUTION_DATA_DRIVEN": 106
+    },
+    "conversion_action_error": {
+      "UNSPECIFIED": 0,
+      "UNKNOWN": 1,
+      "DUPLICATE_NAME": 2,
+      "DUPLICATE_APP_ID": 3,
+      "TWO_CONVERSION_ACTIONS_BIDDING_ON_SAME_APP_DOWNLOAD": 4,
+      "BIDDING_ON_SAME_APP_DOWNLOAD_AS_GLOBAL_ACTION": 5,
+      "DATA_DRIVEN_MODEL_WAS_NEVER_GENERATED": 6,
+      "DATA_DRIVEN_MODEL_EXPIRED": 7,
+      "DATA_DRIVEN_MODEL_STALE": 8,
+      "DATA_DRIVEN_MODEL_UNKNOWN": 9,
+      "CREATION_NOT_SUPPORTED": 10,
+      "UPDATE_NOT_SUPPORTED": 11,
+      "CANNOT_SET_RULE_BASED_ATTRIBUTION_MODELS": 12
+    }
+  },
+  "fieldEvidence": {
+    "source": "https://developers.google.com/google-ads/api/fields/v23/conversion_action",
+    "method": "Offline field-heading/table extraction from public web-tool reference excerpts; not a live account query.",
+    "source_text_sha256": "d5f0ca275cb3793f36e30cbc6c74ba065d7e0990c96f2c196c9134c192d9dfba",
+    "fields": {
+      "name": {
+        "selectable": true,
+        "repeated": false
+      },
+      "origin": {
+        "selectable": true,
+        "repeated": false
+      },
+      "owner_customer": {
+        "selectable": true,
+        "repeated": false
+      },
+      "phone_call_duration_seconds": {
+        "selectable": true,
+        "repeated": false
+      },
+      "primary_for_goal": {
+        "selectable": true,
+        "repeated": false
+      },
+      "resource_name": {
+        "selectable": true,
+        "repeated": false
+      },
+      "status": {
+        "selectable": true,
+        "repeated": false
+      },
+      "tag_snippets": {
+        "selectable": true,
+        "repeated": true
+      },
+      "third_party_app_analytics_settings.event_name": {
+        "selectable": true,
+        "repeated": false
+      },
+      "app_id": {
+        "selectable": true,
+        "repeated": false
+      },
+      "attribution_model_settings.attribution_model": {
+        "selectable": true,
+        "repeated": false
+      },
+      "attribution_model_settings.data_driven_model_status": {
+        "selectable": true,
+        "repeated": false
+      },
+      "category": {
+        "selectable": true,
+        "repeated": false
+      },
+      "click_through_lookback_window_days": {
+        "selectable": true,
+        "repeated": false
+      },
+      "counting_type": {
+        "selectable": true,
+        "repeated": false
+      },
+      "firebase_settings.property_id": {
+        "selectable": true,
+        "repeated": false
+      },
+      "firebase_settings.property_name": {
+        "selectable": true,
+        "repeated": false
+      },
+      "id": {
+        "selectable": true,
+        "repeated": false
+      },
+      "include_in_conversions_metric": {
+        "selectable": true,
+        "repeated": false
+      },
+      "mobile_app_vendor": {
+        "selectable": true,
+        "repeated": false
+      },
+      "value_settings.always_use_default_value": {
+        "selectable": true,
+        "repeated": false
+      },
+      "value_settings.default_currency_code": {
+        "selectable": true,
+        "repeated": false
+      },
+      "value_settings.default_value": {
+        "selectable": true,
+        "repeated": false
+      },
+      "view_through_lookback_window_days": {
+        "selectable": true,
+        "repeated": false
+      },
+      "third_party_app_analytics_settings.provider_name": {
+        "selectable": true,
+        "repeated": false
+      },
+      "type": {
+        "selectable": true,
+        "repeated": false
+      }
+    }
+  }
+}

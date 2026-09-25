@@ -16,6 +16,10 @@ import {reportPlatforms} from '../dist/src/report-metrics.js';
 import {mediaPlatforms} from '../dist/src/media-routing.js';
 const examples=JSON.parse(fs.readFileSync('Skills/amcp-campaign-builder/examples/contracts.json','utf8'));
 const actor={tenantId:'guidance-examples',userId:'owner',role:'admin'},key=Buffer.alloc(32,81).toString('base64');
+test('X asynchronous report retrieval example compiles with server-only download controls and no egress',async()=>{
+ const store=new Store(':memory:'),service=new MirrorService(new Registry(),store,new NativeTransport(async()=>{throw Error('Example attempted provider egress');}));
+ try{assert.equal(examples.x_report_previews.length,1);for(const example of examples.x_report_previews){const out=await service.call(example.gateway,{...example.arguments,dry_run:true},actor);assert.equal(out.success,true,JSON.stringify(out));assert.equal(out.data.executed,false);assert.equal(out.data.request.readOnly,true);assert.equal(out.data.request.reportDownload.limit,100);assert.deepEqual(out.data.request.query,{job_ids:'1120829647711653888'});}}finally{store.close();}
+});
 test('draft-generation examples compile without credentials and never save or publish content',async()=>{
  const store=new Store(':memory:'),service=new MirrorService(new Registry(),store,new NativeTransport(async()=>{throw Error('Example attempted provider egress');}));
  try{assert.equal(examples.native_read_previews.length,3);for(const example of examples.native_read_previews){const out=await service.call(example.gateway,{...example.arguments,dry_run:true},actor);assert.equal(out.success,true,JSON.stringify(out));assert.equal(out.data.executed,false);assert.equal(out.data.request.readOnly,true);assert.match(out.data.request.warnings.join(' '),/does not save assets/);}}finally{store.close();}

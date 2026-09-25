@@ -196,13 +196,14 @@ export class MediaUploadService {
    return out;
   }
  }
- private async send(actor:Actor,p:UploadPlan,path:string,body?:JsonObject,options:{method?:string;query?:JsonObject;origin?:string;upload?:BinaryUpload;readOnly?:boolean;headers?:Record<string,string>}={}):Promise<TransportResult>{
+ private async send(actor:Actor,p:UploadPlan,path:string,body?:JsonObject,options:{method?:string;query?:JsonObject;origin?:string;upload?:BinaryUpload;readOnly?:boolean;headers?:Record<string,string>;beforeAttempt?:()=>unknown}={}):Promise<TransportResult>{
+  options.beforeAttempt?.();
   if(!options.readOnly&&p.source_drive)driveAccess(this.store,actor,p.source_drive.connection_id,p.source_drive.url);
   const c=this.access(actor,p.platform,p.account_id,p.connection_id),auth=await this.credentials.get(c),current=this.access(actor,p.platform,p.account_id,p.connection_id);
   this.ownerScope(p,current);if(p.existing_media_id)new ScopeGuard(this.registry,this.store).authorize(p.read,current);
   if(!options.readOnly&&this.executionContext.getStore()!==undefined&&this.executionContext.getStore()!<=Date.now())fail('REVIEW_EXPIRED','Media review expired before the next upload step.');
   const plan:CompiledRequest={...p.read,action:'AMCP_REVIEWED_MEDIA',method:options.method??'POST',path,body,query:options.query??{},headers:{...p.read.headers,...options.headers},origin:options.origin,readOnly:options.readOnly??false};
-  const access=nativeAuthority(this.store,this.registry,actor,p.read,current,auth,()=>{const c=this.access(actor,p.platform,p.account_id,p.connection_id);this.ownerScope(p,c);if(!options.readOnly&&p.source_drive)driveAccess(this.store,actor,p.source_drive.connection_id,p.source_drive.url);if(!options.readOnly&&this.executionContext.getStore()!==undefined&&this.executionContext.getStore()!<=Date.now())fail('REVIEW_EXPIRED','Media review expired before the next upload step.');});const response=await this.transport.request(plan,access(),auth,options.upload,{beforeAttempt:access});if(plan.readOnly)access();
+  const access=nativeAuthority(this.store,this.registry,actor,p.read,current,auth,()=>{options.beforeAttempt?.();const c=this.access(actor,p.platform,p.account_id,p.connection_id);this.ownerScope(p,c);if(!options.readOnly&&p.source_drive)driveAccess(this.store,actor,p.source_drive.connection_id,p.source_drive.url);if(!options.readOnly&&this.executionContext.getStore()!==undefined&&this.executionContext.getStore()!<=Date.now())fail('REVIEW_EXPIRED','Media review expired before the next upload step.');});const response=await this.transport.request(plan,access(),auth,options.upload,{beforeAttempt:access});if(plan.readOnly)access();
   const emptyFinalize=p.platform==='linkedin'&&path==='/rest/videos'&&options.query?.action==='finalizeUpload'&&[200,204].includes(response.status)&&response.data!==null&&typeof response.data==='object'&&!Array.isArray(response.data)&&Object.keys(response.data).length===0;
   const googleStart=p.platform==='google_ads'&&path.startsWith('/resumable/upload/')&&response.status===200&&response.headers['x-goog-upload-url'];
   if(!options.readOnly&&!emptyFinalize&&!googleStart&&response.data!==null&&writeOutcome(response).success!==true)fail('MEDIA_RESPONSE_INVALID','Provider did not confirm this upload step.');return response;
@@ -250,14 +251,31 @@ export class MediaUploadService {
    return {media_id:id,ready:d.result.media_status==='READY',processing_status:d.result.media_status??'PROCESSING'};
   }
   if(p.platform==='linkedin'){
-   const kind=p.kind==='image'?'images':'videos',request={owner:p.owner_urn??'urn:li:sponsoredAccount:'+p.account_id,mediaLibraryMetadata:{associatedAccount:'urn:li:sponsoredAccount:'+p.account_id,assetName:p.name},...(p.kind==='video'?{fileSizeBytes:p.size,uploadCaptions:false,uploadThumbnail:false}:{})};
-   const d=(await send('/rest/'+kind,{initializeUploadRequest:request},{query:{action:'initializeUpload'}})).data as JsonObject,v=d.value,id=responseId(v?.[p.kind],new RegExp('^urn:li:'+p.kind+':[A-Za-z0-9_-]+$'));record({media_id:id});
+   const c=this.access(actor,p.platform,p.account_id,p.connection_id),auth=await this.credentials.get(c);
+   const access=nativeAuthority(this.store,this.registry,actor,p.read,this.access(actor,p.platform,p.account_id,p.connection_id),auth,()=>{
+    this.ownerScope(p,this.access(actor,p.platform,p.account_id,p.connection_id));
+    if(p.source_drive)driveAccess(this.store,actor,p.source_drive.connection_id,p.source_drive.url);
+    if(this.executionContext.getStore()!==undefined&&this.executionContext.getStore()!<=Date.now())fail('REVIEW_EXPIRED','Media review expired before the next upload step.');
+   });
+   const linkedInSend=(body:JsonObject,action:string)=>send('/rest/'+(p.kind==='image'?'images':'videos'),body,{query:{action},beforeAttempt:access});
+   const request={owner:p.owner_urn??'urn:li:sponsoredAccount:'+p.account_id,mediaLibraryMetadata:{associatedAccount:'urn:li:sponsoredAccount:'+p.account_id,assetName:p.name},...(p.kind==='video'?{fileSizeBytes:p.size,uploadCaptions:false,uploadThumbnail:false}:{})};
+   const d=(await linkedInSend({initializeUploadRequest:request},'initializeUpload')).data as JsonObject,v=d.value,id=responseId(v?.[p.kind],new RegExp('^urn:li:'+p.kind+':[A-Za-z0-9_-]+$'));record({media_id:id});
    const instructions=p.kind==='image'?[{uploadUrl:v.uploadUrl,firstByte:0,lastByte:bytes.length-1}]:v.uploadInstructions;
    if(!Array.isArray(instructions)||!instructions.length||instructions.length>32)fail('MEDIA_RESPONSE_INVALID','LinkedIn returned invalid upload instructions.');
-   let offset=0;for(const part of instructions){if(part.firstByte!==offset||!Number.isSafeInteger(part.lastByte)||part.lastByte<offset||part.firstByte>=bytes.length)fail('MEDIA_RESPONSE_INVALID','LinkedIn upload byte ranges do not cover the reviewed file.');offset=Math.min(part.lastByte+1,bytes.length);}
+   let offset=0;for(const part of instructions){if(!part||typeof part!=='object'||typeof part.uploadUrl!=='string'||part.firstByte!==offset||!Number.isSafeInteger(part.lastByte)||part.lastByte<offset||part.firstByte>=bytes.length)fail('MEDIA_RESPONSE_INVALID','LinkedIn upload byte ranges do not cover the reviewed file.');offset=Math.min(part.lastByte+1,bytes.length);}
    if(offset!==bytes.length)fail('MEDIA_RESPONSE_INVALID','LinkedIn upload ranges omit file bytes.');
-   const ids:string[]=[];for(const part of instructions){const c=this.access(actor,p.platform,p.account_id,p.connection_id),token=p.kind==='image'?(await this.credentials.get(c)).accessToken:undefined;this.access(actor,p.platform,p.account_id,p.connection_id);if(this.executionContext.getStore()!==undefined&&this.executionContext.getStore()!<=Date.now())fail('REVIEW_EXPIRED','Media review expired before the next upload step.');const etag=await this.transport.uploadLinkedIn(part.uploadUrl,bytes.subarray(part.firstByte,part.lastByte+1),p.mime,token);if(p.kind==='video'){if(!etag)fail('MEDIA_RESPONSE_INVALID','LinkedIn upload did not return its part identifier.');ids.push(etag!);}}
-   if(p.kind==='video'){if(typeof v.uploadToken!=='string')fail('MEDIA_RESPONSE_INVALID','LinkedIn did not return its upload token.');await send('/rest/videos',{finalizeUploadRequest:{video:id,uploadToken:v.uploadToken,uploadedPartIds:ids}},{query:{action:'finalizeUpload'}});}
+   if(p.kind==='video'&&typeof v.uploadToken!=='string')fail('MEDIA_RESPONSE_INVALID','LinkedIn did not return its upload token.');
+   const ids:string[]=[],transfer={provider:'linkedin',media_id:id,owner_urn:request.owner,upload_token:v.uploadToken,upload_instructions:instructions,uploaded_part_ids:ids,finalization_started:false};
+   // Keep signed instructions and part receipts encrypted. Public progress contains counts only.
+   record({session:transfer,bytes_confirmed:0,total_bytes:bytes.length,parts_confirmed:0});
+   for(const part of instructions){
+    access();
+    if(v.uploadUrlsExpireAt!==undefined&&(!Number.isSafeInteger(v.uploadUrlsExpireAt)||v.uploadUrlsExpireAt<=Date.now()))fail('MEDIA_UPLOAD_URL_EXPIRED','LinkedIn upload instructions expired. Inspect the allocated media before preparing another upload.');
+    const etag=await this.transport.uploadLinkedIn(part.uploadUrl,bytes.subarray(part.firstByte,part.lastByte+1),p.mime,p.kind==='image'?auth.accessToken:undefined);
+    if(p.kind==='video'){if(!etag)fail('MEDIA_RESPONSE_INVALID','LinkedIn upload did not return its part identifier.');ids.push(etag!);}
+    record({session:transfer,bytes_confirmed:Math.min(part.lastByte+1,bytes.length),total_bytes:bytes.length,parts_confirmed:p.kind==='video'?ids.length:1});
+   }
+   if(p.kind==='video'){access();record({finalization_started:true});await linkedInSend({finalizeUploadRequest:{video:id,uploadToken:v.uploadToken,uploadedPartIds:ids}},'finalizeUpload');}
    return {media_id:id,ready:false,processing_status:'PROCESSING'};
   }
   if(p.platform==='x_ads'){

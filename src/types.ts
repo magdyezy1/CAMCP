@@ -43,6 +43,10 @@ export interface CompiledRequest {
   /** Server-derived original TikTok task binding and process-local deadline. */
   tiktokReportRead?:JsonObject;
   tiktokReportDeadline?:number;
+  /** Server-derived original X report bindings and bounded retrieval deadline. */
+  xReportRead?:JsonObject[];
+  xReportDeadline?:number;
+  snapUpdateDeadline?:number;
   /** Server-derived Criteo report binding. External inputs cannot set this. */
   criteoReportRead?:JsonObject;
   criteoReportReviewId?:string;

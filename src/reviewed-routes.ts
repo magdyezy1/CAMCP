@@ -1,3 +1,5 @@
+import {snapUpdateKind} from './snapchat-nested-updates.js';
+import {xReportKind} from './x-report-jobs.js';
 import {googlePreviewKind} from './google-preview-writes.js';
 import {criteoCampaignKind} from './criteo-campaign-writes.js';
 import {metaReportKind} from './meta-insights-jobs.js';
@@ -17,6 +19,7 @@ import {googleBidKind} from './google-bid-modifiers.js';
 import {googleConversionGoalKind} from './google-conversion-goals.js';
 import {googleBiddingEventKind} from './google-bidding-events.js';
 import {googlePortfolioKind} from './google-portfolio-strategies.js';
+import {googleConversionActionKind} from './google-conversion-actions.js';
 import type {CompiledRequest} from './types.js';
 import {appleEntityKind} from './apple-entity-writes.js';
 import {dv360ListKind} from './dv360-list-writes.js';
@@ -39,6 +42,8 @@ import {gtmWorkspaceKind} from './gtm-workspace-writes.js';
 export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  const route=p.path,method=p.method,action=p.action.split('/').at(-1)!;
  if(p.readOnly||p.specialTransport)return;
+ if(xReportKind(p))return 'x_report_jobs';
+ if(snapUpdateKind(p))return 'snapchat_nested_updates';
  if(googlePreviewKind(p))return 'google_shareable_previews';
  if(placeActionKind(p))return 'google_place_actions';
  if(businessNotificationKind(p))return 'google_business_notifications';
@@ -55,6 +60,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(googleBidKind(p))return 'google_bid_modifiers';
  if(googleBiddingEventKind(p))return 'google_bidding_events';
  if(googlePortfolioKind(p))return 'google_portfolio_strategies';
+ if(googleConversionActionKind(p))return 'google_conversion_actions';
  if(googleConversionGoalKind(p))return 'google_conversion_goals';
  if(criteoTargetingKind(p))return 'criteo_targeting';
  if(gtmWorkflowKind(p))return 'gtm_workflows';

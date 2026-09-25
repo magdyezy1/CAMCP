@@ -1,6 +1,8 @@
+import {snapUpdateKind,assertSnapUpdate,snapUpdateSnapshots,readSnapUpdateState,snapUpdateOutcome} from './snapchat-nested-updates.js';
 import {googlePreviewKind,assertGooglePreview,googlePreviewSnapshots,readGooglePreviewState,googlePreviewOutcome,googlePreviewDelivery,googlePreviewSafeOutcome} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaign,assertCriteoCampaignScopes,criteoCampaignSnapshots,readCriteoCampaignState,criteoCampaignOutcome} from './criteo-campaign-writes.js';
 import {metaReportKind,assertMetaReport,assertMetaReportScope,metaReportSnapshots,readMetaReportState,metaReportOutcome} from './meta-insights-jobs.js';
+import {xReportKind,assertXReport,xReportSnapshots,readXReportState,xReportOutcome,xReportSafeData,retainXReport,xReportIdentity,admitXReport} from './x-report-jobs.js';
 import {tiktokReportKind,assertTiktokReport,tiktokReportSnapshots,readTiktokReportState,tiktokReportOutcome,retainTiktokReport,admitTiktokReport} from './tiktok-report-jobs.js';
 import {criteoReportKind,assertCriteoReport,assertCriteoReportScopes,criteoReportSnapshots,readCriteoReportState,criteoReportOutcome} from './criteo-report-jobs.js';
 import {metaCreativeCreate,metaCreativeIdentityReads,metaCreativeState} from './meta-creative-state.js';
@@ -34,6 +36,7 @@ import {googleSegmentKind} from './google-custom-segments.js';
 import {googleConversionGoalKind,assertGoogleConversionGoal,googleConversionGoalSnapshots,readGoogleConversionGoalState,googleConversionGoalOutcome} from './google-conversion-goals.js';
 import {googleBiddingEventKind,assertGoogleBiddingEvent,googleBiddingEventSnapshots,readGoogleBiddingEventState,googleBiddingEventOutcome} from './google-bidding-events.js';
 import {googlePortfolioKind,assertGooglePortfolio,googlePortfolioSnapshots,readGooglePortfolioState,googlePortfolioOutcome} from './google-portfolio-strategies.js';
+import {googleConversionActionKind,assertGoogleConversionAction,googleConversionActionSnapshots,readGoogleConversionActionState,googleConversionActionOutcome} from './google-conversion-actions.js';
 import {linkedinDSC,assertLinkedInDSC,linkedinDSCReads,linkedinMediaProjection,linkedinPostId} from './linkedin-posts.js';
 import {writeImpact} from './write-impact.js';
 import {executionEvidence} from './contract-evidence.js';
@@ -98,9 +101,12 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(googleBidKind(plan))return googleBidOutcome(plan,result);
  if(googleBiddingEventKind(plan))return googleBiddingEventOutcome(plan,result,before);
  if(googlePortfolioKind(plan))return googlePortfolioOutcome(plan,result,before);
+ if(googleConversionActionKind(plan))return googleConversionActionOutcome(plan,result,before);
  if(googleConversionGoalKind(plan))return googleConversionGoalOutcome(plan,result,before);
  if(metaReportKind(plan))return metaReportOutcome(plan,result);
  if(criteoCampaignKind(plan))return criteoCampaignOutcome(plan,result);
+ if(snapUpdateKind(plan))return snapUpdateOutcome(plan,result);
+ if(xReportKind(plan))return xReportOutcome(plan,result);
  if(tiktokReportKind(plan))return tiktokReportOutcome(plan,result);
  if(criteoReportKind(plan))return criteoReportOutcome(plan,result);
  if(metaLabelKind(plan))return metaLabelOutcome(plan,result,before);
@@ -247,6 +253,8 @@ export function assertWriteShape(plan:CompiledRequest){
  if(criteoTargetingKind(plan))assertCriteoTargeting(plan);
  if(metaReportKind(plan))assertMetaReport(plan);
  if(criteoCampaignKind(plan))assertCriteoCampaign(plan);
+ if(snapUpdateKind(plan)){assertSnapUpdate(plan);return;}
+ if(xReportKind(plan)){assertXReport(plan);return;}
  if(tiktokReportKind(plan))assertTiktokReport(plan);
  if(criteoReportKind(plan))assertCriteoReport(plan);
  if(metaLabelKind(plan))assertMetaLabel(plan);
@@ -289,12 +297,14 @@ export function assertWriteShape(plan:CompiledRequest){
   assertGoogleBid(plan);
   assertGoogleBiddingEvent(plan);
   assertGooglePortfolio(plan);
+  assertGoogleConversionAction(plan);
   assertGoogleConversionGoal(plan);
  }
 }
 
 /** Reads are explicitly derived from the target, never supplied by the caller as proof. */
 export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRequest[]{
+ if(snapUpdateKind(plan))return snapUpdateSnapshots(plan);
  if(googlePreviewKind(plan))return googlePreviewSnapshots(plan);
  if(placeActionKind(plan))return placeActionSnapshots(plan);
  if(businessNotificationKind(plan))return businessNotificationSnapshots(plan);
@@ -307,9 +317,11 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(googleBidKind(plan))return googleBidSnapshots(plan);
  if(googleBiddingEventKind(plan))return googleBiddingEventSnapshots(plan);
  if(googlePortfolioKind(plan))return googlePortfolioSnapshots(plan);
+ if(googleConversionActionKind(plan))return googleConversionActionSnapshots(plan);
  if(googleConversionGoalKind(plan))return googleConversionGoalSnapshots(plan);
  if(metaReportKind(plan))return metaReportSnapshots(plan);
  if(criteoCampaignKind(plan))return criteoCampaignSnapshots(plan);
+ if(xReportKind(plan))return xReportSnapshots(plan);
  if(tiktokReportKind(plan))return tiktokReportSnapshots(plan);
  if(criteoReportKind(plan))return criteoReportSnapshots(plan);
  if(metaLabelKind(plan))return metaLabelSnapshots(plan);
@@ -418,7 +430,7 @@ export class WriteReviewService {
   if(metaLabelKind(plan))assertMetaLabelScope(c,true);
   if(googleBidKind(plan))assertGoogleBidScope(c);
   if(googlePreviewKind(plan)||googleDismissalKind(plan)||googleAccessKind(plan))assertGoogleAdsScope(c);
-  if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan)||googlePortfolioKind(plan))assertGoogleAdsScope(c);
+  if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan)||googlePortfolioKind(plan)||googleConversionActionKind(plan))assertGoogleAdsScope(c);
   if(linkedinConversionKind(plan)||linkedinRuleKind(plan))assertLinkedInConversionScope(c,true);
   if(dv360ListKind(plan)&&!c.scopes.includes('https://www.googleapis.com/auth/display-video'))fail('PROVIDER_WRITE_SCOPE_REQUIRED','Reconnect DV360 with the display-video OAuth scope.');
   if(plan.gateway===microsoftGateway&&!c.scopes.some(s=>s===microsoftScope||s==='msads.manage'))fail('INSUFFICIENT_SCOPE','Reconnect Microsoft Advertising with msads.manage permission.');
@@ -432,6 +444,14 @@ export class WriteReviewService {
     const access=()=>{const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);if(credentialHash&&sha256(stable(this.store.credentials(actor.tenantId,c.id)))!==credentialHash)fail('REAUTHORIZATION_REQUIRED','The selected login changed during campaign preparation. Prepare again.');return c;};
     const c=access(),auth=await this.credentials.get(c);credentialHash??=sha256(stable(auth));access();const response=await this.request(actor,plan,read,c,auth);access();return response;
    });
+  }
+  if(xReportKind(plan)){
+   let identity:string|undefined;
+   return readXReportState(plan,async read=>{
+    if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Report prerequisites must remain read-only.');
+    const access=()=>{const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);if(identity&&xReportIdentity(this.store.credentials(actor.tenantId,c.id))!==identity)fail('X_REPORT_LOGIN_CHANGED','The X login changed during preparation.');return c;};
+    const c=access(),auth=await this.credentials.get(c);identity??=xReportIdentity(auth);access();const response=await this.request(actor,plan,read,c,auth);access();return response;
+   },()=>identity!);
   }
   if(tiktokReportKind(plan)){
    let tokenHash:string|undefined;
@@ -449,9 +469,17 @@ export class WriteReviewService {
     const c=access(),auth=await this.credentials.get(c);credentialHash??=sha256(stable(auth));access();const response=await this.request(actor,plan,read,c,auth);access();return response;
    });
   }
-  if(googlePreviewKind(plan)||googlePortfolioKind(plan)){
+  if(snapUpdateKind(plan)){
    let credentialHash:string|undefined;
-   return (googlePreviewKind(plan)?readGooglePreviewState:readGooglePortfolioState)(plan,async read=>{
+   return readSnapUpdateState(plan,async read=>{
+    if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Snapchat prerequisites must remain read-only.');
+    const access=()=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,current);if(credentialHash&&sha256(stable(this.store.credentials(actor.tenantId,current.id)))!==credentialHash)fail('REAUTHORIZATION_REQUIRED','The selected login changed during Snapchat checks. Prepare again with the current login.');return current;};
+    const c=access(),auth=await this.credentials.get(c);credentialHash??=sha256(stable(auth));access();const response=await this.request(actor,plan,read,c,auth);access();return response;
+   });
+  }
+  if(googlePreviewKind(plan)||googlePortfolioKind(plan)||googleConversionActionKind(plan)){
+   let credentialHash:string|undefined;
+   return (googlePreviewKind(plan)?readGooglePreviewState:googleConversionActionKind(plan)?readGoogleConversionActionState:readGooglePortfolioState)(plan,async read=>{
     if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','Portfolio prerequisites must remain read-only.');
     const access=()=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,current);if(credentialHash&&sha256(stable(this.store.credentials(actor.tenantId,current.id)))!==credentialHash)fail('REAUTHORIZATION_REQUIRED','The selected login changed during portfolio checks. Prepare again with the current login.');return current;};
     const c=access(),auth=await this.credentials.get(c);credentialHash??=sha256(stable(auth));access();const response=await this.request(actor,plan,read,c,auth);access();return response;
@@ -592,16 +620,22 @@ export class WriteReviewService {
   const c=this.access(actor,plan,review.connection_id),auth=await this.credentials.get(c);this.access(actor,plan,review.connection_id);
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Review expired during state verification.');
   assertRedditCreativeAvailable(plan);
+  if(xReportKind(plan)&&xReportIdentity(auth)!==(current[0] as JsonObject).login_fingerprint)fail('X_REPORT_LOGIN_CHANGED','The X login changed after preparation.');
   if(tiktokReportKind(plan)&&sha256(auth.accessToken??'')!==(current[0] as JsonObject).token_fingerprint)fail('TIKTOK_REPORT_TOKEN_CHANGED','TikTok credentials changed after the prerequisite read. Preserve the review and task.');
   const submittedAt=Date.now(),actorBinding=this.store.bindJobActor(actor,input.review_id);
-  const claim=this.store.transaction(()=>{checkSpendPolicy(this.store,actor,plan,current,input.review_id);const claim=this.store.claim(actor.tenantId,input.idempotency_key,fingerprint);if(claim.fresh)admitTiktokReport(plan,this.store,auth);return claim;});if(!claim.fresh){const saved={...object(claim.result),replayed:true};return googlePreviewKind(plan)?googlePreviewDelivery(plan,saved,this.store.previewReceipt(actor.tenantId,input.review_id)):saved;}
+  const claim=this.store.transaction(()=>{checkSpendPolicy(this.store,actor,plan,current,input.review_id);const claim=this.store.claim(actor.tenantId,input.idempotency_key,fingerprint);if(claim.fresh){admitTiktokReport(plan,this.store,auth);admitXReport(plan,this.store,input.review_id);}return claim;});if(!claim.fresh){const saved={...object(claim.result),replayed:true};return googlePreviewKind(plan)?googlePreviewDelivery(plan,saved,this.store.previewReceipt(actor.tenantId,input.review_id)):saved;}
   let completed=false;
   try{
    this.store.appendAudit(actor.tenantId,input.review_id,{event:'write_started',request:plan,fingerprint,before_state:current});
    const response=await this.request(actor,plan,plan,c,auth);this.delegated.validateResponse(plan,response.data,response.status);const rawResult=writeOutcome(response,plan,current),result=googlePreviewKind(plan)?googlePreviewSafeOutcome(plan,rawResult):rawResult;
+   if(xReportKind(plan))result.data=xReportSafeData(response.data);
    const outcome:JsonObject={...result,review_id:input.review_id,action:plan.action,fingerprint,...(creativeImpact?{creative_impact:creativeImpact}:{})};
    this.store.transaction(()=>{
     if(googlePreviewKind(plan)&&object(response.data)===response.data)this.store.savePreviewReceipt(actor.tenantId,input.review_id,response.data as JsonObject);
+    // A valid native job receipt remains useful even when the job immediately
+    // failed. Retain its binding and release terminal processing admission;
+    // the failed outcome still stays failed and must never be resubmitted.
+    retainXReport(plan,c,this.store,response,current,input.review_id,auth,submittedAt);
     if(result.success===true)retainTiktokReport(plan,c,this.store,response,current,input.review_id,auth,submittedAt);
     if(result.success===true)new ScopeGuard(this.registry,this.store).observeCreated(plan,c,response.data);
     if(result.success===true){

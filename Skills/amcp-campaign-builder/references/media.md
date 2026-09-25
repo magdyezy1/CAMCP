@@ -14,6 +14,15 @@ Upload completion and account-library readiness are distinct. After execute, AMC
 
 LinkedIn video uploads require `owner_urn` identifying a person or organization; sponsoredAccount is not an accepted video owner. `LINKEDIN_VIDEO_OWNER_REQUIRED` names the missing prerequisite. Supply the exact administrator owner binding and use the same organization as the DSC author for AMCP's qualified post workflow. Exact status reads require the returned owner; absent ownership is not evidence. Signed download URLs and unrelated media metadata are omitted from status results.
 
+LinkedIn checks the current login, organization binding, account grant and selected
+private Drive file before every part and finalization. A withdrawal or expired
+upload URL stops subsequent requests. The server retains ordered part receipts
+and signed instructions encrypted; the client receives allocation and byte
+progress only. Inspect the original review after an interruption. A retained
+LinkedIn part receipt does not enable automatic resume or authorize a new upload.
+An accepted finalization keeps its completed receipt even if access changes during
+the response; obtain current authorized read-back before using the media.
+
 Remote URL transfer cannot be universal: several advertising APIs require byte upload, initialization, chunk transfer or finalization. AMCP performs those steps server-side. Sending a mutable sharing URL straight to the provider would also let content change after review; the frozen reviewed bytes preserve the user's approval target.
 
 Processing status verifies the exact uploaded media identity and owner/account when applicable. Ready Meta/LinkedIn/Snapchat responses stop suggesting polls. Google returns the reviewed AssetService continuation; X returns the reviewed library-attachment continuation. An explicit status call returns MEDIA_PROCESSING_FAILED for terminal rejection. The automatic post-upload check instead returns the completed receipt with processing_failed and a verification error, preserving the original successful mutation. Both record failure in workspace assets with retry_safe:false. Do not repeat the upload or prepare an ad from a failed asset. These behaviors have synthetic fixture evidence, not new live uploads. [LinkedIn media status](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/images-api), [Snap media](https://developers.snap.com/marketing-api/Ads-API/media).

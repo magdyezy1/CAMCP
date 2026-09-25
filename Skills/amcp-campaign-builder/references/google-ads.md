@@ -744,3 +744,80 @@ and [native per-item result](https://developers.google.com/google-ads/api/refere
 The fixture and `tools/google-preview-evidence.mjs` pin and check protocol fields,
 route, scope and oneofs. Local tests use synthetic data; live format acceptance,
 link expiry/lifetime and rendering remain unverified.
+
+## Conversion definitions
+
+Use `google_ads_v23_conversion_action_mutate_conversion_actions` or its
+`CREATE_CONVERSION_ACTION`, `UPDATE_CONVERSION_ACTION` and
+`REMOVE_CONVERSION_ACTION` aliases through `amcp_write inspect → prepare →
+execute`, then `amcp_campaign verify`. These actions configure definitions;
+they do not upload conversion events or install tracking.
+
+Supported manual types are `WEBPAGE`, `CLICK_TO_CALL`, `AD_CALL`, `WEBSITE_CALL`,
+`UPLOAD_CLICKS` and `UPLOAD_CALLS`. Select a client using its own conversion
+customer. Current App campaigns, manager-shared tracking and imported GA4/app/
+system definitions need their separate dependency contracts. System and
+former-manager observations may appear in discovery without granting ownership.
+
+Creation requires explicit name, type, ENABLED status, category, primary versus
+secondary choice, counting type, attribution model, windows and all three
+`valueSettings` fields. `defaultValue: 12.5` means 12.5 units of
+`defaultCurrencyCode`, never 12,500,000 micros. `alwaysUseDefaultValue` decides
+whether event-provided values are overridden. Ask for these business decisions;
+do not infer them from the campaign name. Data-driven attribution eligibility
+remains a provider check.
+
+A synthetic WEBPAGE example is maintained in `examples/contracts.json`.
+Real names must be unique, including retained removed definitions. Local name
+limit: 100 UTF-8 bytes. Input click windows are qualified at 1–30 days, or 1–60
+for AD_CALL/WEBSITE_CALL; view windows are 1–30 days. Call-duration types require
+an explicit 0–10000 second threshold and `alwaysUseDefaultValue: true`, and cannot
+receive a view-through window. These are AMCP's qualified bounds; they do not
+claim every provider/type-specific range is implemented.
+
+For updates, supply only changed mutable fields plus the exact `resourceName`,
+and a mask covering their leaves. For example, `valueSettings.defaultValue`
+changes the value while preserving currency and override behavior. Snake-case
+field names/masks also compile to native ProtoJSON. Type, app ID, owner,
+`includeInConversionsMetric`, output snippets, wildcard masks, null clearing,
+whole-object replacement and partial-failure execution are not qualified.
+
+Preparation freezes the current definition history, goal graph, campaign
+configuration, budgets and local portfolios. Query cost and collection order
+do not alter the hash. Missing existing automatic goals, failed pages and
+inconsistent reads stop preparation (`CONVERSION_ACTION_STATE_UNVERIFIED` or
+`CONVERSION_GOAL_STATE_UNVERIFIED`). Fix the actual discovery/input problem;
+never skip preflight or remove the comparison.
+
+A primary action can affect existing campaigns immediately. Secondary actions
+can still affect bidding when selected in custom goals. New category/origin
+combinations cause Google to create standard goals; verification checks these
+effects and preservation of existing goals. Business-setting changes and
+creation require spend confirmation and obey activation policy. Rename-only
+changes do not. Conversion value is not a campaign budget. Removal also obeys
+deletion policy and requires prior detachment from every enabled custom goal.
+A category update requires its destination goals to exist and be reviewed first.
+
+Keep the original review/key after an unknown, partial or inconclusive result.
+Do not repeat a mutation with a new key. Read-back establishes the saved
+definition and goal effects, not event collection or historical recalculation.
+Website actions still need authorized tag installation and testing. Call actions
+may need call assets and forwarding-number setup. Offline definitions still
+need a separately supported ingestion route, consent and provider access.
+In particular, the June 2026 offline-click upload restrictions are not removed
+by creating an UPLOAD_CLICKS definition.
+
+Native protocol/field evidence was checked on 2026-09-25 and pinned in
+`tests/fixtures/google-conversion-actions-v23.json`. Regenerate using
+`tools/google-conversion-evidence.mjs --source-dir <public-source-directory>`;
+the directory must contain the named v23 protos and public field-table excerpts
+in `fields.txt`. No credentials are used by that extractor.
+
+Sources: [v23 mutation service](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/services/conversion_action_service.proto),
+[native definition fields](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/resources/conversion_action.proto),
+[selectable v23 fields](https://developers.google.com/google-ads/api/fields/v23/conversion_action),
+[definition validation](https://developers.google.com/google-ads/api/docs/conversions/getting-started),
+[automatic customer goals](https://developers.google.com/google-ads/api/docs/conversions/goals/customer-goals),
+[campaign goal defaults](https://developers.google.com/google-ads/api/docs/conversions/goals/campaign-goals),
+and [tracking types and offline restrictions](https://developers.google.com/google-ads/api/docs/conversions/categories).
+Local synthetic tests are not live acceptance, upload authorization or tracking evidence.

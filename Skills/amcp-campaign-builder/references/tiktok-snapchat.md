@@ -98,3 +98,57 @@ Snapchat creative updates use the discovered `snapchat_creative_update` action a
 A reported account-specific PATCH failure is not proof that the endpoint is globally broken: current official Snapchat documentation still lists it. Record the exact version, body and provider error. Do not change method or placement/SKAdNetwork settings as a retry without a newly qualified contract and explicit review.
 
 Use [the media guide](media.md) for Drive imports. Poll asynchronous video processing before using the resulting asset in a creative. Read account currency and native amount semantics before converting budgets; never treat every platform's integer budget as Meta cents.
+
+## Snapchat nested updates
+
+Ad/ad-squad updates now use the documented native parent routes:
+`snapchat_ad_patch` under the selected ad squad, and `snapchat_adsquad_patch`
+under the selected campaign. Their captured `replace`, `update` and RPC aliases
+use the same reviewed contract. Discover the exact connection/account and parent
+first; a copied resource ID alone is not an AMCP ownership grant. Provide only
+the path parameters present in that action. Then inspect → prepare → review →
+execute with the original key and spending confirmation → verify.
+
+Prefer PATCH for a precise field edit. Ad fields cover name, status, start/end
+and the two current third-party tracking URL arrays. Ad-squad edits additionally
+cover finite native budgets, qualified auction bids, pacing and content-category
+sets. The current family requires an AUCTION campaign with ad-squad budget
+ownership. Reserved/Smart Budgets need a joint parent-budget contract. Targeting,
+pixel/app identities, placement, frequency caps and scheduling structures cannot
+be changed by this family; preserve them in a complete PUT. MIN_ROAS is retired.
+Do not infer campaign approval or ad delivery from a successful configuration edit.
+
+PUT accepts 1–25 complete records under `ads` or `adsquads`. Read every target and
+explicitly preserve its current configuration. `INCOMPLETE_SNAPCHAT_REPLACEMENT`
+names missing fields that the provider could reset; use a fresh complete request
+or PATCH. Remove response-only telemetry and the deprecated `auto_bid` and
+`target_bid` flags from the request; keep `bid_strategy`. AMCP does not silently
+merge omitted settings. Unknown configuration blocks replacement until qualified.
+
+PATCH accepts up to 25 top-level add/replace/remove/test operations for one
+target. Add requires null/missing; replace requires an existing field; remove is
+limited to optional end time/tracking tags and clears to null. Indexed arrays,
+copy/move, nested changes and wire-value tests on normalized time/tracking/set
+fields are not qualified. AMCP already compares those semantic fields across
+review. Tracking lists retain order and require original HTTPS URLs, never the
+provider's expanded URL/metadata objects. Approved tracker domains are still a
+provider prerequisite. Budget/bid values are safe integer micro-currency amounts:
+one local unit = 1,000,000; the documented daily minimum is 5,000,000. Account,
+optimization-goal and spent-to-date restrictions still apply. No missing baseline
+is guessed as zero; parent and sibling caps do not become the target's baseline.
+
+`SNAPCHAT_UPDATE_STATE_UNVERIFIED` means current state is missing, malformed,
+partial, changing, or outside that family. Inspect its named field and current
+parent; do not retry a write. `STATE_CHANGED` names actual configuration changes;
+prepare a new review. Neither request IDs, review/delivery telemetry nor expanded
+tracking metadata cause a conflict. Native warnings remain visible on accepted
+receipts. An uncertain/partial response retains the original claim across restart;
+never try a new key. Verification re-reads current configuration and authorization,
+including after a previous successful verification.
+
+Official v1 references checked 2026-09-25:
+[ads](https://developers.snap.com/marketing-api/Ads-API/ads),
+[ad squads](https://developers.snap.com/marketing-api/Ads-API/ad-squads),
+[campaign parents](https://developers.snap.com/marketing-api/Ads-API/campaigns),
+[patch semantics](https://developers.snap.com/marketing-api/Ads-API/api-patterns).
+Local lifecycle fixtures verify this field scope, not live account acceptance.

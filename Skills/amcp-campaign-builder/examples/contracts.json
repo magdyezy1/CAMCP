@@ -1,4 +1,19 @@
 {
+  "x_report_previews": [
+    {
+      "gateway": "x_ads_native_action",
+      "arguments": {
+        "action": "x_stats_jobs_accounts_account_id_get",
+        "account_id": "abc123",
+        "params": {
+          "job_ids": "1120829647711653888"
+        },
+        "download_report": true,
+        "offset": 0,
+        "limit": 100
+      }
+    }
+  ],
   "version": 4,
   "owner_role": "AMCP integration maintainer",
   "qualification": "Synthetic local contract examples. Replace business facts and IDs with user-supplied or discovered values. These requests inspect contracts; none authorizes or executes a mutation.",
@@ -99,6 +114,22 @@
   ],
   "inspections": [
     {
+      "gateway": "x_ads_native_action",
+      "arguments": {
+        "action": "x_stats_jobs_accounts_account_id_post",
+        "account_id": "abc123",
+        "params": {
+          "entity": "CAMPAIGN",
+          "entity_ids": "camp1",
+          "metric_groups": "ENGAGEMENT,BILLING",
+          "placement": "ALL_ON_TWITTER",
+          "granularity": "TOTAL",
+          "start_time": "2026-08-01T00:00:00Z",
+          "end_time": "2026-08-03T00:00:00Z"
+        }
+      }
+    },
+    {
       "gateway": "tiktok_native_action",
       "arguments": {
         "action": "tiktok_report_task_create",
@@ -138,21 +169,101 @@
       "gateway": "criteo_native_action",
       "arguments": {
         "operation": "criteo_reporting_ops",
-        "arguments": {"action": "GENERATE_ASYNC_ACCOUNTS_REPORT", "account_id": "123", "payload": {"data": {"attributes": {"accountIds": ["123"], "startDate": "2026-08-01", "endDate": "2026-08-31", "timezone": "UTC", "format": "json-compact", "dimensions": ["accountId", "date", "campaignId"], "metrics": ["impressions", "clicks", "spend"]}}}}
+        "arguments": {
+          "action": "GENERATE_ASYNC_ACCOUNTS_REPORT",
+          "account_id": "123",
+          "payload": {
+            "data": {
+              "attributes": {
+                "accountIds": [
+                  "123"
+                ],
+                "startDate": "2026-08-01",
+                "endDate": "2026-08-31",
+                "timezone": "UTC",
+                "format": "json-compact",
+                "dimensions": [
+                  "accountId",
+                  "date",
+                  "campaignId"
+                ],
+                "metrics": [
+                  "impressions",
+                  "clicks",
+                  "spend"
+                ]
+              }
+            }
+          }
+        }
       }
     },
     {
       "gateway": "criteo_native_action",
       "arguments": {
         "operation": "criteo_reporting_ops",
-        "arguments": {"action": "GENERATE_ASYNC_CAMPAIGNS_REPORT", "account_id": "123", "payload": {"data": {"attributes": {"ids": ["456"], "startDate": "2026-08-01", "endDate": "2026-08-07", "timezone": "UTC", "format": "json", "dimensions": ["accountId", "date", "campaignId"], "metrics": ["impressions", "spend", "winRate"], "campaignType": "sponsoredProducts"}}}}
+        "arguments": {
+          "action": "GENERATE_ASYNC_CAMPAIGNS_REPORT",
+          "account_id": "123",
+          "payload": {
+            "data": {
+              "attributes": {
+                "ids": [
+                  "456"
+                ],
+                "startDate": "2026-08-01",
+                "endDate": "2026-08-07",
+                "timezone": "UTC",
+                "format": "json",
+                "dimensions": [
+                  "accountId",
+                  "date",
+                  "campaignId"
+                ],
+                "metrics": [
+                  "impressions",
+                  "spend",
+                  "winRate"
+                ],
+                "campaignType": "sponsoredProducts"
+              }
+            }
+          }
+        }
       }
     },
     {
       "gateway": "criteo_native_action",
       "arguments": {
         "operation": "criteo_reporting_ops",
-        "arguments": {"action": "GENERATE_ASYNC_LINE_ITEMS_REPORT", "account_id": "123", "payload": {"data": {"attributes": {"id": "789", "startDate": "2026-08-01", "endDate": "2026-08-07", "timezone": "UTC", "format": "json-compact", "dimensions": ["accountId", "date", "campaignId", "lineItemId"], "metrics": ["impressions", "spend", "videoViews"], "clickAttributionWindow": "7D", "viewAttributionWindow": "1D"}}}}
+        "arguments": {
+          "action": "GENERATE_ASYNC_LINE_ITEMS_REPORT",
+          "account_id": "123",
+          "payload": {
+            "data": {
+              "attributes": {
+                "id": "789",
+                "startDate": "2026-08-01",
+                "endDate": "2026-08-07",
+                "timezone": "UTC",
+                "format": "json-compact",
+                "dimensions": [
+                  "accountId",
+                  "date",
+                  "campaignId",
+                  "lineItemId"
+                ],
+                "metrics": [
+                  "impressions",
+                  "spend",
+                  "videoViews"
+                ],
+                "clickAttributionWindow": "7D",
+                "viewAttributionWindow": "1D"
+              }
+            }
+          }
+        }
       }
     },
     {
@@ -160,7 +271,19 @@
       "arguments": {
         "action": "google_ads_v23_bidding_strategy_mutate_bidding_strategies",
         "account_id": "123",
-        "payload": {"operations": [{"create": {"name": "Client approved CPA portfolio", "targetCpa": {"targetCpaMicros": "15000000", "cpcBidCeilingMicros": "5000000"}}}]}
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "name": "Client approved CPA portfolio",
+                "targetCpa": {
+                  "targetCpaMicros": "15000000",
+                  "cpcBidCeilingMicros": "5000000"
+                }
+              }
+            }
+          ]
+        }
       }
     },
     {
@@ -168,7 +291,15 @@
       "arguments": {
         "action": "UPDATE_BIDDING_STRATEGY",
         "account_id": "123",
-        "payload": {"resource_name": "customers/123/biddingStrategies/500", "resource": {"target_cpa": {"cpc_bid_floor_micros": "0"}}, "update_mask": "target_cpa.cpc_bid_floor_micros"}
+        "payload": {
+          "resource_name": "customers/123/biddingStrategies/500",
+          "resource": {
+            "target_cpa": {
+              "cpc_bid_floor_micros": "0"
+            }
+          },
+          "update_mask": "target_cpa.cpc_bid_floor_micros"
+        }
       }
     },
     {
@@ -176,7 +307,9 @@
       "arguments": {
         "action": "REMOVE_BIDDING_STRATEGY",
         "account_id": "123",
-        "payload": {"resource_name": "customers/123/biddingStrategies/500"}
+        "payload": {
+          "resource_name": "customers/123/biddingStrategies/500"
+        }
       }
     },
     {
@@ -184,7 +317,14 @@
       "arguments": {
         "action": "google_ads_v23_customer_user_access_invitation_mutate_customer_user_access_invitation",
         "account_id": "123",
-        "payload": {"operation": {"create": {"emailAddress": "invited@example.test", "accessRole": "READ_ONLY"}}}
+        "payload": {
+          "operation": {
+            "create": {
+              "emailAddress": "invited@example.test",
+              "accessRole": "READ_ONLY"
+            }
+          }
+        }
       }
     },
     {
@@ -192,7 +332,13 @@
       "arguments": {
         "action": "UPDATE_CUSTOMER_USER_ACCESS",
         "account_id": "123",
-        "payload": {"resource": {"resource_name": "customers/123/customerUserAccesses/20", "access_role": "STANDARD"}, "update_mask": "access_role"}
+        "payload": {
+          "resource": {
+            "resource_name": "customers/123/customerUserAccesses/20",
+            "access_role": "STANDARD"
+          },
+          "update_mask": "access_role"
+        }
       }
     },
     {
@@ -1429,6 +1575,95 @@
             }
           ]
         }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "CREATE_CONVERSION_ACTION",
+        "account_id": "123",
+        "payload": {
+          "resource": {
+            "name": "User-approved purchase definition",
+            "status": "ENABLED",
+            "type": "WEBPAGE",
+            "category": "PURCHASE",
+            "primary_for_goal": false,
+            "counting_type": "ONE_PER_CLICK",
+            "click_through_lookback_window_days": "30",
+            "view_through_lookback_window_days": "1",
+            "value_settings": {
+              "default_value": 0,
+              "default_currency_code": "SAR",
+              "always_use_default_value": false
+            },
+            "attribution_model_settings": {
+              "attribution_model": "GOOGLE_ADS_LAST_CLICK"
+            }
+          }
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "UPDATE_CONVERSION_ACTION",
+        "account_id": "123",
+        "payload": {
+          "resource_name": "customers/123/conversionActions/456",
+          "resource": {
+            "value_settings": {
+              "default_value": 12.5
+            }
+          },
+          "update_mask": "value_settings.default_value"
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "REMOVE_CONVERSION_ACTION",
+        "account_id": "123",
+        "payload": {
+          "resource_name": "customers/123/conversionActions/456"
+        }
+      }
+    },
+    {
+      "gateway": "snapchat_native_action",
+      "arguments": {
+        "action": "snapchat_adsquad_patch",
+        "account_id": "11111111-1111-4111-8111-111111111111",
+        "path_params": {
+          "campaign_id": "22222222-2222-4222-8222-222222222222",
+          "ad_squad_id": "33333333-3333-4333-8333-333333333333"
+        },
+        "payload": [
+          {
+            "op": "replace",
+            "path": "/name",
+            "value": "Reviewed ad squad name"
+          }
+        ]
+      }
+    },
+    {
+      "gateway": "snapchat_native_action",
+      "arguments": {
+        "action": "snapchat_ad_patch",
+        "account_id": "11111111-1111-4111-8111-111111111111",
+        "path_params": {
+          "ad_squad_id": "33333333-3333-4333-8333-333333333333",
+          "ad_id": "44444444-4444-4444-8444-444444444444"
+        },
+        "payload": [
+          {
+            "op": "replace",
+            "path": "/status",
+            "value": "PAUSED"
+          }
+        ]
       }
     }
   ],

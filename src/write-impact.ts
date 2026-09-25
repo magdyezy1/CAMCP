@@ -1,6 +1,8 @@
+import {snapUpdateKind,snapUpdateImpact} from './snapchat-nested-updates.js';
 import {googlePreviewKind,googlePreviewImpact} from './google-preview-writes.js';
 import {criteoCampaignKind,criteoCampaignImpact} from './criteo-campaign-writes.js';
 import {metaReportKind,metaReportImpact} from './meta-insights-jobs.js';
+import {xReportKind,xReportImpact} from './x-report-jobs.js';
 import {tiktokReportKind,tiktokReportImpact} from './tiktok-report-jobs.js';
 import {criteoReportKind,criteoReportImpact} from './criteo-report-jobs.js';
 import {redditCreativeKind,redditCreativeServing,redditLeadFormSunset,redditLeadFormSource} from './reddit-creative-writes.js';
@@ -12,6 +14,7 @@ import {googleSegmentKind,googleSegmentImpact} from './google-custom-segments.js
 import {googleConversionGoalKind,googleConversionGoalServing,googleConversionGoalImpact} from './google-conversion-goals.js';
 import {googleBiddingEventKind,googleBiddingEventImpact} from './google-bidding-events.js';
 import {googlePortfolioKind,googlePortfolioImpact} from './google-portfolio-strategies.js';
+import {googleConversionActionKind,googleConversionActionServing,googleConversionActionImpact} from './google-conversion-actions.js';
 import {xDraftKind,xDraftImpact} from './x-draft-writes.js';
 import {linkedinConversionKind,linkedinConversionImpact} from './linkedin-conversion-links.js';
 import {linkedinRuleKind,linkedinRuleImpact} from './linkedin-conversion-rules.js';
@@ -46,6 +49,7 @@ function assertSnapchatReplacement(plan:CompiledRequest,state:unknown[]){
  }
 }
 export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolean,connectionId:string):JsonObject|undefined{
+ if(snapUpdateKind(plan))return snapUpdateImpact;
  if(googlePreviewKind(plan))return googlePreviewImpact;
  if(googleDismissalKind(plan))return googleDismissalImpact(plan,state);
  if(googleAccessKind(plan))return googleAccessImpact(plan,state);
@@ -59,8 +63,10 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  if(googleSegmentKind(plan))return {...googleSegmentImpact,may_affect_serving:googleConfigurationServing(plan)};
  if(googleBiddingEventKind(plan))return googleBiddingEventImpact;
  if(googlePortfolioKind(plan))return googlePortfolioImpact;
+ if(googleConversionActionKind(plan))return {...googleConversionActionImpact,may_affect_serving:googleConversionActionServing(plan)};
  if(metaReportKind(plan))return metaReportImpact;
  if(criteoCampaignKind(plan))return criteoCampaignImpact;
+ if(xReportKind(plan))return xReportImpact;
  if(tiktokReportKind(plan))return tiktokReportImpact;
  if(criteoReportKind(plan))return criteoReportImpact;
  if(googleConversionGoalKind(plan))return {...googleConversionGoalImpact,may_affect_serving:googleConversionGoalServing(plan),creation_effect:'New custom goals remain unattached until a separate campaign configuration update.'};

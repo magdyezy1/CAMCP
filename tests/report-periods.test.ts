@@ -49,7 +49,7 @@ test('missing periods remain explicit partial coverage and native period totals 
 test('one daily fixture reconciles native requests, worker rows, formulas, CSV and typed Sheets cells',async()=>{
  const actor:Actor={tenantId:'period-fixture',userId:'owner',role:'admin'},store=new Store(':memory:',Buffer.alloc(32,71).toString('base64')),ranges:JsonObject[]=[],batches:JsonObject[]=[];
  const source={platform:'meta',connection_id:'meta',account_id:'100'};
- const sheetsFetch:typeof fetch=async(url,init)=>{assert.ok(String(url).startsWith('https://sheets.googleapis.com/v4/spreadsheets/syntheticSheet'));if(init?.method==='POST'){batches.push(JSON.parse(String(init.body)));return Response.json({replies:[]});}return Response.json({sheets:[]});};
+ const sheetsFetch:typeof fetch=async(url,init)=>{assert.ok(String(url).startsWith('https://sheets.googleapis.com/v4/spreadsheets/syntheticSheet'));if(init?.method==='POST'){const batch=JSON.parse(String(init.body));batches.push(batch);return Response.json({spreadsheetId:'syntheticSheet',replies:batch.requests.map(()=>({}))});}return Response.json({sheets:[]});};
  try{
   store.putConnection(actor,{id:'meta',tenantId:actor.tenantId,gateway:'meta_native_action',accounts:['100'],enabled:true,label:'Synthetic',scopes:['ads_read']},{accessToken:'synthetic'});
   store.putConnection(actor,{id:'sheets',tenantId:actor.tenantId,gateway:'google_sheets_native_action',accounts:['syntheticSheet'],enabled:true,label:'Synthetic',scopes:['https://www.googleapis.com/auth/spreadsheets']},{accessToken:'synthetic'});

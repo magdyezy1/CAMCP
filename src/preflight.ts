@@ -1,5 +1,7 @@
+import {snapUpdateKind} from './snapchat-nested-updates.js';
 import {criteoCampaignKind} from './criteo-campaign-writes.js';
 import {metaReportKind} from './meta-insights-jobs.js';
+import {xReportKind} from './x-report-jobs.js';
 import {tiktokReportKind} from './tiktok-report-jobs.js';
 import {criteoReportKind} from './criteo-report-jobs.js';
 import {placeActionKind} from './google-place-action-links.js';
@@ -20,6 +22,7 @@ import {googleSegmentKind} from './google-custom-segments.js';
 import {googleConversionGoalKind,googleConversionGoalServing} from './google-conversion-goals.js';
 import {googleBiddingEventKind} from './google-bidding-events.js';
 import {googlePortfolioKind,googlePortfolioServing} from './google-portfolio-strategies.js';
+import {googleConversionActionKind,googleConversionActionServing} from './google-conversion-actions.js';
 import {xDraftKind} from './x-draft-writes.js';
 import {appleEntityServing} from './apple-entity-writes.js';
 import {dv360ListAffectsServing} from './dv360-list-writes.js';
@@ -35,6 +38,7 @@ export function authorizeExecution(actor:Actor,plan:CompiledRequest,input:JsonOb
  if(input.confirmed!==true)throw new MirrorError('CONFIRMATION_REQUIRED','Live writes require confirmed=true under production policy.');
  if(typeof input.idempotency_key!=='string'||!input.idempotency_key.trim())throw new MirrorError('IDEMPOTENCY_REQUIRED','Live writes require an idempotency_key.');
  if(policy.requireBeforeState&&!verifiedBeforeState)throw new MirrorError('WRITE_REVIEW_REQUIRED','Use amcp_write prepare and execute; caller-supplied before_state is not a verified snapshot.');
+ if(snapUpdateKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Snapchat entity updates can change current delivery, dates, bidding and spending. Review the exact effects and provide spend_change_confirmed=true.');
  if(xPromotion(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','X promotion may serve immediately. Review the parent delivery state and provide spend_change_confirmed=true.');
  if(linkedinConversionKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Campaign conversion associations can affect optimization. Review the selected campaigns and conversion rules and confirm the spending impact.');
  if(linkedinRuleServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Conversion-rule enablement, attribution and matching can affect optimization. Review every associated campaign and confirm this impact.');
@@ -47,9 +51,10 @@ export function authorizeExecution(actor:Actor,plan:CompiledRequest,input:JsonOb
  if(googleConfigurationServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Customizer, ad-parameter, segment, signal, exclusion and feed changes can affect existing ads. Review their impact and provide spend_change_confirmed=true.');
  if(googleConversionGoalServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Goal edits, attachment, inheritance and removal can change optimization. Review affected campaigns and conversion definitions, then provide spend_change_confirmed=true.');
  if(googleBiddingEventKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Seasonality adjustments and data exclusions can change bids, including after removal. Review the account timezone, scope and bidding impact, then provide spend_change_confirmed=true.');
+ if(googleConversionActionServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Conversion definition changes can alter reporting and bidding. Review the complete goal graph and provide spend_change_confirmed=true.');
  if(googlePortfolioServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Portfolio target and bid-limit changes affect all associated campaigns. Review campaign membership, budgets and native units, then provide spend_change_confirmed=true.');
  const statusPatch=Array.isArray(plan.body)&&plan.body.some(op=>op&&/\/(status|intendedStatus|intended_status|entity_status|operation_status)$/.test(String(op.path))&&['ACTIVE','ENABLE','ENABLED'].includes(op.value));
  // Segment effects are decided by the contract above. Native ENABLED denotes
  // an available definition; a keyword containing "budget" is not a budget edit.
- if(!tiktokReportKind(plan)&&!criteoReportKind(plan)&&!googlePortfolioKind(plan)&&!googleAccessKind(plan)&&!googleDismissalKind(plan)&&!businessAccessKind(plan)&&!businessNotificationKind(plan)&&!placeActionKind(plan)&&!metaReportKind(plan)&&!keywordPlanKind(plan)&&!googleSegmentKind(plan)&&!googleConversionGoalKind(plan)&&!xDraftKind(plan)&&(statusPatch||/budget|bid|spend|"(?:status|intendedStatus|intended_status|entity_status|entityStatus|operation_status)"\s*:\s*"(?:ACTIVE|ENABLE|ENABLED|ENTITY_STATUS_ACTIVE)"/i.test(JSON.stringify({query:plan.query,body:plan.body})))&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Spend-affecting writes need spend_change_confirmed=true.');
+ if(!xReportKind(plan)&&!tiktokReportKind(plan)&&!criteoReportKind(plan)&&!googlePortfolioKind(plan)&&!googleAccessKind(plan)&&!googleDismissalKind(plan)&&!businessAccessKind(plan)&&!businessNotificationKind(plan)&&!placeActionKind(plan)&&!metaReportKind(plan)&&!keywordPlanKind(plan)&&!googleSegmentKind(plan)&&!googleConversionGoalKind(plan)&&!googleConversionActionKind(plan)&&!xDraftKind(plan)&&(statusPatch||/budget|bid|spend|"(?:status|intendedStatus|intended_status|entity_status|entityStatus|operation_status)"\s*:\s*"(?:ACTIVE|ENABLE|ENABLED|ENTITY_STATUS_ACTIVE)"/i.test(JSON.stringify({query:plan.query,body:plan.body})))&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Spend-affecting writes need spend_change_confirmed=true.');
 }

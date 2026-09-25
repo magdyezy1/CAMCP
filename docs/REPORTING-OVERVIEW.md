@@ -148,7 +148,22 @@ Bounds: 30 selected sources, 366 days, 25 pages and 10,000 rows per source, with
 
 Existing selected spreadsheets and creating a new spreadsheet remain available under the alternative setup options. URL-selected spreadsheets are checked through the Sheets API on sync even when they are outside the `drive.file` discovery listing.
 
-AMCP marks its own destination tab and replaces its report cells; other tabs remain intact. Typed cells prevent text from becoming executable formulas. Exports are limited to 200,000 cells and an 8 MiB request. Split larger reports or reduce metrics. Retrying replaces the same cells, not appended duplicate rows. Interrupted file creation is reconciled by the app's creation marker; unknown results never trigger blind duplicate creation.
+AMCP marks its own destination tab and replaces its report cells; other tabs remain intact. Typed cells prevent text from becoming executable formulas. Exports are limited to 200,000 cells and an 8 MiB request. Split larger reports or reduce metrics. A new report replaces the same cells. A confirmed report replay returns its historical receipt without another write; it does not certify that collaborators have left those cells unchanged.
+
+If delivery loses its response, retry the original export job. AMCP checks the
+original delivery marker in the destination and records success if that batch
+was applied. An unconfirmed outcome stays visible and does not cause another
+write. `SHEETS_DELIVERY_UNRESOLVED` identifies the earlier report that needs this
+reconciliation before a newer report can use the same destination tab. Other
+destinations can continue independently. Preserve the original report and job;
+changing its numbers under the same report ID causes `IDEMPOTENCY_CONFLICT`.
+
+Account/source access, the selected Sheets login, destination and worker lock
+are checked before delivery. Reconnect or restore explicitly approved access
+before retrying a permission failure. A write already accepted by Google keeps
+its durable receipt even when access is withdrawn during the response.
+Interrupted file creation is reconciled by the app's creation marker; unknown
+results never trigger blind duplicate creation.
 
 CSV is also available. Download links use the browser's download behavior and bypass the client page router; they do not navigate to Connections. Both formats include selected/custom metrics, recommendations, attribution, currency/timezone and completeness.
 

@@ -12,15 +12,19 @@ import {listenForFetch} from '../../dist/tests/http-listener.js';
 const port=Number(process.argv[2]??43281),origin='http://127.0.0.1:'+port;
 const store=new Store(':memory:',Buffer.alloc(32,72).toString('base64'));
 const actor={tenantId:'local',userId:'fixture',role:'admin'},sheetTabs=new Map();
-let bytes=0;
+let bytes=0,metadataId=1;
 const fixtureFetch=async(raw,init)=>{
  const u=new URL(String(raw));
  if(u.hostname==='sheets.googleapis.com'){
   const id=u.pathname.split('/')[3].split(':')[0];
   if(init?.method==='POST'){
    const body=JSON.parse(String(init.body));bytes+=String(init.body).length;
-   for(const r of body.requests??[]){if(r.addSheet)sheetTabs.set(r.addSheet.properties.sheetId,{properties:r.addSheet.properties,spreadsheet:id});if(r.createDeveloperMetadata){const m=r.createDeveloperMetadata.developerMetadata;sheetTabs.get(m.location.sheetId).developerMetadata=[m];}}
-   console.log(JSON.stringify({fixture:'sheets_batch',spreadsheet:id,cells:body.requests?.find(r=>r.updateCells)?.updateCells.rows.length,bytes}));return Response.json({replies:[]});
+   for(const r of body.requests??[]){
+    if(r.addSheet)sheetTabs.set(r.addSheet.properties.sheetId,{properties:r.addSheet.properties,spreadsheet:id,developerMetadata:[]});
+    if(r.createDeveloperMetadata){const m=r.createDeveloperMetadata.developerMetadata;sheetTabs.get(m.location.sheetId).developerMetadata.push({...m,metadataId:metadataId++});}
+    if(r.updateDeveloperMetadata){const wanted=r.updateDeveloperMetadata.dataFilters[0].developerMetadataLookup.metadataId;for(const tab of sheetTabs.values())for(const m of tab.developerMetadata)if(m.metadataId===wanted)Object.assign(m,r.updateDeveloperMetadata.developerMetadata);}
+   }
+   console.log(JSON.stringify({fixture:'sheets_batch',spreadsheet:id,cells:body.requests?.find(r=>r.updateCells)?.updateCells.rows.length,bytes}));return Response.json({spreadsheetId:id,replies:body.requests.map(()=>({}))});
   }
   return Response.json({spreadsheetId:id,properties:{title:id==='syntheticSheetA'?'Client A spreadsheet':'Client B spreadsheet'},sheets:[...sheetTabs.values()].filter(s=>s.spreadsheet===id)});
  }

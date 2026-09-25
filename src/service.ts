@@ -1,4 +1,6 @@
 import {metaReportReadResult,observeMetaReportRead,runMetaReportRead} from './meta-insights-jobs.js';
+import {xReportRoute,xReportStatus,xReportStatusData,observeXReport,xReportIdentity} from './x-report-jobs.js';
+import {downloadXReport,xReportPage} from './x-report-download.js';
 import {tiktokReportRoute,tiktokReportReadResult,runTiktokReportRead} from './tiktok-report-jobs.js';
 import {criteoReportReadResult,observeCriteoReportRead,runCriteoReportRead} from './criteo-report-jobs.js';
 import {connectionDiagnosticKind,connectionDiagnostics,redactConnectionInput} from './connection-diagnostics.js';
@@ -138,6 +140,8 @@ export class MirrorService {
   validateGoogleGeneration(plan);
   validateDV360TargetingSearch(plan);
   validatePlaceActionRead(plan,input);
+  if(xReportRoute(plan)&&(input.aggregate_pages||input.paginate||input.allPages))throw new MirrorError('INVALID_ARGUMENT','Poll explicit job_ids. Download one original job with offset/limit; do not aggregate job discovery.');
+  if(xReportRoute(plan)==='status')plan={...plan,xReportDeadline:performance.now()+60000};
   if(tiktokReportRoute(plan)&&(input.aggregate_pages||input.paginate||input.allPages))throw new MirrorError('INVALID_ARGUMENT','TikTok asynchronous tasks are not paginated. Resume the same task using status/download.');
   if(googleGenerationKind(plan)&&(input.aggregate_pages||input.paginate||input.allPages))throw new MirrorError('INVALID_ARGUMENT','Google generation is one bounded request, not a paginated query.');
   if(input.dry_run===true||!plan.readOnly&&input.dry_run!==false){const result={success:true,dry_run:true,action:plan.action,request:plan,executed:false};this.store.appendAudit(actor.tenantId,requestId,{event:'preview',request:plan,outcome:'not_executed'});return result;}
@@ -150,16 +154,44 @@ export class MirrorService {
   const credentials=await this.credentials.get(connection);
   this.store.appendAudit(actor.tenantId,requestId,{event:'request_started',actor:actor.userId,request:plan});
   try{
-   const reportAccess=(p:CompiledRequest)=>{if(p.criteoReportRead||p.tiktokReportRead){this.store.assertActorActive(actor);if(sha256(stable(this.store.credentials(actor.tenantId,connection.id)))!==sha256(stable(credentials)))throw new MirrorError('REAUTHORIZATION_REQUIRED','The selected login changed during report retrieval.',{},403);}};
-   const fetchPage=async(p:CompiledRequest)=>{const current=this.store.resolveConnection(actor,p.gateway,p.accountId,connection.id);scope.authorize(p,current);reportAccess(p);const access=nativeAuthority(this.store,this.registry,actor,p,current,credentials,()=>reportAccess(p));const result=await this.transport.request(p,access(),credentials,undefined,{beforeAttempt:access}),{data,status}=result;access();const active=this.store.resolveConnection(actor,p.gateway,p.accountId,current.id);scope.authorize(p,active);reportAccess(p);this.delegatedCompiler.validateResponse(p,data,status);validateAppleResponse(p,data);if(p.gateway===microsoftGateway)validateMicrosoftResponse(p,result);if(placeActionReadKind(p))return placeActionReadResult(p,data,status);const tiktokData=tiktokReportReadResult(p,result);if(tiktokData)return tiktokData;const criteoData=criteoReportReadResult(p,result);if(criteoData){observeCriteoReportRead(p,active,this.store,criteoData);return criteoData;}const reportData=metaReportReadResult(p,result);if(reportData){observeMetaReportRead(p,active,this.store,reportData);return reportData;}scope.observe(p,active,data);if(p.gateway===microsoftGateway&&p.reportDownload)return this.microsoftDownload(p,data as JsonObject,actor,active.id);return data;};
+   const reportAccess=(p:CompiledRequest)=>{if(p.criteoReportRead||p.tiktokReportRead||p.xReportRead){this.store.assertActorActive(actor);if(sha256(stable(this.store.credentials(actor.tenantId,connection.id)))!==sha256(stable(credentials)))throw new MirrorError('REAUTHORIZATION_REQUIRED','The selected login changed during report retrieval.',{},403);}};
+   const fetchPage=async(p:CompiledRequest)=>{const current=this.store.resolveConnection(actor,p.gateway,p.accountId,connection.id);scope.authorize(p,current);reportAccess(p);const access=nativeAuthority(this.store,this.registry,actor,p,current,credentials,()=>reportAccess(p));const result=await this.transport.request(p,access(),credentials,undefined,{beforeAttempt:access}),{data,status}=result;access();const active=this.store.resolveConnection(actor,p.gateway,p.accountId,current.id);scope.authorize(p,active);reportAccess(p);this.delegatedCompiler.validateResponse(p,data,status);validateAppleResponse(p,data);if(p.gateway===microsoftGateway)validateMicrosoftResponse(p,result);if(placeActionReadKind(p))return placeActionReadResult(p,data,status);if(p.xReportRead){const rows=xReportStatus(p,result);observeXReport(p,active,this.store,rows);if(p.reportDownload)return this.xDownload(p,rows[0]!,actor,active.id,credentials);return xReportStatusData(p,result);}const tiktokData=tiktokReportReadResult(p,result);if(tiktokData)return tiktokData;const criteoData=criteoReportReadResult(p,result);if(criteoData){observeCriteoReportRead(p,active,this.store,criteoData);return criteoData;}const reportData=metaReportReadResult(p,result);if(reportData){observeMetaReportRead(p,active,this.store,reportData);return reportData;}scope.observe(p,active,data);if(p.gateway===microsoftGateway&&p.reportDownload)return this.microsoftDownload(p,data as JsonObject,actor,active.id);return data;};
    const result=plan.tiktokReportRead?await runTiktokReportRead(plan,fetchPage):plan.criteoReportRead?await runCriteoReportRead(plan,fetchPage):placeActionReadKind(plan)?await runPlaceActionDiscovery(plan,fetchPage,connection.id):plan.metaReportRead?await runMetaReportRead(plan,fetchPage,!!input.aggregate_pages,Number(input.max_pages??25)):dv360TargetingSearchRoute(plan)?await runDV360TargetingSearch(plan,fetchPage,!!(input.aggregate_pages||input.paginate||input.allPages),Number(input.max_pages??25)):input.aggregate_pages||input.paginate||input.allPages?await paginate(plan,fetchPage,Number(input.max_pages??25)):{data:await fetchPage(plan),pages:1,truncated:false};
    const nativeCsv=plan.tiktokReportRead?.kind==='download'?(result.data as JsonObject):undefined;
    const projected=projectResponse(nativeCsv?{data:nativeCsv.data}:result.data,plan.responseControls);
    if(nativeCsv){const rows=(projected.data as JsonObject).data;projected.data={data:rows,report:{...nativeCsv.report,source_complete:nativeCsv.report.complete,source_rows:nativeCsv.report.rows,returned_rows:rows.length,complete:!projected.truncated,projection:{fields:plan.responseControls?.fields??null,empty_values_omitted:plan.responseControls?.compact===true,rows_omitted:projected.truncated}}};}
    const generation=googleGenerationResult(plan,result.data);
    const outcome={success:true,action:plan.action,dry_run:false,...result,data:projected.data,...(generation?{generation}:{}),truncated:result.truncated||projected.truncated,...(projected.truncated?{response_truncated:true}:{})};
-   this.store.appendAudit(actor.tenantId,requestId,{event:'request_completed',request:plan,outcome:plan.tiktokReportRead?.kind==='download'?{success:true,action:plan.action,report:(result.data as JsonObject).report,rows_omitted:true}:outcome});return outcome;
+   this.store.appendAudit(actor.tenantId,requestId,{event:'request_completed',request:plan,outcome:plan.reportDownload&&plan.xReportRead||plan.tiktokReportRead?.kind==='download'?{success:true,action:plan.action,report:(result.data as JsonObject).report,rows_omitted:true}:outcome});return outcome;
   }catch(e){if(placeActionReadKind(plan))e=placeActionSafeError(e);this.store.appendAudit(actor.tenantId,requestId,{event:'request_failed',request:plan,error:e instanceof MirrorError?{code:e.code,message:e.message,details:e.details}:{code:'INTERNAL_ERROR'}});throw e;}
+ }
+ private async xDownload(plan:CompiledRequest,row:JsonObject,actor:Actor,connectionId:string,credentials:import('./types.js').Credentials){
+  const access=()=>{this.store.assertActorActive(actor);const c=this.store.resolveConnection(actor,plan.gateway,plan.accountId,connectionId);new ScopeGuard(this.registry,this.store).authorize(plan,c);if(xReportIdentity(this.store.credentials(actor.tenantId,c.id))!==xReportIdentity(credentials))throw new MirrorError('X_REPORT_LOGIN_CHANGED','The X login changed during retrieval.',{},403);};access();
+  const b=plan.xReportRead![0]!,{offset,limit}=plan.reportDownload!,next=(at:number)=>({tool:plan.gateway,arguments:{action:'x_stats_jobs_accounts_account_id_get',account_id:plan.accountId,connection_id:connectionId,params:{job_ids:b.job_id},download_report:true,offset:at,limit,dry_run:false}});
+  if(row.status==='PROCESSING')return {data:[],report:{job_id:b.job_id,account_id:b.account_id,status:'PROCESSING',complete:false,report_rows_downloaded:false,next_call:next(offset)}};
+  if(row.status!=='SUCCESS')throw new MirrorError(row.status==='FAILED'?'X_REPORT_FAILED':'X_REPORT_CANCELLED','The original X report did not complete. Inspect the retained definition before explicitly preparing a new job.',{job_id:b.job_id,provider_status:row.status},502);
+  if(Date.parse(row.expires_at)<=Date.now())throw new MirrorError('X_REPORT_EXPIRED','The native X result expired. This does not authorize another submission.',{job_id:b.job_id},410);
+  const key=sha256(connectionId+':'+b.job_id),lock='x-report-result:'+actor.tenantId+':'+key,owner=randomUUID();
+  if(!this.store.acquireLock(lock,owner,120000))throw new MirrorError('X_REPORT_DOWNLOAD_BUSY','This original report is already being retrieved. Retry the same read shortly.',{retry_after_ms:1000},409,true);
+  let slot:string|undefined;
+  try{
+   slot=[0,1].map(i=>'x-report-memory:'+i).find(k=>this.store.acquireLock(k,owner,120000));
+   if(!slot)throw new MirrorError('X_REPORT_DOWNLOAD_BUSY','Two report results are already being read in this deployment. Retry this same read shortly.',{retry_after_ms:1000},429,true);
+   let parsed=this.store.xReportResult(actor.tenantId,key);
+   if(!parsed){
+    parsed=await downloadXReport(row,b,access,this.mediaFetcher===fetch?undefined:this.mediaFetcher,plan.xReportDeadline);access();
+    // A final native check catches cancellation/replacement/expiry during transfer.
+    const check={...plan,reportDownload:undefined},current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,connectionId),guard=nativeAuthority(this.store,this.registry,actor,check,current,credentials,access);
+    const response=await this.transport.request(check,guard(),credentials,undefined,{beforeAttempt:guard});access();const final=xReportStatus(check,response)[0]!;
+    if(final.status!=='SUCCESS'||Date.parse(final.expires_at)<=Date.now())throw new MirrorError('X_REPORT_STATE_UNVERIFIED','The report stopped being available while its result was downloaded.',{},502);
+    if([lock,slot].some(k=>!this.store.db.prepare('SELECT 1 FROM service_locks WHERE key=? AND owner=? AND expires_at>?').get(k,owner,Date.now())))throw new MirrorError('X_REPORT_DOWNLOAD_BUSY','Result retrieval lost its lease. Retry the original read.',{},409,true);
+    parsed={...parsed,binding_sha256:sha256(stable({definition:b.definition,login:b.login_fingerprint,account:b.account_id,job:b.job_id}))};
+    this.store.saveXReportResult(actor.tenantId,key,parsed,Math.min(Date.parse(final.expires_at),Date.now()+6*3600000));
+   }
+   access();if(parsed.binding_sha256!==sha256(stable({definition:b.definition,login:b.login_fingerprint,account:b.account_id,job:b.job_id})))throw new MirrorError('X_REPORT_STATE_UNVERIFIED','The retained report no longer matches the original definition.',{},502);
+   const rows=xReportPage(parsed.data,offset,limit),more=offset+rows.length<parsed.data.length;
+   return {data:rows,report:{...parsed.report,status:'SUCCESS',source_complete:parsed.report.complete,complete:parsed.report.complete&&!more&&offset===0,download_complete:true,source_rows:parsed.data.length,returned_rows:rows.length,offset,limit,has_more:more,...(more?{next_call:next(offset+rows.length)}:{})}};
+  }finally{if(slot)this.store.releaseLock(slot,owner);this.store.releaseLock(lock,owner);}
  }
  private async microsoftDownload(plan:CompiledRequest,data:JsonObject,actor:Actor,connectionId:string){
   const access=()=>{this.store.assertActorActive(actor);const c=this.store.resolveConnection(actor,plan.gateway,plan.accountId,connectionId);new ScopeGuard(this.registry,this.store).authorize(plan,c);};access();

@@ -51,7 +51,7 @@ current compiler and review contracts. Provider contract version, evidence and l
 are exposed by `amcp_workspace dashboard` and website platform configuration.
 
 1. Use `tools/list` and `amcp_tool_help`. Historical names in the supplied manuals describe a different connector surface. AMCP exposes compact native gateways; do not call an absent named tool.
-2. Use the provider gateway with `action: LIST_ACTIONS`, a short search and a bounded limit. Use `DESCRIBE_ACTION` with `target_action` to inspect the exact action. Catalog presence proves discoverability, not live write qualification. Microsoft is an independent extension and has its own 24-action catalog.
+2. Use the provider gateway with `action: LIST_ACTIONS`, a short search and a bounded limit. Use `DESCRIBE_ACTION` with `target_action` to inspect the exact action. Catalog presence proves discoverability, not live write qualification. Microsoft is an independent extension; discover its current catalog instead of assuming a fixed action count.
    Use `amcp_workspace {action: "contracts", gateway, search, offset, limit}` for the
    complete local action/enum ledger. It requires no provider credentials or network calls.
    `reviewed_write_family` means the route belongs to a family, not that every payload or

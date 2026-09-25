@@ -19,7 +19,7 @@ function fixture(){
  const fetcher=async(url,init)=>{
   const u=new URL(String(url));
   if(u.hostname==='graph.facebook.com')return Response.json({error:{code:100,message:'Synthetic source failure'}},{status:400});
-  if(u.hostname==='sheets.googleapis.com'){if(init?.method==='POST'){batches.push(JSON.parse(init.body));return Response.json({replies:[]});}return Response.json({sheets:[]});}
+  if(u.hostname==='sheets.googleapis.com'){if(init?.method==='POST'){const batch=JSON.parse(init.body);batches.push(batch);return Response.json({spreadsheetId:'sheet123',replies:batch.requests.map(()=>({}))});}return Response.json({sheets:[]});}
   if(u.pathname==='/v1/ad-accounts/123')return Response.json({result:{id:'123',name:'Synthetic Apple',currency:'USD'}});
   if(u.pathname==='/v1/reports/apps/campaigns/query'){assert.equal(JSON.parse(init.body).timeRange.granularity,undefined);return Response.json({result:{rows:[{metadata:{id:'42',name:'Apple launch',adAccountId:'123'},totalMetrics:{localSpend:{amount:'12.50',currency:'USD'},impressions:100,taps:10,totalInstalls:4,tapInstalls:3,viewInstalls:1}}]},pagination:{totalResults:1}});}
   if(u.hostname==='analyticsadmin.googleapis.com')return Response.json({name:'properties/456',currencyCode:'USD',timeZone:'UTC'});

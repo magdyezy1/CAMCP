@@ -1,5 +1,12 @@
 # AMCP continuation checkpoint — 2026-09-24
 
+Latest continuation: [September 25 implementation and verification](CONTINUATION-2026-09-25.md).
+It adds LinkedIn/Sheets authority and receipt recovery, manual Google conversion
+definitions, X async report retrieval and Snapchat nested updates. Candidate D
+passes 1899 main/four capture tests without failures/skips. Its current unresolved
+inventory has 985 rows. Counts and source references below remain historical;
+use the newer record and verification JSON for this continuation's exact evidence.
+
 Use this checkpoint before the older September 20 handoff. Only `Codex-branch`
 is authorized for changes/pushes. The implementation checkout is
 `C:/Users/abdom/Downloads/AMCP Final With Claude recos - Copy/implementation-Codex-branch`;

@@ -3,7 +3,7 @@ import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import {CredentialProvider} from './auth.js';
 import {MirrorError} from './errors.js';
-import {sha256} from './security.js';
+import {sha256,stable} from './security.js';
 import type {Actor,Connection,JsonObject} from './types.js';
 export const sheetsGateway='google_sheets_native_action';
 export function assertReportExportable(report:JsonObject){
@@ -22,9 +22,59 @@ export class GoogleSheetsExports{
  readonly credentials:CredentialProvider;
  constructor(readonly store:Store,readonly fetcher:typeof fetch=fetch){this.credentials=new CredentialProvider(store,fetcher);}
  private connection(actor:Actor,id:string,creating=false):Connection{this.store.assertActorActive(actor);const c=this.store.listConnections(actor.tenantId).find(c=>c.id===id&&c.gateway===sheetsGateway);if(!c||!c.enabled&&!(creating&&c.accounts.length===0))throw new MirrorError('SHEETS_CONNECTION_REQUIRED','Connect Google Sheets and select the destination spreadsheet.',{},409);if(!c.scopes.includes('https://www.googleapis.com/auth/drive.file')&&!c.scopes.includes('https://www.googleapis.com/auth/spreadsheets'))throw new MirrorError('SHEETS_SCOPE_REQUIRED','Reconnect Google Sheets with permission to edit exported reports.',{},403);return c;}
- private async request(actor:Actor,connectionId:string,url:string,body?:JsonObject,creating=false,selectedForBinding?:string):Promise<JsonObject>{const c=this.connection(actor,connectionId,creating);const parsed=new URL(url),target=parsed.hostname==='sheets.googleapis.com'?parsed.pathname.split('/')[3]?.split(':')[0]:undefined;const bindingRead=actor.role==='admin'&&creating&&!body&&target===selectedForBinding;if(target&&!c.accounts.includes(target)&&!bindingRead)throw new MirrorError('SPREADSHEET_SCOPE_REQUIRED','The destination spreadsheet is no longer selected.',{},403);const token=await this.credentials.get(c);const current=this.connection(actor,connectionId,creating);if(target&&!current.accounts.includes(target)&&!bindingRead)throw new MirrorError('SPREADSHEET_SCOPE_REQUIRED','The destination spreadsheet is no longer selected.',{},403);if(!token.accessToken)throw new MirrorError('REAUTHORIZATION_REQUIRED','Reconnect Google Sheets.',{},401);let r:Response;try{r=await this.fetcher(url,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+token.accessToken,Accept:'application/json',...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,redirect:'error',signal:AbortSignal.timeout(25000)});}catch{throw new MirrorError(body?'SHEETS_OUTCOME_UNKNOWN':'SHEETS_UNAVAILABLE',body?'Google did not confirm this request. AMCP will reconcile its result before retrying.':'Google Sheets is temporarily unavailable.',{},503,true);}const chunks:Uint8Array[]=[],reader=r.body?.getReader();let size=0;if(reader)try{while(true){const part=await reader.read();if(part.done)break;size+=part.value.byteLength;if(size>8*1024*1024){await reader.cancel();throw new MirrorError('SHEETS_RESPONSE_TOO_LARGE','Google returned an oversized response.',{},502);}chunks.push(part.value);}}finally{reader.releaseLock();}const text=Buffer.concat(chunks).toString('utf8');let data:JsonObject;try{data=JSON.parse(text);}catch{throw new MirrorError('SHEETS_RESPONSE_INVALID','Google returned an invalid response.',{},502);}if(!r.ok)throw new MirrorError(r.status===403?'SHEETS_PERMISSION_DENIED':'SHEETS_REQUEST_FAILED','Google Sheets rejected the request. Check file permissions or reconnect.',{status:r.status,retry_after_ms:Math.min(3600000,Math.max(1000,Number(r.headers.get('retry-after')??30)*1000))},r.status,[429,500,502,503,504].includes(r.status));const after=this.connection(actor,connectionId,creating);if(target&&!after.accounts.includes(target)&&!bindingRead)throw new MirrorError('SPREADSHEET_SCOPE_REQUIRED','The destination spreadsheet is no longer selected.',{},403);return data;}
- async create(actor:Actor,input:JsonObject){if(actor.role!=='admin'||input.confirmed!==true)throw new MirrorError('FORBIDDEN','An administrator must confirm spreadsheet creation.',{},403);if(typeof input.name!=='string'||!input.name.trim()||input.name.length>100||typeof input.idempotency_key!=='string'||!/^[a-zA-Z0-9_-]{8,100}$/.test(input.idempotency_key))throw new MirrorError('INVALID_DESTINATION','Provide a spreadsheet name and a stable creation key.');const connectionId=String(input.connection_id);this.connection(actor,connectionId,true);const id=sha256(connectionId+':'+input.idempotency_key),lock='sheets-create:'+actor.tenantId+':'+id,owner=randomUUID();if(!this.store.acquireLock(lock,owner,180000))throw new MirrorError('EXPORT_BUSY','This spreadsheet is being created.',{},409,true);try{let record=this.store.documents(actor.tenantId,'sheets_creation').find(d=>d.id===id);if(record?.name!==undefined&&record.name!==input.name)throw new MirrorError('IDEMPOTENCY_CONFLICT','This key belongs to a different spreadsheet creation.');let file:JsonObject|undefined;if(record?.spreadsheet_id)file={id:record.spreadsheet_id,name:record.name};else if(record){const query=new URLSearchParams({q:"trashed = false and appProperties has { key='amcp_creation' and value='"+id+"' }",fields:'files(id,name,mimeType),incompleteSearch',pageSize:'10'}),d=await this.request(actor,connectionId,'https://www.googleapis.com/drive/v3/files?'+query,undefined,true);if(d.incompleteSearch||d.files?.length!==1)throw new MirrorError('SHEETS_CREATION_UNCONFIRMED','Creation was interrupted. Check Google Drive for the AMCP spreadsheet and bind its ID; AMCP will not create a possible duplicate.',{creation_id:id},409);file=d.files[0];}else{this.store.putDocument(actor.tenantId,'sheets_creation',id,{name:input.name,connection_id:connectionId,state:'creating',created_at:Date.now()});file=await this.request(actor,connectionId,'https://www.googleapis.com/drive/v3/files?fields=id,name,mimeType',{name:input.name,mimeType:'application/vnd.google-apps.spreadsheet',appProperties:{amcp_creation:id}},true);}
- const spreadsheetId=fileId(file!.id);this.store.putDocument(actor.tenantId,'sheets_creation',id,{name:input.name,connection_id:connectionId,spreadsheet_id:spreadsheetId,state:'complete'});const c=this.connection(actor,connectionId,true);this.store.putConnection(actor,{...c,enabled:true,accounts:[...new Set([...c.accounts,spreadsheetId])]},this.store.credentials(actor.tenantId,c.id));return {spreadsheet_id:spreadsheetId,name:file!.name,url:'https://docs.google.com/spreadsheets/d/'+spreadsheetId+'/edit',connection_id:connectionId};}finally{this.store.releaseLock(lock,owner);}}
+ private async request(actor:Actor,connectionId:string,url:string,body?:JsonObject,creating=false,selectedForBinding?:string,context:{check?:()=>void;beforeSend?:()=>void;accepted?:(data:JsonObject)=>void;captureAuthority?:(check:()=>void)=>void}={}):Promise<JsonObject>{
+  context.check?.();
+  const c=this.connection(actor,connectionId,creating),parsed=new URL(url),target=parsed.hostname==='sheets.googleapis.com'?parsed.pathname.split('/')[3]?.split(':')[0]:undefined;
+  const bindingRead=actor.role==='admin'&&creating&&!body&&target===selectedForBinding;
+  const selected=()=>{const current=this.connection(actor,connectionId,creating);if(target&&!current.accounts.includes(target)&&!bindingRead)throw new MirrorError('SPREADSHEET_SCOPE_REQUIRED','The destination spreadsheet is no longer selected.',{},403);return current;};
+  selected();const token=await this.credentials.get(c),fingerprint=sha256(stable(token));
+  if(!token.accessToken)throw new MirrorError('REAUTHORIZATION_REQUIRED','Reconnect Google Sheets.',{},401);
+  const access=()=>{context.check?.();const current=selected();if(sha256(stable(this.store.connectionCredentials(current)))!==fingerprint)throw new MirrorError('REAUTHORIZATION_REQUIRED','The Google Sheets login changed during this operation. Preserve its delivery receipt and reconnect.',{},403);};
+  context.captureAuthority?.(access);access();context.beforeSend?.();
+  let r:Response;
+  try{r=await this.fetcher(url,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+token.accessToken,Accept:'application/json',...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,redirect:'error',signal:AbortSignal.timeout(25000)});}
+  catch{throw new MirrorError(body?'SHEETS_OUTCOME_UNKNOWN':'SHEETS_UNAVAILABLE',body?'Google did not confirm this request. AMCP will reconcile its result before retrying.':'Google Sheets is temporarily unavailable.',{},503,true);}
+  const chunks:Uint8Array[]=[],reader=r.body?.getReader();let size=0;
+  if(reader)try{while(true){const part=await reader.read();if(part.done)break;size+=part.value.byteLength;if(size>8*1024*1024){await reader.cancel();throw new MirrorError('SHEETS_RESPONSE_TOO_LARGE','Google returned an oversized response.',{},502);}chunks.push(part.value);}}finally{reader.releaseLock();}
+  let data:JsonObject;try{data=JSON.parse(Buffer.concat(chunks).toString('utf8'));if(!data||typeof data!=='object'||Array.isArray(data))throw Error();}
+  catch{throw new MirrorError('SHEETS_RESPONSE_INVALID','Google returned an invalid response.',{},502);}
+  if(!r.ok)throw new MirrorError(r.status===403?'SHEETS_PERMISSION_DENIED':'SHEETS_REQUEST_FAILED','Google Sheets rejected the request. Check file permissions or reconnect.',{status:r.status,retry_after_ms:Math.min(3600000,Math.max(1000,Number(r.headers.get('retry-after')??30)*1000))},r.status,[429,500,502,503,504].includes(r.status));
+  if(data.error||parsed.hostname==='sheets.googleapis.com'&&parsed.pathname.endsWith(':batchUpdate')&&(r.status!==200||data.spreadsheetId!==target||!Array.isArray(data.replies)||data.replies.length!==body?.requests?.length))throw new MirrorError('SHEETS_RESPONSE_INVALID','Google did not confirm the exact spreadsheet batch. Reconcile its original delivery marker.',{},502);
+  // Record confirmed external effects before a late withdrawal can withhold their result.
+  context.accepted?.(data);access();return data;
+ }
+ async create(actor:Actor,input:JsonObject){
+  if(actor.role!=='admin'||input.confirmed!==true)throw new MirrorError('FORBIDDEN','An administrator must confirm spreadsheet creation.',{},403);
+  if(typeof input.name!=='string'||!input.name.trim()||input.name.length>100||typeof input.idempotency_key!=='string'||!/^[a-zA-Z0-9_-]{8,100}$/.test(input.idempotency_key))throw new MirrorError('INVALID_DESTINATION','Provide a spreadsheet name and a stable creation key.');
+  const connectionId=String(input.connection_id);this.connection(actor,connectionId,true);
+  const id=sha256(connectionId+':'+input.idempotency_key),lock='sheets-create:'+actor.tenantId+':'+id,owner=randomUUID();
+  if(!this.store.acquireLock(lock,owner,180000))throw new MirrorError('EXPORT_BUSY','This spreadsheet is being created.',{},409,true);
+  try{
+   const record=this.store.documents(actor.tenantId,'sheets_creation').find(d=>d.id===id);
+   if(record?.name!==undefined&&record.name!==input.name)throw new MirrorError('IDEMPOTENCY_CONFLICT','This key belongs to a different spreadsheet creation.');
+   const check=()=>{this.connection(actor,connectionId,true);const lease=this.store.db.prepare('SELECT owner,expires_at FROM service_locks WHERE key=?').get(lock) as JsonObject|undefined;if(!lease||lease.owner!==owner||lease.expires_at<=Date.now())throw new MirrorError('EXPORT_LEASE_LOST','Spreadsheet creation lost its lock. Reconcile its original creation key.',{},409);};
+   let commitAccess:()=>void=check;
+   const context={check,captureAuthority:(access:()=>void)=>{commitAccess=access;}};
+   const validate=(file:JsonObject)=>{if(typeof file?.id!=='string'||!/^[a-zA-Z0-9_-]{5,180}$/.test(file.id)||file.mimeType!=='application/vnd.google-apps.spreadsheet')throw new MirrorError('SHEETS_RESPONSE_INVALID','Google did not confirm a spreadsheet file.',{},502);};
+   const accepted=(file:JsonObject)=>{validate(file);this.store.putDocument(actor.tenantId,'sheets_creation',id,{name:input.name,connection_id:connectionId,spreadsheet_id:file.id,state:'complete'});};
+   let file:JsonObject;
+   if(record?.spreadsheet_id){
+    file=await this.request(actor,connectionId,'https://www.googleapis.com/drive/v3/files/'+fileId(record.spreadsheet_id)+'?fields=id,name,mimeType',undefined,true,undefined,context);
+    if(file.id!==record.spreadsheet_id)throw new MirrorError('SHEETS_RESPONSE_INVALID','Google returned another file for the retained creation.',{},502);
+   }else if(record){
+    const query=new URLSearchParams({q:"trashed = false and appProperties has { key='amcp_creation' and value='"+id+"' }",fields:'files(id,name,mimeType),incompleteSearch',pageSize:'10'});
+    const data=await this.request(actor,connectionId,'https://www.googleapis.com/drive/v3/files?'+query,undefined,true,undefined,context);
+    if(data.incompleteSearch||!Array.isArray(data.files)||data.files.length!==1)throw new MirrorError('SHEETS_CREATION_UNCONFIRMED','Creation was interrupted. Check Google Drive for the AMCP spreadsheet and bind its ID; AMCP will not create a possible duplicate.',{creation_id:id},409);
+    file=data.files[0];
+   }else{
+    check();this.store.putDocument(actor.tenantId,'sheets_creation',id,{name:input.name,connection_id:connectionId,state:'creating',created_at:Date.now()});
+    file=await this.request(actor,connectionId,'https://www.googleapis.com/drive/v3/files?fields=id,name,mimeType',{name:input.name,mimeType:'application/vnd.google-apps.spreadsheet',appProperties:{amcp_creation:id}},true,undefined,{...context,accepted});
+   }
+   validate(file);commitAccess();
+   this.store.transaction(()=>{commitAccess();accepted(file);const c=this.connection(actor,connectionId,true);this.store.putConnection(actor,{...c,enabled:true,accounts:[...new Set([...c.accounts,file.id])]},this.store.credentials(actor.tenantId,c.id));});
+   return {spreadsheet_id:file.id,name:file.name,url:'https://docs.google.com/spreadsheets/d/'+file.id+'/edit',connection_id:connectionId};
+  }finally{this.store.releaseLock(lock,owner);}
+ }
  async bind(actor:Actor,input:JsonObject):Promise<JsonObject>{
   if(actor.role==='reader'||input.confirmed!==true)throw new MirrorError('FORBIDDEN','Confirm the spreadsheet destination with an operator account.',{},403);
   const pasted=input.spreadsheet_url!==undefined,spreadsheetId=pasted?spreadsheetIdFromUrl(input.spreadsheet_url):fileId(input.spreadsheet_id);
@@ -36,16 +86,16 @@ export class GoogleSheetsExports{
   const id=input.idempotency_key?sha256(c.id+':'+input.idempotency_key):randomUUID();
   const prior=this.store.documents(actor.tenantId,'sheets_destination').find(d=>d.id===id);
   if(prior&&(prior.spreadsheet_id!==spreadsheetId||prior.requested_tab_name!==title))throw new MirrorError('IDEMPOTENCY_CONFLICT','This destination key belongs to a different spreadsheet or report tab.');
-  let d:JsonObject;
-  try{d=await this.request(actor,c.id,'https://sheets.googleapis.com/v4/spreadsheets/'+spreadsheetId+'?fields=spreadsheetId,properties(title)',undefined,allowSelection,allowSelection?spreadsheetId:undefined);}
+  let d:JsonObject,commitAccess:()=>void=()=>{this.connection(actor,c.id,allowSelection);};
+  try{d=await this.request(actor,c.id,'https://sheets.googleapis.com/v4/spreadsheets/'+spreadsheetId+'?fields=spreadsheetId,properties(title)',undefined,allowSelection,allowSelection?spreadsheetId:undefined,{captureAuthority:check=>{commitAccess=check;}});}
   catch(e){if(pasted&&e instanceof MirrorError&&[403,404].includes(Number(e.details.status))&&!c.scopes.includes('https://www.googleapis.com/auth/spreadsheets'))throw new MirrorError('SHEETS_RECONNECT_REQUIRED','Connect Google Sheets again and allow spreadsheet access to use pasted URLs. Then retry this URL.',{},403);throw e;}
-  if(!selected&&(d.spreadsheetId!==spreadsheetId||typeof d.properties?.title!=='string'))throw new MirrorError('SHEETS_RESPONSE_INVALID','Google did not confirm the selected spreadsheet.',{},502);
+  if(d.spreadsheetId!==spreadsheetId||typeof d.properties?.title!=='string')throw new MirrorError('SHEETS_RESPONSE_INVALID','Google did not confirm the selected spreadsheet.',{},502);
   // The URL is only an identifier. A successful authenticated read precedes this explicit local grant.
   const record=prior??{connection_id:c.id,spreadsheet_id:spreadsheetId,name:d.properties?.title??spreadsheetId,sheet_id:parseInt(sha256(id).slice(0,7),16),tab_name:title+' '+id.slice(0,8),requested_tab_name:title,created_at:Date.now()};
   this.store.transaction(()=>{
    const existing=this.store.documents(actor.tenantId,'sheets_destination').find(destination=>destination.id===id);
    if(existing&&(existing.spreadsheet_id!==spreadsheetId||existing.requested_tab_name!==title))throw new MirrorError('IDEMPOTENCY_CONFLICT','This destination key belongs to a different spreadsheet or report tab.');
-   const latest=this.connection(actor,c.id,allowSelection);
+   commitAccess();const latest=this.connection(actor,c.id,allowSelection);
    if(!latest.accounts.includes(spreadsheetId)){
     if(!allowSelection)throw new MirrorError('SPREADSHEET_SCOPE_REQUIRED','The destination spreadsheet is no longer selected.',{},403);
     this.store.putConnection(actor,{...latest,enabled:true,accounts:[...new Set([...latest.accounts,spreadsheetId])]},this.store.credentials(actor.tenantId,c.id));
@@ -59,5 +109,70 @@ export class GoogleSheetsExports{
   });
   return {...record,id,url:'https://docs.google.com/spreadsheets/d/'+spreadsheetId+'/edit#gid='+record.sheet_id};
  }
- async write(actor:Actor,destinationId:string,report:JsonObject){if(actor.role==='reader')throw new MirrorError('FORBIDDEN','An operator role is required to export reports.',{},403);assertReportExportable(report);if(report.state==='partial'&&report.config?.partial_delivery==='complete_only')throw new MirrorError('PARTIAL_DELIVERY_BLOCKED','This schedule accepts complete reports only. Review failed or limited sources; the destination tab was left unchanged.',{},409);const lock='sheets-export:'+actor.tenantId+':'+destinationId,owner=randomUUID();if(!this.store.acquireLock(lock,owner,180000))throw new MirrorError('EXPORT_BUSY','Another export is using this destination.',{retry_after_ms:5000},503,true);try{let d=this.store.document(actor.tenantId,'sheets_destination',destinationId);const c=this.connection(actor,d.connection_id);if(!c.accounts.includes(d.spreadsheet_id))throw new MirrorError('SPREADSHEET_SCOPE_REQUIRED','The destination spreadsheet is no longer selected.',{},403);if(d.last_captured_at>report.captured_at)return {state:'superseded',message:'A newer report is already exported.'};const url='https://sheets.googleapis.com/v4/spreadsheets/'+fileId(d.spreadsheet_id),meta=await this.request(actor,c.id,url+'?fields=sheets(properties,developerMetadata)');const existing=meta.sheets?.find((s:JsonObject)=>s.properties?.sheetId===d.sheet_id);if(existing&&!(existing.developerMetadata??[]).some((m:JsonObject)=>m.metadataKey==='amcp_destination'&&m.metadataValue===destinationId))throw new MirrorError('SHEET_OWNERSHIP_CONFLICT','This tab is not marked as the AMCP export destination. Bind a new destination.');const table=reportTable(report),width=table[0]!.length,height=table.length;if(height*width>200000)throw new MirrorError('EXPORT_TOO_LARGE','This export exceeds 200,000 cells. Select fewer metrics or split the report.');const rows=table.map(row=>({values:row.map(v=>({userEnteredValue:typeof v==='number'&&Number.isFinite(v)?{numberValue:v}:{stringValue:String(v??'')}}))}));const requests:JsonObject[]=existing?[]:[{addSheet:{properties:{sheetId:d.sheet_id,title:d.tab_name}}},{createDeveloperMetadata:{developerMetadata:{metadataKey:'amcp_destination',metadataValue:destinationId,location:{sheetId:d.sheet_id},visibility:'DOCUMENT'}}}];const rowCount=Math.max(100,height,existing?.properties.gridProperties?.rowCount??0),columnCount=Math.max(width,existing?.properties.gridProperties?.columnCount??0);requests.push({updateSheetProperties:{properties:{sheetId:d.sheet_id,gridProperties:{rowCount,columnCount,frozenRowCount:1}},fields:'gridProperties'}},{updateCells:{range:{sheetId:d.sheet_id,startRowIndex:0,startColumnIndex:0,endRowIndex:rowCount,endColumnIndex:columnCount},rows,fields:'userEnteredValue'}},{repeatCell:{range:{sheetId:d.sheet_id,startRowIndex:0,endRowIndex:1},cell:{userEnteredFormat:{backgroundColor:{red:0.16,green:0.12,blue:0.3},textFormat:{bold:true,foregroundColor:{red:1,green:1,blue:1}}}},fields:'userEnteredFormat'}},{setBasicFilter:{filter:{range:{sheetId:d.sheet_id,startRowIndex:0,endRowIndex:height,startColumnIndex:0,endColumnIndex:width}}}});if(Buffer.byteLength(JSON.stringify(requests))>8*1024*1024)throw new MirrorError('EXPORT_TOO_LARGE','Split this report into smaller exports.');this.store.journal(actor.tenantId,'export:'+report.id+':'+destinationId,'delivering',{report_id:report.id,rows:height-1});await this.request(actor,c.id,url+':batchUpdate',{requests});this.store.journal(actor.tenantId,'export:'+report.id+':'+destinationId,'delivered',{report_id:report.id,rows:height-1});d=this.store.document(actor.tenantId,'sheets_destination',destinationId);this.store.putDocument(actor.tenantId,'sheets_destination',destinationId,{...d,last_captured_at:report.captured_at,last_report_id:report.id,last_export_at:Date.now()});this.store.appendAudit(actor.tenantId,'export/'+report.id,{event:'google_sheets_exported',destination_id:destinationId,report_id:report.id,row_count:height-1});return {state:'complete',rows:height-1,url:'https://docs.google.com/spreadsheets/d/'+d.spreadsheet_id+'/edit#gid='+d.sheet_id};}finally{this.store.releaseLock(lock,owner);}}
+ async write(actor:Actor,destinationId:string,report:JsonObject,assertSource:()=>void=()=>{}){
+  if(actor.role==='reader')throw new MirrorError('FORBIDDEN','An operator role is required to export reports.',{},403);
+  assertReportExportable(report);
+  if(typeof report.id!=='string'||!report.id)throw new MirrorError('INVALID_REPORT','Export a saved report with a stable identifier.');
+  if(report.state==='partial'&&report.config?.partial_delivery==='complete_only')throw new MirrorError('PARTIAL_DELIVERY_BLOCKED','This schedule accepts complete reports only. Review failed or limited sources; the destination tab was left unchanged.',{},409);
+  const lock='sheets-export:'+actor.tenantId+':'+destinationId,owner=randomUUID();
+  if(!this.store.acquireLock(lock,owner,180000))throw new MirrorError('EXPORT_BUSY','Another export is using this destination.',{retry_after_ms:5000},503,true);
+  try{
+   const d=this.store.document(actor.tenantId,'sheets_destination',destinationId),binding=(v:JsonObject)=>stable({connection_id:v.connection_id,spreadsheet_id:v.spreadsheet_id,sheet_id:v.sheet_id,tab_name:v.tab_name}),frozenBinding=binding(d);
+   let credentialFingerprint:string|undefined;
+   const check=()=>{
+    assertSource();const c=this.connection(actor,d.connection_id);
+    if(!c.accounts.includes(d.spreadsheet_id))throw new MirrorError('SPREADSHEET_SCOPE_REQUIRED','The destination spreadsheet is no longer selected.',{},403);
+    if(binding(this.store.document(actor.tenantId,'sheets_destination',destinationId))!==frozenBinding)throw new MirrorError('SHEETS_DESTINATION_CHANGED','The destination changed during export. Use its current report settings.',{},409);
+    const lease=this.store.db.prepare('SELECT owner,expires_at FROM service_locks WHERE key=?').get(lock) as JsonObject|undefined;
+    if(!lease||lease.owner!==owner||lease.expires_at<=Date.now())throw new MirrorError('EXPORT_LEASE_LOST','This export lost its destination lock. Reconcile the original delivery before retrying.',{},409);
+    if(credentialFingerprint&&sha256(stable(this.store.connectionCredentials(c)))!==credentialFingerprint)throw new MirrorError('REAUTHORIZATION_REQUIRED','The Google Sheets login changed during export. Preserve the original delivery receipt.',{},403);
+   };
+   check();
+   const table=reportTable(report),width=table[0]!.length,height=table.length;
+   if(height*width>200000)throw new MirrorError('EXPORT_TOO_LARGE','This export exceeds 200,000 cells. Select fewer metrics or split the report.');
+   const fingerprint=sha256(stable({version:1,destination:frozenBinding,report_id:report.id,captured_at:report.captured_at,table})),deliveryId=sha256(stable({destinationId,report_id:report.id})),marker=deliveryId+':'+fingerprint;
+   let prior:JsonObject|undefined;try{prior=this.store.document(actor.tenantId,'sheets_delivery',deliveryId);}catch(e){if(!(e instanceof MirrorError&&e.code==='NOT_FOUND'))throw e;}
+   if(prior&&prior.fingerprint!==fingerprint)throw new MirrorError('IDEMPOTENCY_CONFLICT','This report delivery has different content or a different destination. Create a new report run.',{},409);
+   const result={state:'complete',rows:height-1,url:'https://docs.google.com/spreadsheets/d/'+d.spreadsheet_id+'/edit#gid='+d.sheet_id};
+   if(prior?.state==='complete')return {...result,replayed:true,receipt_only:true};
+   const unresolved=this.store.db.prepare("SELECT id,data FROM documents WHERE tenant_id=? AND kind='sheets_delivery' AND id<>? AND json_extract(data,'$.destination_id')=? AND json_extract(data,'$.state') IN ('pending','uncertain') LIMIT 1").get(actor.tenantId,deliveryId,destinationId) as JsonObject|undefined;
+   if(unresolved)throw new MirrorError('SHEETS_DELIVERY_UNRESOLVED','An earlier report delivery is uncertain. Export that original report to this destination again to reconcile its marker before sending a newer report.',{report_id:JSON.parse(unresolved.data).report_id,delivery_id:unresolved.id,destination_id:destinationId},409);
+   if(d.last_captured_at>report.captured_at)return {state:'superseded',message:'A newer report is already exported.'};
+   const credentials=await this.credentials.get(this.connection(actor,d.connection_id));credentialFingerprint=sha256(stable(credentials));check();
+   const url='https://sheets.googleapis.com/v4/spreadsheets/'+fileId(d.spreadsheet_id);
+   const meta=await this.request(actor,d.connection_id,url+'?fields=sheets(properties,developerMetadata)',undefined,false,undefined,{check});check();
+   if(!Array.isArray(meta.sheets))throw new MirrorError('SHEETS_RESPONSE_INVALID','Google did not return the destination sheet inventory.',{},502);
+   const existing=meta.sheets?.find((s:JsonObject)=>s.properties?.sheetId===d.sheet_id);
+   if(existing&&!(existing.developerMetadata??[]).some((m:JsonObject)=>m.metadataKey==='amcp_destination'&&m.metadataValue===destinationId))throw new MirrorError('SHEET_OWNERSHIP_CONFLICT','This tab is not marked as the AMCP export destination. Bind a new destination.');
+   const markers=(existing?.developerMetadata??[]).filter((m:JsonObject)=>m.metadataKey==='amcp_last_delivery');
+   if(markers.length>1)throw new MirrorError('SHEET_OWNERSHIP_CONFLICT','This tab has conflicting delivery metadata. Inspect the destination before exporting.');
+   const record={destination_id:destinationId,report_id:report.id,fingerprint,captured_at:report.captured_at,rows:height-1,spreadsheet_id:d.spreadsheet_id,sheet_id:d.sheet_id};
+   const accepted=()=>this.store.transaction(()=>{
+    this.store.putDocument(actor.tenantId,'sheets_delivery',deliveryId,{...record,state:'complete',completed_at:Date.now()});
+    this.store.journal(actor.tenantId,'export:'+report.id+':'+destinationId,'delivered',{report_id:report.id,rows:height-1});
+    const latest=this.store.document(actor.tenantId,'sheets_destination',destinationId);
+    if(binding(latest)===frozenBinding&&!(latest.last_captured_at>report.captured_at))this.store.putDocument(actor.tenantId,'sheets_destination',destinationId,{...latest,last_captured_at:report.captured_at,last_report_id:report.id,last_export_at:Date.now()});
+    this.store.appendAudit(actor.tenantId,'export/'+report.id,{event:'google_sheets_exported',destination_id:destinationId,report_id:report.id,row_count:height-1});
+   });
+   if(prior&&prior.state!=='rejected'){
+    if(markers[0]?.metadataValue!==marker)throw new MirrorError('SHEETS_OUTCOME_UNKNOWN','The original delivery is not confirmed in the destination. AMCP will check its marker again without resending the report.',{retry_after_ms:5000,delivery_id:deliveryId},503,true);
+    accepted();check();return {...result,replayed:true,reconciled:true};
+   }
+   const rows=table.map(row=>({values:row.map(v=>({userEnteredValue:typeof v==='number'&&Number.isFinite(v)?{numberValue:v}:{stringValue:String(v??'')}}))}));
+   const requests:JsonObject[]=existing?[]:[{addSheet:{properties:{sheetId:d.sheet_id,title:d.tab_name}}},{createDeveloperMetadata:{developerMetadata:{metadataKey:'amcp_destination',metadataValue:destinationId,location:{sheetId:d.sheet_id},visibility:'DOCUMENT'}}}];
+   const rowCount=Math.max(100,height,existing?.properties.gridProperties?.rowCount??0),columnCount=Math.max(width,existing?.properties.gridProperties?.columnCount??0);
+   requests.push({updateSheetProperties:{properties:{sheetId:d.sheet_id,gridProperties:{rowCount,columnCount,frozenRowCount:1}},fields:'gridProperties'}},{updateCells:{range:{sheetId:d.sheet_id,startRowIndex:0,startColumnIndex:0,endRowIndex:rowCount,endColumnIndex:columnCount},rows,fields:'userEnteredValue'}},{repeatCell:{range:{sheetId:d.sheet_id,startRowIndex:0,endRowIndex:1},cell:{userEnteredFormat:{backgroundColor:{red:0.16,green:0.12,blue:0.3},textFormat:{bold:true,foregroundColor:{red:1,green:1,blue:1}}}},fields:'userEnteredFormat'}},{setBasicFilter:{filter:{range:{sheetId:d.sheet_id,startRowIndex:0,endRowIndex:height,startColumnIndex:0,endColumnIndex:width}}}});
+   if(markers.length){if(!Number.isSafeInteger(markers[0].metadataId)||markers[0].metadataId<0)throw new MirrorError('SHEETS_RESPONSE_INVALID','Google returned an invalid delivery metadata identifier.',{},502);requests.push({updateDeveloperMetadata:{dataFilters:[{developerMetadataLookup:{metadataId:markers[0].metadataId}}],developerMetadata:{metadataValue:marker},fields:'metadataValue'}});}
+   else requests.push({createDeveloperMetadata:{developerMetadata:{metadataKey:'amcp_last_delivery',metadataValue:marker,location:{sheetId:d.sheet_id},visibility:'DOCUMENT'}}});
+   if(Buffer.byteLength(JSON.stringify(requests))>8*1024*1024)throw new MirrorError('EXPORT_TOO_LARGE','Split this report into smaller exports.');
+   try{
+    await this.request(actor,d.connection_id,url+':batchUpdate',{requests},false,undefined,{check,accepted,beforeSend:()=>{check();this.store.putDocument(actor.tenantId,'sheets_delivery',deliveryId,{...record,state:'pending',sent_at:Date.now()});this.store.journal(actor.tenantId,'export:'+report.id+':'+destinationId,'delivering',{report_id:report.id,rows:height-1});}});
+   }catch(e){
+    let saved:JsonObject|undefined;try{saved=this.store.document(actor.tenantId,'sheets_delivery',deliveryId);}catch(error){if(!(error instanceof MirrorError&&error.code==='NOT_FOUND'))throw error;}
+    if(saved?.state==='pending'){const rejected=e instanceof MirrorError&&[400,401,403,404,413,429].includes(Number(e.details.status));this.store.putDocument(actor.tenantId,'sheets_delivery',deliveryId,{...saved,state:rejected?'rejected':'uncertain',error_code:e instanceof MirrorError?e.code:'SHEETS_OUTCOME_UNKNOWN'});}
+    throw e;
+   }
+   return result;
+  }finally{this.store.releaseLock(lock,owner);}
+ }
 }

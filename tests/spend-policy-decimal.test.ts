@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,unlinkSync,rmdirSync,existsSync} from 'node:fs';
+import {mkdtempSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {Worker} from 'node:worker_threads';
+import {removeTestDirectory} from './temp.js';
 import {Store} from '../src/store.js';
 import {saveSpendPolicy,checkSpendPolicy,spendPolicyKey} from '../src/spend-policy.js';
 import type {Actor,CompiledRequest,JsonObject} from '../src/types.js';
@@ -92,7 +93,7 @@ test('new exact reservations survive SQLite restart and the same reservation is 
   assert.equal(first.reserved_today_decimal,'0');
   assert.equal(first.requested_increase_decimal,'33.10000000000000001');
   assert.equal(checkSpendPolicy(store,actor,request('33.19999999999999999'),[],'two').reserved_today_decimal,'33.10000000000000001');
- }finally{store.close();for(const suffix of ['', '-wal','-shm'])if(existsSync(filename+suffix))unlinkSync(filename+suffix);rmdirSync(dir);}
+ }finally{store.close();removeTestDirectory(dir,'amcp-policy-restart-');}
 });
 
 test('legacy numeric reservations remain authoritative and inconsistent exact metadata refuses writes',()=>{
@@ -189,5 +190,5 @@ test('independent SQLite workers cannot overbook the decimal daily cap', {timeou
   assert.equal(results.find(r=>!r.ok)?.code,'POLICY_DAILY_INCREASE_LIMIT');
   const reopened=new Store(filename,key);
   try{assert.equal(checkSpendPolicy(reopened,actor,request('33.1'),[],'finish').reserved_today_decimal,'33.2');assert.throws(()=>checkSpendPolicy(reopened,actor,request('0.01'),[]),{code:'POLICY_DAILY_INCREASE_LIMIT'});}finally{reopened.close();}
- }finally{await Promise.all(workers.map(w=>w.terminate()));for(const suffix of ['', '-wal','-shm'])if(existsSync(filename+suffix))unlinkSync(filename+suffix);rmdirSync(dir);}
+ }finally{await Promise.all(workers.map(w=>w.terminate()));removeTestDirectory(dir,'amcp-policy-workers-');}
 });

@@ -228,3 +228,56 @@ state before reviewing a correction. Native eligibility and actual device
 rendering remain unverified live. Contract source checked 2026-09-19:
 [X v12 creative reference](https://docs.x.com/x-ads-api/creatives/reference) and
 [response envelopes](https://docs.x.com/x-ads-api/fundamentals/error-codes-and-responses).
+
+### X asynchronous analytics jobs
+
+Use `amcp_write` with `x_stats_jobs_accounts_account_id_post` to prepare,
+review and execute one report job. Select the original connection and account,
+discover the entity IDs, and supply native `params`: entity, entity_ids,
+metric_groups, placement, granularity, start_time and end_time. Do not invent
+objectives, geography IDs or dates. This consumes report quota without changing
+advertising configuration. AMCP still requires operator access, an account write
+grant and deployment write permission for submission.
+
+Poll `x_stats_jobs_accounts_account_id_get` with `params.job_ids` containing
+the returned exact `id_str`. Keep IDs as strings. A successful status read is
+not a complete report. On that same GET, `download_report: true` retrieves one
+original job's gzip output on the server. Use `offset` and `limit` (1–100) to
+page its validated entity/segment rows; do not use field projection, compaction
+or generic pagination. The client never needs to download a private result URL.
+
+AMCP checks the current account, original app/user login and reviewed definition
+before and after transfer. The six-hour encrypted result cache still requires a
+fresh authorized status read. It preserves native time series and explicit nulls.
+A missing requested entity leaves `report.complete: false`; do not present it
+as zero activity. Follow `report.next_call` until `has_more` is false and inspect
+`source_complete` separately. Spend remains account-currency micros.
+
+Local limits are 8 MiB compressed, 32 MiB expanded, 25,000 segment rows, one million
+metric cells and 512 KiB per returned page. Narrow a report that exceeds them;
+never truncate silently. The shared two-slot download limit can require a later
+read. A single oversized row requires a narrower date/metric definition.
+
+Retain the original review/key/job ID across restarts, failures and reconnects.
+Unknown submissions are not resent automatically and retain a local quota slot;
+known terminal jobs release their slot when observed. AMCP does not infer that an
+unseen job completed. A new review requires explicit intent. Failed, cancelled
+or expired jobs cannot supply successful output. The captured cancellation action
+remains unqualified; do not use raw routes to bypass that boundary. This native
+workflow is separate from the dashboard's existing synchronous X report source.
+
+Native reference checked 2026-09-25:
+`X_REPORT_LOGIN_CHANGED` requires the original app/user identity; reconnecting a
+different login does not transfer job ownership. `X_REPORT_STATE_UNVERIFIED` or
+`X_REPORT_DOWNLOAD_INVALID` means the status, identity or downloaded content
+could not be verified: inspect that error and retry only the original read when
+appropriate. `X_REPORT_DOWNLOAD_BUSY` requires waiting for the existing lease.
+`X_REPORT_FAILED`, `X_REPORT_CANCELLED` and `X_REPORT_EXPIRED` require an explicit
+decision about a new report; do not silently substitute an empty result.
+
+[X analytics](https://docs.x.com/x-ads-api/analytics). Query parameters, end-exclusive
+UTC whole-hour dates, account-midnight DAY boundaries, native metric compatibility
+and historical entity reporting follow that contract. The current placements are
+ALL_ON_TWITTER, SPOTLIGHT and TREND. Segmented values may not reconcile to totals;
+recent values, attribution and billing adjustments remain estimates. These
+contracts have synthetic tests; account-specific native acceptance is unverified.
