@@ -75,8 +75,36 @@ native receipt and empty-membership compatibility still need live verification.
 
 The account-scoped `meta_ad_account_id_value_rule_set_get` is a GET read,
 including in read-only deployments. A value-rule set is a resource name, not a
-command to change a rule. Its existence does not qualify the separate creation,
-translation or update writes. Inspect the selected account's returned rules.
+command to change a rule. Inspect the selected account's returned rules.
+
+### Value rule sets
+
+`meta_ad_account_id_value_rule_set_create`, `meta_value_rule_set_id_update` and
+`meta_value_rule_set_id_delete_rule_set_create` manage value rule sets. Each rule raises bids by
+1–1000% or lowers them by 1–90% for people who match its criteria; the first matching rule in
+order applies.
+
+- **Create:** `name` and 1–10 `rules`, each with a distinct `name`, `adjust_sign` (`INCREASE`
+  or `DECREASE`), a whole-number `adjust_value` and 1–4 `criterias` of different types. A
+  criterion has `criteria_type`, `operator: CONTAINS`, `criteria_values` and one
+  `criteria_value_types` entry per value. Types: `AGE` (for example `18-24` or `45+`; use `18+`
+  instead of an upper limit of 65), `GENDER`, `OS_TYPE`, `DEVICE_PLATFORM`, `LOCATION` (country
+  codes and numeric region, city or Comscore market keys; Meta stopped applying DMA rules on 22
+  June 2026), `PLACEMENT`, `OMNI_CHANNEL` and `AUDIENCE_LABEL`, with the documented values. An
+  account holds up to six sets with distinct names. A new set changes nothing until an ad set
+  names it, so it needs no spending confirmation.
+- **Update:** list the account's sets with `meta_ad_account_id_value_rule_set_get` first; that
+  list is what proves the set belongs to the account. Send the complete set: existing rules and
+  criteria keep their `id` (and a criterion keeps its type), new ones have none, and omitted ones
+  are removed. An update that changes nothing is refused.
+- **Delete:** an empty body on a listed set.
+- Updates and deletion change the bids of every ad set that uses the set. They need
+  `spend_change_confirmed` and count as serving under an activation-forbidding owner policy.
+  Deletion counts as a removal. Verification reads the account's sets again. Gender values are
+  compared without case, because Meta returns them in lower case.
+- `INVALID_META_VALUE_RULE` means correct the named rule or criterion. Reference:
+  [Value Rules](https://developers.facebook.com/documentation/ads-commerce/marketing-api/bidding/value-rules),
+  checked 2026-09-26.
 
 Use `meta_native_action`. Resolve its current actions with LIST_ACTIONS / DESCRIBE_ACTION; current aliases include `meta_campaign_create`, `meta_adset_create`, `meta_creative_create`, `meta_ad_create`, `meta_image_upload` and `meta_video_upload`.
 

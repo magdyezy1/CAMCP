@@ -1,0 +1,103 @@
+{
+  "format_version": 1,
+  "date": "2026-09-26",
+  "branch": "Codex-branch",
+  "base_revision": "40fd50878e3f24d15fd3564607705660e7f58e24",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/meta-value-rules-20260926-a",
+    "files": 808,
+    "source_tree_hash": "add25e8a5c8f6e2263d007f3c1024ebaddd038d1ff2bd40d02bf2b2f7fb1099b",
+    "index_code_test_guidance_files_compared": 667,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/meta-value-rules-20260926-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/meta-value-rules-20260926/install.log",
+      "sha256": "fd1d9de07b2f08802677e9eb68653e02fcf4423e062c4d00c4a3afe0d39973f2"
+    },
+    {
+      "path": ".runtime/meta-value-rules-20260926/check.log",
+      "sha256": "df768edd9dd3178a93e66d318a39dffa27cbd51a0a44aa2b1ff688f6b2e52451",
+      "started": "2026-09-26T20:25:47Z",
+      "finished": "2026-09-26T20:36:15Z",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2298,
+          "pass": 2298,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/meta-value-rules-20260926/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/meta-value-rules-20260926/red-check.log",
+      "sha256": "3a076c98c3de720c91a09a646fafb11ce6db5dfe4c826f84d5f9789941576623",
+      "meaning": "tests/meta-value-rules.test.mjs against a build of 40fd508: expected red, 0/6 pass (the routes had no reviewed family)"
+    },
+    {
+      "path": ".runtime/meta-value-rules-20260926/targeted.log",
+      "sha256": "e6fcd973e3b469ce89c811cb3c35fe334c64fa0497b2b903fe7a8e3fa35c60b0",
+      "meaning": "129 related suites in the working copy, including every Meta suite: 1564/1564 pass."
+    }
+  ],
+  "development_failures": [
+    "The first run of the new suite had one wrong expectation: the criterion ID it called foreign belongs to the named rule, as the gender criterion. The contract now also refuses reusing an existing criterion ID for another criteria type, and the test covers both a truly foreign ID and a retyped one."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2298,
+    "main_pass": 2298,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Updates and deletion need a prior listing of the account sets, which records their ownership; the review does not discover sets itself.",
+    "Which ad sets use a set is not read; updates and deletion always need spending confirmation instead.",
+    "Rule status can only restate ACTIVE; other rule statuses are not documented.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

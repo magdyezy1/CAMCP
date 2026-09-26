@@ -83,6 +83,8 @@ export interface CompiledRequest {
   tiktokNegativeKeywordState?:{kind:'adgroups'|'campaigns'|'campaign_adgroups'|'keywords';ids:string[];objectType?:string};
   /** Server-derived TikTok account brand safety read (Pangle block list or Brand Safety Hub); never caller supplied. */
   tiktokBrandSafetyState?:'pangle'|'hub';
+  /** Server-derived Meta value rule set list read of the selected account; never caller supplied. */
+  metaValueRuleState?:true;
   /** Server-derived GTM workflow read. Never accepted from external arguments. */
   gtmState?:{kind:'resource'|'collection'|'status'|'latest';key?:string};
   /** Internal complete GTM workspace read; targets only qualify absence checks. */

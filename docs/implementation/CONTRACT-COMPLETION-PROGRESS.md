@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CS — Meta value rule sets (2026-09-26)
+
+Meta value rule sets can now be created, completely updated and deleted through reviews that
+read the account's rule sets, check rule and criterion IDs against them and verify the result.
+New sets need no spending confirmation; updates and deletion do, because ad sets using the set
+bid by it. See [implementation](META-VALUE-RULES-2026-09-26.md),
+[qualification](META-VALUE-RULES-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 910 (three Meta rows reviewed). Pushed only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## CR — Snapchat planning reads (2026-09-26)
 
 Snapchat audience insights and reach and frequency forecasts use POST but only estimate. They are
@@ -17,8 +29,8 @@ instead of being blocked as writes. See
 [qualification](SNAPCHAT-PLANNING-READS-VERIFICATION-2026-09-26.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 913 (two Snapchat rows are native reads). Pushed only to CAMCP; its exact-commit CI
-result and live acceptance are pending.
+Remaining rows: 913 (two Snapchat rows are native reads). Pushed to CAMCP as `40fd508`; its
+exact-commit CI result and live acceptance are pending.
 
 ## CQ — TikTok account brand safety (2026-09-26)
 

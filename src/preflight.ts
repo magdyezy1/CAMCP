@@ -33,6 +33,7 @@ import {dv360TargetingKind} from './dv360-line-item-targeting.js';
 import {googleListingGroupKind} from './google-listing-groups.js';
 import {tiktokNegativeKeywordWidens} from './tiktok-negative-keywords.js';
 import {tiktokBrandSafetyWidens,tiktokBrandSafetyHubKind} from './tiktok-brand-safety.js';
+import {metaValueRuleServing} from './meta-value-rules.js';
 import {microsoftAssociationWrite} from './microsoft-associations.js';
 import {xPromotion} from './x-creative-writes.js';
 import {tiktokSmartPlusAdgroupUpdateServing} from './tiktok-smart-plus-adgroup-updates.js';
@@ -57,6 +58,7 @@ export function authorizeExecution(actor:Actor,plan:CompiledRequest,input:JsonOb
  if(dv360ListAffectsServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','DV360 shared-list membership can change serving eligibility. Provide spend_change_confirmed=true.');
  if((googleAssetLinkKind(plan)||microsoftAssociationWrite(plan))&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Asset associations change which creative can serve. Review the parent state and provide spend_change_confirmed=true.');
  if((googleTargetingKind(plan)||plan.gateway==='reddit_native_action')&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Targeting, serving and shared-list changes require spend_change_confirmed=true.');
+ if(metaValueRuleServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Editing or deleting a value rule set changes the bids of every ad set that uses it. Review the rules and provide spend_change_confirmed=true.');
  if(tiktokBrandSafetyWidens(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Removing apps from the Pangle block list, or clearing it, lets ads show on those apps at once. Review the list and provide spend_change_confirmed=true.');
  if(tiktokBrandSafetyHubKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Brand Safety Hub edits change the inventory future Upgraded Smart+ campaigns can buy, and covering all objectives cannot be undone. Review the settings and provide spend_change_confirmed=true.');
  if(tiktokNegativeKeywordWidens(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Removing, replacing or renaming negative keywords lets Search Ads show for more search terms. Review the keyword lists and provide spend_change_confirmed=true.');

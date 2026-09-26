@@ -68,6 +68,7 @@ import {dv360TargetingKind,dv360TargetingVerification,dv360TargetingObserved,rea
 import {googleListingGroupKind,googleListingGroupVerification,isGoogleListingGroupRead,googleListingGroupObserved} from './google-listing-groups.js';
 import {tiktokNegativeKeywordKind,tiktokNegativeKeywordVerification,isTiktokNegativeKeywordRead,tiktokNegativeKeywordObserved,readTiktokNegativeKeywords} from './tiktok-negative-keywords.js';
 import {tiktokBrandSafetyKind,tiktokBrandSafetyVerification,isTiktokBrandSafetyRead,tiktokBrandSafetyObserved} from './tiktok-brand-safety.js';
+import {metaValueRuleKind,metaValueRuleVerification,isMetaValueRuleRead,metaValueRuleObserved} from './meta-value-rules.js';
 import {gtmWorkflowKind,gtmWorkflowVerification,gtmWorkflowObserved,readGtmWorkflow} from './gtm-workflow-writes.js';
 import {gtmWorkspaceKind,gtmWorkspaceVerification,gtmWorkspaceObserved,readGtmWorkspace} from './gtm-workspace-writes.js';
 import {validateState,snapshotPlans} from './write-review.js';
@@ -101,6 +102,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
  if(googleListingGroupKind(plan))return googleListingGroupVerification(plan,before);
  if(tiktokNegativeKeywordKind(plan))return tiktokNegativeKeywordVerification(plan,before);
  if(tiktokBrandSafetyKind(plan))return tiktokBrandSafetyVerification(plan,before);
+ if(metaValueRuleKind(plan))return metaValueRuleVerification(plan,result,before);
  if(googleConfigurationKind(plan))return googleConfigurationVerification(plan,result);
  if(googleAssetLinkKind(plan))return googleAssetLinkVerification(plan);
  if(microsoftAssociationWrite(plan))return microsoftAssociationVerification(plan,compileMicrosoft);
@@ -177,6 +179,7 @@ function entity(plan:CompiledRequest,data:JsonObject):JsonObject{
  if(isGoogleListingGroupRead(plan))return googleListingGroupObserved(plan,data);
  if(isTiktokNegativeKeywordRead(plan))return tiktokNegativeKeywordObserved(plan,data);
  if(isTiktokBrandSafetyRead(plan))return tiktokBrandSafetyObserved(plan,data);
+ if(isMetaValueRuleRead(plan))return metaValueRuleObserved(plan,data);
  if(plan.gateway==='google_ads_native_action')return googleConfigurationObserved(plan,Object.values(data.results?.[0]??{})[0] as JsonObject);
  if(plan.gateway===microsoftGateway)return data[microsoftContracts.get(plan.action)!.result]?.[0];
  if(plan.gateway==='tiktok_native_action'&&plan.path==='/v1.3/identity/info/')return data.data?.identity_info;

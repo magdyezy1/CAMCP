@@ -201,6 +201,10 @@ export class ScopeGuard {
    const audiences=plan.path.endsWith('/customaudiences');
    for(const entity of d.data)if(typeof entity?.id==='string'&&/^\d+$/.test(entity.id)&&(!audiences||entity.account_id!==undefined&&normalizeAccount(plan.gateway,entity.account_id)===id))this.store.rememberResource(connection,id,entity.id);
   }
+  // The account's value rule set list is ownership evidence for later edits and deletion of those sets by ID.
+  if(plan.gateway==='meta_native_action'&&/^\/v25\.0\/act_\d+\/value_rule_set$/.test(plan.path)&&Array.isArray(d?.data)){
+   for(const set of d.data)if(typeof set?.id==='string'&&/^\d+$/.test(set.id))this.store.rememberResource(connection,id,set.id);
+  }
   if(plan.gateway==='meta_native_action'&&/^\/v25\.0\/act_\d+\/adlabels$/.test(plan.path)){
    const labels=metaLabelIdentities(d,id);for(const label of labels)this.store.rememberResource(connection,id,label);
   }
