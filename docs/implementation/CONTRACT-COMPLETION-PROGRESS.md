@@ -8,6 +8,20 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## BJ — Snapchat lead generation form creation (2026-09-26)
+
+The three captured `lead_generation_forms` create actions now use the reviewed Snapchat
+family. Documented fields are validated before any request. The banner media and a
+`LEAD_GENERATION` creative's form are ownership-read. Receipts are strict and read-back
+ignores provider-added fields. Lead reports and webhooks stay unqualified. Eight new
+tests fail on `d88f1e0` and pass with the change. See
+[implementation](SNAPCHAT-LEAD-FORMS-2026-09-26.md),
+[qualification](SNAPCHAT-LEAD-FORMS-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 976 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## BI — Snapchat workflow defects from live use (2026-09-26)
 
 Eight of nine defects found while cloning a Snapchat campaign through AMCP on

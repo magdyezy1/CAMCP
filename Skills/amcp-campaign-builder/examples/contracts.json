@@ -704,6 +704,38 @@
       }
     },
     {
+      "gateway": "snapchat_native_action",
+      "arguments": {
+        "action": "snapchat_lead_form_create",
+        "account_id": "123",
+        "payload": {
+          "lead_generation_forms": [
+            {
+              "name": "Synthetic enquiry form",
+              "description": "Tell us how to reach you.",
+              "title": "Request details",
+              "privacy_policy_url": "https://example.com/privacy",
+              "form_fields": [
+                {
+                  "type": "FIRST_NAME"
+                },
+                {
+                  "type": "LAST_NAME"
+                },
+                {
+                  "type": "EMAIL"
+                }
+              ],
+              "legal_disclosures": {
+                "title": "Terms",
+                "description": "We contact you only about this request."
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
       "gateway": "linkedin_native_action",
       "arguments": {
         "action": "linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post",

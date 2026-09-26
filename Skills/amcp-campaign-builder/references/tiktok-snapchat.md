@@ -122,6 +122,32 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
 - `amcp_write execute` accepts the review's own `gateway` and `connection_id`, never different ones
   and never `arguments`.
 
+## Snapchat lead generation forms
+
+- `snapchat_lead_form_create` (and its two captured aliases) creates forms under
+  `POST /v1/adaccounts/{id}/lead_generation_forms`. Snapchat documents no form update or delete, so a
+  wrong form is replaced by a new one. Lead reports and lead webhooks carry submitted personal data
+  and stay unqualified.
+- Each form needs `name`, `description` (≤180), `title` (≤25) and `form_fields`. Fields must include
+  `FIRST_NAME`, `LAST_NAME` and `EMAIL` or `PHONE_NUMBER`; `ADDRESS` and `POSTAL_CODE` cannot both
+  appear. `CUSTOM` fields take `custom_form_field_properties` of type `TEXT`, `DATE`,
+  `MULTIPLE_CHOICE_SINGLE_SELECTION` or `MULTIPLE_CHOICE_MULTI_SELECTION`; only choice types have
+  `multiple_choice_options`.
+- Preferred options work only on one single-select question per form: mark every option, with at
+  least one `PREFERRED` and one `NOT_PREFERRED`.
+- `legal_disclosures` takes a `title` (≤35), `description` (≤80) and up to two
+  `consent_form_fields` `{consent_description, required}`. `end_page_properties` needs a documented
+  `call_to_action` and an http(s) `url`.
+- AMCP rejects undocumented keys, including the read-only `is_required` and `strategy_type`, with
+  `INVALID_SNAPCHAT_LEAD_FORM` before any request.
+- A `banner_media_id` must be owned: list `snapchat_media_list` first. The review reads that media
+  item along with the account.
+- A `LEAD_GENERATION` creative reads its `lead_generation_form_id` before review and again before
+  execution. A form created in the same session is owned for the usual five minutes; after that,
+  list `snapchat_lead_forms_list` again.
+- Verification compares the documented configuration and ignores `is_required` and `strategy_type`,
+  which Snapchat adds.
+
 ## Snapchat nested updates
 
 Ad/ad-squad updates now use the documented native parent routes:
