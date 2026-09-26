@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## BR — Snapchat creative reference ownership (2026-09-26)
+
+A Snapchat creative PUT or PATCH that changes `top_snap_media_id` or
+`lead_generation_form_id` must reference owned media or an owned form. The check runs at
+review and again at execution; unchanged references stay usable. See
+[implementation](SNAPCHAT-CREATIVE-REFERENCES-2026-09-26.md),
+[qualification](SNAPCHAT-CREATIVE-REFERENCES-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: unchanged (964); this hardens already reviewed actions. Pushed only to
+CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## BQ — Meta deep campaign copies (2026-09-26)
 
 `meta_campaign_id_copies_copy` now accepts `deep_copy: true` within Meta's three-child
@@ -17,8 +29,8 @@ source parent. See [implementation](META-DEEP-COPIES-2026-09-26.md),
 [qualification](META-DEEP-COPIES-VERIFICATION-2026-09-26.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: unchanged (964); this extends an already reviewed action. Pushed only to
-CAMCP; its exact-commit CI result and live acceptance are pending.
+Remaining rows: unchanged (964); this extends an already reviewed action. Pushed to CAMCP as
+`927b73e`; its exact-commit CI result and live acceptance are pending.
 
 ## BP — Google Ads audience signals (2026-09-26)
 

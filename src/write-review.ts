@@ -1,5 +1,5 @@
 import {snapUpdateKind,assertSnapUpdate,snapUpdateSnapshots,readSnapUpdateState,snapUpdateOutcome} from './snapchat-nested-updates.js';
-import {assertSnapLeadForms,assertSnapLeadCreativeRefs,snapLeadDependencyPaths} from './snapchat-lead-forms.js';
+import {assertSnapLeadForms,assertSnapLeadCreativeRefs,snapLeadDependencyPaths,assertSnapCreativeReferences} from './snapchat-lead-forms.js';
 import {assertSnapSegments,assertSnapSegmentUpdates,snapSegmentDependencyPaths} from './snapchat-segments.js';
 import {tiktokIdentityKind,assertTiktokIdentity,tiktokIdentityImage,tiktokImageInfoPath} from './tiktok-identities.js';
 import {metaCopyKind,assertMetaCopy,metaCopySnapshots,metaCopyChildrenRead,metaCopyOutcome} from './meta-copies.js';
@@ -631,6 +631,7 @@ export class WriteReviewService {
    }
    if(input.creative_edit_confirmed!==undefined&&!xCreativeEdit(plan))fail('INVALID_ARGUMENT','creative_edit_confirmed is only for an X creative edit or deletion.');
    const creativeImpact=writeImpact(plan,state,input.creative_edit_confirmed===true,c.id);
+   assertSnapCreativeReferences(plan,state,resource=>this.store.ownsResource(c,normalizeAccount(plan.gateway,plan.accountId!),resource));
    const override=input.creative_edit_confirmed===true?{creative_edit_confirmed:true}:{};
    const reviewId=randomUUID(),fingerprint=sha256(stable({tenant:actor.tenantId,user:actor.userId,connection:c.id,plan,...override})),expiresAt=Date.now()+300000;
    const stateHash=reviewStateHash(state),spendPolicy=checkSpendPolicy(this.store,actor,plan,state);
@@ -665,6 +666,7 @@ export class WriteReviewService {
   assertGoogleDismissalPrerequisites(plan,current);
   assertGoogleAccessPrerequisites(plan,current);
   const c=this.access(actor,plan,review.connection_id),auth=await this.credentials.get(c);this.access(actor,plan,review.connection_id);
+  assertSnapCreativeReferences(plan,current,resource=>this.store.ownsResource(c,normalizeAccount(plan.gateway,plan.accountId!),resource));
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Review expired during state verification.');
   assertRedditCreativeAvailable(plan);
   if(xReportKind(plan)&&xReportIdentity(auth)!==(current[0] as JsonObject).login_fingerprint)fail('X_REPORT_LOGIN_CHANGED','The X login changed after preparation.');

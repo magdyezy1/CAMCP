@@ -176,7 +176,18 @@ The v23 audience GAQL field table is recorded with its source hash. Tests:
 - Child ad set budgets count as new budgets.
 - Each copied ad set and ad is verified under the copy of its source parent.
 
-Tests: three new cases in `tests/meta-copies.test.mjs`.
+Tests: three new cases in `tests/meta-copies.test.mjs`. Pushed as `927b73e`.
+
+## Finished batch — Snapchat creative reference ownership
+
+[Implementation](SNAPCHAT-CREATIVE-REFERENCES-2026-09-26.md) and
+[qualification](SNAPCHAT-CREATIVE-REFERENCES-VERIFICATION-2026-09-26.json).
+
+This closes the lead-form follow-up: a creative PUT or PATCH that changes `top_snap_media_id` or
+`lead_generation_form_id` must reference media or a form this login owns. The check runs
+against the frozen state at review and the fresh state at execution. Unchanged references
+stay usable, so existing creative updates are unaffected. Tests:
+`tests/snapchat-creative-references.test.mjs` (4).
 
 ## CI and live evidence
 
@@ -212,8 +223,10 @@ Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12. The ticket list in 
 | P2 | Snapchat PUT semantics for write-only `placement_v2` | Live evidence of PUT with/without the field before changing preservation rules |
 | P3 | `get_creatives_by_ids` request body | Provider documentation or a captured successful request |
 | P3 | Snapchat campaign recipe | Qualified inputs for currency, budget, pixel and media; paused entities only |
-| P2 | Creative PUT/PATCH reads of referenced forms and media | A changed `lead_generation_form_id`/`top_snap_media_id` is ownership-read without breaking the per-creative state layout those contracts verify |
 | P2 | Live lead form acceptance (after deployment) | One paused account-owned test form and `LEAD_GENERATION` creative verify live |
 | P2 | Snapchat pixel/mobile rule audiences | Live GET evidence of `pixel_spec_object`/mobile specs before qualifying their creation |
 | P3 | Snapchat segment deletion | A way to find ad squads that target a segment, or an explicit owner policy, before permanent deletion |
 | P2 | TikTok identity avatar read-back | Live evidence linking `profile_image_url` to the sent `image_uri` before comparing it |
+| P2 | TikTok pixel creation | An owner policy for the API's data-sharing defaults first: manual advanced matching of emails and phone numbers, first-party cookies and expanded data sharing are on unless disabled. This is customer-data processing, kept separate by instruction |
+| P2 | Meta budget scheduling (high demand periods) | Exact `budget_value` units for `ABSOLUTE` and `MULTIPLIER` and the `CAN_USE_BUDGET_SCHEDULING_API` capability before spending-policy checks can be built |
+| P3 | X remaining writes (promoted accounts, cards, tracking tags) | The official X Ads API reference returned HTTP 402 from this environment; needs an accessible, versioned source first |

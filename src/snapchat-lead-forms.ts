@@ -97,6 +97,29 @@ export function assertSnapLeadCreativeRefs(rows:unknown[]):void{
 }
 
 /**
+ * Creative PUT/PATCH can repoint a creative to another lead form or top-snap media. An unchanged reference is
+ * already part of the creative; a changed one must be owned by this login, as creation requires. Checked against
+ * the frozen state at review and the fresh state at execution.
+ */
+export function assertSnapCreativeReferences(plan:CompiledRequest,state:unknown[],owns:(resource:string)=>boolean):void{
+ if(plan.gateway!=='snapchat_native_action'||!['PUT','PATCH'].includes(plan.method))return;
+ const route=/^\/v1\/adaccounts\/[^/]+\/creatives(?:\/([^/]+))?$/.exec(plan.path);if(!route)return;
+ const current=state.flatMap(s=>obj(s)&&Array.isArray(s.creatives)?s.creatives:[]).map((r:JsonObject)=>r?.creative).filter(obj) as JsonObject[];
+ const updates:{id:string;values:JsonObject}[]=plan.method==='PUT'
+  ?(obj(plan.body)&&Array.isArray(plan.body.creatives)?plan.body.creatives:[]).map((r:JsonObject)=>({id:String(r?.id),values:obj(r)?r:{}}))
+  :[{id:String(route[1]),values:Object.fromEntries((Array.isArray(plan.body)?plan.body:[]).filter((op:JsonObject)=>['add','replace'].includes(op?.op)&&typeof op.path==='string').map((op:JsonObject)=>[op.path.slice(1),op.value]))}];
+ for(const {id,values} of updates){
+  const before=current.find(c=>String(c.id)===id);
+  for(const [field,collection] of [['lead_generation_form_id','lead_generation_forms'],['top_snap_media_id','media']] as const){
+   const next=values[field];
+   if(next===undefined||before!==undefined&&next===before[field])continue;
+   if(!snapId(next))throw new MirrorError('INVALID_ARGUMENT',field+' must be a Snapchat ID.',{creative_id:id,field});
+   if(!owns(collection+'/'+next))throw new MirrorError('RESOURCE_SCOPE_REQUIRED','A changed '+field+' must reference a resource this login owns. Read its account-scoped collection first.',{gateway:plan.gateway,path:'/v1/'+collection+'/'+next,account_id:plan.accountId,creative_id:id,field},403);
+  }
+ }
+}
+
+/**
  * Account-owned dependencies read before review and again before execution: a form's banner media, and the
  * form behind a LEAD_GENERATION creative. Each read requires existing ownership of that global Snapchat ID.
  */

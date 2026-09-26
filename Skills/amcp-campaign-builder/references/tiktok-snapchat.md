@@ -192,6 +192,11 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
   list `snapchat_lead_forms_list` again.
 - Verification compares the documented configuration and ignores `is_required` and `strategy_type`,
   which Snapchat adds.
+- Creative updates (collection PUT or JSON Patch) that change `top_snap_media_id` or
+  `lead_generation_form_id` need the new media or form to be owned: list `snapchat_media_list` or
+  `snapchat_lead_forms_list` first. Otherwise the update fails with `RESOURCE_SCOPE_REQUIRED`,
+  naming the path. References the creative already has are kept as they are. The check runs at
+  review and again at execution.
 
 ## Snapchat audience segments
 

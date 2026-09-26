@@ -38062,7 +38062,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -38082,7 +38083,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -38442,7 +38444,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -38460,7 +38463,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -38494,7 +38498,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -38564,7 +38569,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -38582,7 +38588,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -38629,7 +38636,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -38875,7 +38883,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -39156,7 +39165,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -39190,7 +39200,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -39333,7 +39344,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -39589,7 +39601,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -39609,7 +39622,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -39886,7 +39900,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -39968,7 +39983,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -40126,7 +40142,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -40197,7 +40214,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -40386,7 +40404,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -40406,7 +40425,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -40480,7 +40500,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -40500,7 +40521,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -40610,7 +40632,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -40660,7 +40683,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -40710,7 +40734,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -41341,7 +41366,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -41415,7 +41441,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -41471,7 +41498,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -41745,7 +41773,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -41877,7 +41906,8 @@
       "tests": [
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-lead-forms.test.mjs",
-        "tests/snapchat-segments.test.mjs"
+        "tests/snapchat-segments.test.mjs",
+        "tests/snapchat-creative-references.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
