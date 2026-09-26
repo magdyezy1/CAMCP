@@ -44673,7 +44673,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
-        "tests/tiktok-adgroup-conversions.test.mjs"
+        "tests/tiktok-adgroup-conversions.test.mjs",
+        "tests/tiktok-manual-ad-identities.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -44792,7 +44793,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
-        "tests/tiktok-adgroup-conversions.test.mjs"
+        "tests/tiktok-adgroup-conversions.test.mjs",
+        "tests/tiktok-manual-ad-identities.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -44810,7 +44812,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
-        "tests/tiktok-adgroup-conversions.test.mjs"
+        "tests/tiktok-adgroup-conversions.test.mjs",
+        "tests/tiktok-manual-ad-identities.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -44857,7 +44860,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
-        "tests/tiktok-adgroup-conversions.test.mjs"
+        "tests/tiktok-adgroup-conversions.test.mjs",
+        "tests/tiktok-manual-ad-identities.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -44983,7 +44987,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
-        "tests/tiktok-adgroup-conversions.test.mjs"
+        "tests/tiktok-adgroup-conversions.test.mjs",
+        "tests/tiktok-manual-ad-identities.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -45001,7 +45006,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
-        "tests/tiktok-adgroup-conversions.test.mjs"
+        "tests/tiktok-adgroup-conversions.test.mjs",
+        "tests/tiktok-manual-ad-identities.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -45057,7 +45063,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
-        "tests/tiktok-adgroup-conversions.test.mjs"
+        "tests/tiktok-adgroup-conversions.test.mjs",
+        "tests/tiktok-manual-ad-identities.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -45113,7 +45120,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
-        "tests/tiktok-adgroup-conversions.test.mjs"
+        "tests/tiktok-adgroup-conversions.test.mjs",
+        "tests/tiktok-manual-ad-identities.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -45133,7 +45141,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
-        "tests/tiktok-adgroup-conversions.test.mjs"
+        "tests/tiktok-adgroup-conversions.test.mjs",
+        "tests/tiktok-manual-ad-identities.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -47259,7 +47268,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
-        "tests/tiktok-adgroup-conversions.test.mjs"
+        "tests/tiktok-adgroup-conversions.test.mjs",
+        "tests/tiktok-manual-ad-identities.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -47492,7 +47502,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
-        "tests/tiktok-adgroup-conversions.test.mjs"
+        "tests/tiktok-adgroup-conversions.test.mjs",
+        "tests/tiktok-manual-ad-identities.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -47510,7 +47521,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/tiktok-verification.test.ts",
-        "tests/tiktok-adgroup-conversions.test.mjs"
+        "tests/tiktok-adgroup-conversions.test.mjs",
+        "tests/tiktok-manual-ad-identities.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"

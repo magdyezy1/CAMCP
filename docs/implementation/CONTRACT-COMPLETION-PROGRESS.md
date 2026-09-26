@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CI — TikTok manual ads with custom identities (2026-09-26)
+
+Reviewed manual TikTok ad creation now refuses a non-Spark ad with a `CUSTOMIZED_USER`
+identity when the ad group delivers on TikTok (automatic placement or TikTok selected), which
+TikTok no longer accepts, checking the ad group read before review and execution. See
+[implementation](TIKTOK-MANUAL-AD-IDENTITIES-2026-09-26.md),
+[qualification](TIKTOK-MANUAL-AD-IDENTITIES-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 931 (unchanged). Pushed only to CAMCP; its exact-commit CI result and live
+acceptance are pending.
+
 ## CH — Google Ads rule-based remarketing lists (2026-09-26)
 
 `userLists` is a new route of the reviewed Google configuration family: open rule-based lists
@@ -20,7 +32,7 @@ spending confirmation). Customer Match, lookalike, logical and basic lists,
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
 Remaining rows: 931 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Pushed to CAMCP as `f440117`; its exact-commit CI result and live acceptance are pending.
 
 ## CG — TikTok Upgraded Smart+ creative status (2026-09-26)
 

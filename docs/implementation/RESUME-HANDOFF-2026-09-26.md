@@ -396,7 +396,16 @@ Tests: `tests/tiktok-smart-plus-material-status.test.mjs` (6, red on `533efac` /
 - Open rule-based lists with explicit operators and 1-540 day lookback windows; Customer Match, lookalike, logical and basic lists, `membershipLifeSpan` (ignored by Google for rule-based lists) and removal are refused.
 - Verification compares operands, groups and items as sets against Google's read-back form; closing a list needs spending confirmation. The `user_list` GAQL fields were added to the pinned field fixture.
 
-Tests: `tests/google-user-lists.test.mjs` (5, red on `1d971f2` / green after); the configuration lifecycle table gained the `userLists` case.
+Tests: `tests/google-user-lists.test.mjs` (5, red on `1d971f2` / green after); the configuration lifecycle table gained the `userLists` case. Pushed as `f440117`.
+
+## Finished batch — TikTok manual ads with custom identities
+
+[Implementation](TIKTOK-MANUAL-AD-IDENTITIES-2026-09-26.md) and
+[qualification](TIKTOK-MANUAL-AD-IDENTITIES-VERIFICATION-2026-09-26.json).
+
+- Reviewed manual ad creation refuses a `CUSTOMIZED_USER` non-Spark ad in an ad group that delivers on TikTok, with `TIKTOK_CUSTOM_IDENTITY_PLACEMENT`, using the ad group already read before review and execution. Pangle-only ad groups, Spark identities and ad updates are unaffected.
+
+Tests: `tests/tiktok-manual-ad-identities.test.mjs` (3; two red on `f440117`, one no-change guard; all green after).
 
 ## CI and live evidence
 
@@ -459,6 +468,5 @@ candidates wait for it; Google's developer documentation was reachable again. Th
 | P2 | LinkedIn lead gen creatives must reference owned forms | The documented creative field and URN type that point a lead gen creative at a form, then the same owned-reference check as Snapchat creatives |
 | P2 | LinkedIn lead form edits, publishing and archiving | A read of the creatives and campaigns that use a form, to tell pre-published from published forms and limit edits to the documented fields, plus the documented warning about CRM integrations |
 | P2 | TikTok Upgraded Smart+ ad group targeting edits | Name, schedule, dayparting, comment, share and bid edits are qualified. Targeting needs evidence of whether a partial `targeting_spec` update replaces or merges (a live read-back after a one-field edit) before it can be reviewed |
-| P2 | TikTok manual ads with custom identities | TikTok no longer accepts new non-Spark ads with a `CUSTOMIZED_USER` identity in ad groups that deliver on TikTok (Update ads, read 2026-09-26); the generic ad review should read the ad group placements and refuse that pair before TikTok does |
 | P3 | LinkedIn work-email submission criteria | The wire form of the `questionSubmissionCriteria` union, which the schema does not show |
 | P3 | X remaining writes (promoted accounts, cards, tracking tags) | The official X Ads API reference returned HTTP 402 from this environment; needs an accessible, versioned source first |

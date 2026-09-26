@@ -19,6 +19,7 @@ import {tiktokSmartPlusAdKind,assertTiktokSmartPlusAd,tiktokSmartPlusAdReads,tik
 import {tiktokSmartPlusAdUpdateKind,assertTiktokSmartPlusAdUpdate,tiktokSmartPlusAdUpdateReads,tiktokSmartPlusAdUpdatePrerequisites} from './tiktok-smart-plus-ad-updates.js';
 import {tiktokSmartPlusAdgroupUpdateKind,assertTiktokSmartPlusAdgroupUpdate,tiktokSmartPlusAdgroupUpdateRead,tiktokSmartPlusAdgroupUpdateSiblingRead,validateTiktokSmartPlusAdgroupCampaignState,tiktokSmartPlusAdgroupUpdatePrerequisites} from './tiktok-smart-plus-adgroup-updates.js';
 import {tiktokSmartPlusMaterialStatusKind,assertTiktokSmartPlusMaterialStatus,tiktokSmartPlusMaterialStatusRead,tiktokSmartPlusMaterialStatusPrerequisites,tiktokSmartPlusMaterialStatusOutcome} from './tiktok-smart-plus-material-status.js';
+import {tiktokManualAdIdentityPrerequisites} from './tiktok-manual-ad-identities.js';
 import {linkedinLeadFormKind,assertLinkedInLeadForm,linkedinLeadFormOutcome,rememberLinkedInLeadForm,isLinkedInLeadFormRead,validateLinkedInLeadFormState} from './linkedin-lead-forms.js';
 import {googlePreviewKind,assertGooglePreview,googlePreviewSnapshots,readGooglePreviewState,googlePreviewOutcome,googlePreviewDelivery,googlePreviewSafeOutcome} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaign,assertCriteoCampaignScopes,criteoCampaignSnapshots,readCriteoCampaignState,criteoCampaignOutcome} from './criteo-campaign-writes.js';
@@ -642,6 +643,7 @@ export class WriteReviewService {
   linkedinRulePrerequisites(plan,values);
   tiktokAdgroupConversionPrerequisites(plan,values);
   tiktokCtaPortfolioPrerequisites(plan,values);
+  tiktokManualAdIdentityPrerequisites(plan,values);
   tiktokSmartPlusAdPrerequisites(plan,values);
   tiktokSmartPlusAdUpdatePrerequisites(plan,values);
   tiktokSmartPlusAdgroupUpdatePrerequisites(plan,values);

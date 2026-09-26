@@ -318,6 +318,15 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
   needs `spend_change_confirmed: true`; renames and PO numbers need neither.
 - Verification reads the campaign and compares the edited fields.
 
+## TikTok manual ads with custom identities
+
+- TikTok no longer accepts new non-Spark ads with a `CUSTOMIZED_USER` identity in ad groups that
+  deliver on TikTok: automatic placement, or selected placements that include
+  `PLACEMENT_TIKTOK`. `tiktok_ad_create` reads the ad group before review and again before
+  execution and refuses such an ad with `TIKTOK_CUSTOM_IDENTITY_PLACEMENT`.
+- Use a Spark Ads identity (`TT_USER` or `BC_AUTH_TT`) instead, or an ad group that delivers only
+  on Pangle or Global App Bundle. Existing custom identity ads stay editable.
+
 ## TikTok dynamic CTA portfolios
 
 - `tiktok_creative_portfolio_create` (alias `tiktok_cta_portfolio_create`) creates a dynamic
