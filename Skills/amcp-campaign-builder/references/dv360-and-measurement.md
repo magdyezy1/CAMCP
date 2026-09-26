@@ -177,7 +177,7 @@ created through the line item route as a draft). DV360 writes ad groups of no ot
   every setting the request sets, or confirms a deleted ad group is gone.
   `INVALID_DV360_AD_GROUP` names the field or rule to correct.
 
-Demand Gen ads are not qualified yet; targeting and YouTube video assets follow. References:
+Targeting, YouTube video assets and ads follow. References:
 [Serve a Demand Gen ad](https://developers.google.com/display-video/api/guides/tasks/serve-demand-gen-ad/overview)
 and [adGroups](https://developers.google.com/display-video/api/reference/rest/v4/advertisers.adGroups),
 checked 2026-09-27.
@@ -233,6 +233,43 @@ rules require it).
   Display & Video 360. `INVALID_DV360_AD_ASSET` names the field to correct.
 
 Reference: [Create ad assets](https://developers.google.com/display-video/api/guides/tasks/serve-demand-gen-ad/create-ad-assets),
+checked 2026-09-27.
+
+### Demand Gen ads
+
+`DV360_ADVERTISERS_AD_GROUP_ADS_CREATE` (`params: {advertiserId}`), `..._PATCH` (`params:
+{advertiserId, adGroupAdId, updateMask}`) and `..._DELETE` write Demand Gen ads. Creation sends
+`adGroupId` (a Demand Gen ad group), `displayName` (up to 255 UTF-8 bytes), `entityStatus`
+(`ENTITY_STATUS_PAUSED`, as Google recommends, or `ENTITY_STATUS_ACTIVE`) and exactly one of:
+
+- `demandGenVideoAd`: `finalUrl`, `callToAction` (one of the listed values, such as `SHOP_NOW` or
+  `WATCH_NOW`), `headlines`, `longHeadlines`, `descriptions` and 1–5 `videos` as
+  `{videoAssetId}` (YouTube video ad assets); optional `logo`, `companionBanner`, `businessName`.
+- `demandGenImageAd`: `finalUrl`, `callToAction`, `headlines`, `descriptions` and at least one
+  of `marketingImages`, `squareMarketingImages`, `portraitMarketingImages`; optional
+  `logoImages`.
+- `demandGenCarouselAd`: `finalUrl`, `headline`, `description` and 2–10 `cards` (each
+  `finalUrl`, `headline`, a `callToAction` of up to 10 characters and an image).
+- `demandGenProductAd`: `finalUrl`, `headline`, `description` and `callToAction` (one of the
+  product values); the products come from the line item's product feed.
+
+Images are `{assetId}` of image assets. URLs are complete http(s) URLs; optional
+`finalMobileUrl`, `finalUrlSuffix`, `customParameters`, display URL breadcrumbs and a
+`userSpecifiedTrackingUrl` are accepted. Copy lengths and image sizes are checked by DV360.
+
+- AMCP reads the ad (for a patch or deletion), its ad group and line item (other formats and
+  archived ones are refused) and each YouTube video asset of the request (it must be an active
+  video asset of the advertiser). The API does not read image assets, so DV360 checks those IDs.
+- A patch names top-level fields in `updateMask` and sends exactly those; the ad group and the ad
+  type cannot change, and a patch that changes nothing is refused.
+- An active ad needs `spend_change_confirmed` and counts as activation under owner policies; it
+  serves once its ad group and line item are active. Deletion is a deletion.
+- Verification compares the name, status, type and every creative field sent, ignoring
+  output-only fields such as tracking URLs and image metadata, or confirms a deleted ad is gone.
+  `INVALID_DV360_AD` names the field or rule to correct.
+
+Reference: [Create a Demand Gen ad](https://developers.google.com/display-video/api/guides/tasks/serve-demand-gen-ad/create-dg-ad)
+and [adGroupAds](https://developers.google.com/display-video/api/reference/rest/v4/advertisers.adGroupAds),
 checked 2026-09-27.
 
 ## GA4 — ga4_native_action

@@ -586,7 +586,19 @@ Tests: `tests/dv360-ad-group-targeting.test.mjs` (8), red on `9e46fd9` / green a
 - Demand Gen targeting refuses positive keyword, category, URL, app, app category and YouTube channel or video targeting (DV360 Help: exclusions only).
 - Next: Demand Gen ads (`adGroupAds` create, patch, delete: four ad types; video assets can be checked by ID, image assets cannot be read back through the API). Image asset upload (`adAssets:uploadAdAsset`) needs a qualified media upload.
 
-Tests: `tests/dv360-ad-assets.test.mjs` (6) and Demand Gen exclusions in `tests/dv360-ad-group-targeting.test.mjs`, red on `1d90531` / green after.
+Tests: `tests/dv360-ad-assets.test.mjs` (6) and Demand Gen exclusions in `tests/dv360-ad-group-targeting.test.mjs`, red on `1d90531` / green after. Pushed as `e8e4a8a`.
+
+## Finished batch — DV360 Demand Gen ads (2026-09-27)
+
+[Implementation](DV360-DEMAND-GEN-ADS-2026-09-27.md) and
+[qualification](DV360-DEMAND-GEN-ADS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `dv360_demand_gen_ads` (`src/dv360-demand-gen-ads.ts`) for `adGroupAds` create, patch (top-level `updateMask`) and delete of the four Demand Gen ad types. The review reads the ad, its ad group and line item (through the ad group reader) and each YouTube video asset by ID; archived parents, archived or non-video assets, type changes and patches that change nothing are refused.
+- An active ad needs `spend_change_confirmed` and is an activation under owner policies; deletion is a deletion. Verification compares the name, status, type and every creative field sent, ignoring output-only fields.
+- Image, logo and carousel images must already exist: image asset upload (`adAssets:uploadAdAsset`) needs a qualified media upload, and the API does not read image assets back, so DV360 checks those IDs.
+- Next DV360 steps: audience group assignment (see the Demand Gen targeting batch above) and image asset upload.
+
+Tests: `tests/dv360-demand-gen-ads.test.mjs` (7), red on `e8e4a8a` / green after.
 
 ## CI and live evidence
 
@@ -600,20 +612,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 544 in reviewed write families. **891 remaining rows** are in
+3241 captured actions; 547 in reviewed write families. **888 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 776 |
+| blocked_write | 773 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 118, Google Ads 96,
-Snapchat 89, X 67, DV360 48, Criteo 34, Business Profile 12.
+Snapchat 89, X 67, DV360 45, Criteo 34, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

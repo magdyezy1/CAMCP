@@ -1927,6 +1927,26 @@
     {
       "gateway": "dv360_native_action",
       "arguments": {
+        "action": "DV360_ADVERTISERS_AD_GROUP_ADS_CREATE",
+        "params": {
+          "advertiserId": "123"
+        },
+        "body": {
+          "adGroupId": "901",
+          "displayName": "Synthetic Demand Gen product ad",
+          "entityStatus": "ENTITY_STATUS_PAUSED",
+          "demandGenProductAd": {
+            "finalUrl": "https://example.com/catalog",
+            "headline": "Synthetic headline",
+            "description": "Synthetic description",
+            "callToAction": "SHOP_NOW"
+          }
+        }
+      }
+    },
+    {
+      "gateway": "dv360_native_action",
+      "arguments": {
         "action": "DV360_ADVERTISERS_LINE_ITEMS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS",
         "params": {
           "advertiserId": "123"

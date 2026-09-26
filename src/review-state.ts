@@ -25,6 +25,7 @@ import {isMetaBrandSafetyRead,metaBrandSafetyState} from './meta-brand-safety.js
 import {isCriteoLineItemRead,criteoLineItemReviewState} from './criteo-auction-line-items.js';
 import {isDV360AdGroupRead,dv360AdGroupReviewState} from './dv360-demand-gen-ad-groups.js';
 import {isDV360AdAssetRead,dv360AdAssetReviewState} from './dv360-ad-assets.js';
+import {isDV360AdRead,dv360AdReviewState} from './dv360-demand-gen-ads.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 
 // Response envelopes are validated before projection. Within each resource keep
@@ -70,6 +71,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isCriteoLineItemRead(read))return normalizeReviewState(criteoLineItemReviewState(d));
  if(isDV360AdGroupRead(read))return normalizeReviewState(dv360AdGroupReviewState(d));
  if(isDV360AdAssetRead(read))return normalizeReviewState(dv360AdAssetReviewState(read,d));
+ if(isDV360AdRead(read))return normalizeReviewState(dv360AdReviewState(d));
  if(read.gateway==='gtm_native_action')return normalizeReviewState(gtmSafeConfiguration(data));
  if(read.gateway==='tiktok_native_action'&&read.path===tiktokPixelListPath&&Array.isArray(d.data?.pixels))return normalizeReviewState({data:tiktokPixelState(d)});
  if(read.gateway==='tiktok_native_action'){const state=tiktokSmartPlusAdState(read,d)??tiktokSmartPlusAdgroupCampaignState(read,d)??tiktokInstantFormState(read,d);if(state)return normalizeReviewState(state);}
