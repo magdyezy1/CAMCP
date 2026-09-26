@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CB — TikTok Upgraded Smart+ campaign edits (2026-09-26)
+
+`tiktok_smart_plus_campaign_update` is a reviewed family for Smart+ campaign name, campaign
+budget and PO number edits. A budget edit needs a campaign that has a campaign budget, is
+compared with its current budget under the owner spending policy and needs spending
+confirmation; renames do not. Goal-based budget increase and status stay outside it. See
+[implementation](TIKTOK-SMART-PLUS-CAMPAIGN-EDITS-2026-09-26.md),
+[qualification](TIKTOK-SMART-PLUS-CAMPAIGN-EDITS-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 946 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## CA — TikTok Upgraded Smart+ ad groups (2026-09-26)
 
 `tiktok_smart_plus_adgroup_create` is a reviewed family for paused Smart+ website conversion ad
@@ -20,7 +33,7 @@ Targeting checks now live in `src/tiktok-targeting.ts`, shared with saved audien
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
 Remaining rows: 948 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Pushed to CAMCP as `ec0cddd`; its exact-commit CI result and live acceptance are pending.
 
 ## BZ — TikTok Upgraded Smart+ campaigns (2026-09-26)
 

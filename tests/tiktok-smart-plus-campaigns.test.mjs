@@ -45,10 +45,10 @@ function fixture({readDrift}={}){
  return {store,campaigns,requests,writes,call,args,prepare,execute,verify,mode:v=>{mode=v;},restart:()=>{service=start();}};
 }
 
-test('paused Smart+ campaign creation is a reviewed TikTok family; updates stay blocked',async()=>{
+test('paused Smart+ campaign creation is a reviewed TikTok family; campaign copies stay blocked',async()=>{
  const f=fixture();try{
   const r=await f.call('amcp_write',{action:'inspect',gateway,connection_id:TIKTOK,arguments:f.args(campaign())});assert.equal(r.data.review_contract_supported,true,JSON.stringify(r));
-  const u=await f.call('amcp_write',{action:'inspect',gateway,connection_id:TIKTOK,arguments:f.args({campaign_id:'1800000000000001',campaign_name:'Renamed'},'tiktok_smart_plus_campaign_update')});
+  const u=await f.call('amcp_write',{action:'inspect',gateway,connection_id:TIKTOK,arguments:f.args({request_id:'4001',campaign_id:'1800000000000001',operation_status:'DISABLE'},'tiktok_smart_plus_campaign_copy_task_create')});
   assert.notEqual(u.data?.review_contract_supported,true,JSON.stringify(u));assert.equal(f.requests.length,0);
  }finally{f.store.close();}
 });

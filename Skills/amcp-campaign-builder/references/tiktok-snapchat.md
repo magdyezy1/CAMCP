@@ -303,6 +303,21 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
   actions and placements compare as sets and price ranges by their endpoints. Smart+ ads are not
   qualified yet.
 
+## TikTok Upgraded Smart+ campaign edits
+
+- `tiktok_smart_plus_campaign_update` (alias `tiktok_smart_campaign_update`) changes an Upgraded
+  Smart+ campaign's `campaign_name`, `budget` and/or `po_number` (at least one; `campaign_id`
+  required). Status changes use the Smart+ status family; Goal-based budget increase
+  (`budget_auto_adjust_strategy`) is allowlist-only and refused, as are other keys, with
+  `INVALID_TIKTOK_SMART_PLUS_CAMPAIGN_UPDATE`.
+- The review reads the campaign before review and again before execution. A budget edit applies
+  only to a campaign that has a campaign budget: the shared budget under campaign budget
+  optimization, or the limit on its ad group budgets otherwise. `BUDGET_MODE_INFINITE` campaigns
+  are refused, since the budget mode cannot change after creation.
+- A budget edit is compared with the current campaign budget under the owner spending policy and
+  needs `spend_change_confirmed: true`; renames and PO numbers need neither.
+- Verification reads the campaign and compares the edited fields.
+
 ## TikTok lookalike audiences
 
 - `tiktok_dmp_custom_audience_lookalike_create` creates a lookalike from a seed audience the selected

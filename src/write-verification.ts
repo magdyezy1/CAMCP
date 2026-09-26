@@ -12,6 +12,7 @@ import {tiktokSmartPlusStatusKind,tiktokSmartPlusStatusVerification} from './tik
 import {tiktokSmartPlusBudgetKind,tiktokSmartPlusBudgetVerification} from './tiktok-smart-plus-budgets.js';
 import {tiktokSmartPlusCampaignKind,tiktokSmartPlusCampaignVerification,tiktokSmartPlusCampaignProjection} from './tiktok-smart-plus-campaigns.js';
 import {tiktokSmartPlusAdgroupKind,tiktokSmartPlusAdgroupVerification,tiktokSmartPlusAdgroupProjection} from './tiktok-smart-plus-adgroups.js';
+import {tiktokSmartPlusCampaignUpdateKind,tiktokSmartPlusCampaignUpdateVerification} from './tiktok-smart-plus-campaign-updates.js';
 import {linkedinLeadFormKind,linkedinLeadFormVerification,isLinkedInLeadFormRead,linkedinLeadFormProjection} from './linkedin-lead-forms.js';
 import {googlePreviewKind,verifyGooglePreview} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaignScopes,verifyCriteoCampaign} from './criteo-campaign-writes.js';
@@ -114,6 +115,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
  if(tiktokSmartPlusBudgetKind(plan))return tiktokSmartPlusBudgetVerification(plan).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_smart_plus_adgroup_get'}}));
  if(tiktokSmartPlusCampaignKind(plan))return tiktokSmartPlusCampaignVerification(plan,result).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_smart_plus_campaign_get'}}));
  if(tiktokSmartPlusAdgroupKind(plan))return tiktokSmartPlusAdgroupVerification(plan,result).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_smart_plus_adgroup_get'}}));
+ if(tiktokSmartPlusCampaignUpdateKind(plan))return tiktokSmartPlusCampaignUpdateVerification(plan).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_smart_plus_campaign_get'}}));
  if(tiktokLookalikeKind(plan))return tiktokLookalikeVerification(plan,result).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_dmp_custom_audience_get'}}));
  if(gateway==='tiktok_native_action'){
   const kind=plan.path.split('/')[2]!,ids=d.data?.[kind+'_ids']??[d.data?.[kind+'_id']??b[kind+'_id']];if(ids.some((id:unknown)=>typeof id!=='string'))return [];

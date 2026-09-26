@@ -1315,6 +1315,17 @@
       }
     },
     {
+      "gateway": "tiktok_native_action",
+      "arguments": {
+        "action": "tiktok_smart_plus_campaign_update",
+        "account_id": "123",
+        "payload": {
+          "campaign_id": "80",
+          "campaign_name": "Smart+ web Q4"
+        }
+      }
+    },
+    {
       "gateway": "linkedin_native_action",
       "arguments": {
         "action": "linkedin_rest_posts_post",

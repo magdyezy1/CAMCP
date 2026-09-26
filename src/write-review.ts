@@ -13,6 +13,7 @@ import {tiktokSmartPlusStatusKind,assertTiktokSmartPlusStatus,tiktokSmartPlusSta
 import {tiktokSmartPlusBudgetKind,assertTiktokSmartPlusBudget,tiktokSmartPlusBudgetRead} from './tiktok-smart-plus-budgets.js';
 import {tiktokSmartPlusCampaignKind,assertTiktokSmartPlusCampaign,tiktokSmartPlusCampaignId} from './tiktok-smart-plus-campaigns.js';
 import {tiktokSmartPlusAdgroupKind,assertTiktokSmartPlusAdgroup,tiktokSmartPlusAdgroupReads,tiktokSmartPlusAdgroupId} from './tiktok-smart-plus-adgroups.js';
+import {tiktokSmartPlusCampaignUpdateKind,assertTiktokSmartPlusCampaignUpdate,tiktokSmartPlusCampaignUpdateRead} from './tiktok-smart-plus-campaign-updates.js';
 import {linkedinLeadFormKind,assertLinkedInLeadForm,linkedinLeadFormOutcome,rememberLinkedInLeadForm,isLinkedInLeadFormRead,validateLinkedInLeadFormState} from './linkedin-lead-forms.js';
 import {googlePreviewKind,assertGooglePreview,googlePreviewSnapshots,readGooglePreviewState,googlePreviewOutcome,googlePreviewDelivery,googlePreviewSafeOutcome} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaign,assertCriteoCampaignScopes,criteoCampaignSnapshots,readCriteoCampaignState,criteoCampaignOutcome} from './criteo-campaign-writes.js';
@@ -306,6 +307,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(tiktokSmartPlusBudgetKind(plan))assertTiktokSmartPlusBudget(plan,body);
  if(tiktokSmartPlusCampaignKind(plan))assertTiktokSmartPlusCampaign(plan,body);
  if(tiktokSmartPlusAdgroupKind(plan))assertTiktokSmartPlusAdgroup(plan,body);
+ if(tiktokSmartPlusCampaignUpdateKind(plan))assertTiktokSmartPlusCampaignUpdate(plan,body);
  if(plan.gateway==='tiktok_native_action')tiktokAdgroupConversion(plan);
  if(plan.gateway==='tiktok_native_action'&&plan.path==='/v1.3/ad/create/'){
   if(!Array.isArray(body.creatives)||body.creatives.length!==1||!body.creatives[0]||Array.isArray(body.creatives[0])||typeof body.creatives[0]!=='object')fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed TikTok ad creation requires exactly one native creatives record per review. Put the ad fields and operation_status inside that record.');
@@ -412,6 +414,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
   if(tiktokSmartPlusStatusKind(plan)){const r=tiktokSmartPlusStatusRead(plan),read=base(r.path,r.query);read.action=r.action;return [read];}
   if(tiktokSmartPlusBudgetKind(plan)){const r=tiktokSmartPlusBudgetRead(plan),read=base(r.path,r.query);read.action=r.action;return [read];}
   if(tiktokSmartPlusCampaignKind(plan))return [base('/v1.3/advertiser/info/',{advertiser_ids:[id]})];
+  if(tiktokSmartPlusCampaignUpdateKind(plan)){const r=tiktokSmartPlusCampaignUpdateRead(plan),read=base(r.path,r.query);read.action=r.action;return [read];}
   if(tiktokSmartPlusAdgroupKind(plan))return [base('/v1.3/advertiser/info/',{advertiser_ids:[id]}),...tiktokSmartPlusAdgroupReads(plan).map(r=>{const read=base(r.path,r.query);read.action=r.action;return read;})];
   if(tiktokSavedAudienceKind(plan)){const reads=[base('/v1.3/advertiser/info/',{advertiser_ids:[id]})],audiences=tiktokSavedAudienceAudiences(plan);if(audiences.length){const read=base(tiktokAudienceGetPath,{advertiser_id:id,custom_audience_ids:audiences});read.action='tiktok_dmp_custom_audience_get';reads.push(read);}return reads;}
   if(tiktokBudgetKind(plan)){const read=base('/v1.3/adgroup/get/',{advertiser_id:id,filtering:{adgroup_ids:tiktokBudgetAdgroupIds(plan)},page_size:100});read.action='tiktok_adgroup_get';return [read];}
