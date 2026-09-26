@@ -60,7 +60,7 @@ const familyFiles:Record<string,[string,string[]]>={
  gtm_workflows:['src/gtm-workflow-writes.ts',['tests/gtm-workflow-writes.test.ts']],
  apple_entities:['src/apple-entity-writes.ts',['tests/apple-entity-writes.test.ts']],
  dv360_lists:['src/dv360-list-writes.ts',['tests/dv360-list-writes.test.ts']],
- dv360_line_item_targeting:['src/dv360-line-item-targeting.ts',['tests/dv360-line-item-targeting.test.ts']],
+ dv360_line_item_targeting:['src/dv360-line-item-targeting.ts',['tests/dv360-line-item-targeting.test.ts']],dv360_demand_gen_ad_groups:['src/dv360-demand-gen-ad-groups.ts',['tests/dv360-demand-gen-ad-groups.test.mjs']],
  dv360_advertiser_targeting:['src/dv360-line-item-targeting.ts',['tests/dv360-advertiser-targeting.test.ts']],
  google_configuration:['src/google-configuration-writes.ts',['tests/google-configuration-writes.test.ts','tests/google-custom-segments.test.ts','tests/google-audiences.test.mjs','tests/google-user-lists.test.mjs','tests/google-value-rules.test.mjs']],
  google_asset_links:['src/google-asset-links.ts',['tests/google-asset-links.test.ts']],google_targeting:['src/google-targeting-writes.ts',['tests/google-targeting-writes.test.ts']],google_entities:['src/write-review.ts',['tests/write-review.test.ts','tests/review-envelopes.test.ts']],

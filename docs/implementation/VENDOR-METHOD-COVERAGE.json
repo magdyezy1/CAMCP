@@ -4920,8 +4920,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_AD_GROUPS_DELETE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_demand_gen_ad_groups"
         }
       ],
       "mapping_status": "mapped",
@@ -4940,8 +4940,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_AD_GROUPS_CREATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_demand_gen_ad_groups"
         }
       ],
       "mapping_status": "mapped",
@@ -5040,8 +5040,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_AD_GROUPS_PATCH",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_demand_gen_ad_groups"
         }
       ],
       "mapping_status": "mapped",

@@ -73,6 +73,7 @@ import {metaBrandSafetyKind,metaBrandSafetyVerification,isMetaBrandSafetyRead,me
 import {criteoLineItemKind,criteoLineItemVerification,isCriteoLineItemRead,criteoLineItemObserved,readCriteoLineItems,assertCriteoLineItemScopes} from './criteo-auction-line-items.js';
 import {criteoPromotedProductsKind,criteoPromotedProductsVerification} from './criteo-promoted-products.js';
 import {criteoKeywordKind,criteoBidMultiplierKind,criteoLineItemBiddingVerification} from './criteo-line-item-bidding.js';
+import {dv360AdGroupKind,dv360AdGroupVerification,isDV360AdGroupRead,dv360AdGroupObserved,readDV360AdGroups} from './dv360-demand-gen-ad-groups.js';
 import {gtmWorkflowKind,gtmWorkflowVerification,gtmWorkflowObserved,readGtmWorkflow} from './gtm-workflow-writes.js';
 import {gtmWorkspaceKind,gtmWorkspaceVerification,gtmWorkspaceObserved,readGtmWorkspace} from './gtm-workspace-writes.js';
 import {validateState,snapshotPlans} from './write-review.js';
@@ -111,6 +112,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
  if(criteoLineItemKind(plan))return criteoLineItemVerification(plan,result,before);
  if(criteoPromotedProductsKind(plan))return criteoPromotedProductsVerification(plan);
  if(criteoKeywordKind(plan)||criteoBidMultiplierKind(plan))return criteoLineItemBiddingVerification(plan);
+ if(dv360AdGroupKind(plan))return dv360AdGroupVerification(plan,result,before);
  if(googleConfigurationKind(plan))return googleConfigurationVerification(plan,result);
  if(googleAssetLinkKind(plan))return googleAssetLinkVerification(plan);
  if(microsoftAssociationWrite(plan))return microsoftAssociationVerification(plan,compileMicrosoft);
@@ -190,6 +192,7 @@ function entity(plan:CompiledRequest,data:JsonObject):JsonObject{
  if(isMetaValueRuleRead(plan))return metaValueRuleObserved(plan,data);
  if(isMetaBrandSafetyRead(plan))return metaBrandSafetyObserved(plan,data);
  if(isCriteoLineItemRead(plan))return criteoLineItemObserved(plan,data);
+ if(isDV360AdGroupRead(plan))return dv360AdGroupObserved(plan,data);
  if(plan.gateway==='google_ads_native_action')return googleConfigurationObserved(plan,Object.values(data.results?.[0]??{})[0] as JsonObject);
  if(plan.gateway===microsoftGateway)return data[microsoftContracts.get(plan.action)!.result]?.[0];
  if(plan.gateway==='tiktok_native_action'&&plan.path==='/v1.3/identity/info/')return data.data?.identity_info;
@@ -364,7 +367,7 @@ export class WriteVerifier{
    const expected=normalize(item.expected),readback=await readConsistently(async()=>{
     this.store.assertActorActive(actor);checkAppleAccounts();const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(item.read,current);
     const auth=await this.credentials.get(current);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));
-    let response;try{response=await readLinkedInRules(item.read,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readGtmWorkspace(criteoPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(latest);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.request(actor,page,latest,auth);this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(current);new ScopeGuard(this.registry,this.store).authorize(page,current);return result;})))))))))));}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
+    let response;try{response=await readLinkedInRules(item.read,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readGtmWorkspace(criteoPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(latest);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.request(actor,page,latest,auth);this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(current);new ScopeGuard(this.registry,this.store).authorize(page,current);return result;}))))))))))));}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
     checkAppleAccounts();return normalize(entity(item.read,response.data as JsonObject));
    },actual=>differing(expected,actual).length===0);
    const actual=readback.value,changed=differing(expected,actual),acknowledged=item.acknowledged??{},unacknowledged=Object.entries(acknowledged).filter(([,v])=>differing(normalize(v.sent),normalize(v.echoed)).length).map(([k])=>'/'+k);

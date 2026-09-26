@@ -148,6 +148,39 @@ change it, so treat it as account-wide brand safety.
 Reference: [advertiser edit](https://developers.google.com/display-video/api/reference/rest/v4/advertisers/editAssignedTargetingOptions),
 checked 2026-09-26.
 
+### Demand Gen ad groups
+
+`DV360_ADVERTISERS_AD_GROUPS_CREATE` (`params: {advertiserId}`), `..._PATCH` (`params:
+{advertiserId, adGroupId, updateMask}`) and `..._DELETE` (`params: {advertiserId, adGroupId}`)
+write Demand Gen ad groups, the level below a Demand Gen line item (`LINE_ITEM_TYPE_DEMAND_GEN`,
+created through the line item route as a draft). DV360 writes ad groups of no other format.
+
+- Creation sends `lineItemId` (a Demand Gen line item of the advertiser, not archived),
+  `adGroupFormat: AD_GROUP_FORMAT_DEMAND_GEN`, `displayName` (up to 255 UTF-8 bytes),
+  `entityStatus` (`ENTITY_STATUS_PAUSED`, as Google recommends, or `ENTITY_STATUS_ACTIVE`) and
+  `adGroupInventoryControl`: either `adGroupInventoryStrategy`
+  (`AD_GROUP_INVENTORY_STRATEGY_ALL_GOOGLE_INVENTORY` or `..._ALL_GOOGLE_AND_DISPLAY_NETWORK_INVENTORY`)
+  or `selectedInventories` with at least one of `allowYoutubeStream`, `allowYoutubeShorts`,
+  `allowYoutubeFeed`, `allowDiscover`, `allowGmail` and `allowGoogleDisplayNetwork` true.
+- Optional: `bidStrategy: {demandGenBid: {value}}`, a value in micros of the advertiser currency
+  as a string (1000000 is one unit, or 100% for target ROAS). The line item sets the strategy
+  type; an ad group value applies only to target CPA, CPC and ROAS line items. Also
+  `targetingExpansion` (`enableOptimizedTargeting`, `excludeDemographicExpansion`) and
+  `productFeedData` (all products, specific product offer IDs or custom labels).
+- A patch names top-level fields in `updateMask` and sends exactly those fields; the line item
+  and format cannot change. A patch that changes nothing is refused.
+- An ad group serves only while its line item, the ad group and an ad are all active. An active
+  status or a bid value needs `spend_change_confirmed`; an active status counts as activation
+  and a deletion as a deletion under owner policies.
+- AMCP reads the advertiser (currency), the ad group and its line item. Verification compares
+  every setting the request sets, or confirms a deleted ad group is gone.
+  `INVALID_DV360_AD_GROUP` names the field or rule to correct.
+
+Ads, assets and ad group targeting of Demand Gen ad groups are not qualified yet. References:
+[Serve a Demand Gen ad](https://developers.google.com/display-video/api/guides/tasks/serve-demand-gen-ad/overview)
+and [adGroups](https://developers.google.com/display-video/api/reference/rest/v4/advertisers.adGroups),
+checked 2026-09-27.
+
 ## GA4 — ga4_native_action
 
 Google social sign-in, Ads access, Analytics access and optional Sheets/Drive access are

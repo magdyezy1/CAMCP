@@ -89,6 +89,8 @@ export interface CompiledRequest {
   metaBrandSafetyState?:'controls'|'blocklist';
   /** Server-derived Criteo auction line item read of the selected account; never caller supplied. */
   criteoLineItemState?:{campaignId?:string;lineItemId?:string;siblings:boolean;products?:boolean;keywords?:boolean;multipliers?:boolean};
+  /** Server-derived DV360 Demand Gen ad group read of the selected advertiser; never caller supplied. */
+  dv360AdGroupState?:{adGroupId?:string;lineItemId?:string;optional?:boolean};
   /** Server-derived GTM workflow read. Never accepted from external arguments. */
   gtmState?:{kind:'resource'|'collection'|'status'|'latest';key?:string};
   /** Internal complete GTM workspace read; targets only qualify absence checks. */

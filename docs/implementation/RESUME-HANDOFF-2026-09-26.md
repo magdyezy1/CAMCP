@@ -553,7 +553,18 @@ Tests: `tests/criteo-promoted-products.test.mjs` (7) and a capitalized-day case 
 - The generic "bid/budget/spend" preflight heuristic no longer applies to the line item bidding and promoted product families, which decide spending confirmation themselves.
 - Left for later: keyword review (a retailer action), preferred line items, budget overrides (a complete PUT of ordered daily and monthly sequences), balance-to-campaign mapping (the 2026.01 guide shows an `ids` body while the pinned document has a list of resources; resolve before qualifying), creatives and assets.
 
-Tests: `tests/criteo-line-item-bidding.test.mjs` (7) and a product ID case in `tests/criteo-promoted-products.test.mjs`, red on `c96529c` / green after.
+Tests: `tests/criteo-line-item-bidding.test.mjs` (7) and a product ID case in `tests/criteo-promoted-products.test.mjs`, red on `c96529c` / green after. Pushed as `ff9c443`.
+
+## Finished batch — DV360 Demand Gen ad groups (2026-09-27)
+
+[Implementation](DV360-DEMAND-GEN-AD-GROUPS-2026-09-27.md) and
+[qualification](DV360-DEMAND-GEN-AD-GROUPS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `dv360_demand_gen_ad_groups` (`src/dv360-demand-gen-ad-groups.ts`) for create, patch (update mask) and delete of Demand Gen ad groups. A reader reads the advertiser, the ad group and its Demand Gen line item; verification compares every setting sent or confirms a deletion.
+- Next DV360 Demand Gen steps, in Google's order: ad group targeting (`adGroups.targetingTypes.assignedTargetingOptions` create/delete and bulk edit), ad assets (create, upload, bulk create) and ad group ads (create, patch, delete).
+- Also checked and left: Meta lead forms need a Page access token, which AMCP does not resolve (`src/parameters.ts`), so they need credential work first; Criteo budget overrides merge adjacent equal overrides and drop chained start dates in read-back, and whether expired overrides may be omitted is undocumented; Criteo balance-to-campaign mapping has a guide body (`ids`) that differs from the pinned document.
+
+Tests: `tests/dv360-demand-gen-ad-groups.test.mjs` (7), red on `ff9c443` / green after.
 
 ## CI and live evidence
 
@@ -567,20 +578,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 536 in reviewed write families. **899 remaining rows** are in
+3241 captured actions; 539 in reviewed write families. **896 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 784 |
+| blocked_write | 781 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 118, Google Ads 96,
-Snapchat 89, X 67, DV360 56, Criteo 34, Business Profile 12.
+Snapchat 89, X 67, DV360 53, Criteo 34, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

@@ -1863,6 +1863,27 @@
     {
       "gateway": "dv360_native_action",
       "arguments": {
+        "action": "DV360_ADVERTISERS_AD_GROUPS_CREATE",
+        "params": {
+          "advertiserId": "123"
+        },
+        "body": {
+          "lineItemId": "555",
+          "displayName": "Synthetic Demand Gen ad group",
+          "adGroupFormat": "AD_GROUP_FORMAT_DEMAND_GEN",
+          "entityStatus": "ENTITY_STATUS_PAUSED",
+          "adGroupInventoryControl": {
+            "selectedInventories": {
+              "allowYoutubeStream": true,
+              "allowYoutubeShorts": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "gateway": "dv360_native_action",
+      "arguments": {
         "action": "DV360_ADVERTISERS_LINE_ITEMS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS",
         "params": {
           "advertiserId": "123"

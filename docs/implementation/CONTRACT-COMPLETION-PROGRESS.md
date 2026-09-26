@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CX — DV360 Demand Gen ad groups (2026-09-27)
+
+Demand Gen ad groups can now be created, patched with an update mask and deleted under Demand
+Gen line items, with the inventory, bid value, optimized targeting and product feed rules of the
+pinned model, spending confirmation for active ad groups and bid values, and read-back of every
+setting (or of the deletion). See [implementation](DV360-DEMAND-GEN-AD-GROUPS-2026-09-27.md),
+[qualification](DV360-DEMAND-GEN-AD-GROUPS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 896 (three DV360 rows reviewed). Pushed only to CAMCP; its exact-commit CI result and
+live acceptance are pending.
+
 ## CW — Criteo keywords and bid multipliers (2026-09-27)
 
 Keywords of auction line items can now be added and removed by match type and their bids set,
@@ -17,8 +29,8 @@ set; each change is verified phrase by phrase or page by page. See
 [qualification](CRITEO-KEYWORDS-BID-MULTIPLIERS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 899 (three Criteo rows reviewed). Pushed only to CAMCP; its exact-commit CI result and
-live acceptance are pending.
+Remaining rows: 899 (three Criteo rows reviewed). Pushed to CAMCP as `ff9c443`; its exact-commit CI
+result and live acceptance are pending.
 
 ## CV — Criteo promoted products (2026-09-27)
 
