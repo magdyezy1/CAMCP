@@ -366,6 +366,25 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
   status, posts, landing page and configuration; TikTok's added material IDs and list order are
   ignored.
 
+## TikTok Upgraded Smart+ Spark Ad edits
+
+- `tiktok_smart_plus_ad_update` (alias `tiktok_smart_ad_update`) edits an Upgraded Smart+ ad by
+  `smart_plus_ad_id`: `ad_name`, `creative_list`, `landing_page_url_list` and/or
+  `ad_configuration`, validated as for creation. Status changes use the Smart+ status family;
+  `ad_material_id` (allowlist-only, and TikTok then ignores `creative_info`) and other keys are
+  refused with `INVALID_TIKTOK_SMART_PLUS_AD`.
+- Any Smart+ ad can be renamed. The other edits apply only to ads from existing TikTok posts with
+  one landing page and a CTA portfolio, as the create contract makes them; terminated (`FROZEN`)
+  ads are refused.
+- `creative_list` replaces the ad's posts in full: the review lists kept, added and removed posts
+  and reads each identity and post as for creation. Removing posts from an enabled ad is refused
+  with `CREATIVE_EDIT_CONFIRMATION_REQUIRED` until the review is prepared, and executed, with
+  `creative_edit_confirmed: true`. TikTok reviews changes to an enabled ad before they deliver.
+- A new `ad_configuration` restates `call_to_action_id` and both automatic switches, and
+  `utm_params` when the ad has them; `TRANSLATE_AND_DUB` keeps its creation-time membership. The
+  UTM parameters in effect must still repeat the landing page in effect.
+- Verification reads the ad and compares the edited fields.
+
 ## TikTok lookalike audiences
 
 - `tiktok_dmp_custom_audience_lookalike_create` creates a lookalike from a seed audience the selected

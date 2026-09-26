@@ -14,6 +14,7 @@ import {tiktokSmartPlusAdgroupKind,tiktokSmartPlusAdgroupImpact} from './tiktok-
 import {tiktokSmartPlusCampaignUpdateKind,tiktokSmartPlusCampaignUpdateImpact} from './tiktok-smart-plus-campaign-updates.js';
 import {tiktokCtaPortfolioKind,tiktokCtaPortfolioImpact} from './tiktok-cta-portfolios.js';
 import {tiktokSmartPlusAdKind,tiktokSmartPlusAdImpact} from './tiktok-smart-plus-ads.js';
+import {tiktokSmartPlusAdUpdateKind,tiktokSmartPlusAdUpdateImpact} from './tiktok-smart-plus-ad-updates.js';
 import {linkedinLeadFormKind,linkedinLeadFormImpact} from './linkedin-lead-forms.js';
 import {googlePreviewKind,googlePreviewImpact} from './google-preview-writes.js';
 import {criteoCampaignKind,criteoCampaignImpact} from './criteo-campaign-writes.js';
@@ -125,6 +126,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  if(tiktokSmartPlusCampaignUpdateKind(plan))return tiktokSmartPlusCampaignUpdateImpact(plan,state);
  if(tiktokCtaPortfolioKind(plan))return tiktokCtaPortfolioImpact(plan);
  if(tiktokSmartPlusAdKind(plan))return tiktokSmartPlusAdImpact(plan,state);
+ if(tiktokSmartPlusAdUpdateKind(plan))return tiktokSmartPlusAdUpdateImpact(plan,state,override);
  return undefined;
 }
 import {googleConfigurationKind,googleConfigurationServing} from './google-configuration-writes.js';

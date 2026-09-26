@@ -348,7 +348,19 @@ repeated run passed).
 - Paused website conversion ads from 1-20 existing TikTok posts with `TT_USER` or `BC_AUTH_TT` identities, one landing page, a CTA portfolio and explicit automatic creative switches.
 - Before review and execution: the ad group (website conversions, TikTok placement, fewer than 30 ads), each identity (available, may use its posts, not political, stated Business Center), each identity's posts and the portfolio. Signed media and profile URLs are left out of the compared state.
 
-Tests: `tests/tiktok-smart-plus-ads.test.mjs` (6, red on `bad418f` / green after).
+Tests: `tests/tiktok-smart-plus-ads.test.mjs` (6, red on `bad418f` / green after). Pushed as `3b009b2`.
+
+## Finished batch — TikTok Upgraded Smart+ Spark Ad edits
+
+[Implementation](TIKTOK-SMART-PLUS-AD-EDITS-2026-09-26.md) and
+[qualification](TIKTOK-SMART-PLUS-AD-EDITS-VERIFICATION-2026-09-26.json).
+
+`tiktok_smart_plus_ad_update` (and alias) is the new reviewed family `tiktok_smart_plus_ad_edits`:
+
+- Any Smart+ ad can be renamed; ads from existing posts can have their posts, landing page and configuration changed with the creation checks, which now live in reusable parts of `src/tiktok-smart-plus-ads.ts`.
+- `creative_list` is a full replacement, so the review lists kept, added and removed posts; removing posts from an enabled ad needs `creative_edit_confirmed` at review and execution (previously X-only). `TRANSLATE_AND_DUB` keeps its membership and existing UTM parameters must be restated.
+
+Tests: `tests/tiktok-smart-plus-ad-updates.test.mjs` (7, red on `3b009b2` / green after).
 
 ## CI and live evidence
 
@@ -362,19 +374,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 495 in reviewed write families. **942 remaining rows** are in
+3241 captured actions; 497 in reviewed write families. **940 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 827 |
+| blocked_write | 825 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 196, Meta 131, LinkedIn 118, Google Ads 107,
+Blocked writes by platform: TikTok 194, Meta 131, LinkedIn 118, Google Ads 107,
 Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
@@ -410,7 +422,6 @@ on 2026-09-26 afternoon; LinkedIn and Google candidates wait for them. The ticke
 | P3 | TikTok asynchronous campaign copy | `/campaign/copy/task/create/` is allowlist-only; needs an allowlisted advertiser, a paused-copy guarantee for every ad group and a task-result verification design |
 | P2 | LinkedIn lead gen creatives must reference owned forms | The documented creative field and URN type that point a lead gen creative at a form, then the same owned-reference check as Snapchat creatives |
 | P2 | LinkedIn lead form edits, publishing and archiving | A read of the creatives and campaigns that use a form, to tell pre-published from published forms and limit edits to the documented fields, plus the documented warning about CRM integrations |
-| P1 | TikTok Upgraded Smart+ ad edits | Paused Smart+ website conversion Spark Ads from existing posts can now be created. Next: `/smart_plus/ad/update/`, whose `creative_list` is a full replacement (the review must show added and removed posts), where `ad_material_id` is allowlist-only and silently overrides `creative_info`, and where `TRANSLATE_AND_DUB` cannot change after creation |
 | P2 | TikTok Upgraded Smart+ ad group edits | `/smart_plus/adgroup/update/` is incremental, but a bid change on one ad group changes the bid of every ad group in the campaign; the review must read and show the sibling ad groups |
 | P2 | TikTok manual ads with custom identities | TikTok no longer accepts new non-Spark ads with a `CUSTOMIZED_USER` identity in ad groups that deliver on TikTok (Update ads, read 2026-09-26); the generic ad review should read the ad group placements and refuse that pair before TikTok does |
 | P3 | LinkedIn work-email submission criteria | The wire form of the `questionSubmissionCriteria` union, which the schema does not show |

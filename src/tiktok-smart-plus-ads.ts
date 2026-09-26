@@ -33,12 +33,13 @@ function invalid(field:string,message:string):never{
  throw new MirrorError('INVALID_TIKTOK_SMART_PLUS_AD',message,{field});
 }
 const webUrl=(v:unknown):v is string=>{if(typeof v!=='string'||v.length>2048||/\s/.test(v))return false;try{const u=new URL(v);return ['http:','https:'].includes(u.protocol)&&!!u.hostname;}catch{return false;}};
-const creatives=(b:JsonObject)=>(b.creative_list as JsonObject[]).map(c=>c.creative_info as JsonObject);
+const creatives=(b:JsonObject)=>infos(b.creative_list as JsonObject[]);
+const infos=(list:JsonObject[])=>list.map(c=>c.creative_info as JsonObject);
 type Identity={type:string;id:string;bc?:string;items:string[]};
 /** One entry per identity named by the creatives, with the posts it must own. */
-function identities(b:JsonObject):Identity[]{
+function identities(list:JsonObject[]):Identity[]{
  const out=new Map<string,Identity>();
- for(const c of creatives(b)){
+ for(const c of infos(list)){
   const bc=c.identity_authorized_bc_id as string|undefined,key=c.identity_type+':'+c.identity_id+':'+(bc??'');
   const i=out.get(key)??{type:c.identity_type as string,id:c.identity_id as string,...(bc!==undefined?{bc}:{}),items:[]};i.items.push(c.tiktok_item_id as string);out.set(key,i);
  }
@@ -53,11 +54,16 @@ export function assertTiktokSmartPlusAd(plan:CompiledRequest,body:JsonObject):vo
  if(!numeric(body.adgroup_id))invalid('adgroup_id','adgroup_id must be the numeric ID of an Upgraded Smart+ ad group.');
  if(body.operation_status!=='DISABLE')invalid('operation_status','Create Smart+ ads paused: set operation_status to DISABLE (TikTok defaults to ENABLE).');
  if(typeof body.ad_name!=='string'||!body.ad_name.trim()||width(body.ad_name)>512||emoji.test(body.ad_name))invalid('ad_name','ad_name must be nonempty, at most 512 characters (Chinese and Japanese count twice) and without emoji.');
- const list=body.creative_list;
+ assertSparkCreatives(body.creative_list);
+ assertAdConfiguration(body.ad_configuration,assertLandingPages(body.landing_page_url_list));
+}
+/** A Spark creative list: 1-20 existing posts, each with a TT_USER or BC_AUTH_TT identity. */
+export function assertSparkCreatives(list:unknown):void{
  if(!Array.isArray(list)||!list.length||list.length>maxCreatives)invalid('creative_list','creative_list must hold 1-'+maxCreatives+' existing TikTok posts.');
  const items=new Set<string>();
  list.forEach((c:unknown,i:number)=>{
   const at='creative_list['+i+'].creative_info';
+  if(obj(c)&&Object.hasOwn(c,'ad_material_id'))invalid('creative_list['+i+'].ad_material_id','ad_material_id is allowlist-only and makes TikTok ignore creative_info; name the post in creative_info.');
   if(!obj(c)||Object.keys(c).some(k=>k!=='creative_info')||!obj(c.creative_info))invalid('creative_list['+i+']','Each creative is {creative_info:{...}} naming one existing TikTok post.');
   const ci=c.creative_info,key=Object.keys(ci).find(k=>!['ad_format','tiktok_item_id','identity_type','identity_id','identity_authorized_bc_id'].includes(k));
   if(key)invalid(at+'.'+key,'"'+key+'" is outside Spark Ads from existing posts; uploads (Spark Ads Push) and custom identities are not qualified.');
@@ -68,9 +74,14 @@ export function assertTiktokSmartPlusAd(plan:CompiledRequest,body:JsonObject):vo
   if(typeof ci.identity_id!=='string'||!/^[A-Za-z0-9_-]{1,64}$/.test(ci.identity_id))invalid(at+'.identity_id','identity_id must be the TikTok account identity that owns the post.');
   if((ci.identity_type==='BC_AUTH_TT')!==(ci.identity_authorized_bc_id!==undefined)||ci.identity_authorized_bc_id!==undefined&&!numeric(ci.identity_authorized_bc_id))invalid(at+'.identity_authorized_bc_id','identity_authorized_bc_id is the Business Center ID, required for BC_AUTH_TT and only for it.');
  });
- const pages=body.landing_page_url_list;
+}
+/** Exactly one http or https landing page; returns its URL. */
+export function assertLandingPages(pages:unknown):string{
  if(!Array.isArray(pages)||pages.length!==1||!obj(pages[0])||Object.keys(pages[0]).some(k=>k!=='landing_page_url')||!webUrl(pages[0].landing_page_url))invalid('landing_page_url_list','landing_page_url_list must hold exactly one {landing_page_url} with an http or https URL.');
- const ac=body.ad_configuration;
+ return pages[0].landing_page_url;
+}
+/** The CTA portfolio and both automatic switches; UTM parameters are checked against the landing page when it is known. */
+export function assertAdConfiguration(ac:unknown,url:string|undefined):void{
  if(!obj(ac))invalid('ad_configuration','ad_configuration must set call_to_action_id and both automatic creative switches.');
  const akey=Object.keys(ac).find(k=>!configKeys.includes(k));
  if(akey)invalid('ad_configuration.'+akey,'"'+akey+'" is outside the qualified Smart+ Spark Ad contract.');
@@ -79,10 +90,15 @@ export function assertTiktokSmartPlusAd(plan:CompiledRequest,body:JsonObject):vo
  const e=ac.creative_auto_enhancement_strategy_list;
  if(!Array.isArray(e)||!e.every(v=>enhancements.includes(v))||new Set(e).size!==e.length)invalid('ad_configuration.creative_auto_enhancement_strategy_list','Set creative_auto_enhancement_strategy_list to a list, possibly empty, of '+enhancements.join(', ')+'; its default depends on allowlist status.');
  if(ac.utm_params!==undefined){
-  const u=ac.utm_params,query=new URL(pages[0].landing_page_url as string).searchParams,sent=[...query.entries()].map(([key,value])=>key+'='+value).sort();
+  const u=ac.utm_params;
   if(!Array.isArray(u)||!u.length||u.length>14||!u.every(p=>obj(p)&&Object.keys(p).every(k=>k==='key'||k==='value')&&typeof p.key==='string'&&p.key.trim()!==''&&[...p.key].length<=100&&typeof p.value==='string'&&[...p.value].length<=600))invalid('ad_configuration.utm_params','utm_params holds 1-14 {key,value} pairs (keys up to 100 characters, values up to 600).');
-  if(JSON.stringify(u.map((p:JsonObject)=>p.key+'='+p.value).sort())!==JSON.stringify(sent))invalid('ad_configuration.utm_params','utm_params only record the parameters already in landing_page_url, exactly; TikTok does not append them.');
+  if(url!==undefined)assertUtmMatch(u,url);
  }
+}
+/** utm_params only record the parameters already in the landing page URL; TikTok does not append them. */
+export function assertUtmMatch(utm:unknown,url:string):void{
+ const sent=[...new URL(url).searchParams.entries()].map(([key,value])=>key+'='+value).sort(),listed=(Array.isArray(utm)?utm:[]).map((p:JsonObject)=>p?.key+'='+p?.value).sort();
+ if(JSON.stringify(listed)!==JSON.stringify(sent))invalid('ad_configuration.utm_params','utm_params only record the parameters already in landing_page_url, exactly; TikTok does not append them.');
 }
 
 type Read={path:string;query:JsonObject;action:string};
@@ -90,12 +106,16 @@ export function tiktokSmartPlusAdReads(plan:CompiledRequest):Read[]{
  const b=plan.body as JsonObject,id=plan.accountId,filtering={adgroup_ids:[b.adgroup_id]};
  const reads:Read[]=[{path:'/v1.3/smart_plus/adgroup/get/',query:{advertiser_id:id,filtering,page_size:100},action:'tiktok_smart_plus_adgroup_get'},
   {path:tiktokSmartPlusAdGetPath,query:{advertiser_id:id,filtering,page_size:100},action:'tiktok_smart_plus_ad_get'}];
- for(const i of identities(b)){
-  const who={advertiser_id:id,identity_type:i.type,identity_id:i.id,...(i.bc!==undefined?{identity_authorized_bc_id:i.bc}:{})};
-  reads.push({path:identityInfoPath,query:who,action:'tiktok_identity_info_get'},{path:tiktokIdentityVideoInfoPath,query:{...who,item_ids:[...i.items].sort()},action:'tiktok_identity_video_info_get'});
- }
+ reads.push(...sparkReads(id,b.creative_list as JsonObject[]));
  reads.push({path:tiktokPortfolioGetPath,query:{advertiser_id:id,creative_portfolio_id:(b.ad_configuration as JsonObject).call_to_action_id},action:'tiktok_creative_portfolio_get'});
  return reads;
+}
+/** Each identity of a creative list, and its posts. */
+export function sparkReads(accountId:string|undefined,list:JsonObject[]):Read[]{
+ return identities(list).flatMap(i=>{
+  const who={advertiser_id:accountId,identity_type:i.type,identity_id:i.id,...(i.bc!==undefined?{identity_authorized_bc_id:i.bc}:{})};
+  return [{path:identityInfoPath,query:who,action:'tiktok_identity_info_get'},{path:tiktokIdentityVideoInfoPath,query:{...who,item_ids:[...i.items].sort()},action:'tiktok_identity_video_info_get'}];
+ });
 }
 /** The ads of one ad group, read to count them; the status family reads ads by their own IDs instead. */
 const adgroupAdsRead=(read:CompiledRequest)=>read.gateway==='tiktok_native_action'&&read.path===tiktokSmartPlusAdGetPath&&obj(read.query.filtering)&&Array.isArray(read.query.filtering.adgroup_ids)&&read.query.filtering.smart_plus_ad_ids===undefined;
@@ -137,7 +157,12 @@ export function tiktokSmartPlusAdPrerequisites(plan:CompiledRequest,values:unkno
  const ads=data.find(d=>obj(d.adgroup_ads))?.adgroup_ads as JsonObject|undefined;
  if(!ads)throw new MirrorError('STATE_READ_FAILED','The ads of ad group '+b.adgroup_id+' were not read.');
  if((ads.smart_plus_ad_ids as string[]).length>=maxAds)invalid('adgroup_id','Ad group '+b.adgroup_id+' already has '+(ads.smart_plus_ad_ids as string[]).length+' ads; an Upgraded Smart+ ad group holds at most '+maxAds+'.');
- for(const i of identities(b)){
+ sparkPrerequisites(b.creative_list as JsonObject[],data);
+ tiktokCtaPortfolioCheck((b.ad_configuration as JsonObject).call_to_action_id as string,values,'ad_configuration.call_to_action_id');
+}
+/** Each identity is available, may use its posts, is not a political account and is in the stated Business Center; each post is its own, of the matching type. */
+export function sparkPrerequisites(list:JsonObject[],data:JsonObject[]):void{
+ for(const i of identities(list)){
   const info=data.map(d=>d.identity_info).find((r:JsonObject)=>obj(r)&&String(r.identity_id)===i.id&&r.identity_type===i.type) as JsonObject|undefined,field='creative_list.identity_id';
   if(!info)throw new MirrorError('STATE_TARGET_MISMATCH','Identity '+i.id+' ('+i.type+') was not returned for the selected advertiser.',{identity_id:i.id});
   if(i.bc!==undefined&&String(info.identity_authorized_bc_id)!==i.bc)invalid(field,'Identity '+i.id+' belongs to Business Center '+info.identity_authorized_bc_id+', not '+i.bc+'.');
@@ -145,13 +170,12 @@ export function tiktokSmartPlusAdPrerequisites(plan:CompiledRequest,values:unkno
   if(info.can_pull_video!==true)invalid(field,'Identity '+i.id+' cannot use its existing posts in ads (can_pull_video is not true).');
   if(info.is_gpppa===true)invalid(field,'Identity '+i.id+' is a government, politician or political party account, which cannot run Spark Ads.');
   const posts=data.find(d=>d.identity_id===i.id&&d.identity_type===i.type&&Array.isArray(d.video_details))?.video_details as JsonObject[]|undefined;
-  for(const c of creatives(b).filter(c=>c.identity_id===i.id&&c.identity_type===i.type)){
+  for(const c of infos(list).filter(c=>c.identity_id===i.id&&c.identity_type===i.type)){
    const post=posts?.find(p=>p.item_id===c.tiktok_item_id);
    if(!post)throw new MirrorError('STATE_TARGET_MISMATCH','Post '+c.tiktok_item_id+' was not returned for identity '+i.id+'.',{tiktok_item_id:c.tiktok_item_id});
    if(post.item_type!==formats[c.ad_format as string])invalid('creative_list.ad_format','Post '+c.tiktok_item_id+' is a '+(post.item_type??'unknown')+' post; '+c.ad_format+' needs a '+formats[c.ad_format as string]+' post.');
   }
  }
- tiktokCtaPortfolioCheck((b.ad_configuration as JsonObject).call_to_action_id as string,values,'ad_configuration.call_to_action_id');
 }
 export function tiktokSmartPlusAdImpact(plan:CompiledRequest,state:unknown[]):JsonObject{
  const b=plan.body as JsonObject,ac=b.ad_configuration as JsonObject,data=state.map(v=>obj(v)&&obj(v.data)?v.data:undefined);

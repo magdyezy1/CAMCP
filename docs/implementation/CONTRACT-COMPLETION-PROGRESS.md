@@ -8,6 +8,20 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CE — TikTok Upgraded Smart+ Spark Ad edits (2026-09-26)
+
+`tiktok_smart_plus_ad_update` is a reviewed family for Smart+ ad edits: any ad can be renamed;
+ads from existing posts can have their posts replaced (kept, added and removed posts listed),
+their landing page and their configuration changed, with the creation checks reused.
+Removing posts from an enabled ad needs `creative_edit_confirmed`, and `TRANSLATE_AND_DUB` keeps
+its creation-time membership. See
+[implementation](TIKTOK-SMART-PLUS-AD-EDITS-2026-09-26.md),
+[qualification](TIKTOK-SMART-PLUS-AD-EDITS-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 940 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## CD — TikTok Upgraded Smart+ Spark Ads (2026-09-26)
 
 `tiktok_smart_plus_ad_create` is a reviewed family for paused Smart+ website conversion ads from
@@ -20,7 +34,7 @@ URLs are kept out of the compared state. See
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
 Remaining rows: 942 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Pushed to CAMCP as `3b009b2`; its exact-commit CI result and live acceptance are pending.
 
 ## CC — TikTok dynamic CTA portfolios (2026-09-26)
 
