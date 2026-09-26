@@ -115,7 +115,22 @@ Campaign (shallow), ad set (up to three ads) and ad copies form the reviewed fam
 - Every copy is read back paused under the right parent.
 
 Deep campaign, asynchronous and override copies stay unqualified. Tests:
-`tests/meta-copies.test.mjs` (9, red on `a99dfdd` / green after).
+`tests/meta-copies.test.mjs` (9, red on `a99dfdd` / green after). Pushed as `6521d0d`.
+
+## Finished batch — TikTok lookalike audiences
+
+[Implementation](TIKTOK-LOOKALIKES-2026-09-26.md) and
+[qualification](TIKTOK-LOOKALIKES-VERIFICATION-2026-09-26.json).
+
+`tiktok_dmp_custom_audience_lookalike_create` is the new reviewed family
+`tiktok_lookalikes`:
+
+- v1.3 fields and documented enumerations only.
+- The seed must be owned, available, not a lookalike, and at least 100 people; it is read before review and before execution.
+- Verification compares name, type and ownership; the spec is listed as unobservable.
+
+Also corrects the Snapchat segment impact, which listed an always-null audience size.
+Tests: `tests/tiktok-lookalikes.test.mjs` (8, red on `6521d0d` / green after).
 
 ## CI and live evidence
 
@@ -129,19 +144,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 469 in reviewed write families. **968 remaining rows** are in
+3241 captured actions; 470 in reviewed write families. **967 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 853 |
+| blocked_write | 852 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 218, Meta 133, LinkedIn 119, Google Ads 108,
+Blocked writes by platform: TikTok 217, Meta 133, LinkedIn 119, Google Ads 108,
 Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12. The ticket list in the
 2026-09-25 handoff remains the backlog, plus these Snapchat follow-ups:
 

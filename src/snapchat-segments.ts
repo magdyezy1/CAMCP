@@ -93,7 +93,7 @@ export function snapSegmentImpact(plan:CompiledRequest,state:unknown[]):JsonObje
   if(!retentionMax[type])invalid(index,'retention_in_days','Retention limits for '+type+' segments are not documented; this contract updates FIRST_PARTY, LOOKALIKE and PIXEL segments.');
   retention(row.retention_in_days,type,index);
   if(typeof before.description==='string'&&before.description&&row.description===undefined)throw new MirrorError('INCOMPLETE_SNAPCHAT_SEGMENT_UPDATE','Restate the current description or send its replacement; Snapchat PUT can reset omitted fields.',{record:index,field:'description'});
-  changes.push({segment_id:row.id,source_type:type,retention_before:before.retention_in_days??null,retention_after:row.retention_in_days,approximate_number_users:before.approximate_number_users??null});
+  changes.push({segment_id:row.id,source_type:type,retention_before:before.retention_in_days??null,retention_after:row.retention_in_days});
  });
  return {provider:'snapchat',effect:'Renames or changes retention of existing audience segments. Ad squads targeting a segment use the changed audience; a shorter retention drops members outside the new window.',segments:changes,may_affect_serving:changes.some(c=>c.retention_before!==c.retention_after),source:'https://developers.snap.com/marketing-api/Ads-API/audience-creation/customer-lists'};
 }

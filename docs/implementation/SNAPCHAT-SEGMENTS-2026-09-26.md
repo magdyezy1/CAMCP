@@ -28,7 +28,7 @@ Four captured actions join the reviewed `snapchat_entities` family:
 | Reads | Create reads the account and, for a lookalike, `GET /v1/segments/{seed}` before review and before execution. Update reads each `GET /v1/segments/{id}` |
 | Ownership | `segments` joins the Snapchat global-ID ownership rules. An account segment list records only segments whose `ad_account_id` is that account; segments shared from other accounts appear in the list but are not owned. Created segments are owned when the receipt names the account. Single reads renew ownership only when they name the account |
 | Review evidence | Segment state ignores `approximate_number_users`, `targetable_status`, `upload_status` and `status`, which change without an edit. Configuration changes still produce `STATE_CHANGED` |
-| Impact | `creative_impact` lists each segment's source type, retention before/after and audience size. `may_affect_serving` is set when retention changes |
+| Impact | `creative_impact` lists each segment's source type and retention before/after. `may_affect_serving` is set when retention changes. (As first pushed it also listed an audience size that review normalization had already removed, so it was always `null`; removed on 2026-09-26 with the TikTok lookalike batch.) |
 | Receipt / verification | The existing Snapchat receipt rule includes `segments`. Read-back compares a projection: countries upper-cased and sorted, deprecated `country` read as `countries`, provider status fields dropped. Any other difference stays `inconclusive` |
 
 Not qualified, and still blocked:

@@ -3,6 +3,7 @@ import {snapLeadFormProjection} from './snapchat-lead-forms.js';
 import {snapSegmentProjection} from './snapchat-segments.js';
 import {tiktokIdentityKind,tiktokIdentityVerification} from './tiktok-identities.js';
 import {metaCopyKind,metaCopyVerification} from './meta-copies.js';
+import {tiktokLookalikeKind,tiktokLookalikeVerification,tiktokAudienceGetPath} from './tiktok-lookalikes.js';
 import {googlePreviewKind,verifyGooglePreview} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaignScopes,verifyCriteoCampaign} from './criteo-campaign-writes.js';
 import {metaReportKind,assertMetaReportScope,verifyMetaReport,metaReportReadResult,observeMetaReportRead} from './meta-insights-jobs.js';
@@ -95,6 +96,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
  if(metaCopyKind(plan))return metaCopyVerification(plan,result,before).map(v=>({...v,read:base(v.path,v.query)}));
  if(gateway==='meta_native_action'){const id=String(d.id??plan.path.split('/').at(-1));if(!/^\d+$/.test(id))return [];const expected={...b};delete expected.execution_options;if(expected.creative?.creative_id)expected.creative={id:expected.creative.creative_id};return [{read:base('/v25.0/'+id,{fields:['id',...Object.keys(expected)].join(',')}),expected,id}];}
  if(tiktokIdentityKind(plan))return tiktokIdentityVerification(plan,result).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_identity_info_get'}}));
+ if(tiktokLookalikeKind(plan))return tiktokLookalikeVerification(plan,result).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_dmp_custom_audience_get'}}));
  if(gateway==='tiktok_native_action'){
   const kind=plan.path.split('/')[2]!,ids=d.data?.[kind+'_ids']??[d.data?.[kind+'_id']??b[kind+'_id']];if(ids.some((id:unknown)=>typeof id!=='string'))return [];
   const expected=kind==='ad'&&plan.path==='/v1.3/ad/create/'?{...b.creatives[0],adgroup_id:b.adgroup_id}:Object.fromEntries(Object.entries(b).filter(([k])=>!['advertiser_id',kind+'_ids'].includes(k)));
@@ -135,6 +137,7 @@ function entity(plan:CompiledRequest,data:JsonObject):JsonObject{
  if(plan.gateway==='google_ads_native_action')return googleConfigurationObserved(plan,Object.values(data.results?.[0]??{})[0] as JsonObject);
  if(plan.gateway===microsoftGateway)return data[microsoftContracts.get(plan.action)!.result]?.[0];
  if(plan.gateway==='tiktok_native_action'&&plan.path==='/v1.3/identity/info/')return data.data?.identity_info;
+ if(plan.gateway==='tiktok_native_action'&&plan.path===tiktokAudienceGetPath)return data.data?.list?.[0]?.audience_details;
  if(plan.gateway==='tiktok_native_action')return data.data?.list?.[0];
  if(plan.gateway==='snapchat_native_action'){const kind=plan.path.split('/').at(-2)!,singular=kind==='adsquads'?'adsquad':kind.slice(0,-1),row=data[kind]?.[0]?.[singular];return (snapProjections[kind]?.(row)??row) as JsonObject;}
  if(['reddit_native_action','x_ads_native_action'].includes(plan.gateway))return data.data;

@@ -120,6 +120,30 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
 - Not available: identity deletion (ads may use it) and TikTok-account identities (`AUTH_CODE`,
   `TT_USER`, `BC_AUTH_TT`), which are authorized rather than created.
 
+## TikTok lookalike audiences
+
+- `tiktok_dmp_custom_audience_lookalike_create` creates a lookalike from a seed audience the selected
+  advertiser owns. It needs `custom_audience_name` (≤128) and a `lookalike_spec` with:
+  - `source_audience_id`;
+  - `include_source` (boolean);
+  - `mobile_os` (`ALL`, `IOS`, `ANDROID`);
+  - `placements` (`TikTok` and/or `Pangle`);
+  - `location_ids` from TikTok's lookalike list (for example `SA`, `AE`, `US`, `GB`);
+  - `audience_size` (`NARROW`, `BALANCED`, `BROAD`).
+- The v1.2 names (`is_contain_source`, `system`), the deprecated `audience_sub_type` and
+  customer-file fields are refused with `INVALID_TIKTOK_LOOKALIKE`. TikTok's own example still
+  shows the v1.2 names.
+- The seed is read from `/dmp/custom_audience/get/` before review and again before execution. It
+  must be owned by this advertiser (`is_creator`; shared seeds fail with `STATE_TARGET_MISMATCH`),
+  available (`is_valid`, which can take TikTok up to 48 hours), not itself a lookalike, and cover at
+  least 100 people. Review evidence keeps only whether coverage meets 100, not the daily count.
+- Verification reads the new audience and compares its name, `Lookalike Audience` type and
+  ownership. TikTok documents `lookalike_spec` as possibly `null` on read, so the sent spec is
+  listed under `unobservable_fields`.
+- The new audience takes effect only when added to an ad group's targeting, and may take up to
+  48 hours to become available. Refresh, update, sharing, deletion and customer-file audiences are
+  not available here.
+
 ## Snapchat campaign plans
 
 - `amcp_campaign` steps may pin `expected_currency`. Preflight reads the ad account and uses

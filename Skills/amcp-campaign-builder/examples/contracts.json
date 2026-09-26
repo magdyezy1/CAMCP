@@ -1049,6 +1049,28 @@
       }
     },
     {
+      "gateway": "tiktok_native_action",
+      "arguments": {
+        "action": "tiktok_dmp_custom_audience_lookalike_create",
+        "account_id": "123",
+        "payload": {
+          "custom_audience_name": "Synthetic lookalike",
+          "lookalike_spec": {
+            "source_audience_id": "456",
+            "include_source": false,
+            "mobile_os": "ALL",
+            "placements": [
+              "TikTok"
+            ],
+            "location_ids": [
+              "US"
+            ],
+            "audience_size": "BALANCED"
+          }
+        }
+      }
+    },
+    {
       "gateway": "linkedin_native_action",
       "arguments": {
         "action": "linkedin_rest_posts_post",

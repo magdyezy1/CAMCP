@@ -8,6 +8,20 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## BN — TikTok lookalike audiences (2026-09-26)
+
+`tiktok_dmp_custom_audience_lookalike_create` is a reviewed family. It accepts documented
+v1.3 fields and enumerations only. The seed must be owned, available, not a lookalike and
+at least 100 people, and is read twice; review evidence ignores daily coverage changes.
+Verification compares name, type and ownership, with the spec listed as unobservable. The
+Snapchat segment impact's always-null audience size is removed. See
+[implementation](TIKTOK-LOOKALIKES-2026-09-26.md),
+[qualification](TIKTOK-LOOKALIKES-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 967 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## BM — Meta native copies (2026-09-26)
 
 Campaign (shallow), ad set (up to three ads) and ad copies form the reviewed family
@@ -19,8 +33,8 @@ Nine new tests fail on `a99dfdd` and pass with the change. See
 [qualification](META-COPIES-VERIFICATION-2026-09-26.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 968 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Remaining rows then: 968. Pushed to CAMCP as `6521d0d`; its exact-commit CI result and live
+acceptance are pending.
 
 ## BL — TikTok custom identities (2026-09-26)
 

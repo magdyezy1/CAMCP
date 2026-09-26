@@ -3,6 +3,7 @@ import {assertSnapLeadForms,assertSnapLeadCreativeRefs,snapLeadDependencyPaths} 
 import {assertSnapSegments,assertSnapSegmentUpdates,snapSegmentDependencyPaths} from './snapchat-segments.js';
 import {tiktokIdentityKind,assertTiktokIdentity,tiktokIdentityImage,tiktokImageInfoPath} from './tiktok-identities.js';
 import {metaCopyKind,assertMetaCopy,metaCopySnapshots,metaCopyChildrenRead,metaCopyOutcome} from './meta-copies.js';
+import {tiktokLookalikeKind,assertTiktokLookalike,tiktokLookalikeSeed,tiktokAudienceGetPath} from './tiktok-lookalikes.js';
 import {googlePreviewKind,assertGooglePreview,googlePreviewSnapshots,readGooglePreviewState,googlePreviewOutcome,googlePreviewDelivery,googlePreviewSafeOutcome} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaign,assertCriteoCampaignScopes,criteoCampaignSnapshots,readCriteoCampaignState,criteoCampaignOutcome} from './criteo-campaign-writes.js';
 import {metaReportKind,assertMetaReport,assertMetaReportScope,metaReportSnapshots,readMetaReportState,metaReportOutcome} from './meta-insights-jobs.js';
@@ -135,7 +136,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
   const op=b.operations[i],expected=op.remove??op.update?.resource_name??op.update?.resourceName;return typeof r.resourceName==='string'&&(expected?r.resourceName===expected:r.resourceName.startsWith('customers/'+plan.accountId+'/'+last.replace(':mutate','')+'/'));
  });
  if(plan.gateway==='tiktok_native_action'){
-  if(d.code!==0)return false;if(!plan.path.endsWith('/create/'))return true;
+  if(d.code!==0)return false;if(tiktokLookalikeKind(plan))return hasId(object(d.data).custom_audience_id);if(!plan.path.endsWith('/create/'))return true;
   const kind=segments[2]!,data=object(d.data);
   if(kind==='ad'){const ids=data.ad_ids??[data.ad_id];return Array.isArray(ids)&&ids.length===1&&typeof ids[0]==='string'&&/^\d+$/.test(ids[0]);}
   return hasId(data[kind+'_id'])||Array.isArray(data[kind+'_ids'])&&data[kind+'_ids'].length>0&&data[kind+'_ids'].every(hasId);
@@ -216,6 +217,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
   if(read.path==='/v1.3/identity/info/'){const info=data.data?.identity_info;if(data.code!==0||!info||typeof info!=='object'||Array.isArray(info))fail('STATE_READ_FAILED','TikTok identity info must confirm success and contain identity_info.');sameIds([info.identity_id],[read.query.identity_id]);return;}
   if(data.code!==0||!Array.isArray(data.data?.list))fail('STATE_READ_FAILED','TikTok state must confirm success and contain its native list.');
   if(read.path===tiktokImageInfoPath){sameIds(data.data.list.map((r:JsonObject)=>r.image_id),read.query.image_ids);return;}
+  if(read.path===tiktokAudienceGetPath){sameIds(data.data.list.map((r:JsonObject)=>r?.audience_details?.audience_id),read.query.custom_audience_ids);return;}
   const kind=read.path.split('/')[2]!,key=kind==='advertiser'?'advertiser_id':kind+'_id';
   sameIds(data.data.list.map((r:JsonObject)=>r[key]),kind==='advertiser'?[id]:read.query.filtering[kind+'_ids']);return;
  }
@@ -281,6 +283,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(plan.gateway==='tiktok_native_action'&&/^\/v1\.3\/(?:campaign|adgroup)\/create\/$/.test(plan.path))expect(body,'operation_status',['DISABLE']);
  if(tiktokIdentityKind(plan))assertTiktokIdentity(plan,body);
  if(metaCopyKind(plan))assertMetaCopy(plan,body);
+ if(tiktokLookalikeKind(plan))assertTiktokLookalike(plan,body);
  if(plan.gateway==='tiktok_native_action'&&plan.path==='/v1.3/ad/create/'){
   if(!Array.isArray(body.creatives)||body.creatives.length!==1||!body.creatives[0]||Array.isArray(body.creatives[0])||typeof body.creatives[0]!=='object')fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed TikTok ad creation requires exactly one native creatives record per review. Put the ad fields and operation_status inside that record.');
   if(Object.hasOwn(body,'operation_status'))fail('INVALID_ARGUMENT','TikTok ad creation uses creatives[0].operation_status; a top-level status does not pause the creative.');
@@ -381,6 +384,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
   if(!snapshots.length)fail('WRITE_CONTRACT_UNAVAILABLE','Each operation must contain create, update or remove.');return snapshots;
  }
  if(plan.gateway==='tiktok_native_action'){
+  if(tiktokLookalikeKind(plan)){const seed=base(tiktokAudienceGetPath,{advertiser_id:id,custom_audience_ids:[tiktokLookalikeSeed(plan)]});seed.action='tiktok_dmp_custom_audience_get';return [base('/v1.3/advertiser/info/',{advertiser_ids:[id]}),seed];}
   if(tiktokIdentityKind(plan)){
    const reads=[base('/v1.3/advertiser/info/',{advertiser_ids:[id]})],image=tiktokIdentityImage(plan);
    if(image!==undefined){const read=base(tiktokImageInfoPath,{advertiser_id:id,image_ids:[image]});read.action='tiktok_file_image_ad_info_get';reads.push(read);}
