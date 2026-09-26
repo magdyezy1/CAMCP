@@ -402,6 +402,21 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
 - Bid, end time and dayparting edits need `spend_change_confirmed: true`; names and the comment and
   share settings do not. Verification reads the ad group and compares the edited fields.
 
+## TikTok Upgraded Smart+ creative status
+
+- `tiktok_smart_plus_ad_material_status_update` pauses (`DISABLE`) or enables (`ENABLE`) 1-20
+  creatives inside an Upgraded Smart+ ad by `smart_plus_ad_id` and `ad_material_ids`, the
+  ad-specific material IDs that `tiktok_smart_plus_ad_get` returns. Other keys and statuses are
+  refused with `INVALID_TIKTOK_SMART_PLUS_MATERIAL_STATUS`.
+- The review reads the ad before review and again before execution. Each ID must be one of its
+  explicitly selected creatives (automatically added creatives are not listed and are refused
+  with `STATE_TARGET_MISMATCH`); carousels and other creatives go in separate requests, as TikTok
+  requires; terminated (`FROZEN`) ads are refused.
+- The impact lists each creative before and after and says when no selected creative stays on.
+  Enabling needs `spend_change_confirmed: true` and follows the owner's activation policy.
+- The receipt must name every requested creative. Verification reads the ad and compares each
+  creative's status.
+
 ## TikTok lookalike audiences
 
 - `tiktok_dmp_custom_audience_lookalike_create` creates a lookalike from a seed audience the selected

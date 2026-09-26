@@ -194,6 +194,8 @@ const blank=(v:unknown)=>v===undefined||v===null||v===''?null:String(v);
 export function tiktokSmartPlusAdProjection(row:unknown):JsonObject|undefined{
  if(!obj(row))return;
  const out:JsonObject={...row};
+ // Each explicitly selected creative's status, by ad material ID, for creative status checks.
+ if(Array.isArray(row.creative_list)&&row.creative_list.some((c:JsonObject)=>obj(c)&&c.ad_material_id!==undefined))out.material_statuses=Object.fromEntries(row.creative_list.filter((c:JsonObject)=>obj(c)&&c.ad_material_id!==undefined).map((c:JsonObject)=>[String(c.ad_material_id),c.material_operation_status??null]));
  if(Array.isArray(row.creative_list))out.creative_list=row.creative_list.map((c:JsonObject)=>{const ci=obj(c)&&obj(c.creative_info)?c.creative_info:{};return {ad_format:ci.ad_format??null,tiktok_item_id:blank(ci.tiktok_item_id),identity_type:ci.identity_type??null,identity_id:blank(ci.identity_id),identity_authorized_bc_id:blank(ci.identity_authorized_bc_id)};}).sort(order);
  if(Array.isArray(row.landing_page_url_list))out.landing_page_url_list=row.landing_page_url_list.map((p:JsonObject)=>obj(p)?p.landing_page_url??null:null).sort();
  if(obj(row.ad_configuration)){

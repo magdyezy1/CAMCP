@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CG — TikTok Upgraded Smart+ creative status (2026-09-26)
+
+`tiktok_smart_plus_ad_material_status_update` is a reviewed family for pausing and enabling the
+explicitly selected creatives inside a Smart+ ad: each ID must be listed by the ad read,
+carousels and other creatives go separately, the receipt must name every creative, and
+verification compares each creative's status. See
+[implementation](TIKTOK-SMART-PLUS-CREATIVE-STATUS-2026-09-26.md),
+[qualification](TIKTOK-SMART-PLUS-CREATIVE-STATUS-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 937 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## CF — TikTok Upgraded Smart+ ad group edits (2026-09-26)
 
 `tiktok_smart_plus_adgroup_update` is a reviewed family for Smart+ ad group name, end time,
@@ -19,7 +32,7 @@ dayparting edits need spending confirmation. Targeting edits stay unqualified. S
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
 Remaining rows: 938 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Pushed to CAMCP as `533efac`; its exact-commit CI result and live acceptance are pending.
 
 ## CE — TikTok Upgraded Smart+ Spark Ad edits (2026-09-26)
 

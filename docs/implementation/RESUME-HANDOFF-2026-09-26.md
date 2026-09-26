@@ -372,7 +372,19 @@ Tests: `tests/tiktok-smart-plus-ad-updates.test.mjs` (7, red on `3b009b2` / gree
 - Name, end time, dayparting, comment and share settings, and the custom bid; budgets, status and targeting are refused with the family to use instead.
 - A bid edit reads the campaign's ad groups after the ad group read (a follow-up state read in `src/write-review.ts`) and lists every bid that moves with it; bid, end time and dayparting edits need `spend_change_confirmed`.
 
-Tests: `tests/tiktok-smart-plus-adgroup-updates.test.mjs` (7, red on `53fb3ad` / green after). The Smart+ ad group creation suite's negative check now uses the still-blocked ad material status update.
+Tests: `tests/tiktok-smart-plus-adgroup-updates.test.mjs` (7, red on `53fb3ad` / green after). Pushed as `533efac`.
+
+## Finished batch — TikTok Upgraded Smart+ creative status
+
+[Implementation](TIKTOK-SMART-PLUS-CREATIVE-STATUS-2026-09-26.md) and
+[qualification](TIKTOK-SMART-PLUS-CREATIVE-STATUS-VERIFICATION-2026-09-26.json).
+
+`tiktok_smart_plus_ad_material_status_update` is the new reviewed family `tiktok_smart_plus_material_status`:
+
+- Pauses or enables 1-20 explicitly selected creatives inside a Smart+ ad, read before review and execution; automatically added creatives are refused because the ad read does not list them.
+- Carousels and other creatives go in separate requests; the receipt must name every creative; verification compares each creative's status.
+
+Tests: `tests/tiktok-smart-plus-material-status.test.mjs` (6, red on `533efac` / green after). The Smart+ ad group creation suite's still-blocked example is now Smart+ ad appeals.
 
 ## CI and live evidence
 
@@ -386,19 +398,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 499 in reviewed write families. **938 remaining rows** are in
+3241 captured actions; 500 in reviewed write families. **937 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 823 |
+| blocked_write | 822 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 192, Meta 131, LinkedIn 118, Google Ads 107,
+Blocked writes by platform: TikTok 191, Meta 131, LinkedIn 118, Google Ads 107,
 Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

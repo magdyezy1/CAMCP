@@ -18,6 +18,7 @@ import {tiktokCtaPortfolioKind,assertTiktokCtaPortfolio,tiktokCtaReferences,tikt
 import {tiktokSmartPlusAdKind,assertTiktokSmartPlusAd,tiktokSmartPlusAdReads,tiktokSmartPlusAdPrerequisites,tiktokSmartPlusAdId,validateTiktokSmartPlusAdState} from './tiktok-smart-plus-ads.js';
 import {tiktokSmartPlusAdUpdateKind,assertTiktokSmartPlusAdUpdate,tiktokSmartPlusAdUpdateReads,tiktokSmartPlusAdUpdatePrerequisites} from './tiktok-smart-plus-ad-updates.js';
 import {tiktokSmartPlusAdgroupUpdateKind,assertTiktokSmartPlusAdgroupUpdate,tiktokSmartPlusAdgroupUpdateRead,tiktokSmartPlusAdgroupUpdateSiblingRead,validateTiktokSmartPlusAdgroupCampaignState,tiktokSmartPlusAdgroupUpdatePrerequisites} from './tiktok-smart-plus-adgroup-updates.js';
+import {tiktokSmartPlusMaterialStatusKind,assertTiktokSmartPlusMaterialStatus,tiktokSmartPlusMaterialStatusRead,tiktokSmartPlusMaterialStatusPrerequisites,tiktokSmartPlusMaterialStatusOutcome} from './tiktok-smart-plus-material-status.js';
 import {linkedinLeadFormKind,assertLinkedInLeadForm,linkedinLeadFormOutcome,rememberLinkedInLeadForm,isLinkedInLeadFormRead,validateLinkedInLeadFormState} from './linkedin-lead-forms.js';
 import {googlePreviewKind,assertGooglePreview,googlePreviewSnapshots,readGooglePreviewState,googlePreviewOutcome,googlePreviewDelivery,googlePreviewSafeOutcome} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaign,assertCriteoCampaignScopes,criteoCampaignSnapshots,readCriteoCampaignState,criteoCampaignOutcome} from './criteo-campaign-writes.js';
@@ -152,7 +153,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
   const op=b.operations[i],expected=op.remove??op.update?.resource_name??op.update?.resourceName;return typeof r.resourceName==='string'&&(expected?r.resourceName===expected:r.resourceName.startsWith('customers/'+plan.accountId+'/'+last.replace(':mutate','')+'/'));
  });
  if(plan.gateway==='tiktok_native_action'){
-  if(d.code!==0)return false;if(tiktokLookalikeKind(plan))return hasId(object(d.data).custom_audience_id);if(tiktokSavedAudienceKind(plan))return hasId(object(d.data).saved_audience_id);if(tiktokSmartPlusStatusKind(plan))return tiktokSmartPlusStatusOutcome(plan,d);if(tiktokSmartPlusCampaignKind(plan))return !!tiktokSmartPlusCampaignId(d);if(tiktokSmartPlusAdgroupKind(plan))return !!tiktokSmartPlusAdgroupId(d);if(tiktokCtaPortfolioKind(plan))return !!tiktokCtaPortfolioId(d);if(tiktokSmartPlusAdKind(plan))return !!tiktokSmartPlusAdId(d);if(!plan.path.endsWith('/create/'))return true;
+  if(d.code!==0)return false;if(tiktokLookalikeKind(plan))return hasId(object(d.data).custom_audience_id);if(tiktokSavedAudienceKind(plan))return hasId(object(d.data).saved_audience_id);if(tiktokSmartPlusStatusKind(plan))return tiktokSmartPlusStatusOutcome(plan,d);if(tiktokSmartPlusCampaignKind(plan))return !!tiktokSmartPlusCampaignId(d);if(tiktokSmartPlusAdgroupKind(plan))return !!tiktokSmartPlusAdgroupId(d);if(tiktokCtaPortfolioKind(plan))return !!tiktokCtaPortfolioId(d);if(tiktokSmartPlusAdKind(plan))return !!tiktokSmartPlusAdId(d);if(tiktokSmartPlusMaterialStatusKind(plan))return tiktokSmartPlusMaterialStatusOutcome(plan,d);if(!plan.path.endsWith('/create/'))return true;
   const kind=segments[2]!,data=object(d.data);
   if(kind==='ad'){const ids=data.ad_ids??[data.ad_id];return Array.isArray(ids)&&ids.length===1&&typeof ids[0]==='string'&&/^\d+$/.test(ids[0]);}
   return hasId(data[kind+'_id'])||Array.isArray(data[kind+'_ids'])&&data[kind+'_ids'].length>0&&data[kind+'_ids'].every(hasId);
@@ -317,6 +318,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(tiktokSmartPlusAdKind(plan))assertTiktokSmartPlusAd(plan,body);
  if(tiktokSmartPlusAdUpdateKind(plan))assertTiktokSmartPlusAdUpdate(plan,body);
  if(tiktokSmartPlusAdgroupUpdateKind(plan))assertTiktokSmartPlusAdgroupUpdate(plan,body);
+ if(tiktokSmartPlusMaterialStatusKind(plan))assertTiktokSmartPlusMaterialStatus(plan,body);
  if(plan.gateway==='tiktok_native_action')tiktokCtaReferences(plan);
  if(plan.gateway==='tiktok_native_action'&&plan.path==='/v1.3/ad/create/'){
   if(!Array.isArray(body.creatives)||body.creatives.length!==1||!body.creatives[0]||Array.isArray(body.creatives[0])||typeof body.creatives[0]!=='object')fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed TikTok ad creation requires exactly one native creatives record per review. Put the ad fields and operation_status inside that record.');
@@ -427,6 +429,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
   if(tiktokSmartPlusAdKind(plan))return tiktokSmartPlusAdReads(plan).map(r=>{const read=base(r.path,r.query);read.action=r.action;return read;});
   if(tiktokSmartPlusAdUpdateKind(plan))return tiktokSmartPlusAdUpdateReads(plan).map(r=>{const read=base(r.path,r.query);read.action=r.action;return read;});
   if(tiktokSmartPlusAdgroupUpdateKind(plan)){const r=tiktokSmartPlusAdgroupUpdateRead(plan),read=base(r.path,r.query);read.action=r.action;return [read];}
+  if(tiktokSmartPlusMaterialStatusKind(plan)){const r=tiktokSmartPlusMaterialStatusRead(plan),read=base(r.path,r.query);read.action=r.action;return [read];}
   if(tiktokSmartPlusCampaignUpdateKind(plan)){const r=tiktokSmartPlusCampaignUpdateRead(plan),read=base(r.path,r.query);read.action=r.action;return [read];}
   if(tiktokSmartPlusAdgroupKind(plan))return [base('/v1.3/advertiser/info/',{advertiser_ids:[id]}),...tiktokSmartPlusAdgroupReads(plan).map(r=>{const read=base(r.path,r.query);read.action=r.action;return read;})];
   if(tiktokSavedAudienceKind(plan)){const reads=[base('/v1.3/advertiser/info/',{advertiser_ids:[id]})],audiences=tiktokSavedAudienceAudiences(plan);if(audiences.length){const read=base(tiktokAudienceGetPath,{advertiser_id:id,custom_audience_ids:audiences});read.action='tiktok_dmp_custom_audience_get';reads.push(read);}return reads;}
@@ -642,6 +645,7 @@ export class WriteReviewService {
   tiktokSmartPlusAdPrerequisites(plan,values);
   tiktokSmartPlusAdUpdatePrerequisites(plan,values);
   tiktokSmartPlusAdgroupUpdatePrerequisites(plan,values);
+  tiktokSmartPlusMaterialStatusPrerequisites(plan,values);
   validateAppleEntityPrerequisites(plan,reads,values);
   validateGtmWorkflowPrerequisites(plan,values);
   validateGtmWorkspacePrerequisites(plan,values);
