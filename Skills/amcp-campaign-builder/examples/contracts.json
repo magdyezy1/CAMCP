@@ -1071,6 +1071,21 @@
       }
     },
     {
+      "gateway": "tiktok_native_action",
+      "arguments": {
+        "action": "tiktok_adgroup_budget_update",
+        "account_id": "123",
+        "payload": {
+          "scheduled_budget": [
+            {
+              "adgroup_id": "456",
+              "scheduled_budget": 150
+            }
+          ]
+        }
+      }
+    },
+    {
       "gateway": "linkedin_native_action",
       "arguments": {
         "action": "linkedin_rest_posts_post",

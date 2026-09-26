@@ -5,6 +5,7 @@ import {tiktokIdentityKind,tiktokIdentityVerification} from './tiktok-identities
 import {metaCopyKind,metaCopyVerification} from './meta-copies.js';
 import {tiktokLookalikeKind,tiktokLookalikeVerification,tiktokAudienceGetPath} from './tiktok-lookalikes.js';
 import {metaLookalikeKind,metaLookalikeVerification,metaLookalikeRead,metaLookalikeProjection} from './meta-lookalikes.js';
+import {tiktokBudgetKind,tiktokBudgetVerification} from './tiktok-budgets.js';
 import {googlePreviewKind,verifyGooglePreview} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaignScopes,verifyCriteoCampaign} from './criteo-campaign-writes.js';
 import {metaReportKind,assertMetaReportScope,verifyMetaReport,metaReportReadResult,observeMetaReportRead} from './meta-insights-jobs.js';
@@ -98,6 +99,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
  if(metaLookalikeKind(plan))return metaLookalikeVerification(plan,result).map(v=>({...v,read:base(v.path,v.query)}));
  if(gateway==='meta_native_action'){const id=String(d.id??plan.path.split('/').at(-1));if(!/^\d+$/.test(id))return [];const expected={...b};delete expected.execution_options;if(expected.creative?.creative_id)expected.creative={id:expected.creative.creative_id};return [{read:base('/v25.0/'+id,{fields:['id',...Object.keys(expected)].join(',')}),expected,id}];}
  if(tiktokIdentityKind(plan))return tiktokIdentityVerification(plan,result).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_identity_info_get'}}));
+ if(tiktokBudgetKind(plan))return tiktokBudgetVerification(plan).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_adgroup_get'}}));
  if(tiktokLookalikeKind(plan))return tiktokLookalikeVerification(plan,result).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_dmp_custom_audience_get'}}));
  if(gateway==='tiktok_native_action'){
   const kind=plan.path.split('/')[2]!,ids=d.data?.[kind+'_ids']??[d.data?.[kind+'_id']??b[kind+'_id']];if(ids.some((id:unknown)=>typeof id!=='string'))return [];

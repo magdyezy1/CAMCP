@@ -187,7 +187,21 @@ This closes the lead-form follow-up: a creative PUT or PATCH that changes `top_s
 `lead_generation_form_id` must reference media or a form this login owns. The check runs
 against the frozen state at review and the fresh state at execution. Unchanged references
 stay usable, so existing creative updates are unaffected. Tests:
-`tests/snapchat-creative-references.test.mjs` (4).
+`tests/snapchat-creative-references.test.mjs` (4). Pushed as `bbd3324`.
+
+## Finished batch — TikTok ad group budgets
+
+[Implementation](TIKTOK-BUDGETS-2026-09-26.md) and
+[qualification](TIKTOK-BUDGETS-VERIFICATION-2026-09-26.json).
+
+`tiktok_adgroup_budget_update` (and its alias) is the new reviewed family `tiktok_budgets`:
+
+- Lifetime budgets change immediately; next-day scheduled daily budgets take effect tomorrow.
+- Each ad group's mode is checked, and campaign-budget-optimized and Smart+ ad groups are refused.
+- Each amount is compared with its own ad group's current budget under the spending policy.
+- Read-back uses `budget` or `scheduled_budget`.
+
+Tests: `tests/tiktok-budgets.test.mjs` (8, red on `bbd3324` / green after).
 
 ## CI and live evidence
 
@@ -201,19 +215,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 473 in reviewed write families. **964 remaining rows** are in
+3241 captured actions; 475 in reviewed write families. **962 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 849 |
+| blocked_write | 847 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 217, Meta 131, LinkedIn 119, Google Ads 107,
+Blocked writes by platform: TikTok 215, Meta 131, LinkedIn 119, Google Ads 107,
 Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12. The ticket list in the
 2026-09-25 handoff remains the backlog, plus these Snapchat follow-ups:
 
@@ -229,4 +243,5 @@ Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12. The ticket list in 
 | P2 | TikTok identity avatar read-back | Live evidence linking `profile_image_url` to the sent `image_uri` before comparing it |
 | P2 | TikTok pixel creation | An owner policy for the API's data-sharing defaults first: manual advanced matching of emails and phone numbers, first-party cookies and expanded data sharing are on unless disabled. This is customer-data processing, kept separate by instruction |
 | P2 | Meta budget scheduling (high demand periods) | Exact `budget_value` units for `ABSOLUTE` and `MULTIPLIER` and the `CAN_USE_BUDGET_SCHEDULING_API` capability before spending-policy checks can be built |
+| P3 | TikTok asynchronous campaign copy | `/campaign/copy/task/create/` is allowlist-only; needs an allowlisted advertiser, a paused-copy guarantee for every ad group and a task-result verification design |
 | P3 | X remaining writes (promoted accounts, cards, tracking tags) | The official X Ads API reference returned HTTP 402 from this environment; needs an accessible, versioned source first |

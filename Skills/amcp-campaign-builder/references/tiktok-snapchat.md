@@ -120,6 +120,25 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
 - Not available: identity deletion (ads may use it) and TikTok-account identities (`AUTH_CODE`,
   `TT_USER`, `BC_AUTH_TT`), which are authorized rather than created.
 
+## TikTok ad group budgets
+
+- `tiktok_adgroup_budget_update` (alias `tiktok_adset_budget_update`) changes budgets of manual ad
+  groups. Send exactly one list of 1–20 unique ad groups:
+  - `budget: [{adgroup_id, budget}]` replaces lifetime budgets immediately
+    (`BUDGET_MODE_TOTAL` only);
+  - `scheduled_budget: [{adgroup_id, scheduled_budget}]` schedules a daily or dynamic daily budget
+    from 00:00 tomorrow in the ad account time zone; today's budget is unchanged.
+- Amounts are positive with at most two decimals, in the account currency. Other keys fail with
+  `INVALID_TIKTOK_BUDGET` before any request.
+- The review reads the ad groups and refuses a mismatched budget mode, campaign budget optimization
+  (`BUDGET_MODE_INFINITE`: change the campaign budget instead) and Smart+ ad groups.
+  `creative_impact` lists each ad group's current and new amount.
+- Each new amount is checked against that ad group's own current budget under the owner spending
+  policy (`POLICY_INCREASE_LIMIT`, `POLICY_BUDGET_LIMIT`). Execution needs
+  `spend_change_confirmed: true`.
+- Verification reads each ad group and compares `budget`, or `scheduled_budget` for scheduled
+  changes. TikTok refuses changes during its budget lock (23:55–00:00 account time).
+
 ## TikTok lookalike audiences
 
 - `tiktok_dmp_custom_audience_lookalike_create` creates a lookalike from a seed audience the selected
