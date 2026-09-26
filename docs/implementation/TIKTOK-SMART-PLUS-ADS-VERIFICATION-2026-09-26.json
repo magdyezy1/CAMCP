@@ -1,0 +1,105 @@
+{
+  "format_version": 1,
+  "date": "2026-09-26",
+  "branch": "Codex-branch",
+  "base_revision": "bad418f7128a858a61f44c433f5950a91c7eb635",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/tiktok-smart-plus-ads-20260926-a",
+    "files": 749,
+    "source_tree_hash": "7c057b41abced6a460ac7d69ddfb854a5f4953f13da77381e75e15510ca37409",
+    "index_code_test_guidance_files_compared": 638,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/tiktok-smart-plus-ads-20260926-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/tiktok-smart-plus-ads-20260926/install.log",
+      "sha256": "fd1d9de07b2f08802677e9eb68653e02fcf4423e062c4d00c4a3afe0d39973f2"
+    },
+    {
+      "path": ".runtime/tiktok-smart-plus-ads-20260926/check.log",
+      "sha256": "31a154dae58b6aca3966f8dfd74d1796fd9d9f2b94bda376b77dab8fd9db624e",
+      "started": "2026-09-26T15:00:40Z",
+      "finished": "2026-09-26T15:11:10Z",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2204,
+          "pass": 2204,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/tiktok-smart-plus-ads-20260926/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/tiktok-smart-plus-ads-20260926/red-check.log",
+      "sha256": "c2f93f7f82df5a08951c0f44a40d043d0bd437c4d9b7bb5476f15a98d084432e",
+      "meaning": "tests/tiktok-smart-plus-ads.test.mjs against a build of bad418f: expected red, 0/6 pass (WRITE_CONTRACT_UNAVAILABLE)"
+    },
+    {
+      "path": ".runtime/tiktok-smart-plus-ads-20260926/targeted.log",
+      "sha256": "1977234c70d06045ea99bed2205943ca2ddaefec5563132f388236b7aa9ab0b9",
+      "meaning": "97 related TikTok, review, spending, creative-chain and contract suites in the working copy: 1315/1315 pass."
+    }
+  ],
+  "development_failures": [
+    "The first run of the new suite failed one case: a display card named as the CTA portfolio is refused by the shared portfolio check with INVALID_TIKTOK_CTA_PORTFOLIO, which the test now expects.",
+    "A TypeScript strictness error (possibly undefined landing page entry) was fixed before the first build.",
+    "Design review: identity and post reads carry signed profile and media URLs that change on every read, so the review state keeps only identity availability, pull permission, political status, Business Center, post IDs, types and visibility."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2204,
+    "main_pass": 2204,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Post visibility is recorded but not enforced; TikTok decides which post visibilities Spark Ads accept.",
+    "Whether each automatic enhancement applies to posts is decided by TikTok; a read-back that drops one is inconclusive.",
+    "Ad edits, uploads (Spark Ads Push), authorization-code posts, custom identities, catalog, lead generation and app ads stay unqualified.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

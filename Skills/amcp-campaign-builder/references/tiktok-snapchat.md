@@ -340,6 +340,32 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
   refused. Send `call_to_action` or `call_to_action_id`, not both; TikTok ignores
   `call_to_action` when `call_to_action_id` is set, so the pair is refused.
 
+## TikTok Upgraded Smart+ Spark Ads
+
+- `tiktok_smart_plus_ad_create` (alias `tiktok_smart_ad_create`) creates a paused Upgraded Smart+ ad
+  from existing TikTok posts (Spark Ads from posts): `adgroup_id`, a nonempty `ad_name`,
+  `operation_status: "DISABLE"` (TikTok defaults to `ENABLE`), and `creative_list` with 1-20
+  `{creative_info:{ad_format, tiktok_item_id, identity_type, identity_id}}`. Use `SINGLE_VIDEO` for a
+  video post and `CAROUSEL_ADS` for a photo post, a `TT_USER` or `BC_AUTH_TT` identity, and
+  `identity_authorized_bc_id` only with `BC_AUTH_TT`. The 20-post bound is AMCP's; TikTok accepts 50.
+- Set exactly one `landing_page_url_list` entry and `ad_configuration` with `call_to_action_id` (a
+  CTA portfolio: Spark Ads on TikTok use a dynamic CTA), `creative_auto_add_toggle` and
+  `creative_auto_enhancement_strategy_list` (possibly `[]`). TikTok defaults both switches by
+  allowlist status, so the contract needs them explicit; `TRANSLATE_AND_DUB` cannot be added or
+  removed after creation. Optional `utm_params` must repeat the
+  landing page's query parameters exactly; TikTok does not append them.
+- Uploads (Spark Ads Push), authorization-code posts, custom identities, ad texts, standard CTAs,
+  add-ons, disclaimers, catalogs and other keys are refused with `INVALID_TIKTOK_SMART_PLUS_AD`.
+- The review reads, before review and again before execution: the ad group (website conversions,
+  TikTok placement included), its ads (at most 30 per ad group), each identity (`AVAILABLE`, can
+  use existing posts, not a government or political account, the stated Business Center), each
+  identity's posts (returned, of the matching post type) and the CTA portfolio (refused with
+  `INVALID_TIKTOK_CTA_PORTFOLIO` when it is another type). Media and profile URLs are signed per
+  read and are left out of the compared state.
+- The paused ad needs no spending confirmation. Verification reads the ad and compares its name,
+  status, posts, landing page and configuration; TikTok's added material IDs and list order are
+  ignored.
+
 ## TikTok lookalike audiences
 
 - `tiktok_dmp_custom_audience_lookalike_create` creates a lookalike from a seed audience the selected

@@ -71,14 +71,16 @@ export function validateTiktokCtaPortfolioState(read:CompiledRequest,data:JsonOb
 export function tiktokCtaPortfolioState(read:CompiledRequest,data:JsonObject):JsonObject{
  return {creative_portfolio_id:String(read.query.creative_portfolio_id),creative_portfolio_type:data.creative_portfolio_type??null,portfolio_content:groupsOf(data.portfolio_content)};
 }
+/** A named portfolio was returned in the state read and holds CTAs. */
+export function tiktokCtaPortfolioCheck(id:string,values:unknown[],field:string):void{
+ const p=values.map(v=>obj(v)&&obj(v.data)?v.data:undefined).find(d=>d?.creative_portfolio_id===id&&Object.hasOwn(d,'portfolio_content'));
+ if(!p||!Array.isArray(p.portfolio_content)||!p.portfolio_content.length)throw new MirrorError('STATE_TARGET_MISMATCH','CTA portfolio '+id+' was not returned for the selected advertiser.',{call_to_action_id:id});
+ const cta=(p.creative_portfolio_type===null||p.creative_portfolio_type==='CTA')&&p.portfolio_content.every((g:JsonObject)=>typeof g?.asset_content==='string'&&Array.isArray(g.asset_ids)&&g.asset_ids.length>0);
+ if(!cta)invalid(field,'Portfolio '+id+' is '+(p.creative_portfolio_type?'a '+p.creative_portfolio_type:'not a CTA')+' portfolio; call_to_action_id needs a CTA portfolio.');
+}
 /** Checked against the state read before review and again before execution: each named portfolio exists here and holds CTAs. */
 export function tiktokCtaPortfolioPrerequisites(plan:CompiledRequest,values:unknown[]):void{
- for(const id of tiktokCtaReferences(plan)){
-  const p=values.map(v=>obj(v)&&obj(v.data)?v.data:undefined).find(d=>d?.creative_portfolio_id===id&&Object.hasOwn(d,'portfolio_content'));
-  if(!p||!Array.isArray(p.portfolio_content)||!p.portfolio_content.length)throw new MirrorError('STATE_TARGET_MISMATCH','CTA portfolio '+id+' was not returned for the selected advertiser.',{call_to_action_id:id});
-  const cta=(p.creative_portfolio_type===null||p.creative_portfolio_type==='CTA')&&p.portfolio_content.every((g:JsonObject)=>typeof g?.asset_content==='string'&&Array.isArray(g.asset_ids)&&g.asset_ids.length>0);
-  if(!cta)invalid('call_to_action_id','Portfolio '+id+' is '+(p.creative_portfolio_type?'a '+p.creative_portfolio_type:'not a CTA')+' portfolio; call_to_action_id needs a CTA portfolio.');
- }
+ for(const id of tiktokCtaReferences(plan))tiktokCtaPortfolioCheck(id,values,'call_to_action_id');
 }
 export function tiktokCtaPortfolioImpact(plan:CompiledRequest):JsonObject{
  const groups=(plan.body as JsonObject).portfolio_content as JsonObject[];

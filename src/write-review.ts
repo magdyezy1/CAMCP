@@ -15,6 +15,7 @@ import {tiktokSmartPlusCampaignKind,assertTiktokSmartPlusCampaign,tiktokSmartPlu
 import {tiktokSmartPlusAdgroupKind,assertTiktokSmartPlusAdgroup,tiktokSmartPlusAdgroupReads,tiktokSmartPlusAdgroupId} from './tiktok-smart-plus-adgroups.js';
 import {tiktokSmartPlusCampaignUpdateKind,assertTiktokSmartPlusCampaignUpdate,tiktokSmartPlusCampaignUpdateRead} from './tiktok-smart-plus-campaign-updates.js';
 import {tiktokCtaPortfolioKind,assertTiktokCtaPortfolio,tiktokCtaReferences,tiktokCtaPortfolioReads,tiktokCtaPortfolioPrerequisites,tiktokCtaPortfolioId,validateTiktokCtaPortfolioState} from './tiktok-cta-portfolios.js';
+import {tiktokSmartPlusAdKind,assertTiktokSmartPlusAd,tiktokSmartPlusAdReads,tiktokSmartPlusAdPrerequisites,tiktokSmartPlusAdId,validateTiktokSmartPlusAdState} from './tiktok-smart-plus-ads.js';
 import {linkedinLeadFormKind,assertLinkedInLeadForm,linkedinLeadFormOutcome,rememberLinkedInLeadForm,isLinkedInLeadFormRead,validateLinkedInLeadFormState} from './linkedin-lead-forms.js';
 import {googlePreviewKind,assertGooglePreview,googlePreviewSnapshots,readGooglePreviewState,googlePreviewOutcome,googlePreviewDelivery,googlePreviewSafeOutcome} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaign,assertCriteoCampaignScopes,criteoCampaignSnapshots,readCriteoCampaignState,criteoCampaignOutcome} from './criteo-campaign-writes.js';
@@ -149,7 +150,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
   const op=b.operations[i],expected=op.remove??op.update?.resource_name??op.update?.resourceName;return typeof r.resourceName==='string'&&(expected?r.resourceName===expected:r.resourceName.startsWith('customers/'+plan.accountId+'/'+last.replace(':mutate','')+'/'));
  });
  if(plan.gateway==='tiktok_native_action'){
-  if(d.code!==0)return false;if(tiktokLookalikeKind(plan))return hasId(object(d.data).custom_audience_id);if(tiktokSavedAudienceKind(plan))return hasId(object(d.data).saved_audience_id);if(tiktokSmartPlusStatusKind(plan))return tiktokSmartPlusStatusOutcome(plan,d);if(tiktokSmartPlusCampaignKind(plan))return !!tiktokSmartPlusCampaignId(d);if(tiktokSmartPlusAdgroupKind(plan))return !!tiktokSmartPlusAdgroupId(d);if(tiktokCtaPortfolioKind(plan))return !!tiktokCtaPortfolioId(d);if(!plan.path.endsWith('/create/'))return true;
+  if(d.code!==0)return false;if(tiktokLookalikeKind(plan))return hasId(object(d.data).custom_audience_id);if(tiktokSavedAudienceKind(plan))return hasId(object(d.data).saved_audience_id);if(tiktokSmartPlusStatusKind(plan))return tiktokSmartPlusStatusOutcome(plan,d);if(tiktokSmartPlusCampaignKind(plan))return !!tiktokSmartPlusCampaignId(d);if(tiktokSmartPlusAdgroupKind(plan))return !!tiktokSmartPlusAdgroupId(d);if(tiktokCtaPortfolioKind(plan))return !!tiktokCtaPortfolioId(d);if(tiktokSmartPlusAdKind(plan))return !!tiktokSmartPlusAdId(d);if(!plan.path.endsWith('/create/'))return true;
   const kind=segments[2]!,data=object(d.data);
   if(kind==='ad'){const ids=data.ad_ids??[data.ad_id];return Array.isArray(ids)&&ids.length===1&&typeof ids[0]==='string'&&/^\d+$/.test(ids[0]);}
   return hasId(data[kind+'_id'])||Array.isArray(data[kind+'_ids'])&&data[kind+'_ids'].length>0&&data[kind+'_ids'].every(hasId);
@@ -229,7 +230,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  }
  if(read.gateway==='tiktok_native_action'){
   if(read.path==='/v1.3/identity/info/'){const info=data.data?.identity_info;if(data.code!==0||!info||typeof info!=='object'||Array.isArray(info))fail('STATE_READ_FAILED','TikTok identity info must confirm success and contain identity_info.');sameIds([info.identity_id],[read.query.identity_id]);return;}
-  if(validateTiktokConversionState(read,data,sameIds)||validateTiktokSavedAudienceState(read,data,sameIds)||validateTiktokSmartPlusState(read,data,sameIds)||validateTiktokCtaPortfolioState(read,data,sameIds))return;
+  if(validateTiktokConversionState(read,data,sameIds)||validateTiktokSavedAudienceState(read,data,sameIds)||validateTiktokSmartPlusAdState(read,data,sameIds)||validateTiktokSmartPlusState(read,data,sameIds)||validateTiktokCtaPortfolioState(read,data,sameIds))return;
   if(data.code!==0||!Array.isArray(data.data?.list))fail('STATE_READ_FAILED','TikTok state must confirm success and contain its native list.');
   if(read.path===tiktokImageInfoPath){sameIds(data.data.list.map((r:JsonObject)=>r.image_id),read.query.image_ids);return;}
   if(read.path===tiktokAudienceGetPath){sameIds(data.data.list.map((r:JsonObject)=>r?.audience_details?.audience_id),read.query.custom_audience_ids);return;}
@@ -311,6 +312,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(tiktokSmartPlusCampaignUpdateKind(plan))assertTiktokSmartPlusCampaignUpdate(plan,body);
  if(plan.gateway==='tiktok_native_action')tiktokAdgroupConversion(plan);
  if(tiktokCtaPortfolioKind(plan))assertTiktokCtaPortfolio(plan,body);
+ if(tiktokSmartPlusAdKind(plan))assertTiktokSmartPlusAd(plan,body);
  if(plan.gateway==='tiktok_native_action')tiktokCtaReferences(plan);
  if(plan.gateway==='tiktok_native_action'&&plan.path==='/v1.3/ad/create/'){
   if(!Array.isArray(body.creatives)||body.creatives.length!==1||!body.creatives[0]||Array.isArray(body.creatives[0])||typeof body.creatives[0]!=='object')fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed TikTok ad creation requires exactly one native creatives record per review. Put the ad fields and operation_status inside that record.');
@@ -418,6 +420,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
   if(tiktokSmartPlusBudgetKind(plan)){const r=tiktokSmartPlusBudgetRead(plan),read=base(r.path,r.query);read.action=r.action;return [read];}
   if(tiktokSmartPlusCampaignKind(plan))return [base('/v1.3/advertiser/info/',{advertiser_ids:[id]})];
   if(tiktokCtaPortfolioKind(plan))return [base('/v1.3/advertiser/info/',{advertiser_ids:[id]})];
+  if(tiktokSmartPlusAdKind(plan))return tiktokSmartPlusAdReads(plan).map(r=>{const read=base(r.path,r.query);read.action=r.action;return read;});
   if(tiktokSmartPlusCampaignUpdateKind(plan)){const r=tiktokSmartPlusCampaignUpdateRead(plan),read=base(r.path,r.query);read.action=r.action;return [read];}
   if(tiktokSmartPlusAdgroupKind(plan))return [base('/v1.3/advertiser/info/',{advertiser_ids:[id]}),...tiktokSmartPlusAdgroupReads(plan).map(r=>{const read=base(r.path,r.query);read.action=r.action;return read;})];
   if(tiktokSavedAudienceKind(plan)){const reads=[base('/v1.3/advertiser/info/',{advertiser_ids:[id]})],audiences=tiktokSavedAudienceAudiences(plan);if(audiences.length){const read=base(tiktokAudienceGetPath,{advertiser_id:id,custom_audience_ids:audiences});read.action='tiktok_dmp_custom_audience_get';reads.push(read);}return reads;}
@@ -628,6 +631,7 @@ export class WriteReviewService {
   linkedinRulePrerequisites(plan,values);
   tiktokAdgroupConversionPrerequisites(plan,values);
   tiktokCtaPortfolioPrerequisites(plan,values);
+  tiktokSmartPlusAdPrerequisites(plan,values);
   validateAppleEntityPrerequisites(plan,reads,values);
   validateGtmWorkflowPrerequisites(plan,values);
   validateGtmWorkspacePrerequisites(plan,values);
