@@ -439,6 +439,32 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
 - The receipt must name every requested creative. Verification reads the ad and compares each
   creative's status.
 
+## TikTok Search Ads negative keywords
+
+`tiktok_search_ad_negative_keyword_add`, `..._update` and `..._delete` edit the negative
+keywords of manual campaigns or ad groups (`object_type` `CAMPAIGN` or `ADGROUP`). They apply
+to Search Ads only: an ad group needs Automatic Search Placement (`search_result_enabled`), and
+a campaign needs it on at least one of its ad groups. Discover keyword IDs with
+`tiktok_search_ad_negative_keyword_get`.
+
+- **Add:** `object_ids` (1–10), `keywords` (1–1,000) of `name` (1–80 characters, none of
+  ! @ % ^ ( ) = { } ; ~ ` < > ? \ |) and optional `match_type` (`PRECISE_WORD`, `PHRASE_WORD` or
+  `BROAD_WORD`, the default). A name may appear once. `replace: true` replaces every existing
+  keyword of each object.
+- **Update:** `object_id`, `old_keyword_id` and `keyword` with `name` and an explicit
+  `match_type`. TikTok returns a new ID when the name changes.
+- **Delete:** `object_id` and `keyword_ids` (1–1,000).
+- AMCP reads the campaigns (with their ad groups, up to 100) or ad groups, and every page of
+  each keyword list (up to 10,000 keywords). It refuses a name that already exists, an absent
+  keyword, an update that clashes with another keyword or changes nothing, and lists above
+  10,000 keywords.
+- Adding keywords only narrows delivery and needs no spending confirmation. Deleting, replacing
+  and renaming can widen it: they need `spend_change_confirmed` and count as serving under an
+  activation-forbidding owner policy. Deletions and replacements count as removals.
+- Add and delete responses carry no keyword IDs, so verification reads every list again and
+  compares names (without case) and match types. `INVALID_TIKTOK_NEGATIVE_KEYWORD` means correct
+  the named object, keyword or field.
+
 ## TikTok lookalike audiences
 
 - `tiktok_dmp_custom_audience_lookalike_create` creates a lookalike from a seed audience the selected

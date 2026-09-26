@@ -27,6 +27,7 @@ import {appleEntityKind} from './apple-entity-writes.js';
 import {dv360ListKind} from './dv360-list-writes.js';
 import {dv360TargetingKind} from './dv360-line-item-targeting.js';
 import {googleListingGroupKind} from './google-listing-groups.js';
+import {tiktokNegativeKeywordKind} from './tiktok-negative-keywords.js';
 import {googleTargetingKind} from './google-targeting-writes.js';
 import {googleAssetLinkKind} from './google-asset-links.js';
 import {googleConfigurationKind} from './google-configuration-writes.js';
@@ -67,6 +68,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(metaLabelKind(p))return 'meta_labels';
  if(googleBidKind(p))return 'google_bid_modifiers';
  if(googleListingGroupKind(p))return 'google_listing_groups';
+ if(tiktokNegativeKeywordKind(p))return 'tiktok_negative_keywords';
  if(googleBiddingEventKind(p))return 'google_bidding_events';
  if(googlePortfolioKind(p))return 'google_portfolio_strategies';
  if(googleConversionActionKind(p))return 'google_conversion_actions';

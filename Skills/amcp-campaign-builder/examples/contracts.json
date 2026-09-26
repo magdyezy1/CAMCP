@@ -1444,6 +1444,25 @@
     {
       "gateway": "tiktok_native_action",
       "arguments": {
+        "action": "tiktok_search_ad_negative_keyword_add",
+        "account_id": "123",
+        "payload": {
+          "object_type": "ADGROUP",
+          "object_ids": [
+            "301"
+          ],
+          "keywords": [
+            {
+              "name": "free download",
+              "match_type": "PHRASE_WORD"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "tiktok_native_action",
+      "arguments": {
         "action": "tiktok_smart_plus_ad_update",
         "account_id": "123",
         "payload": {

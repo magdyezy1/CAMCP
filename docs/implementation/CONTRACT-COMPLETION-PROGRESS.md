@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CP — TikTok Search Ads negative keywords (2026-09-26)
+
+Negative keywords of manual TikTok campaigns and search-enabled ad groups can now be added,
+replaced, updated and deleted through reviews that read every page of each keyword list before
+and after. Plain additions only narrow delivery and need no spending confirmation; deletions,
+replacements and renames do. See
+[implementation](TIKTOK-NEGATIVE-KEYWORDS-2026-09-26.md),
+[qualification](TIKTOK-NEGATIVE-KEYWORDS-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 917 (three TikTok rows reviewed). Pushed only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## CO — Google Performance Max retail listing groups (2026-09-26)
 
 Retail Performance Max asset groups can now get their product partition tree through reviewed
@@ -18,8 +31,8 @@ one "Other" node) and verified by shape. Webpage listing groups stay unqualified
 [qualification](GOOGLE-LISTING-GROUPS-VERIFICATION-2026-09-26.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 920 (three Google Ads rows reviewed). Pushed only to CAMCP; its exact-commit CI
-result and live acceptance are pending.
+Remaining rows: 920 (three Google Ads rows reviewed). Pushed to CAMCP as `242470d`; its exact-commit
+CI result and live acceptance are pending.
 
 ## CN — DV360 advertiser targeting (2026-09-26)
 

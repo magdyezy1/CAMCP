@@ -468,7 +468,17 @@ Tests: `tests/dv360-advertiser-targeting.test.ts` (8, red on `ca8c6e8` / green a
 - The review reads the asset group with its campaign (Merchant Center link required) and the complete tree, applies the operations in order and validates the resulting tree. Verification compares shape, not IDs.
 - Webpage listing groups and listing group updates (immutable fields) stay unqualified.
 
-Tests: `tests/google-listing-groups.test.ts` (8, red on `4b67890` / green after).
+Tests: `tests/google-listing-groups.test.ts` (8, red on `4b67890` / green after). Pushed as `242470d`.
+
+## Finished batch — TikTok Search Ads negative keywords
+
+[Implementation](TIKTOK-NEGATIVE-KEYWORDS-2026-09-26.md) and
+[qualification](TIKTOK-NEGATIVE-KEYWORDS-VERIFICATION-2026-09-26.json).
+
+- New reviewed family `tiktok_negative_keywords` (`src/tiktok-negative-keywords.ts`) for add (including replace), update and delete on manual campaigns and ad groups with Automatic Search Placement.
+- A bounded reader in both state and verification chains reads every page of each keyword list (up to 200 pages of 50), because add and delete return no keyword IDs. Plain additions need no spending confirmation; deletions, replacements and renames do.
+
+Tests: `tests/tiktok-negative-keywords.test.mjs` (8, red on `242470d` / green after).
 
 ## CI and live evidence
 
@@ -482,19 +492,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 517 in reviewed write families. **920 remaining rows** are in
+3241 captured actions; 520 in reviewed write families. **917 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 805 |
+| blocked_write | 802 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 191, Meta 131, LinkedIn 118, Google Ads 96,
+Blocked writes by platform: TikTok 188, Meta 131, LinkedIn 118, Google Ads 96,
 Snapchat 91, X 67, DV360 56, Criteo 43, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

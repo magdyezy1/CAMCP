@@ -51,6 +51,7 @@ import {appleEntityKind,appleSharedAccounts,appleSharedAccountReads,validateAppl
 import {dv360ListKind,assertDV360ListWrite,dv360ListSnapshots,validateDV360ListState,readDV360List,validateDV360ListPrerequisites,dv360ListOutcome} from './dv360-list-writes.js';
 import {dv360TargetingKind,assertDV360Targeting,dv360TargetingSnapshots,isDV360TargetingRead,validateDV360TargetingState,readDV360Targeting,validateDV360TargetingPrerequisites,dv360TargetingOutcome} from './dv360-line-item-targeting.js';
 import {googleListingGroupKind,assertGoogleListingGroups,googleListingGroupSnapshots,isGoogleListingGroupRead,validateGoogleListingGroupState,validateGoogleListingGroupPrerequisites,googleListingGroupOutcome} from './google-listing-groups.js';
+import {tiktokNegativeKeywordKind,assertTiktokNegativeKeywords,tiktokNegativeKeywordReads,isTiktokNegativeKeywordRead,validateTiktokNegativeKeywordState,readTiktokNegativeKeywords,validateTiktokNegativeKeywordPrerequisites,tiktokNegativeKeywordOutcome} from './tiktok-negative-keywords.js';
 import {googleConfigurationKind,assertGoogleConfiguration,googleConfigurationSnapshots,validateGoogleConfigurationState,googleConfigurationOutcome} from './google-configuration-writes.js';
 import {checkSpendPolicy} from './spend-policy.js';
 import {randomUUID} from 'node:crypto';
@@ -144,6 +145,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(gtmWorkflowKind(plan))return gtmWorkflowOutcome(plan,result);
  if(dv360TargetingKind(plan))return dv360TargetingOutcome(plan,result);
  if(googleListingGroupKind(plan))return googleListingGroupOutcome(plan,result);
+ if(tiktokNegativeKeywordKind(plan))return tiktokNegativeKeywordOutcome(plan,result);
  if(dv360ListKind(plan))return dv360ListOutcome(plan,result);
  if(googleConfigurationKind(plan))return googleConfigurationOutcome(plan,result);
  if(googleAssetLinkKind(plan))return googleAssetLinkOutcome(plan,result);
@@ -183,6 +185,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  if(isLinkedInRuleRead(read)){validateLinkedInRuleState(read,result);return;}
  if(isDV360TargetingRead(read)){validateDV360TargetingState(read,result);return;}
  if(isGoogleListingGroupRead(read)){validateGoogleListingGroupState(read,result);return;}
+ if(isTiktokNegativeKeywordRead(read)){validateTiktokNegativeKeywordState(read,result);return;}
  if(isLinkedInLeadFormRead(read)){validateLinkedInLeadFormState(read,result);return;}
  if(isLinkedInConversionRead(read)){validateLinkedInConversionState(read,result);return;}
  if(isGoogleBidRead(read)){validateGoogleBidState(read,result);return;}
@@ -288,6 +291,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(xDraftKind(plan)){assertXDraft(plan);return;}
  if(dv360TargetingKind(plan)){assertDV360Targeting(plan);return;}
  if(googleListingGroupKind(plan)){assertGoogleListingGroups(plan);return;}
+ if(tiktokNegativeKeywordKind(plan)){assertTiktokNegativeKeywords(plan);return;}
  if(plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['CREATE','PARTIAL_UPDATE','DELETE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))fail('WRITE_CONTRACT_UNAVAILABLE','This REST.li method override is not qualified for reviewed execution.');
  if(gtmWorkflowKind(plan)){assertGtmWorkflow(plan);return;}
  if(gtmWorkspaceKind(plan)){assertGtmWorkspace(plan);return;}
@@ -402,6 +406,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(gtmWorkspaceKind(plan))return gtmWorkspaceSnapshots(plan);
  if(dv360TargetingKind(plan))return dv360TargetingSnapshots(plan);
  if(googleListingGroupKind(plan))return googleListingGroupSnapshots(plan);
+ if(tiktokNegativeKeywordKind(plan))return tiktokNegativeKeywordReads(plan);
  if(dv360ListKind(plan))return dv360ListSnapshots(plan);
  if(googleConfigurationKind(plan))return googleConfigurationSnapshots(plan);
  if(googleAssetLinkKind(plan))return googleAssetLinkSnapshots(plan);
@@ -635,7 +640,7 @@ export class WriteReviewService {
   });
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
-   try{result=await readLinkedInRules(read,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;}))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
+   try{result=await readLinkedInRules(read,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;})))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
    const reader=this.access(actor,plan,connectionId);validateState(read,result);if(read.gateway==='snapchat_native_action')new ScopeGuard(this.registry,this.store).observe(read,reader,result.data);
    // A Smart+ bid edit also reads the campaign's ad groups once the ad group names its campaign.
    const sibling=tiktokSmartPlusAdgroupUpdateSiblingRead(plan,read,result.data);if(sibling&&!reads.some(r=>r.path===sibling.path&&stable(r.query)===stable(sibling.query)))reads.push(sibling);
@@ -670,6 +675,7 @@ export class WriteReviewService {
   validateDV360ListPrerequisites(plan,values);
   validateDV360TargetingPrerequisites(plan,values);
   validateGoogleListingGroupPrerequisites(plan,values);
+  validateTiktokNegativeKeywordPrerequisites(plan,values);
   if(appleEntityKind(plan)==='shared_budget'&&!plan.scopeContext?.appleSharedOrgId){
    const account=object(values[reads.findIndex(r=>r.path==='/v1/ad-accounts/'+plan.accountId)]).result;
    const target=object(values[reads.findIndex(r=>r.path===plan.path)]).result;
