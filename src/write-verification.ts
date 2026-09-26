@@ -72,6 +72,7 @@ import {metaValueRuleKind,metaValueRuleVerification,isMetaValueRuleRead,metaValu
 import {metaBrandSafetyKind,metaBrandSafetyVerification,isMetaBrandSafetyRead,metaBrandSafetyObserved} from './meta-brand-safety.js';
 import {criteoLineItemKind,criteoLineItemVerification,isCriteoLineItemRead,criteoLineItemObserved,readCriteoLineItems,assertCriteoLineItemScopes} from './criteo-auction-line-items.js';
 import {criteoPromotedProductsKind,criteoPromotedProductsVerification} from './criteo-promoted-products.js';
+import {criteoKeywordKind,criteoBidMultiplierKind,criteoLineItemBiddingVerification} from './criteo-line-item-bidding.js';
 import {gtmWorkflowKind,gtmWorkflowVerification,gtmWorkflowObserved,readGtmWorkflow} from './gtm-workflow-writes.js';
 import {gtmWorkspaceKind,gtmWorkspaceVerification,gtmWorkspaceObserved,readGtmWorkspace} from './gtm-workspace-writes.js';
 import {validateState,snapshotPlans} from './write-review.js';
@@ -109,6 +110,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
  if(metaBrandSafetyKind(plan))return metaBrandSafetyVerification(plan,result);
  if(criteoLineItemKind(plan))return criteoLineItemVerification(plan,result,before);
  if(criteoPromotedProductsKind(plan))return criteoPromotedProductsVerification(plan);
+ if(criteoKeywordKind(plan)||criteoBidMultiplierKind(plan))return criteoLineItemBiddingVerification(plan);
  if(googleConfigurationKind(plan))return googleConfigurationVerification(plan,result);
  if(googleAssetLinkKind(plan))return googleAssetLinkVerification(plan);
  if(microsoftAssociationWrite(plan))return microsoftAssociationVerification(plan,compileMicrosoft);
@@ -221,7 +223,7 @@ export class WriteVerifier{
   if(criteoTargetingKind(plan))assertCriteoReadScope(c);
   if(metaReportKind(plan))assertMetaReportScope(c);
   if(criteoCampaignKind(plan))assertCriteoCampaignScopes(c);
-  if(criteoLineItemKind(plan)||criteoPromotedProductsKind(plan))assertCriteoLineItemScopes(c);
+  if(criteoLineItemKind(plan)||criteoPromotedProductsKind(plan)||criteoKeywordKind(plan)||criteoBidMultiplierKind(plan))assertCriteoLineItemScopes(c);
   if(criteoReportKind(plan))assertCriteoReportScopes(c);
   if(placeActionKind(plan))assertPlaceActionScope(c);
   if(businessNotificationKind(plan)){assertBusinessNotificationActor(plan,actor);assertBusinessNotificationScope(c);}

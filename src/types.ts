@@ -88,7 +88,7 @@ export interface CompiledRequest {
   /** Server-derived Meta account controls or publisher block list read of the selected account; never caller supplied. */
   metaBrandSafetyState?:'controls'|'blocklist';
   /** Server-derived Criteo auction line item read of the selected account; never caller supplied. */
-  criteoLineItemState?:{campaignId?:string;lineItemId?:string;siblings:boolean;products?:boolean};
+  criteoLineItemState?:{campaignId?:string;lineItemId?:string;siblings:boolean;products?:boolean;keywords?:boolean;multipliers?:boolean};
   /** Server-derived GTM workflow read. Never accepted from external arguments. */
   gtmState?:{kind:'resource'|'collection'|'status'|'latest';key?:string};
   /** Internal complete GTM workspace read; targets only qualify absence checks. */

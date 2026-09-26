@@ -1,6 +1,7 @@
 import {authorizeCriteoCampaign} from './criteo-campaign-writes.js';
 import {authorizeCriteoLineItem} from './criteo-auction-line-items.js';
 import {authorizeCriteoPromotedProducts} from './criteo-promoted-products.js';
+import {authorizeCriteoLineItemBidding} from './criteo-line-item-bidding.js';
 import {authorizeMetaReportRead,assertMetaReportScope} from './meta-insights-jobs.js';
 import {authorizeXReport} from './x-report-jobs.js';
 import {authorizeTiktokReport} from './tiktok-report-jobs.js';
@@ -94,6 +95,7 @@ export class ScopeGuard {
   if(authorizeCriteoCampaign(plan,connection,this.store,id))return id;
   if(authorizeCriteoLineItem(plan,connection,this.store,id))return id;
   if(authorizeCriteoPromotedProducts(plan,connection,this.store,id))return id;
+  if(authorizeCriteoLineItemBidding(plan,connection,this.store,id))return id;
   if(authorizeXReport(plan,connection,this.store,id))return id;
   if(authorizeTiktokReport(plan,connection,this.store,id))return id;
   if(authorizeCriteoReport(plan,connection,this.store,id))return id;

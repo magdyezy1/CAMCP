@@ -162,6 +162,14 @@ test('a response with warnings is not resubmitted, a changed product list stops 
  }finally{f.store.close();}
 });
 
+test('a product ID that mentions a bid, budget or spend is not a spending change',async()=>{
+ const f=fixture();try{
+  f.lines.get('789').products.push({id:'budget-bid-spend',bidOverride:null,status:'active'});
+  ok(await f.discover('789'));
+  const p=ok(await f.prepare('pause','789',ids('budget-bid-spend')));ok(await f.execute(p));assert.equal(ok(await f.verify(p)).data.status,'verified');
+ }finally{f.store.close();}
+});
+
 test('the product routes and request model match the pinned document',()=>{
  const doc=JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-01.json','utf8')).document,schemas=doc.components.schemas;
  for(const kind of ['append','delete','pause','unpause']){

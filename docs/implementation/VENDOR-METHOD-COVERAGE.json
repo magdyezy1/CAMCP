@@ -2722,8 +2722,8 @@
         {
           "operation": "criteo_catalog_ops",
           "action": "ADD_REMOVE_KEYWORDS",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_keywords"
         }
       ],
       "mapping_status": "mapped",
@@ -2742,8 +2742,8 @@
         {
           "operation": "criteo_catalog_ops",
           "action": "SET_KEYWORD_BIDS",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_keywords"
         }
       ],
       "mapping_status": "mapped",
@@ -2802,8 +2802,8 @@
         {
           "operation": "criteo_line_item_ops",
           "action": "UPDATE_BID_MULTIPLIERS_BY_LINE_ITEM_ID",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_bid_multipliers"
         }
       ],
       "mapping_status": "mapped",

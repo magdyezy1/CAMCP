@@ -247,8 +247,57 @@ or active. A response with errors or warnings is not success and is never resubm
 automatically.
 
 Bounds: 500 products per request and 1500 per line item (the limit Criteo suggests); up
-to 10 reads, 8 MiB and 60 seconds per review. Keywords, bid multipliers and preferred
-line items are separate. Sources: [Promoted products](https://developers.criteo.com/retail-media/docs/promoted-products)
+to 10 reads, 8 MiB and 60 seconds per review. Keywords and bid multipliers follow below;
+preferred line items are separate. Sources: [Promoted products](https://developers.criteo.com/retail-media/docs/promoted-products)
+and the [pinned OpenAPI](https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json),
+checked 2026-09-26.
+
+## Keywords and bid multipliers of auction line items (2026.01)
+
+Maintainer: AMCP integration maintainer; reviewed 2026-09-27. Two families with the same
+permissions and line item listing as the families above:
+
+- `criteo_catalog_ops / ADD_REMOVE_KEYWORDS` with `params: {id: "<line item ID>"}` and
+  `payload: {data: {type: "RetailMediaKeywordAddRemove", attributes: {keywords: [{phrase,
+  matchType, isDeleted}]}}}`: 1–100 phrases (1–255 characters, each phrase once per request),
+  `matchType` `PositiveExactMatch`, `NegativeExactMatch` or `NegativeBroadMatch`, and
+  `isDeleted` true to remove. Positive keywords go to retailer review.
+- `criteo_catalog_ops / SET_KEYWORD_BIDS` with `params: {id: "<line item ID>"}` and
+  `payload: {data: {type: "RetailMediaKeywordsSetBid", attributes: {keywords: [{phrase,
+  bid}]}}}`: bids of positive keywords, including those in review. The bid is in the
+  **retailer default currency**, which can differ from the account currency; null returns
+  to the line item bid. Criteo requires at least the retailer minimum bid and at most the
+  line item `maxBid`.
+- `criteo_line_item_ops / UPDATE_BID_MULTIPLIERS_BY_LINE_ITEM_ID` with `params:
+  {"line-item-id": "<line item ID>"}` and `payload: {data: {type: "LineItemBidMultipliersV2",
+  attributes: {...}}}` with every page type: `home`, `search`, `category`, `productDetail`,
+  `merchandising`, `deals`, `favorites`, `searchBar`, `categoryMenu`, `checkout`,
+  `confirmation` and `aiAssistant`, each from 0.5 to 6.0 (`aiAssistant` may be null).
+  **The PUT replaces all of them**: a page type left out returns to 1.0, so start from
+  the current multipliers.
+
+Criteo stores keywords under a normalized phrase (for example `egg` for `eggs`) and lists
+the phrases supplied for it. AMCP compares phrases case-insensitively within their match
+type: an added phrase must be new, a removed phrase must be listed as it was supplied, a
+phrase listed under another match type must be removed first, and phrases of one
+normalized keyword share its bid. `INVALID_CRITEO_KEYWORDS` and
+`INVALID_CRITEO_BID_MULTIPLIERS` name the phrase, page type or rule to correct;
+`CONFIGURATION_EXISTS` and `STATE_TARGET_MISMATCH` list existing or missing phrases.
+
+Adding positive keywords or removing negative ones widens delivery: that, keyword bids and
+bid multipliers need `spend_change_confirmed: true`. Under an owner policy, widening
+keywords count as activation unless the line item is paused. `ADD_REMOVE_KEYWORDS` can
+remove keywords, so a policy that forbids deletion refuses it even when it only adds;
+keyword bids and bid multipliers are not deletions. Only narrowing changes (new negatives, removed positives) need no spending
+confirmation. Verification reads the keywords or multipliers again and checks each phrase
+under its match type (present, absent, or with the requested bid) or every page type.
+Line items with page types this contract does not know are refused, because the PUT would
+reset them.
+
+Bounds: 100 phrases per request, 5000 keywords per line item, up to 10 reads, 8 MiB and 60
+seconds per review. Recommended keywords that are not listed on the line item and keyword
+review (a retailer action) are not qualified. Sources: [Keywords](https://developers.criteo.com/retail-media/v2026.01/docs/keywords),
+[Bid Multipliers](https://developers.criteo.com/retail-media/v2026.01/docs/bid-multipliers)
 and the [pinned OpenAPI](https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json),
 checked 2026-09-26.
 

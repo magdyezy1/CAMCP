@@ -2140,6 +2140,65 @@
     {
       "gateway": "criteo_native_action",
       "arguments": {
+        "operation": "criteo_catalog_ops",
+        "arguments": {
+          "action": "ADD_REMOVE_KEYWORDS",
+          "account_id": "123",
+          "params": {
+            "id": "789"
+          },
+          "payload": {
+            "data": {
+              "type": "RetailMediaKeywordAddRemove",
+              "attributes": {
+                "keywords": [
+                  {
+                    "phrase": "synthetic negative phrase",
+                    "matchType": "NegativeExactMatch",
+                    "isDeleted": false
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "gateway": "criteo_native_action",
+      "arguments": {
+        "operation": "criteo_line_item_ops",
+        "arguments": {
+          "action": "UPDATE_BID_MULTIPLIERS_BY_LINE_ITEM_ID",
+          "account_id": "123",
+          "params": {
+            "line-item-id": "789"
+          },
+          "payload": {
+            "data": {
+              "type": "LineItemBidMultipliersV2",
+              "attributes": {
+                "home": 1,
+                "search": 1.2,
+                "category": 1,
+                "productDetail": 1,
+                "merchandising": 1,
+                "deals": 1,
+                "favorites": 1,
+                "searchBar": 1,
+                "categoryMenu": 1,
+                "checkout": 1,
+                "confirmation": 1,
+                "aiAssistant": null
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "gateway": "criteo_native_action",
+      "arguments": {
         "operation": "criteo_line_item_ops",
         "arguments": {
           "action": "APPEND_STORE_TARGETS_BY_LINE_ITEM_ID",

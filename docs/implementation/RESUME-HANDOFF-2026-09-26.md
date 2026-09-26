@@ -540,9 +540,20 @@ Tests: `tests/criteo-auction-line-items.test.mjs` (7, red on `8fa32bf` / green a
 
 - New reviewed family `criteo_promoted_products` (`src/criteo-promoted-products.ts`) for append (with bid overrides), delete, pause and unpause. The line item reader now also reads the line item's products (up to 1500), and verification keys products by a hexadecimal form of their case-sensitive IDs.
 - Line item read-back compares flight days case-insensitively (the 2026.01 guide shows `Weekends` in a read sample).
-- Next Criteo candidates: keywords (add/remove and bids; Criteo stores keywords under normalized phrases, so read-back must find each raw phrase in the entries) and bid multipliers.
 
-Tests: `tests/criteo-promoted-products.test.mjs` (7) and a capitalized-day case in `tests/criteo-auction-line-items.test.mjs`, red on `78c1252` / green after.
+Tests: `tests/criteo-promoted-products.test.mjs` (7) and a capitalized-day case in `tests/criteo-auction-line-items.test.mjs`, red on `78c1252` / green after. Pushed as `c96529c`.
+
+## Finished batch — Criteo keywords and bid multipliers (2026-09-27)
+
+[Implementation](CRITEO-KEYWORDS-BID-MULTIPLIERS-2026-09-27.md) and
+[qualification](CRITEO-KEYWORDS-BID-MULTIPLIERS-VERIFICATION-2026-09-27.json).
+
+- New reviewed families `criteo_keywords` (add/remove and bids) and `criteo_bid_multipliers` (complete PUT) in `src/criteo-line-item-bidding.ts`. The line item reader also reads keywords or multipliers; phrases are matched case-insensitively within their match type through Criteo's normalized keywords.
+- `ADD_REMOVE_KEYWORDS` stays a deletion under owner policies (the delegated compiler's name rule), additions included; kept as a fail-closed default.
+- The generic "bid/budget/spend" preflight heuristic no longer applies to the line item bidding and promoted product families, which decide spending confirmation themselves.
+- Left for later: keyword review (a retailer action), preferred line items, budget overrides (a complete PUT of ordered daily and monthly sequences), balance-to-campaign mapping (the 2026.01 guide shows an `ids` body while the pinned document has a list of resources; resolve before qualifying), creatives and assets.
+
+Tests: `tests/criteo-line-item-bidding.test.mjs` (7) and a product ID case in `tests/criteo-promoted-products.test.mjs`, red on `c96529c` / green after.
 
 ## CI and live evidence
 
@@ -556,20 +567,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 533 in reviewed write families. **902 remaining rows** are in
+3241 captured actions; 536 in reviewed write families. **899 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 787 |
+| blocked_write | 784 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 118, Google Ads 96,
-Snapchat 89, X 67, DV360 56, Criteo 37, Business Profile 12.
+Snapchat 89, X 67, DV360 56, Criteo 34, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

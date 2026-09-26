@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CW — Criteo keywords and bid multipliers (2026-09-27)
+
+Keywords of auction line items can now be added and removed by match type and their bids set,
+matched through Criteo's normalized keywords, and bid multipliers are replaced as a complete
+set; each change is verified phrase by phrase or page by page. See
+[implementation](CRITEO-KEYWORDS-BID-MULTIPLIERS-2026-09-27.md),
+[qualification](CRITEO-KEYWORDS-BID-MULTIPLIERS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 899 (three Criteo rows reviewed). Pushed only to CAMCP; its exact-commit CI result and
+live acceptance are pending.
+
 ## CV — Criteo promoted products (2026-09-27)
 
 Products of auction line items can now be appended (with bid overrides), deleted, paused and
@@ -17,8 +29,8 @@ also accepts capitalized flight days. See [implementation](CRITEO-PROMOTED-PRODU
 [qualification](CRITEO-PROMOTED-PRODUCTS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 902 (four Criteo rows reviewed). Pushed only to CAMCP; its exact-commit CI result and
-live acceptance are pending.
+Remaining rows: 902 (four Criteo rows reviewed). Pushed to CAMCP as `c96529c`; its exact-commit CI
+result and live acceptance are pending.
 
 ## CU — Criteo auction line items (2026-09-27)
 
