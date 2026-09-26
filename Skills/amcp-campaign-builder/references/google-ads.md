@@ -218,6 +218,35 @@ is targeted only once a campaign or ad group criterion or an audience signal use
   `OR_OF_ANDS` default filled and any prepopulation outcome counted as the request, so Google's
   own ordering verifies and a changed rule stays inconclusive.
 
+## Conversion value rules
+
+`google_ads_v23_conversion_value_rule_mutate_conversion_value_rules` creates, updates and removes
+`ConversionValueRule` resources; `google_ads_v23_conversion_value_rule_set_mutate_conversion_value_rule_sets`
+does the same for `ConversionValueRuleSet`. A rule changes reported conversion values, and so
+value-based bidding, only while a set includes it; a set applies the first rule, in list order,
+whose conditions match.
+
+- **Rules:** `action` with `operation` ADD (a positive value) or MULTIPLY (0.5 to 10), and at most
+  two of `audienceCondition` (user lists or user interests of the selected customer),
+  `deviceCondition` (MOBILE, DESKTOP, TABLET) and `geoLocationCondition` (`geoTargetConstants`
+  with `geoMatchType` ANY or LOCATION_OF_PRESENCE, optional exclusions with their match type).
+  A rule without conditions is the default for impressions no other rule matches. `status` is
+  ENABLED or PAUSED.
+- **Rule sets:** `conversionValueRules` in evaluation order, `dimensions` (one or two of
+  AUDIENCE, DEVICE, GEO_LOCATION; the first is the primary dimension) and `attachmentType`
+  CUSTOMER or CAMPAIGN with the `campaign`. The review reads every included rule: each must
+  exist, not be removed and use only conditions of the set's dimensions. Updates may change the
+  rules and dimensions; a dimension change restates the rules so they are checked again.
+- **Confirmation:** creating a rule changes nothing until a set includes it. Editing or removing a
+  rule, and any rule set change, needs `spend_change_confirmed: true`.
+- **Not qualified:** SET actions (allowlist-only or store-visit sets), itinerary conditions
+  (allowlist-only), `conversionActionCategories` (store visits and sales) and NO_CONDITION sets.
+- **Refusals:** wrong JSON types and unknown enums fail against the pinned Discovery schema
+  (`INVALID_VENDOR_BODY`); other rule violations fail with `INVALID_GOOGLE_VALUE_RULE`, before any
+  request. Google itself refuses a rule that is already in another active set.
+- **Verification:** reads each rule or set back. Rule conditions compare as sets; a set's rule
+  order and dimension order compare as sent, because they decide which rule applies.
+
 ## Asset sets and feed associations
 
 Reviewed v23 asset-set contracts cover `assetSets:mutate` and create/remove on

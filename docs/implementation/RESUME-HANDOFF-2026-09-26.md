@@ -405,7 +405,19 @@ Tests: `tests/google-user-lists.test.mjs` (5, red on `1d971f2` / green after); t
 
 - Reviewed manual ad creation refuses a `CUSTOMIZED_USER` non-Spark ad in an ad group that delivers on TikTok, with `TIKTOK_CUSTOM_IDENTITY_PLACEMENT`, using the ad group already read before review and execution. Pangle-only ad groups, Spark identities and ad updates are unaffected.
 
-Tests: `tests/tiktok-manual-ad-identities.test.mjs` (3; two red on `f440117`, one no-change guard; all green after).
+Tests: `tests/tiktok-manual-ad-identities.test.mjs` (3; two red on `f440117`, one no-change guard; all green after). Pushed as `f289b11`.
+
+## Finished batch — Google Ads conversion value rules
+
+[Implementation](GOOGLE-VALUE-RULES-2026-09-26.md) and
+[qualification](GOOGLE-VALUE-RULES-VERIFICATION-2026-09-26.json).
+
+`conversionValueRules` and `conversionValueRuleSets` are new routes of the reviewed `google_configuration` family (rules in `src/google-value-rules.ts`):
+
+- ADD and MULTIPLY rules with at most two audience, device or location conditions; SET, itineraries, store categories and NO_CONDITION sets are refused.
+- Rule sets read every included rule and check it fits the set dimensions; a set's rule order is compared as sent because the first matching rule applies. Set changes and rule edits need spending confirmation.
+
+Tests: `tests/google-value-rules.test.mjs` (5, red on `f289b11` / green after); the configuration lifecycle table gained both routes.
 
 ## CI and live evidence
 
@@ -419,19 +431,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 506 in reviewed write families. **931 remaining rows** are in
+3241 captured actions; 508 in reviewed write families. **929 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 816 |
+| blocked_write | 814 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 191, Meta 131, LinkedIn 118, Google Ads 101,
+Blocked writes by platform: TikTok 191, Meta 131, LinkedIn 118, Google Ads 99,
 Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

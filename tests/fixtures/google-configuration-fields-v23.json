@@ -1005,6 +1005,154 @@
           "repeated": false
         }
       }
+    },
+    "conversion_value_rule": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/conversion_value_rule",
+      "checked_at": "2026-09-26",
+      "method": "Public reference field-heading/table text extraction in the rendered page; not a live account query",
+      "source_text_sha256": "74ff5da7492b773a87fc5d1069596e03dd6c097b73f4f40fadad34a9fe12cc1e",
+      "fields": {
+        "action.operation": {
+          "selectable": true,
+          "repeated": false
+        },
+        "action.value": {
+          "selectable": true,
+          "repeated": false
+        },
+        "audience_condition.user_interests": {
+          "selectable": true,
+          "repeated": true
+        },
+        "audience_condition.user_lists": {
+          "selectable": true,
+          "repeated": true
+        },
+        "device_condition.device_types": {
+          "selectable": true,
+          "repeated": true
+        },
+        "geo_location_condition.excluded_geo_match_type": {
+          "selectable": true,
+          "repeated": false
+        },
+        "geo_location_condition.excluded_geo_target_constants": {
+          "selectable": true,
+          "repeated": true
+        },
+        "geo_location_condition.geo_match_type": {
+          "selectable": true,
+          "repeated": false
+        },
+        "geo_location_condition.geo_target_constants": {
+          "selectable": true,
+          "repeated": true
+        },
+        "id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "itinerary_condition.advance_booking_window.max_days": {
+          "selectable": true,
+          "repeated": false
+        },
+        "itinerary_condition.advance_booking_window.min_days": {
+          "selectable": true,
+          "repeated": false
+        },
+        "itinerary_condition.travel_length.max_nights": {
+          "selectable": true,
+          "repeated": false
+        },
+        "itinerary_condition.travel_length.min_nights": {
+          "selectable": true,
+          "repeated": false
+        },
+        "itinerary_condition.travel_start_day.friday": {
+          "selectable": true,
+          "repeated": false
+        },
+        "itinerary_condition.travel_start_day.monday": {
+          "selectable": true,
+          "repeated": false
+        },
+        "itinerary_condition.travel_start_day.saturday": {
+          "selectable": true,
+          "repeated": false
+        },
+        "itinerary_condition.travel_start_day.sunday": {
+          "selectable": true,
+          "repeated": false
+        },
+        "itinerary_condition.travel_start_day.thursday": {
+          "selectable": true,
+          "repeated": false
+        },
+        "itinerary_condition.travel_start_day.tuesday": {
+          "selectable": true,
+          "repeated": false
+        },
+        "itinerary_condition.travel_start_day.wednesday": {
+          "selectable": true,
+          "repeated": false
+        },
+        "owner_customer": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
+    },
+    "conversion_value_rule_set": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/conversion_value_rule_set",
+      "checked_at": "2026-09-26",
+      "method": "Public reference field-heading/table text extraction in the rendered page; not a live account query",
+      "source_text_sha256": "9a8aa42c3241cccee4c2bf724137816ae7eb582accd7c19042d427fc490a5dc1",
+      "fields": {
+        "attachment_type": {
+          "selectable": true,
+          "repeated": false
+        },
+        "campaign": {
+          "selectable": true,
+          "repeated": false
+        },
+        "conversion_action_categories": {
+          "selectable": true,
+          "repeated": true
+        },
+        "conversion_value_rules": {
+          "selectable": true,
+          "repeated": true
+        },
+        "dimensions": {
+          "selectable": true,
+          "repeated": true
+        },
+        "id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "owner_customer": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
     }
   }
 }

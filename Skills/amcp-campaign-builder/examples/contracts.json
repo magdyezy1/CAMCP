@@ -2106,6 +2106,30 @@
     {
       "gateway": "google_ads_native_action",
       "arguments": {
+        "action": "google_ads_v23_conversion_value_rule_mutate_conversion_value_rules",
+        "account_id": "1234567890",
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "action": {
+                  "operation": "MULTIPLY",
+                  "value": 1.2
+                },
+                "deviceCondition": {
+                  "deviceTypes": [
+                    "MOBILE"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
         "action": "google_ads_v23_user_list_mutate_user_lists",
         "account_id": "1234567890",
         "payload": {

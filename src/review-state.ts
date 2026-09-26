@@ -8,6 +8,7 @@ import {assetSetCanonical} from './google-asset-set-writes.js';
 import {isGoogleBidRead} from './google-bid-modifiers.js';
 import {googleSegmentResource,googleSegmentCanonical} from './google-custom-segments.js';
 import {googleUserListCanonical} from './google-user-lists.js';
+import {googleValueRuleCanonical} from './google-value-rules.js';
 import {snapSegmentState} from './snapchat-segments.js';
 import {tiktokImageInfoPath,tiktokImageState} from './tiktok-identities.js';
 import {tiktokAudienceGetPath,tiktokAudienceState} from './tiktok-lookalikes.js';
@@ -95,7 +96,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  const expected=[...new Set([...query.matchAll(/'(customers\/[^']+)'/g)].map(m=>m[1]!))];
  if(expected.length&&(read.googleState?.allowMissing?items.some(item=>!expected.includes(item.id)):expected.length!==seen.size||expected.some(id=>!seen.has(id))))throw new MirrorError('STATE_RESOURCE_MISMATCH','The state response does not cover exactly the requested resources.',{},409);
  items.sort((a,b)=>a.id.localeCompare(b.id,'en'));
- const state={results:items.map(item=>resource.startsWith('keyword_plan')?{...item.row,[key]:keywordPlanObserved(resource,item.row[key])}:googleSegmentResource(resource)?{...item.row,[item.row[resource]?resource:key]:googleSegmentCanonical(resource,item.row[resource]??item.row[key],true)}:resource==='user_list'?{...item.row,[item.row[resource]?resource:key]:googleUserListCanonical(item.row[resource]??item.row[key])}:item.row)};
+ const state={results:items.map(item=>resource.startsWith('keyword_plan')?{...item.row,[key]:keywordPlanObserved(resource,item.row[key])}:googleSegmentResource(resource)?{...item.row,[item.row[resource]?resource:key]:googleSegmentCanonical(resource,item.row[resource]??item.row[key],true)}:resource==='user_list'?{...item.row,[item.row[resource]?resource:key]:googleUserListCanonical(item.row[resource]??item.row[key])}:resource==='conversion_value_rule'?{...item.row,[item.row[resource]?resource:key]:googleValueRuleCanonical(resource,item.row[resource]??item.row[key])}:item.row)};
  return normalizeReviewState(['asset','asset_set','asset_set_asset','campaign_asset_set','ad_group_asset_set','customer_asset_set'].includes(resource)?assetSetCanonical(state):state);
 }
 export const reviewStateHash=(value:unknown)=>sha256(stable(normalizeReviewState(value)));

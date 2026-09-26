@@ -2,6 +2,7 @@ import {keywordPlanResources,assertKeywordPlanRecord,keywordPlanClear,keywordPla
 import {segmentFields,assertGoogleSegmentRecord,assertGoogleSegmentOperation,googleSegmentResource,googleSegmentCanonical} from './google-custom-segments.js';
 import {assertGoogleAudienceRecord,googleAudienceCanonical} from './google-audiences.js';
 import {assertGoogleUserListOperation,assertGoogleUserListRecord,validateGoogleUserListState,googleUserListCanonical} from './google-user-lists.js';
+import {assertGoogleValueRuleOperation,assertGoogleValueRuleRecord,valueRuleSetRuleNames,validateValueRuleSetPrerequisites,googleValueRuleCanonical} from './google-value-rules.js';
 import {MirrorError} from './errors.js';
 import {googleJson} from './google-contracts.js';
 import {googleAssetSetFields,googleFeedFields,assertAssetSetRecord,assetSetExtraSnapshots,validateAssetSetPrerequisites,assetSetObserved,assetSetCanonical,assetSetExactFields} from './google-asset-set-writes.js';
@@ -56,6 +57,9 @@ export const googleConfigurationContracts:Record<string,Contract>={
  conversionCustomVariables:descriptor('conversion_custom_variable','conversionCustomVariables',['name','tag','status'],['name','tag','status'],['name','status'],['name','tag','status','owner_customer']),
  remarketingActions:descriptor('remarketing_action','remarketingActions',['name'],['name'],['name'],['name']),
  // Rule-based remarketing lists only (src/google-user-lists.ts); closing a targeted list affects serving.
+ // Conversion value rules and rule sets (src/google-value-rules.ts); a set applies its rules in list order.
+ conversionValueRules:descriptor('conversion_value_rule','conversionValueRules',['action','audienceCondition','deviceCondition','geoLocationCondition','status'],['action'],['action','audienceCondition','deviceCondition','geoLocationCondition','status'],['action.operation','action.value','geo_location_condition.geo_target_constants','geo_location_condition.geo_match_type','geo_location_condition.excluded_geo_target_constants','geo_location_condition.excluded_geo_match_type','device_condition.device_types','audience_condition.user_lists','audience_condition.user_interests','status'],{serving:true}),
+ conversionValueRuleSets:descriptor('conversion_value_rule_set','conversionValueRuleSets',['conversionValueRules','dimensions','attachmentType','campaign'],['conversionValueRules','dimensions','attachmentType'],['conversionValueRules','dimensions'],['conversion_value_rules','dimensions','attachment_type','campaign','status'],{serving:true,references:[campaign]}),
  userLists:descriptor('user_list','userLists',['name','description','membershipStatus','ruleBasedUserList'],['name','membershipStatus','ruleBasedUserList'],['name','description','membershipStatus'],['name','description','membership_status','type','read_only','rule_based_user_list.prepopulation_status','rule_based_user_list.flexible_rule_user_list.inclusive_rule_operator','rule_based_user_list.flexible_rule_user_list.inclusive_operands','rule_based_user_list.flexible_rule_user_list.exclusive_operands'],{serving:true}),
  assetGroupSignals:descriptor('asset_group_signal','assetGroupSignals',['assetGroup','audience','searchTheme'],['assetGroup'],[],['asset_group','audience.audience','search_theme.text'],{parts:2,references:[reference('assetGroup','assetGroups','asset_group',['name','status','campaign']),reference('audience.audience','audiences','audience',['name','status','scope'])],serving:true}),
  customerNegativeCriteria:descriptor('customer_negative_criterion','customerNegativeCriteria',['ipBlock','placementList','mobileAppCategory','negativeKeywordList','placement','youtubeChannel','contentLabel','youtubeVideo','mobileApplication'],[],[],['type','ip_block.ip_address','placement_list.shared_set','mobile_app_category.mobile_app_category_constant','negative_keyword_list.shared_set','placement.url','youtube_channel.channel_id','content_label.type','youtube_video.video_id','mobile_application.app_id','mobile_application.name'],{references:[reference('placementList.sharedSet','sharedSets','shared_set',['name','status','type']),reference('negativeKeywordList.sharedSet','sharedSets','shared_set',['name','status','type'])],serving:true})
@@ -124,6 +128,8 @@ export function assertGoogleConfiguration(p:CompiledRequest):void{
  for(const op of b.operations){
   assertGoogleSegmentOperation(kind,op);
   assertGoogleUserListOperation(kind,op);
+  assertGoogleValueRuleOperation(kind,op);
+  if(kind==='conversionValueRuleSets'&&op.update?.dimensions!==undefined&&op.update?.conversionValueRules===undefined)invalid('Restate conversionValueRules with new dimensions so every rule is checked against them.');
   keys(op,['create','update','remove','updateMask']);const r=op.create??op.update;
   if(r!==undefined&&!object(r))invalid('Configuration records must be native objects.');
   if(op.create){
@@ -137,7 +143,7 @@ export function assertGoogleConfiguration(p:CompiledRequest):void{
    const values=leaves(Object.fromEntries(Object.entries(r).filter(([k])=>k!=='resourceName')));
    if(mask.some((f:string)=>get(r,f)===undefined||get(r,f)===null&&!keywordPlanClear(kind,f,get(r,f)))||values.some(f=>!mask.some((m:string)=>f===m||f.startsWith(m+'.'))))invalid('Every changed value must be covered by the mask, and every mask field must have an explicit value.');
   }else if(op.updateMask!==undefined)invalid('A remove does not accept updateMask.');
-  if(r){validateRecord(kind,c,r,!!op.create);if(kind==='audiences')assertGoogleAudienceRecord(r,!!op.create,account(p)!);for(const ref of c.references){const value=get(r,ref.field);if(value!==undefined)resource(value,p,ref.collection,ref.parts);}}
+  if(r){validateRecord(kind,c,r,!!op.create);if(kind==='audiences')assertGoogleAudienceRecord(r,!!op.create,account(p)!);assertGoogleValueRuleRecord(kind,r,!!op.create,account(p)!);for(const ref of c.references){const value=get(r,ref.field);if(value!==undefined)resource(value,p,ref.collection,ref.parts);}}
   if(kind==='customerAssetSets'&&r?.customer!==undefined&&r.customer!=='customers/'+account(p))invalid('The customer link must use the selected customer.');
   const name=identity(p,c,op);if(name){if(seen.has(name))invalid('Each configuration target may occur only once per review.');seen.add(name);}
   if(kind==='adParameters'&&name&&!/[~][12]$/.test(name))invalid('Ad parameter resource names must end with parameter index 1 or 2.');
@@ -163,6 +169,7 @@ export function googleConfigurationSnapshots(p:CompiledRequest):CompiledRequest[
  const groups=new Map<Reference,string[]>();
  for(const op of ops)for(const {ref,name}of references(p,c,op)){const list=groups.get(ref)??[];list.push(name);groups.set(ref,list);}
  for(const [ref,names]of groups)reads.push(search(p,ref.resource,ref.fields,names));
+ const rules=valueRuleSetRuleNames(googleConfigurationKind(p)!,ops);if(rules.length)reads.push(search(p,'conversion_value_rule',googleConfigurationContracts.conversionValueRules!.fields,rules));
  reads.push(...assetSetExtraSnapshots(p),...keywordPlanSnapshots(p));
  return reads;
 }
@@ -170,6 +177,7 @@ export function validateGoogleConfigurationState(p:CompiledRequest,states:unknow
  const kind=googleConfigurationKind(p);if(!kind)return;const c=googleConfigurationContracts[kind]!,ops=googleJson(p.body).operations as JsonObject[];
  validateAssetSetPrerequisites(p,states);validateKeywordPlanPrerequisites(p,states);
  const rows=states.flatMap(s=>(s as JsonObject)?.results??[]).flatMap(row=>Object.values(googleJson(row))) as JsonObject[];
+ validateValueRuleSetPrerequisites(kind,ops,rows,op=>{const n=identity(p,c,op);return n?rows.find(r=>r.resourceName===n):undefined;});
  for(const op of ops){
   const name=identity(p,c,op),found=name?rows.find(r=>r.resourceName===name):undefined;
   if(found){
@@ -207,6 +215,7 @@ export function googleConfigurationVerification(p:CompiledRequest,result:JsonObj
    if(googleSegmentResource(c.resource))return {id,expected:googleSegmentCanonical(c.resource,expected),read};
    if(c.resource==='audience')return {id,expected:googleAudienceCanonical(expected),read};
    if(c.resource==='user_list')return {id,expected:googleUserListCanonical(expected),read};
+   if(c.resource==='conversion_value_rule')return {id,expected:googleValueRuleCanonical(c.resource,expected),read};
   if(c.resource==='asset_set'&&op.update){const fields=op.updateMask.split(',').filter((f:string)=>object(get(op.update,f)));if(fields.length){
    const defaults=assetSetObserved(c.resource,expected);for(const field of fields){const path=field.split('.');let node=normalized;for(const key of path.slice(0,-1))node=node[key]??={};node[path.at(-1)!]=get(defaults,field);}
    read.googleState!.exactFields=fields;normalized.amcpExactFieldHashes=assetSetExactFields(normalized,fields);
@@ -223,7 +232,7 @@ export function googleConfigurationObserved(read:CompiledRequest,value:JsonObjec
  // ProtoJSON omits default strings after a cleared text-label field. This applies
  // only to documented optional label strings, never unknown fields or identities.
  if(read.action==='AMCP_CONFIG_READ'&&read.googleState?.resource==='label'&&value?.resourceName)return {...value,textLabel:{backgroundColor:'',description:'',...value.textLabel}};
-  const resource=read.googleState?.resource??'',normalized=googleSegmentResource(resource)?googleSegmentCanonical(resource,value,true):resource==='audience'?googleAudienceCanonical(value):resource==='user_list'?googleUserListCanonical(value):keywordPlanObserved(resource,assetSetObserved(resource,value));
+  const resource=read.googleState?.resource??'',normalized=googleSegmentResource(resource)?googleSegmentCanonical(resource,value,true):resource==='audience'?googleAudienceCanonical(value):resource==='user_list'?googleUserListCanonical(value):resource==='conversion_value_rule'?googleValueRuleCanonical(resource,value):keywordPlanObserved(resource,assetSetObserved(resource,value));
  return read.googleState?.exactFields?{...normalized,amcpExactFieldHashes:assetSetExactFields(normalized,read.googleState.exactFields)}:normalized;
 }
-export function googleConfigurationServing(p:CompiledRequest):boolean{const kind=googleConfigurationKind(p);return !!kind&&googleConfigurationContracts[kind]!.serving&&(kind!=='customizerAttributes'||googleJson(p.body).operations.some((o:JsonObject)=>o.remove))&&(!['assetSets','customAudiences','customInterests','audiences'].includes(kind)||googleJson(p.body).operations.some((o:JsonObject)=>!o.create))&&(kind!=='userLists'||googleJson(p.body).operations.some((o:JsonObject)=>o.update?.membershipStatus==='CLOSED'));}
+export function googleConfigurationServing(p:CompiledRequest):boolean{const kind=googleConfigurationKind(p);return !!kind&&googleConfigurationContracts[kind]!.serving&&(kind!=='customizerAttributes'||googleJson(p.body).operations.some((o:JsonObject)=>o.remove))&&(!['assetSets','customAudiences','customInterests','audiences'].includes(kind)||googleJson(p.body).operations.some((o:JsonObject)=>!o.create))&&(kind!=='userLists'||googleJson(p.body).operations.some((o:JsonObject)=>o.update?.membershipStatus==='CLOSED'))&&(kind!=='conversionValueRules'||googleJson(p.body).operations.some((o:JsonObject)=>!o.create));}

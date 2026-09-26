@@ -45,6 +45,8 @@ const cases:{route:string;rpc:string;entity:string;create:JsonObject;id:string;u
  {route:'audiences',rpc:'audience_mutate_audiences',entity:'audience',create:{name:'Past buyers 25-54',description:'Performance Max signal',dimensions:[{audienceSegments:{segments:[{userList:{userList:resource('userLists','77')}}]}},{age:{ageRanges:[{minAge:25,maxAge:54}]}}]},id:'500',update:{name:'Past buyers 25-54 (renamed)'}},
  {route:'customAudiences',rpc:'custom_audience_mutate_custom_audiences',entity:'custom_audience',create:{name:'Approved keyword audience',type:'SEARCH',members:[{memberType:'KEYWORD',keyword:'family homes'}]},id:'500',update:{description:'Reviewed search intent'}},
  {route:'customInterests',rpc:'custom_interest_mutate_custom_interests',entity:'custom_interest',create:{name:'Approved interest',type:'CUSTOM_AFFINITY',members:[{memberType:'URL',parameter:'https://example.com'}]},id:'500',update:{description:'Reviewed affinity'}},
+ {route:'conversionValueRules',rpc:'conversion_value_rule_mutate_conversion_value_rules',entity:'conversion_value_rule',create:{action:{operation:'MULTIPLY',value:1.5},deviceCondition:{deviceTypes:['MOBILE']}},id:'500',update:{status:'PAUSED'}},
+ {route:'conversionValueRuleSets',rpc:'conversion_value_rule_set_mutate_conversion_value_rule_sets',entity:'conversion_value_rule_set',create:{conversionValueRules:[resource('conversionValueRules','910')],dimensions:['DEVICE'],attachmentType:'CUSTOMER'},id:'500',update:{conversionValueRules:[resource('conversionValueRules','910')],dimensions:['DEVICE','AUDIENCE']}},
  {route:'userLists',rpc:'user_list_mutate_user_lists',entity:'user_list',create:{name:'All visitors',membershipStatus:'OPEN',ruleBasedUserList:{flexibleRuleUserList:{inclusiveRuleOperator:'AND',inclusiveOperands:[{rule:{ruleItemGroups:[{ruleItems:[{name:'url__',stringRuleItem:{operator:'CONTAINS',value:'example.com'}}]}]},lookbackWindowDays:'30'}]}}},id:'500',update:{name:'All visitors (renamed)'}}
 ];
 const fields={...JSON.parse(fs.readFileSync('tests/fixtures/google-configuration-fields-v23.json','utf8')).resources,...JSON.parse(fs.readFileSync('tests/fixtures/google-segment-fields-v23.json','utf8')).resources};
@@ -64,6 +66,7 @@ function fixture(row=cases[0]!,allowWrites=true){
  seed('adGroupCriteria','200~400',{adGroup:resource('adGroups','200'),type:'KEYWORD',status:'PAUSED',keyword:{text:'family homes',matchType:'EXACT'}});
  seed('labels','900',{name:'Existing label',status:'ENABLED',textLabel:{backgroundColor:'#fff',description:'Existing description'}});
  seed('customizerAttributes','600',{name:'Season',type:'TEXT',status:'ENABLED'});
+ seed('conversionValueRules','910',{action:{operation:'ADD',value:5},deviceCondition:{deviceTypes:['DESKTOP']},status:'ENABLED'});
  seed('assetGroups','700',{name:'Asset group',status:'PAUSED',campaign:resource('campaigns','100')});
  seed('assetSets','850',{name:'Page feed',type:'PAGE_FEED',status:'ENABLED'});
  seed('assetSets','860',{name:'Locations',type:'LOCATION_SYNC',status:'ENABLED',locationSet:{locationOwnershipType:'BUSINESS_OWNER',businessProfileLocationSet:{labelFilters:['Retail']}}});
@@ -93,7 +96,7 @@ function fixture(row=cases[0]!,allowWrites=true){
    const name=op.remove??op.update?.resourceName??resource(collection,row.id);
    if(op.remove)records.delete(name);
    else if(op.update){const record=records.get(name)!;for(const f of op.updateMask.split(','))set(record,f,get(op.update,f));}
-   else records.set(name,{...op.create,resourceName:name,...(['labels','customizerAttributes','campaignCustomizers','adGroupCustomizers','AdGroupCriterionCustomizers','CustomerCustomizers','campaignGroups','assetSets','assetSetAssets','campaignAssetSets','adGroupAssetSets','customerAssetSets','customAudiences','customInterests','audiences'].includes(row.route)?{status:'ENABLED'}:{}),...(row.route==='customerNegativeCriteria'?{type:'PLACEMENT'}:{})});
+   else records.set(name,{...op.create,resourceName:name,...(['labels','customizerAttributes','campaignCustomizers','adGroupCustomizers','AdGroupCriterionCustomizers','CustomerCustomizers','campaignGroups','assetSets','assetSetAssets','campaignAssetSets','adGroupAssetSets','customerAssetSets','customAudiences','customInterests','audiences','conversionValueRules','conversionValueRuleSets'].includes(row.route)?{status:'ENABLED'}:{}),...(row.route==='customerNegativeCriteria'?{type:'PLACEMENT'}:{})});
    return {resourceName:foreignReceipt?name.replace('customers/123/','customers/999/'):name};
   });
   if(lostResponse)throw Error('Synthetic response lost after provider mutation');

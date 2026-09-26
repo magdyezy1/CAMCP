@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CJ — Google Ads conversion value rules (2026-09-26)
+
+`conversionValueRules` and `conversionValueRuleSets` are new routes of the reviewed Google
+configuration family: ADD and MULTIPLY rules with at most two audience, device or location
+conditions, and ordered rule sets for the account or a campaign whose rules are read and checked
+against the set dimensions. Set changes and rule edits need spending confirmation. See
+[implementation](GOOGLE-VALUE-RULES-2026-09-26.md),
+[qualification](GOOGLE-VALUE-RULES-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 929 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## CI — TikTok manual ads with custom identities (2026-09-26)
 
 Reviewed manual TikTok ad creation now refuses a non-Spark ad with a `CUSTOMIZED_USER`
@@ -17,8 +30,8 @@ TikTok no longer accepts, checking the ad group read before review and execution
 [qualification](TIKTOK-MANUAL-AD-IDENTITIES-VERIFICATION-2026-09-26.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 931 (unchanged). Pushed only to CAMCP; its exact-commit CI result and live
-acceptance are pending.
+Remaining rows: 931 (unchanged). Pushed to CAMCP as `f289b11`; its exact-commit CI result and
+live acceptance are pending.
 
 ## CH — Google Ads rule-based remarketing lists (2026-09-26)
 

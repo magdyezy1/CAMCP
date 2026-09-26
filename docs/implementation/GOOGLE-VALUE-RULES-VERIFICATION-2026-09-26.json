@@ -1,0 +1,105 @@
+{
+  "format_version": 1,
+  "date": "2026-09-26",
+  "branch": "Codex-branch",
+  "base_revision": "f289b119d29af95e8ffbb4d1915c8015223c4481",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/google-value-rules-20260926-a",
+    "files": 773,
+    "source_tree_hash": "4ec699be4fb6b514488f89626f4e621156118d9100e32e5026a8c200d4d9b1ed",
+    "index_code_test_guidance_files_compared": 650,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/google-value-rules-20260926-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/google-value-rules-20260926/install.log",
+      "sha256": "fd1d9de07b2f08802677e9eb68653e02fcf4423e062c4d00c4a3afe0d39973f2"
+    },
+    {
+      "path": ".runtime/google-value-rules-20260926/check.log",
+      "sha256": "5c504b166d25ed8adce6505def74cb7b7ffd10e7f851e5ce83665adfae3971fa",
+      "started": "2026-09-26T17:08:24Z",
+      "finished": "2026-09-26T17:20:38Z",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2240,
+          "pass": 2240,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/google-value-rules-20260926/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/google-value-rules-20260926/red-check.log",
+      "sha256": "5de7580c737b0dc0cd248b8280a3f3c642aacf91017b7e0c359353a36c0569dc",
+      "meaning": "tests/google-value-rules.test.mjs against a build of f289b11: expected red, 0/5 pass (WRITE_CONTRACT_UNAVAILABLE)"
+    },
+    {
+      "path": ".runtime/google-value-rules-20260926/targeted.log",
+      "sha256": "0d7c45ba569addef690954933b4b67843d0b407fbc3c0504c8d6e44418c4e292",
+      "meaning": "106 related suites (every Google suite plus the review, spending, creative-chain and contract suites) in the working copy: 1358/1358 pass."
+    }
+  ],
+  "development_failures": [
+    "None of the new tests failed during development.",
+    "The first build failed on an unchecked customer identity (possibly undefined); the check now asserts it as the audience check does.",
+    "Design review: a set applies the first matching rule in list order, so rule order is verified as sent while conditions compare as sets; a dimension change restates the rules, because the set rules cannot be read after the set in the same review."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2240,
+    "main_pass": 2240,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "The GAQL field lists were extracted from the public field reference pages, not a live query.",
+    "Whether a rule already belongs to another active set is enforced by Google (DATA_CONSTRAINT_VIOLATION), not read in review.",
+    "SET actions, itinerary conditions, store-visit categories and NO_CONDITION sets stay unqualified.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}
