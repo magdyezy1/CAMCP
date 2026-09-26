@@ -7,6 +7,7 @@ import {tiktokLookalikeKind,assertTiktokLookalike,tiktokLookalikeSeed,tiktokAudi
 import {metaLookalikeKind,assertMetaLookalike,metaLookalikeSeed,metaSeedFields} from './meta-lookalikes.js';
 import {tiktokBudgetKind,assertTiktokBudget,tiktokBudgetAdgroupIds} from './tiktok-budgets.js';
 import {tiktokCustomConversionKind,assertTiktokCustomConversion,tiktokCustomConversionReads,validateTiktokConversionState} from './tiktok-custom-conversions.js';
+import {tiktokAdgroupConversion,tiktokAdgroupConversionRead,tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions.js';
 import {linkedinLeadFormKind,assertLinkedInLeadForm,linkedinLeadFormOutcome,rememberLinkedInLeadForm,isLinkedInLeadFormRead,validateLinkedInLeadFormState} from './linkedin-lead-forms.js';
 import {googlePreviewKind,assertGooglePreview,googlePreviewSnapshots,readGooglePreviewState,googlePreviewOutcome,googlePreviewDelivery,googlePreviewSafeOutcome} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaign,assertCriteoCampaignScopes,criteoCampaignSnapshots,readCriteoCampaignState,criteoCampaignOutcome} from './criteo-campaign-writes.js';
@@ -295,6 +296,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(metaLookalikeKind(plan))assertMetaLookalike(body);
  if(tiktokBudgetKind(plan))assertTiktokBudget(plan,body);
  if(tiktokCustomConversionKind(plan))assertTiktokCustomConversion(plan,body);
+ if(plan.gateway==='tiktok_native_action')tiktokAdgroupConversion(plan);
  if(plan.gateway==='tiktok_native_action'&&plan.path==='/v1.3/ad/create/'){
   if(!Array.isArray(body.creatives)||body.creatives.length!==1||!body.creatives[0]||Array.isArray(body.creatives[0])||typeof body.creatives[0]!=='object')fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed TikTok ad creation requires exactly one native creatives record per review. Put the ad fields and operation_status inside that record.');
   if(Object.hasOwn(body,'operation_status'))fail('INVALID_ARGUMENT','TikTok ad creation uses creatives[0].operation_status; a top-level status does not pause the creative.');
@@ -408,7 +410,9 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
   if(!match)fail('WRITE_CONTRACT_UNAVAILABLE','This TikTok action has no implemented state-read contract.');
   if(match[2]==='create'){
    const reads=[base('/v1.3/advertiser/info/',{advertiser_ids:[id]})],parent=match[1]==='adgroup'?'campaign':match[1]==='ad'?'adgroup':undefined;
-   if(parent){const parentId=body[parent+'_id'];if(typeof parentId!=='string'||!/^\d+$/.test(parentId))fail('MISSING_PARAMETER','Child creates require their exact parent ID.');const read=base('/v1.3/'+parent+'/get/',{advertiser_id:id,filtering:{[parent+'_ids']:[parentId]},page_size:100});read.action='tiktok_'+parent+'_get';reads.push(read);}return reads;
+   if(parent){const parentId=body[parent+'_id'];if(typeof parentId!=='string'||!/^\d+$/.test(parentId))fail('MISSING_PARAMETER','Child creates require their exact parent ID.');const read=base('/v1.3/'+parent+'/get/',{advertiser_id:id,filtering:{[parent+'_ids']:[parentId]},page_size:100});read.action='tiktok_'+parent+'_get';reads.push(read);}
+   const conversion=tiktokAdgroupConversionRead(plan);if(conversion){const read=base(conversion.path,conversion.query);read.action=conversion.action;reads.push(read);}
+   return reads;
   }
   const kind=match[1]!,ids=body[kind+'_ids']??(body[kind+'_id']?[body[kind+'_id']]:undefined);
   if(!Array.isArray(ids)||!ids.length||ids.length>25||ids.some(v=>typeof v!=='string'||!/^\d+$/.test(v)))fail('MISSING_PARAMETER','Supply 1–25 exact '+kind+' IDs.');
@@ -599,6 +603,7 @@ export class WriteReviewService {
   googleBidPrerequisites(plan,values);
   linkedinConversionPrerequisites(plan,values);
   linkedinRulePrerequisites(plan,values);
+  tiktokAdgroupConversionPrerequisites(plan,values);
   validateAppleEntityPrerequisites(plan,reads,values);
   validateGtmWorkflowPrerequisites(plan,values);
   validateGtmWorkspacePrerequisites(plan,values);

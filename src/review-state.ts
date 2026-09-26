@@ -10,7 +10,8 @@ import {googleSegmentResource,googleSegmentCanonical} from './google-custom-segm
 import {snapSegmentState} from './snapchat-segments.js';
 import {tiktokImageInfoPath,tiktokImageState} from './tiktok-identities.js';
 import {tiktokAudienceGetPath,tiktokAudienceState} from './tiktok-lookalikes.js';
-import {tiktokPixelListPath,tiktokConversionListPath,tiktokPixelState,tiktokConversionListState} from './tiktok-custom-conversions.js';
+import {tiktokPixelListPath,tiktokConversionListPath,tiktokConversionGetPath,tiktokPixelState,tiktokConversionListState} from './tiktok-custom-conversions.js';
+import {tiktokConversionEligibility} from './tiktok-adgroup-conversions.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 
 // Response envelopes are validated before projection. Within each resource keep
@@ -51,6 +52,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isGoogleBidRead(read))return normalizeReviewState(data);
  if(read.gateway==='gtm_native_action')return normalizeReviewState(gtmSafeConfiguration(data));
  if(read.gateway==='tiktok_native_action'&&read.path===tiktokPixelListPath&&Array.isArray(d.data?.pixels))return normalizeReviewState({data:tiktokPixelState(d)});
+ if(read.gateway==='tiktok_native_action'&&read.path===tiktokConversionGetPath&&d.data&&typeof d.data==='object'&&!Array.isArray(d.data))return normalizeReviewState({data:tiktokConversionEligibility(d.data)});
  if(read.gateway==='tiktok_native_action'&&Array.isArray(d.data?.list))return normalizeReviewState({data:read.path===tiktokImageInfoPath?tiktokImageState(d):read.path===tiktokAudienceGetPath?tiktokAudienceState(d):read.path===tiktokConversionListPath?tiktokConversionListState(d):{list:d.data.list}});
  if(['x_ads_native_action','reddit_native_action'].includes(read.gateway)&&Object.hasOwn(d,'data'))return normalizeReviewState({data:d.data});
  if(read.gateway==='apple_ads_native_action'&&Object.hasOwn(d,'result')){

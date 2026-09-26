@@ -169,9 +169,13 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
   not invalidate a review. No spending confirmation is needed: creating one changes no campaign.
 - Verification reads `/custom_conversion/get/` and compares the name, event, pixel and rules; rule
   order, value order and number formatting do not matter.
-- An ad group can optimize for a custom conversion (`custom_conversion_id` with the matching
-  `optimization_event`) only after the pixel reports matching activity: a new one starts as
-  `WAITING_FOR_ACTIVITY`. Updates and deletion are not qualified.
+- An ad group create can optimize for a custom conversion: send `custom_conversion_id` with the
+  conversion's `pixel_id`, `optimization_goal: CONVERT` and the conversion's `optimization_event`.
+  The review reads the conversion before review and again before execution, and refuses one on
+  another pixel, with another event, or whose status is not `ACTIVE` or `NO_RECENT_ACTIVITY` (a new
+  conversion starts as `WAITING_FOR_ACTIVITY` until the pixel reports matching events), with
+  `INVALID_TIKTOK_CUSTOM_CONVERSION`. `/adgroup/update/` does not accept `custom_conversion_id`, and
+  app-source conversions are not qualified. Custom conversion updates and deletion are not qualified.
 
 ## TikTok lookalike audiences
 

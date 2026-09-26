@@ -230,7 +230,19 @@ Tests: `tests/linkedin-lead-forms.test.mjs` (8, red on `e45400e` / green after).
 - Read-back compares the definition, with rules treated as a set.
 - Microsoft Learn and Google's developer site were unreachable here during this batch; TikTok's portal was readable.
 
-Tests: `tests/tiktok-custom-conversions.test.mjs` (7, red on `06cd154` / green after).
+Tests: `tests/tiktok-custom-conversions.test.mjs` (7, red on `06cd154` / green after). Pushed as `b4e1c25`.
+
+## Finished batch — TikTok ad groups that use a custom conversion
+
+[Implementation](TIKTOK-ADGROUP-CONVERSIONS-2026-09-26.md) and
+[qualification](TIKTOK-ADGROUP-CONVERSIONS-VERIFICATION-2026-09-26.json).
+
+This closes the custom conversion follow-up. An ad group create that sets `custom_conversion_id`
+must send the conversion's pixel, `optimization_goal: CONVERT` and the conversion's
+`optimization_event`, and the conversion must be `ACTIVE` or `NO_RECENT_ACTIVITY`. It is read
+before review and again before execution. Ad group updates that set the field are refused, since
+`/adgroup/update/` does not accept it. Tests: `tests/tiktok-adgroup-conversions.test.mjs`
+(5; four red on `b4e1c25`, one no-change guard; all green after).
 
 ## CI and live evidence
 
@@ -275,6 +287,5 @@ Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12. The ticket list in 
 | P3 | TikTok asynchronous campaign copy | `/campaign/copy/task/create/` is allowlist-only; needs an allowlisted advertiser, a paused-copy guarantee for every ad group and a task-result verification design |
 | P2 | LinkedIn lead gen creatives must reference owned forms | The documented creative field and URN type that point a lead gen creative at a form, then the same owned-reference check as Snapchat creatives |
 | P2 | LinkedIn lead form edits, publishing and archiving | A read of the creatives and campaigns that use a form, to tell pre-published from published forms and limit edits to the documented fields, plus the documented warning about CRM integrations |
-| P2 | TikTok ad groups that use a custom conversion | When an ad group create or update sets `custom_conversion_id`, read the conversion for its pixel and require the matching `optimization_event` and an `ACTIVE` or `NO_RECENT_ACTIVITY` status, as `/adgroup/create/` documents |
 | P3 | LinkedIn work-email submission criteria | The wire form of the `questionSubmissionCriteria` union, which the schema does not show |
 | P3 | X remaining writes (promoted accounts, cards, tracking tags) | The official X Ads API reference returned HTTP 402 from this environment; needs an accessible, versioned source first |

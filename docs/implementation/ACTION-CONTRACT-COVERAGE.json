@@ -44580,7 +44580,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/write-platforms.test.ts",
-        "tests/tiktok-verification.test.ts"
+        "tests/tiktok-verification.test.ts",
+        "tests/tiktok-adgroup-conversions.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -44698,7 +44699,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/write-platforms.test.ts",
-        "tests/tiktok-verification.test.ts"
+        "tests/tiktok-verification.test.ts",
+        "tests/tiktok-adgroup-conversions.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -44715,7 +44717,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/write-platforms.test.ts",
-        "tests/tiktok-verification.test.ts"
+        "tests/tiktok-verification.test.ts",
+        "tests/tiktok-adgroup-conversions.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -44761,7 +44764,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/write-platforms.test.ts",
-        "tests/tiktok-verification.test.ts"
+        "tests/tiktok-verification.test.ts",
+        "tests/tiktok-adgroup-conversions.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -44886,7 +44890,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/write-platforms.test.ts",
-        "tests/tiktok-verification.test.ts"
+        "tests/tiktok-verification.test.ts",
+        "tests/tiktok-adgroup-conversions.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -44903,7 +44908,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/write-platforms.test.ts",
-        "tests/tiktok-verification.test.ts"
+        "tests/tiktok-verification.test.ts",
+        "tests/tiktok-adgroup-conversions.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -44958,7 +44964,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/write-platforms.test.ts",
-        "tests/tiktok-verification.test.ts"
+        "tests/tiktok-verification.test.ts",
+        "tests/tiktok-adgroup-conversions.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -45013,7 +45020,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/write-platforms.test.ts",
-        "tests/tiktok-verification.test.ts"
+        "tests/tiktok-verification.test.ts",
+        "tests/tiktok-adgroup-conversions.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -45032,7 +45040,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/write-platforms.test.ts",
-        "tests/tiktok-verification.test.ts"
+        "tests/tiktok-verification.test.ts",
+        "tests/tiktok-adgroup-conversions.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -47157,7 +47166,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/write-platforms.test.ts",
-        "tests/tiktok-verification.test.ts"
+        "tests/tiktok-verification.test.ts",
+        "tests/tiktok-adgroup-conversions.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -47389,7 +47399,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/write-platforms.test.ts",
-        "tests/tiktok-verification.test.ts"
+        "tests/tiktok-verification.test.ts",
+        "tests/tiktok-adgroup-conversions.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
@@ -47406,7 +47417,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/write-platforms.test.ts",
-        "tests/tiktok-verification.test.ts"
+        "tests/tiktok-verification.test.ts",
+        "tests/tiktok-adgroup-conversions.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "tiktok_entities"
