@@ -162,9 +162,9 @@
       "gateway": "linkedin_native_action",
       "actions": 287,
       "counts": {
-        "blocked_write": 119,
+        "blocked_write": 118,
         "native_read": 146,
-        "reviewed_write_family": 22
+        "reviewed_write_family": 23
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -23791,12 +23791,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/rest/leadForms",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/linkedin-lead-forms.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/linkedin-lead-forms.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "linkedin_lead_forms"
     },
     {
       "gateway": "linkedin_native_action",

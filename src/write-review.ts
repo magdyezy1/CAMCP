@@ -6,6 +6,7 @@ import {metaCopyKind,assertMetaCopy,metaCopySnapshots,metaCopyChildrenRead,metaC
 import {tiktokLookalikeKind,assertTiktokLookalike,tiktokLookalikeSeed,tiktokAudienceGetPath} from './tiktok-lookalikes.js';
 import {metaLookalikeKind,assertMetaLookalike,metaLookalikeSeed,metaSeedFields} from './meta-lookalikes.js';
 import {tiktokBudgetKind,assertTiktokBudget,tiktokBudgetAdgroupIds} from './tiktok-budgets.js';
+import {linkedinLeadFormKind,assertLinkedInLeadForm,linkedinLeadFormOutcome,rememberLinkedInLeadForm,isLinkedInLeadFormRead,validateLinkedInLeadFormState} from './linkedin-lead-forms.js';
 import {googlePreviewKind,assertGooglePreview,googlePreviewSnapshots,readGooglePreviewState,googlePreviewOutcome,googlePreviewDelivery,googlePreviewSafeOutcome} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaign,assertCriteoCampaignScopes,criteoCampaignSnapshots,readCriteoCampaignState,criteoCampaignOutcome} from './criteo-campaign-writes.js';
 import {metaReportKind,assertMetaReport,assertMetaReportScope,metaReportSnapshots,readMetaReportState,metaReportOutcome} from './meta-insights-jobs.js';
@@ -127,6 +128,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(dv360ListKind(plan))return dv360ListOutcome(plan,result);
  if(googleConfigurationKind(plan))return googleConfigurationOutcome(plan,result);
  if(googleAssetLinkKind(plan))return googleAssetLinkOutcome(plan,result);
+ if(linkedinLeadFormKind(plan))return linkedinLeadFormOutcome(plan,result);
  if(linkedinDSC(plan))return result.status===201&&linkedinPostId(result.headers['x-restli-id']);
  if(xCreativeKind(plan))return xCreativeOutcome(plan,result);
  if(plan.gateway==='reddit_native_action')return redditOutcome(plan,result);
@@ -160,6 +162,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
 }
 export function validateState(read:CompiledRequest,result:TransportResult):void {
  if(isLinkedInRuleRead(read)){validateLinkedInRuleState(read,result);return;}
+ if(isLinkedInLeadFormRead(read)){validateLinkedInLeadFormState(read,result);return;}
  if(isLinkedInConversionRead(read)){validateLinkedInConversionState(read,result);return;}
  if(isGoogleBidRead(read)){validateGoogleBidState(read,result);return;}
  if(read.metaLabelState){validateMetaLabelState(read,result);return;}
@@ -255,6 +258,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(googleDismissalKind(plan)){assertGoogleDismissal(plan);return;}
  if(googleAccessKind(plan)){assertGoogleAccess(plan);return;}
  if(linkedinRuleKind(plan)){assertLinkedInRule(plan);return;}
+ if(linkedinLeadFormKind(plan)){assertLinkedInLeadForm(plan);return;}
  if(linkedinConversionKind(plan)){assertLinkedInConversion(plan);return;}
  if(xDraftKind(plan)){assertXDraft(plan);return;}
  if(plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['CREATE','PARTIAL_UPDATE','DELETE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))fail('WRITE_CONTRACT_UNAVAILABLE','This REST.li method override is not qualified for reviewed execution.');
@@ -367,6 +371,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(measurementWriteGateways.has(plan.gateway))return measurementSnapshots(plan);
  const base=(path:string,query:JsonObject={},body?:JsonObject,method='GET'):CompiledRequest=>applyExecutionRisk({...plan,action:'AMCP_STATE_READ',method,path,query,body,headers:plan.gateway==='linkedin_native_action'?Object.fromEntries(Object.entries(plan.headers).filter(([k])=>['LinkedIn-Version','X-Restli-Protocol-Version'].includes(k))):{},readOnly:true,destructive:false,requiresConfirmation:false,responseControls:undefined,specialTransport:undefined});
  const id=normalizeAccount(plan.gateway,plan.accountId!),body=object(plan.body);
+ if(linkedinLeadFormKind(plan))return [base('/rest/adAccounts/'+id)];
  if(plan.gateway==='google_ads_native_action'){
   const kind=plan.path.match(/\/([^/]+):mutate$/)?.[1],map:Record<string,string>={assets:'asset',campaigns:'campaign',adGroups:'ad_group',adGroupAds:'ad_group_ad',campaignBudgets:'campaign_budget',ads:'ad',assetGroups:'asset_group',campaignCriteria:'campaign_criterion',adGroupCriteria:'ad_group_criterion'};
   if(!kind||!map[kind])fail('WRITE_CONTRACT_UNAVAILABLE','This Google mutation has no implemented state-read contract.');
@@ -690,6 +695,7 @@ export class WriteReviewService {
     retainXReport(plan,c,this.store,response,current,input.review_id,auth,submittedAt);
     if(result.success===true)retainTiktokReport(plan,c,this.store,response,current,input.review_id,auth,submittedAt);
     if(result.success===true)new ScopeGuard(this.registry,this.store).observeCreated(plan,c,response.data);
+    if(result.success===true&&linkedinLeadFormKind(plan))rememberLinkedInLeadForm(this.store,c,plan,response);
     if(result.success===true){
      const job=this.store.enqueue(actor.tenantId,'write_verification',{review_id:input.review_id,actor_binding:actorBinding});
      outcome.verification={status:'queued',job_id:job,next_call:{tool:'amcp_campaign',arguments:{action:'verify',review_id:input.review_id}}};

@@ -226,6 +226,74 @@ native acceptance, installed tracking and attribution outcomes need live evidenc
 
 X's hierarchy is account → campaign (budget/funding) → line item (objective, bidding, placements) → promoted Tweet/media creative. Use `x_ads_native_action`. Monetary fields ending `_local_micro` use account currency × 1,000,000. Read an existing funding instrument rather than inventing one or assuming a CREATE_FUNDING_INSTRUMENT catalog entry provisions credit.
 
+## Reviewed LinkedIn lead gen forms
+
+Use `linkedin_rest_lead_forms_post` with the selected `account_id` and a native
+payload (no `restli_method`, or `CREATE`). One review creates one sponsored form,
+in DRAFT, owned by the selected ad account:
+
+```json
+{"owner": {"sponsoredAccount": "urn:li:sponsoredAccount:<id>"}, "name": "Demo requests",
+ "state": "DRAFT", "creationLocale": {"country": "US", "language": "en"},
+ "hiddenFields": [{"name": "source", "value": "amcp"}],
+ "content": {"headline": {"localized": {"en_US": "Book a demo"}},
+  "questions": [{"name": "email", "question": {"localized": {"en_US": "Email"}},
+   "predefinedField": "EMAIL", "questionDetails": {"textQuestionDetails": {}}}],
+  "legalInfo": {"privacyPolicyUrl": "https://example.com/privacy", "consents": []}}}
+```
+
+- `owner` must be `{sponsoredAccount}` for the selected account (organization forms
+  are not qualified) and `state` must be `DRAFT`, as LinkedIn documents for creation.
+- `creationLocale` needs an uppercase country, a lowercase language and an optional
+  variant. Every text field (headline, description, question, textPrompt, option
+  text, consent, legal disclaimer, post-submission message) is `{localized: {...}}`
+  and must include the creation locale key, for example `en_US`.
+- `hiddenFields` is required: 0–20 fields with unique names and nonempty values.
+- At least one question. Names are unique; `predefinedField` comes from the
+  documented list (FIRST_NAME, EMAIL, WORK_EMAIL, COMPANY_NAME, JOB_TITLE and so on),
+  each at most once. `questionDetails` is exactly one of `textQuestionDetails`
+  (`maxResponseLength` 1–300, default 300) or `multipleChoiceQuestionDetails`
+  (2–15 options with unique integer `id`s; `defaultSelectedOption` is one of them).
+  Question, option and consent labels are each unique within the form.
+- `legalInfo` is required: optional http(s) `privacyPolicyUrl`, optional
+  `legalDisclaimer` (1–2,000 characters) and `consents` with unique integer `id`s and
+  an explicit `checkRequired`.
+- Optional `postSubmissionInfo`: a message and a `callToAction` of
+  VISIT_COMPANY_WEBSITE, LEARN_MORE, VIEW_NOW or TRY_NOW, with an optional
+  `callToActionTarget.landingPageUrl`.
+
+`INVALID_LINKEDIN_LEAD_FORM` refuses anything else before any request, including
+read-only fields (`id`, `versionId`, `reviewInfo`), `questionSubmissionCriteria`
+(LinkedIn does not show its wire form), `DOWNLOAD_NoW` and batch creation.
+Creation needs `rw_ads` (`INSUFFICIENT_SCOPE` otherwise). The selected ad account is
+read before review and again before execution. A form spends nothing and does
+not serve, so no spending confirmation is needed, even when question text
+mentions budgets. The impact lists the questions, predefined fields, required
+consents, privacy policy URL and hidden field names.
+
+LinkedIn answers `201 Created` with the form ID in `x-restli-id` and no body.
+Verification reads `/rest/leadForms/{id}` (64-bit IDs are kept exact), requires the
+selected account as owner, and compares name, DRAFT state, locale, hidden fields
+and content after documented defaults (responseEditable and responseRequired true,
+maxResponseLength 300, checkRequired false, no consents). Server question and legal
+IDs, versions, timestamps and LinkedIn's content review status are not compared. A
+drifted read-back is inconclusive. A lost or ambiguous receipt keeps the original
+claim: list the account's forms to find the form and never resubmit the create.
+
+Reads: `linkedin_rest_lead_forms_get` with `query: {q: "owner", owner:
+{sponsoredAccount: "urn:li:sponsoredAccount:<id>"}}` (optional `count` and `start`)
+lists the selected account's forms and establishes ownership of the forms it
+returns. `linkedin_rest_lead_forms_lead_form_id_get` reads an owned form: one listed
+or created in the last five minutes. Other owners, other finders and batch `ids`
+reads need an exact administrator resource binding. Publishing, edits, archiving,
+lead responses (`leadFormResponses`) and lead notifications stay unqualified; lead
+responses are personal data.
+
+Sources: [Lead Syncing](https://learn.microsoft.com/en-us/linkedin/marketing/lead-sync/leadsync?view=li-lms-2026-09)
+and [Lead Syncing Schema](https://learn.microsoft.com/en-us/linkedin/marketing/lead-sync/lead-sync-schema?view=li-lms-2026-09),
+li-lms-2026-09, checked 2026-09-26. Live acceptance needs the updated deployment and
+an ad account whose login has `rw_ads`.
+
 ## X targeting is a separate resource, not a line-item field
 
 X has **no** `targeting` field on a line item or any other entity. Targeting lives in its own

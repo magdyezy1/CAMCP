@@ -1,0 +1,107 @@
+{
+  "format_version": 1,
+  "date": "2026-09-26",
+  "branch": "Codex-branch",
+  "base_revision": "e45400e7be94af6f448153c57a14829fe9ac0b75",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/linkedin-lead-forms-20260926-a",
+    "files": 708,
+    "source_tree_hash": "43f22151766c6f56827f3fd8b1c82d8bbc93f5908413369af41d90683a93cd6a",
+    "index_code_test_guidance_files_compared": 617,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/linkedin-lead-forms-20260926-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/linkedin-lead-forms-20260926/install.log",
+      "sha256": "bde7d279256b0d5606fe571c148e3c4bfb648e5d1a422c0085d458c785271463"
+    },
+    {
+      "path": ".runtime/linkedin-lead-forms-20260926/check.log",
+      "sha256": "a225f3b69f488e0f1c897b8ed9bc3f01f75660d2a33502491578c34564c9419c",
+      "started": "2026-09-26T12:15:38Z",
+      "finished": "2026-09-26T12:24:21Z",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2142,
+          "pass": 2142,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/linkedin-lead-forms-20260926/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/linkedin-lead-forms-20260926/red-check.log",
+      "sha256": "57da5fe7d70d85794f26814ad75bd4e5534003a4e093b6152cabcd25cc7746ce",
+      "meaning": "tests/linkedin-lead-forms.test.mjs against a build of e45400e: expected red, 0/8 pass (WRITE_CONTRACT_UNAVAILABLE for creation; lead form reads blocked by account scope)"
+    },
+    {
+      "path": ".runtime/linkedin-lead-forms-20260926/targeted.log",
+      "sha256": "52ec0f410fad3223f012e1b78aba6c9df22994fc1fa0c7a7ad66e3ac751f616f",
+      "meaning": "85 related suites in the worktree before assembly: 1236/1236 pass"
+    }
+  ],
+  "development_failures": [
+    "One new test failed on its first run because it read the native read result at the wrong level (data.id instead of data.data.id); the test was corrected, not the code.",
+    "Design review found that LinkedIn documents 19-digit lead form IDs, beyond JavaScript safe integers, so responses from /rest/leadForms now keep such integers as exact source text; and that the spending word heuristic would ask for spending confirmation when question text mentions budgets, so lead form creation is excluded from it.",
+    "A first draft placed the account state read inside the TikTok branch of snapshotPlans, where LinkedIn never reaches it; this was caught while reviewing the edit, before any test run, and moved."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2142,
+    "main_pass": 2142,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "LinkedIn documents the created form ID in x-restli-id without an example value, so both a bare numeric ID and a urn:li:leadGenForm URN are accepted.",
+    "state DRAFT is required because LinkedIn documents it in the creation example although the schema marks state read-only; a different read-back state is reported as inconclusive.",
+    "Server-side normalization of URLs or text, if any, is reported as inconclusive rather than verified.",
+    "Limits the docs do not state (name, headline and question lengths, number of questions) are left to LinkedIn; review bounds the request at 64 KiB.",
+    "Lead gen creatives are not yet required to reference owned forms; this is a P2 follow-up in the handoff.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

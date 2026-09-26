@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## BT — LinkedIn lead gen forms (2026-09-26)
+
+`linkedin_rest_lead_forms_post` is a reviewed family for sponsored lead gen forms, created
+in DRAFT for the selected ad account with `rw_ads`. The request is checked against the
+li-lms-2026-09 schema, the account is read before review and execution, the owner finder
+and receipt establish ownership, and read-back compares the sent form with 64-bit IDs kept
+exact. See [implementation](LINKEDIN-LEAD-FORMS-2026-09-26.md),
+[qualification](LINKEDIN-LEAD-FORMS-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 961 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## BS — TikTok ad group budgets (2026-09-26)
 
 `tiktok_adgroup_budget_update` is a reviewed family for manual ad groups. Lifetime budgets
@@ -19,7 +32,7 @@ spending policy, and read-back uses `budget` or `scheduled_budget`. See
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
 Remaining rows: 962 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Pushed to CAMCP as `e45400e`; its exact-commit CI result and live acceptance are pending.
 
 ## BR — Snapchat creative reference ownership (2026-09-26)
 

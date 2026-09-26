@@ -5,6 +5,7 @@ import {metaCopyKind,metaCopyImpact} from './meta-copies.js';
 import {tiktokLookalikeKind,tiktokLookalikeImpact} from './tiktok-lookalikes.js';
 import {metaLookalikeKind,metaLookalikeImpact} from './meta-lookalikes.js';
 import {tiktokBudgetKind,tiktokBudgetImpact} from './tiktok-budgets.js';
+import {linkedinLeadFormKind,linkedinLeadFormImpact} from './linkedin-lead-forms.js';
 import {googlePreviewKind,googlePreviewImpact} from './google-preview-writes.js';
 import {criteoCampaignKind,criteoCampaignImpact} from './criteo-campaign-writes.js';
 import {metaReportKind,metaReportImpact} from './meta-insights-jobs.js';
@@ -70,6 +71,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  if(xDraftKind(plan))return xDraftImpact(plan);
  if(linkedinConversionKind(plan))return linkedinConversionImpact;
  if(linkedinRuleKind(plan))return linkedinRuleImpact;
+ if(linkedinLeadFormKind(plan))return linkedinLeadFormImpact(plan,state);
  if(googleBidKind(plan))return googleBidImpactFor(plan);
  if(googleSegmentKind(plan))return {...googleSegmentImpact,may_affect_serving:googleConfigurationServing(plan)};
  if(googleBiddingEventKind(plan))return googleBiddingEventImpact;

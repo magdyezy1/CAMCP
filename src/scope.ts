@@ -25,6 +25,7 @@ import {assertMetaLabelScope,metaLabelIdentities} from './meta-label-writes.js';
 import {authorizeLinkedInConversion} from './linkedin-conversion-links.js';
 import {authorizeLinkedInTemplate} from './linkedin-audience-templates.js';
 import {authorizeLinkedInRule} from './linkedin-conversion-rules.js';
+import {authorizeLinkedInLeadForm,observeLinkedInLeadForms} from './linkedin-lead-forms.js';
 import {metaAdLibraryRead} from './meta-ad-library.js';
 import {assertGoogleBidScope} from './google-bid-modifiers.js';
 import {assertGoogleAdsScope} from './google-contracts.js';
@@ -101,6 +102,7 @@ export class ScopeGuard {
   if(authorizeLinkedInTemplate(plan,connection,id))return id;
   if(authorizeLinkedInConversion(plan,connection,id))return id;
   if(authorizeLinkedInRule(plan,connection,id))return id;
+  if(authorizeLinkedInLeadForm(plan,connection,this.store,id))return id;
   if(authorizeCriteoInternalRead(plan,connection,id))return id;
   if(plan.gateway==='google_ads_native_action'&&plan.readOnly&&plan.method==='POST'&&/^\/v23:[A-Za-z]+$/.test(decoded)&&googleGlobalReadMethods.has(decoded.slice(5)))return id;
   if(plan.gateway==='meta_native_action'&&plan.action==='AMCP_META_REPORT_READ')assertMetaReportScope(connection);
@@ -181,6 +183,7 @@ export class ScopeGuard {
   if(!plan.readOnly)return;
   const id=this.authorize(plan,connection),d=data as JsonObject;
   observeCriteoReportTargets(plan,connection,this.store,data);
+  observeLinkedInLeadForms(plan,connection,this.store,id,data);
   if(plan.gateway===microsoftGateway&&plan.action==='SubmitGenerateReport'&&typeof d?.ReportRequestId==='string'){
    this.store.rememberResource(connection,id,'report/'+d.ReportRequestId);
    this.store.db.prepare("DELETE FROM documents WHERE tenant_id=? AND kind='microsoft_report' AND json_extract(data,'$.expires_at')<=?").run(connection.tenantId,Date.now());

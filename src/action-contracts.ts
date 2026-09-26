@@ -47,7 +47,7 @@ const familyFiles:Record<string,[string,string[]]>={
  google_conversion_goals:['src/google-conversion-goals.ts',['tests/google-conversion-goals.test.ts']],
  google_conversion_actions:['src/google-conversion-actions.ts',['tests/google-conversion-actions.test.ts']],
  x_drafts:['src/x-draft-writes.ts',['tests/x-draft-writes.test.ts']],
- linkedin_conversion_rules:['src/linkedin-conversion-rules.ts',['tests/linkedin-conversion-rules.test.ts']],
+ linkedin_conversion_rules:['src/linkedin-conversion-rules.ts',['tests/linkedin-conversion-rules.test.ts']],linkedin_lead_forms:['src/linkedin-lead-forms.ts',['tests/linkedin-lead-forms.test.mjs']],
  linkedin_audience_templates:['src/linkedin-audience-templates.ts',['tests/linkedin-audience-templates.test.mjs']],
  linkedin_conversion_links:['src/linkedin-conversion-links.ts',['tests/linkedin-conversion-links.test.ts']],
  google_bid_modifiers:['src/google-bid-modifiers.ts / src/google-campaign-bid-modifiers.ts',['tests/google-bid-modifiers.test.ts','tests/google-campaign-bid-modifiers.test.ts']],

@@ -201,7 +201,22 @@ stay usable, so existing creative updates are unaffected. Tests:
 - Each amount is compared with its own ad group's current budget under the spending policy.
 - Read-back uses `budget` or `scheduled_budget`.
 
-Tests: `tests/tiktok-budgets.test.mjs` (8, red on `bbd3324` / green after).
+Tests: `tests/tiktok-budgets.test.mjs` (8, red on `bbd3324` / green after). Pushed as `e45400e`.
+
+## Finished batch — LinkedIn lead gen forms
+
+[Implementation](LINKEDIN-LEAD-FORMS-2026-09-26.md) and
+[qualification](LINKEDIN-LEAD-FORMS-VERIFICATION-2026-09-26.json).
+
+`linkedin_rest_lead_forms_post` is the new reviewed family `linkedin_lead_forms`:
+
+- One sponsored form per review, in DRAFT, owned by the selected ad account; creation needs `rw_ads`.
+- The request is checked against the li-lms-2026-09 schema before any request; organization forms, work-email criteria and batch creation are refused.
+- The owner finder for the selected account and the creation receipt establish ownership, so owned forms can be read.
+- Read-back compares the sent form after documented defaults; 64-bit form IDs are kept exact.
+- Forms never spend, so question text mentioning budgets no longer asks for spending confirmation.
+
+Tests: `tests/linkedin-lead-forms.test.mjs` (8, red on `e45400e` / green after).
 
 ## CI and live evidence
 
@@ -215,19 +230,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 475 in reviewed write families. **962 remaining rows** are in
+3241 captured actions; 476 in reviewed write families. **961 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 847 |
+| blocked_write | 846 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 215, Meta 131, LinkedIn 119, Google Ads 107,
+Blocked writes by platform: TikTok 215, Meta 131, LinkedIn 118, Google Ads 107,
 Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12. The ticket list in the
 2026-09-25 handoff remains the backlog, plus these Snapchat follow-ups:
 
@@ -244,4 +259,7 @@ Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12. The ticket list in 
 | P2 | TikTok pixel creation | An owner policy for the API's data-sharing defaults first: manual advanced matching of emails and phone numbers, first-party cookies and expanded data sharing are on unless disabled. This is customer-data processing, kept separate by instruction |
 | P2 | Meta budget scheduling (high demand periods) | Exact `budget_value` units for `ABSOLUTE` and `MULTIPLIER` and the `CAN_USE_BUDGET_SCHEDULING_API` capability before spending-policy checks can be built |
 | P3 | TikTok asynchronous campaign copy | `/campaign/copy/task/create/` is allowlist-only; needs an allowlisted advertiser, a paused-copy guarantee for every ad group and a task-result verification design |
+| P2 | LinkedIn lead gen creatives must reference owned forms | The documented creative field and URN type that point a lead gen creative at a form, then the same owned-reference check as Snapchat creatives |
+| P2 | LinkedIn lead form edits, publishing and archiving | A read of the creatives and campaigns that use a form, to tell pre-published from published forms and limit edits to the documented fields, plus the documented warning about CRM integrations |
+| P3 | LinkedIn work-email submission criteria | The wire form of the `questionSubmissionCriteria` union, which the schema does not show |
 | P3 | X remaining writes (promoted accounts, cards, tracking tags) | The official X Ads API reference returned HTTP 402 from this environment; needs an accessible, versioned source first |

@@ -6,6 +6,7 @@ import {metaCopyKind,metaCopyVerification} from './meta-copies.js';
 import {tiktokLookalikeKind,tiktokLookalikeVerification,tiktokAudienceGetPath} from './tiktok-lookalikes.js';
 import {metaLookalikeKind,metaLookalikeVerification,metaLookalikeRead,metaLookalikeProjection} from './meta-lookalikes.js';
 import {tiktokBudgetKind,tiktokBudgetVerification} from './tiktok-budgets.js';
+import {linkedinLeadFormKind,linkedinLeadFormVerification,isLinkedInLeadFormRead,linkedinLeadFormProjection} from './linkedin-lead-forms.js';
 import {googlePreviewKind,verifyGooglePreview} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaignScopes,verifyCriteoCampaign} from './criteo-campaign-writes.js';
 import {metaReportKind,assertMetaReportScope,verifyMetaReport,metaReportReadResult,observeMetaReportRead} from './meta-insights-jobs.js';
@@ -71,6 +72,7 @@ function differing(expected:any,actual:any,path='',out:string[]=[]):string[]{
 type Acknowledged=Record<string,{sent:unknown;echoed:unknown}>;
 function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Registry,before:unknown[]=[]):{read:CompiledRequest;expected:JsonObject;id:string;acknowledged?:Acknowledged;unobservable?:string[]}[]{
  if(linkedinRuleKind(plan))return linkedinRuleVerification(plan,result,before);
+ if(linkedinLeadFormKind(plan))return linkedinLeadFormVerification(plan,result);
  if(linkedinConversionKind(plan))return linkedinConversionVerification(plan);
  if(googleBidKind(plan))return googleBidVerification(plan,result);
  if(criteoTargetingKind(plan))return criteoTargetingVerification(plan,before);
@@ -127,6 +129,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
 }
 function entity(plan:CompiledRequest,data:JsonObject):JsonObject{
  if(isLinkedInConversionRead(plan)||isLinkedInRuleRead(plan))return data;
+ if(isLinkedInLeadFormRead(plan))return linkedinLeadFormProjection(data);
  if(isGoogleBidRead(plan))return data;
  if(plan.gtmWorkspaceState)return gtmWorkspaceObserved(plan,data);
  if(data.amcp_absent===true)return data;

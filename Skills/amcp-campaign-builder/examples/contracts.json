@@ -595,6 +595,125 @@
     {
       "gateway": "linkedin_native_action",
       "arguments": {
+        "action": "linkedin_rest_lead_forms_post",
+        "account_id": "123",
+        "payload": {
+          "owner": {
+            "sponsoredAccount": "urn:li:sponsoredAccount:123"
+          },
+          "name": "Synthetic demo request form",
+          "state": "DRAFT",
+          "creationLocale": {
+            "country": "US",
+            "language": "en"
+          },
+          "hiddenFields": [
+            {
+              "name": "source",
+              "value": "amcp"
+            }
+          ],
+          "content": {
+            "headline": {
+              "localized": {
+                "en_US": "Book a demo"
+              }
+            },
+            "description": {
+              "localized": {
+                "en_US": "Tell us how to reach you."
+              }
+            },
+            "questions": [
+              {
+                "name": "firstName",
+                "question": {
+                  "localized": {
+                    "en_US": "First name"
+                  }
+                },
+                "predefinedField": "FIRST_NAME",
+                "questionDetails": {
+                  "textQuestionDetails": {}
+                }
+              },
+              {
+                "name": "workEmail",
+                "question": {
+                  "localized": {
+                    "en_US": "Work email"
+                  }
+                },
+                "predefinedField": "WORK_EMAIL",
+                "questionDetails": {
+                  "textQuestionDetails": {}
+                }
+              },
+              {
+                "name": "teamSize",
+                "question": {
+                  "localized": {
+                    "en_US": "Team size"
+                  }
+                },
+                "questionDetails": {
+                  "multipleChoiceQuestionDetails": {
+                    "options": [
+                      {
+                        "id": 1,
+                        "text": {
+                          "localized": {
+                            "en_US": "1-10"
+                          }
+                        }
+                      },
+                      {
+                        "id": 2,
+                        "text": {
+                          "localized": {
+                            "en_US": "11 or more"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "legalInfo": {
+              "privacyPolicyUrl": "https://example.com/privacy",
+              "consents": [
+                {
+                  "id": 1,
+                  "consent": {
+                    "localized": {
+                      "en_US": "Contact me about this request"
+                    }
+                  },
+                  "checkRequired": true
+                }
+              ]
+            },
+            "postSubmissionInfo": {
+              "message": {
+                "localized": {
+                  "en_US": "Thanks, we will be in touch."
+                }
+              },
+              "callToAction": {
+                "callToActionLabel": "VISIT_COMPANY_WEBSITE",
+                "callToActionTarget": {
+                  "landingPageUrl": "https://example.com"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "gateway": "linkedin_native_action",
+      "arguments": {
         "action": "linkedin_rest_campaign_conversions_campaign_conversion_id_put",
         "account_id": "123",
         "path_params": {

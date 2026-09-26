@@ -162,7 +162,9 @@ export class NativeTransport {
     let bodyIntegrity:TransportResult['bodyIntegrity'];
     const tiktokCsv=plan.gateway==='tiktok_native_action'&&plan.tiktokReportRead?.kind==='download'&&plan.method==='GET'&&plan.path==='/v1.3/report/task/download/';
     const reportOutput=plan.gateway==='criteo_native_action'&&plan.criteoReportRead?.kind==='output'&&plan.method==='GET'&&/^\/2026-01\/retail-media\/reports\/[a-f0-9-]+\/output$/i.test(plan.path);
-    const data=await this.readBody(response,adjustRead&&response.status===204||plan.method==='HEAD'||!plan.readOnly&&(documentedEmpty||[204,205].includes(response.status)||plan.gateway==='linkedin_native_action'&&response.status===201&&response.headers.has('x-restli-id')),reportOutput||adjustRead?bytes=>{bodyIntegrity={bytes:bytes.length,md5:createHash('md5').update(bytes).digest('hex')};}:undefined,tiktokCsv,adjustRead);
+    // LinkedIn lead form IDs are 64-bit longs; keep unsafe integers as their exact source text.
+    const int64=plan.gateway==='linkedin_native_action'&&/^\/rest\/leadForms(?:\/|$)/.test(plan.path);
+    const data=await this.readBody(response,adjustRead&&response.status===204||plan.method==='HEAD'||!plan.readOnly&&(documentedEmpty||[204,205].includes(response.status)||plan.gateway==='linkedin_native_action'&&response.status===201&&response.headers.has('x-restli-id')),reportOutput||adjustRead?bytes=>{bodyIntegrity={bytes:bytes.length,md5:createHash('md5').update(bytes).digest('hex')};}:undefined,tiktokCsv,adjustRead,int64);
     if(expired())throw deadlineFailure();
     const errorDetails=()=>({upstream:redact(data),http_status:response.status,...(retryDelay===undefined?{}:{retry_after_ms:retryDelay}),request_id:response.headers.get('request-id')??response.headers.get('x-request-id')??response.headers.get('x-fb-trace-id'),...(response.status===403?{scope_denial:providerHttpErrorCode(403,data,response.headers.get('www-authenticate'))==='INSUFFICIENT_SCOPE'}:{}),...(plan.gateway==='google_ads_native_action'?{login_customer_id:headers['login-customer-id']??null}:{})});
     if(!response.ok){const code=providerHttpErrorCode(response.status,data,response.headers.get('www-authenticate'));throw new MirrorError(code,'Platform returned HTTP '+response.status,errorDetails(),response.status,response.status===429||response.status>=500);}
@@ -228,7 +230,7 @@ export class NativeTransport {
   await response.body?.cancel();if(!response.ok)throw new MirrorError('MEDIA_UPLOAD_FAILED','LinkedIn binary upload returned HTTP '+response.status,{},502);
   return response.headers.get('etag')?.replace(/^"|"$/g,'');
  }
- private async readBody(response:Response,allowEmpty:boolean,integrity?:(bytes:Buffer)=>void,csv=false,losslessNumbers=false):Promise<unknown>{
+ private async readBody(response:Response,allowEmpty:boolean,integrity?:(bytes:Buffer)=>void,csv=false,losslessNumbers=false,int64=false):Promise<unknown>{
   const reader=response.body?.getReader();let size=0;const chunks:Uint8Array[]=[];
   if(reader)try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>this.maximumBytes){await reader.cancel();throw new MirrorError('RESPONSE_TOO_LARGE','Platform response exceeds the configured size limit. Use smaller pages.');}chunks.push(value);}}finally{reader.releaseLock();}
   const bytes=Buffer.concat(chunks);let text:string;
@@ -239,7 +241,7 @@ export class NativeTransport {
   if(!text.trim()&&(!response.ok||allowEmpty))return null;
   // Node 24's source-aware reviver preserves native int64 values even in compact
   // array rows. The checksum above covers the original bytes, never reserialized JSON.
-  let data:unknown;try{data=integrity||losslessNumbers?JSON.parse(text,((_key:string,value:unknown,context?:{source:string})=>typeof value==='number'&&(losslessNumbers||Number.isInteger(value)&&!Number.isSafeInteger(value))?context?.source??String(value):value) as any):JSON.parse(text);}catch{
+  let data:unknown;try{data=integrity||losslessNumbers||int64?JSON.parse(text,((_key:string,value:unknown,context?:{source:string})=>typeof value==='number'&&(losslessNumbers||Number.isInteger(value)&&!Number.isSafeInteger(value))?context?.source??String(value):value) as any):JSON.parse(text);}catch{
    if(!response.ok)return {content_type:response.headers.get('content-type'),body:text};
    throw new MirrorError('UPSTREAM_RESPONSE_INVALID','Platform returned an empty or malformed JSON response.',{status:response.status},502);
   }

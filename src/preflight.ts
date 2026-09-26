@@ -12,6 +12,7 @@ import {googleAccessKind} from './google-user-access.js';
 import {keywordPlanKind} from './google-keyword-plan-writes.js';
 import {linkedinConversionKind} from './linkedin-conversion-links.js';
 import {linkedinRuleServing} from './linkedin-conversion-rules.js';
+import {linkedinLeadFormKind} from './linkedin-lead-forms.js';
 import {criteoTargetingKind} from './criteo-targeting-writes.js';
 import type {Actor,CompiledRequest,JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
@@ -55,6 +56,6 @@ export function authorizeExecution(actor:Actor,plan:CompiledRequest,input:JsonOb
  if(googlePortfolioServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Portfolio target and bid-limit changes affect all associated campaigns. Review campaign membership, budgets and native units, then provide spend_change_confirmed=true.');
  const statusPatch=Array.isArray(plan.body)&&plan.body.some(op=>op&&/\/(status|intendedStatus|intended_status|entity_status|operation_status)$/.test(String(op.path))&&['ACTIVE','ENABLE','ENABLED'].includes(op.value));
  // Segment effects are decided by the contract above. Native ENABLED denotes
- // an available definition; a keyword containing "budget" is not a budget edit.
- if(!xReportKind(plan)&&!tiktokReportKind(plan)&&!criteoReportKind(plan)&&!googlePortfolioKind(plan)&&!googleAccessKind(plan)&&!googleDismissalKind(plan)&&!businessAccessKind(plan)&&!businessNotificationKind(plan)&&!placeActionKind(plan)&&!metaReportKind(plan)&&!keywordPlanKind(plan)&&!googleSegmentKind(plan)&&!googleConversionGoalKind(plan)&&!googleConversionActionKind(plan)&&!xDraftKind(plan)&&(statusPatch||/budget|bid|spend|"(?:status|intendedStatus|intended_status|entity_status|entityStatus|operation_status)"\s*:\s*"(?:ACTIVE|ENABLE|ENABLED|ENTITY_STATUS_ACTIVE)"/i.test(JSON.stringify({query:plan.query,body:plan.body})))&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Spend-affecting writes need spend_change_confirmed=true.');
+ // an available definition; a keyword containing "budget" is not a budget edit, and neither is a lead form question.
+ if(!xReportKind(plan)&&!tiktokReportKind(plan)&&!criteoReportKind(plan)&&!googlePortfolioKind(plan)&&!googleAccessKind(plan)&&!googleDismissalKind(plan)&&!businessAccessKind(plan)&&!businessNotificationKind(plan)&&!placeActionKind(plan)&&!metaReportKind(plan)&&!keywordPlanKind(plan)&&!googleSegmentKind(plan)&&!googleConversionGoalKind(plan)&&!googleConversionActionKind(plan)&&!xDraftKind(plan)&&!linkedinLeadFormKind(plan)&&(statusPatch||/budget|bid|spend|"(?:status|intendedStatus|intended_status|entity_status|entityStatus|operation_status)"\s*:\s*"(?:ACTIVE|ENABLE|ENABLED|ENTITY_STATUS_ACTIVE)"/i.test(JSON.stringify({query:plan.query,body:plan.body})))&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Spend-affecting writes need spend_change_confirmed=true.');
 }

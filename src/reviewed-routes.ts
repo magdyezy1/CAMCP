@@ -14,6 +14,7 @@ import {redditCreativeKind} from './reddit-creative-writes.js';
 import {linkedinConversionKind} from './linkedin-conversion-links.js';
 import {linkedinTemplateKind} from './linkedin-audience-templates.js';
 import {linkedinRuleKind} from './linkedin-conversion-rules.js';
+import {linkedinLeadFormKind} from './linkedin-lead-forms.js';
 import {criteoTargetingKind} from './criteo-targeting-writes.js';
 import {metaLabelKind} from './meta-label-writes.js';
 import {googleBidKind} from './google-bid-modifiers.js';
@@ -56,6 +57,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(linkedinTemplateKind(p))return 'linkedin_audience_templates';
  if(linkedinConversionKind(p))return 'linkedin_conversion_links';
  if(linkedinRuleKind(p))return 'linkedin_conversion_rules';
+ if(linkedinLeadFormKind(p))return 'linkedin_lead_forms';
  if(metaReportKind(p))return 'meta_insights_jobs';
  if(criteoCampaignKind(p))return 'criteo_campaigns';
  if(tiktokReportKind(p))return 'tiktok_report_jobs';
