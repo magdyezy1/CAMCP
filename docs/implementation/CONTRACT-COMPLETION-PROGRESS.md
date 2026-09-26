@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## BO — Meta lookalike audiences (2026-09-26)
+
+The custom audience create route becomes the reviewed family `meta_lookalikes`, for
+`LOOKALIKE` only. Account audience lists own only rows naming the selected account; the
+seed is read twice and refused if flagged. Verification compares the seed and
+type/ratio/country; `location_spec` is listed as unobservable. See
+[implementation](META-LOOKALIKES-2026-09-26.md),
+[qualification](META-LOOKALIKES-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 965 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## BN — TikTok lookalike audiences (2026-09-26)
 
 `tiktok_dmp_custom_audience_lookalike_create` is a reviewed family. It accepts documented
@@ -19,8 +32,8 @@ Snapchat segment impact's always-null audience size is removed. See
 [qualification](TIKTOK-LOOKALIKES-VERIFICATION-2026-09-26.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 967 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Remaining rows then: 967. Pushed to CAMCP as `978b061`; its exact-commit CI result and live
+acceptance are pending.
 
 ## BM — Meta native copies (2026-09-26)
 

@@ -131,6 +131,20 @@ Deep campaign, asynchronous and override copies stay unqualified. Tests:
 
 Also corrects the Snapchat segment impact, which listed an always-null audience size.
 Tests: `tests/tiktok-lookalikes.test.mjs` (8, red on `6521d0d` / green after).
+Pushed as `978b061`.
+
+## Finished batch — Meta lookalike audiences
+
+[Implementation](META-LOOKALIKES-2026-09-26.md) and
+[qualification](META-LOOKALIKES-VERIFICATION-2026-09-26.json).
+
+The custom audience create route becomes the reviewed family `meta_lookalikes`:
+
+- `LOOKALIKE` only.
+- The seed must be owned: account audience lists own only rows naming the account. It is read twice and refused if flagged.
+- Verification compares the seed, type/ratio/country and name; `location_spec` is listed as unobservable.
+
+Tests: `tests/meta-lookalikes.test.mjs` (8, red on `978b061` / green after).
 
 ## CI and live evidence
 
@@ -144,19 +158,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 470 in reviewed write families. **967 remaining rows** are in
+3241 captured actions; 472 in reviewed write families. **965 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 852 |
+| blocked_write | 850 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 217, Meta 133, LinkedIn 119, Google Ads 108,
+Blocked writes by platform: TikTok 217, Meta 131, LinkedIn 119, Google Ads 108,
 Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12. The ticket list in the
 2026-09-25 handoff remains the backlog, plus these Snapchat follow-ups:
 

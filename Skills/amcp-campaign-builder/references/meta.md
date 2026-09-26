@@ -303,3 +303,28 @@ structures instead of re-creating each object.
   had is `META_COPY_INCOMPLETE`.
 - Copies stay paused. Activating them is a separate reviewed status change with its own spending
   checks.
+
+## Lookalike audiences
+
+- `meta_custom_audience_create` (alias `meta_ad_account_id_customaudiences_create`) creates only
+  `subtype: "LOOKALIKE"` audiences. Customer-file, website, engagement and conversion lookalikes
+  fail with `INVALID_META_LOOKALIKE`.
+- Required: `name` and `origin_audience_id` (a custom audience of at least 100 people). Also a
+  `lookalike_spec` with exactly one of:
+  - `type` (`similarity` or `reach`), or
+  - `ratio` (0.01–0.20 in 0.01 steps, optionally `starting_ratio` below it);
+
+  and exactly one of `country` (two-letter code) or `location_spec.geo_locations.countries`.
+  Country groups and other spec keys are refused.
+- List the seed first with `meta_ad_account_id_customaudiences_get` and `fields` including
+  `account_id`. Only rows naming the selected account become owned; audiences shared from another
+  account cannot seed a lookalike.
+- The review reads the seed before review and before execution. It must be in the selected account
+  (`STATE_TARGET_MISMATCH`) and not flagged by Meta (operation status 471). Meta enforces the
+  100-person minimum.
+- Verification reads the new audience back and compares its name, `LOOKALIKE` subtype, seed
+  (`lookalike_spec.origin`) and the sent `type`, `ratio`, `starting_ratio` or `country`. Meta
+  does not echo `location_spec` or `allow_international_seeds`, so those are listed under
+  `unobservable_fields`.
+- Meta takes 1 to 6 hours to populate a lookalike. Add it to an ad set's
+  `targeting.custom_audiences` to use it.

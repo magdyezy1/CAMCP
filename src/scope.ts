@@ -191,8 +191,10 @@ export class ScopeGuard {
   if(plan.gateway==='criteo_native_action'&&new RegExp('^/2026-01/retail-media/accounts/'+id+'/line-items$').test(plan.path)&&Array.isArray(d?.data)&&!d.error&&(!d.errors||Array.isArray(d.errors)&&!d.errors.length)){
    for(const row of d.data)if(typeof row?.id==='string'&&/^[1-9][0-9]*$/.test(row.id)&&row.attributes?.type==='preferred'&&typeof row.attributes?.campaignId==='string'&&/^[1-9][0-9]*$/.test(row.attributes.campaignId))this.store.rememberResource(connection,id,'preferred-line-items/'+row.id);
   }
-  if(plan.gateway==='meta_native_action'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads|adcreatives)$/.test(plan.path)&&Array.isArray(d?.data)){
-   for(const entity of d.data)if(typeof entity?.id==='string'&&/^\d+$/.test(entity.id))this.store.rememberResource(connection,id,entity.id);
+  if(plan.gateway==='meta_native_action'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads|adcreatives|customaudiences)$/.test(plan.path)&&Array.isArray(d?.data)){
+   // Account audience lists also show audiences shared from other accounts; only rows naming this account are owned.
+   const audiences=plan.path.endsWith('/customaudiences');
+   for(const entity of d.data)if(typeof entity?.id==='string'&&/^\d+$/.test(entity.id)&&(!audiences||entity.account_id!==undefined&&normalizeAccount(plan.gateway,entity.account_id)===id))this.store.rememberResource(connection,id,entity.id);
   }
   if(plan.gateway==='meta_native_action'&&/^\/v25\.0\/act_\d+\/adlabels$/.test(plan.path)){
    const labels=metaLabelIdentities(d,id);for(const label of labels)this.store.rememberResource(connection,id,label);
@@ -230,7 +232,7 @@ export class ScopeGuard {
   }
   // Other qualified gateways carry the account in every child path/body. These two
   // use global IDs and therefore need this extra, connection-bound observation.
-  if(plan.gateway==='meta_native_action'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads|adcreatives)$/.test(plan.path)&&typeof d?.id==='string'&&/^\d+$/.test(d.id)){
+  if(plan.gateway==='meta_native_action'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads|adcreatives|customaudiences)$/.test(plan.path)&&typeof d?.id==='string'&&/^\d+$/.test(d.id)){
    if(d.account_id!==undefined&&normalizeAccount(plan.gateway,d.account_id)!==id)return;
    this.store.rememberResource(connection,id,d.id);
   }

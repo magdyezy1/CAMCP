@@ -4,6 +4,7 @@ import {assertSnapSegments,assertSnapSegmentUpdates,snapSegmentDependencyPaths} 
 import {tiktokIdentityKind,assertTiktokIdentity,tiktokIdentityImage,tiktokImageInfoPath} from './tiktok-identities.js';
 import {metaCopyKind,assertMetaCopy,metaCopySnapshots,metaCopyChildrenRead,metaCopyOutcome} from './meta-copies.js';
 import {tiktokLookalikeKind,assertTiktokLookalike,tiktokLookalikeSeed,tiktokAudienceGetPath} from './tiktok-lookalikes.js';
+import {metaLookalikeKind,assertMetaLookalike,metaLookalikeSeed,metaSeedFields} from './meta-lookalikes.js';
 import {googlePreviewKind,assertGooglePreview,googlePreviewSnapshots,readGooglePreviewState,googlePreviewOutcome,googlePreviewDelivery,googlePreviewSafeOutcome} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaign,assertCriteoCampaignScopes,criteoCampaignSnapshots,readCriteoCampaignState,criteoCampaignOutcome} from './criteo-campaign-writes.js';
 import {metaReportKind,assertMetaReport,assertMetaReportScope,metaReportSnapshots,readMetaReportState,metaReportOutcome} from './meta-insights-jobs.js';
@@ -284,6 +285,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(tiktokIdentityKind(plan))assertTiktokIdentity(plan,body);
  if(metaCopyKind(plan))assertMetaCopy(plan,body);
  if(tiktokLookalikeKind(plan))assertTiktokLookalike(plan,body);
+ if(metaLookalikeKind(plan))assertMetaLookalike(body);
  if(plan.gateway==='tiktok_native_action'&&plan.path==='/v1.3/ad/create/'){
   if(!Array.isArray(body.creatives)||body.creatives.length!==1||!body.creatives[0]||Array.isArray(body.creatives[0])||typeof body.creatives[0]!=='object')fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed TikTok ad creation requires exactly one native creatives record per review. Put the ad fields and operation_status inside that record.');
   if(Object.hasOwn(body,'operation_status'))fail('INVALID_ARGUMENT','TikTok ad creation uses creatives[0].operation_status; a top-level status does not pause the creative.');
@@ -404,7 +406,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
   if(metaCopyKind(plan))return metaCopySnapshots(plan).map(r=>base(r.path,r.query));
   const create=/^\/v[^/]+\/act_[^/]+\//.test(plan.path)&&plan.method==='POST';
   if(create){const reads=[base(plan.path.match(/^\/v[^/]+\/act_[^/]+/)![0],{fields:'id,account_status,currency'})];const parent=plan.path.endsWith('/adsets')?body.campaign_id:plan.path.endsWith('/ads')?body.adset_id:undefined;
-   if(plan.path.endsWith('/adsets')||plan.path.endsWith('/ads')){if(typeof parent!=='string'||!/^\d+$/.test(parent))fail('MISSING_PARAMETER','Child creates require their exact parent ID.');reads.push(base(plan.path.split('/').slice(0,2).join('/')+'/'+parent,{fields:'id,name,status'}));}if(metaCreativeCreate(plan))reads.push(...metaCreativeIdentityReads(plan));return reads;}
+   if(plan.path.endsWith('/adsets')||plan.path.endsWith('/ads')){if(typeof parent!=='string'||!/^\d+$/.test(parent))fail('MISSING_PARAMETER','Child creates require their exact parent ID.');reads.push(base(plan.path.split('/').slice(0,2).join('/')+'/'+parent,{fields:'id,name,status'}));}if(metaCreativeCreate(plan))reads.push(...metaCreativeIdentityReads(plan));if(metaLookalikeKind(plan))reads.push(base(plan.path.split('/').slice(0,2).join('/')+'/'+metaLookalikeSeed(plan),{fields:metaSeedFields}));return reads;}
   if(/^\/v[^/]+\/\d+$/.test(plan.path)){const fields=new Set(['id','name','status']);for(const k of Object.keys(body))if(/^[a-z_]+$/.test(k)&&!['execution_options','fields'].includes(k))fields.add(k);return [base(plan.path,{fields:[...fields].join(',')})];}
  }
  if(plan.gateway==='snapchat_native_action'&&plan.method==='PUT'){

@@ -1585,6 +1585,22 @@
       }
     },
     {
+      "gateway": "meta_native_action",
+      "arguments": {
+        "action": "meta_custom_audience_create",
+        "account_id": "123",
+        "payload": {
+          "name": "Synthetic 1% lookalike",
+          "subtype": "LOOKALIKE",
+          "origin_audience_id": "456",
+          "lookalike_spec": {
+            "ratio": 0.01,
+            "country": "US"
+          }
+        }
+      }
+    },
+    {
       "gateway": "criteo_native_action",
       "arguments": {
         "operation": "criteo_campaign_ops",

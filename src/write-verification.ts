@@ -4,6 +4,7 @@ import {snapSegmentProjection} from './snapchat-segments.js';
 import {tiktokIdentityKind,tiktokIdentityVerification} from './tiktok-identities.js';
 import {metaCopyKind,metaCopyVerification} from './meta-copies.js';
 import {tiktokLookalikeKind,tiktokLookalikeVerification,tiktokAudienceGetPath} from './tiktok-lookalikes.js';
+import {metaLookalikeKind,metaLookalikeVerification,metaLookalikeRead,metaLookalikeProjection} from './meta-lookalikes.js';
 import {googlePreviewKind,verifyGooglePreview} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaignScopes,verifyCriteoCampaign} from './criteo-campaign-writes.js';
 import {metaReportKind,assertMetaReportScope,verifyMetaReport,metaReportReadResult,observeMetaReportRead} from './meta-insights-jobs.js';
@@ -94,6 +95,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
   return ids.map((id:string,i:number)=>({read:compileMicrosoft({action:'Get'+contract.kind+'ByIds',account_id:plan.accountId,payload:{[idKey]:[id],...(contract.kind==='Campaigns'?{CampaignType:'Search'}:contract.kind==='AdGroups'?{CampaignId:b.CampaignId}:{AdGroupId:b.AdGroupId})}}),expected:records[i],id}));
  }
  if(metaCopyKind(plan))return metaCopyVerification(plan,result,before).map(v=>({...v,read:base(v.path,v.query)}));
+ if(metaLookalikeKind(plan))return metaLookalikeVerification(plan,result).map(v=>({...v,read:base(v.path,v.query)}));
  if(gateway==='meta_native_action'){const id=String(d.id??plan.path.split('/').at(-1));if(!/^\d+$/.test(id))return [];const expected={...b};delete expected.execution_options;if(expected.creative?.creative_id)expected.creative={id:expected.creative.creative_id};return [{read:base('/v25.0/'+id,{fields:['id',...Object.keys(expected)].join(',')}),expected,id}];}
  if(tiktokIdentityKind(plan))return tiktokIdentityVerification(plan,result).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_identity_info_get'}}));
  if(tiktokLookalikeKind(plan))return tiktokLookalikeVerification(plan,result).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_dmp_custom_audience_get'}}));
@@ -138,6 +140,7 @@ function entity(plan:CompiledRequest,data:JsonObject):JsonObject{
  if(plan.gateway===microsoftGateway)return data[microsoftContracts.get(plan.action)!.result]?.[0];
  if(plan.gateway==='tiktok_native_action'&&plan.path==='/v1.3/identity/info/')return data.data?.identity_info;
  if(plan.gateway==='tiktok_native_action'&&plan.path===tiktokAudienceGetPath)return data.data?.list?.[0]?.audience_details;
+ if(metaLookalikeRead(plan))return metaLookalikeProjection(data) as JsonObject;
  if(plan.gateway==='tiktok_native_action')return data.data?.list?.[0];
  if(plan.gateway==='snapchat_native_action'){const kind=plan.path.split('/').at(-2)!,singular=kind==='adsquads'?'adsquad':kind.slice(0,-1),row=data[kind]?.[0]?.[singular];return (snapProjections[kind]?.(row)??row) as JsonObject;}
  if(['reddit_native_action','x_ads_native_action'].includes(plan.gateway))return data.data;

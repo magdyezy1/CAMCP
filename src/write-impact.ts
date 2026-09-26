@@ -3,6 +3,7 @@ import {snapSegmentImpact} from './snapchat-segments.js';
 import {tiktokIdentityKind,tiktokIdentityImpact} from './tiktok-identities.js';
 import {metaCopyKind,metaCopyImpact} from './meta-copies.js';
 import {tiktokLookalikeKind,tiktokLookalikeImpact} from './tiktok-lookalikes.js';
+import {metaLookalikeKind,metaLookalikeImpact} from './meta-lookalikes.js';
 import {googlePreviewKind,googlePreviewImpact} from './google-preview-writes.js';
 import {criteoCampaignKind,criteoCampaignImpact} from './criteo-campaign-writes.js';
 import {metaReportKind,metaReportImpact} from './meta-insights-jobs.js';
@@ -101,6 +102,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  if(plan.gateway==='snapchat_native_action'&&plan.method==='PUT'&&/^\/v1\/adaccounts\/[^/]+\/segments$/.test(plan.path))return snapSegmentImpact(plan,state);
  if(tiktokIdentityKind(plan))return tiktokIdentityImpact(plan,state);
  if(tiktokLookalikeKind(plan))return tiktokLookalikeImpact(plan,state);
+ if(metaLookalikeKind(plan))return metaLookalikeImpact(plan,state);
  return undefined;
 }
 import {googleConfigurationKind,googleConfigurationServing} from './google-configuration-writes.js';
