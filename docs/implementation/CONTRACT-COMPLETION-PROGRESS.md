@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## BX — TikTok Upgraded Smart+ status (2026-09-26)
+
+The Smart+ campaign, ad group and ad status routes form a reviewed family for pausing and
+enabling 1–20 entities. Entities are read before review and execution, frozen ads are never
+enabled, enabling follows the existing spending-confirmation and activation-policy rules,
+receipts must cover every ID, and read-back compares `operation_status`. See
+[implementation](TIKTOK-SMART-PLUS-STATUS-2026-09-26.md),
+[qualification](TIKTOK-SMART-PLUS-STATUS-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 953 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## BW — TikTok saved audiences (2026-09-26)
 
 `tiktok_dmp_saved_audience_create` is a reviewed family for reusable targeting. Documented
@@ -19,7 +32,7 @@ as sets and the price range by its endpoints. See
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
 Remaining rows: 959 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Pushed to CAMCP as `3967a83`; its exact-commit CI result and live acceptance are pending.
 
 ## BV — TikTok ad groups that use a custom conversion (2026-09-26)
 

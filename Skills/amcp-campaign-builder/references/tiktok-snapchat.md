@@ -208,6 +208,26 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
 - TikTok allows 400 saved audiences per advertiser; its list read does not page, so TikTok
   enforces the limit. Deletion is not qualified.
 
+## TikTok Upgraded Smart+ status
+
+- `tiktok_smart_plus_campaign_status_update`, `tiktok_smart_plus_adgroup_status_update` and
+  `tiktok_smart_plus_ad_status_update` (and their `tiktok_smart_*` aliases) pause or enable
+  Upgraded Smart+ entities: `campaign_ids`, `adgroup_ids` or `smart_plus_ad_ids` (1–20 unique
+  numeric IDs) with `operation_status` `DISABLE` or `ENABLE`.
+- `DELETE`, SKAN `postback_window_mode` and other keys fail with `INVALID_TIKTOK_SMART_PLUS_STATUS`
+  before any request.
+- The review reads the entities from `/smart_plus/{campaign|adgroup|ad}/get/` before review and
+  again before execution. Every ID must be returned (deleted entities cannot change status:
+  `STATE_TARGET_MISMATCH`), and a `FROZEN` (terminated) ad is never enabled. `creative_impact`
+  lists each entity's current and requested status.
+- `ENABLE` needs `spend_change_confirmed: true` and is refused under an owner policy that forbids
+  activation (`POLICY_ACTIVATION_FORBIDDEN`); `DISABLE` needs neither.
+- The receipt must report every ID with the requested status: campaign and ad group calls list
+  successes and errors separately, and any error makes the outcome partial. Partial and lost
+  outcomes keep their claim and are never resubmitted.
+- Verification reads each entity and compares `operation_status`. An enabled entity delivers only
+  if its parents are on and its budget allows.
+
 ## TikTok lookalike audiences
 
 - `tiktok_dmp_custom_audience_lookalike_create` creates a lookalike from a seed audience the selected

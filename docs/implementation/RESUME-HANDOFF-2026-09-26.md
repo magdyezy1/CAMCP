@@ -255,7 +255,22 @@ before review and again before execution. Ad group updates that set the field ar
 - Referenced custom audiences are read before review and execution and must be owned and available.
 - Read-back compares ID lists and actions as sets and the price range by its endpoints, since TikTok returns it in steps of 50.
 
-Tests: `tests/tiktok-saved-audiences.test.mjs` (7, red on `21d351a` / green after).
+Tests: `tests/tiktok-saved-audiences.test.mjs` (7, red on `21d351a` / green after). Pushed as `3967a83`.
+
+## Finished batch — TikTok Upgraded Smart+ status
+
+[Implementation](TIKTOK-SMART-PLUS-STATUS-2026-09-26.md) and
+[qualification](TIKTOK-SMART-PLUS-STATUS-VERIFICATION-2026-09-26.json).
+
+The Smart+ campaign, ad group and ad status routes (and aliases) are the new reviewed family
+`tiktok_smart_plus_status`:
+
+- `ENABLE` or `DISABLE` for 1–20 IDs; deletion and SKAN postback windows are refused.
+- Entities are read before review and execution; missing ones are refused and a `FROZEN` ad is never enabled.
+- Enabling needs spending confirmation and obeys an owner policy that forbids activation.
+- Receipts must report every ID with the requested status; partial outcomes keep their claim. Read-back compares each entity's `operation_status`.
+
+Tests: `tests/tiktok-smart-plus-status.test.mjs` (7, red on `3967a83` / green after).
 
 ## CI and live evidence
 
@@ -269,19 +284,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 478 in reviewed write families. **959 remaining rows** are in
+3241 captured actions; 484 in reviewed write families. **953 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 844 |
+| blocked_write | 838 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 213, Meta 131, LinkedIn 118, Google Ads 107,
+Blocked writes by platform: TikTok 207, Meta 131, LinkedIn 118, Google Ads 107,
 Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

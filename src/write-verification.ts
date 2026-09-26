@@ -8,6 +8,7 @@ import {metaLookalikeKind,metaLookalikeVerification,metaLookalikeRead,metaLookal
 import {tiktokBudgetKind,tiktokBudgetVerification} from './tiktok-budgets.js';
 import {tiktokCustomConversionKind,tiktokCustomConversionVerification,tiktokConversionGetPath,tiktokCustomConversionProjection} from './tiktok-custom-conversions.js';
 import {tiktokSavedAudienceKind,tiktokSavedAudienceVerification,tiktokSavedAudienceRead,tiktokSavedAudienceProjection} from './tiktok-saved-audiences.js';
+import {tiktokSmartPlusStatusKind,tiktokSmartPlusStatusVerification} from './tiktok-smart-plus-status.js';
 import {linkedinLeadFormKind,linkedinLeadFormVerification,isLinkedInLeadFormRead,linkedinLeadFormProjection} from './linkedin-lead-forms.js';
 import {googlePreviewKind,verifyGooglePreview} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaignScopes,verifyCriteoCampaign} from './criteo-campaign-writes.js';
@@ -106,6 +107,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
  if(tiktokBudgetKind(plan))return tiktokBudgetVerification(plan).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_adgroup_get'}}));
  if(tiktokCustomConversionKind(plan))return tiktokCustomConversionVerification(plan,result).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_custom_conversion_get'}}));
  if(tiktokSavedAudienceKind(plan))return tiktokSavedAudienceVerification(plan,result).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_dmp_saved_audience_list_get'}}));
+ if(tiktokSmartPlusStatusKind(plan))return tiktokSmartPlusStatusVerification(plan).map(v=>({read:{...base(v.path,v.query),action:v.action},expected:v.expected,id:v.id}));
  if(tiktokLookalikeKind(plan))return tiktokLookalikeVerification(plan,result).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_dmp_custom_audience_get'}}));
  if(gateway==='tiktok_native_action'){
   const kind=plan.path.split('/')[2]!,ids=d.data?.[kind+'_ids']??[d.data?.[kind+'_id']??b[kind+'_id']];if(ids.some((id:unknown)=>typeof id!=='string'))return [];
