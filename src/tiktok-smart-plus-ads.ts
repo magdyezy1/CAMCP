@@ -118,7 +118,7 @@ export function sparkReads(accountId:string|undefined,list:JsonObject[]):Read[]{
  });
 }
 /** The ads of one ad group, read to count them; the status family reads ads by their own IDs instead. */
-const adgroupAdsRead=(read:CompiledRequest)=>read.gateway==='tiktok_native_action'&&read.path===tiktokSmartPlusAdGetPath&&obj(read.query.filtering)&&Array.isArray(read.query.filtering.adgroup_ids)&&read.query.filtering.smart_plus_ad_ids===undefined;
+const adgroupAdsRead=(read:CompiledRequest)=>read.gateway==='tiktok_native_action'&&read.path===tiktokSmartPlusAdGetPath&&obj(read.query?.filtering)&&Array.isArray(read.query.filtering.adgroup_ids)&&read.query.filtering.smart_plus_ad_ids===undefined;
 export function validateTiktokSmartPlusAdState(read:CompiledRequest,data:JsonObject,sameIds:(actual:unknown[],expected:unknown[])=>void):boolean{
  if(adgroupAdsRead(read)){
   const list=data.data?.list,total=data.data?.page_info?.total_number,group=String((read.query.filtering as JsonObject).adgroup_ids[0]);

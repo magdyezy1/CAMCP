@@ -1395,6 +1395,18 @@
       }
     },
     {
+      "gateway": "tiktok_native_action",
+      "arguments": {
+        "action": "tiktok_smart_plus_adgroup_update",
+        "account_id": "123",
+        "payload": {
+          "adgroup_id": "300",
+          "adgroup_name": "Web CBO Q4",
+          "comment_disabled": true
+        }
+      }
+    },
+    {
       "gateway": "linkedin_native_action",
       "arguments": {
         "action": "linkedin_rest_posts_post",

@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CF — TikTok Upgraded Smart+ ad group edits (2026-09-26)
+
+`tiktok_smart_plus_adgroup_update` is a reviewed family for Smart+ ad group name, end time,
+dayparting, comment, share and custom bid edits. A bid edit also reads the campaign's ad groups,
+because TikTok changes all their bids together, and lists each bid that moves; bid, end time and
+dayparting edits need spending confirmation. Targeting edits stay unqualified. See
+[implementation](TIKTOK-SMART-PLUS-ADGROUP-EDITS-2026-09-26.md),
+[qualification](TIKTOK-SMART-PLUS-ADGROUP-EDITS-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 938 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## CE — TikTok Upgraded Smart+ Spark Ad edits (2026-09-26)
 
 `tiktok_smart_plus_ad_update` is a reviewed family for Smart+ ad edits: any ad can be renamed;
@@ -20,7 +33,7 @@ its creation-time membership. See
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
 Remaining rows: 940 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Pushed to CAMCP as `53fb3ad`; its exact-commit CI result and live acceptance are pending.
 
 ## CD — TikTok Upgraded Smart+ Spark Ads (2026-09-26)
 

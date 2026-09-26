@@ -385,6 +385,23 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
   UTM parameters in effect must still repeat the landing page in effect.
 - Verification reads the ad and compares the edited fields.
 
+## TikTok Upgraded Smart+ ad group edits
+
+- `tiktok_smart_plus_adgroup_update` (alias `tiktok_smart_adset_update`) edits an Upgraded Smart+ ad
+  group by `adgroup_id`: `adgroup_name`, `schedule_end_time` (UTC `YYYY-MM-DD HH:MM:SS`, before
+  2038), `dayparting` (336 characters of 0 and 1), `comment_disabled`, `share_disabled`, and the
+  custom bid (`conversion_bid_price` for CONVERT, landing page view, install and in-app event goals;
+  `bid_price` for CLICK). Budgets use the Smart+ ad group budget family and status the Smart+
+  status family; targeting edits and other keys are refused with
+  `INVALID_TIKTOK_SMART_PLUS_ADGROUP_UPDATE`.
+- The review reads the ad group before review and again before execution. A bid applies only to
+  `BID_TYPE_CUSTOM` with a matching goal and must stay below the ad group budget; an end time
+  applies only to `SCHEDULE_START_END` and must be in the future and after the start.
+- TikTok changes the bid of every ad group in the campaign when one changes, so a bid edit also
+  reads the campaign's ad groups and lists each bid that moves in `campaign_bid_changes`.
+- Bid, end time and dayparting edits need `spend_change_confirmed: true`; names and the comment and
+  share settings do not. Verification reads the ad group and compares the edited fields.
+
 ## TikTok lookalike audiences
 
 - `tiktok_dmp_custom_audience_lookalike_create` creates a lookalike from a seed audience the selected

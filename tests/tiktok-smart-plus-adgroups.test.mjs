@@ -66,10 +66,10 @@ function fixture({readDrift}={}){
  return {store,groups,requests,writes,call,args,prepare,execute,verify,mode:v=>{mode=v;},restart:()=>{service=start();}};
 }
 
-test('paused Smart+ ad group creation is a reviewed TikTok family; updates stay blocked',async()=>{
+test('paused Smart+ ad group creation is a reviewed TikTok family; ad material status updates stay blocked',async()=>{
  const f=fixture();try{
   const r=await f.call('amcp_write',{action:'inspect',gateway,connection_id:TIKTOK,arguments:f.args(adgroup())});assert.equal(r.data.review_contract_supported,true,JSON.stringify(r));
-  const u=await f.call('amcp_write',{action:'inspect',gateway,connection_id:TIKTOK,arguments:f.args({adgroup_id:'9100000000000001',adgroup_name:'Renamed'},'tiktok_smart_plus_adgroup_update')});
+  const u=await f.call('amcp_write',{action:'inspect',gateway,connection_id:TIKTOK,arguments:f.args({smart_plus_ad_id:'9200000000000001',ad_material_ids:['m1'],operation_status:'DISABLE'},'tiktok_smart_plus_ad_material_status_update')});
   assert.notEqual(u.data?.review_contract_supported,true,JSON.stringify(u));assert.equal(f.requests.length,0);
  }finally{f.store.close();}
 });

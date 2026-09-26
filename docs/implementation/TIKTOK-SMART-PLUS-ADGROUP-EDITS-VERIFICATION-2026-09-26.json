@@ -1,0 +1,109 @@
+{
+  "format_version": 1,
+  "date": "2026-09-26",
+  "branch": "Codex-branch",
+  "base_revision": "53fb3ad29072f1344549c365410318b348709ac8",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/tiktok-smart-plus-adgroup-updates-20260926-a",
+    "files": 757,
+    "source_tree_hash": "3ce97b46e2f860d26ec9babfb2290cb3cfd23a7a00bd61a13ece4b961e0c6427",
+    "index_code_test_guidance_files_compared": 642,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/tiktok-smart-plus-adgroup-updates-20260926-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/tiktok-smart-plus-adgroup-updates-20260926/install.log",
+      "sha256": "bde7d279256b0d5606fe571c148e3c4bfb648e5d1a422c0085d458c785271463"
+    },
+    {
+      "path": ".runtime/tiktok-smart-plus-adgroup-updates-20260926/check.log",
+      "sha256": "c38301a060bfbd1034029b1b4c0ad50efec605fb2c8d0f4752a9267e2c991805",
+      "started": "2026-09-26T15:46:01Z",
+      "finished": "2026-09-26T16:07:15Z",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2218,
+          "pass": 2218,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/tiktok-smart-plus-adgroup-updates-20260926/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/tiktok-smart-plus-adgroup-updates-20260926/red-check.log",
+      "sha256": "64f077700407ec82b58844ddd4684fc9a087234e83db4f8911007f2a4abf4f62",
+      "meaning": "tests/tiktok-smart-plus-adgroup-updates.test.mjs against a build of 53fb3ad: expected red, 0/7 pass (WRITE_CONTRACT_UNAVAILABLE)"
+    },
+    {
+      "path": ".runtime/tiktok-smart-plus-adgroup-updates-20260926/targeted.log",
+      "sha256": "5844c994a12c307c62889d1d0f1a8b4db51da5c908426ca221c3f3fb14a4a61b",
+      "meaning": "99 related TikTok, review, spending, creative-chain and contract suites in the working copy: 1329/1329 pass. The first run failed two tests, recorded in targeted-run1.log and fixed."
+    },
+    {
+      "path": ".runtime/tiktok-smart-plus-adgroup-updates-20260926/targeted-run1.log",
+      "sha256": "63f0c62499d8c50f5a1a128583498f82b70f91c6b45d3344150774e7c16c6f0b",
+      "meaning": "First related-suite run: 1327/1329. The Smart+ ad group creation suite still asserted that ad group updates stay blocked, and the review-envelope snapshot test found the campaign-read projection reading the query of a read that has none."
+    }
+  ],
+  "development_failures": [
+    "None of the new tests failed during development.",
+    "The first related-suite run failed two tests: the Smart+ ad group creation suite still asserted that ad group updates stay blocked (it now uses the still-blocked ad material status update), and the review-envelope snapshot test found that the campaign-read projection and validator read the query of reads that have none; both now check the path first.",
+    "Design review: the campaign read is a follow-up state read added after the ad group read names its campaign, like the Apple shared-budget reads; its review state keeps only identity, goal, bid type and bids."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2218,
+    "main_pass": 2218,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "The campaign-wide bid change is shown from the documentation; verification compares only the edited ad group.",
+    "Targeting, schedule start and type, search keywords, budgets and status stay outside this family.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}
