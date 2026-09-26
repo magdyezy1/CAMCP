@@ -273,3 +273,33 @@ Direct Meta documentation returned HTTP 429 during research; the official SDK
 and Meta-owned collections were accessible. Their historical token examples are
 schema guidance, not live v25 acceptance evidence. Native app approval, access,
 field availability and advertising eligibility remain unverified live.
+
+## Native copies
+
+Meta's `/copies` edges duplicate an existing campaign, ad set or ad. Use them to clone
+structures instead of re-creating each object.
+
+- `meta_campaign_id_copies_copy` makes a shallow campaign copy. Deep campaign copies are not
+  qualified: copy the campaign, then copy each ad set into it.
+- `meta_ad_set_id_copies_copy` copies an ad set, optionally into another owned campaign
+  (`campaign_id`). With `deep_copy: true` it also copies the ad set's ads, up to Meta's
+  synchronous limit of three. More ads fail with `META_COPY_TOO_LARGE`: copy the ad set without
+  ads, then copy each ad.
+- `meta_ad_id_copies_copy` copies an ad, optionally into another owned ad set (`adset_id`).
+- Every copy needs `status_option: "PAUSED"`. `ACTIVE`, `INHERITED_FROM_SOURCE`,
+  `parameter_overrides`, `creative_parameters` and `create_dco_adset` fail with
+  `INVALID_META_COPY` before any request.
+- Optional fields: `rename_options` (`rename_strategy`, `rename_prefix`, `rename_suffix` ≤100) and,
+  for ad sets, `start_time`/`end_time` as UTC UNIX seconds (`end_time: 0` = no end).
+- Source and target IDs must already be owned: list them from the selected ad account first.
+- The review reads the source with fields that exist only on its type, so a campaign ID given to
+  the ad set action fails at Meta. It also reads the target and, for a deep ad set copy, the
+  source's ads. Source and target must belong to the selected account (`STATE_TARGET_MISMATCH`).
+- Budgets the copy duplicates (`daily_budget`, `lifetime_budget` of a copied campaign or ad set)
+  count as new budgets under the owner spending policy, so `POLICY_BUDGET_LIMIT` applies. A change
+  to the source's budget between review and execution is `STATE_CHANGED`.
+- Verification reads every copied campaign, ad set and ad. Each must be `PAUSED`, in the selected
+  account and under the expected parent. A deep copy returning fewer copied ads than the source
+  had is `META_COPY_INCOMPLETE`.
+- Copies stay paused. Activating them is a separate reviewed status change with its own spending
+  checks.

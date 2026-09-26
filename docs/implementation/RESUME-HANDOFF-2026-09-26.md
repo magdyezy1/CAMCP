@@ -99,6 +99,23 @@ Pushed as `8b97bdb`.
 Identity deletion and TikTok-account identities stay blocked. Tests:
 `tests/tiktok-identities.test.mjs` (9, red on `8b97bdb` / green after); the creative-chain
 test that pinned this gap now pins the local refusal of an undocumented field.
+Pushed as `a99dfdd`.
+
+## Finished batch — Meta native copies
+
+[Implementation](META-COPIES-2026-09-26.md) and
+[qualification](META-COPIES-VERIFICATION-2026-09-26.json).
+
+Campaign (shallow), ad set (up to three ads) and ad copies form the reviewed family
+`meta_copies`:
+
+- Always `PAUSED`, and only into owned targets in the selected account.
+- Source types are proven by type-only fields.
+- Copied budgets count as new budgets under the spending policy.
+- Every copy is read back paused under the right parent.
+
+Deep campaign, asynchronous and override copies stay unqualified. Tests:
+`tests/meta-copies.test.mjs` (9, red on `a99dfdd` / green after).
 
 ## CI and live evidence
 
@@ -112,19 +129,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 466 in reviewed write families. **971 remaining rows** are in
+3241 captured actions; 469 in reviewed write families. **968 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 856 |
+| blocked_write | 853 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 218, Meta 136, LinkedIn 119, Google Ads 108,
+Blocked writes by platform: TikTok 218, Meta 133, LinkedIn 119, Google Ads 108,
 Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12. The ticket list in the
 2026-09-25 handoff remains the backlog, plus these Snapchat follow-ups:
 
@@ -139,3 +156,4 @@ Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12. The ticket list in 
 | P2 | Snapchat pixel/mobile rule audiences | Live GET evidence of `pixel_spec_object`/mobile specs before qualifying their creation |
 | P3 | Snapchat segment deletion | A way to find ad squads that target a segment, or an explicit owner policy, before permanent deletion |
 | P2 | TikTok identity avatar read-back | Live evidence linking `profile_image_url` to the sent `image_uri` before comparing it |
+| P2 | Meta deep campaign copies | Campaign deep copy within the three-child limit, with ad set budgets in the spending policy and parent mapping verified across two levels |

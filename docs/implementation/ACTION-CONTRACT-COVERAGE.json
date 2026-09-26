@@ -174,10 +174,10 @@
       "gateway": "meta_native_action",
       "actions": 591,
       "counts": {
-        "blocked_write": 136,
+        "blocked_write": 133,
         "media_workflow": 4,
         "native_read": 420,
-        "reviewed_write_family": 30,
+        "reviewed_write_family": 33,
         "unqualified_read": 1
       },
       "captured_catalog_complete": true,
@@ -27678,12 +27678,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v25.0/{ad_id}/copies",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/meta-copies.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/meta-copies.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "meta_copies"
     },
     {
       "gateway": "meta_native_action",
@@ -28152,12 +28155,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v25.0/{ad_set_id}/copies",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/meta-copies.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/meta-copies.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "meta_copies"
     },
     {
       "gateway": "meta_native_action",
@@ -31802,12 +31808,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v25.0/{campaign_id}/copies",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/meta-copies.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/meta-copies.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "meta_copies"
     },
     {
       "gateway": "meta_native_action",

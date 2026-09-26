@@ -8,6 +8,20 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## BM — Meta native copies (2026-09-26)
+
+Campaign (shallow), ad set (up to three ads) and ad copies form the reviewed family
+`meta_copies`. Copies are always paused and go only into owned targets in the selected
+account. Type-only source fields prove the copied type. Copied budgets pass the owner
+spending policy as new budgets, and every copy is read back paused under the right parent.
+Nine new tests fail on `a99dfdd` and pass with the change. See
+[implementation](META-COPIES-2026-09-26.md),
+[qualification](META-COPIES-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 968 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## BL — TikTok custom identities (2026-09-26)
 
 `tiktok_identity_create` is a reviewed family for `CUSTOMIZED_USER` identities. It accepts
@@ -19,8 +33,8 @@ Verification compares identity info and lists the unreadable avatar ID under
 [qualification](TIKTOK-IDENTITIES-VERIFICATION-2026-09-26.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 971 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Remaining rows then: 971. Pushed to CAMCP as `a99dfdd`; its exact-commit CI result and live
+acceptance are pending.
 
 ## BK — Snapchat audience segments (2026-09-26)
 

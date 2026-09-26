@@ -84,6 +84,8 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
   if(googleTargetingKind(p))return 'google_targeting';
   return method==='POST'&&/^\/v23\/customers\/[^/]+\/(campaigns|adGroups|adGroupAds|campaignBudgets|ads|assetGroups|assets):mutate$/.test(route)?'google_entities':undefined;
  }
+ // Campaign, ad set and ad copies share one path shape; only the action names the copied type.
+ if(p.gateway==='meta_native_action'&&method==='POST'&&/^\/v[^/]+\/\d+\/copies$/.test(route)&&/^meta_(campaign_id|ad_set_id|ad_id)_copies_copy$/.test(p.action))return 'meta_copies';
  if(p.gateway==='meta_native_action')return method==='POST'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads|adcreatives)$/.test(route)||['POST','DELETE'].includes(method)&&/^meta_(campaign_id|ad_set_id|ad_id)_(update|delete)$/.test(p.action)?'meta_entities':undefined;
  if(p.gateway==='snapchat_native_action')return method==='POST'&&/^\/v1\/(adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives|lead_generation_forms|segments)|campaigns\/[^/]+\/adsquads|adsquads\/[^/]+\/ads)$/.test(route)||method==='PUT'&&/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives|segments)$/.test(route)||method==='PATCH'&&/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives)\/[^/]+$/.test(route)||method==='DELETE'&&/^\/v1\/(campaigns|adsquads|ads)\/[^/]+$/.test(route)?'snapchat_entities':undefined;
  if(p.gateway==='tiktok_native_action')return method==='POST'&&route==='/v1.3/identity/create/'?'tiktok_identities':method==='POST'&&/^\/v1\.3\/(campaign|adgroup|ad)\/(?:status\/)?(create|update|delete)\/$/.test(route)?'tiktok_entities':undefined;

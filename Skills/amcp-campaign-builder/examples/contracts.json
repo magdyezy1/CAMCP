@@ -1544,6 +1544,25 @@
       }
     },
     {
+      "gateway": "meta_native_action",
+      "arguments": {
+        "action": "meta_ad_set_id_copies_copy",
+        "account_id": "123",
+        "path_params": {
+          "ad_set_id": "456"
+        },
+        "payload": {
+          "status_option": "PAUSED",
+          "campaign_id": "789",
+          "deep_copy": true,
+          "rename_options": {
+            "rename_strategy": "ONLY_TOP_LEVEL_RENAME",
+            "rename_suffix": " - clone"
+          }
+        }
+      }
+    },
+    {
       "gateway": "criteo_native_action",
       "arguments": {
         "operation": "criteo_campaign_ops",

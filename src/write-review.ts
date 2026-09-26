@@ -2,6 +2,7 @@ import {snapUpdateKind,assertSnapUpdate,snapUpdateSnapshots,readSnapUpdateState,
 import {assertSnapLeadForms,assertSnapLeadCreativeRefs,snapLeadDependencyPaths} from './snapchat-lead-forms.js';
 import {assertSnapSegments,assertSnapSegmentUpdates,snapSegmentDependencyPaths} from './snapchat-segments.js';
 import {tiktokIdentityKind,assertTiktokIdentity,tiktokIdentityImage,tiktokImageInfoPath} from './tiktok-identities.js';
+import {metaCopyKind,assertMetaCopy,metaCopySnapshots,metaCopyChildrenRead,metaCopyOutcome} from './meta-copies.js';
 import {googlePreviewKind,assertGooglePreview,googlePreviewSnapshots,readGooglePreviewState,googlePreviewOutcome,googlePreviewDelivery,googlePreviewSafeOutcome} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaign,assertCriteoCampaignScopes,criteoCampaignSnapshots,readCriteoCampaignState,criteoCampaignOutcome} from './criteo-campaign-writes.js';
 import {metaReportKind,assertMetaReport,assertMetaReportScope,metaReportSnapshots,readMetaReportState,metaReportOutcome} from './meta-insights-jobs.js';
@@ -129,7 +130,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(plan.gateway===microsoftGateway)return microsoftOutcome(plan,result);
  if(measurementWriteGateways.has(plan.gateway))return measurementOutcome(plan,result);
  const d=object(result.data),b=object(plan.body),segments=plan.path.split('/'),last=segments.at(-1)!,hasId=(v:unknown)=>typeof v==='string'&&v.length>0||typeof v==='number'&&Number.isSafeInteger(v);
- if(plan.gateway==='meta_native_action')return /^\/v[^/]+\/act_/.test(plan.path)?hasId(d.id):d.success===true;
+ if(plan.gateway==='meta_native_action')return metaCopyKind(plan)?metaCopyOutcome(plan,d):/^\/v[^/]+\/act_/.test(plan.path)?hasId(d.id):d.success===true;
  if(plan.gateway==='google_ads_native_action')return Array.isArray(d.results)&&d.results.length===b.operations.length&&d.results.every((r:JsonObject,i:number)=>{
   const op=b.operations[i],expected=op.remove??op.update?.resource_name??op.update?.resourceName;return typeof r.resourceName==='string'&&(expected?r.resourceName===expected:r.resourceName.startsWith('customers/'+plan.accountId+'/'+last.replace(':mutate','')+'/'));
  });
@@ -220,6 +221,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  }
  const target=decodeURIComponent(read.path.split('/').at(-1)!).replace(/^act_/,'').split(':').at(-1);
  if(read.gateway==='meta_native_action'){
+  if(metaCopyChildrenRead(read)){if(!Array.isArray(data.data))fail('STATE_READ_FAILED','Meta did not return the source ad list.');return;}
   sameIds([String(data.id).replace(/^act_/,'')],[target]);
   if(String(read.query.fields).split(',').includes('status')&&!Object.hasOwn(data,'status'))fail('STATE_READ_FAILED','Meta did not return the requested target status.');return;
  }
@@ -278,6 +280,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(plan.gateway==='meta_native_action'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads)$/.test(plan.path)&&plan.method==='POST')expect(body,'status',['PAUSED']);
  if(plan.gateway==='tiktok_native_action'&&/^\/v1\.3\/(?:campaign|adgroup)\/create\/$/.test(plan.path))expect(body,'operation_status',['DISABLE']);
  if(tiktokIdentityKind(plan))assertTiktokIdentity(plan,body);
+ if(metaCopyKind(plan))assertMetaCopy(plan,body);
  if(plan.gateway==='tiktok_native_action'&&plan.path==='/v1.3/ad/create/'){
   if(!Array.isArray(body.creatives)||body.creatives.length!==1||!body.creatives[0]||Array.isArray(body.creatives[0])||typeof body.creatives[0]!=='object')fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed TikTok ad creation requires exactly one native creatives record per review. Put the ad fields and operation_status inside that record.');
   if(Object.hasOwn(body,'operation_status'))fail('INVALID_ARGUMENT','TikTok ad creation uses creatives[0].operation_status; a top-level status does not pause the creative.');
@@ -394,6 +397,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
   const read=base('/v1.3/'+kind+'/get/',{advertiser_id:id,filtering:{[kind+'_ids']:ids},page_size:100});read.action='tiktok_'+kind+'_get';return [read];
  }
  if(plan.gateway==='meta_native_action'){
+  if(metaCopyKind(plan))return metaCopySnapshots(plan).map(r=>base(r.path,r.query));
   const create=/^\/v[^/]+\/act_[^/]+\//.test(plan.path)&&plan.method==='POST';
   if(create){const reads=[base(plan.path.match(/^\/v[^/]+\/act_[^/]+/)![0],{fields:'id,account_status,currency'})];const parent=plan.path.endsWith('/adsets')?body.campaign_id:plan.path.endsWith('/ads')?body.adset_id:undefined;
    if(plan.path.endsWith('/adsets')||plan.path.endsWith('/ads')){if(typeof parent!=='string'||!/^\d+$/.test(parent))fail('MISSING_PARAMETER','Child creates require their exact parent ID.');reads.push(base(plan.path.split('/').slice(0,2).join('/')+'/'+parent,{fields:'id,name,status'}));}if(metaCreativeCreate(plan))reads.push(...metaCreativeIdentityReads(plan));return reads;}

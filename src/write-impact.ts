@@ -1,6 +1,7 @@
 import {snapUpdateKind,snapUpdateImpact} from './snapchat-nested-updates.js';
 import {snapSegmentImpact} from './snapchat-segments.js';
 import {tiktokIdentityKind,tiktokIdentityImpact} from './tiktok-identities.js';
+import {metaCopyKind,metaCopyImpact} from './meta-copies.js';
 import {googlePreviewKind,googlePreviewImpact} from './google-preview-writes.js';
 import {criteoCampaignKind,criteoCampaignImpact} from './criteo-campaign-writes.js';
 import {metaReportKind,metaReportImpact} from './meta-insights-jobs.js';
@@ -54,6 +55,7 @@ function assertSnapchatReplacement(plan:CompiledRequest,state:unknown[]){
 }
 export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolean,connectionId:string):JsonObject|undefined{
  if(snapUpdateKind(plan))return snapUpdateImpact;
+ if(metaCopyKind(plan))return metaCopyImpact(plan,state);
  if(googlePreviewKind(plan))return googlePreviewImpact;
  if(googleDismissalKind(plan))return googleDismissalImpact(plan,state);
  if(googleAccessKind(plan))return googleAccessImpact(plan,state);

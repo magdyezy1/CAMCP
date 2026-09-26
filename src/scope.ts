@@ -29,6 +29,7 @@ import {metaAdLibraryRead} from './meta-ad-library.js';
 import {assertGoogleBidScope} from './google-bid-modifiers.js';
 import {assertGoogleAdsScope} from './google-contracts.js';
 import {googleSegmentResource,googleSegmentKind} from './google-custom-segments.js';
+import {metaCopyKind,metaCopiedIds} from './meta-copies.js';
 
 export function normalizeAccount(gateway:string,id:unknown):string{
  const value=String(id);return gateway==='meta_native_action'?value.replace(/^act_/,''):gateway==='google_ads_native_action'?value.replaceAll('-',''):value;
@@ -233,6 +234,8 @@ export class ScopeGuard {
    if(d.account_id!==undefined&&normalizeAccount(plan.gateway,d.account_id)!==id)return;
    this.store.rememberResource(connection,id,d.id);
   }
+  // A Meta copy is made from an owned source inside the same account; verification then reads each copy's account.
+  if(metaCopyKind(plan))for(const copied of metaCopiedIds(plan,d))this.store.rememberResource(connection,id,copied);
   if(plan.gateway==='snapchat_native_action'){
    const match=/^\/v1\/(?:adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives|media|lead_generation_forms|segments)|campaigns\/[^/]+\/(adsquads)|adsquads\/[^/]+\/(ads))$/.exec(plan.path);
    const kind=match?.slice(1).find(Boolean);
