@@ -564,7 +564,18 @@ Tests: `tests/criteo-line-item-bidding.test.mjs` (7) and a product ID case in `t
 - Next DV360 Demand Gen steps, in Google's order: ad group targeting (`adGroups.targetingTypes.assignedTargetingOptions` create/delete and bulk edit), ad assets (create, upload, bulk create) and ad group ads (create, patch, delete).
 - Also checked and left: Meta lead forms need a Page access token, which AMCP does not resolve (`src/parameters.ts`), so they need credential work first; Criteo budget overrides merge adjacent equal overrides and drop chained start dates in read-back, and whether expired overrides may be omitted is undocumented; Criteo balance-to-campaign mapping has a guide body (`ids`) that differs from the pinned document.
 
-Tests: `tests/dv360-demand-gen-ad-groups.test.mjs` (7), red on `ff9c443` / green after.
+Tests: `tests/dv360-demand-gen-ad-groups.test.mjs` (7), red on `ff9c443` / green after. Pushed as `9e46fd9`.
+
+## Finished batch — DV360 Demand Gen targeting (2026-09-27)
+
+[Implementation](DV360-DEMAND-GEN-TARGETING-2026-09-27.md) and
+[qualification](DV360-DEMAND-GEN-TARGETING-VERIFICATION-2026-09-27.json).
+
+- The DV360 targeting module has an ad group level (`dv360_ad_group_targeting`: bulk edit, create, delete) with the documented Demand Gen ad group types, reading each ad group and its line item through the Demand Gen ad group reader.
+- Demand Gen line items take their documented types instead of being refused; geo region, POI and language follow `demandGenSettings.geoLanguageTargetingEnabled`.
+- Next DV360 Demand Gen steps: audience group assignment (reads of the advertiser's access to first-party and partner, Google, custom and combined audiences; also the existing P2 for line items), YouTube video ad assets (`adAssets.create` and `bulkCreate`; image assets need a media upload) and ads (`adGroupAds` create, patch, delete; a video ad also needs a logo image asset).
+
+Tests: `tests/dv360-ad-group-targeting.test.mjs` (8), red on `9e46fd9` / green after.
 
 ## CI and live evidence
 
@@ -578,20 +589,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 539 in reviewed write families. **896 remaining rows** are in
+3241 captured actions; 542 in reviewed write families. **893 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 781 |
+| blocked_write | 778 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 118, Google Ads 96,
-Snapchat 89, X 67, DV360 53, Criteo 34, Business Profile 12.
+Snapchat 89, X 67, DV360 50, Criteo 34, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

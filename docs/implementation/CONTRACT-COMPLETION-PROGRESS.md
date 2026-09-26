@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CY — DV360 Demand Gen targeting (2026-09-27)
+
+Demand Gen ad groups can now be targeted (bulk edit, create, delete) with the documented ad group
+types, and Demand Gen line items take their documented types instead of being refused; location
+and language go where the line item's setting puts them. See
+[implementation](DV360-DEMAND-GEN-TARGETING-2026-09-27.md),
+[qualification](DV360-DEMAND-GEN-TARGETING-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 893 (three DV360 rows reviewed). Pushed only to CAMCP; its exact-commit CI result and
+live acceptance are pending.
+
 ## CX — DV360 Demand Gen ad groups (2026-09-27)
 
 Demand Gen ad groups can now be created, patched with an update mask and deleted under Demand
@@ -17,8 +29,8 @@ setting (or of the deletion). See [implementation](DV360-DEMAND-GEN-AD-GROUPS-20
 [qualification](DV360-DEMAND-GEN-AD-GROUPS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 896 (three DV360 rows reviewed). Pushed only to CAMCP; its exact-commit CI result and
-live acceptance are pending.
+Remaining rows: 896 (three DV360 rows reviewed). Pushed to CAMCP as `9e46fd9`; its exact-commit CI
+result and live acceptance are pending.
 
 ## CW — Criteo keywords and bid multipliers (2026-09-27)
 

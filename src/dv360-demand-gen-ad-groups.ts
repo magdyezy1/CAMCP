@@ -104,10 +104,10 @@ export function assertDV360AdGroup(p:CompiledRequest):void{
 
 type Scope={adGroupId?:string;lineItemId?:string;optional?:boolean};
 const read=(p:CompiledRequest,path:string):CompiledRequest=>({...p,action:'AMCP_DV360_AD_GROUP_READ',method:'GET',path,query:{},body:undefined,headers:{},readOnly:true,destructive:false,requiresConfirmation:false,responseControls:undefined,specialTransport:undefined,queryArrayEncoding:undefined,dv360AdGroupState:undefined});
-/** One marked read of the advertiser; the reader below adds the ad group and its line item. */
-const stateRead=(p:CompiledRequest,scope:Scope):CompiledRequest=>({...read(p,'/v4/advertisers/'+advertiserOf(p)),dv360AdGroupState:scope});
+/** One marked read of the advertiser; the reader below adds the ad group and its line item. Ad group targeting reads it too. */
+export const dv360AdGroupStateRead=(p:CompiledRequest,scope:Scope):CompiledRequest=>({...read(p,'/v4/advertisers/'+advertiserOf(p)),dv360AdGroupState:scope});
 export function dv360AdGroupReads(p:CompiledRequest):CompiledRequest[]{
- return [stateRead(p,dv360AdGroupKind(p)==='create'?{lineItemId:String((p.body as JsonObject).lineItemId)}:{adGroupId:adGroupOf(p)})];
+ return [dv360AdGroupStateRead(p,dv360AdGroupKind(p)==='create'?{lineItemId:String((p.body as JsonObject).lineItemId)}:{adGroupId:adGroupOf(p)})];
 }
 export function isDV360AdGroupRead(p:CompiledRequest):boolean{return p.gateway==='dv360_native_action'&&!!p.dv360AdGroupState;}
 
@@ -150,7 +150,7 @@ export async function readDV360AdGroups(p:CompiledRequest,fetch:(p:CompiledReque
   if(String(l.advertiserId)!==advertiser||String(l.lineItemId)!==lineItemId)mismatch('DV360 returned a different line item.');
   if(l.lineItemType!=='LINE_ITEM_TYPE_DEMAND_GEN')invalid('Line item '+lineItemId+' is '+String(l.lineItemType)+'; Demand Gen ad groups belong to LINE_ITEM_TYPE_DEMAND_GEN line items.');
   const bid=obj(l.bidStrategy)&&obj(l.bidStrategy.demandGenBid)?l.bidStrategy.demandGenBid:{};
-  lineItem={lineItemId,insertionOrderId:String(l.insertionOrderId??''),displayName:l.displayName??null,entityStatus:l.entityStatus??null,bidStrategyType:bid.type??null,bidValue:micros(String(bid.value??''))?String(bid.value):null};
+  lineItem={lineItemId,insertionOrderId:String(l.insertionOrderId??''),displayName:l.displayName??null,entityStatus:l.entityStatus??null,bidStrategyType:bid.type??null,bidValue:micros(String(bid.value??''))?String(bid.value):null,geoLanguageTargetingEnabled:obj(l.demandGenSettings)&&l.demandGenSettings.geoLanguageTargetingEnabled===true};
  }
  return {status:200,headers:{},data:{advertiserId:advertiser,currency,adGroup,lineItem}};
 }
@@ -214,6 +214,6 @@ export function dv360AdGroupVerification(plan:CompiledRequest,result:JsonObject,
  const id=kind==='create'?String(result.data?.adGroupId??''):adGroupOf(plan);
  if(!/^[1-9]\d*$/.test(id))fail('VERIFICATION_UNSUPPORTED','The receipt names no ad group to verify.');
  const expected=kind==='delete'?null:{...after(plan,prior),adGroupId:id};
- return [{read:stateRead(plan,{adGroupId:id,optional:kind==='delete'}),expected:{adGroup:expected},id:'Demand Gen ad group '+id}];
+ return [{read:dv360AdGroupStateRead(plan,{adGroupId:id,optional:kind==='delete'}),expected:{adGroup:expected},id:'Demand Gen ad group '+id}];
 }
 export function dv360AdGroupObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {adGroup:obj(data.adGroup)?data.adGroup:null};}

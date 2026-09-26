@@ -1884,6 +1884,32 @@
     {
       "gateway": "dv360_native_action",
       "arguments": {
+        "action": "DV360_ADVERTISERS_AD_GROUPS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS",
+        "params": {
+          "advertiserId": "123"
+        },
+        "body": {
+          "adGroupIds": [
+            "901"
+          ],
+          "createRequests": [
+            {
+              "targetingType": "TARGETING_TYPE_AGE_RANGE",
+              "assignedTargetingOptions": [
+                {
+                  "ageRangeDetails": {
+                    "ageRange": "AGE_RANGE_25_34"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "dv360_native_action",
+      "arguments": {
         "action": "DV360_ADVERTISERS_LINE_ITEMS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS",
         "params": {
           "advertiserId": "123"

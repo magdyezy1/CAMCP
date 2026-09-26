@@ -94,8 +94,9 @@ Deletion also accepts the documented alias, such as `ENVIRONMENT_WEB_OPTIMIZED`.
   selected advertiser; AMCP reads each one, and a location list must have the matching type.
   Partner-owned lists are not assigned by this contract.
 - AMCP reads each line item and every page of its assigned targeting of the edited types (up
-  to 20 pages and 20,000 options). YouTube & Partners line items (the API cannot update them),
-  Demand Gen line items (targeted by ad group) and archived line items are refused.
+  to 20 pages and 20,000 options). YouTube & Partners line items (the API cannot update them)
+  and archived line items are refused. Demand Gen line items take only their documented types
+  (see "Demand Gen targeting" below).
 - Targeting inherited from the partner or advertiser cannot be deleted here. An existing
   identical assignment, including an inherited one, returns `CONFIGURATION_EXISTS`. An absent
   one returns `STATE_NOT_FOUND`.
@@ -176,9 +177,38 @@ created through the line item route as a draft). DV360 writes ad groups of no ot
   every setting the request sets, or confirms a deleted ad group is gone.
   `INVALID_DV360_AD_GROUP` names the field or rule to correct.
 
-Ads, assets and ad group targeting of Demand Gen ad groups are not qualified yet. References:
+Ads and assets of Demand Gen ad groups are not qualified yet; their targeting follows. References:
 [Serve a Demand Gen ad](https://developers.google.com/display-video/api/guides/tasks/serve-demand-gen-ad/overview)
 and [adGroups](https://developers.google.com/display-video/api/reference/rest/v4/advertisers.adGroups),
+checked 2026-09-27.
+
+### Demand Gen targeting
+
+Targeting of Demand Gen resources uses the line item routes above for Demand Gen line items, and
+`DV360_ADVERTISERS_AD_GROUPS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS` (`params: {advertiserId}`, a
+native body with `adGroupIds`, 1–25 decimal strings, `deleteRequests` and `createRequests`) and the
+single `DV360_ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE` and
+`..._DELETE` routes (`params: {advertiserId, adGroupId, targetingType}` and, for deletion,
+`assignedTargetingOptionId`) for Demand Gen ad groups.
+
+- Demand Gen line items take carrier and ISP, day and time, device make and model, device type,
+  geo region, keyword, language, negative keyword list, operating system and POI targeting.
+- Demand Gen ad groups take age range, app, app category, audience group, category, gender, geo
+  region, household income, keyword, language, parental status, URL, YouTube channel and YouTube
+  video targeting. Assigning audience groups stays refused, as for line items; removing them is
+  qualified.
+- Location and language (geo region, POI, language) belong to the line item when its
+  `demandGenSettings.geoLanguageTargetingEnabled` is true, and to its ad groups when it is false;
+  a review that assigns them at the other level is refused.
+- AMCP reads each ad group with its line item (other formats and archived ad groups or line items
+  are refused) and every page of the ad groups' targeting of the edited types. The option rules,
+  limits, bulk receipts (`failedAdGroupIds` is a failure), verification and
+  `INVALID_DV360_TARGETING` meaning of line item targeting apply.
+- Supply `spend_change_confirmed`. Deletions count as removals under the owner's deletion policy,
+  and an owner policy that forbids activation forbids targeting edits of active ad groups.
+
+Reference: [Assign targeting](https://developers.google.com/display-video/api/guides/tasks/serve-demand-gen-ad/assign-targeting)
+and [ad group bulk edit](https://developers.google.com/display-video/api/reference/rest/v4/advertisers.adGroups/bulkEditAssignedTargetingOptions),
 checked 2026-09-27.
 
 ## GA4 — ga4_native_action

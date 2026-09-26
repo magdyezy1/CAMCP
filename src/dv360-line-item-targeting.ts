@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {MirrorError} from './errors.js';
 import {validateDiscoveryBody} from './discovery-body.js';
+import {dv360AdGroupStateRead} from './dv360-demand-gen-ad-groups.js';
 import {stable} from './security.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -17,6 +18,11 @@ import type {TransportResult} from './transport.js';
  */
 export const dv360TargetingTypes=['AGE_RANGE','APP','APP_CATEGORY','AUDIENCE_GROUP','AUDIO_CONTENT_TYPE','AUTHORIZED_SELLER_STATUS','BROWSER','BUSINESS_CHAIN','CARRIER_AND_ISP','CATEGORY','CHANNEL','CONTENT_DURATION','CONTENT_GENRE','CONTENT_INSTREAM_POSITION','CONTENT_OUTSTREAM_POSITION','CONTENT_STREAM_TYPE','DAY_AND_TIME','DEVICE_MAKE_MODEL','DEVICE_TYPE','DIGITAL_CONTENT_LABEL_EXCLUSION','ENVIRONMENT','EXCHANGE','GENDER','GEO_REGION','HOUSEHOLD_INCOME','INVENTORY_SOURCE','INVENTORY_SOURCE_GROUP','KEYWORD','LANGUAGE','NATIVE_CONTENT_POSITION','NEGATIVE_KEYWORD_LIST','OMID','ON_SCREEN_POSITION','OPERATING_SYSTEM','PARENTAL_STATUS','POI','PROXIMITY_LOCATION_LIST','REGIONAL_LOCATION_LIST','SENSITIVE_CATEGORY_EXCLUSION','SUB_EXCHANGE','THIRD_PARTY_VERIFIER','URL','USER_REWARDED_CONTENT','VIDEO_PLAYER_SIZE','VIEWABILITY'].map(t=>'TARGETING_TYPE_'+t);
 export const dv360AdvertiserTargetingTypes=['CHANNEL','DIGITAL_CONTENT_LABEL_EXCLUSION','OMID','SENSITIVE_CATEGORY_EXCLUSION','KEYWORD'].map(t=>'TARGETING_TYPE_'+t);
+/** Types DV360 accepts on Demand Gen line items and on Demand Gen ad groups ("Assign targeting" of the Demand Gen guide, checked 2026-09-27). */
+export const dv360DemandGenLineItemTypes=['CARRIER_AND_ISP','DAY_AND_TIME','DEVICE_MAKE_MODEL','DEVICE_TYPE','GEO_REGION','KEYWORD','LANGUAGE','NEGATIVE_KEYWORD_LIST','OPERATING_SYSTEM','POI'].map(t=>'TARGETING_TYPE_'+t);
+export const dv360AdGroupTargetingTypes=['AGE_RANGE','APP','APP_CATEGORY','AUDIENCE_GROUP','CATEGORY','GENDER','GEO_REGION','HOUSEHOLD_INCOME','KEYWORD','LANGUAGE','PARENTAL_STATUS','URL','YOUTUBE_CHANNEL','YOUTUBE_VIDEO'].map(t=>'TARGETING_TYPE_'+t);
+/** Location and language targeting of a Demand Gen line item sits on the line item when demandGenSettings.geoLanguageTargetingEnabled is true, and on its ad groups otherwise. */
+const geoLanguage=new Set(['TARGETING_TYPE_GEO_REGION','TARGETING_TYPE_POI','TARGETING_TYPE_LANGUAGE']);
 /** Assigning these references audiences or inventory whose advertiser access this contract does not read; removing them is qualified. */
 const unreadReferences:Record<string,string>={TARGETING_TYPE_AUDIENCE_GROUP:'audiences',TARGETING_TYPE_INVENTORY_SOURCE:'inventory sources',TARGETING_TYPE_INVENTORY_SOURCE_GROUP:'inventory source groups'};
 /** Assigned lists must be owned by the selected advertiser; partner-owned channels are not read under an advertiser. */
@@ -39,8 +45,11 @@ const lineItemBulk=/^\/v4\/advertisers\/([1-9]\d*)\/lineItems:bulkEditAssignedTa
 const lineItemOne=/^\/v4\/advertisers\/([1-9]\d*)\/lineItems\/([1-9]\d*)\/targetingTypes\/([^/]+)\/assignedTargetingOptions(?:\/([^/]+))?$/;
 const advertiserBulk=/^\/v4\/advertisers\/([1-9]\d*):editAssignedTargetingOptions$/;
 const advertiserOne=/^\/v4\/advertisers\/([1-9]\d*)\/targetingTypes\/([^/]+)\/assignedTargetingOptions(?:\/([^/]+))?$/;
-/** Owners are line item IDs, or the single `advertiser` owner for advertiser targeting. */
-type Edit={level:'line_item'|'advertiser';route:'bulk'|'create'|'delete';advertiser:string;owners:string[];deletes:{type:string;ids:string[]}[];creates:{type:string;options:unknown[]}[]};
+const adGroupBulk=/^\/v4\/advertisers\/([1-9]\d*)\/adGroups:bulkEditAssignedTargetingOptions$/;
+const adGroupOne=/^\/v4\/advertisers\/([1-9]\d*)\/adGroups\/([1-9]\d*)\/targetingTypes\/([^/]+)\/assignedTargetingOptions(?:\/([^/]+))?$/;
+const maxAdGroups=25;
+/** Owners are line item or ad group IDs, or the single `advertiser` owner for advertiser targeting. */
+type Edit={level:'line_item'|'advertiser'|'ad_group';route:'bulk'|'create'|'delete';advertiser:string;owners:string[];deletes:{type:string;ids:string[]}[];creates:{type:string;options:unknown[]}[]};
 type Row={owner:string;option:JsonObject};
 const obj=(v:unknown):v is JsonObject=>!!v&&typeof v==='object'&&!Array.isArray(v);
 const list=(v:unknown):unknown[]=>Array.isArray(v)?v:[];
@@ -52,9 +61,9 @@ let schemas:Record<string,JsonObject>|undefined;
 const models=()=>schemas??=JSON.parse(fs.readFileSync(fileURLToPath(new URL('../../.mirror/VENDOR/dv360-v4.json',import.meta.url)),'utf8')).document.schemas as Record<string,JsonObject>;
 /** TARGETING_TYPE_GEO_REGION → geoRegionDetails, the union member that must match the targeting type. */
 export const dv360DetailsField=(type:string)=>type.slice(15).toLowerCase().replace(/_([a-z])/g,(_,c:string)=>c.toUpperCase())+'Details';
-const ownerLabel=(e:Edit,owner:string)=>owner===advertiserOwner?'Advertiser '+e.advertiser:'Line item '+owner;
-const ownerDetails=(e:Edit,owner:string):JsonObject=>owner===advertiserOwner?{advertiser_id:e.advertiser}:{line_item_id:owner};
-const optionName=(advertiser:string,owner:string,type:string,id:string)=>'advertisers/'+advertiser+(owner===advertiserOwner?'':'/lineItems/'+owner)+'/targetingTypes/'+type+'/assignedTargetingOptions/'+id;
+const ownerLabel=(e:Edit,owner:string)=>owner===advertiserOwner?'Advertiser '+e.advertiser:(e.level==='ad_group'?'Ad group ':'Line item ')+owner;
+const ownerDetails=(e:Edit,owner:string):JsonObject=>owner===advertiserOwner?{advertiser_id:e.advertiser}:e.level==='ad_group'?{ad_group_id:owner}:{line_item_id:owner};
+const optionName=(advertiser:string,owner:string,type:string,id:string,adGroup=false)=>'advertisers/'+advertiser+(owner===advertiserOwner?'':(adGroup?'/adGroups/':'/lineItems/')+owner)+'/targetingTypes/'+type+'/assignedTargetingOptions/'+id;
 function requests(b:JsonObject){
  return {deletes:list(b.deleteRequests).map(r=>({type:String(obj(r)?r.targetingType:''),ids:list(obj(r)?r.assignedTargetingOptionIds:[]).map(String)})),
   creates:list(b.createRequests).map(r=>({type:String(obj(r)?r.targetingType:''),options:list(obj(r)?r.assignedTargetingOptions:[])}))};
@@ -67,6 +76,15 @@ export function dv360TargetingKind(p:CompiledRequest):Edit|undefined{
  if(bulk&&p.method==='POST')return {level:'line_item',route:'bulk',advertiser:bulk[1]!,owners:list(body.lineItemIds).map(String),...requests(body)};
  const edit=advertiserBulk.exec(p.path);
  if(edit&&p.method==='POST')return {level:'advertiser',route:'bulk',advertiser:edit[1]!,owners:[advertiserOwner],...requests(body)};
+ const groupBulk=adGroupBulk.exec(p.path);
+ if(groupBulk&&p.method==='POST')return {level:'ad_group',route:'bulk',advertiser:groupBulk[1]!,owners:list(body.adGroupIds).map(String),...requests(body)};
+ const group=adGroupOne.exec(p.path);
+ if(group){
+  const type=decoded(group[3]!)??'',id=group[4];
+  if(p.method==='POST'&&id===undefined)return {level:'ad_group',route:'create',advertiser:group[1]!,owners:[group[2]!],deletes:[],creates:[{type,options:[p.body]}]};
+  if(p.method==='DELETE'&&id!==undefined)return {level:'ad_group',route:'delete',advertiser:group[1]!,owners:[group[2]!],deletes:[{type,ids:[decoded(id)??'']}],creates:[]};
+  return;
+ }
  const li=lineItemOne.exec(p.path),adv=li?undefined:advertiserOne.exec(p.path);if(!li&&!adv)return;
  const level=li?'line_item' as const:'advertiser' as const,advertiser=(li??adv)![1]!,owner=li?li[2]!:advertiserOwner,type=decoded((li?li[3]:adv![2])!)??'',id=li?li[4]:adv![3];
  if(p.method==='POST'&&id===undefined)return {level,route:'create',advertiser,owners:[owner],deletes:[],creates:[{type,options:[p.body]}]};
@@ -114,7 +132,7 @@ function option(type:string,value:unknown,at:string):void{
 }
 export function assertDV360Targeting(p:CompiledRequest):void{
  const e=dv360TargetingKind(p);if(!e)return;
- const advertiser=e.level==='advertiser',types=advertiser?dv360AdvertiserTargetingTypes:dv360TargetingTypes,where=advertiser?'an advertiser':'a line item';
+ const advertiser=e.level==='advertiser',group=e.level==='ad_group',types=advertiser?dv360AdvertiserTargetingTypes:group?dv360AdGroupTargetingTypes:dv360TargetingTypes,where=advertiser?'an advertiser':group?'a Demand Gen ad group':'a line item';
  if(e.advertiser!==p.accountId)fail('ACCOUNT_SCOPE_MISMATCH','DV360 path must belong to account_id.');
  if(Object.keys(p.query).length||Object.keys(p.headers??{}).length)invalid('DV360 targeting reviews take no query parameters or header overrides.');
  if(e.route==='delete'){
@@ -123,8 +141,9 @@ export function assertDV360Targeting(p:CompiledRequest):void{
  }else if(!obj(p.body))invalid('Provide the native request object.');
  if(e.route==='bulk'){
   const b=p.body as JsonObject;
-  validateDiscoveryBody(advertiser?'BulkEditAdvertiserAssignedTargetingOptionsRequest':'BulkEditAssignedTargetingOptionsRequest',models(),b,true);
-  if(!advertiser&&(!Array.isArray(b.lineItemIds)||!b.lineItemIds.length||b.lineItemIds.length>maxLineItems||b.lineItemIds.some(id=>typeof id!=='string'||!numeric.test(id))||new Set(b.lineItemIds).size!==b.lineItemIds.length))invalid('lineItemIds must name 1 to '+maxLineItems+' distinct line items of the selected advertiser as decimal strings.');
+  validateDiscoveryBody(advertiser?'BulkEditAdvertiserAssignedTargetingOptionsRequest':group?'BulkEditAdGroupAssignedTargetingOptionsRequest':'BulkEditAssignedTargetingOptionsRequest',models(),b,true);
+  if(group&&(!Array.isArray(b.adGroupIds)||!b.adGroupIds.length||b.adGroupIds.length>maxAdGroups||b.adGroupIds.some(id=>typeof id!=='string'||!numeric.test(id))||new Set(b.adGroupIds).size!==b.adGroupIds.length))invalid('adGroupIds must name 1 to '+maxAdGroups+' distinct Demand Gen ad groups of the selected advertiser as decimal strings.');
+  if(e.level==='line_item'&&(!Array.isArray(b.lineItemIds)||!b.lineItemIds.length||b.lineItemIds.length>maxLineItems||b.lineItemIds.some(id=>typeof id!=='string'||!numeric.test(id))||new Set(b.lineItemIds).size!==b.lineItemIds.length))invalid('lineItemIds must name 1 to '+maxLineItems+' distinct line items of the selected advertiser as decimal strings.');
   if(list(b.deleteRequests).some(r=>!obj(r)||!Array.isArray(r.assignedTargetingOptionIds)||!r.assignedTargetingOptionIds.length))invalid('Each delete request names a targeting type and at least one assigned targeting option ID.');
   if(list(b.createRequests).some(r=>!obj(r)||!Array.isArray(r.assignedTargetingOptions)||!r.assignedTargetingOptions.length))invalid('Each create request names a targeting type and at least one assigned targeting option.');
   if(!list(b.deleteRequests).length&&!list(b.createRequests).length)invalid('A bulk edit needs at least one delete or create request.');
@@ -154,24 +173,26 @@ function stateRead(p:CompiledRequest,path:string,marker:NonNullable<CompiledRequ
 }
 function targetingRead(p:CompiledRequest,e:Edit,types:string[]):CompiledRequest{
  if(e.level==='advertiser')return {...stateRead(p,'/v4/advertisers/'+e.advertiser+':listAssignedTargetingOptions',{kind:'targeting',types}),query:{filter:filterOf(types),pageSize}};
+ if(e.level==='ad_group'){const groups=[...e.owners].sort();return {...stateRead(p,'/v4/advertisers/'+e.advertiser+'/adGroups:bulkListAssignedTargetingOptions',{kind:'targeting',adGroupIds:groups,types}),query:{adGroupIds:groups,filter:filterOf(types),pageSize},queryArrayEncoding:'repeat'};}
  const lineItems=[...e.owners].sort();
  return {...stateRead(p,'/v4/advertisers/'+e.advertiser+'/lineItems:bulkListAssignedTargetingOptions',{kind:'targeting',lineItemIds:lineItems,types}),query:{lineItemIds:lineItems,filter:filterOf(types),pageSize},queryArrayEncoding:'repeat'};
 }
-const owners=(m:NonNullable<CompiledRequest['dv360TargetingState']>)=>m.lineItemIds??[advertiserOwner];
-const listKey=(read:CompiledRequest)=>read.path.endsWith(':listAssignedTargetingOptions')?'assignedTargetingOptions':'lineItemAssignedTargetingOptions';
+const owners=(m:NonNullable<CompiledRequest['dv360TargetingState']>)=>m.lineItemIds??m.adGroupIds??[advertiserOwner];
+const listKey=(read:CompiledRequest)=>read.path.endsWith(':listAssignedTargetingOptions')?'assignedTargetingOptions':read.path.endsWith('/adGroups:bulkListAssignedTargetingOptions')?'adGroupAssignedTargetingOptions':'lineItemAssignedTargetingOptions';
 /** The advertiser or each line item, then the complete assigned targeting of the edited types, then each assigned list. */
 export function dv360TargetingSnapshots(p:CompiledRequest):CompiledRequest[]{
  const e=dv360TargetingKind(p)!,a=e.advertiser;
  const types=[...new Set([...e.deletes.map(d=>d.type),...e.creates.map(c=>c.type)])].sort();
  const refs=new Map<string,CompiledRequest>();
  for(const c of e.creates){const ref=references[c.type];if(!ref)continue;for(const o of c.options){const id=String((o as JsonObject)[dv360DetailsField(c.type)][ref.field]),path='/v4/advertisers/'+a+'/'+ref.collection+'/'+id;if(!refs.has(path))refs.set(path,stateRead(p,path,{kind:'reference',reference:c.type},true));}}
- const holders=e.level==='advertiser'?[stateRead(p,'/v4/advertisers/'+a,{kind:'advertiser'})]:e.owners.map(id=>stateRead(p,'/v4/advertisers/'+a+'/lineItems/'+id,{kind:'line_item'}));
+ const holders=e.level==='advertiser'?[stateRead(p,'/v4/advertisers/'+a,{kind:'advertiser'})]:e.level==='ad_group'?e.owners.map(id=>dv360AdGroupStateRead(p,{adGroupId:id})):e.owners.map(id=>stateRead(p,'/v4/advertisers/'+a+'/lineItems/'+id,{kind:'line_item'}));
  return [...holders,...chunks(types).map(ts=>targetingRead(p,e,ts)),...refs.values()];
 }
 export function isDV360TargetingRead(p:CompiledRequest):boolean{return p.gateway==='dv360_native_action'&&!!p.dv360TargetingState;}
 function rowsOf(value:unknown):Row[]{
  if(!obj(value))return [];
  if(Array.isArray(value.assignedTargetingOptions))return value.assignedTargetingOptions.filter(obj).map(o=>({owner:advertiserOwner,option:o}));
+ if(Array.isArray(value.adGroupAssignedTargetingOptions))return value.adGroupAssignedTargetingOptions.filter(obj).map(r=>({owner:String(r.adGroupId),option:obj(r.assignedTargetingOption)?r.assignedTargetingOption:{}}));
  return list(value.lineItemAssignedTargetingOptions).filter(obj).map(r=>({owner:String(r.lineItemId),option:obj(r.assignedTargetingOption)?r.assignedTargetingOption:{}}));
 }
 export function validateDV360TargetingState(read:CompiledRequest,result:TransportResult):void{
@@ -197,8 +218,8 @@ export function validateDV360TargetingState(read:CompiledRequest,result:Transpor
  if(d[key]!==undefined&&!Array.isArray(d[key]))fail('STATE_READ_FAILED','Malformed assigned targeting list.');
  const seen=new Set<string>();
  for(const row of list(d[key])){
-  const advertiserRow=key==='assignedTargetingOptions',o=advertiserRow?(obj(row)?row:undefined):obj(row)&&obj(row.assignedTargetingOption)?row.assignedTargetingOption:undefined,owner=advertiserRow?advertiserOwner:obj(row)?String(row.lineItemId):'';
-  if(!o||!owners(m).includes(owner)||!m.types!.includes(o.targetingType)||typeof o.assignedTargetingOptionId!=='string'||!o.assignedTargetingOptionId||!sameName(o.name,optionName(account,owner,o.targetingType,o.assignedTargetingOptionId)))fail('STATE_TARGET_MISMATCH','Assigned targeting must belong to the requested '+(advertiserRow?'advertiser':'line items')+' and targeting types of the selected advertiser.');
+  const advertiserRow=key==='assignedTargetingOptions',groupRow=key==='adGroupAssignedTargetingOptions',o=advertiserRow?(obj(row)?row:undefined):obj(row)&&obj(row.assignedTargetingOption)?row.assignedTargetingOption:undefined,owner=advertiserRow?advertiserOwner:obj(row)?String(groupRow?row.adGroupId:row.lineItemId):'';
+  if(!o||!owners(m).includes(owner)||!m.types!.includes(o.targetingType)||typeof o.assignedTargetingOptionId!=='string'||!o.assignedTargetingOptionId||!sameName(o.name,optionName(account,owner,o.targetingType,o.assignedTargetingOptionId,groupRow)))fail('STATE_TARGET_MISMATCH','Assigned targeting must belong to the requested '+(advertiserRow?'advertiser':groupRow?'ad groups':'line items')+' and targeting types of the selected advertiser.');
   const id=owner+' '+o.targetingType+' '+o.assignedTargetingOptionId;if(seen.has(id))fail('STATE_TARGET_MISMATCH','DV360 returned an assigned targeting option twice.');seen.add(id);
  }
 }
@@ -206,7 +227,7 @@ export function validateDV360TargetingState(read:CompiledRequest,result:Transpor
 export async function readDV360Targeting(p:CompiledRequest,request:(read:CompiledRequest)=>Promise<TransportResult>):Promise<TransportResult>{
  if(p.dv360TargetingState?.kind!=='targeting')return request(p);
  const key=listKey(p),rows:JsonObject[]=[],tokens=new Set<string>();let current=p;
- const sortKey=(r:JsonObject)=>{const o=key==='assignedTargetingOptions'?r:r.assignedTargetingOption;return String(r.lineItemId??'')+' '+String(o?.targetingType)+' '+String(o?.assignedTargetingOptionId);};
+ const sortKey=(r:JsonObject)=>{const o=key==='assignedTargetingOptions'?r:r.assignedTargetingOption;return String(r.lineItemId??r.adGroupId??'')+' '+String(o?.targetingType)+' '+String(o?.assignedTargetingOptionId);};
  for(let page=0;page<maxPages;page++){
   const response=await request(current),d=response.data;
   if(response.status!==200||!obj(d)||d.error||d[key]!==undefined&&!Array.isArray(d[key])||d.nextPageToken!==undefined&&typeof d.nextPageToken!=='string')fail('STATE_READ_FAILED','DV360 must return pages of the assigned targeting of the selected line items or advertiser.');
@@ -225,15 +246,27 @@ function finalKeys(e:Edit,rows:Row[],owner:string,type:string):string[]{
  const kept=rows.filter(r=>r.owner===owner&&r.option.targetingType===type&&!del.some(id=>matches(r.option,id))).map(r=>optionKey(type,r.option));
  return [...kept,...(e.creates.find(c=>c.type===type)?.options??[]).map(o=>optionKey(type,o))].sort();
 }
+/** Demand Gen targeting takes the documented types of its level, and location and language only where the line item's setting puts them. */
+function demandGen(e:Edit,label:string,geoHere:boolean,types:string[]):void{
+ for(const t of [...e.deletes.map(d=>d.type),...e.creates.map(c=>c.type)])if(!types.includes(t))invalid(label+' is Demand Gen; '+t+' is not among its targeting types ('+types.map(x=>x.slice(15)).join(', ')+').');
+ for(const c of e.creates)if(geoLanguage.has(c.type)&&!geoHere)invalid(label+': location and language targeting of this Demand Gen line item belongs to '+(e.level==='ad_group'?'the line item':'its ad groups')+' (demandGenSettings.geoLanguageTargetingEnabled).');
+}
 export function validateDV360TargetingPrerequisites(plan:CompiledRequest,state:unknown[]):void{
  const e=dv360TargetingKind(plan);if(!e)return;
  const reads=dv360TargetingSnapshots(plan);if(state.length<reads.length)fail('STATE_READ_FAILED','DV360 targeting state is incomplete.');
  if(e.level==='advertiser'){
   const adv=obj(state[0])?state[0]:{};
   if(!advertiserStatus.has(adv.entityStatus))invalid('Advertiser '+e.advertiser+' is '+adv.entityStatus+'; only active and paused advertisers can be retargeted.');
- }else e.owners.forEach((id,i)=>{
+ }else if(e.level==='ad_group')e.owners.forEach((id,i)=>{
+  const s=obj(state[i])?state[i]:{},group=obj(s.adGroup)?s.adGroup:undefined,line=obj(s.lineItem)?s.lineItem:undefined;
+  if(!group||!line)fail('STATE_READ_FAILED','Ad group '+id+' and its line item were not read.');
+  if(group.entityStatus==='ENTITY_STATUS_ARCHIVED'||line.entityStatus==='ENTITY_STATUS_ARCHIVED')invalid('Ad group '+id+' or its line item is archived.');
+  demandGen(e,'Ad group '+id,line.geoLanguageTargetingEnabled!==true,dv360AdGroupTargetingTypes);
+ });
+ else e.owners.forEach((id,i)=>{
   const li=obj(state[i])?state[i]:{};
-  if(!lineItemTypes.has(li.lineItemType))invalid('Line item '+id+' is '+li.lineItemType+'. YouTube & Partners line items cannot be updated through the API, and Demand Gen line items are targeted by ad group.');
+  if(li.lineItemType==='LINE_ITEM_TYPE_DEMAND_GEN')demandGen(e,'Line item '+id,obj(li.demandGenSettings)&&li.demandGenSettings.geoLanguageTargetingEnabled===true,dv360DemandGenLineItemTypes);
+  else if(!lineItemTypes.has(li.lineItemType))invalid('Line item '+id+' is '+li.lineItemType+'; YouTube & Partners line items cannot be updated through the API.');
   if(!editableStatus.has(li.entityStatus))invalid('Line item '+id+' is '+li.entityStatus+'; only active, paused and draft line items can be retargeted.');
  });
  reads.forEach((r,i)=>{
@@ -274,6 +307,15 @@ export function dv360TargetingImpact(plan:CompiledRequest,state:unknown[]):JsonO
    verification:'Reads the complete advertiser targeting of the edited types and compares it with the expected result.',
    source:'https://developers.google.com/display-video/api/reference/rest/v4/advertisers/editAssignedTargetingOptions'};
  }
+ if(e.level==='ad_group'){
+  const groups=e.owners.map((id,i)=>{const s=obj(state[i])?state[i]:{},g=obj(s.adGroup)?s.adGroup:{},l=obj(s.lineItem)?s.lineItem:{};return {ad_group_id:id,display_name:g.displayName??null,entity_status:g.entityStatus??null,line_item_id:l.lineItemId??null,line_item_status:l.entityStatus??null,serving:g.entityStatus==='ENTITY_STATUS_ACTIVE'&&l.entityStatus==='ENTITY_STATUS_ACTIVE'};});
+  return {provider:'dv360',scope:'ad_group_targeting',ad_groups:groups,may_affect_serving:groups.some(g=>g.entity_status==='ENTITY_STATUS_ACTIVE'),...changes,
+   effect:'Changes which people and placements the listed Demand Gen ad groups reach. Removing targeting broadens reach; adding narrows it. Active ad groups under active line items change delivery at once.',
+   ...(e.route==='bulk'?{bulk_semantics:'DV360 deletes, then creates, for each ad group; when one ad group fails the others are still updated, and the receipt lists failed ad groups.'}:{}),
+   inheritance:'Partner, advertiser and line item targeting also applies; Demand Gen resources show only inherited keyword targeting.',
+   verification:'Reads the complete assigned targeting of the edited types for every listed ad group and compares it with the expected result.',
+   source:'https://developers.google.com/display-video/api/guides/tasks/serve-demand-gen-ad/assign-targeting'};
+ }
  const lineItems=e.owners.map((id,i)=>{const li=obj(state[i])?state[i]:{};return {line_item_id:id,display_name:li.displayName??null,line_item_type:li.lineItemType??null,entity_status:li.entityStatus??null,serving:li.entityStatus==='ENTITY_STATUS_ACTIVE'};});
  return {provider:'dv360',scope:'line_item_targeting',line_items:lineItems,may_affect_serving:lineItems.some(l=>l.serving),...changes,
   effect:'Changes which impressions the listed line items can buy. Removing targeting broadens eligible inventory and audiences; adding narrows it. Active line items change delivery immediately.',
@@ -283,7 +325,7 @@ export function dv360TargetingImpact(plan:CompiledRequest,state:unknown[]):JsonO
   source:'https://developers.google.com/display-video/api/guides/tasks/run-ad-campaign/assign-targeting'};
 }
 function createdOption(e:Edit,o:unknown,owner:string,types:string[]):boolean{
- return obj(o)&&typeof o.assignedTargetingOptionId==='string'&&!!o.assignedTargetingOptionId&&types.includes(o.targetingType)&&obj(o[dv360DetailsField(o.targetingType)])&&sameName(o.name,optionName(e.advertiser,owner,o.targetingType,o.assignedTargetingOptionId));
+ return obj(o)&&typeof o.assignedTargetingOptionId==='string'&&!!o.assignedTargetingOptionId&&types.includes(o.targetingType)&&obj(o[dv360DetailsField(o.targetingType)])&&sameName(o.name,optionName(e.advertiser,owner,o.targetingType,o.assignedTargetingOptionId,e.level==='ad_group'));
 }
 export function dv360TargetingOutcome(plan:CompiledRequest,response:TransportResult):boolean{
  const e=dv360TargetingKind(plan)!,d=response.data;
@@ -295,16 +337,18 @@ export function dv360TargetingOutcome(plan:CompiledRequest,response:TransportRes
   const created=list(d.createdAssignedTargetingOptions),count=(types:unknown[],type:string)=>types.filter(t=>t===type).length;
   return created.length===e.creates.reduce((n,c)=>n+c.options.length,0)&&created.every(o=>createdOption(e,o,advertiserOwner,e.creates.map(c=>c.type)))&&e.creates.every(c=>count(created.map(o=>(o as JsonObject).targetingType),c.type)===c.options.length);
  }
+ if(e.level==='ad_group'){const groups=list(d.updatedAdGroupIds).map(String).sort();return stable(groups)===stable([...e.owners].sort())&&!list(d.failedAdGroupIds).length&&!list(d.errors).length;}
  const updated=list(d.updatedLineItemIds).map(String).sort();
  return stable(updated)===stable([...e.owners].sort())&&!list(d.failedLineItemIds).length&&!list(d.errors).length;
 }
 export function dv360TargetingVerification(plan:CompiledRequest,before:unknown[]):{read:CompiledRequest;expected:JsonObject;id:string}[]{
  const e=dv360TargetingKind(plan)!;
  return dv360TargetingSnapshots(plan).flatMap((read,i)=>{
-  const m=read.dv360TargetingState!;if(m.kind!=='targeting')return [];
+  // Ad group holders carry the ad group read marker, not a targeting one.
+  const m=read.dv360TargetingState;if(m?.kind!=='targeting')return [];
   const rows=rowsOf(before[i]),expected:JsonObject={};
   for(const owner of owners(m)){expected[owner]={};for(const type of m.types!)expected[owner][type]=finalKeys(e,rows,owner,type);}
-  return [{read,expected:{targeting:expected},id:(m.lineItemIds?'lineItems '+m.lineItemIds.join(','):'advertiser '+e.advertiser)+' '+m.types!.join(',')}];
+  return [{read,expected:{targeting:expected},id:(m.lineItemIds?'lineItems '+m.lineItemIds.join(','):m.adGroupIds?'adGroups '+m.adGroupIds.join(','):'advertiser '+e.advertiser)+' '+m.types!.join(',')}];
  });
 }
 export function dv360TargetingObserved(read:CompiledRequest,data:JsonObject):JsonObject{
@@ -315,4 +359,4 @@ export function dv360TargetingObserved(read:CompiledRequest,data:JsonObject):Jso
 }
 export function dv360TargetingRemoves(p:CompiledRequest):boolean{const e=dv360TargetingKind(p);return !!e&&e.deletes.some(d=>d.ids.length>0);}
 /** Targeting of an active line item, or of an advertiser, changes delivery at once, so an owner policy that forbids activation forbids it; unknown state counts as active. */
-export function dv360TargetingServing(p:CompiledRequest,before:unknown):boolean{const e=dv360TargetingKind(p);if(!e)return false;if(e.level==='advertiser')return true;return !Array.isArray(before)||e.owners.some((_,i)=>!obj(before[i])||before[i].entityStatus==='ENTITY_STATUS_ACTIVE');}
+export function dv360TargetingServing(p:CompiledRequest,before:unknown):boolean{const e=dv360TargetingKind(p);if(!e)return false;if(e.level==='advertiser')return true;if(e.level==='ad_group')return !Array.isArray(before)||e.owners.some((_,i)=>{const s=before[i];return !obj(s)||!obj(s.adGroup)||s.adGroup.entityStatus==='ENTITY_STATUS_ACTIVE';});return !Array.isArray(before)||e.owners.some((_,i)=>!obj(before[i])||before[i].entityStatus==='ENTITY_STATUS_ACTIVE');}
