@@ -81,6 +81,8 @@ export interface CompiledRequest {
   googleListingGroupState?:{kind:'group'|'tree';group:string};
   /** Server-derived TikTok negative keyword read (campaigns, ad groups or one complete keyword list); never caller supplied. */
   tiktokNegativeKeywordState?:{kind:'adgroups'|'campaigns'|'campaign_adgroups'|'keywords';ids:string[];objectType?:string};
+  /** Server-derived TikTok account brand safety read (Pangle block list or Brand Safety Hub); never caller supplied. */
+  tiktokBrandSafetyState?:'pangle'|'hub';
   /** Server-derived GTM workflow read. Never accepted from external arguments. */
   gtmState?:{kind:'resource'|'collection'|'status'|'latest';key?:string};
   /** Internal complete GTM workspace read; targets only qualify absence checks. */

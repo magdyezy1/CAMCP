@@ -478,7 +478,18 @@ Tests: `tests/google-listing-groups.test.ts` (8, red on `4b67890` / green after)
 - New reviewed family `tiktok_negative_keywords` (`src/tiktok-negative-keywords.ts`) for add (including replace), update and delete on manual campaigns and ad groups with Automatic Search Placement.
 - A bounded reader in both state and verification chains reads every page of each keyword list (up to 200 pages of 50), because add and delete return no keyword IDs. Plain additions need no spending confirmation; deletions, replacements and renames do.
 
-Tests: `tests/tiktok-negative-keywords.test.mjs` (8, red on `242470d` / green after).
+Tests: `tests/tiktok-negative-keywords.test.mjs` (8, red on `242470d` / green after). Pushed as `e16d168`.
+
+## Finished batch — TikTok account brand safety
+
+[Implementation](TIKTOK-BRAND-SAFETY-2026-09-26.md) and
+[qualification](TIKTOK-BRAND-SAFETY-VERIFICATION-2026-09-26.json).
+
+- New reviewed family `tiktok_brand_safety` (`src/tiktok-brand-safety.ts`) for the Pangle block list and the Brand Safety Hub.
+- Pangle apps must be iTunes IDs or package names, checked against the current list; blocking needs no confirmation, but unblocking and clearing do, and the receipt's added count must match.
+- Hub updates send the tier, exclusions and vertical together, always need confirmation, and cannot switch back from all objectives.
+
+Tests: `tests/tiktok-brand-safety.test.mjs` (8, red on `e16d168` / green after).
 
 ## CI and live evidence
 
@@ -492,19 +503,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 520 in reviewed write families. **917 remaining rows** are in
+3241 captured actions; 522 in reviewed write families. **915 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 802 |
+| blocked_write | 800 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 188, Meta 131, LinkedIn 118, Google Ads 96,
+Blocked writes by platform: TikTok 186, Meta 131, LinkedIn 118, Google Ads 96,
 Snapchat 91, X 67, DV360 56, Criteo 43, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

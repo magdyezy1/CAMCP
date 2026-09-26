@@ -52,6 +52,7 @@ import {dv360ListKind,assertDV360ListWrite,dv360ListSnapshots,validateDV360ListS
 import {dv360TargetingKind,assertDV360Targeting,dv360TargetingSnapshots,isDV360TargetingRead,validateDV360TargetingState,readDV360Targeting,validateDV360TargetingPrerequisites,dv360TargetingOutcome} from './dv360-line-item-targeting.js';
 import {googleListingGroupKind,assertGoogleListingGroups,googleListingGroupSnapshots,isGoogleListingGroupRead,validateGoogleListingGroupState,validateGoogleListingGroupPrerequisites,googleListingGroupOutcome} from './google-listing-groups.js';
 import {tiktokNegativeKeywordKind,assertTiktokNegativeKeywords,tiktokNegativeKeywordReads,isTiktokNegativeKeywordRead,validateTiktokNegativeKeywordState,readTiktokNegativeKeywords,validateTiktokNegativeKeywordPrerequisites,tiktokNegativeKeywordOutcome} from './tiktok-negative-keywords.js';
+import {tiktokBrandSafetyKind,assertTiktokBrandSafety,tiktokBrandSafetyReads,isTiktokBrandSafetyRead,validateTiktokBrandSafetyState,validateTiktokBrandSafetyPrerequisites,tiktokBrandSafetyOutcome} from './tiktok-brand-safety.js';
 import {googleConfigurationKind,assertGoogleConfiguration,googleConfigurationSnapshots,validateGoogleConfigurationState,googleConfigurationOutcome} from './google-configuration-writes.js';
 import {checkSpendPolicy} from './spend-policy.js';
 import {randomUUID} from 'node:crypto';
@@ -146,6 +147,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(dv360TargetingKind(plan))return dv360TargetingOutcome(plan,result);
  if(googleListingGroupKind(plan))return googleListingGroupOutcome(plan,result);
  if(tiktokNegativeKeywordKind(plan))return tiktokNegativeKeywordOutcome(plan,result);
+ if(tiktokBrandSafetyKind(plan))return tiktokBrandSafetyOutcome(plan,result);
  if(dv360ListKind(plan))return dv360ListOutcome(plan,result);
  if(googleConfigurationKind(plan))return googleConfigurationOutcome(plan,result);
  if(googleAssetLinkKind(plan))return googleAssetLinkOutcome(plan,result);
@@ -186,6 +188,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  if(isDV360TargetingRead(read)){validateDV360TargetingState(read,result);return;}
  if(isGoogleListingGroupRead(read)){validateGoogleListingGroupState(read,result);return;}
  if(isTiktokNegativeKeywordRead(read)){validateTiktokNegativeKeywordState(read,result);return;}
+ if(isTiktokBrandSafetyRead(read)){validateTiktokBrandSafetyState(read,result);return;}
  if(isLinkedInLeadFormRead(read)){validateLinkedInLeadFormState(read,result);return;}
  if(isLinkedInConversionRead(read)){validateLinkedInConversionState(read,result);return;}
  if(isGoogleBidRead(read)){validateGoogleBidState(read,result);return;}
@@ -292,6 +295,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(dv360TargetingKind(plan)){assertDV360Targeting(plan);return;}
  if(googleListingGroupKind(plan)){assertGoogleListingGroups(plan);return;}
  if(tiktokNegativeKeywordKind(plan)){assertTiktokNegativeKeywords(plan);return;}
+ if(tiktokBrandSafetyKind(plan)){assertTiktokBrandSafety(plan);return;}
  if(plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['CREATE','PARTIAL_UPDATE','DELETE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))fail('WRITE_CONTRACT_UNAVAILABLE','This REST.li method override is not qualified for reviewed execution.');
  if(gtmWorkflowKind(plan)){assertGtmWorkflow(plan);return;}
  if(gtmWorkspaceKind(plan)){assertGtmWorkspace(plan);return;}
@@ -407,6 +411,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(dv360TargetingKind(plan))return dv360TargetingSnapshots(plan);
  if(googleListingGroupKind(plan))return googleListingGroupSnapshots(plan);
  if(tiktokNegativeKeywordKind(plan))return tiktokNegativeKeywordReads(plan);
+ if(tiktokBrandSafetyKind(plan))return tiktokBrandSafetyReads(plan);
  if(dv360ListKind(plan))return dv360ListSnapshots(plan);
  if(googleConfigurationKind(plan))return googleConfigurationSnapshots(plan);
  if(googleAssetLinkKind(plan))return googleAssetLinkSnapshots(plan);
@@ -676,6 +681,7 @@ export class WriteReviewService {
   validateDV360TargetingPrerequisites(plan,values);
   validateGoogleListingGroupPrerequisites(plan,values);
   validateTiktokNegativeKeywordPrerequisites(plan,values);
+  validateTiktokBrandSafetyPrerequisites(plan,values);
   if(appleEntityKind(plan)==='shared_budget'&&!plan.scopeContext?.appleSharedOrgId){
    const account=object(values[reads.findIndex(r=>r.path==='/v1/ad-accounts/'+plan.accountId)]).result;
    const target=object(values[reads.findIndex(r=>r.path===plan.path)]).result;

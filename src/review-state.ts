@@ -19,6 +19,7 @@ import {tiktokSmartPlusAdState} from './tiktok-smart-plus-ads.js';
 import {tiktokSmartPlusAdgroupCampaignState} from './tiktok-smart-plus-adgroup-updates.js';
 import {tiktokInstantFormState} from './tiktok-instant-forms.js';
 import {isGoogleListingGroupRead,googleListingGroupState} from './google-listing-groups.js';
+import {isTiktokBrandSafetyRead,tiktokBrandSafetyState} from './tiktok-brand-safety.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 
 // Response envelopes are validated before projection. Within each resource keep
@@ -58,6 +59,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  const d=data as JsonObject;
  if(isGoogleBidRead(read))return normalizeReviewState(data);
  if(isGoogleListingGroupRead(read))return normalizeReviewState(googleListingGroupState(read,d));
+ if(isTiktokBrandSafetyRead(read))return normalizeReviewState(tiktokBrandSafetyState(read,d));
  if(read.gateway==='gtm_native_action')return normalizeReviewState(gtmSafeConfiguration(data));
  if(read.gateway==='tiktok_native_action'&&read.path===tiktokPixelListPath&&Array.isArray(d.data?.pixels))return normalizeReviewState({data:tiktokPixelState(d)});
  if(read.gateway==='tiktok_native_action'){const state=tiktokSmartPlusAdState(read,d)??tiktokSmartPlusAdgroupCampaignState(read,d)??tiktokInstantFormState(read,d);if(state)return normalizeReviewState(state);}

@@ -1444,6 +1444,19 @@
     {
       "gateway": "tiktok_native_action",
       "arguments": {
+        "action": "tiktok_pangle_block_list_update",
+        "account_id": "123",
+        "payload": {
+          "add_app_list": [
+            "com.example.game",
+            "1234567890"
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "tiktok_native_action",
+      "arguments": {
         "action": "tiktok_search_ad_negative_keyword_add",
         "account_id": "123",
         "payload": {

@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CQ — TikTok account brand safety (2026-09-26)
+
+The Pangle app block list and the Brand Safety Hub defaults for future Upgraded Smart+ campaigns
+can now be changed through reviews that read the current list or settings first and verify after.
+Blocking apps only narrows delivery; unblocking, clearing and hub edits need spending confirmation,
+and switching the hub to all objectives is shown as irreversible. See
+[implementation](TIKTOK-BRAND-SAFETY-2026-09-26.md),
+[qualification](TIKTOK-BRAND-SAFETY-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 915 (two TikTok rows reviewed). Pushed only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## CP — TikTok Search Ads negative keywords (2026-09-26)
 
 Negative keywords of manual TikTok campaigns and search-enabled ad groups can now be added,
@@ -18,8 +31,8 @@ replacements and renames do. See
 [qualification](TIKTOK-NEGATIVE-KEYWORDS-VERIFICATION-2026-09-26.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 917 (three TikTok rows reviewed). Pushed only to CAMCP; its exact-commit CI result
-and live acceptance are pending.
+Remaining rows: 917 (three TikTok rows reviewed). Pushed to CAMCP as `e16d168`; its exact-commit CI
+result and live acceptance are pending.
 
 ## CO — Google Performance Max retail listing groups (2026-09-26)
 

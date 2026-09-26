@@ -465,6 +465,27 @@ a campaign needs it on at least one of its ad groups. Discover keyword IDs with
   compares names (without case) and match types. `INVALID_TIKTOK_NEGATIVE_KEYWORD` means correct
   the named object, keyword or field.
 
+## TikTok account brand safety
+
+- **Pangle block list** (`tiktok_pangle_block_list_update`): `add_app_list` and
+  `delete_app_list` hold up to 1,000 distinct apps each, as iTunes IDs for iOS or package names
+  (`com.example.game`) for Android. `clear_old_app: true` replaces the whole list with
+  `add_app_list`, and cannot be combined with deletions. AMCP reads the list first and refuses
+  apps already blocked or not on it. Blocking more apps only narrows delivery. Unblocking and
+  clearing need `spend_change_confirmed`, count as removals under the owner's deletion policy
+  and count as serving under an activation-forbidding policy. The response counts only added
+  apps; a lower count stays a failure.
+- **Brand Safety Hub** (`tiktok_tiktok_inventory_filters_update`): sets the account defaults for
+  future Upgraded Smart+ campaigns (not regular campaigns). `cover_all_ad_objectives` is required.
+  To change the filter, send `brand_safety_type` (`EXPANDED_INVENTORY`, `STANDARD_INVENTORY` or
+  `LIMITED_INVENTORY`). The standard and limited tiers also need `category_exclusion_ids` (an empty
+  list excludes none) and `vertical_sensitivity_id`, from `/tool/content_exclusion/get/`. The
+  expanded tier takes neither. Once the settings cover all objectives, TikTok cannot turn that off;
+  AMCP shows it as irreversible and refuses switching back. Every update needs
+  `spend_change_confirmed`, and an update that changes nothing is refused.
+- Verification reads the list or settings again. `INVALID_TIKTOK_BRAND_SAFETY` means correct the
+  named apps or settings.
+
 ## TikTok lookalike audiences
 
 - `tiktok_dmp_custom_audience_lookalike_create` creates a lookalike from a seed audience the selected
