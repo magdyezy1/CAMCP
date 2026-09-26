@@ -1,0 +1,102 @@
+{
+  "format_version": 1,
+  "date": "2026-09-26",
+  "branch": "Codex-branch",
+  "base_revision": "e227872daba348b16f99f51f1174f5b6f51cc068",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/meta-deep-copies-20260926-a",
+    "files": 697,
+    "source_tree_hash": "92bf1d39242e19abd19349c69db4097ecb98cc6ae0c562c950771dca54ffe628",
+    "index_code_test_guidance_files_compared": 612,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/meta-deep-copies-20260926-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/meta-deep-copies-20260926/install.log",
+      "sha256": "fd1d9de07b2f08802677e9eb68653e02fcf4423e062c4d00c4a3afe0d39973f2"
+    },
+    {
+      "path": ".runtime/meta-deep-copies-20260926/check.log",
+      "sha256": "09f7dc72203afbc0ef55688cc9775bb0e6b9f50cb848f2970bfcab143a606180",
+      "started": "2026-09-26T08:00:13Z",
+      "finished": "2026-09-26T08:09:07Z",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2122,
+          "pass": 2122,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/meta-deep-copies-20260926/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/meta-deep-copies-20260926/red-check.log",
+      "sha256": "7b6c5094498ab7095fc393d96e51e0ff61db3dd84414fd5ed701ea9d7c60bc71",
+      "meaning": "tests/meta-copies.test.mjs against a build of e227872: the 3 new deep campaign tests fail (deep_copy and start_time refused); the 3 existing ad set deep tests fail because the fixture now requires the new children field list; the other 6 pass"
+    },
+    {
+      "path": ".runtime/meta-deep-copies-20260926/targeted.log",
+      "sha256": "3eb30c753ea075ce066709d8d6359a39093ef0ec6d783a178f8ae1e410051c28",
+      "meaning": "Related suites in the worktree before assembly: 1107/1107 pass"
+    }
+  ],
+  "development_failures": [
+    "An inline shell heredoc carrying the module patch failed on escaped apostrophes before changing anything; the edits were applied directly instead.",
+    "A scripted guide edit assumed uniform CRLF endings, but meta.md mixes CRLF (original text) and LF (sections added this session); the guide was edited directly."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2122,
+    "main_pass": 2122,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Deep copies above Meta synchronous three-child limit (asynchronous batch copies), parameter_overrides and create_dco_adset stay unqualified.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

@@ -279,8 +279,10 @@ field availability and advertising eligibility remain unverified live.
 Meta's `/copies` edges duplicate an existing campaign, ad set or ad. Use them to clone
 structures instead of re-creating each object.
 
-- `meta_campaign_id_copies_copy` makes a shallow campaign copy. Deep campaign copies are not
-  qualified: copy the campaign, then copy each ad set into it.
+- `meta_campaign_id_copies_copy` copies a campaign. With `deep_copy: true` it also copies the
+  campaign's ad sets and their ads, if there are at most three children in total (Meta's synchronous
+  limit). Otherwise it fails with `META_COPY_TOO_LARGE`: copy the campaign without children, then
+  copy each ad set into it. `start_time`/`end_time` apply to a deep campaign copy's ad sets.
 - `meta_ad_set_id_copies_copy` copies an ad set, optionally into another owned campaign
   (`campaign_id`). With `deep_copy: true` it also copies the ad set's ads, up to Meta's
   synchronous limit of three. More ads fail with `META_COPY_TOO_LARGE`: copy the ad set without
@@ -293,14 +295,17 @@ structures instead of re-creating each object.
   for ad sets, `start_time`/`end_time` as UTC UNIX seconds (`end_time: 0` = no end).
 - Source and target IDs must already be owned: list them from the selected ad account first.
 - The review reads the source with fields that exist only on its type, so a campaign ID given to
-  the ad set action fails at Meta. It also reads the target and, for a deep ad set copy, the
-  source's ads. Source and target must belong to the selected account (`STATE_TARGET_MISMATCH`).
-- Budgets the copy duplicates (`daily_budget`, `lifetime_budget` of a copied campaign or ad set)
+  the ad set action fails at Meta. It also reads the target and, for a deep copy, the source's
+  ad sets and ads (one complete page each). Source, target and every listed child must belong
+  where expected (`STATE_TARGET_MISMATCH`).
+- Budgets the copy duplicates (`daily_budget`, `lifetime_budget` of the copied campaign or ad set
+  and, for a deep campaign copy, of each child ad set)
   count as new budgets under the owner spending policy, so `POLICY_BUDGET_LIMIT` applies. A change
   to the source's budget between review and execution is `STATE_CHANGED`.
 - Verification reads every copied campaign, ad set and ad. Each must be `PAUSED`, in the selected
-  account and under the expected parent. A deep copy returning fewer copied ads than the source
-  had is `META_COPY_INCOMPLETE`.
+  account and under the expected parent: a deep campaign copy's ad sets under the copied
+  campaign, and each copied ad under the copy of its own ad set. A deep copy whose receipt lacks a
+  copy of any source child is `META_COPY_INCOMPLETE`.
 - Copies stay paused. Activating them is a separate reviewed status change with its own spending
   checks.
 

@@ -20,6 +20,10 @@ const seed=()=>new Map(Object.entries({
  201:{type:'adset',id:'201',account_id:account,campaign_id:'101',name:'Target set',status:'PAUSED',optimization_goal:'LEAD_GENERATION'},
  300:{type:'ad',id:'300',account_id:account,campaign_id:'100',adset_id:'200',name:'Video A',status:'ACTIVE'},
  301:{type:'ad',id:'301',account_id:account,campaign_id:'100',adset_id:'200',name:'Video B',status:'ACTIVE'},
+ // An ad-set-budget campaign: its only budget sits on the child ad set.
+ 102:{type:'campaign',id:'102',account_id:account,name:'Awareness',status:'ACTIVE',objective:'OUTCOME_AWARENESS'},
+ 202:{type:'adset',id:'202',account_id:account,campaign_id:'102',name:'Jeddah',status:'ACTIVE',optimization_goal:'REACH',daily_budget:'6000'},
+ 302:{type:'ad',id:'302',account_id:account,campaign_id:'102',adset_id:'202',name:'Image A',status:'ACTIVE'},
  900:{type:'adset',id:'900',account_id:'999',campaign_id:'990',name:'Elsewhere',status:'PAUSED',optimization_goal:'REACH'}}));
 const only={campaign:['objective'],adset:['optimization_goal'],ad:['adset_id']};
 function fixture({extraAds=0}={}){
@@ -30,7 +34,9 @@ function fixture({extraAds=0}={}){
  const own=(...ids)=>{for(const id of ids)store.rememberResource(connection,account,id);};
  const transport=new NativeTransport(async(raw,init={})=>{
   const url=new URL(String(raw)),path=url.pathname,method=init.method??'GET';requests.push(method+' '+path);let m;
-  if(method==='GET'&&(m=/^\/v25\.0\/(\d+)\/ads$/.exec(path))){assert.equal(url.searchParams.get('fields'),'id,adset_id');return Response.json({data:[...rows.values()].filter(r=>r.type==='ad'&&r.adset_id===m[1]).map(r=>({id:r.id,adset_id:r.adset_id})),paging:{cursors:{before:'b',after:'a'}}});}
+  const page=(type,parent,fields)=>Response.json({data:[...rows.values()].filter(r=>r.type===type&&!r.copied&&(r.adset_id===parent||r.campaign_id===parent)).map(r=>Object.fromEntries(fields.split(',').filter(f=>r[f]!==undefined).map(f=>[f,r[f]]))),paging:{cursors:{before:'b',after:'a'}}});
+  if(method==='GET'&&(m=/^\/v25\.0\/(\d+)\/ads$/.exec(path))){assert.equal(url.searchParams.get('fields'),'id,adset_id,campaign_id');return page('ad',m[1],url.searchParams.get('fields'));}
+  if(method==='GET'&&(m=/^\/v25\.0\/(\d+)\/adsets$/.exec(path))){assert.equal(url.searchParams.get('fields'),'id,campaign_id,daily_budget,lifetime_budget');return page('adset',m[1],url.searchParams.get('fields'));}
   if(method==='GET'&&(m=/^\/v25\.0\/(\d+)$/.exec(path))){const row=rows.get(m[1]);if(!row)return Response.json({error:{message:'Unsupported get request.',code:100}},{status:400});
    const fields=url.searchParams.get('fields').split(','),wrong=fields.find(f=>Object.entries(only).some(([t,list])=>t!==row.type&&list.includes(f)&&!(row.type==='ad'&&f==='adset_id')));
    if(wrong)return Response.json({error:{message:'(#100) Tried accessing nonexisting field ('+wrong+') on node type ('+row.type+')',code:100}},{status:400});
@@ -38,7 +44,11 @@ function fixture({extraAds=0}={}){
   if(method==='POST'&&(m=/^\/v25\.0\/(\d+)\/copies$/.exec(path))){writes.push(path);const b=Object.fromEntries(new URLSearchParams(String(init.body))),source=rows.get(m[1]);
    const copy=(row,extra)=>{const id=String(next++);rows.set(id,{...row,...extra,id,status:mode==='active_copy'?'ACTIVE':b.status_option,name:row.name+' - Copy'});return id;};
    let receipt;
-   if(source.type==='campaign'){const id=copy(source,{});receipt={copied_campaign_id:id,ad_object_ids:[{ad_object_type:'campaign',source_id:source.id,copied_id:id}]};}
+   if(source.type==='campaign'){const id=copy(source,{copied:true}),ids=[{ad_object_type:'campaign',source_id:source.id,copied_id:id}];
+    if(b.deep_copy==='true'){const setMap={};
+     for(const set of [...rows.values()].filter(r=>r.type==='adset'&&r.campaign_id===source.id&&!r.copied)){setMap[set.id]=copy(set,{campaign_id:id,copied:true});ids.push({ad_object_type:'ad_set',source_id:set.id,copied_id:setMap[set.id]});}
+     for(const ad of [...rows.values()].filter(r=>r.type==='ad'&&r.campaign_id===source.id&&!r.copied))ids.push({ad_object_type:'ad',source_id:ad.id,copied_id:copy(ad,{campaign_id:id,adset_id:setMap[ad.adset_id],copied:true})});}
+    receipt={copied_campaign_id:id,ad_object_ids:mode==='drop_child'?ids.slice(0,-1):ids};}
    else if(source.type==='adset'){const id=copy(source,{campaign_id:b.campaign_id??source.campaign_id}),ads=b.deep_copy==='true'?[...rows.values()].filter(r=>r.type==='ad'&&r.adset_id===source.id&&!r.copied):[];
     const ids=ads.map(ad=>({ad_object_type:'ad',source_id:ad.id,copied_id:copy(ad,{adset_id:id,copied:true})}));receipt={copied_adset_id:id,ad_object_ids:[{ad_object_type:'ad_set',source_id:source.id,copied_id:id},...(mode==='drop_child'?ids.slice(1):ids)]};}
    else{const id=copy(source,{adset_id:b.adset_id??source.adset_id,copied:true});receipt={copied_ad_id:id};}
@@ -71,7 +81,7 @@ test('campaign, ad set and ad copies are a reviewed Meta family',async()=>{
 test('only paused, documented, non-overriding copies are accepted, before any request',async()=>{
  const f=fixture();f.own('100','200','300','101','201');try{
   const cases=[['meta_campaign_id_copies_copy',{campaign_id:'100'},{}],['meta_campaign_id_copies_copy',{campaign_id:'100'},{status_option:'ACTIVE'}],['meta_campaign_id_copies_copy',{campaign_id:'100'},{status_option:'INHERITED_FROM_SOURCE'}],
-   ['meta_campaign_id_copies_copy',{campaign_id:'100'},{status_option:'PAUSED',deep_copy:true}],['meta_campaign_id_copies_copy',{campaign_id:'100'},{status_option:'PAUSED',parameter_overrides:{name:'x'}}],
+   ['meta_campaign_id_copies_copy',{campaign_id:'100'},{status_option:'PAUSED',end_time:0}],['meta_campaign_id_copies_copy',{campaign_id:'100'},{status_option:'PAUSED',parameter_overrides:{name:'x'}}],
    ['meta_campaign_id_copies_copy',{campaign_id:'100'},{status_option:'PAUSED',start_time:1790400000}],['meta_ad_id_copies_copy',{ad_id:'300'},{status_option:'PAUSED',creative_parameters:{name:'x'}}],
    ['meta_ad_set_id_copies_copy',{ad_set_id:'200'},{status_option:'PAUSED',create_dco_adset:true}],['meta_ad_set_id_copies_copy',{ad_set_id:'200'},{status_option:'PAUSED',campaign_id:'act_101'}],
    ['meta_ad_set_id_copies_copy',{ad_set_id:'200'},{status_option:'PAUSED',deep_copy:'yes'}],['meta_ad_set_id_copies_copy',{ad_set_id:'200'},{status_option:'PAUSED',start_time:-1}],
@@ -141,6 +151,39 @@ test('rejected, empty or lost copy receipts never submit a second copy',async()=
   assert.equal((await f.execute(p.data.review_id)).error?.code,again,mode);assert.equal(f.writes.length,1,mode);
   assert.notEqual((await f.verify(p.data.review_id)).data?.status,'verified',mode);
  }finally{f.store.close();}}
+});
+
+test('a deep campaign copy reads its ad sets and ads, copies within the limit and verifies every level',async()=>{
+ const f=fixture();f.own('100');try{
+  const p=await campaignCopy(f,{status_option:'PAUSED',deep_copy:true,start_time:1790400000,end_time:0});assert.equal(p.success,true,JSON.stringify(p));
+  assert.deepEqual(p.data.state_reads.map(r=>r.path),['/v25.0/100','/v25.0/100/adsets','/v25.0/100/ads']);
+  assert.equal(p.data.creative_impact.copies_expected,4);
+  assert.deepEqual(p.data.creative_impact.budgets_copied,[{field:'daily_budget',amount:'5000'},{field:'200/daily_budget',amount:'2000'}]);
+  const done=await f.execute(p.data.review_id);assert.equal(done.success,true,JSON.stringify(done));
+  const verified=await f.verify(p.data.review_id);assert.equal(verified.data.status,'verified',JSON.stringify(verified));assert.equal(verified.data.checks.length,4);
+  const ids=done.data.data.ad_object_ids,set=ids.find(o=>o.ad_object_type==='ad_set').copied_id;
+  assert.equal(f.rows.get(set).campaign_id,done.data.data.copied_campaign_id);
+  for(const o of ids.filter(o=>o.ad_object_type==='ad'))assert.equal(f.rows.get(o.copied_id).adset_id,set,'each ad sits under the copy of its own ad set');
+ }finally{f.store.close();}
+});
+
+test('deep campaign copies above the limit, or whose ad set budget exceeds the owner cap, are refused before any write',async()=>{
+ const f=fixture({extraAds:1});f.own('100','102');try{
+  const large=await campaignCopy(f,{status_option:'PAUSED',deep_copy:true});assert.equal(large.error.code,'META_COPY_TOO_LARGE',JSON.stringify(large));assert.deepEqual(large.error.details,{children:4,limit:3});
+  saveSpendPolicy(f.store,owner,{scope:'workspace',confirmed:true,policy:{max_budget_native:4000}});
+  const capped=await f.prepare('meta_campaign_id_copies_copy',{campaign_id:'102'},{status_option:'PAUSED',deep_copy:true});
+  assert.equal(capped.error?.code,'POLICY_BUDGET_LIMIT',JSON.stringify(capped));assert.equal(capped.error.details.field,'/copied_adset/202/daily_budget');
+  assert.equal((await f.prepare('meta_campaign_id_copies_copy',{campaign_id:'102'},{status_option:'PAUSED'})).success,true,'a shallow copy duplicates no budget');
+  assert.equal(f.writes.length,0);
+ }finally{f.store.close();}
+});
+
+test('a deep campaign copy whose receipt omits a child is incomplete, not verified',async()=>{
+ const f=fixture();f.own('100');try{
+  const p=await campaignCopy(f,{status_option:'PAUSED',deep_copy:true});f.mode('drop_child');assert.equal((await f.execute(p.data.review_id)).success,true);
+  const verified=await f.verify(p.data.review_id);assert.equal(verified.data.status,'unverified',JSON.stringify(verified));
+  assert.equal(verified.data.checks[0].code,'META_COPY_INCOMPLETE');
+ }finally{f.store.close();}
 });
 
 test('copy claims survive concurrent execution and restart',async()=>{

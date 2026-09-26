@@ -162,7 +162,21 @@ Pushed as `d21fb76`.
 
 The v23 audience GAQL field table is recorded with its source hash. Tests:
 `tests/google-audiences.test.mjs` (4) and an `audiences` lifecycle case in
-`tests/google-configuration-writes.test.ts` (red on `d21fb76` / green after).
+`tests/google-configuration-writes.test.ts` (red on `d21fb76` / green after). Pushed as `e227872`.
+
+## Finished batch — Meta deep campaign copies
+
+[Implementation](META-DEEP-COPIES-2026-09-26.md) and
+[qualification](META-DEEP-COPIES-VERIFICATION-2026-09-26.json).
+
+`meta_campaign_id_copies_copy` now accepts `deep_copy: true`:
+
+- Within Meta's synchronous limit of three children.
+- The campaign's ad sets and ads are read as complete pages.
+- Child ad set budgets count as new budgets.
+- Each copied ad set and ad is verified under the copy of its source parent.
+
+Tests: three new cases in `tests/meta-copies.test.mjs`.
 
 ## CI and live evidence
 
@@ -203,4 +217,3 @@ Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12. The ticket list in 
 | P2 | Snapchat pixel/mobile rule audiences | Live GET evidence of `pixel_spec_object`/mobile specs before qualifying their creation |
 | P3 | Snapchat segment deletion | A way to find ad squads that target a segment, or an explicit owner policy, before permanent deletion |
 | P2 | TikTok identity avatar read-back | Live evidence linking `profile_image_url` to the sent `image_uri` before comparing it |
-| P2 | Meta deep campaign copies | Campaign deep copy within the three-child limit, with ad set budgets in the spending policy and parent mapping verified across two levels |

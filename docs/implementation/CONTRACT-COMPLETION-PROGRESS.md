@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## BQ — Meta deep campaign copies (2026-09-26)
+
+`meta_campaign_id_copies_copy` now accepts `deep_copy: true` within Meta's three-child
+synchronous limit. It reads the campaign's ad sets and ads as complete pages, counts child
+ad set budgets under the spending policy, and verifies each copy under the copy of its
+source parent. See [implementation](META-DEEP-COPIES-2026-09-26.md),
+[qualification](META-DEEP-COPIES-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: unchanged (964); this extends an already reviewed action. Pushed only to
+CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## BP — Google Ads audience signals (2026-09-26)
 
 `google_ads_v23_audience_mutate_audiences` joins the reviewed `google_configuration` family
@@ -19,8 +31,8 @@ table is recorded with its source hash. See
 [qualification](GOOGLE-AUDIENCES-VERIFICATION-2026-09-26.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 964 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Remaining rows then: 964. Pushed to CAMCP as `e227872`; its exact-commit CI result and live
+acceptance are pending.
 
 ## BO — Meta lookalike audiences (2026-09-26)
 
