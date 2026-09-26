@@ -270,7 +270,20 @@ The Smart+ campaign, ad group and ad status routes (and aliases) are the new rev
 - Enabling needs spending confirmation and obeys an owner policy that forbids activation.
 - Receipts must report every ID with the requested status; partial outcomes keep their claim. Read-back compares each entity's `operation_status`.
 
-Tests: `tests/tiktok-smart-plus-status.test.mjs` (7, red on `3967a83` / green after).
+Tests: `tests/tiktok-smart-plus-status.test.mjs` (7, red on `3967a83` / green after). Pushed as `d2d5eec`.
+
+## Finished batch — TikTok Upgraded Smart+ ad group budgets
+
+[Implementation](TIKTOK-SMART-PLUS-BUDGETS-2026-09-26.md) and
+[qualification](TIKTOK-SMART-PLUS-BUDGETS-VERIFICATION-2026-09-26.json).
+
+`tiktok_smart_plus_adgroup_budget_update` is the new reviewed family `tiktok_smart_plus_budgets`:
+
+- Immediate `budget` updates for 1–20 ad groups; allowlist-only scheduled budgets are refused.
+- Ad groups are read before review and execution and must have their own lifetime or dynamic daily budget.
+- Each amount is compared with its own ad group's budget under the spending policy; Goal-based budget increase is explained in the impact.
+
+Tests: `tests/tiktok-smart-plus-budgets.test.mjs` (6, red on `d2d5eec` / green after).
 
 ## CI and live evidence
 
@@ -284,19 +297,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 484 in reviewed write families. **953 remaining rows** are in
+3241 captured actions; 485 in reviewed write families. **952 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 838 |
+| blocked_write | 837 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 207, Meta 131, LinkedIn 118, Google Ads 107,
+Blocked writes by platform: TikTok 206, Meta 131, LinkedIn 118, Google Ads 107,
 Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

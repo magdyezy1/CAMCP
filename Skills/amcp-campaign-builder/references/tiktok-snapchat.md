@@ -228,6 +228,21 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
 - Verification reads each entity and compares `operation_status`. An enabled entity delivers only
   if its parents are on and its budget allows.
 
+## TikTok Upgraded Smart+ ad group budgets
+
+- `tiktok_smart_plus_adgroup_budget_update` replaces the budgets of 1–20 Upgraded Smart+ ad
+  groups immediately: `budget: [{adgroup_id, budget}]` with
+  positive amounts of at most two decimals in the account currency. `scheduled_budget` is
+  allowlist-only at TikTok and fails with `INVALID_TIKTOK_SMART_PLUS_BUDGET`, as do other keys.
+- The review reads the ad groups from `/smart_plus/adgroup/get/` before review and again before
+  execution. Each must be returned (`STATE_TARGET_MISMATCH`) and have its own lifetime or dynamic
+  daily budget; campaign-budget-optimized ad groups are refused (change the campaign budget).
+- With Goal-based budget increase (`AUTO_BUDGET_INCREASE`) the amount is the initial daily budget;
+  `creative_impact` explains that TikTok may raise it during the day.
+- Each amount is checked against that ad group's own current budget under the owner spending
+  policy, and execution needs `spend_change_confirmed: true`.
+- Verification reads each ad group and compares `budget`.
+
 ## TikTok lookalike audiences
 
 - `tiktok_dmp_custom_audience_lookalike_create` creates a lookalike from a seed audience the selected

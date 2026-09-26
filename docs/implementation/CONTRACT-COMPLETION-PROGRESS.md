@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## BY — TikTok Upgraded Smart+ ad group budgets (2026-09-26)
+
+`tiktok_smart_plus_adgroup_budget_update` is a reviewed family for immediate Smart+ ad group
+budgets: 1–20 ad groups with their own budgets, each amount compared with its own ad group's
+budget under the spending policy, and read-back of `budget`. Scheduled budgets stay
+unqualified (allowlist-only). See [implementation](TIKTOK-SMART-PLUS-BUDGETS-2026-09-26.md),
+[qualification](TIKTOK-SMART-PLUS-BUDGETS-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 952 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## BX — TikTok Upgraded Smart+ status (2026-09-26)
 
 The Smart+ campaign, ad group and ad status routes form a reviewed family for pausing and
@@ -19,7 +31,7 @@ receipts must cover every ID, and read-back compares `operation_status`. See
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
 Remaining rows: 953 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Pushed to CAMCP as `d2d5eec`; its exact-commit CI result and live acceptance are pending.
 
 ## BW — TikTok saved audiences (2026-09-26)
 

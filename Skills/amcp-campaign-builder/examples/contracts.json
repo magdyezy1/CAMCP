@@ -1258,6 +1258,21 @@
       }
     },
     {
+      "gateway": "tiktok_native_action",
+      "arguments": {
+        "action": "tiktok_smart_plus_adgroup_budget_update",
+        "account_id": "123",
+        "payload": {
+          "budget": [
+            {
+              "adgroup_id": "400",
+              "budget": 120
+            }
+          ]
+        }
+      }
+    },
+    {
       "gateway": "linkedin_native_action",
       "arguments": {
         "action": "linkedin_rest_posts_post",
