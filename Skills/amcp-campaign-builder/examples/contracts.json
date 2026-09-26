@@ -1444,6 +1444,28 @@
     {
       "gateway": "meta_native_action",
       "arguments": {
+        "action": "meta_ad_account_id_account_controls_create",
+        "account_id": "123",
+        "payload": {
+          "audience_controls": {
+            "age_min": 21,
+            "geo_locations": {
+              "countries": [
+                "US"
+              ]
+            }
+          },
+          "placement_controls": {
+            "placement_exclusions": [
+              "facebook_rhc"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "gateway": "meta_native_action",
+      "arguments": {
         "action": "meta_ad_account_id_value_rule_set_create",
         "account_id": "123",
         "payload": {

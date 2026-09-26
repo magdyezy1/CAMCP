@@ -1,0 +1,104 @@
+{
+  "format_version": 1,
+  "date": "2026-09-26",
+  "branch": "Codex-branch",
+  "base_revision": "27439495779759736bb97c061a745570cf4c0737",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/meta-brand-safety-20260926-a",
+    "files": 812,
+    "source_tree_hash": "0bf53b3e04aa4d7828095790259fc148f01e5abecd2f03a7f2c06890c6586e67",
+    "index_code_test_guidance_files_compared": 669,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/meta-brand-safety-20260926-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/meta-brand-safety-20260926/install.log",
+      "sha256": "fd1d9de07b2f08802677e9eb68653e02fcf4423e062c4d00c4a3afe0d39973f2"
+    },
+    {
+      "path": ".runtime/meta-brand-safety-20260926/check.log",
+      "sha256": "2b271b3a5db48c727fb5bc35428147db6bf3c9ea188fb0cd0522538ed3aceafa",
+      "started": "Sat Sep 26 20:44:52 UTC 2026",
+      "finished": "Sat Sep 26 23:55:36 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2304,
+          "pass": 2304,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/meta-brand-safety-20260926/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/meta-brand-safety-20260926/red-check.log",
+      "sha256": "4daa8348626c74f4fc0acee3d6d8d57d75b44c8f995e2d30f1ec3725755a7dff",
+      "meaning": "tests/meta-brand-safety.test.mjs against a build of 2743949: expected red, 0/6 pass (the routes had no reviewed family)"
+    },
+    {
+      "path": ".runtime/meta-brand-safety-20260926/targeted.log",
+      "sha256": "a61cfcf673e2fc58d502c97e9d842cb2c826010440f4d7b1be00b52aaf864a18",
+      "meaning": "130 related suites in the working copy, including every Meta suite: 1570/1570 pass."
+    }
+  ],
+  "development_failures": [
+    "Self-review before the first test run found that the first controls projection was not idempotent: normalizing a frozen state again would have dropped the placement exclusions. It was replaced by one normalized form that accepts its own output, and verification now compares the controls as one serialized value so that a control that should have been removed cannot pass.",
+    "A bash heredoc for that fix failed on quoting and applied nothing; the fix was applied from a script file."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2304,
+    "main_pass": 2304,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Location keys, interest IDs and employer or position IDs are checked for shape; their existence is left to Meta.",
+    "Meta applies account controls asynchronously; verification compares the stored controls, not their application to each campaign (campaigns_with_error is shown by the read).",
+    "Adding publishers to block lists and applying lists are not part of this family.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

@@ -508,9 +508,18 @@ Tests: `tests/snapchat-planning-reads.test.mjs` (4, red on `1140286` / green aft
 
 - New reviewed family `meta_value_rules` (`src/meta-value-rules.ts`) for value rule set create, complete update and delete, with the documented rule, criterion and account limits.
 - Listing the account's sets records their IDs (`src/scope.ts`), which the update and delete paths need. Updates and deletion need spending confirmation; creation does not.
-- Next Meta candidates: ad account controls (`act_/account_controls`, Advantage+ audience and placement controls) and publisher block lists.
 
-Tests: `tests/meta-value-rules.test.mjs` (6, red on `40fd508` / green after).
+Tests: `tests/meta-value-rules.test.mjs` (6, red on `40fd508` / green after). Pushed as `2743949`.
+
+## Finished batch — Meta account controls and publisher block lists
+
+[Implementation](META-BRAND-SAFETY-2026-09-26.md) and
+[qualification](META-BRAND-SAFETY-VERIFICATION-2026-09-26.json).
+
+- New reviewed family `meta_brand_safety` (`src/meta-brand-safety.ts`). Account controls are set as sent (left-out controls are removed), need spending confirmation and verify exactly against a normalized read. Empty publisher block lists are created by a new name without confirmation.
+- Adding publishers to block lists and applying them remain separate, uncaptured workflows.
+
+Tests: `tests/meta-brand-safety.test.mjs` (6, red on `2743949` / green after).
 
 Other planning candidates checked and left: TikTok Automated Rules are limited by TikTok to direct advertisers (notifications go to the developer's email), and TikTok ACO ads are marked deprecated in the API reference.
 
@@ -526,19 +535,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 525 in reviewed write families. **910 remaining rows** are in
+3241 captured actions; 527 in reviewed write families. **908 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 795 |
+| blocked_write | 793 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 186, Meta 128, LinkedIn 118, Google Ads 96,
+Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 118, Google Ads 96,
 Snapchat 89, X 67, DV360 56, Criteo 43, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

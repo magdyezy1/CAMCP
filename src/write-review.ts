@@ -54,6 +54,7 @@ import {googleListingGroupKind,assertGoogleListingGroups,googleListingGroupSnaps
 import {tiktokNegativeKeywordKind,assertTiktokNegativeKeywords,tiktokNegativeKeywordReads,isTiktokNegativeKeywordRead,validateTiktokNegativeKeywordState,readTiktokNegativeKeywords,validateTiktokNegativeKeywordPrerequisites,tiktokNegativeKeywordOutcome} from './tiktok-negative-keywords.js';
 import {tiktokBrandSafetyKind,assertTiktokBrandSafety,tiktokBrandSafetyReads,isTiktokBrandSafetyRead,validateTiktokBrandSafetyState,validateTiktokBrandSafetyPrerequisites,tiktokBrandSafetyOutcome} from './tiktok-brand-safety.js';
 import {metaValueRuleKind,assertMetaValueRule,metaValueRuleReads,isMetaValueRuleRead,validateMetaValueRuleState,validateMetaValueRulePrerequisites,metaValueRuleOutcome} from './meta-value-rules.js';
+import {metaBrandSafetyKind,assertMetaBrandSafety,metaBrandSafetyReads,isMetaBrandSafetyRead,validateMetaBrandSafetyState,validateMetaBrandSafetyPrerequisites,metaBrandSafetyOutcome} from './meta-brand-safety.js';
 import {googleConfigurationKind,assertGoogleConfiguration,googleConfigurationSnapshots,validateGoogleConfigurationState,googleConfigurationOutcome} from './google-configuration-writes.js';
 import {checkSpendPolicy} from './spend-policy.js';
 import {randomUUID} from 'node:crypto';
@@ -150,6 +151,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(tiktokNegativeKeywordKind(plan))return tiktokNegativeKeywordOutcome(plan,result);
  if(tiktokBrandSafetyKind(plan))return tiktokBrandSafetyOutcome(plan,result);
  if(metaValueRuleKind(plan))return metaValueRuleOutcome(plan,result);
+ if(metaBrandSafetyKind(plan))return metaBrandSafetyOutcome(plan,result);
  if(dv360ListKind(plan))return dv360ListOutcome(plan,result);
  if(googleConfigurationKind(plan))return googleConfigurationOutcome(plan,result);
  if(googleAssetLinkKind(plan))return googleAssetLinkOutcome(plan,result);
@@ -192,6 +194,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  if(isTiktokNegativeKeywordRead(read)){validateTiktokNegativeKeywordState(read,result);return;}
  if(isTiktokBrandSafetyRead(read)){validateTiktokBrandSafetyState(read,result);return;}
  if(isMetaValueRuleRead(read)){validateMetaValueRuleState(read,result);return;}
+ if(isMetaBrandSafetyRead(read)){validateMetaBrandSafetyState(read,result);return;}
  if(isLinkedInLeadFormRead(read)){validateLinkedInLeadFormState(read,result);return;}
  if(isLinkedInConversionRead(read)){validateLinkedInConversionState(read,result);return;}
  if(isGoogleBidRead(read)){validateGoogleBidState(read,result);return;}
@@ -300,6 +303,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(tiktokNegativeKeywordKind(plan)){assertTiktokNegativeKeywords(plan);return;}
  if(tiktokBrandSafetyKind(plan)){assertTiktokBrandSafety(plan);return;}
  if(metaValueRuleKind(plan)){assertMetaValueRule(plan);return;}
+ if(metaBrandSafetyKind(plan)){assertMetaBrandSafety(plan);return;}
  if(plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['CREATE','PARTIAL_UPDATE','DELETE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))fail('WRITE_CONTRACT_UNAVAILABLE','This REST.li method override is not qualified for reviewed execution.');
  if(gtmWorkflowKind(plan)){assertGtmWorkflow(plan);return;}
  if(gtmWorkspaceKind(plan)){assertGtmWorkspace(plan);return;}
@@ -417,6 +421,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(tiktokNegativeKeywordKind(plan))return tiktokNegativeKeywordReads(plan);
  if(tiktokBrandSafetyKind(plan))return tiktokBrandSafetyReads(plan);
  if(metaValueRuleKind(plan))return metaValueRuleReads(plan);
+ if(metaBrandSafetyKind(plan))return metaBrandSafetyReads(plan);
  if(dv360ListKind(plan))return dv360ListSnapshots(plan);
  if(googleConfigurationKind(plan))return googleConfigurationSnapshots(plan);
  if(googleAssetLinkKind(plan))return googleAssetLinkSnapshots(plan);
@@ -688,6 +693,7 @@ export class WriteReviewService {
   validateTiktokNegativeKeywordPrerequisites(plan,values);
   validateTiktokBrandSafetyPrerequisites(plan,values);
   validateMetaValueRulePrerequisites(plan,values);
+  validateMetaBrandSafetyPrerequisites(plan,values);
   if(appleEntityKind(plan)==='shared_budget'&&!plan.scopeContext?.appleSharedOrgId){
    const account=object(values[reads.findIndex(r=>r.path==='/v1/ad-accounts/'+plan.accountId)]).result;
    const target=object(values[reads.findIndex(r=>r.path===plan.path)]).result;

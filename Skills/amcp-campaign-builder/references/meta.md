@@ -106,6 +106,28 @@ order applies.
   [Value Rules](https://developers.facebook.com/documentation/ads-commerce/marketing-api/bidding/value-rules),
   checked 2026-09-26.
 
+### Account controls and publisher block lists
+
+- `meta_ad_account_id_account_controls_create` sets the Advantage+ account controls of every
+  eligible campaign: `audience_controls` (required) with `age_min` (18–25), `geo_locations`
+  (`countries` as two-letter codes and `regions` by key), `excluded_geo_locations` (`regions`,
+  `cities`, `zips` such as `US:94304` and `geo_markets` such as `DMA:807`) and `exclusions`
+  (`interests`, `work_employers` and `work_positions` by ID), and optional `placement_controls`
+  with `placement_exclusions` from `audience_network_classic`, `audience_network_rewarded_video`,
+  `audience_network_instream_video`, `facebook_marketplace` and `facebook_rhc`. Each request sets
+  the controls as sent, so a control left out is removed; the review shows the current and the
+  resulting controls and refuses a request that changes nothing. It needs
+  `spend_change_confirmed` and counts as serving under an activation-forbidding owner policy.
+  Verification compares the controls exactly; Meta's application status is not compared.
+- `meta_ad_account_id_publisher_block_lists_create` creates an empty, named publisher block list
+  (the name is distinct in the account, up to 255 characters). It blocks nothing until publishers
+  are added and the list is applied, so it needs no confirmation.
+- `INVALID_META_BRAND_SAFETY` means correct the named control or name. References:
+  [account controls](https://developers.facebook.com/documentation/ads-commerce/marketing-api/reference/ad-account/account_controls),
+  [audience controls](https://developers.facebook.com/docs/marketing-api/reference/audience-controls/) and
+  [publisher block lists](https://developers.facebook.com/documentation/ads-commerce/marketing-api/reference/ad-account/publisher_block_lists),
+  checked 2026-09-26.
+
 Use `meta_native_action`. Resolve its current actions with LIST_ACTIONS / DESCRIBE_ACTION; current aliases include `meta_campaign_create`, `meta_adset_create`, `meta_creative_create`, `meta_ad_create`, `meta_image_upload` and `meta_video_upload`.
 
 Campaign → ad set → ad; the ad references a separately reusable creative. Native account paths have an `act_` prefix. AMCP accepts either numeric or prefixed account input. New campaign/ad set/ad writes require `status: PAUSED`; this is an AMCP contract, not a claim that Meta always overrides active input.

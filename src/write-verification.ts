@@ -69,6 +69,7 @@ import {googleListingGroupKind,googleListingGroupVerification,isGoogleListingGro
 import {tiktokNegativeKeywordKind,tiktokNegativeKeywordVerification,isTiktokNegativeKeywordRead,tiktokNegativeKeywordObserved,readTiktokNegativeKeywords} from './tiktok-negative-keywords.js';
 import {tiktokBrandSafetyKind,tiktokBrandSafetyVerification,isTiktokBrandSafetyRead,tiktokBrandSafetyObserved} from './tiktok-brand-safety.js';
 import {metaValueRuleKind,metaValueRuleVerification,isMetaValueRuleRead,metaValueRuleObserved} from './meta-value-rules.js';
+import {metaBrandSafetyKind,metaBrandSafetyVerification,isMetaBrandSafetyRead,metaBrandSafetyObserved} from './meta-brand-safety.js';
 import {gtmWorkflowKind,gtmWorkflowVerification,gtmWorkflowObserved,readGtmWorkflow} from './gtm-workflow-writes.js';
 import {gtmWorkspaceKind,gtmWorkspaceVerification,gtmWorkspaceObserved,readGtmWorkspace} from './gtm-workspace-writes.js';
 import {validateState,snapshotPlans} from './write-review.js';
@@ -103,6 +104,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
  if(tiktokNegativeKeywordKind(plan))return tiktokNegativeKeywordVerification(plan,before);
  if(tiktokBrandSafetyKind(plan))return tiktokBrandSafetyVerification(plan,before);
  if(metaValueRuleKind(plan))return metaValueRuleVerification(plan,result,before);
+ if(metaBrandSafetyKind(plan))return metaBrandSafetyVerification(plan,result);
  if(googleConfigurationKind(plan))return googleConfigurationVerification(plan,result);
  if(googleAssetLinkKind(plan))return googleAssetLinkVerification(plan);
  if(microsoftAssociationWrite(plan))return microsoftAssociationVerification(plan,compileMicrosoft);
@@ -180,6 +182,7 @@ function entity(plan:CompiledRequest,data:JsonObject):JsonObject{
  if(isTiktokNegativeKeywordRead(plan))return tiktokNegativeKeywordObserved(plan,data);
  if(isTiktokBrandSafetyRead(plan))return tiktokBrandSafetyObserved(plan,data);
  if(isMetaValueRuleRead(plan))return metaValueRuleObserved(plan,data);
+ if(isMetaBrandSafetyRead(plan))return metaBrandSafetyObserved(plan,data);
  if(plan.gateway==='google_ads_native_action')return googleConfigurationObserved(plan,Object.values(data.results?.[0]??{})[0] as JsonObject);
  if(plan.gateway===microsoftGateway)return data[microsoftContracts.get(plan.action)!.result]?.[0];
  if(plan.gateway==='tiktok_native_action'&&plan.path==='/v1.3/identity/info/')return data.data?.identity_info;

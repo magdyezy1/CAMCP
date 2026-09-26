@@ -85,6 +85,8 @@ export interface CompiledRequest {
   tiktokBrandSafetyState?:'pangle'|'hub';
   /** Server-derived Meta value rule set list read of the selected account; never caller supplied. */
   metaValueRuleState?:true;
+  /** Server-derived Meta account controls or publisher block list read of the selected account; never caller supplied. */
+  metaBrandSafetyState?:'controls'|'blocklist';
   /** Server-derived GTM workflow read. Never accepted from external arguments. */
   gtmState?:{kind:'resource'|'collection'|'status'|'latest';key?:string};
   /** Internal complete GTM workspace read; targets only qualify absence checks. */

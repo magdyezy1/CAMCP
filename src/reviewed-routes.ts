@@ -30,6 +30,7 @@ import {googleListingGroupKind} from './google-listing-groups.js';
 import {tiktokNegativeKeywordKind} from './tiktok-negative-keywords.js';
 import {tiktokBrandSafetyKind} from './tiktok-brand-safety.js';
 import {metaValueRuleKind} from './meta-value-rules.js';
+import {metaBrandSafetyKind} from './meta-brand-safety.js';
 import {googleTargetingKind} from './google-targeting-writes.js';
 import {googleAssetLinkKind} from './google-asset-links.js';
 import {googleConfigurationKind} from './google-configuration-writes.js';
@@ -73,6 +74,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(tiktokNegativeKeywordKind(p))return 'tiktok_negative_keywords';
  if(tiktokBrandSafetyKind(p))return 'tiktok_brand_safety';
  if(metaValueRuleKind(p))return 'meta_value_rules';
+ if(metaBrandSafetyKind(p))return 'meta_brand_safety';
  if(googleBiddingEventKind(p))return 'google_bidding_events';
  if(googlePortfolioKind(p))return 'google_portfolio_strategies';
  if(googleConversionActionKind(p))return 'google_conversion_actions';
