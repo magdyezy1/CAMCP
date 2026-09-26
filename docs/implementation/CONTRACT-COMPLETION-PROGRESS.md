@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## BW — TikTok saved audiences (2026-09-26)
+
+`tiktok_dmp_saved_audience_create` is a reviewed family for reusable targeting. Documented
+fields, enums and combination rules are checked before any request, referenced custom
+audiences must be owned and available at review and execution, and read-back compares lists
+as sets and the price range by its endpoints. See
+[implementation](TIKTOK-SAVED-AUDIENCES-2026-09-26.md),
+[qualification](TIKTOK-SAVED-AUDIENCES-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 959 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## BV — TikTok ad groups that use a custom conversion (2026-09-26)
 
 An ad group create that sets `custom_conversion_id` now reads the conversion before review and
@@ -16,8 +29,8 @@ field are refused. See [implementation](TIKTOK-ADGROUP-CONVERSIONS-2026-09-26.md
 [qualification](TIKTOK-ADGROUP-CONVERSIONS-VERIFICATION-2026-09-26.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: unchanged (960); this hardens an already reviewed action. Pushed only to CAMCP;
-its exact-commit CI result and live acceptance are pending.
+Remaining rows: unchanged (960); this hardens an already reviewed action. Pushed to CAMCP as
+`21d351a`; its exact-commit CI result and live acceptance are pending.
 
 ## BU — TikTok custom conversions (2026-09-26)
 

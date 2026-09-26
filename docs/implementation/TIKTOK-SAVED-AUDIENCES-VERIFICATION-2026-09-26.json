@@ -1,0 +1,107 @@
+{
+  "format_version": 1,
+  "date": "2026-09-26",
+  "branch": "Codex-branch",
+  "base_revision": "21d351a2bf94ad0c77035d272aa1308ef87e0173",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/tiktok-saved-audiences-20260926-a",
+    "files": 720,
+    "source_tree_hash": "d4add5ef8879ef03592468619f08096eef42c8bb27378cf2a03bc491a35c6900",
+    "index_code_test_guidance_files_compared": 623,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/tiktok-saved-audiences-20260926-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/tiktok-saved-audiences-20260926/install.log",
+      "sha256": "fd1d9de07b2f08802677e9eb68653e02fcf4423e062c4d00c4a3afe0d39973f2"
+    },
+    {
+      "path": ".runtime/tiktok-saved-audiences-20260926/check.log",
+      "sha256": "5706041af124292807e6abc2f60ee6f09d75bdcd0c540cc549b2d5645385b86f",
+      "started": "2026-09-26T13:00:04Z",
+      "finished": "2026-09-26T13:11:02Z",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2161,
+          "pass": 2161,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/tiktok-saved-audiences-20260926/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/tiktok-saved-audiences-20260926/red-check.log",
+      "sha256": "34f45a028c9d4dfa45aa432fb3bf01df06131918344095591f08cb5cf33201cd",
+      "meaning": "tests/tiktok-saved-audiences.test.mjs against a build of 21d351a: expected red, 0/7 pass (WRITE_CONTRACT_UNAVAILABLE)"
+    },
+    {
+      "path": ".runtime/tiktok-saved-audiences-20260926/targeted.log",
+      "sha256": "18016bd1edaebc6562f94a92c56eb9a36d6793f41ca00ca05108bc1e62f3acbb",
+      "meaning": "90 related suites in the worktree before assembly: 1272/1272 pass"
+    }
+  ],
+  "development_failures": [
+    "None of the new tests failed during development.",
+    "Design review found that the generic TikTok create receipt rule derives the ID key from the path segment after /v1.3/ (dmp for this route, so dmp_id), which would mark every successful creation as failed; the family checks saved_audience_id instead.",
+    "Design review found that verification reads are built without the request body, so the read-back projection covers every present field and the comparison keeps only the fields that were sent.",
+    "A first wiring command failed to parse in the shell and applied nothing; the same edits were applied from a script file and the build confirmed them."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2161,
+    "main_pass": 2161,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Targeting IDs (locations, interests, carriers, device models, action categories) are checked for format only; TikTok validates them against its tool endpoints.",
+    "Minimum OS versions are checked for format only, because the enumeration points to /tool/os_version/ for the current list.",
+    "The 400-per-advertiser limit is enforced by TikTok; the list read does not page.",
+    "Referenced audiences must be owned by the advertiser; shared audiences are refused even where TikTok would accept them.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

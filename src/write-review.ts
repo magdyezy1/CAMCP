@@ -8,6 +8,7 @@ import {metaLookalikeKind,assertMetaLookalike,metaLookalikeSeed,metaSeedFields} 
 import {tiktokBudgetKind,assertTiktokBudget,tiktokBudgetAdgroupIds} from './tiktok-budgets.js';
 import {tiktokCustomConversionKind,assertTiktokCustomConversion,tiktokCustomConversionReads,validateTiktokConversionState} from './tiktok-custom-conversions.js';
 import {tiktokAdgroupConversion,tiktokAdgroupConversionRead,tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions.js';
+import {tiktokSavedAudienceKind,assertTiktokSavedAudience,tiktokSavedAudienceAudiences,validateTiktokSavedAudienceState} from './tiktok-saved-audiences.js';
 import {linkedinLeadFormKind,assertLinkedInLeadForm,linkedinLeadFormOutcome,rememberLinkedInLeadForm,isLinkedInLeadFormRead,validateLinkedInLeadFormState} from './linkedin-lead-forms.js';
 import {googlePreviewKind,assertGooglePreview,googlePreviewSnapshots,readGooglePreviewState,googlePreviewOutcome,googlePreviewDelivery,googlePreviewSafeOutcome} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaign,assertCriteoCampaignScopes,criteoCampaignSnapshots,readCriteoCampaignState,criteoCampaignOutcome} from './criteo-campaign-writes.js';
@@ -142,7 +143,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
   const op=b.operations[i],expected=op.remove??op.update?.resource_name??op.update?.resourceName;return typeof r.resourceName==='string'&&(expected?r.resourceName===expected:r.resourceName.startsWith('customers/'+plan.accountId+'/'+last.replace(':mutate','')+'/'));
  });
  if(plan.gateway==='tiktok_native_action'){
-  if(d.code!==0)return false;if(tiktokLookalikeKind(plan))return hasId(object(d.data).custom_audience_id);if(!plan.path.endsWith('/create/'))return true;
+  if(d.code!==0)return false;if(tiktokLookalikeKind(plan))return hasId(object(d.data).custom_audience_id);if(tiktokSavedAudienceKind(plan))return hasId(object(d.data).saved_audience_id);if(!plan.path.endsWith('/create/'))return true;
   const kind=segments[2]!,data=object(d.data);
   if(kind==='ad'){const ids=data.ad_ids??[data.ad_id];return Array.isArray(ids)&&ids.length===1&&typeof ids[0]==='string'&&/^\d+$/.test(ids[0]);}
   return hasId(data[kind+'_id'])||Array.isArray(data[kind+'_ids'])&&data[kind+'_ids'].length>0&&data[kind+'_ids'].every(hasId);
@@ -222,7 +223,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  }
  if(read.gateway==='tiktok_native_action'){
   if(read.path==='/v1.3/identity/info/'){const info=data.data?.identity_info;if(data.code!==0||!info||typeof info!=='object'||Array.isArray(info))fail('STATE_READ_FAILED','TikTok identity info must confirm success and contain identity_info.');sameIds([info.identity_id],[read.query.identity_id]);return;}
-  if(validateTiktokConversionState(read,data,sameIds))return;
+  if(validateTiktokConversionState(read,data,sameIds)||validateTiktokSavedAudienceState(read,data,sameIds))return;
   if(data.code!==0||!Array.isArray(data.data?.list))fail('STATE_READ_FAILED','TikTok state must confirm success and contain its native list.');
   if(read.path===tiktokImageInfoPath){sameIds(data.data.list.map((r:JsonObject)=>r.image_id),read.query.image_ids);return;}
   if(read.path===tiktokAudienceGetPath){sameIds(data.data.list.map((r:JsonObject)=>r?.audience_details?.audience_id),read.query.custom_audience_ids);return;}
@@ -296,6 +297,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(metaLookalikeKind(plan))assertMetaLookalike(body);
  if(tiktokBudgetKind(plan))assertTiktokBudget(plan,body);
  if(tiktokCustomConversionKind(plan))assertTiktokCustomConversion(plan,body);
+ if(tiktokSavedAudienceKind(plan))assertTiktokSavedAudience(plan,body);
  if(plan.gateway==='tiktok_native_action')tiktokAdgroupConversion(plan);
  if(plan.gateway==='tiktok_native_action'&&plan.path==='/v1.3/ad/create/'){
   if(!Array.isArray(body.creatives)||body.creatives.length!==1||!body.creatives[0]||Array.isArray(body.creatives[0])||typeof body.creatives[0]!=='object')fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed TikTok ad creation requires exactly one native creatives record per review. Put the ad fields and operation_status inside that record.');
@@ -399,6 +401,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  }
  if(plan.gateway==='tiktok_native_action'){
   if(tiktokCustomConversionKind(plan))return tiktokCustomConversionReads(plan).map(r=>{const read=base(r.path,r.query);read.action=r.action;return read;});
+  if(tiktokSavedAudienceKind(plan)){const reads=[base('/v1.3/advertiser/info/',{advertiser_ids:[id]})],audiences=tiktokSavedAudienceAudiences(plan);if(audiences.length){const read=base(tiktokAudienceGetPath,{advertiser_id:id,custom_audience_ids:audiences});read.action='tiktok_dmp_custom_audience_get';reads.push(read);}return reads;}
   if(tiktokBudgetKind(plan)){const read=base('/v1.3/adgroup/get/',{advertiser_id:id,filtering:{adgroup_ids:tiktokBudgetAdgroupIds(plan)},page_size:100});read.action='tiktok_adgroup_get';return [read];}
   if(tiktokLookalikeKind(plan)){const seed=base(tiktokAudienceGetPath,{advertiser_id:id,custom_audience_ids:[tiktokLookalikeSeed(plan)]});seed.action='tiktok_dmp_custom_audience_get';return [base('/v1.3/advertiser/info/',{advertiser_ids:[id]}),seed];}
   if(tiktokIdentityKind(plan)){

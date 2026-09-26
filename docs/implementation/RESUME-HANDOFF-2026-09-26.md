@@ -242,7 +242,20 @@ must send the conversion's pixel, `optimization_goal: CONVERT` and the conversio
 `optimization_event`, and the conversion must be `ACTIVE` or `NO_RECENT_ACTIVITY`. It is read
 before review and again before execution. Ad group updates that set the field are refused, since
 `/adgroup/update/` does not accept it. Tests: `tests/tiktok-adgroup-conversions.test.mjs`
-(5; four red on `b4e1c25`, one no-change guard; all green after).
+(5; four red on `b4e1c25`, one no-change guard; all green after). Pushed as `21d351a`.
+
+## Finished batch — TikTok saved audiences
+
+[Implementation](TIKTOK-SAVED-AUDIENCES-2026-09-26.md) and
+[qualification](TIKTOK-SAVED-AUDIENCES-VERIFICATION-2026-09-26.json).
+
+`tiktok_dmp_saved_audience_create` is the new reviewed family `tiktok_saved_audiences`:
+
+- Every documented targeting field is checked for type, enum and combination rules before any request; the example-only `interest_keyword_language` is refused.
+- Referenced custom audiences are read before review and execution and must be owned and available.
+- Read-back compares ID lists and actions as sets and the price range by its endpoints, since TikTok returns it in steps of 50.
+
+Tests: `tests/tiktok-saved-audiences.test.mjs` (7, red on `21d351a` / green after).
 
 ## CI and live evidence
 
@@ -256,20 +269,37 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 477 in reviewed write families. **960 remaining rows** are in
+3241 captured actions; 478 in reviewed write families. **959 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 845 |
+| blocked_write | 844 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 214, Meta 131, LinkedIn 118, Google Ads 107,
-Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12. The ticket list in the
+Blocked writes by platform: TikTok 213, Meta 131, LinkedIn 118, Google Ads 107,
+Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12.
+
+An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
+planning script in this checkout, not committed and not a ledger):
+
+| Group | Rows | Notes |
+|---|---:|---|
+| Campaign building and management | ~297 | Real candidates; a few account-admin and funding routes fall here by keyword |
+| Deletions of ad entities | 87 | Destructive; lower priority |
+| Account, business, billing and access administration | 103 | Needs separate authorization |
+| Organic, social and community | 103 | Not advertising |
+| Catalogs and commerce | 91 | Separate area |
+| Personal and customer data | 85 | Excluded by instruction |
+| Experiments, measurement and planning | 78 | Lower priority |
+| Not blocked writes (unmapped, unqualified reads, adapter input, unsupported) | 115 | Mostly reads and local tooling |
+
+Microsoft Learn and Google's developer documentation were unreachable from this environment
+on 2026-09-26 afternoon; LinkedIn and Google candidates wait for them. The ticket list in the
 2026-09-25 handoff remains the backlog, plus these Snapchat follow-ups:
 
 | Priority | Task | Acceptance |

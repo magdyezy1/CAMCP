@@ -177,6 +177,37 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
   `INVALID_TIKTOK_CUSTOM_CONVERSION`. `/adgroup/update/` does not accept `custom_conversion_id`, and
   app-source conversions are not qualified. Custom conversion updates and deletion are not qualified.
 
+## TikTok saved audiences
+
+- `tiktok_dmp_saved_audience_create` saves reusable targeting. It changes no ad group: an ad
+  group uses it only when created with `saved_audience_id` in its own review.
+- Send `saved_audience_name` (at most 512 characters, no emoji) and `location_ids` (numeric IDs
+  from `/tool/region/` or `/tool/targeting/search/`). Optional fields:
+  - `gender` (`GENDER_FEMALE`, `GENDER_MALE`, `GENDER_UNLIMITED`) and `age_groups` (`AGE_13_17`,
+    `AGE_18_24`, `AGE_25_34`, `AGE_35_44`, `AGE_45_54`, `AGE_55_100`);
+  - `languages`, `interest_category_ids`, `interest_keyword_ids`, `carrier_ids`,
+    `device_model_ids`, and `audience_ids` / `excluded_audience_ids` (never the same audience in
+    both; at most 100 together);
+  - `actions`: `{action_scene, action_period, action_category_ids, video_user_actions}` with
+    `VIDEO_RELATED` (period 0, 7 or 15; `WATCHED_TO_END`, `LIKED`, `COMMENTED`, `SHARED`),
+    `CREATOR_RELATED` (period 0; `FOLLOWING`, `VIEW_HOMEPAGE`) or `HASHTAG_RELATED` (period 0;
+    `VIEW_HASHTAG`);
+  - `operating_systems` (one of `ANDROID`, `IOS`), `min_android_version` / `min_ios_version`
+    (`NONE` or a version from `/tool/os_version/`), `network_types` (`WIFI`, `2G`, `3G`, `4G`, `5G`);
+  - `device_price_ranges` as `[lower, upper]`, multiples of 50 up to 10000, not together with
+    `device_model_ids`. TikTok treats the upper limit as 50 higher.
+- ID lists must be unique numeric strings. Other keys, including the example-only
+  `interest_keyword_language`, fail with `INVALID_TIKTOK_SAVED_AUDIENCE` before any request.
+- The review reads the advertiser and every referenced custom audience before review and again
+  before execution. Each audience must be owned by this advertiser and available: shared or
+  still-preparing audiences are refused, and a missing one fails with `STATE_TARGET_MISMATCH`.
+  No spending confirmation is needed.
+- Verification reads `/dmp/saved_audience/list/` for the new ID and compares the sent fields.
+  ID lists and actions compare as sets, and the price range compares as its lowest and highest
+  value, because TikTok returns the range in steps of 50.
+- TikTok allows 400 saved audiences per advertiser; its list read does not page, so TikTok
+  enforces the limit. Deletion is not qualified.
+
 ## TikTok lookalike audiences
 
 - `tiktok_dmp_custom_audience_lookalike_create` creates a lookalike from a seed audience the selected

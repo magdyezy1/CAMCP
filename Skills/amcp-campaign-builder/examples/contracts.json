@@ -1227,6 +1227,24 @@
       }
     },
     {
+      "gateway": "tiktok_native_action",
+      "arguments": {
+        "action": "tiktok_dmp_saved_audience_create",
+        "account_id": "123",
+        "payload": {
+          "saved_audience_name": "KSA 25-44",
+          "location_ids": [
+            "6252001"
+          ],
+          "age_groups": [
+            "AGE_25_34",
+            "AGE_35_44"
+          ],
+          "gender": "GENDER_UNLIMITED"
+        }
+      }
+    },
+    {
       "gateway": "linkedin_native_action",
       "arguments": {
         "action": "linkedin_rest_posts_post",
