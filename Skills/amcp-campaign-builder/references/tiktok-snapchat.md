@@ -268,6 +268,41 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
   paused status, budget settings, industries (as a set) and PO number. Smart+ ad groups and ads,
   and campaign edits, are not qualified yet.
 
+## TikTok Upgraded Smart+ ad groups
+
+- `tiktok_smart_plus_adgroup_create` (alias `tiktok_smart_adset_create`) creates a paused website
+  conversion ad group in an Upgraded Smart+ website conversion campaign: `promotion_type: WEBSITE`,
+  `optimization_goal: CONVERT`, `pixel_id`, an optimizable pixel `optimization_event` (not
+  `PAGE_VIEW`), `billing_event: OCPM`, `bid_type` `BID_TYPE_NO_BID` or `BID_TYPE_CUSTOM` with
+  `conversion_bid_price`, `request_id` (64-bit integer string), `operation_status: DISABLE`,
+  `adgroup_name`, `schedule_type` with `schedule_start_time` (and `schedule_end_time` for
+  `SCHEDULE_START_END`; times are `YYYY-MM-DD HH:MM:SS` UTC), and `targeting_spec`.
+- Targeting: TikTok silently ignores fields that do not match the mode, so AMCP refuses them.
+  - `AUTOMATIC` (default) without suggestions: `location_ids` (required), `spc_audience_age`
+    (`OVER_EIGHTEEN` or `OVER_TWENTY_FIVE`), `languages`, `operating_systems`,
+    `excluded_audience_ids`.
+  - `AUTOMATIC` with `suggestion_audience_enabled: true`: also `age_groups`, `gender`,
+    `audience_ids`, `interest_category_ids`, `interest_keyword_ids` and `actions`.
+  - `MANUAL`: `location_ids`, `age_groups` (18+), `gender`, `languages`, `audience_ids`,
+    `excluded_audience_ids`, interests, `actions`, `operating_systems`, OS versions,
+    `device_model_ids` or `device_price_ranges`, `network_types`, `carrier_ids`.
+- Optional: `custom_conversion_id` (must belong to the pixel, share the event, and be `ACTIVE` or
+  `NO_RECENT_ACTIVITY`), `click_attribution_window` with `view_attribution_window` (and optionally
+  `engaged_view_attribution_window`), `attribution_event_count`, `dayparting` (336 characters of
+  0 and 1), `placement_type` (`PLACEMENT_TYPE_NORMAL` with `PLACEMENT_TIKTOK` and/or
+  `PLACEMENT_PANGLE`), and the comment, share and download switches.
+- Budget: under campaign budget optimization TikTok ignores ad group budgets, so none may be sent;
+  otherwise `budget_mode` (`BUDGET_MODE_DYNAMIC_DAILY_BUDGET`, or `BUDGET_MODE_TOTAL` with an end
+  time) and `budget` are required, and under a campaign daily limit only the dynamic daily mode is
+  allowed. `SCHEDULE_FROM_NOW` needs a dynamic daily budget on the campaign or ad group.
+- The review reads the advertiser, the campaign, the pixel (shared pixels are allowed, unbound ones
+  are not), the custom conversion and referenced audiences (owned and available only) before review
+  and again before execution. Other ad group types and settings fail with
+  `INVALID_TIKTOK_SMART_PLUS_ADGROUP`. Execution needs `spend_change_confirmed: true`.
+- Verification reads `/smart_plus/adgroup/get/` and compares every sent field; targeting lists,
+  actions and placements compare as sets and price ranges by their endpoints. Smart+ ads are not
+  qualified yet.
+
 ## TikTok lookalike audiences
 
 - `tiktok_dmp_custom_audience_lookalike_create` creates a lookalike from a seed audience the selected

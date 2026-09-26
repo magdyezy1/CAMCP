@@ -296,7 +296,20 @@ Tests: `tests/tiktok-smart-plus-budgets.test.mjs` (6, red on `d2d5eec` / green a
 - Documented budget modes per campaign budget optimization setting, with defaults applied for review and verification; the campaign budget is a new budget under the spending policy.
 - App, catalog, search, promotional, iOS dedicated, RTA and Goal-based budget increase settings are refused.
 
-Tests: `tests/tiktok-smart-plus-campaigns.test.mjs` (6, red on `9371d74` / green after).
+Tests: `tests/tiktok-smart-plus-campaigns.test.mjs` (6, red on `9371d74` / green after). Pushed as `3497651`.
+
+## Finished batch — TikTok Upgraded Smart+ ad groups
+
+[Implementation](TIKTOK-SMART-PLUS-ADGROUPS-2026-09-26.md) and
+[qualification](TIKTOK-SMART-PLUS-ADGROUPS-VERIFICATION-2026-09-26.json).
+
+`tiktok_smart_plus_adgroup_create` (and alias) is the new reviewed family `tiktok_smart_plus_adgroups`:
+
+- Paused website conversion ad groups only, with per-mode targeting allowlists so TikTok never silently drops a sent targeting field.
+- Campaign, pixel, custom conversion and audience dependencies are read before review and execution; ad group budgets must fit the campaign's budget optimization setting.
+- Targeting checks, projection and the owned-audience rule now live in `src/tiktok-targeting.ts`, shared with saved audiences.
+
+Tests: `tests/tiktok-smart-plus-adgroups.test.mjs` (6, red on `3497651` / green after).
 
 ## CI and live evidence
 
@@ -310,19 +323,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 487 in reviewed write families. **950 remaining rows** are in
+3241 captured actions; 489 in reviewed write families. **948 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 835 |
+| blocked_write | 833 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 204, Meta 131, LinkedIn 118, Google Ads 107,
+Blocked writes by platform: TikTok 202, Meta 131, LinkedIn 118, Google Ads 107,
 Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
@@ -358,6 +371,6 @@ on 2026-09-26 afternoon; LinkedIn and Google candidates wait for them. The ticke
 | P3 | TikTok asynchronous campaign copy | `/campaign/copy/task/create/` is allowlist-only; needs an allowlisted advertiser, a paused-copy guarantee for every ad group and a task-result verification design |
 | P2 | LinkedIn lead gen creatives must reference owned forms | The documented creative field and URN type that point a lead gen creative at a form, then the same owned-reference check as Snapchat creatives |
 | P2 | LinkedIn lead form edits, publishing and archiving | A read of the creatives and campaigns that use a form, to tell pre-published from published forms and limit edits to the documented fields, plus the documented warning about CRM integrations |
-| P1 | TikTok Upgraded Smart+ ad groups and ads | Smart+ campaigns can be created paused, but ad groups (about 118 documented fields, with targeting fields that TikTok silently ignores when they do not match the targeting mode) and ads are still blocked; qualify a website-conversion subset with per-mode targeting allowlists, then ads |
+| P1 | TikTok Upgraded Smart+ ads | Smart+ campaigns and website conversion ad groups can be created paused; ads (creative asset lists, identities, landing pages, call to action) are still blocked, so a Smart+ campaign cannot deliver yet |
 | P3 | LinkedIn work-email submission criteria | The wire form of the `questionSubmissionCriteria` union, which the schema does not show |
 | P3 | X remaining writes (promoted accounts, cards, tracking tags) | The official X Ads API reference returned HTTP 402 from this environment; needs an accessible, versioned source first |

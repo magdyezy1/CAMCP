@@ -1288,6 +1288,33 @@
       }
     },
     {
+      "gateway": "tiktok_native_action",
+      "arguments": {
+        "action": "tiktok_smart_plus_adgroup_create",
+        "account_id": "123",
+        "payload": {
+          "request_id": "810200300400",
+          "campaign_id": "80",
+          "operation_status": "DISABLE",
+          "adgroup_name": "Smart+ signups",
+          "promotion_type": "WEBSITE",
+          "optimization_goal": "CONVERT",
+          "pixel_id": "7001",
+          "optimization_event": "ON_WEB_REGISTER",
+          "bid_type": "BID_TYPE_NO_BID",
+          "billing_event": "OCPM",
+          "targeting_optimization_mode": "AUTOMATIC",
+          "targeting_spec": {
+            "location_ids": [
+              "102358"
+            ]
+          },
+          "schedule_type": "SCHEDULE_FROM_NOW",
+          "schedule_start_time": "2026-10-01 00:00:00"
+        }
+      }
+    },
+    {
       "gateway": "linkedin_native_action",
       "arguments": {
         "action": "linkedin_rest_posts_post",

@@ -12,6 +12,7 @@ import {tiktokSavedAudienceKind,assertTiktokSavedAudience,tiktokSavedAudienceAud
 import {tiktokSmartPlusStatusKind,assertTiktokSmartPlusStatus,tiktokSmartPlusStatusRead,validateTiktokSmartPlusState,tiktokSmartPlusStatusOutcome} from './tiktok-smart-plus-status.js';
 import {tiktokSmartPlusBudgetKind,assertTiktokSmartPlusBudget,tiktokSmartPlusBudgetRead} from './tiktok-smart-plus-budgets.js';
 import {tiktokSmartPlusCampaignKind,assertTiktokSmartPlusCampaign,tiktokSmartPlusCampaignId} from './tiktok-smart-plus-campaigns.js';
+import {tiktokSmartPlusAdgroupKind,assertTiktokSmartPlusAdgroup,tiktokSmartPlusAdgroupReads,tiktokSmartPlusAdgroupId} from './tiktok-smart-plus-adgroups.js';
 import {linkedinLeadFormKind,assertLinkedInLeadForm,linkedinLeadFormOutcome,rememberLinkedInLeadForm,isLinkedInLeadFormRead,validateLinkedInLeadFormState} from './linkedin-lead-forms.js';
 import {googlePreviewKind,assertGooglePreview,googlePreviewSnapshots,readGooglePreviewState,googlePreviewOutcome,googlePreviewDelivery,googlePreviewSafeOutcome} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaign,assertCriteoCampaignScopes,criteoCampaignSnapshots,readCriteoCampaignState,criteoCampaignOutcome} from './criteo-campaign-writes.js';
@@ -146,7 +147,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
   const op=b.operations[i],expected=op.remove??op.update?.resource_name??op.update?.resourceName;return typeof r.resourceName==='string'&&(expected?r.resourceName===expected:r.resourceName.startsWith('customers/'+plan.accountId+'/'+last.replace(':mutate','')+'/'));
  });
  if(plan.gateway==='tiktok_native_action'){
-  if(d.code!==0)return false;if(tiktokLookalikeKind(plan))return hasId(object(d.data).custom_audience_id);if(tiktokSavedAudienceKind(plan))return hasId(object(d.data).saved_audience_id);if(tiktokSmartPlusStatusKind(plan))return tiktokSmartPlusStatusOutcome(plan,d);if(tiktokSmartPlusCampaignKind(plan))return !!tiktokSmartPlusCampaignId(d);if(!plan.path.endsWith('/create/'))return true;
+  if(d.code!==0)return false;if(tiktokLookalikeKind(plan))return hasId(object(d.data).custom_audience_id);if(tiktokSavedAudienceKind(plan))return hasId(object(d.data).saved_audience_id);if(tiktokSmartPlusStatusKind(plan))return tiktokSmartPlusStatusOutcome(plan,d);if(tiktokSmartPlusCampaignKind(plan))return !!tiktokSmartPlusCampaignId(d);if(tiktokSmartPlusAdgroupKind(plan))return !!tiktokSmartPlusAdgroupId(d);if(!plan.path.endsWith('/create/'))return true;
   const kind=segments[2]!,data=object(d.data);
   if(kind==='ad'){const ids=data.ad_ids??[data.ad_id];return Array.isArray(ids)&&ids.length===1&&typeof ids[0]==='string'&&/^\d+$/.test(ids[0]);}
   return hasId(data[kind+'_id'])||Array.isArray(data[kind+'_ids'])&&data[kind+'_ids'].length>0&&data[kind+'_ids'].every(hasId);
@@ -304,6 +305,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(tiktokSmartPlusStatusKind(plan))assertTiktokSmartPlusStatus(plan,body);
  if(tiktokSmartPlusBudgetKind(plan))assertTiktokSmartPlusBudget(plan,body);
  if(tiktokSmartPlusCampaignKind(plan))assertTiktokSmartPlusCampaign(plan,body);
+ if(tiktokSmartPlusAdgroupKind(plan))assertTiktokSmartPlusAdgroup(plan,body);
  if(plan.gateway==='tiktok_native_action')tiktokAdgroupConversion(plan);
  if(plan.gateway==='tiktok_native_action'&&plan.path==='/v1.3/ad/create/'){
   if(!Array.isArray(body.creatives)||body.creatives.length!==1||!body.creatives[0]||Array.isArray(body.creatives[0])||typeof body.creatives[0]!=='object')fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed TikTok ad creation requires exactly one native creatives record per review. Put the ad fields and operation_status inside that record.');
@@ -410,6 +412,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
   if(tiktokSmartPlusStatusKind(plan)){const r=tiktokSmartPlusStatusRead(plan),read=base(r.path,r.query);read.action=r.action;return [read];}
   if(tiktokSmartPlusBudgetKind(plan)){const r=tiktokSmartPlusBudgetRead(plan),read=base(r.path,r.query);read.action=r.action;return [read];}
   if(tiktokSmartPlusCampaignKind(plan))return [base('/v1.3/advertiser/info/',{advertiser_ids:[id]})];
+  if(tiktokSmartPlusAdgroupKind(plan))return [base('/v1.3/advertiser/info/',{advertiser_ids:[id]}),...tiktokSmartPlusAdgroupReads(plan).map(r=>{const read=base(r.path,r.query);read.action=r.action;return read;})];
   if(tiktokSavedAudienceKind(plan)){const reads=[base('/v1.3/advertiser/info/',{advertiser_ids:[id]})],audiences=tiktokSavedAudienceAudiences(plan);if(audiences.length){const read=base(tiktokAudienceGetPath,{advertiser_id:id,custom_audience_ids:audiences});read.action='tiktok_dmp_custom_audience_get';reads.push(read);}return reads;}
   if(tiktokBudgetKind(plan)){const read=base('/v1.3/adgroup/get/',{advertiser_id:id,filtering:{adgroup_ids:tiktokBudgetAdgroupIds(plan)},page_size:100});read.action='tiktok_adgroup_get';return [read];}
   if(tiktokLookalikeKind(plan)){const seed=base(tiktokAudienceGetPath,{advertiser_id:id,custom_audience_ids:[tiktokLookalikeSeed(plan)]});seed.action='tiktok_dmp_custom_audience_get';return [base('/v1.3/advertiser/info/',{advertiser_ids:[id]}),seed];}
