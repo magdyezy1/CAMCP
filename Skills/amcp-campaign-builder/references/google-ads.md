@@ -184,6 +184,40 @@ resources. These are the audiences an asset-group signal (`assetGroupSignals` wi
   sorted and false defaults dropped, so reordering by Google verifies and a changed value
   stays inconclusive.
 
+## Rule-based remarketing lists
+
+`google_ads_v23_user_list_mutate_user_lists` (and aliases such as `CREATE_USER_LIST`) creates
+and updates rule-based `UserList` resources: people whose Google tag hits match rules on
+`url__`, `ref_url__` or custom tag parameters. A list collects visitors from creation on; it
+is targeted only once a campaign or ad group criterion or an audience signal uses it.
+
+- **Create:** `name` (unique in the account), optional `description`, `membershipStatus: OPEN`
+  and `ruleBasedUserList.flexibleRuleUserList` with `inclusiveRuleOperator` (`AND` or `OR`),
+  1-10 `inclusiveOperands` and up to 10 `exclusiveOperands` (people matching any exclusion are
+  left out). Each operand has `lookbackWindowDays` (1-540) and a `rule` of 1-10
+  `ruleItemGroups`, each of 1-10 `ruleItems` joined by AND; groups are joined by OR
+  (`OR_OF_ANDS`, the only type flexible rules support). The 10-item bounds are AMCP's.
+- **Rule items:** a `name` plus exactly one of `stringRuleItem` (CONTAINS, EQUALS, STARTS_WITH,
+  ENDS_WITH and their NOT_ forms), `numberRuleItem` (EQUALS, NOT_EQUALS, GREATER_THAN,
+  GREATER_THAN_OR_EQUAL, LESS_THAN, LESS_THAN_OR_EQUAL) or `dateRuleItem` (EQUALS, NOT_EQUALS,
+  BEFORE, AFTER with `value` YYYY-MM-DD or `offsetInDays`, never both, because `value`
+  overrides the offset). URL values cannot contain quotes, parentheses, tabs or newlines.
+- `prepopulationStatus: REQUESTED` adds matching visitors from the last 30 days (Display
+  Network only).
+- **Update:** mask `name`, `description` or `membershipStatus` of an editable rule-based list.
+  Closing a list (`CLOSED`) stops it collecting and it can no longer be targeted, so
+  execution needs `spend_change_confirmed: true`.
+- **Not qualified:** Customer Match, lookalike, logical and basic lists; `membershipLifeSpan`
+  (ignored for rule-based lists, so it would do nothing); list removal; read-only (shared or
+  external) lists.
+- **Refusals:** wrong JSON types and unknown enums fail against the pinned Discovery schema
+  (`INVALID_VENDOR_BODY`); other rule violations fail with `INVALID_GOOGLE_USER_LIST`, before
+  any request.
+- **Verification:** reads the list back, including the operands as whole messages. Both sides
+  are compared with operands, groups and items as sets, 64-bit numbers as strings, the
+  `OR_OF_ANDS` default filled and any prepopulation outcome counted as the request, so Google's
+  own ordering verifies and a changed rule stays inconclusive.
+
 ## Asset sets and feed associations
 
 Reviewed v23 asset-set contracts cover `assetSets:mutate` and create/remove on

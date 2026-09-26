@@ -8,6 +8,20 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CH — Google Ads rule-based remarketing lists (2026-09-26)
+
+`userLists` is a new route of the reviewed Google configuration family: open rule-based lists
+from Google tag parameters with explicit operators and 1-540 day lookback windows, verified as
+sets against Google's read-back form, with renames, descriptions and closing (which needs
+spending confirmation). Customer Match, lookalike, logical and basic lists,
+`membershipLifeSpan` (ignored for rule-based lists) and removal are refused. See
+[implementation](GOOGLE-RULE-USER-LISTS-2026-09-26.md),
+[qualification](GOOGLE-RULE-USER-LISTS-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 931 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## CG — TikTok Upgraded Smart+ creative status (2026-09-26)
 
 `tiktok_smart_plus_ad_material_status_update` is a reviewed family for pausing and enabling the
@@ -19,7 +33,7 @@ verification compares each creative's status. See
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
 Remaining rows: 937 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Pushed to CAMCP as `1d971f2`; its exact-commit CI result and live acceptance are pending.
 
 ## CF — TikTok Upgraded Smart+ ad group edits (2026-09-26)
 

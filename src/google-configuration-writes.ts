@@ -1,6 +1,7 @@
 import {keywordPlanResources,assertKeywordPlanRecord,keywordPlanClear,keywordPlanSnapshots,validateKeywordPlanPrerequisites,keywordPlanCanonical,keywordPlanObserved,keywordPlanFieldHashes} from './google-keyword-plan-writes.js';
 import {segmentFields,assertGoogleSegmentRecord,assertGoogleSegmentOperation,googleSegmentResource,googleSegmentCanonical} from './google-custom-segments.js';
 import {assertGoogleAudienceRecord,googleAudienceCanonical} from './google-audiences.js';
+import {assertGoogleUserListOperation,assertGoogleUserListRecord,validateGoogleUserListState,googleUserListCanonical} from './google-user-lists.js';
 import {MirrorError} from './errors.js';
 import {googleJson} from './google-contracts.js';
 import {googleAssetSetFields,googleFeedFields,assertAssetSetRecord,assetSetExtraSnapshots,validateAssetSetPrerequisites,assetSetObserved,assetSetCanonical,assetSetExactFields} from './google-asset-set-writes.js';
@@ -54,6 +55,8 @@ export const googleConfigurationContracts:Record<string,Contract>={
  campaignGroups:descriptor('campaign_group','campaignGroups',['name','status'],['name'],['name'],['name','status']),
  conversionCustomVariables:descriptor('conversion_custom_variable','conversionCustomVariables',['name','tag','status'],['name','tag','status'],['name','status'],['name','tag','status','owner_customer']),
  remarketingActions:descriptor('remarketing_action','remarketingActions',['name'],['name'],['name'],['name']),
+ // Rule-based remarketing lists only (src/google-user-lists.ts); closing a targeted list affects serving.
+ userLists:descriptor('user_list','userLists',['name','description','membershipStatus','ruleBasedUserList'],['name','membershipStatus','ruleBasedUserList'],['name','description','membershipStatus'],['name','description','membership_status','type','read_only','rule_based_user_list.prepopulation_status','rule_based_user_list.flexible_rule_user_list.inclusive_rule_operator','rule_based_user_list.flexible_rule_user_list.inclusive_operands','rule_based_user_list.flexible_rule_user_list.exclusive_operands'],{serving:true}),
  assetGroupSignals:descriptor('asset_group_signal','assetGroupSignals',['assetGroup','audience','searchTheme'],['assetGroup'],[],['asset_group','audience.audience','search_theme.text'],{parts:2,references:[reference('assetGroup','assetGroups','asset_group',['name','status','campaign']),reference('audience.audience','audiences','audience',['name','status','scope'])],serving:true}),
  customerNegativeCriteria:descriptor('customer_negative_criterion','customerNegativeCriteria',['ipBlock','placementList','mobileAppCategory','negativeKeywordList','placement','youtubeChannel','contentLabel','youtubeVideo','mobileApplication'],[],[],['type','ip_block.ip_address','placement_list.shared_set','mobile_app_category.mobile_app_category_constant','negative_keyword_list.shared_set','placement.url','youtube_channel.channel_id','content_label.type','youtube_video.video_id','mobile_application.app_id','mobile_application.name'],{references:[reference('placementList.sharedSet','sharedSets','shared_set',['name','status','type']),reference('negativeKeywordList.sharedSet','sharedSets','shared_set',['name','status','type'])],serving:true})
 };
@@ -87,6 +90,7 @@ const leaves=(v:JsonObject,prefix=''):string[]=>Object.entries(v).flatMap(([k,x]
 function validateRecord(kind:string,c:Contract,r:JsonObject,creating:boolean){
  assertKeywordPlanRecord(kind,r,creating);
  assertGoogleSegmentRecord(kind,r,creating);
+ assertGoogleUserListRecord(kind,r,creating);
  if(r.name!==undefined){text(r.name,'name',kind==='assetSets'?128:kind==='labels'?80:kind==='customizerAttributes'?40:kind==='conversionCustomVariables'?100:255);if(kind==='conversionCustomVariables'&&r.name!==r.name.trim())invalid('Conversion variable names cannot have surrounding spaces.');}
  if(kind==='assetSets')assertAssetSetRecord(r,creating);
  if(r.textLabel!==undefined){if(!object(r.textLabel))invalid('textLabel must be an object.');keys(r.textLabel,['backgroundColor','description']);if(r.textLabel.backgroundColor!==undefined&&!/^#(?:[a-fA-F0-9]{6}|[a-fA-F0-9]{3})$/.test(r.textLabel.backgroundColor))invalid('Use a 3- or 6-digit label HEX color.');if(r.textLabel.description!==undefined)text(r.textLabel.description,'textLabel.description',200,true);}
@@ -119,6 +123,7 @@ export function assertGoogleConfiguration(p:CompiledRequest):void{
  if(b.responseContentType!==undefined&&b.responseContentType!=='RESOURCE_NAME_ONLY')invalid('Use RESOURCE_NAME_ONLY receipts; verification reads the exact resource separately.');
  for(const op of b.operations){
   assertGoogleSegmentOperation(kind,op);
+  assertGoogleUserListOperation(kind,op);
   keys(op,['create','update','remove','updateMask']);const r=op.create??op.update;
   if(r!==undefined&&!object(r))invalid('Configuration records must be native objects.');
   if(op.create){
@@ -173,6 +178,7 @@ export function validateGoogleConfigurationState(p:CompiledRequest,states:unknow
    if(googleSegmentResource(c.resource)){if(!(kind==='customInterests'?['CUSTOM_AFFINITY','CUSTOM_INTENT']:['AUTO','SEARCH','INTEREST','PURCHASE_INTENT']).includes(found.type))failure('The provider omitted or returned an unknown segment type.');googleSegmentCanonical(c.resource,found,true);}
    if(preparing&&op.create&&found.status!=='REMOVED')throw new MirrorError('CONFIGURATION_EXISTS','This exact association already exists. Inspect it instead of creating a duplicate.',{resource_name:name});
    if(!op.create&&found.status==='REMOVED')throw new MirrorError('STATE_NOT_FOUND','The configuration target was already removed.');
+   if(kind==='userLists'&&!op.create)validateGoogleUserListState(found);
   }
   const refs=references(p,c,op);
   for(const {ref,name:target}of refs){
@@ -200,6 +206,7 @@ export function googleConfigurationVerification(p:CompiledRequest,result:JsonObj
    const read=search(p,c.resource,c.fields,[id],removed,removed),normalized=c.resource==='asset_set'&&op.update?assetSetCanonical(expected):assetSetObserved(c.resource,expected);
    if(googleSegmentResource(c.resource))return {id,expected:googleSegmentCanonical(c.resource,expected),read};
    if(c.resource==='audience')return {id,expected:googleAudienceCanonical(expected),read};
+   if(c.resource==='user_list')return {id,expected:googleUserListCanonical(expected),read};
   if(c.resource==='asset_set'&&op.update){const fields=op.updateMask.split(',').filter((f:string)=>object(get(op.update,f)));if(fields.length){
    const defaults=assetSetObserved(c.resource,expected);for(const field of fields){const path=field.split('.');let node=normalized;for(const key of path.slice(0,-1))node=node[key]??={};node[path.at(-1)!]=get(defaults,field);}
    read.googleState!.exactFields=fields;normalized.amcpExactFieldHashes=assetSetExactFields(normalized,fields);
@@ -216,7 +223,7 @@ export function googleConfigurationObserved(read:CompiledRequest,value:JsonObjec
  // ProtoJSON omits default strings after a cleared text-label field. This applies
  // only to documented optional label strings, never unknown fields or identities.
  if(read.action==='AMCP_CONFIG_READ'&&read.googleState?.resource==='label'&&value?.resourceName)return {...value,textLabel:{backgroundColor:'',description:'',...value.textLabel}};
-  const resource=read.googleState?.resource??'',normalized=googleSegmentResource(resource)?googleSegmentCanonical(resource,value,true):resource==='audience'?googleAudienceCanonical(value):keywordPlanObserved(resource,assetSetObserved(resource,value));
+  const resource=read.googleState?.resource??'',normalized=googleSegmentResource(resource)?googleSegmentCanonical(resource,value,true):resource==='audience'?googleAudienceCanonical(value):resource==='user_list'?googleUserListCanonical(value):keywordPlanObserved(resource,assetSetObserved(resource,value));
  return read.googleState?.exactFields?{...normalized,amcpExactFieldHashes:assetSetExactFields(normalized,read.googleState.exactFields)}:normalized;
 }
-export function googleConfigurationServing(p:CompiledRequest):boolean{const kind=googleConfigurationKind(p);return !!kind&&googleConfigurationContracts[kind]!.serving&&(kind!=='customizerAttributes'||googleJson(p.body).operations.some((o:JsonObject)=>o.remove))&&(!['assetSets','customAudiences','customInterests','audiences'].includes(kind)||googleJson(p.body).operations.some((o:JsonObject)=>!o.create));}
+export function googleConfigurationServing(p:CompiledRequest):boolean{const kind=googleConfigurationKind(p);return !!kind&&googleConfigurationContracts[kind]!.serving&&(kind!=='customizerAttributes'||googleJson(p.body).operations.some((o:JsonObject)=>o.remove))&&(!['assetSets','customAudiences','customInterests','audiences'].includes(kind)||googleJson(p.body).operations.some((o:JsonObject)=>!o.create))&&(kind!=='userLists'||googleJson(p.body).operations.some((o:JsonObject)=>o.update?.membershipStatus==='CLOSED'));}

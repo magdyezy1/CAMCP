@@ -12163,38 +12163,38 @@
         {
           "operation": null,
           "action": "CREATE_CUSTOMER_MATCH_USER_LIST",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "CREATE_LOOKALIKE_USER_LIST",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "CREATE_USER_LIST",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "google_ads_v23_user_list_mutate_user_lists",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "REMOVE_USER_LIST",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         },
         {
           "operation": null,
           "action": "UPDATE_USER_LIST",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_configuration"
         }
       ],
       "mapping_status": "mapped",

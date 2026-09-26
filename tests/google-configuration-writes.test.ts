@@ -44,7 +44,8 @@ const cases:{route:string;rpc:string;entity:string;create:JsonObject;id:string;u
  {route:'keywordPlanCampaignKeywords',rpc:'keyword_plan_campaign_keyword_mutate_keyword_plan_campaign_keywords',entity:'keyword_plan_campaign_keyword',create:{keywordPlanCampaign:resource('keywordPlanCampaigns','801'),text:'jobs',matchType:'BROAD',negative:true},id:'500',update:{text:'careers'}},
  {route:'audiences',rpc:'audience_mutate_audiences',entity:'audience',create:{name:'Past buyers 25-54',description:'Performance Max signal',dimensions:[{audienceSegments:{segments:[{userList:{userList:resource('userLists','77')}}]}},{age:{ageRanges:[{minAge:25,maxAge:54}]}}]},id:'500',update:{name:'Past buyers 25-54 (renamed)'}},
  {route:'customAudiences',rpc:'custom_audience_mutate_custom_audiences',entity:'custom_audience',create:{name:'Approved keyword audience',type:'SEARCH',members:[{memberType:'KEYWORD',keyword:'family homes'}]},id:'500',update:{description:'Reviewed search intent'}},
- {route:'customInterests',rpc:'custom_interest_mutate_custom_interests',entity:'custom_interest',create:{name:'Approved interest',type:'CUSTOM_AFFINITY',members:[{memberType:'URL',parameter:'https://example.com'}]},id:'500',update:{description:'Reviewed affinity'}}
+ {route:'customInterests',rpc:'custom_interest_mutate_custom_interests',entity:'custom_interest',create:{name:'Approved interest',type:'CUSTOM_AFFINITY',members:[{memberType:'URL',parameter:'https://example.com'}]},id:'500',update:{description:'Reviewed affinity'}},
+ {route:'userLists',rpc:'user_list_mutate_user_lists',entity:'user_list',create:{name:'All visitors',membershipStatus:'OPEN',ruleBasedUserList:{flexibleRuleUserList:{inclusiveRuleOperator:'AND',inclusiveOperands:[{rule:{ruleItemGroups:[{ruleItems:[{name:'url__',stringRuleItem:{operator:'CONTAINS',value:'example.com'}}]}]},lookbackWindowDays:'30'}]}}},id:'500',update:{name:'All visitors (renamed)'}}
 ];
 const fields={...JSON.parse(fs.readFileSync('tests/fixtures/google-configuration-fields-v23.json','utf8')).resources,...JSON.parse(fs.readFileSync('tests/fixtures/google-segment-fields-v23.json','utf8')).resources};
 function fixture(row=cases[0]!,allowWrites=true){
@@ -125,7 +126,8 @@ for(const row of cases)test('Google configuration lifecycle: '+row.route,async()
   }
   // Some provider services deliberately do not expose remove. Their Discovery
   // request schema is checked separately instead of inventing a delete operation.
-  if(!['conversionCustomVariables','remarketingActions','audiences'].includes(row.route)){
+  // User list removal is exposed but refused by contract (tests/google-user-lists.test.mjs).
+  if(!['conversionCustomVariables','remarketingActions','audiences','userLists'].includes(row.route)){
    const removed=await x.prepare([row.route==='customInterests'?{update:{resourceName:name,status:'REMOVED'},updateMask:'status'}:{remove:name}]);assert.equal(removed.success,true,JSON.stringify(removed));assert.equal((await x.execute(removed)).success,true);
    const v=await x.service.call('amcp_campaign',{action:'verify',review_id:removed.data.review_id},actor);assert.equal(v.data.status,'verified',JSON.stringify(v));
   }

@@ -1,0 +1,103 @@
+{
+  "format_version": 1,
+  "date": "2026-09-26",
+  "branch": "Codex-branch",
+  "base_revision": "1d971f2bd885e1f819f9509acaff8a6fa5c4c870",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/google-rule-user-lists-20260926-a",
+    "files": 765,
+    "source_tree_hash": "addb706993fde215363c8418b665f4b4630df1e4483c9c569ba871d13b5ff50a",
+    "index_code_test_guidance_files_compared": 646,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/google-rule-user-lists-20260926-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/google-rule-user-lists-20260926/install.log",
+      "sha256": "fd1d9de07b2f08802677e9eb68653e02fcf4423e062c4d00c4a3afe0d39973f2"
+    },
+    {
+      "path": ".runtime/google-rule-user-lists-20260926/check.log",
+      "sha256": "a1f759a775438816384937ac7933af2ef26bb08083a8cd1f78b1b8a1729792cc",
+      "started": "2026-09-26T16:36:08Z",
+      "finished": "2026-09-26T16:46:21Z",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2230,
+          "pass": 2230,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/google-rule-user-lists-20260926/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/google-rule-user-lists-20260926/red-check.log",
+      "sha256": "e0b0fe817c5042ce00f901ec5f163fd9e42242be564170f079d86b32aafa6bf2",
+      "meaning": "tests/google-user-lists.test.mjs against a build of 1d971f2: expected red, 0/5 pass (WRITE_CONTRACT_UNAVAILABLE)"
+    },
+    {
+      "path": ".runtime/google-rule-user-lists-20260926/targeted.log",
+      "sha256": "9f0074d598b94a3e7a60bfe87f5cdb56a9cb7df6dfe57584f3945dc143774b9a",
+      "meaning": "104 related suites (every Google suite plus the review, spending, creative-chain and contract suites) in the working copy: 1348/1348 pass."
+    }
+  ],
+  "development_failures": [
+    "The first run of the new suite failed two cases: the uppercase alias is CREATE_USER_LIST without a prefix, and a text value in a number rule is refused earlier by the pinned Discovery schema (INVALID_VENDOR_BODY); the test now expects both.",
+    "Design review: membership_life_span is ignored for rule-based lists, so the contract refuses it and requires a lookback window on every rule; the generic configuration lifecycle table gained the userLists case and skips its removal step, which this contract refuses."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2230,
+    "main_pass": 2230,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "The GAQL field list was extracted from the public field reference page, not a live query.",
+    "Customer Match, lookalike, logical and basic lists, rule changes after creation and list removal stay unqualified.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

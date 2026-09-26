@@ -384,7 +384,19 @@ Tests: `tests/tiktok-smart-plus-adgroup-updates.test.mjs` (7, red on `53fb3ad` /
 - Pauses or enables 1-20 explicitly selected creatives inside a Smart+ ad, read before review and execution; automatically added creatives are refused because the ad read does not list them.
 - Carousels and other creatives go in separate requests; the receipt must name every creative; verification compares each creative's status.
 
-Tests: `tests/tiktok-smart-plus-material-status.test.mjs` (6, red on `533efac` / green after). The Smart+ ad group creation suite's still-blocked example is now Smart+ ad appeals.
+Tests: `tests/tiktok-smart-plus-material-status.test.mjs` (6, red on `533efac` / green after). The Smart+ ad group creation suite's still-blocked example is now Smart+ ad appeals. Pushed as `1d971f2`.
+
+## Finished batch — Google Ads rule-based remarketing lists
+
+[Implementation](GOOGLE-RULE-USER-LISTS-2026-09-26.md) and
+[qualification](GOOGLE-RULE-USER-LISTS-VERIFICATION-2026-09-26.json).
+
+`userLists` is a new route of the reviewed `google_configuration` family (rules in `src/google-user-lists.ts`):
+
+- Open rule-based lists with explicit operators and 1-540 day lookback windows; Customer Match, lookalike, logical and basic lists, `membershipLifeSpan` (ignored by Google for rule-based lists) and removal are refused.
+- Verification compares operands, groups and items as sets against Google's read-back form; closing a list needs spending confirmation. The `user_list` GAQL fields were added to the pinned field fixture.
+
+Tests: `tests/google-user-lists.test.mjs` (5, red on `1d971f2` / green after); the configuration lifecycle table gained the `userLists` case.
 
 ## CI and live evidence
 
@@ -398,19 +410,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 500 in reviewed write families. **937 remaining rows** are in
+3241 captured actions; 506 in reviewed write families. **931 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 822 |
+| blocked_write | 816 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 191, Meta 131, LinkedIn 118, Google Ads 107,
+Blocked writes by platform: TikTok 191, Meta 131, LinkedIn 118, Google Ads 101,
 Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
@@ -427,8 +439,8 @@ planning script in this checkout, not committed and not a ledger):
 | Experiments, measurement and planning | 78 | Lower priority |
 | Not blocked writes (unmapped, unqualified reads, adapter input, unsupported) | 115 | Mostly reads and local tooling |
 
-Microsoft Learn and Google's developer documentation were unreachable from this environment
-on 2026-09-26 afternoon; LinkedIn and Google candidates wait for them. The ticket list in the
+Microsoft Learn was still unreachable from this environment on 2026-09-26 evening, so LinkedIn
+candidates wait for it; Google's developer documentation was reachable again. The ticket list in the
 2026-09-25 handoff remains the backlog, plus these Snapchat follow-ups:
 
 | Priority | Task | Acceptance |

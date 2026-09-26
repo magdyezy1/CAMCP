@@ -2106,6 +2106,48 @@
     {
       "gateway": "google_ads_native_action",
       "arguments": {
+        "action": "google_ads_v23_user_list_mutate_user_lists",
+        "account_id": "1234567890",
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "name": "Synthetic cart visitors",
+                "membershipStatus": "OPEN",
+                "ruleBasedUserList": {
+                  "flexibleRuleUserList": {
+                    "inclusiveRuleOperator": "AND",
+                    "inclusiveOperands": [
+                      {
+                        "rule": {
+                          "ruleItemGroups": [
+                            {
+                              "ruleItems": [
+                                {
+                                  "name": "url__",
+                                  "stringRuleItem": {
+                                    "operator": "CONTAINS",
+                                    "value": "/cart"
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        "lookbackWindowDays": 30
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
         "action": "google_ads_v23_audience_mutate_audiences",
         "account_id": "1234567890",
         "payload": {

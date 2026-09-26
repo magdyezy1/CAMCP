@@ -869,6 +869,142 @@
           "repeated": false
         }
       }
+    },
+    "user_list": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/user_list",
+      "checked_at": "2026-09-26",
+      "method": "Public reference field-heading/table text extraction in the rendered page; not a live account query",
+      "source_text_sha256": "cc720685bfdcee770dbbb43deb8f1b85b6aad3f449f83fc0ec3b6ebefb6f1edd",
+      "fields": {
+        "access_reason": {
+          "selectable": true,
+          "repeated": false
+        },
+        "account_user_list_status": {
+          "selectable": true,
+          "repeated": false
+        },
+        "basic_user_list.actions": {
+          "selectable": true,
+          "repeated": true
+        },
+        "closing_reason": {
+          "selectable": true,
+          "repeated": false
+        },
+        "crm_based_user_list.app_id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "crm_based_user_list.data_source_type": {
+          "selectable": true,
+          "repeated": false
+        },
+        "crm_based_user_list.upload_key_type": {
+          "selectable": true,
+          "repeated": false
+        },
+        "description": {
+          "selectable": true,
+          "repeated": false
+        },
+        "eligible_for_display": {
+          "selectable": true,
+          "repeated": false
+        },
+        "eligible_for_search": {
+          "selectable": true,
+          "repeated": false
+        },
+        "id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "integration_code": {
+          "selectable": true,
+          "repeated": false
+        },
+        "logical_user_list.rules": {
+          "selectable": true,
+          "repeated": true
+        },
+        "lookalike_user_list.country_codes": {
+          "selectable": true,
+          "repeated": true
+        },
+        "lookalike_user_list.expansion_level": {
+          "selectable": true,
+          "repeated": false
+        },
+        "lookalike_user_list.seed_user_list_ids": {
+          "selectable": true,
+          "repeated": true
+        },
+        "match_rate_percentage": {
+          "selectable": true,
+          "repeated": false
+        },
+        "membership_life_span": {
+          "selectable": true,
+          "repeated": false
+        },
+        "membership_status": {
+          "selectable": true,
+          "repeated": false
+        },
+        "name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "read_only": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "rule_based_user_list.flexible_rule_user_list.exclusive_operands": {
+          "selectable": true,
+          "repeated": true
+        },
+        "rule_based_user_list.flexible_rule_user_list.inclusive_operands": {
+          "selectable": true,
+          "repeated": true
+        },
+        "rule_based_user_list.flexible_rule_user_list.inclusive_rule_operator": {
+          "selectable": true,
+          "repeated": false
+        },
+        "rule_based_user_list.prepopulation_status": {
+          "selectable": true,
+          "repeated": false
+        },
+        "similar_user_list.seed_user_list": {
+          "selectable": true,
+          "repeated": false
+        },
+        "size_for_display": {
+          "selectable": true,
+          "repeated": false
+        },
+        "size_for_search": {
+          "selectable": true,
+          "repeated": false
+        },
+        "size_range_for_display": {
+          "selectable": true,
+          "repeated": false
+        },
+        "size_range_for_search": {
+          "selectable": true,
+          "repeated": false
+        },
+        "type": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
     }
   }
 }
