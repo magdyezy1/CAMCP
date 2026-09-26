@@ -1,0 +1,106 @@
+{
+  "format_version": 1,
+  "date": "2026-09-26",
+  "branch": "Codex-branch",
+  "base_revision": "06cd15489c99064678682ea98811030857b6a54b",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/tiktok-custom-conversions-20260926-a",
+    "files": 712,
+    "source_tree_hash": "ce62cf43ad84952f2cf232f361dc8625aea03ef5f72929a046af844874fa8292",
+    "index_code_test_guidance_files_compared": 619,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/tiktok-custom-conversions-20260926-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/tiktok-custom-conversions-20260926/install.log",
+      "sha256": "fd1d9de07b2f08802677e9eb68653e02fcf4423e062c4d00c4a3afe0d39973f2"
+    },
+    {
+      "path": ".runtime/tiktok-custom-conversions-20260926/check.log",
+      "sha256": "7c3181e639a77eeda068a9e3b4489b3fda801aa87e07c737b509fabebca82415",
+      "started": "2026-09-26T12:34:43Z",
+      "finished": "2026-09-26T12:43:29Z",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2149,
+          "pass": 2149,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/tiktok-custom-conversions-20260926/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/tiktok-custom-conversions-20260926/red-check.log",
+      "sha256": "2be86cc231758936d0f3dd3c2190d8eee37b0847b5d2f896eccbf6be332f88c1",
+      "meaning": "tests/tiktok-custom-conversions.test.mjs against a build of 06cd154: expected red, 0/7 pass (WRITE_CONTRACT_UNAVAILABLE)"
+    },
+    {
+      "path": ".runtime/tiktok-custom-conversions-20260926/targeted.log",
+      "sha256": "1dbbf82836201449cb2b4ce9da4bf32536d54c29a42f908d200a9f836914fc72",
+      "meaning": "88 related suites in the worktree before assembly: 1260/1260 pass"
+    }
+  ],
+  "development_failures": [
+    "One new test expected STATE_CHANGED when the pixel became shared before execution; execution re-checks the fresh state and refuses first with INVALID_TIKTOK_CUSTOM_CONVERSION (not owned, SHARED), which is the more specific outcome. The test now asserts that refusal, and a separate renamed-pixel case asserts STATE_CHANGED.",
+    "Design review found that the pixel list returns event data TikTok refreshes every 2-4 hours and the conversion list returns activity counts, so the review state keeps only pixel identity and ownership and each conversion definition; otherwise a review would be invalidated by routine activity.",
+    "Microsoft Learn and Google developer documentation were unreachable from this environment (connection refused) when choosing this batch; TikTok documentation was readable, so a TikTok family was chosen."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2149,
+    "main_pass": 2149,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "TikTok types rule values as string[] and describes numeric parameters as integers or two-decimal floats; values are accepted as strings and compared numerically on read-back.",
+    "Standard event names are refused by comparison with the documented pixel event display names and values; TikTok may reject other names it treats as standard.",
+    "Account-wide name uniqueness and the 1,000-per-account limit are enforced by TikTok; the review checks the selected pixel only.",
+    "Ad groups that set custom_conversion_id are not yet checked against the conversion (P2 follow-up in the handoff).",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

@@ -5,6 +5,7 @@ import {metaCopyKind,metaCopyImpact} from './meta-copies.js';
 import {tiktokLookalikeKind,tiktokLookalikeImpact} from './tiktok-lookalikes.js';
 import {metaLookalikeKind,metaLookalikeImpact} from './meta-lookalikes.js';
 import {tiktokBudgetKind,tiktokBudgetImpact} from './tiktok-budgets.js';
+import {tiktokCustomConversionKind,tiktokCustomConversionImpact} from './tiktok-custom-conversions.js';
 import {linkedinLeadFormKind,linkedinLeadFormImpact} from './linkedin-lead-forms.js';
 import {googlePreviewKind,googlePreviewImpact} from './google-preview-writes.js';
 import {criteoCampaignKind,criteoCampaignImpact} from './criteo-campaign-writes.js';
@@ -107,6 +108,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  if(tiktokLookalikeKind(plan))return tiktokLookalikeImpact(plan,state);
  if(metaLookalikeKind(plan))return metaLookalikeImpact(plan,state);
  if(tiktokBudgetKind(plan))return tiktokBudgetImpact(plan,state);
+ if(tiktokCustomConversionKind(plan))return tiktokCustomConversionImpact(plan,state);
  return undefined;
 }
 import {googleConfigurationKind,googleConfigurationServing} from './google-configuration-writes.js';

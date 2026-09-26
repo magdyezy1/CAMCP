@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## BU — TikTok custom conversions (2026-09-26)
+
+`tiktok_custom_conversion_create` is a reviewed family for pixel custom conversions. The
+request is checked against TikTok's documented name, event and rule limits, the pixel and
+its conversions are read before review and execution (owned pixel, fewer than 100
+conversions, unique name), and read-back compares the definition with rules as a set. See
+[implementation](TIKTOK-CUSTOM-CONVERSIONS-2026-09-26.md),
+[qualification](TIKTOK-CUSTOM-CONVERSIONS-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 960 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## BT — LinkedIn lead gen forms (2026-09-26)
 
 `linkedin_rest_lead_forms_post` is a reviewed family for sponsored lead gen forms, created
@@ -19,7 +32,7 @@ exact. See [implementation](LINKEDIN-LEAD-FORMS-2026-09-26.md),
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
 Remaining rows: 961 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Pushed to CAMCP as `06cd154`; its exact-commit CI result and live acceptance are pending.
 
 ## BS — TikTok ad group budgets (2026-09-26)
 

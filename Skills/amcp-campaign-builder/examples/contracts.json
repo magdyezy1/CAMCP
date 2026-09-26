@@ -1205,6 +1205,28 @@
       }
     },
     {
+      "gateway": "tiktok_native_action",
+      "arguments": {
+        "action": "tiktok_custom_conversion_create",
+        "account_id": "123",
+        "payload": {
+          "name": "Signup thank you",
+          "event_source_type": "PIXEL",
+          "event_source_id": "7001",
+          "optimization_event": "ON_WEB_REGISTER",
+          "rules": [
+            {
+              "parameter": "URL",
+              "operator": "CONTAIN",
+              "values": [
+                "/thank-you"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
       "gateway": "linkedin_native_action",
       "arguments": {
         "action": "linkedin_rest_posts_post",

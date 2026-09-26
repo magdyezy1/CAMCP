@@ -139,6 +139,40 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
 - Verification reads each ad group and compares `budget`, or `scheduled_budget` for scheduled
   changes. TikTok refuses changes during its budget lock (23:55–00:00 account time).
 
+## TikTok custom conversions
+
+- `tiktok_custom_conversion_create` creates a custom conversion on a pixel the selected advertiser
+  owns. Send `name`, `event_source_type: PIXEL`, the numeric pixel ID as `event_source_id`
+  (`pixel_id` from `/pixel/list/`, not the pixel code), `optimization_event` and 1–10 `rules`;
+  `description` is optional.
+- `name`: starts with a letter; letters, numbers, spaces, underscores and hyphens; at most 50
+  characters; not a standard event name. `description`: at most 500 characters. No emoji in either.
+- `optimization_event` is one of the documented pixel events: `ADD_BILLING`, `ON_WEB_CART`,
+  `ON_WEB_ADD_TO_WISHLIST`, `APPLICATION_APPROVAL`, `BUTTON`, `ON_WEB_REGISTER`, `CONSULT`,
+  `CUSTOMIZE_PRODUCT`, `DOWNLOAD_START`, `FIND_LOCATION`, `INITIATE_ORDER`, `PAGE_VIEW`,
+  `ON_WEB_ORDER`, `SHOPPING`, `SCHEDULE`, `ON_WEB_SEARCH`, `START_TRIAL`, `SUBMIT_APPLICATION`,
+  `ON_WEB_SUBSCRIBE` or `ON_WEB_DETAIL`.
+- Each rule is `{parameter, operator, values}` with 1–100 unique string values:
+  - text parameters (`BRAND`, `CONTENT_CATEGORY`, `CONTENT_ID`, `CONTENT_NAME`, `CONTENT_TYPE`,
+    `DESCRIPTION`, `EVENT_ID`, `SEARCH_STRING`, `STATUS`, `URL`) take `CONTAIN`, `NOT_CONTAIN`,
+    `START_WITH`, `EQUAL` or `NOT_EQUAL` and values of at most 100 characters;
+  - `NUM_ITEMS` (whole numbers), `PRICE` and `VALUE` (at most two decimals), all 0 to
+    1,000,000,000, take `EQUAL`, `NOT_EQUAL`, `LT`, `GT`, `LTE` or `GTE`; comparisons take exactly
+    one value;
+  - `CURRENCY` takes `EQUAL` or `NOT_EQUAL` with documented currency codes.
+- App (SAN) sources, `custom_event_type` mappings (the details read does not return them), other
+  keys and duplicate rules fail with `INVALID_TIKTOK_CUSTOM_CONVERSION` before any request.
+- The review reads the pixel and its custom conversions before review and again before execution.
+  The pixel must be owned by this advertiser (shared and unbound pixels are refused), have fewer
+  than 100 custom conversions, and have none with the same name. A missing pixel fails with
+  `STATE_TARGET_MISMATCH`. Pixel event data and conversion activity counts are observations and do
+  not invalidate a review. No spending confirmation is needed: creating one changes no campaign.
+- Verification reads `/custom_conversion/get/` and compares the name, event, pixel and rules; rule
+  order, value order and number formatting do not matter.
+- An ad group can optimize for a custom conversion (`custom_conversion_id` with the matching
+  `optimization_event`) only after the pixel reports matching activity: a new one starts as
+  `WAITING_FOR_ACTIVITY`. Updates and deletion are not qualified.
+
 ## TikTok lookalike audiences
 
 - `tiktok_dmp_custom_audience_lookalike_create` creates a lookalike from a seed audience the selected

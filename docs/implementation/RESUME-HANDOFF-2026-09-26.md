@@ -216,7 +216,21 @@ Tests: `tests/tiktok-budgets.test.mjs` (8, red on `bbd3324` / green after). Push
 - Read-back compares the sent form after documented defaults; 64-bit form IDs are kept exact.
 - Forms never spend, so question text mentioning budgets no longer asks for spending confirmation.
 
-Tests: `tests/linkedin-lead-forms.test.mjs` (8, red on `e45400e` / green after).
+Tests: `tests/linkedin-lead-forms.test.mjs` (8, red on `e45400e` / green after). Pushed as `06cd154`.
+
+## Finished batch — TikTok custom conversions
+
+[Implementation](TIKTOK-CUSTOM-CONVERSIONS-2026-09-26.md) and
+[qualification](TIKTOK-CUSTOM-CONVERSIONS-VERIFICATION-2026-09-26.json).
+
+`tiktok_custom_conversion_create` is the new reviewed family `tiktok_custom_conversions`:
+
+- Pixel sources only, with the documented name, event and rule limits checked before any request.
+- The pixel must be owned by the advertiser, below 100 custom conversions and without the same name; pixel event data and activity counts do not invalidate a review.
+- Read-back compares the definition, with rules treated as a set.
+- Microsoft Learn and Google's developer site were unreachable here during this batch; TikTok's portal was readable.
+
+Tests: `tests/tiktok-custom-conversions.test.mjs` (7, red on `06cd154` / green after).
 
 ## CI and live evidence
 
@@ -230,19 +244,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 476 in reviewed write families. **961 remaining rows** are in
+3241 captured actions; 477 in reviewed write families. **960 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 846 |
+| blocked_write | 845 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 215, Meta 131, LinkedIn 118, Google Ads 107,
+Blocked writes by platform: TikTok 214, Meta 131, LinkedIn 118, Google Ads 107,
 Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12. The ticket list in the
 2026-09-25 handoff remains the backlog, plus these Snapchat follow-ups:
 
@@ -261,5 +275,6 @@ Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12. The ticket list in 
 | P3 | TikTok asynchronous campaign copy | `/campaign/copy/task/create/` is allowlist-only; needs an allowlisted advertiser, a paused-copy guarantee for every ad group and a task-result verification design |
 | P2 | LinkedIn lead gen creatives must reference owned forms | The documented creative field and URN type that point a lead gen creative at a form, then the same owned-reference check as Snapchat creatives |
 | P2 | LinkedIn lead form edits, publishing and archiving | A read of the creatives and campaigns that use a form, to tell pre-published from published forms and limit edits to the documented fields, plus the documented warning about CRM integrations |
+| P2 | TikTok ad groups that use a custom conversion | When an ad group create or update sets `custom_conversion_id`, read the conversion for its pixel and require the matching `optimization_event` and an `ACTIVE` or `NO_RECENT_ACTIVITY` status, as `/adgroup/create/` documents |
 | P3 | LinkedIn work-email submission criteria | The wire form of the `questionSubmissionCriteria` union, which the schema does not show |
 | P3 | X remaining writes (promoted accounts, cards, tracking tags) | The official X Ads API reference returned HTTP 402 from this environment; needs an accessible, versioned source first |
