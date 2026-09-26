@@ -8,6 +8,7 @@ import {assetSetCanonical} from './google-asset-set-writes.js';
 import {isGoogleBidRead} from './google-bid-modifiers.js';
 import {googleSegmentResource,googleSegmentCanonical} from './google-custom-segments.js';
 import {snapSegmentState} from './snapchat-segments.js';
+import {tiktokImageInfoPath,tiktokImageState} from './tiktok-identities.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 
 // Response envelopes are validated before projection. Within each resource keep
@@ -47,7 +48,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  const d=data as JsonObject;
  if(isGoogleBidRead(read))return normalizeReviewState(data);
  if(read.gateway==='gtm_native_action')return normalizeReviewState(gtmSafeConfiguration(data));
- if(read.gateway==='tiktok_native_action'&&Array.isArray(d.data?.list))return normalizeReviewState({data:{list:d.data.list}});
+ if(read.gateway==='tiktok_native_action'&&Array.isArray(d.data?.list))return normalizeReviewState({data:read.path===tiktokImageInfoPath?tiktokImageState(d):{list:d.data.list}});
  if(['x_ads_native_action','reddit_native_action'].includes(read.gateway)&&Object.hasOwn(d,'data'))return normalizeReviewState({data:d.data});
  if(read.gateway==='apple_ads_native_action'&&Object.hasOwn(d,'result')){
   // SDK output-only processing/approval observations are not advertiser edits.

@@ -83,6 +83,22 @@ retention updates now use the reviewed Snapchat family:
 
 User uploads/removals, segment deletion and pixel/mobile/engagement rule audiences stay
 blocked. Tests: `tests/snapchat-segments.test.mjs` (10, red on `874038e` / green after).
+Pushed as `8b97bdb`.
+
+## Finished batch — TikTok custom identities
+
+[Implementation](TIKTOK-IDENTITIES-2026-09-26.md) and
+[qualification](TIKTOK-IDENTITIES-VERIFICATION-2026-09-26.json).
+
+`tiktok_identity_create` is the new reviewed family `tiktok_identities`:
+
+- Documented fields only.
+- The optional avatar must be a square image in the advertiser's library, read before review and before execution.
+- Verification reads `/identity/info/`; the avatar ID, which TikTok never returns, is reported under `unobservable_fields`.
+
+Identity deletion and TikTok-account identities stay blocked. Tests:
+`tests/tiktok-identities.test.mjs` (9, red on `8b97bdb` / green after); the creative-chain
+test that pinned this gap now pins the local refusal of an undocumented field.
 
 ## CI and live evidence
 
@@ -96,19 +112,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 465 in reviewed write families. **972 remaining rows** are in
+3241 captured actions; 466 in reviewed write families. **971 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 857 |
+| blocked_write | 856 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 219, Meta 136, LinkedIn 119, Google Ads 108,
+Blocked writes by platform: TikTok 218, Meta 136, LinkedIn 119, Google Ads 108,
 Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12. The ticket list in the
 2026-09-25 handoff remains the backlog, plus these Snapchat follow-ups:
 
@@ -122,3 +138,4 @@ Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12. The ticket list in 
 | P2 | Live lead form acceptance (after deployment) | One paused account-owned test form and `LEAD_GENERATION` creative verify live |
 | P2 | Snapchat pixel/mobile rule audiences | Live GET evidence of `pixel_spec_object`/mobile specs before qualifying their creation |
 | P3 | Snapchat segment deletion | A way to find ad squads that target a segment, or an explicit owner policy, before permanent deletion |
+| P2 | TikTok identity avatar read-back | Live evidence linking `profile_image_url` to the sent `image_uri` before comparing it |

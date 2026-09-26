@@ -1,6 +1,7 @@
 import {snapUpdateKind,verifySnapUpdate} from './snapchat-nested-updates.js';
 import {snapLeadFormProjection} from './snapchat-lead-forms.js';
 import {snapSegmentProjection} from './snapchat-segments.js';
+import {tiktokIdentityKind,tiktokIdentityVerification} from './tiktok-identities.js';
 import {googlePreviewKind,verifyGooglePreview} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaignScopes,verifyCriteoCampaign} from './criteo-campaign-writes.js';
 import {metaReportKind,assertMetaReportScope,verifyMetaReport,metaReportReadResult,observeMetaReportRead} from './meta-insights-jobs.js';
@@ -64,7 +65,7 @@ function differing(expected:any,actual:any,path='',out:string[]=[]):string[]{
  else if(fingerprint(expected)!==fingerprint(actual??null))out.push(path);return out;
 }
 type Acknowledged=Record<string,{sent:unknown;echoed:unknown}>;
-function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Registry,before:unknown[]=[]):{read:CompiledRequest;expected:JsonObject;id:string;acknowledged?:Acknowledged}[]{
+function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Registry,before:unknown[]=[]):{read:CompiledRequest;expected:JsonObject;id:string;acknowledged?:Acknowledged;unobservable?:string[]}[]{
  if(linkedinRuleKind(plan))return linkedinRuleVerification(plan,result,before);
  if(linkedinConversionKind(plan))return linkedinConversionVerification(plan);
  if(googleBidKind(plan))return googleBidVerification(plan,result);
@@ -91,6 +92,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
   return ids.map((id:string,i:number)=>({read:compileMicrosoft({action:'Get'+contract.kind+'ByIds',account_id:plan.accountId,payload:{[idKey]:[id],...(contract.kind==='Campaigns'?{CampaignType:'Search'}:contract.kind==='AdGroups'?{CampaignId:b.CampaignId}:{AdGroupId:b.AdGroupId})}}),expected:records[i],id}));
  }
  if(gateway==='meta_native_action'){const id=String(d.id??plan.path.split('/').at(-1));if(!/^\d+$/.test(id))return [];const expected={...b};delete expected.execution_options;if(expected.creative?.creative_id)expected.creative={id:expected.creative.creative_id};return [{read:base('/v25.0/'+id,{fields:['id',...Object.keys(expected)].join(',')}),expected,id}];}
+ if(tiktokIdentityKind(plan))return tiktokIdentityVerification(plan,result).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_identity_info_get'}}));
  if(gateway==='tiktok_native_action'){
   const kind=plan.path.split('/')[2]!,ids=d.data?.[kind+'_ids']??[d.data?.[kind+'_id']??b[kind+'_id']];if(ids.some((id:unknown)=>typeof id!=='string'))return [];
   const expected=kind==='ad'&&plan.path==='/v1.3/ad/create/'?{...b.creatives[0],adgroup_id:b.adgroup_id}:Object.fromEntries(Object.entries(b).filter(([k])=>!['advertiser_id',kind+'_ids'].includes(k)));
@@ -130,6 +132,7 @@ function entity(plan:CompiledRequest,data:JsonObject):JsonObject{
  if(plan.googleState?.removedAsAbsent&&!data.results?.length)return {status:'REMOVED'};
  if(plan.gateway==='google_ads_native_action')return googleConfigurationObserved(plan,Object.values(data.results?.[0]??{})[0] as JsonObject);
  if(plan.gateway===microsoftGateway)return data[microsoftContracts.get(plan.action)!.result]?.[0];
+ if(plan.gateway==='tiktok_native_action'&&plan.path==='/v1.3/identity/info/')return data.data?.identity_info;
  if(plan.gateway==='tiktok_native_action')return data.data?.list?.[0];
  if(plan.gateway==='snapchat_native_action'){const kind=plan.path.split('/').at(-2)!,singular=kind==='adsquads'?'adsquad':kind.slice(0,-1),row=data[kind]?.[0]?.[singular];return (snapProjections[kind]?.(row)??row) as JsonObject;}
  if(['reddit_native_action','x_ads_native_action'].includes(plan.gateway))return data.data;
@@ -297,7 +300,7 @@ export class WriteVerifier{
    },actual=>differing(expected,actual).length===0);
    const actual=readback.value,changed=differing(expected,actual),acknowledged=item.acknowledged??{},unacknowledged=Object.entries(acknowledged).filter(([,v])=>differing(normalize(v.sent),normalize(v.echoed)).length).map(([k])=>'/'+k);
    const measured=readback.consistent?measurementVerificationPhase(item.read,actual):'inconclusive',phase=measured==='verified'&&unacknowledged.length?'inconclusive':measured;
-   checks.push({resource_id:item.id,status:phase,code:phase==='inconclusive'?'VERIFICATION_INCONCLUSIVE':undefined,read_attempts:readback.attempts,changed_fields:changed,expected_hash:fingerprint(expected),actual_hash:fingerprint(actual??null),checked_fields:Object.keys(expected),...(Object.keys(acknowledged).length?{acknowledged_fields:Object.keys(acknowledged),acknowledgment:'The native read never returns these fields; they are compared with the provider write response.',...(unacknowledged.length?{unacknowledged_fields:unacknowledged}:{})}:{})});
+   checks.push({resource_id:item.id,status:phase,code:phase==='inconclusive'?'VERIFICATION_INCONCLUSIVE':undefined,read_attempts:readback.attempts,changed_fields:changed,expected_hash:fingerprint(expected),actual_hash:fingerprint(actual??null),checked_fields:Object.keys(expected),...(Object.keys(acknowledged).length?{acknowledged_fields:Object.keys(acknowledged),acknowledgment:'The native read never returns these fields; they are compared with the provider write response.',...(unacknowledged.length?{unacknowledged_fields:unacknowledged}:{})}:{}),...(item.unobservable?.length?{unobservable_fields:item.unobservable,unobservable:'Neither the write response nor any native read returns these sent fields, so they cannot be compared.'}:{})});
    if(linkedinDSC(plan)&&readback.consistent)rememberLinkedInPost(this.store,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id),plan,result.headers['x-restli-id']);
    if(metaLabelKind(plan)&&readback.consistent&&item.expected.label?.present===true){const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertMetaLabelScope(current);this.store.rememberResource(current,plan.accountId!,item.id);}
   }status=reads.length?(checks.some(c=>c.status==='failed')?'failed':checks.every(c=>c.status==='verified')?'verified':checks.some(c=>c.status==='pending')?'pending':'inconclusive'):'unsupported';}}

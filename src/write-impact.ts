@@ -1,5 +1,6 @@
 import {snapUpdateKind,snapUpdateImpact} from './snapchat-nested-updates.js';
 import {snapSegmentImpact} from './snapchat-segments.js';
+import {tiktokIdentityKind,tiktokIdentityImpact} from './tiktok-identities.js';
 import {googlePreviewKind,googlePreviewImpact} from './google-preview-writes.js';
 import {criteoCampaignKind,criteoCampaignImpact} from './criteo-campaign-writes.js';
 import {metaReportKind,metaReportImpact} from './meta-insights-jobs.js';
@@ -95,6 +96,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
   return {provider:'snapchat',effect:'All ads referencing an edited creative use the changed creative. Reviewable creative edits can pause delivery during provider re-review. PUT requires a complete replacement; omitted fields can reset to defaults.',affected_creative_ids:Array.isArray(rows)?rows.map(r=>r.id):[plan.path.split('/').at(-1)],affected_ad_ids:null,enumeration:'not_available_in_this_contract',source:'https://developers.snap.com/marketing-api/Ads-API/creatives',recovery:'Inspect the ads sharing this creative before execution. Use a new creative and separately reviewed ad attachment when the change must affect only selected ads. No automatic ad replay is performed.'};
  }
  if(plan.gateway==='snapchat_native_action'&&plan.method==='PUT'&&/^\/v1\/adaccounts\/[^/]+\/segments$/.test(plan.path))return snapSegmentImpact(plan,state);
+ if(tiktokIdentityKind(plan))return tiktokIdentityImpact(plan,state);
  return undefined;
 }
 import {googleConfigurationKind,googleConfigurationServing} from './google-configuration-writes.js';

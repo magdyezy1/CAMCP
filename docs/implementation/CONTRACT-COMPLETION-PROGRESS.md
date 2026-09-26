@@ -8,6 +8,20 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## BL — TikTok custom identities (2026-09-26)
+
+`tiktok_identity_create` is a reviewed family for `CUSTOMIZED_USER` identities. It accepts
+documented fields only, and an optional avatar that must be a square image in the
+advertiser's library, read twice. Review evidence ignores re-signed image URLs.
+Verification compares identity info and lists the unreadable avatar ID under
+`unobservable_fields`. Nine new tests fail on `8b97bdb` and pass with the change. See
+[implementation](TIKTOK-IDENTITIES-2026-09-26.md),
+[qualification](TIKTOK-IDENTITIES-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 971 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## BK — Snapchat audience segments (2026-09-26)
 
 Customer-list and lookalike segment creation and name/description/retention updates now use
@@ -19,8 +33,8 @@ stay blocked. Ten new tests fail on `874038e` and pass with the change. See
 [qualification](SNAPCHAT-SEGMENTS-VERIFICATION-2026-09-26.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 972 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Remaining rows then: 972. Pushed to CAMCP as `8b97bdb`; its exact-commit CI result and live
+acceptance are pending.
 
 ## BJ — Snapchat lead generation form creation (2026-09-26)
 

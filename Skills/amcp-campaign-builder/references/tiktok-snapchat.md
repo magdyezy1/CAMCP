@@ -99,6 +99,27 @@ A reported account-specific PATCH failure is not proof that the endpoint is glob
 
 Use [the media guide](media.md) for Drive imports. Poll asynchronous video processing before using the resulting asset in a creative. Read account currency and native amount semantics before converting budgets; never treat every platform's integer budget as Meta cents.
 
+## TikTok custom identities
+
+- Non-Spark ads need an identity. `tiktok_identity_create` creates a `CUSTOMIZED_USER` identity
+  from `display_name` (≤100 characters) and an optional `image_uri`. Use the result as
+  `identity_type: "CUSTOMIZED_USER"` plus `identity_id` in ad creation.
+- `image_uri` is an image ID from `amcp_media` or `/file/image/ad/upload/`. The review reads it
+  from `/file/image/ad/info/` before review and again before execution. It must be in the
+  selected advertiser's library (`STATE_TARGET_MISMATCH`) and square (`INVALID_TIKTOK_IDENTITY`);
+  without it, TikTok uses a default avatar. Other keys, such as `identity_type`, are refused.
+- `creative_impact` shows the display name and the avatar's size. Review evidence keeps the
+  image ID, size and signature but not the `image_url`, which TikTok re-signs hourly.
+- Verification reads `/identity/info/` for the new identity and compares `identity_id`,
+  `identity_type` and `display_name`. TikTok reports the avatar only as a derived
+  `profile_image_url`, so a sent `image_uri` is listed under `unobservable_fields` rather than
+  compared.
+- A TikTok-declared error is reported once (`PLATFORM_ERROR`); the review then stays
+  `WRITE_OUTCOME_UNCERTAIN` and is never resubmitted. Prepare a new review after checking
+  `tiktok_identity_list`.
+- Not available: identity deletion (ads may use it) and TikTok-account identities (`AUTH_CODE`,
+  `TT_USER`, `BC_AUTH_TT`), which are authorized rather than created.
+
 ## Snapchat campaign plans
 
 - `amcp_campaign` steps may pin `expected_currency`. Preflight reads the ad account and uses

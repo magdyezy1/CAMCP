@@ -99,7 +99,7 @@ test('Snapchat Drive image -> web-view creative -> paused ad -> exact read-back'
   await f.mutate('snapchat_ad_create',{ads:[{name:'Synthetic ad',ad_squad_id:'200',creative_id:result.data.creatives[0].creative.id,type:'SNAP_AD',status:'PAUSED'}]},{params:{ad_squad_id:'200'}});
  }finally{f.store.close();}
 });
-test('TikTok existing-identity image handoff and exact ad read-back; identity provisioning remains an explicit contract gap',async()=>{
+test('TikTok existing-identity image handoff and exact ad read-back; identity provisioning uses its own reviewed contract',async()=>{
  const f=fixture('tiktok');try{
   const image=await f.media();assert.equal(image.ready,true);
   // The official SDK's AdCreateBody has one creatives array; this is not Smart+.
@@ -110,7 +110,8 @@ test('TikTok existing-identity image handoff and exact ad read-back; identity pr
    const blocked=await f.prepare({action:'tiktok_ad_create',payload});assert.equal(blocked.success,false);assert.ok(['INVALID_ARGUMENT','PAUSED_CREATION_REQUIRED'].includes(blocked.error.code));
   }
   assert.equal(f.calls.length,before,'no provider reads or writes for unsafe creative status');
-  const denied=await f.prepare({action:'tiktok_identity_create',payload:{advertiser_id:'123',identity_name:'Synthetic'}});assert.equal(denied.error.code,'WRITE_CONTRACT_UNAVAILABLE');
+  // Custom identities are qualified separately (tests/tiktok-identities.test.mjs); an undocumented field is still refused locally.
+  const denied=await f.prepare({action:'tiktok_identity_create',payload:{advertiser_id:'123',identity_name:'Synthetic'}});assert.equal(denied.error.code,'INVALID_TIKTOK_IDENTITY');assert.equal(f.calls.length,before,'refused before any provider request');
  }finally{f.store.close();}
 });
 test('LinkedIn image upload and existing-post creatives use intendedStatus and header IDs; unsafe posts remain blocked',async()=>{

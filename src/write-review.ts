@@ -1,6 +1,7 @@
 import {snapUpdateKind,assertSnapUpdate,snapUpdateSnapshots,readSnapUpdateState,snapUpdateOutcome} from './snapchat-nested-updates.js';
 import {assertSnapLeadForms,assertSnapLeadCreativeRefs,snapLeadDependencyPaths} from './snapchat-lead-forms.js';
 import {assertSnapSegments,assertSnapSegmentUpdates,snapSegmentDependencyPaths} from './snapchat-segments.js';
+import {tiktokIdentityKind,assertTiktokIdentity,tiktokIdentityImage,tiktokImageInfoPath} from './tiktok-identities.js';
 import {googlePreviewKind,assertGooglePreview,googlePreviewSnapshots,readGooglePreviewState,googlePreviewOutcome,googlePreviewDelivery,googlePreviewSafeOutcome} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaign,assertCriteoCampaignScopes,criteoCampaignSnapshots,readCriteoCampaignState,criteoCampaignOutcome} from './criteo-campaign-writes.js';
 import {metaReportKind,assertMetaReport,assertMetaReportScope,metaReportSnapshots,readMetaReportState,metaReportOutcome} from './meta-insights-jobs.js';
@@ -211,7 +212,9 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
   else sameIds(actual,expected);return;
  }
  if(read.gateway==='tiktok_native_action'){
+  if(read.path==='/v1.3/identity/info/'){const info=data.data?.identity_info;if(data.code!==0||!info||typeof info!=='object'||Array.isArray(info))fail('STATE_READ_FAILED','TikTok identity info must confirm success and contain identity_info.');sameIds([info.identity_id],[read.query.identity_id]);return;}
   if(data.code!==0||!Array.isArray(data.data?.list))fail('STATE_READ_FAILED','TikTok state must confirm success and contain its native list.');
+  if(read.path===tiktokImageInfoPath){sameIds(data.data.list.map((r:JsonObject)=>r.image_id),read.query.image_ids);return;}
   const kind=read.path.split('/')[2]!,key=kind==='advertiser'?'advertiser_id':kind+'_id';
   sameIds(data.data.list.map((r:JsonObject)=>r[key]),kind==='advertiser'?[id]:read.query.filtering[kind+'_ids']);return;
  }
@@ -274,6 +277,7 @@ export function assertWriteShape(plan:CompiledRequest){
  const expect=(record:JsonObject,key:string,values:string[])=>{if(!values.includes(record[key]))fail('PAUSED_CREATION_REQUIRED','New serving entities require an explicit paused or draft state.',{field:key,allowed:values});};
  if(plan.gateway==='meta_native_action'&&/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads)$/.test(plan.path)&&plan.method==='POST')expect(body,'status',['PAUSED']);
  if(plan.gateway==='tiktok_native_action'&&/^\/v1\.3\/(?:campaign|adgroup)\/create\/$/.test(plan.path))expect(body,'operation_status',['DISABLE']);
+ if(tiktokIdentityKind(plan))assertTiktokIdentity(plan,body);
  if(plan.gateway==='tiktok_native_action'&&plan.path==='/v1.3/ad/create/'){
   if(!Array.isArray(body.creatives)||body.creatives.length!==1||!body.creatives[0]||Array.isArray(body.creatives[0])||typeof body.creatives[0]!=='object')fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed TikTok ad creation requires exactly one native creatives record per review. Put the ad fields and operation_status inside that record.');
   if(Object.hasOwn(body,'operation_status'))fail('INVALID_ARGUMENT','TikTok ad creation uses creatives[0].operation_status; a top-level status does not pause the creative.');
@@ -374,6 +378,11 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
   if(!snapshots.length)fail('WRITE_CONTRACT_UNAVAILABLE','Each operation must contain create, update or remove.');return snapshots;
  }
  if(plan.gateway==='tiktok_native_action'){
+  if(tiktokIdentityKind(plan)){
+   const reads=[base('/v1.3/advertiser/info/',{advertiser_ids:[id]})],image=tiktokIdentityImage(plan);
+   if(image!==undefined){const read=base(tiktokImageInfoPath,{advertiser_id:id,image_ids:[image]});read.action='tiktok_file_image_ad_info_get';reads.push(read);}
+   return reads;
+  }
   const match=/^\/v1\.3\/(campaign|adgroup|ad)\/(?:status\/)?(create|update|delete)\/$/.exec(plan.path);
   if(!match)fail('WRITE_CONTRACT_UNAVAILABLE','This TikTok action has no implemented state-read contract.');
   if(match[2]==='create'){
