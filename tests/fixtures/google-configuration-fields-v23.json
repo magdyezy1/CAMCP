@@ -800,6 +800,75 @@
           "repeated": false
         }
       }
+    },
+    "audience": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/audience",
+      "checked_at": "2026-09-26",
+      "method": "Direct HTML fetch of the public v23 field reference; field headings and Selectable/Repeated table values extracted; not a live account query",
+      "source_html_sha256": "dc3c3aad98f0a99e2ca780bf729b5206f13a869ba1505417baf1ef266c3133a3",
+      "source_text_sha256": "e0039593658aa5d724bfbcf26274e5dfd2b8b4545a34697d78c0a155cbfe7e5a",
+      "fields": {
+        "asset_group": {
+          "selectable": true,
+          "repeated": false
+        },
+        "description": {
+          "selectable": true,
+          "repeated": false
+        },
+        "dimensions": {
+          "selectable": true,
+          "repeated": true
+        },
+        "dimensions.audience_segments.segments.custom_audience.custom_audience": {
+          "selectable": false,
+          "repeated": false
+        },
+        "dimensions.audience_segments.segments.detailed_demographic.detailed_demographic": {
+          "selectable": false,
+          "repeated": false
+        },
+        "dimensions.audience_segments.segments.life_event.life_event": {
+          "selectable": false,
+          "repeated": false
+        },
+        "dimensions.audience_segments.segments.user_interest.user_interest_category": {
+          "selectable": false,
+          "repeated": false
+        },
+        "dimensions.audience_segments.segments.user_list.user_list": {
+          "selectable": false,
+          "repeated": false
+        },
+        "exclusion_dimension": {
+          "selectable": true,
+          "repeated": false
+        },
+        "exclusion_dimension.exclusions.user_list.user_list": {
+          "selectable": false,
+          "repeated": false
+        },
+        "id": {
+          "selectable": true,
+          "repeated": false
+        },
+        "name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "resource_name": {
+          "selectable": true,
+          "repeated": false
+        },
+        "scope": {
+          "selectable": true,
+          "repeated": false
+        },
+        "status": {
+          "selectable": true,
+          "repeated": false
+        }
+      }
     }
   }
 }

@@ -1,5 +1,6 @@
 import {keywordPlanResources,assertKeywordPlanRecord,keywordPlanClear,keywordPlanSnapshots,validateKeywordPlanPrerequisites,keywordPlanCanonical,keywordPlanObserved,keywordPlanFieldHashes} from './google-keyword-plan-writes.js';
 import {segmentFields,assertGoogleSegmentRecord,assertGoogleSegmentOperation,googleSegmentResource,googleSegmentCanonical} from './google-custom-segments.js';
+import {assertGoogleAudienceRecord,googleAudienceCanonical} from './google-audiences.js';
 import {MirrorError} from './errors.js';
 import {googleJson} from './google-contracts.js';
 import {googleAssetSetFields,googleFeedFields,assertAssetSetRecord,assetSetExtraSnapshots,validateAssetSetPrerequisites,assetSetObserved,assetSetCanonical,assetSetExactFields} from './google-asset-set-writes.js';
@@ -26,6 +27,8 @@ const customizer=(resource:string,collection:string,parent?:Reference)=>descript
 // A mapped mutation outside this table does not gain execution permission.
 export const googleConfigurationContracts:Record<string,Contract>={
  customAudiences:descriptor('custom_audience','customAudiences',['name','description','type','members'],['name','type','members'],['name','description','members'],segmentFields,{serving:true}),
+ // Customer-scoped Performance Max / Demand Gen audience signals; the service exposes create and update only.
+ audiences:descriptor('audience','audiences',['name','description','dimensions','exclusionDimension','scope','assetGroup'],['name','dimensions'],['name','description','dimensions','exclusionDimension'],['name','description','dimensions','exclusion_dimension','scope','status'],{serving:true}),
  customInterests:descriptor('custom_interest','customInterests',['name','description','type','members','status'],['name','type','members'],['name','description','members','status'],segmentFields,{serving:true}),
  keywordPlans:descriptor('keyword_plan','keywordPlans',['name','forecastPeriod'],['name'],['name','forecastPeriod'],keywordPlanResources.keywordPlans!.fields),
  keywordPlanCampaigns:descriptor('keyword_plan_campaign','keywordPlanCampaigns',['name','keywordPlan','cpcBidMicros','keywordPlanNetwork','geoTargets','languageConstants'],['name','keywordPlan','cpcBidMicros','keywordPlanNetwork'],['name','keywordPlan','cpcBidMicros','keywordPlanNetwork','geoTargets','languageConstants'],keywordPlanResources.keywordPlanCampaigns!.fields,{references:[planningReference('keywordPlanCampaigns')]}),
@@ -129,7 +132,7 @@ export function assertGoogleConfiguration(p:CompiledRequest):void{
    const values=leaves(Object.fromEntries(Object.entries(r).filter(([k])=>k!=='resourceName')));
    if(mask.some((f:string)=>get(r,f)===undefined||get(r,f)===null&&!keywordPlanClear(kind,f,get(r,f)))||values.some(f=>!mask.some((m:string)=>f===m||f.startsWith(m+'.'))))invalid('Every changed value must be covered by the mask, and every mask field must have an explicit value.');
   }else if(op.updateMask!==undefined)invalid('A remove does not accept updateMask.');
-  if(r){validateRecord(kind,c,r,!!op.create);for(const ref of c.references){const value=get(r,ref.field);if(value!==undefined)resource(value,p,ref.collection,ref.parts);}}
+  if(r){validateRecord(kind,c,r,!!op.create);if(kind==='audiences')assertGoogleAudienceRecord(r,!!op.create,account(p)!);for(const ref of c.references){const value=get(r,ref.field);if(value!==undefined)resource(value,p,ref.collection,ref.parts);}}
   if(kind==='customerAssetSets'&&r?.customer!==undefined&&r.customer!=='customers/'+account(p))invalid('The customer link must use the selected customer.');
   const name=identity(p,c,op);if(name){if(seen.has(name))invalid('Each configuration target may occur only once per review.');seen.add(name);}
   if(kind==='adParameters'&&name&&!/[~][12]$/.test(name))invalid('Ad parameter resource names must end with parameter index 1 or 2.');
@@ -196,6 +199,7 @@ export function googleConfigurationVerification(p:CompiledRequest,result:JsonObj
   if(c.collection==='customerAssetSets')delete expected.customer; // GAQL cannot select customer; the scoped resource name binds it.
    const read=search(p,c.resource,c.fields,[id],removed,removed),normalized=c.resource==='asset_set'&&op.update?assetSetCanonical(expected):assetSetObserved(c.resource,expected);
    if(googleSegmentResource(c.resource))return {id,expected:googleSegmentCanonical(c.resource,expected),read};
+   if(c.resource==='audience')return {id,expected:googleAudienceCanonical(expected),read};
   if(c.resource==='asset_set'&&op.update){const fields=op.updateMask.split(',').filter((f:string)=>object(get(op.update,f)));if(fields.length){
    const defaults=assetSetObserved(c.resource,expected);for(const field of fields){const path=field.split('.');let node=normalized;for(const key of path.slice(0,-1))node=node[key]??={};node[path.at(-1)!]=get(defaults,field);}
    read.googleState!.exactFields=fields;normalized.amcpExactFieldHashes=assetSetExactFields(normalized,fields);
@@ -212,7 +216,7 @@ export function googleConfigurationObserved(read:CompiledRequest,value:JsonObjec
  // ProtoJSON omits default strings after a cleared text-label field. This applies
  // only to documented optional label strings, never unknown fields or identities.
  if(read.action==='AMCP_CONFIG_READ'&&read.googleState?.resource==='label'&&value?.resourceName)return {...value,textLabel:{backgroundColor:'',description:'',...value.textLabel}};
-  const resource=read.googleState?.resource??'',normalized=googleSegmentResource(resource)?googleSegmentCanonical(resource,value,true):keywordPlanObserved(resource,assetSetObserved(resource,value));
+  const resource=read.googleState?.resource??'',normalized=googleSegmentResource(resource)?googleSegmentCanonical(resource,value,true):resource==='audience'?googleAudienceCanonical(value):keywordPlanObserved(resource,assetSetObserved(resource,value));
  return read.googleState?.exactFields?{...normalized,amcpExactFieldHashes:assetSetExactFields(normalized,read.googleState.exactFields)}:normalized;
 }
-export function googleConfigurationServing(p:CompiledRequest):boolean{const kind=googleConfigurationKind(p);return !!kind&&googleConfigurationContracts[kind]!.serving&&(kind!=='customizerAttributes'||googleJson(p.body).operations.some((o:JsonObject)=>o.remove))&&(!['assetSets','customAudiences','customInterests'].includes(kind)||googleJson(p.body).operations.some((o:JsonObject)=>!o.create));}
+export function googleConfigurationServing(p:CompiledRequest):boolean{const kind=googleConfigurationKind(p);return !!kind&&googleConfigurationContracts[kind]!.serving&&(kind!=='customizerAttributes'||googleJson(p.body).operations.some((o:JsonObject)=>o.remove))&&(!['assetSets','customAudiences','customInterests','audiences'].includes(kind)||googleJson(p.body).operations.some((o:JsonObject)=>!o.create));}

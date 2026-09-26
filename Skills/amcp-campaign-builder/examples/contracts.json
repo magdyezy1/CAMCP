@@ -1754,6 +1754,45 @@
       }
     },
     {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "google_ads_v23_audience_mutate_audiences",
+        "account_id": "1234567890",
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "name": "Synthetic buyers signal",
+                "dimensions": [
+                  {
+                    "audienceSegments": {
+                      "segments": [
+                        {
+                          "userList": {
+                            "userList": "customers/1234567890/userLists/111"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "age": {
+                      "ageRanges": [
+                        {
+                          "minAge": 25,
+                          "maxAge": 54
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
       "gateway": "snapchat_native_action",
       "arguments": {
         "action": "snapchat_adsquad_patch",

@@ -42,6 +42,7 @@ const cases:{route:string;rpc:string;entity:string;create:JsonObject;id:string;u
  {route:'keywordPlanAdGroups',rpc:'keyword_plan_ad_group_mutate_keyword_plan_ad_groups',entity:'keyword_plan_ad_group',create:{name:'Planning group',keywordPlanCampaign:resource('keywordPlanCampaigns','801')},id:'500',update:{cpcBidMicros:'1500000'}},
  {route:'keywordPlanAdGroupKeywords',rpc:'keyword_plan_ad_group_keyword_mutate_keyword_plan_ad_group_keywords',entity:'keyword_plan_ad_group_keyword',create:{keywordPlanAdGroup:resource('keywordPlanAdGroups','802'),text:'family homes',matchType:'PHRASE',negative:false},id:'500',update:{matchType:'EXACT'}},
  {route:'keywordPlanCampaignKeywords',rpc:'keyword_plan_campaign_keyword_mutate_keyword_plan_campaign_keywords',entity:'keyword_plan_campaign_keyword',create:{keywordPlanCampaign:resource('keywordPlanCampaigns','801'),text:'jobs',matchType:'BROAD',negative:true},id:'500',update:{text:'careers'}},
+ {route:'audiences',rpc:'audience_mutate_audiences',entity:'audience',create:{name:'Past buyers 25-54',description:'Performance Max signal',dimensions:[{audienceSegments:{segments:[{userList:{userList:resource('userLists','77')}}]}},{age:{ageRanges:[{minAge:25,maxAge:54}]}}]},id:'500',update:{name:'Past buyers 25-54 (renamed)'}},
  {route:'customAudiences',rpc:'custom_audience_mutate_custom_audiences',entity:'custom_audience',create:{name:'Approved keyword audience',type:'SEARCH',members:[{memberType:'KEYWORD',keyword:'family homes'}]},id:'500',update:{description:'Reviewed search intent'}},
  {route:'customInterests',rpc:'custom_interest_mutate_custom_interests',entity:'custom_interest',create:{name:'Approved interest',type:'CUSTOM_AFFINITY',members:[{memberType:'URL',parameter:'https://example.com'}]},id:'500',update:{description:'Reviewed affinity'}}
 ];
@@ -91,7 +92,7 @@ function fixture(row=cases[0]!,allowWrites=true){
    const name=op.remove??op.update?.resourceName??resource(collection,row.id);
    if(op.remove)records.delete(name);
    else if(op.update){const record=records.get(name)!;for(const f of op.updateMask.split(','))set(record,f,get(op.update,f));}
-   else records.set(name,{...op.create,resourceName:name,...(['labels','customizerAttributes','campaignCustomizers','adGroupCustomizers','AdGroupCriterionCustomizers','CustomerCustomizers','campaignGroups','assetSets','assetSetAssets','campaignAssetSets','adGroupAssetSets','customerAssetSets','customAudiences','customInterests'].includes(row.route)?{status:'ENABLED'}:{}),...(row.route==='customerNegativeCriteria'?{type:'PLACEMENT'}:{})});
+   else records.set(name,{...op.create,resourceName:name,...(['labels','customizerAttributes','campaignCustomizers','adGroupCustomizers','AdGroupCriterionCustomizers','CustomerCustomizers','campaignGroups','assetSets','assetSetAssets','campaignAssetSets','adGroupAssetSets','customerAssetSets','customAudiences','customInterests','audiences'].includes(row.route)?{status:'ENABLED'}:{}),...(row.route==='customerNegativeCriteria'?{type:'PLACEMENT'}:{})});
    return {resourceName:foreignReceipt?name.replace('customers/123/','customers/999/'):name};
   });
   if(lostResponse)throw Error('Synthetic response lost after provider mutation');
@@ -124,7 +125,7 @@ for(const row of cases)test('Google configuration lifecycle: '+row.route,async()
   }
   // Some provider services deliberately do not expose remove. Their Discovery
   // request schema is checked separately instead of inventing a delete operation.
-  if(!['conversionCustomVariables','remarketingActions'].includes(row.route)){
+  if(!['conversionCustomVariables','remarketingActions','audiences'].includes(row.route)){
    const removed=await x.prepare([row.route==='customInterests'?{update:{resourceName:name,status:'REMOVED'},updateMask:'status'}:{remove:name}]);assert.equal(removed.success,true,JSON.stringify(removed));assert.equal((await x.execute(removed)).success,true);
    const v=await x.service.call('amcp_campaign',{action:'verify',review_id:removed.data.review_id},actor);assert.equal(v.data.status,'verified',JSON.stringify(v));
   }

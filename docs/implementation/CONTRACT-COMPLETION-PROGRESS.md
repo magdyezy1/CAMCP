@@ -8,6 +8,20 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## BP — Google Ads audience signals (2026-09-26)
+
+`google_ads_v23_audience_mutate_audiences` joins the reviewed `google_configuration` family
+for customer-scoped audiences. Dimensions and segments are checked against the pinned
+Discovery schema, the documented ages and enums, and the selected customer. Updates need
+spend confirmation, and read-back is compared canonically. The v23 audience GAQL field
+table is recorded with its source hash. See
+[implementation](GOOGLE-AUDIENCES-2026-09-26.md),
+[qualification](GOOGLE-AUDIENCES-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 964 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## BO — Meta lookalike audiences (2026-09-26)
 
 The custom audience create route becomes the reviewed family `meta_lookalikes`, for
@@ -18,8 +32,8 @@ type/ratio/country; `location_spec` is listed as unobservable. See
 [qualification](META-LOOKALIKES-VERIFICATION-2026-09-26.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 965 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Remaining rows then: 965. Pushed to CAMCP as `d21fb76`; its exact-commit CI result and live
+acceptance are pending.
 
 ## BN — TikTok lookalike audiences (2026-09-26)
 

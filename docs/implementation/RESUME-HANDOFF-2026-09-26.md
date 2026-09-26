@@ -145,6 +145,24 @@ The custom audience create route becomes the reviewed family `meta_lookalikes`:
 - Verification compares the seed, type/ratio/country and name; `location_spec` is listed as unobservable.
 
 Tests: `tests/meta-lookalikes.test.mjs` (8, red on `978b061` / green after).
+Pushed as `d21fb76`.
+
+## Finished batch — Google Ads audience signals
+
+[Implementation](GOOGLE-AUDIENCES-2026-09-26.md) and
+[qualification](GOOGLE-AUDIENCES-VERIFICATION-2026-09-26.json).
+
+`google_ads_v23_audience_mutate_audiences` joins the reviewed `google_configuration` family:
+
+- Customer-scoped audiences only.
+- Validated against the pinned Discovery schema and the documented ages and enums.
+- Segments must be resources of the selected customer.
+- Updates need spend confirmation.
+- Read-back is compared in a canonical form that tolerates reordering.
+
+The v23 audience GAQL field table is recorded with its source hash. Tests:
+`tests/google-audiences.test.mjs` (4) and an `audiences` lifecycle case in
+`tests/google-configuration-writes.test.ts` (red on `d21fb76` / green after).
 
 ## CI and live evidence
 
@@ -158,19 +176,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 472 in reviewed write families. **965 remaining rows** are in
+3241 captured actions; 473 in reviewed write families. **964 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 850 |
+| blocked_write | 849 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 217, Meta 131, LinkedIn 119, Google Ads 108,
+Blocked writes by platform: TikTok 217, Meta 131, LinkedIn 119, Google Ads 107,
 Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12. The ticket list in the
 2026-09-25 handoff remains the backlog, plus these Snapchat follow-ups:
 

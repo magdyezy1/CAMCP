@@ -151,6 +151,39 @@ ad parameters, signals and exclusions can change existing ads and require spend 
 After execution, verify the exact resource or deletion. Configuration read-back establishes
 neither serving nor conversion collection; do not retry a lost mutation under a new key.
 
+## Audience signals
+
+`google_ads_v23_audience_mutate_audiences` creates and updates customer-scoped `Audience`
+resources. These are the audiences an asset-group signal (`assetGroupSignals` with
+`audience.audience`) points to for Performance Max or Demand Gen. The service has no remove.
+
+- **Create:**
+  - `name` is required, unique in the account, and at most 255 characters.
+  - `description` is optional.
+  - `dimensions` is required: each entry sets exactly one of `age`, `gender`,
+    `householdIncome`, `parentalStatus` or `audienceSegments`, and each type appears once.
+  - `exclusionDimension.exclusions` may list user lists only.
+- **Dimension values:**
+  - Ages use `ageRanges` with `minAge` 18/25/35/45/55/65 and an optional larger `maxAge`
+    24/34/44/54/64.
+  - Genders, income ranges and parental statuses use their v23 enum values;
+    `includeUndetermined` is a boolean.
+  - Segments are `userList`, `userInterest.userInterestCategory`, `lifeEvent`,
+    `detailedDemographic` or `customAudience`. Each is an existing resource name in the
+    selected customer (`customers/{id}/userLists/{id}` and so on); discover them first.
+- **Update:** mask only `name`, `description`, `dimensions` or `exclusionDimension`. An update
+  may change the traffic of asset groups that already use the audience, so execution needs
+  `spend_change_confirmed: true`. Creation affects nothing until a signal attaches it.
+- **Not qualified:** `scope: ASSET_GROUP` and `assetGroup` (asset-group audiences cannot carry a
+  name).
+- **Refusals:** unknown fields and enums fail against the pinned Discovery schema
+  (`INVALID_VENDOR_BODY`); other rule violations fail with `INVALID_GOOGLE_AUDIENCE`, before
+  any request.
+- **Verification:** reads `audience.dimensions` and `audience.exclusion_dimension` back as
+  whole messages. Both sides are compared with dimensions, ranges, segments and exclusions
+  sorted and false defaults dropped, so reordering by Google verifies and a changed value
+  stays inconclusive.
+
 ## Asset sets and feed associations
 
 Reviewed v23 asset-set contracts cover `assetSets:mutate` and create/remove on
