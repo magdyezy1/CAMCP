@@ -68,9 +68,9 @@
       "gateway": "criteo_native_action",
       "actions": 108,
       "counts": {
-        "blocked_write": 43,
+        "blocked_write": 41,
         "native_read": 51,
-        "reviewed_write_family": 14
+        "reviewed_write_family": 16
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -3083,7 +3083,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3147,7 +3148,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3166,7 +3168,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3185,7 +3188,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3234,7 +3238,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3253,7 +3258,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3377,7 +3383,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3396,7 +3403,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3415,7 +3423,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3449,7 +3458,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3468,7 +3478,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3532,7 +3543,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3551,7 +3563,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3570,7 +3583,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3589,7 +3603,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3671,7 +3686,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3690,7 +3706,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3709,7 +3726,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3728,7 +3746,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3747,7 +3766,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3766,7 +3786,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3785,7 +3806,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3804,7 +3826,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3916,7 +3939,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3980,7 +4004,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -3999,7 +4024,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4018,7 +4044,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4037,7 +4064,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4056,7 +4084,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4075,7 +4104,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4094,7 +4124,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4128,7 +4159,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4147,7 +4179,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4241,7 +4274,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4260,7 +4294,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4279,7 +4314,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4298,7 +4334,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4317,7 +4354,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4398,12 +4436,15 @@
       "method": "POST",
       "path": "/2026-01/retail-media/campaigns/{campaignId}/auction-line-items",
       "origin": "https://api.criteo.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/criteo-auction-line-items.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/criteo-auction-line-items.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "criteo_auction_line_items"
     },
     {
       "gateway": "criteo_native_action",
@@ -4489,7 +4530,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4508,7 +4550,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4527,7 +4570,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4546,7 +4590,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4565,7 +4610,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4584,7 +4630,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4603,7 +4650,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4622,7 +4670,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4641,7 +4690,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4660,7 +4710,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4679,7 +4730,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4745,12 +4797,15 @@
       "method": "PUT",
       "path": "/2026-01/retail-media/auction-line-items/{lineItemId}",
       "origin": "https://api.criteo.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/criteo-auction-line-items.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/criteo-auction-line-items.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "criteo_auction_line_items"
     },
     {
       "gateway": "criteo_native_action",
@@ -4911,7 +4966,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -4930,7 +4986,8 @@
       "tests": [
         "tests/criteo-targeting-writes.test.ts",
         "tests/criteo-report-jobs.test.ts",
-        "tests/criteo-campaign-writes.test.ts"
+        "tests/criteo-campaign-writes.test.ts",
+        "tests/criteo-auction-line-items.test.mjs"
       ],
       "live_qualification": "unverified"
     },

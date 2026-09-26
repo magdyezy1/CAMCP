@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CU — Criteo auction line items (2026-09-27)
+
+Auction (Onsite Sponsored Products) line items can now be created in draft and changed with a
+complete PUT through a review that shows every current and resulting field, needs spending
+confirmation, applies owner limits to the budget and paces, and verifies every field and the
+status. See [implementation](CRITEO-AUCTION-LINE-ITEMS-2026-09-27.md),
+[qualification](CRITEO-AUCTION-LINE-ITEMS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 906 (two Criteo rows reviewed). Pushed only to CAMCP; its exact-commit CI result and
+live acceptance are pending.
+
 ## CT — Meta account controls and publisher block lists (2026-09-26)
 
 Advantage+ account controls (minimum age, locations, exclusions and placement exclusions) can now
@@ -17,8 +29,8 @@ confirmation and verifies exactly. Empty publisher block lists can be created by
 [qualification](META-BRAND-SAFETY-VERIFICATION-2026-09-26.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 908 (two Meta rows reviewed). Pushed only to CAMCP; its exact-commit CI result and
-live acceptance are pending.
+Remaining rows: 908 (two Meta rows reviewed). Pushed to CAMCP as `8fa32bf`; its exact-commit CI
+result and live acceptance are pending.
 
 ## CS — Meta value rule sets (2026-09-26)
 

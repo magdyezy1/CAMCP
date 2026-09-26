@@ -1,8 +1,8 @@
 # Criteo Retail Media campaigns, targeting and reports
 
 AMCP qualifies nine targeting writes for **existing preferred line items** on
-Retail Media API 2026-01, plus the bounded auction campaign and report families
-below. Line-item creation and website OAuth are still unqualified. An administrator must provision an encrypted
+Retail Media API 2026-01, plus the bounded auction campaign, auction line item and
+report families below. Preferred line-item creation and website OAuth are still unqualified. An administrator must provision an encrypted
 native connection with the chosen account, an explicit AMCP write grant and
 recorded `RetailMedia_Campaign_Read` and `RetailMedia_Campaign_Manage` permissions.
 Provider approval and retailer access remain independent requirements.
@@ -103,7 +103,8 @@ unqualified field/value; `INVALID_VENDOR_BODY` identifies a pinned-schema violat
 Do not send `status`: Criteo derives campaign status from its line items. Do not
 set a fictitious PAUSED value. This family does not qualify preferred campaigns,
 retailer-budget campaigns/balances, automatic or uncapped pacing, budget overrides,
-retailer assignment, balance reassignment/funding, or line-item creation. Do not
+retailer assignment or balance reassignment/funding; auction line items have their
+own family below. Do not
 clear an existing financial safeguard merely to get past a contract limitation.
 
 Run `amcp_write inspect`, prepare, review all limits/dates/attribution and current
@@ -137,6 +138,78 @@ unverified. Source: [campaign workflow](https://developers.criteo.com/retail-med
 and [pinned OpenAPI](https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json).
 The guide's shortened PUT example omits fields required by the pinned schema;
 AMCP preserves the full contract instead of copying that example blindly.
+
+## Auction line items (2026.01)
+
+Maintainer: AMCP integration maintainer; reviewed 2026-09-27. This family creates and
+updates Onsite Sponsored Products (auction) line items in auction campaigns, including
+retailer-billed ones. Select one login/account with current `RetailMedia_Accounts_Read`,
+`RetailMedia_Campaign_Read` and `RetailMedia_Campaign_Manage` permissions plus an AMCP
+write grant. Verification needs the two read permissions.
+
+Use `operation: criteo_line_item_ops`:
+
+- `CREATE_AUCTION_LINE_ITEM` with `params: {campaignId: "<campaign ID>"}`. First list
+  the campaign in this account and connection with `criteo_campaign_ops /
+  GET_CAMPAIGNS_BY_ACCOUNT_ID` and `params: {limitToId: ["<campaign ID>"], pageIndex: 0,
+  pageSize: 2}`.
+- `UPDATE_AUCTION_LINE_ITEM` with `params: {lineItemId: "<line item ID>"}`. First list the
+  line item with `GET_LINE_ITEMS_BY_ACCOUNT_ID` and `params: {limitToId: ["<line item
+  ID>"], limitToType: "Auction", pageIndex: 0, pageSize: 2}`. A line item created and
+  verified through AMCP needs no listing.
+
+Both use `payload: {data: {type: "SponsoredProductsLineItem", attributes: {...}}}` with
+every writable attribute, and null where a limit is off:
+
+- `name` (2–255 characters, unique within the campaign), `startDate` and `endDate`
+  (ISO-8601 with an offset; `endDate` later, or null to run without an end);
+- `budget`, `monthlyPacing` and `dailyPacing` (positive amounts in the account currency,
+  or null for no cap) and `isAutoDailyPacing`. With `true`, `dailyPacing` is null and
+  Criteo calculates it; it needs an `endDate` and a `budget`, or a `monthlyPacing`;
+- `bidStrategy` (`manual` needs a `targetBid`, `automated` needs a `maxBid`),
+  `optimizationStrategy` (`conversion`, `clicks` or `revenue`), `targetBid` (positive or
+  null) and `maxBid` (at least 0.1, or null for no ceiling; Criteo returns 0 for none).
+  Bids exclude platform fees and must still meet the minimum bid of the products added later;
+- `flightSchedule`: null, or `{legs: [{dayOfWeek, startTime, endTime}]}` with a day of
+  `sunday` to `saturday`, `everyday`, `weekdays` or `weekends` and HH:mm times, the
+  start before the end, in the time zone of the dates.
+
+Creation adds `targetRetailerId` (for a retailer-billed campaign, its own retailer) and
+optionally `keywordStrategy`: `genericAndBranded` (the default), `conquesting` or
+`genericBrandedAndConquesting`; conquesting is not available for every retailer and needs
+manual review. Both are fixed afterwards and do not belong in the update. The update adds
+`status`: `active` or `paused`. Criteo derives draft, scheduled, ended and the budget
+statuses itself.
+
+A new line item is created in draft: it promotes no products and serves nothing until
+products are added and it is set to active. **The PUT sets every field it leaves out to
+null or its default**, so start from the current line item and change only what was
+asked; the review lists the limits that would be removed. `INVALID_CRITEO_LINE_ITEM`
+names the field or rule to correct. `CONFIGURATION_EXISTS` means another line item of
+the campaign has the name. A request that changes nothing and an archived line item are
+refused, and so is a line item with fields this contract does not know
+(`INCOMPLETE_STATE`), because a complete PUT could clear them.
+
+Run `amcp_write inspect`, prepare, review the current and resulting fields, the
+currency and the status, then execute once with the original review/key,
+`confirmed: true` and `spend_change_confirmed: true`. Under an owner policy, setting
+`active` counts as activation; the maximum and increase limits apply to `budget`,
+`monthlyPacing` and `dailyPacing`, and a limit set to null is refused under a monetary
+policy because it cannot be measured.
+
+Verify with `amcp_campaign action=verify`. It reads the line item again through the
+account and compares every field sent, the campaign, retailer and keyword strategy, and
+whether the line item is active, paused or in draft. A line item without products that
+is set to active stays in draft, so its status is reported as unobservable until
+products are added. A receipt with errors or warnings is not success and is never
+resubmitted automatically.
+
+Bounds: up to 10 reads, 1000 line items per campaign, 8 MiB and 60 seconds per review.
+Promoted products, keywords, bid multipliers, budget overrides and preferred line items
+are separate. Live acceptance and serving are unverified. Sources: [Onsite Sponsored
+Products line items](https://developers.criteo.com/retail-media/docs/onsite-sponsored-products-line-items)
+and the [pinned OpenAPI](https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json),
+checked 2026-09-26.
 
 ## Asynchronous DSP reports (2026.01)
 

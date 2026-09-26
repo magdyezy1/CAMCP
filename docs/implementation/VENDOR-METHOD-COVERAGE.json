@@ -2222,8 +2222,8 @@
         {
           "operation": "criteo_line_item_ops",
           "action": "UPDATE_AUCTION_LINE_ITEM",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_auction_line_items"
         }
       ],
       "mapping_status": "mapped",
@@ -2542,8 +2542,8 @@
         {
           "operation": "criteo_line_item_ops",
           "action": "CREATE_AUCTION_LINE_ITEM",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_auction_line_items"
         }
       ],
       "mapping_status": "mapped",

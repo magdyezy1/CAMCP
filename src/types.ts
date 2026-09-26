@@ -53,7 +53,7 @@ export interface CompiledRequest {
   /** Process-local monotonic deadline for a server-derived report retrieval. */
   criteoReportDeadline?:number;
  criteoCampaignDeadline?:number;
-  scopeContext?:{metaReportReviewId?:string;campaignId?:string;linkedinPostReviewId?:string;microsoftExtensionTypes?:string[];microsoftAssociationPairs?:{entityId:string;extensionId:string}[];appleSharedAccountIds?:string[];appleSharedResultAccounts?:string[];appleSharedOrgId?:string;appleCurrency?:string;gtmPriorAuthHash?:string;redditProfileId?:string;redditProfileUserId?:string;redditPostReviewId?:string;criteoVerifiedLineId?:string;criteoVerifiedCampaignId?:string};
+  scopeContext?:{metaReportReviewId?:string;campaignId?:string;linkedinPostReviewId?:string;microsoftExtensionTypes?:string[];microsoftAssociationPairs?:{entityId:string;extensionId:string}[];appleSharedAccountIds?:string[];appleSharedResultAccounts?:string[];appleSharedOrgId?:string;appleCurrency?:string;gtmPriorAuthHash?:string;redditProfileId?:string;redditProfileUserId?:string;redditPostReviewId?:string;criteoVerifiedLineId?:string;criteoVerifiedCampaignId?:string;criteoLineItemCampaignId?:string;criteoLineItemId?:string};
   reportDownload?:{offset:number;limit:number};
   contractEvidence?:JsonObject;
   /** Internal, derived exact-target GAQL read. Never accepted from client input. */
@@ -87,6 +87,8 @@ export interface CompiledRequest {
   metaValueRuleState?:true;
   /** Server-derived Meta account controls or publisher block list read of the selected account; never caller supplied. */
   metaBrandSafetyState?:'controls'|'blocklist';
+  /** Server-derived Criteo auction line item read of the selected account; never caller supplied. */
+  criteoLineItemState?:{campaignId?:string;lineItemId?:string;siblings:boolean};
   /** Server-derived GTM workflow read. Never accepted from external arguments. */
   gtmState?:{kind:'resource'|'collection'|'status'|'latest';key?:string};
   /** Internal complete GTM workspace read; targets only qualify absence checks. */

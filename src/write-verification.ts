@@ -70,6 +70,7 @@ import {tiktokNegativeKeywordKind,tiktokNegativeKeywordVerification,isTiktokNega
 import {tiktokBrandSafetyKind,tiktokBrandSafetyVerification,isTiktokBrandSafetyRead,tiktokBrandSafetyObserved} from './tiktok-brand-safety.js';
 import {metaValueRuleKind,metaValueRuleVerification,isMetaValueRuleRead,metaValueRuleObserved} from './meta-value-rules.js';
 import {metaBrandSafetyKind,metaBrandSafetyVerification,isMetaBrandSafetyRead,metaBrandSafetyObserved} from './meta-brand-safety.js';
+import {criteoLineItemKind,criteoLineItemVerification,isCriteoLineItemRead,criteoLineItemObserved,readCriteoLineItems,assertCriteoLineItemScopes} from './criteo-auction-line-items.js';
 import {gtmWorkflowKind,gtmWorkflowVerification,gtmWorkflowObserved,readGtmWorkflow} from './gtm-workflow-writes.js';
 import {gtmWorkspaceKind,gtmWorkspaceVerification,gtmWorkspaceObserved,readGtmWorkspace} from './gtm-workspace-writes.js';
 import {validateState,snapshotPlans} from './write-review.js';
@@ -105,6 +106,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
  if(tiktokBrandSafetyKind(plan))return tiktokBrandSafetyVerification(plan,before);
  if(metaValueRuleKind(plan))return metaValueRuleVerification(plan,result,before);
  if(metaBrandSafetyKind(plan))return metaBrandSafetyVerification(plan,result);
+ if(criteoLineItemKind(plan))return criteoLineItemVerification(plan,result,before);
  if(googleConfigurationKind(plan))return googleConfigurationVerification(plan,result);
  if(googleAssetLinkKind(plan))return googleAssetLinkVerification(plan);
  if(microsoftAssociationWrite(plan))return microsoftAssociationVerification(plan,compileMicrosoft);
@@ -183,6 +185,7 @@ function entity(plan:CompiledRequest,data:JsonObject):JsonObject{
  if(isTiktokBrandSafetyRead(plan))return tiktokBrandSafetyObserved(plan,data);
  if(isMetaValueRuleRead(plan))return metaValueRuleObserved(plan,data);
  if(isMetaBrandSafetyRead(plan))return metaBrandSafetyObserved(plan,data);
+ if(isCriteoLineItemRead(plan))return criteoLineItemObserved(plan,data);
  if(plan.gateway==='google_ads_native_action')return googleConfigurationObserved(plan,Object.values(data.results?.[0]??{})[0] as JsonObject);
  if(plan.gateway===microsoftGateway)return data[microsoftContracts.get(plan.action)!.result]?.[0];
  if(plan.gateway==='tiktok_native_action'&&plan.path==='/v1.3/identity/info/')return data.data?.identity_info;
@@ -216,6 +219,7 @@ export class WriteVerifier{
   if(criteoTargetingKind(plan))assertCriteoReadScope(c);
   if(metaReportKind(plan))assertMetaReportScope(c);
   if(criteoCampaignKind(plan))assertCriteoCampaignScopes(c);
+  if(criteoLineItemKind(plan))assertCriteoLineItemScopes(c);
   if(criteoReportKind(plan))assertCriteoReportScopes(c);
   if(placeActionKind(plan))assertPlaceActionScope(c);
   if(businessNotificationKind(plan)){assertBusinessNotificationActor(plan,actor);assertBusinessNotificationScope(c);}
@@ -356,7 +360,7 @@ export class WriteVerifier{
    const expected=normalize(item.expected),readback=await readConsistently(async()=>{
     this.store.assertActorActive(actor);checkAppleAccounts();const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(item.read,current);
     const auth=await this.credentials.get(current);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));
-    let response;try{response=await readLinkedInRules(item.read,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readGtmWorkspace(criteoPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(latest);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.request(actor,page,latest,auth);this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(current);new ScopeGuard(this.registry,this.store).authorize(page,current);return result;}))))))))));}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
+    let response;try{response=await readLinkedInRules(item.read,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readGtmWorkspace(criteoPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(latest);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.request(actor,page,latest,auth);this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(current);new ScopeGuard(this.registry,this.store).authorize(page,current);return result;})))))))))));}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
     checkAppleAccounts();return normalize(entity(item.read,response.data as JsonObject));
    },actual=>differing(expected,actual).length===0);
    const actual=readback.value,changed=differing(expected,actual),acknowledged=item.acknowledged??{},unacknowledged=Object.entries(acknowledged).filter(([,v])=>differing(normalize(v.sent),normalize(v.echoed)).length).map(([k])=>'/'+k);
@@ -364,6 +368,7 @@ export class WriteVerifier{
    checks.push({resource_id:item.id,status:phase,code:phase==='inconclusive'?'VERIFICATION_INCONCLUSIVE':undefined,read_attempts:readback.attempts,changed_fields:changed,expected_hash:fingerprint(expected),actual_hash:fingerprint(actual??null),checked_fields:Object.keys(expected),...(Object.keys(acknowledged).length?{acknowledged_fields:Object.keys(acknowledged),acknowledgment:'The native read never returns these fields; they are compared with the provider write response.',...(unacknowledged.length?{unacknowledged_fields:unacknowledged}:{})}:{}),...(item.unobservable?.length?{unobservable_fields:item.unobservable,unobservable:'Neither the write response nor any native read returns these sent fields, so they cannot be compared.'}:{})});
    if(linkedinDSC(plan)&&readback.consistent)rememberLinkedInPost(this.store,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id),plan,result.headers['x-restli-id']);
    if(metaLabelKind(plan)&&readback.consistent&&item.expected.label?.present===true){const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertMetaLabelScope(current);this.store.rememberResource(current,plan.accountId!,item.id);}
+   if(criteoLineItemKind(plan)==='create'&&readback.consistent&&typeof (actual as JsonObject)?.line?.id==='string'){const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);assertCriteoLineItemScopes(current);this.store.rememberResource(current,plan.accountId!,'criteo-report-target/line-items/'+(actual as JsonObject).line.id);}
   }status=reads.length?(checks.some(c=>c.status==='failed')?'failed':checks.every(c=>c.status==='verified')?'verified':checks.some(c=>c.status==='pending')?'pending':'inconclusive'):'unsupported';}}
   catch(e){if(redditPostCreation(plan)&&e instanceof MirrorError&&e.retryable)status='pending';checks.push({status:status==='pending'?'pending':'unverified',code:e instanceof MirrorError?e.code:'READ_FAILED',message:e instanceof MirrorError?e.message:'Verification read failed.'});}
   this.store.assertActorActive(actor);const receipt={review_id:reviewId,connection_id:c.id,account_id:plan.accountId,action:plan.action,status,...(status==='inconclusive'?{code:'VERIFICATION_INCONCLUSIVE'}:{}),checks,checked_at:Date.now(),automatic_retry_of_mutation:false,recovery:'Preserve successful resources. Field disagreement after bounded reads is inconclusive, not permission to repeat a mutation. Corrective writes need a new review; verification never resets idempotency.',...(['pending','inconclusive'].includes(status)?{retry_read_after_ms:criteoReportKind(plan)?6000:1000,next_call:{tool:'amcp_campaign',arguments:{action:'verify',review_id:reviewId}}}:{})};

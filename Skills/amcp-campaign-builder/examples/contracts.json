@@ -2088,6 +2088,39 @@
       "arguments": {
         "operation": "criteo_line_item_ops",
         "arguments": {
+          "action": "CREATE_AUCTION_LINE_ITEM",
+          "account_id": "123",
+          "params": {
+            "campaignId": "456"
+          },
+          "payload": {
+            "data": {
+              "type": "SponsoredProductsLineItem",
+              "attributes": {
+                "name": "Synthetic auction line item",
+                "targetRetailerId": "55",
+                "startDate": "2030-10-01T00:00:00-04:00",
+                "endDate": "2030-12-31T23:59:59-05:00",
+                "budget": 1000,
+                "monthlyPacing": 400,
+                "dailyPacing": null,
+                "isAutoDailyPacing": true,
+                "bidStrategy": "manual",
+                "optimizationStrategy": "conversion",
+                "targetBid": 1.2,
+                "maxBid": null,
+                "flightSchedule": null
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "gateway": "criteo_native_action",
+      "arguments": {
+        "operation": "criteo_line_item_ops",
+        "arguments": {
           "action": "APPEND_STORE_TARGETS_BY_LINE_ITEM_ID",
           "account_id": "123",
           "params": {

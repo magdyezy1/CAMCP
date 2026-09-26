@@ -1,5 +1,6 @@
 import {snapUpdateKind} from './snapchat-nested-updates.js';
 import {criteoCampaignKind} from './criteo-campaign-writes.js';
+import {criteoLineItemKind} from './criteo-auction-line-items.js';
 import {metaReportKind} from './meta-insights-jobs.js';
 import {xReportKind} from './x-report-jobs.js';
 import {tiktokReportKind} from './tiktok-report-jobs.js';
@@ -53,6 +54,7 @@ export function authorizeExecution(actor:Actor,plan:CompiledRequest,input:JsonOb
  if(linkedinConversionKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Campaign conversion associations can affect optimization. Review the selected campaigns and conversion rules and confirm the spending impact.');
  if(linkedinRuleServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Conversion-rule enablement, attribution and matching can affect optimization. Review every associated campaign and confirm this impact.');
  if(criteoCampaignKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Criteo campaign creation and PUT can permit delivery. Review all limits, balances, dates and attribution and provide spend_change_confirmed=true.');
+ if(criteoLineItemKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED',criteoLineItemKind(plan)==='create'?'The new line item carries budgets and bids that apply once products are added and it is activated. Review them and provide spend_change_confirmed=true.':'A complete line item PUT replaces its budgets, bids, dates and status and can start or change delivery. Review every field and provide spend_change_confirmed=true.');
  if(criteoTargetingKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Criteo targeting can change delivery immediately. Review the complete scope and members and provide spend_change_confirmed=true.');
  if(appleEntityServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Apple shared budgets, exclusions, creative edits and serving settings can affect existing campaigns. Provide spend_change_confirmed=true.');
  if(dv360TargetingKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','DV360 targeting changes which impressions line items can buy, at once for active line items. Review the line items and changes and provide spend_change_confirmed=true.');

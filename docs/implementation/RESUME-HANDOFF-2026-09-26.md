@@ -519,9 +519,20 @@ Tests: `tests/meta-value-rules.test.mjs` (6, red on `40fd508` / green after). Pu
 - New reviewed family `meta_brand_safety` (`src/meta-brand-safety.ts`). Account controls are set as sent (left-out controls are removed), need spending confirmation and verify exactly against a normalized read. Empty publisher block lists are created by a new name without confirmation.
 - Adding publishers to block lists and applying them remain separate, uncaptured workflows.
 
-Tests: `tests/meta-brand-safety.test.mjs` (6, red on `2743949` / green after).
+Tests: `tests/meta-brand-safety.test.mjs` (6, red on `2743949` / green after). Pushed as `8fa32bf`.
 
 Other planning candidates checked and left: TikTok Automated Rules are limited by TikTok to direct advertisers (notifications go to the developer's email), and TikTok ACO ads are marked deprecated in the API reference.
+
+## Finished batch — Criteo auction line items (2026-09-27)
+
+[Implementation](CRITEO-AUCTION-LINE-ITEMS-2026-09-27.md) and
+[qualification](CRITEO-AUCTION-LINE-ITEMS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `criteo_auction_line_items` (`src/criteo-auction-line-items.ts`) for auction line item creation (in draft) and the complete PUT. Every writable field is required, the review reads the account, campaign, line item and the campaign's line item names, and verification compares every field and the status.
+- A verified creation records the new line item as owned (`src/write-verification.ts`); updates otherwise need the line item listed with `GET_LINE_ITEMS_BY_ACCOUNT_ID`.
+- Next Criteo candidates: promoted products (append, delete, pause, unpause), keywords (add/remove, bids) and bid multipliers of these line items.
+
+Tests: `tests/criteo-auction-line-items.test.mjs` (7, red on `8fa32bf` / green after).
 
 ## CI and live evidence
 
@@ -535,20 +546,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 527 in reviewed write families. **908 remaining rows** are in
+3241 captured actions; 529 in reviewed write families. **906 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 793 |
+| blocked_write | 791 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 118, Google Ads 96,
-Snapchat 89, X 67, DV360 56, Criteo 43, Business Profile 12.
+Snapchat 89, X 67, DV360 56, Criteo 41, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):
