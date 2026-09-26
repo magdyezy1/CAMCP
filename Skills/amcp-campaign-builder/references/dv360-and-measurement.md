@@ -122,6 +122,32 @@ Reference: [bulk edit](https://developers.google.com/display-video/api/reference
 and [Assign targeting](https://developers.google.com/display-video/api/guides/tasks/run-ad-campaign/assign-targeting),
 checked 2026-09-26.
 
+### Advertiser targeting
+
+`DV360_ADVERTISERS_EDIT_ASSIGNED_TARGETING_OPTIONS` (`params: {advertiserId}`, native
+`deleteRequests` and `createRequests`, no `lineItemIds`) and the single
+`DV360_ADVERTISERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE` and `..._DELETE` routes
+edit the advertiser's own targeting. Every line item of the advertiser inherits it and cannot
+change it, so treat it as account-wide brand safety.
+
+- Only the five documented advertiser types are accepted: `TARGETING_TYPE_CHANNEL`,
+  `TARGETING_TYPE_KEYWORD`, `TARGETING_TYPE_DIGITAL_CONTENT_LABEL_EXCLUSION`,
+  `TARGETING_TYPE_SENSITIVE_CATEGORY_EXCLUSION` and `TARGETING_TYPE_OMID`. Channel and keyword
+  options must set `negative: true`; advertisers carry exclusions only.
+- AMCP reads the advertiser (active or paused only), every page of its targeting of the edited
+  types and each assigned channel, which must belong to the advertiser. Targeting inherited from
+  the partner cannot be deleted here, and an identical inherited or existing assignment returns
+  `CONFIGURATION_EXISTS`.
+- The option rules, limits, verification and `INVALID_DV360_TARGETING` meaning of line item
+  targeting apply. The edit response lists the created options; a response that omits one is
+  kept as a failure and never resubmitted.
+- Supply `spend_change_confirmed`. Deletions count as removals under the owner's deletion policy,
+  and an owner policy that forbids activation forbids advertiser targeting edits, because they
+  change delivery of every line item, including active ones.
+
+Reference: [advertiser edit](https://developers.google.com/display-video/api/reference/rest/v4/advertisers/editAssignedTargetingOptions),
+checked 2026-09-26.
+
 ## GA4 — ga4_native_action
 
 Google social sign-in, Ads access, Analytics access and optional Sheets/Drive access are

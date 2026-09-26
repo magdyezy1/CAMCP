@@ -447,7 +447,17 @@ Tests: `tests/tiktok-smart-plus-lead-ads.test.mjs` (4, red on `895cb29` / green 
 - The review reads each line item, every page of its targeting of the edited types (bulk list filtered by type) and each assigned channel, negative keyword list or location list under the advertiser. It refuses YouTube & Partners, Demand Gen and archived line items, inherited or absent deletions, duplicates and documented limits. A partial bulk receipt stays a failure.
 - Next DV360 step: audience group and inventory source assignment need reads of the advertiser's access to first-party, Google, custom and combined audiences and inventory sources.
 
-Tests: `tests/dv360-line-item-targeting.test.ts` (8, red on `d72743b` / green after).
+Tests: `tests/dv360-line-item-targeting.test.ts` (8, red on `d72743b` / green after). Pushed as `ca8c6e8`.
+
+## Finished batch — DV360 advertiser targeting
+
+[Implementation](DV360-ADVERTISER-TARGETING-2026-09-26.md) and
+[qualification](DV360-ADVERTISER-TARGETING-VERIFICATION-2026-09-26.json).
+
+- New reviewed family `dv360_advertiser_targeting` for the advertiser edit, create and delete routes, served by the same module as line item targeting: the five advertiser types only, channel and keyword options as exclusions, the advertiser read (active or paused), its complete targeting of the edited types and the assigned channels.
+- Advertiser targeting always needs spending confirmation and counts as serving under an activation-forbidding owner policy, because every line item inherits it. A response that omits a created option stays a failure.
+
+Tests: `tests/dv360-advertiser-targeting.test.ts` (8, red on `ca8c6e8` / green after).
 
 ## CI and live evidence
 
@@ -461,20 +471,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 511 in reviewed write families. **926 remaining rows** are in
+3241 captured actions; 514 in reviewed write families. **923 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 811 |
+| blocked_write | 808 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 191, Meta 131, LinkedIn 118, Google Ads 99,
-Snapchat 91, X 67, DV360 59, Criteo 43, Business Profile 12.
+Snapchat 91, X 67, DV360 56, Criteo 43, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

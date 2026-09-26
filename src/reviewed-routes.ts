@@ -77,7 +77,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(linkedinDSC(p))return 'linkedin_dsc';
  if(appleEntityKind(p))return 'apple_entities';
  if(dv360ListKind(p))return 'dv360_lists';
- if(dv360TargetingKind(p))return 'dv360_line_item_targeting';
+ const dv360Targeting=dv360TargetingKind(p);if(dv360Targeting)return dv360Targeting.level==='advertiser'?'dv360_advertiser_targeting':'dv360_line_item_targeting';
  if(p.gateway==='apple_ads_native_action')return p.origin==='https://api.ads.apple.com'&&['apple_ads_v1_campaign_create','apple_ads_v1_campaign_update','apple_ads_v1_campaign_delete'].includes(action)&&(method==='POST'&&route==='/v1/campaigns'||['PUT','DELETE'].includes(method)&&/^\/v1\/campaigns\/\d+$/.test(route))?'apple_campaigns':undefined;
  if(p.gateway==='ga4_native_action')return p.origin==='https://analyticsdata.googleapis.com'&&method==='POST'&&['ga4_create_audience_export','ga4_create_report_task'].includes(p.action)&&/^\/v1(?:alpha|beta)\/properties\/\d+\/(audienceExports|reportTasks)$/.test(route)?'ga4_export_jobs':undefined;
  if(p.gateway==='gtm_native_action')return p.origin==='https://tagmanager.googleapis.com'&&gtmWriteActions.has(action)&&/^\/tagmanager\/v2\/accounts\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*(?::create_version|:publish)?$/.test(route)?'gtm_entities':undefined;

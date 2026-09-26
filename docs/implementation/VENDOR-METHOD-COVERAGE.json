@@ -4142,8 +4142,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_EDIT_ASSIGNED_TARGETING_OPTIONS",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_advertiser_targeting"
         }
       ],
       "mapping_status": "mapped",
@@ -5780,8 +5780,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_advertiser_targeting"
         }
       ],
       "mapping_status": "mapped",
@@ -5800,8 +5800,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_DELETE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_advertiser_targeting"
         }
       ],
       "mapping_status": "mapped",

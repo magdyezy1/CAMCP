@@ -1703,6 +1703,40 @@
     {
       "gateway": "dv360_native_action",
       "arguments": {
+        "action": "DV360_ADVERTISERS_EDIT_ASSIGNED_TARGETING_OPTIONS",
+        "params": {
+          "advertiserId": "123"
+        },
+        "body": {
+          "createRequests": [
+            {
+              "targetingType": "TARGETING_TYPE_KEYWORD",
+              "assignedTargetingOptions": [
+                {
+                  "keywordDetails": {
+                    "keyword": "casino",
+                    "negative": true
+                  }
+                }
+              ]
+            },
+            {
+              "targetingType": "TARGETING_TYPE_SENSITIVE_CATEGORY_EXCLUSION",
+              "assignedTargetingOptions": [
+                {
+                  "sensitiveCategoryExclusionDetails": {
+                    "excludedSensitiveCategory": "SENSITIVE_CATEGORY_LIVE_STREAMING_VIDEO"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "dv360_native_action",
+      "arguments": {
         "action": "DV360_ADVERTISERS_LINE_ITEMS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS",
         "params": {
           "advertiserId": "123"
