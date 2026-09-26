@@ -417,7 +417,16 @@ Tests: `tests/tiktok-manual-ad-identities.test.mjs` (3; two red on `f440117`, on
 - ADD and MULTIPLY rules with at most two audience, device or location conditions; SET, itineraries, store categories and NO_CONDITION sets are refused.
 - Rule sets read every included rule and check it fits the set dimensions; a set's rule order is compared as sent because the first matching rule applies. Set changes and rule edits need spending confirmation.
 
-Tests: `tests/google-value-rules.test.mjs` (5, red on `f289b11` / green after); the configuration lifecycle table gained both routes.
+Tests: `tests/google-value-rules.test.mjs` (5, red on `f289b11` / green after); the configuration lifecycle table gained both routes. Pushed as `3bd855f`.
+
+## Finished batch — TikTok Upgraded Smart+ Instant Form lead generation ad groups
+
+[Implementation](TIKTOK-SMART-PLUS-LEAD-ADGROUPS-2026-09-26.md) and
+[qualification](TIKTOK-SMART-PLUS-LEAD-ADGROUPS-VERIFICATION-2026-09-26.json).
+
+- The Smart+ ad group contract gains an Instant Form lead generation mode: `LEAD_GENERATION` promotion and goal with `INSTANT_PAGE`, no pixel or attribution fields, Global App Bundle placements allowed, a lead generation campaign, and a target CPA only with a daily budget.
+
+Tests: `tests/tiktok-smart-plus-lead-adgroups.test.mjs` (4, red on `3bd855f` / green after). Next: Smart+ lead generation ads with an Instant Form (`page_list`). `/page/get/` cannot filter by page ID and its catalog entry does not require `advertiser_id`, and `/page/field/get/` is weakly documented, so a reviewed check that the form exists and is published needs a paged form reader or live evidence first.
 
 ## CI and live evidence
 

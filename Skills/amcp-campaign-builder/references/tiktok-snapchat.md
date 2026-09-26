@@ -300,8 +300,15 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
   and again before execution. Other ad group types and settings fail with
   `INVALID_TIKTOK_SMART_PLUS_ADGROUP`. Execution needs `spend_change_confirmed: true`.
 - Verification reads `/smart_plus/adgroup/get/` and compares every sent field; targeting lists,
-  actions and placements compare as sets and price ranges by their endpoints. Smart+ ads are not
-  qualified yet.
+  actions and placements compare as sets and price ranges by their endpoints.
+- **Instant Form lead generation:** in an Upgraded Smart+ lead generation campaign, send
+  `promotion_type: LEAD_GENERATION`, `promotion_target_type: INSTANT_PAGE` and
+  `optimization_goal: LEAD_GENERATION` with the same bid, billing, schedule, targeting and budget
+  rules. There is no pixel: `pixel_id`, `optimization_event`, `custom_conversion_id` and the
+  attribution settings are refused (TikTok sets a form event and its own attribution defaults).
+  Placements may also include `PLACEMENT_GLOBAL_APP_BUNDLE`. A target CPA (`BID_TYPE_CUSTOM`)
+  needs a dynamic daily budget on the campaign or the ad group. The review reads the advertiser
+  and the campaign.
 
 ## TikTok Upgraded Smart+ campaign edits
 

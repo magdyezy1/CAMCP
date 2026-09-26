@@ -5,14 +5,15 @@ import {validateTiktokTargeting,tiktokTargetingProjection,assertTiktokOwnedAudie
 import type {CompiledRequest,JsonObject} from './types.js';
 
 /**
- * Paused Upgraded Smart+ website-conversion ad groups, per API for Business v1.3 "Create an Upgraded Smart+ Ad
- * Group" and "Get Upgraded Smart+ Ad Groups" (checked 2026-09-26). TikTok silently ignores targeting fields that do
- * not match the targeting mode, so each mode has its own allowlist here. App, lead generation, catalog, search,
- * value-based, deep funnel, zip code, Pangle package and allowlist-only settings are outside this contract.
+ * Paused Upgraded Smart+ website-conversion and Instant Form lead generation ad groups, per API for Business v1.3
+ * "Create an Upgraded Smart+ Ad Group", "Create an Upgraded Smart+ Lead Generation Campaign with Location as Instant
+ * Form" and "Get Upgraded Smart+ Ad Groups" (checked 2026-09-26). TikTok silently ignores targeting fields that do not
+ * match the targeting mode, so each mode has its own allowlist here. App, other lead generation destinations, catalog,
+ * search, value-based, deep funnel, zip code, Pangle package and allowlist-only settings are outside this contract.
  */
 export const tiktokSmartPlusAdgroupPath='/v1.3/smart_plus/adgroup/create/';
 export const tiktokSmartPlusAdgroupSource='https://business-api.tiktok.com/portal/docs/create-an-upgraded-smart-ad-group/v1.3';
-const keys=['advertiser_id','request_id','campaign_id','operation_status','adgroup_name','promotion_type','optimization_goal','pixel_id','optimization_event','custom_conversion_id','bid_type','conversion_bid_price',
+const keys=['advertiser_id','request_id','campaign_id','operation_status','adgroup_name','promotion_type','promotion_target_type','optimization_goal','pixel_id','optimization_event','custom_conversion_id','bid_type','conversion_bid_price',
  'click_attribution_window','view_attribution_window','engaged_view_attribution_window','attribution_event_count','billing_event','targeting_optimization_mode','suggestion_audience_enabled','targeting_spec',
  'budget_mode','budget','schedule_type','schedule_start_time','schedule_end_time','dayparting','placement_type','placements','comment_disabled','share_disabled','video_download_disabled'];
 const automatic=['location_ids','spc_audience_age','languages','operating_systems','excluded_audience_ids'];
@@ -27,6 +28,10 @@ const amount=(v:unknown)=>typeof v==='number'&&Number.isFinite(v)&&v>0&&Math.abs
 const time=(v:unknown)=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(v)&&!Number.isNaN(Date.parse(v.replace(' ','T')+'Z'));
 
 export const tiktokSmartPlusAdgroupKind=(p:CompiledRequest)=>p.gateway==='tiktok_native_action'&&p.method==='POST'&&p.path===tiktokSmartPlusAdgroupPath;
+/** Instant Form lead generation ad groups optimize for form submissions and use no pixel. */
+export const tiktokSmartPlusLeadAdgroup=(b:JsonObject)=>b.promotion_type==='LEAD_GENERATION';
+/** Fields that only website conversion ad groups carry. */
+const websiteOnly=['pixel_id','optimization_event','custom_conversion_id','click_attribution_window','view_attribution_window','engaged_view_attribution_window','attribution_event_count'];
 
 function invalid(field:string,message:string):never{
  throw new MirrorError('INVALID_TIKTOK_SMART_PLUS_ADGROUP',message,{field});
@@ -37,21 +42,29 @@ export const tiktokSmartPlusTargetingMode=(b:JsonObject)=>({mode:(b.targeting_op
 /** Validates the request before review; nothing here reads or contacts TikTok. */
 export function assertTiktokSmartPlusAdgroup(plan:CompiledRequest,body:JsonObject):void{
  const extra=Object.keys(body).find(k=>!keys.includes(k));
- if(extra)invalid(extra,'"'+extra+'" is outside the qualified Smart+ ad group contract (website conversion ad groups only).');
+ if(extra)invalid(extra,'"'+extra+'" is outside the qualified Smart+ ad group contract (website conversion and Instant Form lead generation ad groups).');
  if(body.advertiser_id!==undefined&&String(body.advertiser_id)!==plan.accountId)invalid('advertiser_id','advertiser_id must equal the selected advertiser.');
  if(typeof body.request_id!=='string'||!/^[1-9][0-9]{0,18}$/.test(body.request_id)||BigInt(body.request_id)>9223372036854775807n)invalid('request_id','request_id is required: a string holding a positive 64-bit integer, which TikTok uses to create the ad group only once.');
  if(!tiktokNumericId(body.campaign_id))invalid('campaign_id','campaign_id must be the numeric ID of an Upgraded Smart+ campaign.');
  if(body.operation_status!=='DISABLE')invalid('operation_status','Send operation_status DISABLE: TikTok enables new Smart+ ad groups by default. Turn them on later with a reviewed status change.');
  const name=body.adgroup_name;
  if(typeof name!=='string'||!name.trim()||[...name].length>512||emoji.test(name))invalid('adgroup_name','adgroup_name must be nonempty text of at most 512 characters without emoji.');
- if(body.promotion_type!=='WEBSITE'||body.optimization_goal!=='CONVERT')invalid('optimization_goal','Only website conversion ad groups are qualified: promotion_type WEBSITE with optimization_goal CONVERT.');
- if(!tiktokNumericId(body.pixel_id))invalid('pixel_id','pixel_id must be the numeric ID of the pixel to optimize for.');
- if(!events.includes(body.optimization_event))invalid('optimization_event','optimization_event must be an optimizable pixel event: '+events.join(', ')+'.');
- if(body.custom_conversion_id!==undefined&&!tiktokNumericId(body.custom_conversion_id))invalid('custom_conversion_id','custom_conversion_id must be a numeric custom conversion ID.');
+ const lead=tiktokSmartPlusLeadAdgroup(body);
+ if(lead){
+  if(body.promotion_target_type!=='INSTANT_PAGE'||body.optimization_goal!=='LEAD_GENERATION')invalid('promotion_target_type','Lead generation ad groups are qualified with an Instant Form: promotion_target_type INSTANT_PAGE and optimization_goal LEAD_GENERATION.');
+  const web=websiteOnly.find(k=>body[k]!==undefined);
+  if(web)invalid(web,'"'+web+'" belongs to website conversion ad groups; Instant Form ad groups optimize for form submissions.');
+ }else{
+  if(body.promotion_type!=='WEBSITE'||body.optimization_goal!=='CONVERT')invalid('optimization_goal','Qualified ad groups are website conversions (promotion_type WEBSITE with optimization_goal CONVERT) or Instant Form lead generation (promotion_type LEAD_GENERATION).');
+  if(body.promotion_target_type!==undefined)invalid('promotion_target_type','promotion_target_type applies to lead generation ad groups only.');
+  if(!tiktokNumericId(body.pixel_id))invalid('pixel_id','pixel_id must be the numeric ID of the pixel to optimize for.');
+  if(!events.includes(body.optimization_event))invalid('optimization_event','optimization_event must be an optimizable pixel event: '+events.join(', ')+'.');
+  if(body.custom_conversion_id!==undefined&&!tiktokNumericId(body.custom_conversion_id))invalid('custom_conversion_id','custom_conversion_id must be a numeric custom conversion ID.');
+ }
  if(body.bid_type==='BID_TYPE_CUSTOM'){if(!amount(body.conversion_bid_price))invalid('conversion_bid_price','Cost cap bidding needs conversion_bid_price: a positive amount with at most two decimals.');}
  else if(body.bid_type==='BID_TYPE_NO_BID'){if(body.conversion_bid_price!==undefined)invalid('conversion_bid_price','Maximum delivery (BID_TYPE_NO_BID) takes no conversion_bid_price.');}
  else invalid('bid_type','bid_type must be BID_TYPE_NO_BID or BID_TYPE_CUSTOM.');
- if(body.billing_event!=='OCPM')invalid('billing_event','Conversion ad groups bill with OCPM.');
+ if(body.billing_event!=='OCPM')invalid('billing_event','Website conversion and lead generation ad groups bill with OCPM.');
  const windows=['click_attribution_window','view_attribution_window','engaged_view_attribution_window'].filter(k=>body[k]!==undefined);
  if(windows.length&&(body.click_attribution_window===undefined||body.view_attribution_window===undefined))invalid('click_attribution_window','Attribution windows are set together: click_attribution_window and view_attribution_window, optionally engaged_view_attribution_window.');
  if(body.click_attribution_window!==undefined&&!clicks.includes(body.click_attribution_window))invalid('click_attribution_window','click_attribution_window must be one of '+clicks.join(', ')+'.');
@@ -78,7 +91,8 @@ export function assertTiktokSmartPlusAdgroup(plan:CompiledRequest,body:JsonObjec
  if(body.budget_mode==='BUDGET_MODE_TOTAL'&&body.schedule_type!=='SCHEDULE_START_END')invalid('schedule_type','A lifetime budget needs SCHEDULE_START_END with an end time.');
  if(body.dayparting!==undefined&&(typeof body.dayparting!=='string'||!/^[01]{336}$/.test(body.dayparting)))invalid('dayparting','dayparting is 336 characters of 0 and 1 (48 half hours for each day, Monday first).');
  if(body.placement_type!==undefined&&!['PLACEMENT_TYPE_AUTOMATIC','PLACEMENT_TYPE_NORMAL'].includes(body.placement_type))invalid('placement_type','placement_type must be PLACEMENT_TYPE_AUTOMATIC or PLACEMENT_TYPE_NORMAL.');
- if(body.placement_type==='PLACEMENT_TYPE_NORMAL'){const p=body.placements;if(!Array.isArray(p)||!p.length||!p.every(v=>['PLACEMENT_TIKTOK','PLACEMENT_PANGLE'].includes(v))||new Set(p).size!==p.length)invalid('placements','Selected placements are PLACEMENT_TIKTOK and/or PLACEMENT_PANGLE.');}
+ const placements=lead?['PLACEMENT_TIKTOK','PLACEMENT_PANGLE','PLACEMENT_GLOBAL_APP_BUNDLE']:['PLACEMENT_TIKTOK','PLACEMENT_PANGLE'];
+ if(body.placement_type==='PLACEMENT_TYPE_NORMAL'){const p=body.placements;if(!Array.isArray(p)||!p.length||!p.every(v=>placements.includes(v))||new Set(p).size!==p.length)invalid('placements','Selected placements are one or more of '+placements.join(', ')+'.');}
  else if(body.placements!==undefined)invalid('placements','placements apply only with PLACEMENT_TYPE_NORMAL; TikTok overwrites them under automatic placement.');
  for(const k of ['comment_disabled','share_disabled','video_download_disabled'])if(body[k]!==undefined&&typeof body[k]!=='boolean')invalid(k,k+' must be true or false.');
 }
@@ -87,27 +101,29 @@ export function tiktokSmartPlusAdgroupReads(plan:CompiledRequest):{path:string;q
  const b=plan.body as JsonObject,advertiser_id=plan.accountId,spec=b.targeting_spec as JsonObject;
  const audiences=[...new Set<string>([...(spec.audience_ids??[]),...(spec.excluded_audience_ids??[])])].sort();
  return [{path:'/v1.3/smart_plus/campaign/get/',query:{advertiser_id,filtering:{campaign_ids:[b.campaign_id]},page_size:100},action:'tiktok_smart_plus_campaign_get'},
-  {path:tiktokPixelListPath,query:{advertiser_id,pixel_id:b.pixel_id},action:'tiktok_pixel_list_get'},
+  ...(tiktokSmartPlusLeadAdgroup(b)?[]:[{path:tiktokPixelListPath,query:{advertiser_id,pixel_id:b.pixel_id},action:'tiktok_pixel_list_get'}]),
   ...(b.custom_conversion_id!==undefined?[{path:tiktokConversionGetPath,query:{advertiser_id,custom_conversion_id:b.custom_conversion_id,event_source_type:'PIXEL',event_source_id:b.pixel_id},action:'tiktok_custom_conversion_get'}]:[]),
   ...(audiences.length?[{path:tiktokAudienceGetPath,query:{advertiser_id,custom_audience_ids:audiences},action:'tiktok_dmp_custom_audience_get'}]:[])];
 }
 
 const lists=(state:unknown[])=>state.flatMap(s=>obj(s)&&obj(s.data)&&Array.isArray(s.data.list)?s.data.list:[]) as JsonObject[];
-/** Against the normalized review state: a website-conversion Smart+ campaign, a usable pixel, an eligible custom conversion, owned audiences and a budget that fits the campaign. */
+/** Against the normalized review state: a matching Smart+ campaign, a usable pixel and eligible custom conversion for website conversions, owned audiences and a budget and bid that fit the campaign. */
 export function tiktokSmartPlusAdgroupImpact(plan:CompiledRequest,state:unknown[]):JsonObject{
- const b=plan.body as JsonObject,spec=b.targeting_spec as JsonObject,{mode,suggest}=tiktokSmartPlusTargetingMode(b);
+ const b=plan.body as JsonObject,spec=b.targeting_spec as JsonObject,{mode,suggest}=tiktokSmartPlusTargetingMode(b),lead=tiktokSmartPlusLeadAdgroup(b);
  const campaign=lists(state).find(r=>String(r.campaign_id)===b.campaign_id&&r.objective_type!==undefined);
  if(!campaign)throw new MirrorError('STATE_TARGET_MISMATCH','Smart+ campaign '+b.campaign_id+' was not returned for the selected advertiser.',{campaign_id:b.campaign_id});
- if(campaign.objective_type!=='WEB_CONVERSIONS'||campaign.sales_destination!=='WEBSITE'||campaign.catalog_enabled===true||campaign.is_search_campaign===true)invalid('campaign_id','Smart+ campaign '+b.campaign_id+' is not a website conversion campaign without catalog or search.');
+ if(lead){if(campaign.objective_type!=='LEAD_GENERATION'||campaign.catalog_enabled===true||campaign.is_search_campaign===true)invalid('campaign_id','Smart+ campaign '+b.campaign_id+' is not a lead generation campaign without catalog or search.');}
+ else if(campaign.objective_type!=='WEB_CONVERSIONS'||campaign.sales_destination!=='WEBSITE'||campaign.catalog_enabled===true||campaign.is_search_campaign===true)invalid('campaign_id','Smart+ campaign '+b.campaign_id+' is not a website conversion campaign without catalog or search.');
  const cbo=campaign.budget_optimize_on!==false;
  if(cbo&&b.budget!==undefined)invalid('budget','The campaign uses campaign budget optimization, so TikTok ignores ad group budgets. Remove budget_mode and budget.');
  if(!cbo&&b.budget===undefined)invalid('budget','The campaign does not use campaign budget optimization, so the ad group needs budget_mode and budget.');
  if(!cbo&&campaign.budget_mode==='BUDGET_MODE_DAY'&&b.budget_mode!=='BUDGET_MODE_DYNAMIC_DAILY_BUDGET')invalid('budget_mode','Under a campaign daily limit, ad groups use BUDGET_MODE_DYNAMIC_DAILY_BUDGET.');
  const dynamic=cbo?campaign.budget_mode==='BUDGET_MODE_DYNAMIC_DAILY_BUDGET':b.budget_mode==='BUDGET_MODE_DYNAMIC_DAILY_BUDGET';
  if(b.schedule_type==='SCHEDULE_FROM_NOW'&&!dynamic)invalid('schedule_type','SCHEDULE_FROM_NOW needs a dynamic daily budget on the campaign or the ad group.');
- const pixel=state.flatMap(s=>obj(s)&&obj(s.data)&&Array.isArray(s.data.pixels)?s.data.pixels:[]).find((p:JsonObject)=>String(p.pixel_id)===b.pixel_id) as JsonObject|undefined;
- if(!pixel)throw new MirrorError('STATE_TARGET_MISMATCH','Pixel '+b.pixel_id+' was not returned for the selected advertiser.',{pixel_id:b.pixel_id});
- if(obj(pixel.asset_ownership)&&pixel.asset_ownership.asset_relation_status==='UNBOUND')invalid('pixel_id','Pixel '+b.pixel_id+' has been unbound from this advertiser.');
+ if(lead&&b.bid_type==='BID_TYPE_CUSTOM'&&!dynamic)invalid('bid_type','A target CPA (BID_TYPE_CUSTOM) needs a dynamic daily budget on the campaign or the ad group.');
+ const pixel=lead?undefined:state.flatMap(s=>obj(s)&&obj(s.data)&&Array.isArray(s.data.pixels)?s.data.pixels:[]).find((p:JsonObject)=>String(p.pixel_id)===b.pixel_id) as JsonObject|undefined;
+ if(!lead&&!pixel)throw new MirrorError('STATE_TARGET_MISMATCH','Pixel '+b.pixel_id+' was not returned for the selected advertiser.',{pixel_id:b.pixel_id});
+ if(pixel&&obj(pixel.asset_ownership)&&pixel.asset_ownership.asset_relation_status==='UNBOUND')invalid('pixel_id','Pixel '+b.pixel_id+' has been unbound from this advertiser.');
  if(b.custom_conversion_id!==undefined){
   const c=state.map(s=>obj(s)&&obj(s.data)?s.data:undefined).find(d=>d!==undefined&&d.custom_conversion_id===b.custom_conversion_id&&Object.hasOwn(d,'eligible'));
   if(!c)throw new MirrorError('STATE_TARGET_MISMATCH','The custom conversion was not returned for this pixel.',{custom_conversion_id:b.custom_conversion_id});
@@ -116,8 +132,8 @@ export function tiktokSmartPlusAdgroupImpact(plan:CompiledRequest,state:unknown[
  }
  assertTiktokOwnedAudiences(state,[...new Set<string>([...(spec.audience_ids??[]),...(spec.excluded_audience_ids??[])])],invalid,'Smart+ ad groups');
  return {provider:'tiktok',scope:'smart_plus_adgroups',may_affect_serving:false,
-  effect:'Creates a paused Upgraded Smart+ website conversion ad group in campaign '+b.campaign_id+'. Nothing delivers until it has reviewed ads and a reviewed status change turns it on.',
-  adgroup:{name:b.adgroup_name,optimization_event:b.optimization_event,pixel:{pixel_id:b.pixel_id,name:pixel.pixel_name??null,owned:obj(pixel.asset_ownership)?pixel.asset_ownership.ownership_status===true:null},custom_conversion_id:b.custom_conversion_id??null,
+  effect:'Creates a paused Upgraded Smart+ '+(lead?'Instant Form lead generation':'website conversion')+' ad group in campaign '+b.campaign_id+'. Nothing delivers until it has reviewed ads and a reviewed status change turns it on.',
+  adgroup:{name:b.adgroup_name,optimization:lead?'form submissions (LEAD_GENERATION, Instant Form)':b.optimization_event,pixel:pixel?{pixel_id:b.pixel_id,name:pixel.pixel_name??null,owned:obj(pixel.asset_ownership)?pixel.asset_ownership.ownership_status===true:null}:null,custom_conversion_id:b.custom_conversion_id??null,
    bidding:b.bid_type==='BID_TYPE_CUSTOM'?{cost_cap:b.conversion_bid_price}:'maximum delivery',budget:cbo?'campaign budget ('+campaign.budget_mode+' '+campaign.budget+')':{mode:b.budget_mode,amount:b.budget},
    targeting:{mode,audience_suggestions:suggest,locations:(spec.location_ids as string[]).length,fields:Object.keys(spec)},schedule:{type:b.schedule_type,start:b.schedule_start_time,end:b.schedule_end_time??null}},
   source:tiktokSmartPlusAdgroupSource};

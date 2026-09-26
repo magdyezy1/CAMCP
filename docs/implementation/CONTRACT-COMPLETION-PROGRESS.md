@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CK — TikTok Upgraded Smart+ Instant Form lead generation ad groups (2026-09-26)
+
+The Smart+ ad group contract gains an Instant Form lead generation mode beside website
+conversions: lead target and goal, no pixel or attribution fields, Global App Bundle placements
+allowed, a lead generation campaign, and a target CPA only with a daily budget. See
+[implementation](TIKTOK-SMART-PLUS-LEAD-ADGROUPS-2026-09-26.md),
+[qualification](TIKTOK-SMART-PLUS-LEAD-ADGROUPS-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 929 (unchanged). Pushed only to CAMCP; its exact-commit CI result and live
+acceptance are pending.
+
 ## CJ — Google Ads conversion value rules (2026-09-26)
 
 `conversionValueRules` and `conversionValueRuleSets` are new routes of the reviewed Google
@@ -19,7 +31,7 @@ against the set dimensions. Set changes and rule edits need spending confirmatio
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
 Remaining rows: 929 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Pushed to CAMCP as `3bd855f`; its exact-commit CI result and live acceptance are pending.
 
 ## CI — TikTok manual ads with custom identities (2026-09-26)
 
