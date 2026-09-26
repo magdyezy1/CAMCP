@@ -90,7 +90,7 @@ export class NativeTransport {
   if(upload){
    if(plan.readOnly)throw new MirrorError('INVALID_UPLOAD','Binary uploads must be reviewed mutations.');
    if(upload.format==='related'){
-    if(plan.gateway!=='dv360_native_action'||plan.method!=='POST'||!/^\/upload\/v4\/advertisers\/\d+\/assets$/.test(plan.path)||plan.query.uploadType!=='multipart')throw new MirrorError('INVALID_UPLOAD','Multipart-related is restricted to the DV360 advertiser asset contract.');
+    if(plan.gateway!=='dv360_native_action'||plan.method!=='POST'||!/^\/upload\/v4\/advertisers\/\d+\/(?:assets|adAssets:uploadAdAsset)$/.test(plan.path)||plan.query.uploadType!=='multipart')throw new MirrorError('INVALID_UPLOAD','Multipart-related is restricted to the DV360 advertiser asset and image ad asset contracts.');
     const boundary='amcp_'+randomUUID();body=new Uint8Array(Buffer.concat([Buffer.from('--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(plan.body)+'\r\n--'+boundary+'\r\nContent-Type: '+upload.mime+'\r\n\r\n'),upload.bytes,Buffer.from('\r\n--'+boundary+'--\r\n')]));headers['Content-Type']='multipart/related; boundary='+boundary;
    }else{
    const multipart=new FormData();for(const [k,v]of Object.entries((plan.body??{}) as JsonObject))multipart.set(k,typeof v==='object'?JSON.stringify(v):String(v));

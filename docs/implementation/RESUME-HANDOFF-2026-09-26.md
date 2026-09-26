@@ -598,7 +598,18 @@ Tests: `tests/dv360-ad-assets.test.mjs` (6) and Demand Gen exclusions in `tests/
 - Image, logo and carousel images must already exist: image asset upload (`adAssets:uploadAdAsset`) needs a qualified media upload, and the API does not read image assets back, so DV360 checks those IDs.
 - Next DV360 steps: audience group assignment (see the Demand Gen targeting batch above) and image asset upload.
 
-Tests: `tests/dv360-demand-gen-ads.test.mjs` (7), red on `e8e4a8a` / green after.
+Tests: `tests/dv360-demand-gen-ads.test.mjs` (7), red on `e8e4a8a` / green after. Pushed as `a9f32c0`.
+
+## Finished batch — DV360 Demand Gen image ad assets (2026-09-27)
+
+[Implementation](DV360-IMAGE-AD-ASSETS-2026-09-27.md) and
+[qualification](DV360-IMAGE-AD-ASSETS-VERIFICATION-2026-09-27.json).
+
+- `amcp_media` takes `dv360_target: ad_asset` (and optional `synthetic_content`) for DV360, and the native `DV360_ADVERTISERS_AD_ASSETS_UPLOAD` routes to the same reviewed media import: PNG or JPEG up to 5120 KB, one multipart `adAssets.upload` after confirmation, and a receipt checked for the image type, advertiser and label. The result gives `creative_reference: {assetId}` for Demand Gen ads.
+- The API reads back only YouTube video assets, so the receipt is the evidence; `platform_media_upload` keeps its captured schema and uploads creative assets only.
+- Every Demand Gen level below the line item now has a reviewed route: ad groups, targeting, video and image assets, and ads. Remaining DV360 Demand Gen gap: audience group assignment (see the Demand Gen targeting batch above).
+
+Tests: `tests/dv360-image-ad-assets.test.mjs` (6), red on `a9f32c0` / green after.
 
 ## CI and live evidence
 
@@ -612,20 +623,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 547 in reviewed write families. **888 remaining rows** are in
+3241 captured actions; 547 in reviewed write families. **887 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 773 |
+| blocked_write | 772 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 118, Google Ads 96,
-Snapchat 89, X 67, DV360 45, Criteo 34, Business Profile 12.
+Snapchat 89, X 67, DV360 44, Criteo 34, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

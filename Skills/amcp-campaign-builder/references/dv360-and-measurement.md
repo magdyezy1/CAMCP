@@ -228,11 +228,29 @@ rules require it).
 - An asset serves nothing on its own, so no spending confirmation is needed.
 - Verification reads each new asset by ID and compares its type, video and attestation. A
   receipt that misses an asset or names another video is a failure and is not resubmitted.
-- Image assets (logos, marketing images, companion banners) are uploaded as media with
-  `..._UPLOAD`, which is not qualified, and the API does not read them back; create them in
-  Display & Video 360. `INVALID_DV360_AD_ASSET` names the field to correct.
+- `INVALID_DV360_AD_ASSET` names the field to correct.
 
-Reference: [Create ad assets](https://developers.google.com/display-video/api/guides/tasks/serve-demand-gen-ad/create-ad-assets),
+Image assets (logos, marketing, square and portrait images, companion banners) are uploaded as
+media, with a Google Drive link like other AMCP media imports:
+
+- `amcp_media` `prepare` with `platform: dv360`, `dv360_target: ad_asset` and optionally
+  `synthetic_content` (`NOT_SYNTHETIC` or `IS_SYNTHETIC`), or the native
+  `DV360_ADVERTISERS_AD_ASSETS_UPLOAD` (`pathParams: {advertiserId}`, `payload: {url, filename,
+  adAssetType: AD_ASSET_TYPE_IMAGE, syntheticContentAttestationStatus}`). Without
+  `dv360_target`, `amcp_media` uploads a creative asset as before; `platform_media_upload` keeps
+  its captured schema and uploads creative assets only.
+- AMCP freezes the PNG or JPEG bytes (up to 5120 KB, the Demand Gen image limit) for review and
+  sends `adAssets.upload` once after confirmation. The receipt gives `dv360_ad_asset_id` and
+  `creative_reference: {assetId}` for the ad's image fields. Videos are refused: YouTube videos
+  become ad assets by video ID.
+- The API does not read image assets back, so the receipt is the only evidence (`status_source:
+  upload_receipt`). DV360 checks each slot's requirements when the ad is written: at least 600x314
+  for landscape, 300x300 for square, 480x600 for portrait and 128x128 for logo images, and 300x60
+  up to 150 KB for companion banners. A receipt that names another type, advertiser or AI label is
+  `MEDIA_RESPONSE_INVALID` and is not uploaded again.
+
+Reference: [Create ad assets](https://developers.google.com/display-video/api/guides/tasks/serve-demand-gen-ad/create-ad-assets)
+and the image requirements of [Create a Demand Gen ad](https://developers.google.com/display-video/api/guides/tasks/serve-demand-gen-ad/create-dg-ad),
 checked 2026-09-27.
 
 ### Demand Gen ads

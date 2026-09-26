@@ -1,0 +1,104 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "a9f32c03e8850767effab5f113e4197a02856be6",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/dv360-image-ad-assets-20260927-a",
+    "files": 842,
+    "source_tree_hash": "4d1d22c5c4e56fdb3e2863422d95e620f07e3f5563d68603d71ea2de6bd0f370",
+    "index_code_test_guidance_files_compared": 683,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/dv360-image-ad-assets-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/dv360-image-ad-assets-20260927/install.log",
+      "sha256": "e0241a93e865b80c723edae460de62714000838add04667a87b54771ad5a4a18"
+    },
+    {
+      "path": ".runtime/dv360-image-ad-assets-20260927/check.log",
+      "sha256": "187302bc66bb7d5b874fc43c4e629247f8c5d4b1f9719f5a5c097dceab2b856f",
+      "started": "Sat Sep 26 23:15:07 UTC 2026",
+      "finished": "Sun Sep 27 02:38:35 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2360,
+          "pass": 2360,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/dv360-image-ad-assets-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/dv360-image-ad-assets-20260927/red-check.log",
+      "sha256": "19dac406450041664c8ffee4811286b7ca5bc2b62d82848661f7aabf64621e02",
+      "meaning": "tests/dv360-image-ad-assets.test.mjs against a build of a9f32c0 with the pinned document present: expected red, 6/6 fail (amcp_media refused the unknown dv360_target parameter, the native upload route had no contract: WRITE_CONTRACT_UNAVAILABLE, and the ledger still listed it as a blocked write)"
+    },
+    {
+      "path": ".runtime/dv360-image-ad-assets-20260927/targeted.log",
+      "sha256": "8f193615b02eb493f0bb26717acb17f76812451e2b85348f7cb1e11c10a6ddba",
+      "meaning": "141 related suite files in the working copy, including every DV360 and media suite, with FFmpeg configured: 1673/1673 pass, none skipped."
+    }
+  ],
+  "development_failures": [
+    "The first run failed the native route test in its shared-workflow mode: platform_media_upload validates its arguments against the captured operation schema, which has no ad asset target. The workflow pass-through was removed; the test now shows that the workflow refuses the target and that amcp_media and the native route carry it."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2360,
+    "main_pass": 2360,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "The DV360 API reads back only YouTube video assets, so an uploaded image is evidenced by its upload receipt; its availability and each slot size, dimension and policy check are left to DV360.",
+    "Image dimensions are not checked locally; only the 5120 KB Demand Gen limit and the PNG/JPEG type are.",
+    "platform_media_upload keeps its captured schema and uploads DV360 creative assets only.",
+    "Audience group assignment for Demand Gen remains a P2.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

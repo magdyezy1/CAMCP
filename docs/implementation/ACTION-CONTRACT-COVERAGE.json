@@ -80,8 +80,8 @@
       "gateway": "dv360_native_action",
       "actions": 173,
       "counts": {
-        "blocked_write": 45,
-        "media_workflow": 1,
+        "blocked_write": 44,
+        "media_workflow": 2,
         "native_read": 78,
         "reviewed_write_family": 47,
         "unqualified_read": 2
@@ -5171,7 +5171,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -5196,7 +5197,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -5208,11 +5210,13 @@
       ],
       "method": "POST",
       "path": "/v4/advertisers/{+advertiserId}/adAssets:uploadAdAsset",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "media_workflow",
+      "implementation": "src/media-upload.ts",
+      "reason": "Use amcp_media or the native Drive import bridge. Raw native upload variants are not thereby enabled.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/media-upload.test.ts"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -5272,7 +5276,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -5297,7 +5302,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -5358,7 +5364,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -5419,7 +5426,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -5444,7 +5452,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -5523,7 +5532,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -5548,7 +5558,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -5603,7 +5614,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -5645,7 +5657,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -5706,7 +5719,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -5731,7 +5745,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -5792,7 +5807,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -5817,7 +5833,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -5914,7 +5931,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6008,7 +6026,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6033,7 +6052,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6109,7 +6129,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6170,7 +6191,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6195,7 +6217,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6238,7 +6261,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6263,7 +6287,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6306,7 +6331,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6397,7 +6423,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6422,7 +6449,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6501,7 +6529,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6526,7 +6555,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6581,7 +6611,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6606,7 +6637,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6631,7 +6663,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6710,7 +6743,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6753,7 +6787,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6778,7 +6813,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6857,7 +6893,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6882,7 +6919,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -6961,7 +6999,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7073,7 +7112,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7098,7 +7138,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7123,7 +7164,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7148,7 +7190,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7188,7 +7231,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7213,7 +7257,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7268,7 +7313,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7293,7 +7339,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7333,7 +7380,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7358,7 +7406,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7413,7 +7462,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7438,7 +7488,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7493,7 +7544,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7518,7 +7570,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7558,7 +7611,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7583,7 +7637,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7608,7 +7663,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7648,7 +7704,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7673,7 +7730,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7728,7 +7786,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7753,7 +7812,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7838,7 +7898,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7893,7 +7954,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7918,7 +7980,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -7988,7 +8051,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -8013,7 +8077,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -8053,7 +8118,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -8108,7 +8174,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -8133,7 +8200,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -8218,7 +8286,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -8273,7 +8342,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -8298,7 +8368,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -8353,7 +8424,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -8378,7 +8450,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -8418,7 +8491,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -8443,7 +8517,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -8468,7 +8543,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -8493,7 +8569,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -8519,6 +8596,7 @@
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
         "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs",
         "tests/dv360-targeting-search.test.ts"
       ],
       "live_qualification": "unverified"
@@ -8589,7 +8667,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -8614,7 +8693,8 @@
         "tests/dv360-demand-gen-ad-groups.test.mjs",
         "tests/dv360-ad-group-targeting.test.mjs",
         "tests/dv360-ad-assets.test.mjs",
-        "tests/dv360-demand-gen-ads.test.mjs"
+        "tests/dv360-demand-gen-ads.test.mjs",
+        "tests/dv360-image-ad-assets.test.mjs"
       ],
       "live_qualification": "unverified"
     },

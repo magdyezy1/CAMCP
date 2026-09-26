@@ -8,14 +8,14 @@ export const mediaInstructions='AMCP server-side Drive imports: never download m
 export function mediaDiscovery(gateway?:string):JsonObject|undefined {
  if(!gateway)return;
  if(gateway!=='amcp_native_action'&&!mediaPlatforms.includes(gateway.replace(/_native_action$/,'')))return;
- return {instructions:mediaInstructions,platforms:mediaPlatforms,source:'Public Drive URL or private file selected in a separate Drive connection',client_download_required:false,maximum_bytes:MAX_MEDIA_BYTES,review_tool:'amcp_write',workflow_actions:['UPLOAD_FROM_URL','UPLOAD_FROM_URL_VIA_SESSION','QUEUE_GOOGLE_DRIVE_IMPORT','FINALIZE_UPLOAD_SESSION'],limitations:['One selected account per review','Private files require drive_connection_id and a selected Drive file; folders are not imported','Provider dimensions, duration, codecs, permissions and app approvals still apply','Google videos create UNLISTED videos on the account Google-managed YouTube channel','LinkedIn organization/person owners require an exact administrator resource binding','Binary upload APIs for other catalog providers are not implemented']};
+ return {instructions:mediaInstructions,platforms:mediaPlatforms,source:'Public Drive URL or private file selected in a separate Drive connection',client_download_required:false,maximum_bytes:MAX_MEDIA_BYTES,review_tool:'amcp_write',workflow_actions:['UPLOAD_FROM_URL','UPLOAD_FROM_URL_VIA_SESSION','QUEUE_GOOGLE_DRIVE_IMPORT','FINALIZE_UPLOAD_SESSION'],limitations:['One selected account per review','Private files require drive_connection_id and a selected Drive file; folders are not imported','Provider dimensions, duration, codecs, permissions and app approvals still apply','Google videos create UNLISTED videos on the account Google-managed YouTube channel','LinkedIn organization/person owners require an exact administrator resource binding','DV360 uploads creative assets by default; dv360_target ad_asset uploads a Demand Gen image ad asset (up to 5120 KB), which the API cannot read back','Binary upload APIs for other catalog providers are not implemented']};
 }
 export function mediaPlatform(value:unknown):string {
  const p=({google:'google_ads',x:'x_ads',twitter:'x_ads'} as Record<string,string>)[String(value)]??String(value);
  if(!mediaPlatforms.includes(p))throw new MirrorError('MEDIA_PLATFORM_UNSUPPORTED','This platform has no qualified binary advertising-media upload API in AMCP.',{supported_platforms:mediaPlatforms});
  return p;
 }
-export function mediaRoute(plan:CompiledRequest):{platform:string;media_type?:string;existing_media_id?:string}|undefined {
+export function mediaRoute(plan:CompiledRequest):{platform:string;media_type?:string;existing_media_id?:string;dv360_target?:string}|undefined {
  if(plan.method!=='POST')return;
  const path=plan.path,p=plan.gateway.replace(/_native_action$/,'');
  if(p==='meta'&&/^\/v\d+\.0\/act_[^/]+\/ad(images|videos)$/.test(path))return {platform:p,media_type:path.endsWith('adimages')?'image':'video'};
@@ -30,6 +30,8 @@ export function mediaRoute(plan:CompiledRequest):{platform:string;media_type?:st
  if(p==='google_ads'&&/^\/v23\/customers\/[^/]+\/assets:mutate$/.test(path))return {platform:p,media_type:'image'};
  if(p==='google_ads'&&/^\/v23\/customers\/[^/]+\/youTubeVideoUploads:create$/.test(path))return {platform:p,media_type:'video'};
  if(p==='dv360'&&/^\/(?:upload\/)?v4\/advertisers\/[^/]+\/assets$/.test(path))return {platform:p};
+ // Demand Gen image ad assets; YouTube video ad assets are created by video ID instead.
+ if(p==='dv360'&&/^\/(?:upload\/)?v4\/advertisers\/[^/]+\/adAssets:uploadAdAsset$/.test(path))return {platform:p,media_type:'image',dv360_target:'ad_asset'};
 }
 const sourceKeys=['drive_url','url','image_url','video_url','file_url','source'];
 /** Only explicit import inputs are consumed. Never silently drop native mutations. */
@@ -41,15 +43,17 @@ export function nativeMediaInput(plan:CompiledRequest,connectionId?:string):Json
  const sources=sourceKeys.filter(k=>body[k]!==undefined).map(k=>body[k]);
  if(!sources.length)throw new MirrorError('MEDIA_SOURCE_REQUIRED','Put the public Google Drive share link in payload.url. AMCP downloads and transfers it on the server; do not download it in the MCP client.',{example:{action:plan.action,account_id:plan.accountId,payload:{url:'https://drive.google.com/file/d/FILE_ID/view'}},review_tool:'amcp_write'});
  if(sources.some(v=>typeof v!=='string'||v!==sources[0]))throw new MirrorError('CONFLICTING_PARAMETER','Media source URL aliases must identify the same file.');
- const allowed=new Set([...sourceKeys,'name','title','file_name','filename','upload_type','media_type','type','advertiser_id','ad_account_id','account_id','owner_urn','drive_connection_id']);
+ const adAsset=route.dv360_target==='ad_asset',allowed=new Set([...sourceKeys,'name','title','file_name','filename','upload_type','media_type','type','advertiser_id','ad_account_id','account_id','owner_urn','drive_connection_id',...(adAsset?['adAssetType','syntheticContentAttestationStatus']:[])]);
  for(const k of Object.keys(body))if(!allowed.has(k))throw new MirrorError('UNSUPPORTED_MEDIA_PARAMETER','This server-side import does not consume this native field. Remove it or use its dedicated native contract.',{parameter:k});
+ if(adAsset&&body.adAssetType!==undefined&&body.adAssetType!=='AD_ASSET_TYPE_IMAGE')throw new MirrorError('INVALID_ARGUMENT','DV360 uploads only AD_ASSET_TYPE_IMAGE ad assets; YouTube video ad assets are created by video ID with DV360_ADVERTISERS_AD_ASSETS_CREATE.');
+ if(adAsset&&body.syntheticContentAttestationStatus!==undefined&&!['NOT_SYNTHETIC','IS_SYNTHETIC'].includes(body.syntheticContentAttestationStatus))throw new MirrorError('INVALID_ARGUMENT','syntheticContentAttestationStatus is NOT_SYNTHETIC or IS_SYNTHETIC; omit it when there is no attestation.');
  if(Object.keys(plan.query).some(k=>!(route.platform==='linkedin'&&k==='action'))||plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['ACTION','CREATE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))throw new MirrorError('UNSUPPORTED_MEDIA_PARAMETER','Media imports cannot contain query mutations or method overrides.');
  if(body.upload_type!==undefined&&!['UPLOAD_BY_URL','UPLOAD_BY_FILE'].includes(body.upload_type))throw new MirrorError('INVALID_ARGUMENT','Unsupported media upload type.');
  const names=['name','title','file_name','filename'].filter(k=>body[k]!==undefined).map(k=>body[k]);
  if(names.some(n=>typeof n!=='string'||n!==names[0]))throw new MirrorError('CONFLICTING_PARAMETER','Media name aliases must agree.');
  const declared=body.media_type??(typeof body.type==='string'?body.type.toLowerCase():undefined);
  if(route.media_type&&declared&&route.media_type!==declared)throw new MirrorError('MEDIA_TYPE_MISMATCH','The requested media type conflicts with the native upload route.');
- return {action:'prepare',platform:route.platform,account_id:plan.accountId,drive_url:sources[0],...(connectionId?{connection_id:connectionId}:{}),...(names.length?{name:names[0]}:{}),...(route.media_type??declared?{media_type:route.media_type??declared}:{}),...(route.existing_media_id?{existing_media_id:route.existing_media_id}:{}),...(body.owner_urn?{owner_urn:body.owner_urn}:{}),...(body.drive_connection_id?{drive_connection_id:body.drive_connection_id}:{})};
+ return {action:'prepare',platform:route.platform,account_id:plan.accountId,drive_url:sources[0],...(connectionId?{connection_id:connectionId}:{}),...(names.length?{name:names[0]}:{}),...(route.media_type??declared?{media_type:route.media_type??declared}:{}),...(route.existing_media_id?{existing_media_id:route.existing_media_id}:{}),...(route.dv360_target?{dv360_target:route.dv360_target}:{}),...(body.syntheticContentAttestationStatus?{synthetic_content:body.syntheticContentAttestationStatus}:{}),...(body.owner_urn?{owner_urn:body.owner_urn}:{}),...(body.drive_connection_id?{drive_connection_id:body.drive_connection_id}:{})};
 }
 export function workflowMediaInput(args:JsonObject,connectionId?:string):JsonObject {
  const targets=args.target_platforms;

@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DB — DV360 Demand Gen image ad assets (2026-09-27)
+
+Demand Gen image ad assets can now be uploaded through the reviewed media import (`amcp_media` with
+`dv360_target: ad_asset`, or the native upload action): frozen PNG or JPEG bytes up to 5120 KB,
+an optional AI label, one confirmed upload and a checked receipt whose assetId the ads use. The
+API does not read images back, so the receipt is the evidence. See
+[implementation](DV360-IMAGE-AD-ASSETS-2026-09-27.md),
+[qualification](DV360-IMAGE-AD-ASSETS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 887 (one DV360 row moves to the media workflow). Pushed only to CAMCP; its
+exact-commit CI result and live acceptance are pending.
+
 ## DA — DV360 Demand Gen ads (2026-09-27)
 
 Demand Gen ads of all four types (video, image, carousel, product) can now be created, patched
@@ -17,8 +30,8 @@ creative field sent. See [implementation](DV360-DEMAND-GEN-ADS-2026-09-27.md),
 [qualification](DV360-DEMAND-GEN-ADS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 888 (three DV360 rows reviewed). Pushed only to CAMCP; its exact-commit CI result and
-live acceptance are pending.
+Remaining rows: 888 (three DV360 rows reviewed). Pushed to CAMCP as `a9f32c0`; its exact-commit CI
+result and live acceptance are pending.
 
 ## CZ — DV360 YouTube video ad assets and Demand Gen exclusions (2026-09-27)
 

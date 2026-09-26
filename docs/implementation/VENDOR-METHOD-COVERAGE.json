@@ -4662,7 +4662,7 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_AD_ASSETS_UPLOAD",
-          "status": "blocked_write",
+          "status": "media_workflow",
           "family": null
         }
       ],
