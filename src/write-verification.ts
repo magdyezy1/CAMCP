@@ -10,6 +10,7 @@ import {tiktokCustomConversionKind,tiktokCustomConversionVerification,tiktokConv
 import {tiktokSavedAudienceKind,tiktokSavedAudienceVerification,tiktokSavedAudienceRead,tiktokSavedAudienceProjection} from './tiktok-saved-audiences.js';
 import {tiktokSmartPlusStatusKind,tiktokSmartPlusStatusVerification} from './tiktok-smart-plus-status.js';
 import {tiktokSmartPlusBudgetKind,tiktokSmartPlusBudgetVerification} from './tiktok-smart-plus-budgets.js';
+import {tiktokSmartPlusCampaignKind,tiktokSmartPlusCampaignVerification,tiktokSmartPlusCampaignProjection} from './tiktok-smart-plus-campaigns.js';
 import {linkedinLeadFormKind,linkedinLeadFormVerification,isLinkedInLeadFormRead,linkedinLeadFormProjection} from './linkedin-lead-forms.js';
 import {googlePreviewKind,verifyGooglePreview} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaignScopes,verifyCriteoCampaign} from './criteo-campaign-writes.js';
@@ -110,6 +111,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
  if(tiktokSavedAudienceKind(plan))return tiktokSavedAudienceVerification(plan,result).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_dmp_saved_audience_list_get'}}));
  if(tiktokSmartPlusStatusKind(plan))return tiktokSmartPlusStatusVerification(plan).map(v=>({read:{...base(v.path,v.query),action:v.action},expected:v.expected,id:v.id}));
  if(tiktokSmartPlusBudgetKind(plan))return tiktokSmartPlusBudgetVerification(plan).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_smart_plus_adgroup_get'}}));
+ if(tiktokSmartPlusCampaignKind(plan))return tiktokSmartPlusCampaignVerification(plan,result).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_smart_plus_campaign_get'}}));
  if(tiktokLookalikeKind(plan))return tiktokLookalikeVerification(plan,result).map(v=>({...v,read:{...base(v.path,v.query),action:'tiktok_dmp_custom_audience_get'}}));
  if(gateway==='tiktok_native_action'){
   const kind=plan.path.split('/')[2]!,ids=d.data?.[kind+'_ids']??[d.data?.[kind+'_id']??b[kind+'_id']];if(ids.some((id:unknown)=>typeof id!=='string'))return [];
@@ -156,6 +158,7 @@ function entity(plan:CompiledRequest,data:JsonObject):JsonObject{
  if(metaLookalikeRead(plan))return metaLookalikeProjection(data) as JsonObject;
  if(plan.gateway==='tiktok_native_action'&&plan.path===tiktokConversionGetPath)return tiktokCustomConversionProjection(data.data);
  if(tiktokSavedAudienceRead(plan))return tiktokSavedAudienceProjection(data.data?.saved_audiences?.[0]);
+ if(plan.gateway==='tiktok_native_action'&&plan.path==='/v1.3/smart_plus/campaign/get/')return tiktokSmartPlusCampaignProjection(data.data?.list?.[0]) as JsonObject;
  if(plan.gateway==='tiktok_native_action')return data.data?.list?.[0];
  if(plan.gateway==='snapchat_native_action'){const kind=plan.path.split('/').at(-2)!,singular=kind==='adsquads'?'adsquad':kind.slice(0,-1),row=data[kind]?.[0]?.[singular];return (snapProjections[kind]?.(row)??row) as JsonObject;}
  if(['reddit_native_action','x_ads_native_action'].includes(plan.gateway))return data.data;

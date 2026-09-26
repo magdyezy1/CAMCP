@@ -243,6 +243,31 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
   policy, and execution needs `spend_change_confirmed: true`.
 - Verification reads each ad group and compares `budget`.
 
+## TikTok Upgraded Smart+ campaigns
+
+- `tiktok_smart_plus_campaign_create` (alias `tiktok_smart_campaign_create`) creates a paused
+  Upgraded Smart+ campaign for website conversions (`objective_type: WEB_CONVERSIONS` with
+  `sales_destination: WEBSITE`) or lead generation (`LEAD_GENERATION`, no destination).
+- Required: `request_id` (a positive 64-bit integer as a string; TikTok creates the campaign once
+  per request ID), `operation_status: DISABLE` (TikTok's default is `ENABLE`), `objective_type` and
+  `campaign_name` (at most 512 characters, Chinese and Japanese counting twice, no emoji).
+- Budget: with campaign budget optimization (`budget_optimize_on` true, the default),
+  `budget_mode` is `BUDGET_MODE_DYNAMIC_DAILY_BUDGET` (default) or `BUDGET_MODE_TOTAL` and `budget`
+  is the shared campaign budget. Without it, `budget_mode` is `BUDGET_MODE_INFINITE` (default, no
+  budget), `BUDGET_MODE_DAY` or `BUDGET_MODE_TOTAL`, and `budget` limits the total of the ad
+  group budgets. Amounts are positive with at most two decimals in the account currency.
+- Optional: `campaign_type: REGULAR_CAMPAIGN`, `special_industries` (`HOUSING`, `EMPLOYMENT`,
+  `CREDIT`; US and Canada advertisers) and `po_number`.
+- App, catalog, search, promotional, iOS dedicated and RTA campaigns and allowlist-only Goal-based
+  budget increase fail with `INVALID_TIKTOK_SMART_PLUS_CAMPAIGN` before any request.
+- The advertiser is read before review and execution. The campaign budget is a new budget under
+  the owner spending policy (`POLICY_BUDGET_LIMIT`), and execution needs
+  `spend_change_confirmed: true`. A paused create is allowed under a policy that forbids
+  activation; turning the campaign on is a reviewed status change.
+- Verification reads `/smart_plus/campaign/get/` and compares the name, objective, destination,
+  paused status, budget settings, industries (as a set) and PO number. Smart+ ad groups and ads,
+  and campaign edits, are not qualified yet.
+
 ## TikTok lookalike audiences
 
 - `tiktok_dmp_custom_audience_lookalike_create` creates a lookalike from a seed audience the selected

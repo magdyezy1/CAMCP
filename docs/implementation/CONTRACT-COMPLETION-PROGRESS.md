@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## BZ — TikTok Upgraded Smart+ campaigns (2026-09-26)
+
+`tiktok_smart_plus_campaign_create` is a reviewed family for paused website-conversion and
+lead-generation Smart+ campaigns: a required 64-bit request ID, `DISABLE` status, documented
+budget modes with defaults applied, the campaign budget under the spending policy, and
+read-back of every created field. See [implementation](TIKTOK-SMART-PLUS-CAMPAIGNS-2026-09-26.md),
+[qualification](TIKTOK-SMART-PLUS-CAMPAIGNS-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 950 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## BY — TikTok Upgraded Smart+ ad group budgets (2026-09-26)
 
 `tiktok_smart_plus_adgroup_budget_update` is a reviewed family for immediate Smart+ ad group
@@ -18,7 +30,7 @@ unqualified (allowlist-only). See [implementation](TIKTOK-SMART-PLUS-BUDGETS-202
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
 Remaining rows: 952 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Pushed to CAMCP as `9371d74`; its exact-commit CI result and live acceptance are pending.
 
 ## BX — TikTok Upgraded Smart+ status (2026-09-26)
 
