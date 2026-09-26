@@ -7,6 +7,7 @@ import {gtmSafeConfiguration} from './gtm-workflow-writes.js';
 import {assetSetCanonical} from './google-asset-set-writes.js';
 import {isGoogleBidRead} from './google-bid-modifiers.js';
 import {googleSegmentResource,googleSegmentCanonical} from './google-custom-segments.js';
+import {snapSegmentState} from './snapchat-segments.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 
 // Response envelopes are validated before projection. Within each resource keep
@@ -62,7 +63,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  }
  if(read.gateway==='snapchat_native_action'){
   const kind=read.path.split('/').at(-2)!,singular=kind==='adsquads'?'adsquad':kind==='media'?'media':kind.slice(0,-1);
-  if(Array.isArray(d[kind]))return normalizeReviewState({[kind]:d[kind].map((row:JsonObject)=>Object.hasOwn(row,singular)?{[singular]:row[singular]}:row)});
+  if(Array.isArray(d[kind]))return normalizeReviewState({[kind]:d[kind].map((row:JsonObject)=>Object.hasOwn(row,singular)?{[singular]:kind==='segments'?snapSegmentState(row[singular]):row[singular]}:row)});
  }
  if(read.gateway==='google_search_console_native_action'&&read.path.includes('/sitemaps/')&&d.amcp_absent!==true){
   // Crawl/processing observations are not a sitemap submission change. Keep

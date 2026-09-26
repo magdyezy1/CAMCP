@@ -210,10 +210,10 @@
       "gateway": "snapchat_native_action",
       "actions": 412,
       "counts": {
-        "blocked_write": 95,
+        "blocked_write": 91,
         "media_workflow": 4,
         "native_read": 269,
-        "reviewed_write_family": 36,
+        "reviewed_write_family": 40,
         "unqualified_read": 8
       },
       "captured_catalog_complete": true,
@@ -37986,7 +37986,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -38005,7 +38006,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -38364,7 +38366,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -38381,7 +38384,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -38414,7 +38418,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -38483,7 +38488,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -38500,7 +38506,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -38546,7 +38553,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -38791,7 +38799,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -39065,12 +39074,17 @@
       "aliases": [],
       "method": "POST",
       "path": "/v1/adaccounts/{ad_account_id}/segments",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/write-review.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/snapchat-writes.test.ts",
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "snapchat_entities"
     },
     {
       "gateway": "snapchat_native_action",
@@ -39094,12 +39108,17 @@
       "aliases": [],
       "method": "PUT",
       "path": "/v1/adaccounts/{ad_account_id}/segments",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/write-review.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/snapchat-writes.test.ts",
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "snapchat_entities"
     },
     {
       "gateway": "snapchat_native_action",
@@ -39238,7 +39257,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -39493,7 +39513,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -39512,7 +39533,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -39788,7 +39810,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -39869,7 +39892,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -40020,12 +40044,17 @@
       ],
       "method": "POST",
       "path": "/v1/adaccounts/{ad_account_id}/segments",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/write-review.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/snapchat-writes.test.ts",
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "snapchat_entities"
     },
     {
       "gateway": "snapchat_native_action",
@@ -40086,12 +40115,17 @@
       ],
       "method": "PUT",
       "path": "/v1/adaccounts/{ad_account_id}/segments",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/write-review.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/snapchat-writes.test.ts",
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "snapchat_entities"
     },
     {
       "gateway": "snapchat_native_action",
@@ -40276,7 +40310,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -40295,7 +40330,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -40368,7 +40404,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -40387,7 +40424,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -40496,7 +40534,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -40545,7 +40584,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -40594,7 +40634,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -41224,7 +41265,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -41297,7 +41339,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -41352,7 +41395,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -41625,7 +41669,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"
@@ -41756,7 +41801,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-lead-forms.test.mjs"
+        "tests/snapchat-lead-forms.test.mjs",
+        "tests/snapchat-segments.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_entities"

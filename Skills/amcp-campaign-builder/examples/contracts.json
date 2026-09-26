@@ -736,6 +736,30 @@
       }
     },
     {
+      "gateway": "snapchat_native_action",
+      "arguments": {
+        "action": "snapchat_audience_create",
+        "account_id": "123",
+        "payload": {
+          "segments": [
+            {
+              "ad_account_id": "123",
+              "name": "Synthetic lookalike",
+              "source_type": "LOOKALIKE",
+              "retention_in_days": 180,
+              "creation_spec": {
+                "seed_segment_id": "456",
+                "countries": [
+                  "US"
+                ],
+                "type": "BALANCE"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
       "gateway": "linkedin_native_action",
       "arguments": {
         "action": "linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post",

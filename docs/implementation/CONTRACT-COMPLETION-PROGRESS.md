@@ -8,6 +8,20 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## BK — Snapchat audience segments (2026-09-26)
+
+Customer-list and lookalike segment creation and name/description/retention updates now use
+the reviewed Snapchat family. Seeds are ownership-read and must belong to the selected
+account. Updates restate existing descriptions and respect source-type retention limits.
+Review evidence ignores size/status telemetry. User uploads, deletion and rule audiences
+stay blocked. Ten new tests fail on `874038e` and pass with the change. See
+[implementation](SNAPCHAT-SEGMENTS-2026-09-26.md),
+[qualification](SNAPCHAT-SEGMENTS-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 972 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## BJ — Snapchat lead generation form creation (2026-09-26)
 
 The three captured `lead_generation_forms` create actions now use the reviewed Snapchat
@@ -19,8 +33,8 @@ tests fail on `d88f1e0` and pass with the change. See
 [qualification](SNAPCHAT-LEAD-FORMS-VERIFICATION-2026-09-26.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 976 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Remaining rows then: 976. Pushed to CAMCP as `874038e`; its exact-commit CI result and live
+acceptance are pending.
 
 ## BI — Snapchat workflow defects from live use (2026-09-26)
 

@@ -1,5 +1,6 @@
 import {snapUpdateKind,assertSnapUpdate,snapUpdateSnapshots,readSnapUpdateState,snapUpdateOutcome} from './snapchat-nested-updates.js';
 import {assertSnapLeadForms,assertSnapLeadCreativeRefs,snapLeadDependencyPaths} from './snapchat-lead-forms.js';
+import {assertSnapSegments,assertSnapSegmentUpdates,snapSegmentDependencyPaths} from './snapchat-segments.js';
 import {googlePreviewKind,assertGooglePreview,googlePreviewSnapshots,readGooglePreviewState,googlePreviewOutcome,googlePreviewDelivery,googlePreviewSafeOutcome} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaign,assertCriteoCampaignScopes,criteoCampaignSnapshots,readCriteoCampaignState,criteoCampaignOutcome} from './criteo-campaign-writes.js';
 import {metaReportKind,assertMetaReport,assertMetaReportScope,metaReportSnapshots,readMetaReportState,metaReportOutcome} from './meta-insights-jobs.js';
@@ -139,7 +140,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  }
  if(plan.gateway==='snapchat_native_action'){
   if(String(d.request_status).toUpperCase()!=='SUCCESS')return false;
-  const kind=[...segments].reverse().find(k=>['campaigns','adsquads','ads','creatives','lead_generation_forms'].includes(k))!,rows=d[kind];
+  const kind=[...segments].reverse().find(k=>['campaigns','adsquads','ads','creatives','lead_generation_forms','segments'].includes(k))!,rows=d[kind];
   if(plan.method==='DELETE')return Array.isArray(rows)&&rows.length===0;
   const singular=kind==='adsquads'?'adsquad':kind.slice(0,-1),expected=Array.isArray(b[kind])?b[kind].length:1;
   return Array.isArray(rows)&&rows.length===expected&&rows.every((r,i)=>String(r.sub_request_status).toUpperCase()==='SUCCESS'&&hasId(r[singular]?.id)&&(plan.method==='POST'||String(r[singular].id)===String(plan.method==='PUT'?b[kind][i].id:last)));
@@ -279,7 +280,10 @@ export function assertWriteShape(plan:CompiledRequest){
   expect(body.creatives[0],'operation_status',['DISABLE']);
  }
  if(plan.gateway==='snapchat_native_action'&&plan.method==='POST'){
-  const kind=plan.path.split('/').at(-1)!;if(!Array.isArray(body[kind])||!body[kind].length||body[kind].length>25)fail('MISSING_PAYLOAD','Provide 1–25 native '+kind+' records.');if(kind==='lead_generation_forms')assertSnapLeadForms(plan,body[kind]);else if(kind==='creatives')assertSnapLeadCreativeRefs(body[kind]);else for(const row of body[kind])expect(object(row),'status',['PAUSED']);
+  const kind=plan.path.split('/').at(-1)!;if(!Array.isArray(body[kind])||!body[kind].length||body[kind].length>25)fail('MISSING_PAYLOAD','Provide 1–25 native '+kind+' records.');if(kind==='lead_generation_forms')assertSnapLeadForms(plan,body[kind]);else if(kind==='segments')assertSnapSegments(plan,body[kind]);else if(kind==='creatives')assertSnapLeadCreativeRefs(body[kind]);else for(const row of body[kind])expect(object(row),'status',['PAUSED']);
+ }
+ if(plan.gateway==='snapchat_native_action'&&plan.method==='PUT'&&/^\/v1\/adaccounts\/[^/]+\/segments$/.test(plan.path)){
+  if(!Array.isArray(body.segments)||!body.segments.length||body.segments.length>25)fail('MISSING_PAYLOAD','Provide 1–25 native segments records.');assertSnapSegmentUpdates(plan,body.segments);
  }
  if(plan.gateway==='snapchat_native_action'&&plan.method==='PATCH'){
   if(!Array.isArray(plan.body)||!plan.body.length||plan.body.length>25||plan.body.some(op=>!op||!['add','remove','replace','test'].includes(op.op)||typeof op.path!=='string'||!/^\/[a-zA-Z0-9_/-]+$/.test(op.path)||op.path.split('/').some((part:string)=>['__proto__','constructor','prototype'].includes(part))||op.op!=='remove'&&!Object.hasOwn(op,'value')))fail('INVALID_PATCH','Use 1–25 native JSON Patch add, remove, replace or test operations.');
@@ -397,8 +401,8 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  const accountPaths:Record<string,RegExp>={snapchat_native_action:/^\/v1\/adaccounts\/[^/]+/,x_ads_native_action:/^\/12\/accounts\/[^/]+/,linkedin_native_action:/^\/rest\/adAccounts\/[^/]+/,dv360_native_action:/^\/v\d+\/advertisers\/[^/]+/};
  const account=accountPaths[plan.gateway]?.exec(plan.path)?.[0];
  if(plan.gateway==='snapchat_native_action'&&plan.method==='POST'&&!account)return [base(plan.path.slice(0,plan.path.lastIndexOf('/')))];
- // Account creates also read owned dependencies: a lead form's banner media, a lead creative's form.
- if(plan.gateway==='snapchat_native_action'&&plan.method==='POST'&&account&&plan.path.slice(account.length).split('/').filter(Boolean).length===1)return [base(account),...snapLeadDependencyPaths(plan).map(path=>base(path))];
+ // Account creates also read owned dependencies: a lead form's banner media, a lead creative's form, a lookalike's seed.
+ if(plan.gateway==='snapchat_native_action'&&plan.method==='POST'&&account&&plan.path.slice(account.length).split('/').filter(Boolean).length===1)return [base(account),...[...snapLeadDependencyPaths(plan),...snapSegmentDependencyPaths(plan)].map(path=>base(path))];
  // On collection creates, snapshot the account. On edits/deletes, the catalog must expose a matching GET.
  if(plan.method==='POST'&&account&&plan.path.slice(account.length).split('/').filter(Boolean).length===1)return [base(account)];
  if(samePath&&['POST','PUT','PATCH','DELETE'].includes(plan.method))return [base(plan.path)];

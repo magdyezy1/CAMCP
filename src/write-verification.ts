@@ -1,5 +1,6 @@
 import {snapUpdateKind,verifySnapUpdate} from './snapchat-nested-updates.js';
 import {snapLeadFormProjection} from './snapchat-lead-forms.js';
+import {snapSegmentProjection} from './snapchat-segments.js';
 import {googlePreviewKind,verifyGooglePreview} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaignScopes,verifyCriteoCampaign} from './criteo-campaign-writes.js';
 import {metaReportKind,assertMetaReportScope,verifyMetaReport,metaReportReadResult,observeMetaReportRead} from './meta-insights-jobs.js';
@@ -53,6 +54,8 @@ import {microsoftAssociationWrite,microsoftAssociationVerification,microsoftAsso
 import {audit,bad,fingerprint,obj,optional,read} from './workspace-core.js';
 import type {Actor,CompiledRequest,Connection,Credentials,JsonObject} from './types.js';
 import {nativeAuthority} from './native-authority.js';
+// Snapchat records whose read-back adds provider fields or renames sent ones are compared as projections.
+const snapProjections:Record<string,(row:unknown)=>unknown>={lead_generation_forms:snapLeadFormProjection,segments:snapSegmentProjection};
 const snake=(s:string)=>s.replace(/([a-z0-9])([A-Z])/g,'$1_$2').toLowerCase();
 const normalize=(v:any):any=>Array.isArray(v)?normalizeReviewState(v.map(normalize)):obj(v)?Object.fromEntries(Object.entries(v).map(([k,x])=>[snake(k),normalize(x)])):v;
 function differing(expected:any,actual:any,path='',out:string[]=[]):string[]{
@@ -94,7 +97,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
   return ids.map((id:string)=>({read:{...base('/v1.3/'+kind+'/get/',{advertiser_id:plan.accountId,filtering:{[kind+'_ids']:[id]},page_size:100}),action:'tiktok_'+kind+'_get'},expected,id}));
  }
  if(gateway==='snapchat_native_action'){
-  const kind=Object.keys(d).find(k=>['campaigns','adsquads','ads','creatives','lead_generation_forms'].includes(k));if(!kind)return [];const singular=kind==='adsquads'?'adsquad':kind.slice(0,-1);
+  const kind=Object.keys(d).find(k=>['campaigns','adsquads','ads','creatives','lead_generation_forms','segments'].includes(k));if(!kind)return [];const singular=kind==='adsquads'?'adsquad':kind.slice(0,-1);
   // Array-index patches and removes need before/after reconstruction. Do not label partial checks verified.
   if(Array.isArray(plan.body)&&plan.body.some((p:JsonObject)=>!['add','replace'].includes(p.op)||!/^\/[A-Za-z_]+$/.test(p.path)))return [];
   // Snapchat's GET never returns placement_v2 (it reads back as placement:"UNSUPPORTED"). A field no read
@@ -103,7 +106,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
   return d[kind].map((r:JsonObject,i:number)=>{
    const id=r[singular].id,expected={...(b[kind]?.[i]??(Array.isArray(plan.body)?Object.fromEntries((plan.body as JsonObject[]).map(p=>[p.path.slice(1),p.value])):b))},acknowledged:Acknowledged={};
    for(const field of writeOnly)if(Object.hasOwn(expected,field)){acknowledged[field]={sent:expected[field],echoed:r[singular]?.[field]};delete expected[field];}
-   return {read:base('/v1/'+kind+'/'+id),expected:kind==='lead_generation_forms'?snapLeadFormProjection(expected) as JsonObject:expected,id,...(Object.keys(acknowledged).length?{acknowledged}:{})};
+   return {read:base('/v1/'+kind+'/'+id),expected:(snapProjections[kind]?.(expected)??expected) as JsonObject,id,...(Object.keys(acknowledged).length?{acknowledged}:{})};
   });
  }
  if(gateway==='reddit_native_action'){const kind=plan.method==='POST'?plan.path.split('/').at(-1):plan.path.split('/').at(-2),id=d.data?.id;if(!id)return [];return [{read:base('/api/v3/'+kind+'/'+id),expected:b.data,id}];}
@@ -128,7 +131,7 @@ function entity(plan:CompiledRequest,data:JsonObject):JsonObject{
  if(plan.gateway==='google_ads_native_action')return googleConfigurationObserved(plan,Object.values(data.results?.[0]??{})[0] as JsonObject);
  if(plan.gateway===microsoftGateway)return data[microsoftContracts.get(plan.action)!.result]?.[0];
  if(plan.gateway==='tiktok_native_action')return data.data?.list?.[0];
- if(plan.gateway==='snapchat_native_action'){const kind=plan.path.split('/').at(-2)!,singular=kind==='adsquads'?'adsquad':kind.slice(0,-1),row=data[kind]?.[0]?.[singular];return kind==='lead_generation_forms'?snapLeadFormProjection(row) as JsonObject:row;}
+ if(plan.gateway==='snapchat_native_action'){const kind=plan.path.split('/').at(-2)!,singular=kind==='adsquads'?'adsquad':kind.slice(0,-1),row=data[kind]?.[0]?.[singular];return (snapProjections[kind]?.(row)??row) as JsonObject;}
  if(['reddit_native_action','x_ads_native_action'].includes(plan.gateway))return data.data;
  return data;
 }

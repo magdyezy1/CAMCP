@@ -148,6 +148,33 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
 - Verification compares the documented configuration and ignores `is_required` and `strategy_type`,
   which Snapchat adds.
 
+## Snapchat audience segments
+
+- `snapchat_audience_create` (alias `snapchat_adaccounts_ad_account_id_segments_create`) creates
+  `FIRST_PARTY` customer-list containers and `LOOKALIKE` segments. Every record needs
+  `ad_account_id` (the selected account), `name` (≤375), `source_type` and `retention_in_days`. The
+  limit is 1–9999 days for customer lists (9999 = lifetime) and 1–180 for lookalikes; `description`
+  is optional.
+- A lookalike needs `creation_spec` with `seed_segment_id`, `countries` (two-letter codes; the
+  deprecated `country` is also accepted) and an optional `type` of `BALANCE`, `SIMILARITY` or
+  `REACH`. List `snapchat_audience_list` first. Only segments whose `ad_account_id` is the selected
+  account become owned, so a segment shared from another account cannot seed a lookalike. The
+  seed is read before review and again before execution.
+- `snapchat_audience_update` (PUT) changes `name`, `description` and `retention_in_days` of an owned
+  segment, one `{id, name, retention_in_days, description?}` record each. Snapchat may reset
+  omitted fields, so an existing description must be restated or replaced; otherwise the update is
+  refused with `INCOMPLETE_SNAPCHAT_SEGMENT_UPDATE`.
+- Retention limits follow the current source type (customer lists 9999, lookalikes 180, pixel
+  audiences 395). `creative_impact` shows retention before and after; a shorter window drops members,
+  and ad squads targeting the segment use the changed audience.
+- Rule violations fail with `INVALID_SNAPCHAT_SEGMENT` before any request. A segment that does not
+  belong to the selected account fails with `STATE_TARGET_MISMATCH`.
+- Not available: adding or removing users (customer data), segment deletion, and pixel, mobile or
+  engagement rule audiences. Snapchat documents engagement segments as read-only for creation.
+- Review evidence ignores `approximate_number_users`, `targetable_status`, `upload_status` and
+  `status`, which change without any edit. Verification reads the segment back. A lookalike read
+  back with the deprecated `country` matches the `countries` that were sent.
+
 ## Snapchat nested updates
 
 Ad/ad-squad updates now use the documented native parent routes:
