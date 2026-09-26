@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CR — Snapchat planning reads (2026-09-26)
+
+Snapchat audience insights and reach and frequency forecasts use POST but only estimate. They are
+now validated during compilation and run as reads, for readers and on read-only deployments,
+instead of being blocked as writes. See
+[implementation](SNAPCHAT-PLANNING-READS-2026-09-26.md),
+[qualification](SNAPCHAT-PLANNING-READS-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 913 (two Snapchat rows are native reads). Pushed only to CAMCP; its exact-commit CI
+result and live acceptance are pending.
+
 ## CQ — TikTok account brand safety (2026-09-26)
 
 The Pangle app block list and the Brand Safety Hub defaults for future Upgraded Smart+ campaigns
@@ -18,8 +30,8 @@ and switching the hub to all objectives is shown as irreversible. See
 [qualification](TIKTOK-BRAND-SAFETY-VERIFICATION-2026-09-26.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 915 (two TikTok rows reviewed). Pushed only to CAMCP; its exact-commit CI result
-and live acceptance are pending.
+Remaining rows: 915 (two TikTok rows reviewed). Pushed to CAMCP as `1140286`; its exact-commit CI
+result and live acceptance are pending.
 
 ## CP — TikTok Search Ads negative keywords (2026-09-26)
 

@@ -510,6 +510,27 @@ a campaign needs it on at least one of its ad groups. Discover keyword IDs with
   48 hours to become available. Refresh, update, sharing, deletion and customer-file audiences are
   not available here.
 
+## Snapchat planning reads
+
+Two planning requests use POST but only estimate, so AMCP runs them as reads (a reader can run
+them, and a read-only deployment allows them). They do not go through `amcp_write`:
+
+- `snapchat_adaccounts_ad_account_id_targeting_insights_create` compares a `targeting_spec` with
+  a `base_spec` (send exactly those two targeting specs) and returns audience sizes and
+  distributions. The optional query `dimension_category` is `demo`, `geo`, `device`,
+  `interest`, `engagement` or `aggregated`.
+- `snapchat_adaccounts_ad_account_id_reserved_forecasting_create` returns the reach and
+  frequency curve (impressions, reach, `budget_micro`) for an unbooked ad squad: `placement_v2`,
+  `targeting`, `delivery_constraint: REACH_AND_FREQUENCY`, `start_time` 12 hours to 365 days ahead
+  and a later `end_time` (ISO-8601 date-times), optional `type` (`SNAP_ADS` or `LENS`),
+  `optimization_goal` (`VIDEO_VIEWS` for Snap Ads, `USES` for Lenses) and
+  `cap_and_exclusion_config`. The forecast books, creates and reserves nothing.
+- Other fields and query parameters are refused with `INVALID_SNAPCHAT_PLANNING_READ` before any
+  request. Treat the results as Snapchat estimates. Reference:
+  [Audience Insights](https://developers.snap.com/marketing-api/Ads-API/audience-insights) and the
+  [Reach and Frequency Guide](https://developers.snap.com/marketing-api/Ads-API/reach-and-frequency),
+  checked 2026-09-26.
+
 ## Snapchat campaign plans
 
 - `amcp_campaign` steps may pin `expected_currency`. Preflight reads the ad account and uses

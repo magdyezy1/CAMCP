@@ -17,6 +17,7 @@ import {googleGenerationKind} from './google-generation.js';
 import {dv360TargetingSearchRoute} from './dv360-targeting-search.js';
 import {googleSegmentRemoval} from './google-custom-segments.js';
 import {xAudienceEstimateRoute} from './x-audience-estimate.js';
+import {snapchatPlanningRoute} from './snapchat-planning-reads.js';
 
 // Read-only metadata is a compatibility observation, never sufficient execution
 // authorization. POST reads must match a separately maintained route allowlist.
@@ -26,7 +27,7 @@ const tiktokReads=new Set(['/v1.3/ad/audience_size/estimate/','/v1.3/audience/in
 // documented planning metadata reads create no customer-owned resources.
 export const googleGlobalReadMethods=new Set(['generateConversionRates','listBenchmarksAvailableDates','listBenchmarksLocations','listBenchmarksProducts','listBenchmarksSources','listPlannableLocations','listPlannableProducts','listPlannableUserInterests','listPlannableUserLists']);
 export function independentlyReadOnly(plan:CompiledRequest):boolean{
- if(!plan.readOnly&&!dv360TargetingSearchRoute(plan)&&!xAudienceEstimateRoute(plan))return false;
+ if(!plan.readOnly&&!dv360TargetingSearchRoute(plan)&&!xAudienceEstimateRoute(plan)&&!snapchatPlanningRoute(plan))return false;
  if(plan.gateway===microsoftGateway)return microsoftRead(plan);
  let pathname:string;try{pathname=decodeURIComponent(plan.path);}catch{return false;}
  // Search Console encodes full property/sitemap URLs as resource segments.
@@ -55,7 +56,7 @@ export function independentlyReadOnly(plan:CompiledRequest):boolean{
   case 'dv360_native_action':return dv360TargetingSearchRoute(plan);
   case 'google_ads_native_action':return !!googleGenerationKind(plan)||/^\/v23\//.test(pathname)&&googleReadMethods.has(pathname.split(':').at(-1)!)||/^\/v23:[A-Za-z]+$/.test(pathname)&&googleGlobalReadMethods.has(pathname.slice(5));
   case 'tiktok_native_action':return tiktokReads.has(pathname.replace(/^\/open_api/,''));
-  case 'snapchat_native_action':return /^\/v1\/adaccounts\/[^/]+\/(?:get_(?:campaigns|adsquads|ads|creatives|media)_by_ids|ad_squad_outcome_estimates_v2|audience_size(?:_v2)?|bid_estimate)$/.test(pathname)||/^\/v1\/(?:catalogs\/[^/]+\/(?:product_search|products\/search|flights\/search|hotels\/search|facets)|ads_library\/(?:ads|sponsored_content)\/search)$/.test(pathname);
+  case 'snapchat_native_action':return /^\/v1\/adaccounts\/[^/]+\/(?:get_(?:campaigns|adsquads|ads|creatives|media)_by_ids|ad_squad_outcome_estimates_v2|audience_size(?:_v2)?|bid_estimate|targeting_insights|reserved_forecasting)$/.test(pathname)||/^\/v1\/(?:catalogs\/[^/]+\/(?:product_search|products\/search|flights\/search|hotels\/search|facets)|ads_library\/(?:ads|sponsored_content)\/search)$/.test(pathname);
   case 'ga4_native_action':return /\/properties\/[^/:]+:(?:runReport|batchRunReports|runPivotReport|batchRunPivotReports|runRealtimeReport|checkCompatibility|runFunnelReport)$/.test(pathname)||/^\/v1beta\/properties\/[^/:]+\/audienceExports\/[^/:]+:query$/.test(pathname)||/^\/v1alpha\/properties\/[^/:]+\/reportTasks\/[^/:]+:query$/.test(pathname);
   case 'gtm_native_action':return /\/folders\/[^/:]+:entities$/.test(pathname);
   case 'google_search_console_native_action':return /\/searchAnalytics\/query$/.test(pathname)||pathname==='/v1/urlInspection/index:inspect';

@@ -34,6 +34,9 @@ test('every method/path record expands deterministically from its declared templ
   // This exact JSON read validates its native business input during compilation.
   // Retain the path/method assertions and the full catalog denominator below.
   if(c.gateway==='x_ads_native_action'&&a.path==='/12/accounts/{account_id}/audience_estimate')input.payload={targeting_criteria:[{targeting_type:'BROAD_KEYWORD',targeting_value:'synthetic'}]};
+  // Snapchat planning reads are also validated during compilation (src/snapchat-planning-reads.ts).
+  if(c.gateway==='snapchat_native_action'&&a.path==='/v1/adaccounts/{ad_account_id}/targeting_insights')input.payload={base_spec:{geos:[{country_code:'us'}]},targeting_spec:{geos:[{country_code:'us'}]}};
+  if(c.gateway==='snapchat_native_action'&&a.path==='/v1/adaccounts/{ad_account_id}/reserved_forecasting')input.payload={placement_v2:{config:'AUTOMATIC'},targeting:{geos:[{country_code:'us'}]},delivery_constraint:'REACH_AND_FREQUENCY',start_time:new Date(Date.now()+48*3600000).toISOString(),end_time:new Date(Date.now()+30*24*3600000).toISOString(),optimization_goal:'VIDEO_VIEWS',cap_and_exclusion_config:{frequency_cap_config:[]}};
   const p=compiler.compile(c.gateway,input,strictOptions);assert.equal(p.method,a.method);
   // One independently documented account prefix correction; all other captured
   // templates retain the original deterministic conformance assertion.

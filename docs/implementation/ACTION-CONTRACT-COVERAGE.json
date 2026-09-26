@@ -210,9 +210,9 @@
       "gateway": "snapchat_native_action",
       "actions": 412,
       "counts": {
-        "blocked_write": 91,
+        "blocked_write": 89,
         "media_workflow": 4,
-        "native_read": 269,
+        "native_read": 271,
         "reviewed_write_family": 40,
         "unqualified_read": 8
       },
@@ -38347,7 +38347,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38365,7 +38366,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38383,7 +38385,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38401,7 +38404,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38419,7 +38423,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38437,7 +38442,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38455,7 +38461,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38518,7 +38525,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38536,7 +38544,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38554,7 +38563,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38572,7 +38582,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38632,7 +38643,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38650,7 +38662,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38668,7 +38681,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38722,7 +38736,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38740,7 +38755,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38758,7 +38774,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38776,7 +38793,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38794,7 +38812,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38828,7 +38847,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38844,7 +38864,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38860,7 +38881,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38876,7 +38898,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38892,7 +38915,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38908,7 +38932,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38924,7 +38949,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38940,7 +38966,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38956,7 +38983,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39010,7 +39038,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39148,7 +39177,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39196,7 +39226,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39238,7 +39269,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39254,7 +39286,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39270,7 +39303,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39286,7 +39320,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39302,7 +39337,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39318,7 +39354,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39334,7 +39371,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39363,7 +39401,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39379,7 +39418,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39395,7 +39435,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39430,7 +39471,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39446,7 +39488,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39503,7 +39546,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39519,7 +39563,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39548,7 +39593,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39577,7 +39623,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39593,7 +39640,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39609,7 +39657,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39632,11 +39681,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v1/adaccounts/{ad_account_id}/reserved_forecasting",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/snapchat-writes.test.ts",
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -39664,7 +39717,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39712,7 +39766,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39747,7 +39802,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39763,7 +39819,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39779,7 +39836,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39795,7 +39853,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39811,7 +39870,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39827,7 +39887,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39843,7 +39904,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39853,11 +39915,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v1/adaccounts/{ad_account_id}/targeting_insights",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
       "source": "OBSERVED",
-      "tests": [],
+      "tests": [
+        "tests/snapchat-writes.test.ts",
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
+      ],
       "live_qualification": "unverified"
     },
     {
@@ -39891,7 +39957,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39907,7 +39974,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39923,7 +39991,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39939,7 +40008,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39955,7 +40025,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39971,7 +40042,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39987,7 +40059,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40003,7 +40076,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40021,7 +40095,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40039,7 +40114,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40057,7 +40133,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40075,7 +40152,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40093,7 +40171,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40111,7 +40190,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40171,7 +40251,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40189,7 +40270,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40207,7 +40289,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40261,7 +40344,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40279,7 +40363,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40297,7 +40382,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40315,7 +40401,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40333,7 +40420,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40367,7 +40455,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40396,7 +40485,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40447,7 +40537,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40479,7 +40570,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40495,7 +40587,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40530,7 +40623,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40546,7 +40640,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40562,7 +40657,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40578,7 +40674,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40594,7 +40691,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40623,7 +40721,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40639,7 +40738,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40706,7 +40806,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40724,7 +40825,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40806,7 +40908,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40824,7 +40927,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40842,7 +40946,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40860,7 +40965,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40878,7 +40984,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40896,7 +41003,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40914,7 +41022,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40974,7 +41083,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40992,7 +41102,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41010,7 +41121,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41070,7 +41182,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41088,7 +41201,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41106,7 +41220,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41124,7 +41239,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41142,7 +41258,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41179,7 +41296,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41230,7 +41348,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41281,7 +41400,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41297,7 +41417,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41313,7 +41434,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41329,7 +41451,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41422,7 +41545,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41470,7 +41594,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41488,7 +41613,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41536,7 +41662,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41554,7 +41681,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41587,7 +41715,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41616,7 +41745,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41632,7 +41762,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41648,7 +41779,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41664,7 +41796,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41693,7 +41826,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41722,7 +41856,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41751,7 +41886,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41780,7 +41916,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41796,7 +41933,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41840,7 +41978,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41858,7 +41997,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41876,7 +42016,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41915,7 +42056,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41933,7 +42075,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41951,7 +42094,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41990,7 +42134,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42008,7 +42153,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42045,7 +42191,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42061,7 +42208,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42077,7 +42225,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42093,7 +42242,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42109,7 +42259,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42138,7 +42289,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42156,7 +42308,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42174,7 +42327,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42190,7 +42344,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42206,7 +42361,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42235,7 +42391,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42251,7 +42408,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42267,7 +42425,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42283,7 +42442,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42322,7 +42482,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42340,7 +42501,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42358,7 +42520,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42374,7 +42537,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42403,7 +42567,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42455,7 +42620,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42471,7 +42637,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42489,7 +42656,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42522,7 +42690,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42585,7 +42754,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42603,7 +42773,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42636,7 +42807,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42654,7 +42826,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42672,7 +42845,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42688,7 +42862,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42704,7 +42879,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42739,7 +42915,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42757,7 +42934,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42775,7 +42953,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42791,7 +42970,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42807,7 +42987,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42862,7 +43043,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42878,7 +43060,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42894,7 +43077,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42987,7 +43171,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43005,7 +43190,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43023,7 +43209,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43041,7 +43228,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43076,7 +43264,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43105,7 +43294,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43121,7 +43311,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43150,7 +43341,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43166,7 +43358,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43182,7 +43375,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43198,7 +43392,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43214,7 +43409,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43230,7 +43426,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43248,7 +43445,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43281,7 +43479,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43310,7 +43509,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43352,7 +43552,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43394,7 +43595,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43423,7 +43625,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43439,7 +43642,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43468,7 +43672,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43484,7 +43689,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43500,7 +43706,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43529,7 +43736,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43558,7 +43766,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43574,7 +43783,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43592,7 +43802,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43610,7 +43821,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43628,7 +43840,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43657,7 +43870,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43688,7 +43902,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43706,7 +43921,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43737,7 +43953,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43766,7 +43983,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43782,7 +44000,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43798,7 +44017,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43814,7 +44034,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43830,7 +44051,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43872,7 +44094,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43888,7 +44111,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43917,7 +44141,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43946,7 +44171,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43962,7 +44188,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43978,7 +44205,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43994,7 +44222,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44010,7 +44239,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44026,7 +44256,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44042,7 +44273,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44071,7 +44303,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44087,7 +44320,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44103,7 +44337,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44171,7 +44406,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44187,7 +44423,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44203,7 +44440,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44219,7 +44457,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44248,7 +44487,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44277,7 +44517,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44293,7 +44534,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44309,7 +44551,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44325,7 +44568,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44354,7 +44598,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44370,7 +44615,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44386,7 +44632,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44402,7 +44649,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44470,7 +44718,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44551,7 +44800,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44567,7 +44817,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44583,7 +44834,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44599,7 +44851,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44615,7 +44868,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44631,7 +44885,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44647,7 +44902,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44663,7 +44919,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44679,7 +44936,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44695,7 +44953,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44711,7 +44970,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44727,7 +44987,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44743,7 +45004,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44759,7 +45021,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44775,7 +45038,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44791,7 +45055,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44807,7 +45072,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44823,7 +45089,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44839,7 +45106,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44855,7 +45123,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44871,7 +45140,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44887,7 +45157,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44903,7 +45174,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44919,7 +45191,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44935,7 +45208,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44951,7 +45225,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44967,7 +45242,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44983,7 +45259,8 @@
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-writes.test.ts",
-        "tests/snapchat-nested-updates.test.ts"
+        "tests/snapchat-nested-updates.test.ts",
+        "tests/snapchat-planning-reads.test.mjs"
       ],
       "live_qualification": "unverified"
     },
