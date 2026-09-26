@@ -205,9 +205,50 @@ products are added. A receipt with errors or warnings is not success and is neve
 resubmitted automatically.
 
 Bounds: up to 10 reads, 1000 line items per campaign, 8 MiB and 60 seconds per review.
-Promoted products, keywords, bid multipliers, budget overrides and preferred line items
-are separate. Live acceptance and serving are unverified. Sources: [Onsite Sponsored
+Keywords, bid multipliers, budget overrides and preferred line items are separate;
+promoted products follow below. Live acceptance and serving are unverified. Sources: [Onsite Sponsored
 Products line items](https://developers.criteo.com/retail-media/docs/onsite-sponsored-products-line-items)
+and the [pinned OpenAPI](https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json),
+checked 2026-09-26.
+
+## Promoted products of auction line items (2026.01)
+
+Maintainer: AMCP integration maintainer; reviewed 2026-09-27. This family adds, removes,
+pauses and unpauses the promoted products of auction line items, with the same
+permissions as the line item family.
+
+Use `operation: criteo_catalog_ops` with `APPEND_PROMOTED_PRODUCTS`,
+`DELETE_PROMOTED_PRODUCTS`, `PAUSE_PROMOTED_PRODUCTS` or `UNPAUSE_PROMOTED_PRODUCTS`,
+`params: {"line-item-id": "<line item ID>"}` and `payload: {data: [{id: "<catalog
+product ID>", type: "RetailMediaPromotedProduct"}]}` with 1–500 distinct products. List
+the line item first (`GET_LINE_ITEMS_BY_ACCOUNT_ID` with `limitToType: "Auction"`)
+unless it was created and verified through AMCP. Take product IDs from the account
+catalog; catalog eligibility and minimum bids are left to Criteo.
+
+- Append adds products and may set `attributes: {bidOverride}`: an amount in the account
+  currency, excluding platform fees, that must meet the product's minimum bid; 0 removes
+  the override so the line item's target bid applies. For a product the line item
+  already promotes, append only changes the bid override, so send the new `bidOverride`
+  (`CONFIGURATION_EXISTS` otherwise). Append does not set a status.
+- Delete removes products. Criteo keeps at least one product on a line item that has
+  products, so pause the last one instead.
+- Pause takes active products and unpause takes paused products, by ID only.
+
+Products of an active line item serve at once. A line item set to active without
+products stays in draft and starts serving once products are appended. Append and
+unpause need `spend_change_confirmed: true`; under an owner policy they count as
+activation unless the line item is paused (changing bid overrides alone does not), and
+delete counts as a deletion. `INVALID_CRITEO_PROMOTED_PRODUCTS` names the product or rule
+to correct, and `STATE_TARGET_MISMATCH` lists products the line item does not promote.
+
+Verification reads every product of the line item again and compares each product in
+the request: present with the requested bid override, absent after deletion, or paused
+or active. A response with errors or warnings is not success and is never resubmitted
+automatically.
+
+Bounds: 500 products per request and 1500 per line item (the limit Criteo suggests); up
+to 10 reads, 8 MiB and 60 seconds per review. Keywords, bid multipliers and preferred
+line items are separate. Sources: [Promoted products](https://developers.criteo.com/retail-media/docs/promoted-products)
 and the [pinned OpenAPI](https://api.criteo.com/2026-01/retailmedia/open-api-specifications.json),
 checked 2026-09-26.
 

@@ -530,9 +530,19 @@ Other planning candidates checked and left: TikTok Automated Rules are limited b
 
 - New reviewed family `criteo_auction_line_items` (`src/criteo-auction-line-items.ts`) for auction line item creation (in draft) and the complete PUT. Every writable field is required, the review reads the account, campaign, line item and the campaign's line item names, and verification compares every field and the status.
 - A verified creation records the new line item as owned (`src/write-verification.ts`); updates otherwise need the line item listed with `GET_LINE_ITEMS_BY_ACCOUNT_ID`.
-- Next Criteo candidates: promoted products (append, delete, pause, unpause), keywords (add/remove, bids) and bid multipliers of these line items.
 
-Tests: `tests/criteo-auction-line-items.test.mjs` (7, red on `8fa32bf` / green after).
+Tests: `tests/criteo-auction-line-items.test.mjs` (7, red on `8fa32bf` / green after). Pushed as `78c1252`.
+
+## Finished batch — Criteo promoted products (2026-09-27)
+
+[Implementation](CRITEO-PROMOTED-PRODUCTS-2026-09-27.md) and
+[qualification](CRITEO-PROMOTED-PRODUCTS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `criteo_promoted_products` (`src/criteo-promoted-products.ts`) for append (with bid overrides), delete, pause and unpause. The line item reader now also reads the line item's products (up to 1500), and verification keys products by a hexadecimal form of their case-sensitive IDs.
+- Line item read-back compares flight days case-insensitively (the 2026.01 guide shows `Weekends` in a read sample).
+- Next Criteo candidates: keywords (add/remove and bids; Criteo stores keywords under normalized phrases, so read-back must find each raw phrase in the entries) and bid multipliers.
+
+Tests: `tests/criteo-promoted-products.test.mjs` (7) and a capitalized-day case in `tests/criteo-auction-line-items.test.mjs`, red on `78c1252` / green after.
 
 ## CI and live evidence
 
@@ -546,20 +556,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 529 in reviewed write families. **906 remaining rows** are in
+3241 captured actions; 533 in reviewed write families. **902 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 791 |
+| blocked_write | 787 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 118, Google Ads 96,
-Snapchat 89, X 67, DV360 56, Criteo 41, Business Profile 12.
+Snapchat 89, X 67, DV360 56, Criteo 37, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

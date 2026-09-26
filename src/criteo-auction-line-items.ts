@@ -17,7 +17,7 @@ import type {TransportResult} from './transport.js';
 const gateway='criteo_native_action',origin='https://api.criteo.com',prefix='/2026-01/retail-media';
 const actions={create:'criteo_line_item_ops/CREATE_AUCTION_LINE_ITEM',update:'criteo_line_item_ops/UPDATE_AUCTION_LINE_ITEM'} as const;
 type Kind=keyof typeof actions;
-type Scope={campaignId?:string;lineItemId?:string;siblings:boolean};
+type Scope={campaignId?:string;lineItemId?:string;siblings:boolean;products?:boolean};
 /** Writable in both models. Creation adds targetRetailerId and an optional keywordStrategy; the update adds status. */
 export const criteoLineItemFields=['name','startDate','endDate','budget','monthlyPacing','dailyPacing','isAutoDailyPacing','bidStrategy','optimizationStrategy','targetBid','maxBid','flightSchedule'];
 const keywordStrategies=['genericAndBranded','conquesting','genericBrandedAndConquesting'];
@@ -98,10 +98,10 @@ export function assertCriteoLineItemScopes(c:Connection,write=false):void{
 }
 
 const read=(p:CompiledRequest,path:string,query:JsonObject={}):CompiledRequest=>({...p,action:'AMCP_CRITEO_LINE_ITEM_READ',method:'GET',path,query,body:undefined,headers:{},readOnly:true,destructive:false,requiresConfirmation:false,responseControls:undefined,specialTransport:undefined,queryArrayEncoding:'repeat',criteoLineItemState:undefined});
-/** One marked read of the selected account; the reader below adds the campaign, line item and sibling reads. */
-const stateRead=(p:CompiledRequest,scope:Scope):CompiledRequest=>({...read(p,prefix+'/accounts',{limitToId:[p.accountId!],pageIndex:0,pageSize:2}),criteoLineItemState:scope});
+/** One marked read of the selected account; the reader below adds the campaign, line item, sibling and product reads. */
+export const criteoLineItemStateRead=(p:CompiledRequest,scope:Scope):CompiledRequest=>({...read(p,prefix+'/accounts',{limitToId:[p.accountId!],pageIndex:0,pageSize:2}),criteoLineItemState:scope});
 export function criteoLineItemReads(p:CompiledRequest):CompiledRequest[]{
- return [stateRead(p,criteoLineItemKind(p)==='create'?{campaignId:target(p),siblings:true}:{lineItemId:target(p),siblings:true})];
+ return [criteoLineItemStateRead(p,criteoLineItemKind(p)==='create'?{campaignId:target(p),siblings:true}:{lineItemId:target(p),siblings:true})];
 }
 export function isCriteoLineItemRead(p:CompiledRequest):boolean{return p.gateway===gateway&&!!p.criteoLineItemState;}
 /** Ownership of the written campaign or line item comes from account-scoped lists; internal reads are bound to the account. */
@@ -123,6 +123,7 @@ export function authorizeCriteoLineItem(p:CompiledRequest,c:Connection,store:Sto
  if(p.path===prefix+'/accounts/'+account+'/line-items'&&one(q.limitToId)&&stable(q)===stable({limitToId:q.limitToId,limitToType:'Auction',pageIndex:0,pageSize:2}))return true;
  if(id(context.criteoLineItemCampaignId)&&p.path===prefix+'/campaigns/'+context.criteoLineItemCampaignId+'/auction-line-items'&&q.limit===500&&Number.isSafeInteger(q.offset)&&q.offset>=0&&q.offset<=1000&&Object.keys(q).length===2)return true;
  if(id(context.criteoLineItemId)&&p.path===prefix+'/auction-line-items/'+context.criteoLineItemId&&!Object.keys(q).length)return true;
+ if(id(context.criteoLineItemId)&&p.path===prefix+'/line-items/'+context.criteoLineItemId+'/products'&&q.limit===500&&q.fields==='bidOverride,status'&&Number.isSafeInteger(q.offset)&&q.offset>=0&&q.offset<=1500&&Object.keys(q).length===3)return true;
  return fail('RESOURCE_SCOPE_REQUIRED','Line item reads need current account-scoped membership.',{},403);
 }
 
@@ -152,23 +153,25 @@ function campaignOf(row:JsonObject,account:string):JsonObject{
  // Spend, remaining budget and computed pacing change while the campaign serves; they are not part of the review state.
  return {id:row.id,name:typeof a.name==='string'?a.name:null,retailerId:a.retailerId??null,budget:number(a.budget),monthlyPacing:number(a.monthlyPacing),dailyPacing:a.isAutoDailyPacing===true?null:number(a.dailyPacing)};
 }
-/** One normalized form of a line item: instants in UTC, sorted flight legs, no telemetry, the derived statuses of an
+/** One normalized form of a line item: instants in UTC, sorted flight legs with lower-case days, no telemetry, the derived statuses of an
  * active line item as "active", and maxBid 0 (how Criteo returns no ceiling) as null. It accepts its own output. */
 function lineOf(v:unknown,wanted:string,campaign:string):JsonObject{
  if(!obj(v)||v.id!==wanted||!obj(v.attributes))mismatch('Criteo returned a different line item.');
  const a=v.attributes;
  if(a.campaignId!==campaign)mismatch('Line item '+wanted+' belongs to another campaign.');
  if(!id(a.targetRetailerId)||typeof a.name!=='string'||!statuses.includes(a.status)||typeof a.startDate!=='string'||!Number.isFinite(Date.parse(a.startDate))||a.endDate!=null&&(typeof a.endDate!=='string'||!Number.isFinite(Date.parse(a.endDate))))unverified('Line item '+wanted+' has no recognizable retailer, name, dates or status.');
- const legs=obj(a.flightSchedule)&&Array.isArray(a.flightSchedule.legs)&&a.flightSchedule.legs.length?{legs:a.flightSchedule.legs.map((l:JsonObject)=>({dayOfWeek:l?.dayOfWeek??null,startTime:l?.startTime??null,endTime:l?.endTime??null})).sort(order)}:null;
+ const legs=obj(a.flightSchedule)&&Array.isArray(a.flightSchedule.legs)&&a.flightSchedule.legs.length?{legs:a.flightSchedule.legs.map((l:JsonObject)=>({dayOfWeek:typeof l?.dayOfWeek==='string'?l.dayOfWeek.toLowerCase():null,startTime:l?.startTime??null,endTime:l?.endTime??null})).sort(order)}:null;
  return {id:wanted,campaignId:a.campaignId,targetRetailerId:a.targetRetailerId,name:a.name,startDate:instant(a.startDate),endDate:a.endDate==null?null:instant(a.endDate),
   budget:number(a.budget),monthlyPacing:number(a.monthlyPacing),dailyPacing:a.isAutoDailyPacing===true?null:number(a.dailyPacing),isAutoDailyPacing:a.isAutoDailyPacing===true,
   bidStrategy:a.bidStrategy??null,optimizationStrategy:a.optimizationStrategy??null,targetBid:number(a.targetBid),maxBid:a.maxBid===0?null:number(a.maxBid),flightSchedule:legs,
   keywordStrategy:a.keywordStrategy??null,status:running.includes(a.status)?'active':a.status,unknownFields:Object.keys(a).filter(k=>!documented.includes(k)).sort()};
 }
+/** A promoted product key that survives the case folding of verification (catalog IDs are case-sensitive). */
+export const criteoProductKey=(sku:string)=>'p'+Buffer.from(sku,'utf8').toString('hex');
 /**
  * Up to ten reads: the account, the line item's account membership (update and verification), its campaign in the account,
- * the line item itself, and the campaign's line items (review only, up to 1000, ended by an empty page). No provider URL
- * is followed.
+ * the line item itself, and either the campaign's line items (line item reviews, up to 1000) or the line item's promoted
+ * products (product reviews, up to 1500), each list ended by an empty page. No provider URL is followed.
  */
 export async function readCriteoLineItems(p:CompiledRequest,fetch:(p:CompiledRequest)=>Promise<TransportResult>):Promise<TransportResult>{
  const scope=p.criteoLineItemState;if(!scope)return fetch(p);
@@ -200,14 +203,30 @@ export async function readCriteoLineItems(p:CompiledRequest,fetch:(p:CompiledReq
    offset+=d.data.length;
   }
  }
- return {status:200,headers:{},data:{accountId:p.accountId,account,campaign,line,siblings:siblings.sort(order)}};
+ const products:JsonObject[]=[];
+ if(scope.products&&scope.lineItemId){
+  const bound={...p,scopeContext:{...p.scopeContext,criteoLineItemId:scope.lineItemId}},seen=new Set<string>();let offset=0;
+  for(;;){
+   const d=await get(read(bound,prefix+'/line-items/'+scope.lineItemId+'/products',{offset,limit:500,fields:'bidOverride,status'})),m=d.meta;
+   if(!Array.isArray(d.data)||!obj(m)||m.offset!==offset||m.limit!==500||d.data.length>500||offset+d.data.length>1500||m.count!=null&&(!Number.isSafeInteger(m.count)||m.count<0))unverified('The promoted products are incomplete or more than 1500.');
+   if(!d.data.length)break;
+   for(const row of d.data){
+    const a=row?.attributes;
+    if(!obj(row)||typeof row.id!=='string'||!row.id||row.id.length>500||seen.has(row.id)||!obj(a)||a.bidOverride!=null&&(typeof a.bidOverride!=='number'||!Number.isFinite(a.bidOverride)||a.bidOverride<0))unverified('A promoted product has no recognizable ID or bid override.');
+    // 0 and null both mean no override; derived statuses of an unpaused product count as active.
+    seen.add(row.id);products.push({id:row.id,bidOverride:a.bidOverride>0?a.bidOverride:null,status:a.status==='paused'||a.status==='archived'?a.status:'active'});
+   }
+   offset+=d.data.length;
+  }
+ }
+ return {status:200,headers:{},data:{accountId:p.accountId,account,campaign,line,siblings:siblings.sort(order),...(scope.products?{products:products.sort(order)}:{})}};
 }
 export function validateCriteoLineItemState(read:CompiledRequest,r:TransportResult):void{
  const d=r.data;
- if(r.status!==200||!obj(d)||d.accountId!==read.accountId||!obj(d.account)||!obj(d.campaign)||!Array.isArray(d.siblings)||!!read.criteoLineItemState?.lineItemId!==obj(d.line))unverified('Missing verified Criteo line item state.');
+ if(r.status!==200||!obj(d)||d.accountId!==read.accountId||!obj(d.account)||!obj(d.campaign)||!Array.isArray(d.siblings)||!!read.criteoLineItemState?.lineItemId!==obj(d.line)||!!read.criteoLineItemState?.products!==Array.isArray(d.products))unverified('Missing verified Criteo line item state.');
 }
 /** The review state; the reader has already normalized every part, so this is idempotent. */
-export function criteoLineItemReviewState(d:JsonObject):JsonObject{return {account:d.account,campaign:d.campaign,line:d.line??null,siblings:d.siblings};}
+export function criteoLineItemReviewState(d:JsonObject):JsonObject{return {account:d.account,campaign:d.campaign,line:d.line??null,siblings:d.siblings,...(Array.isArray(d.products)?{products:d.products}:{})};}
 
 const pick=(l:JsonObject):JsonObject=>Object.fromEntries(criteoLineItemFields.map(k=>[k,l[k]??null]));
 function requested(a:JsonObject):JsonObject{
@@ -254,11 +273,12 @@ export function criteoLineItemVerification(plan:CompiledRequest,result:JsonObjec
  // status cannot be observed until then.
  let unobservable:string[]|undefined;
  if(kind==='create')expected.status='draft';else if(a.status==='paused'||prior?.status!=='draft')expected.status=a.status;else unobservable=['status'];
- return [{read:stateRead(plan,{campaignId,lineItemId:lineId,siblings:false}),expected:{line:expected},id:'auction line item '+lineId,...(unobservable?{unobservable}:{})}];
+ return [{read:criteoLineItemStateRead(plan,{campaignId,lineItemId:lineId,siblings:false}),expected:{line:expected},id:'auction line item '+lineId,...(unobservable?{unobservable}:{})}];
 }
 export function criteoLineItemObserved(_read:CompiledRequest,data:JsonObject):JsonObject{
  const l=obj(data.line)?data.line:undefined;
- return {line:l?{...pick(l),id:l.id,campaignId:l.campaignId,targetRetailerId:l.targetRetailerId,keywordStrategy:l.keywordStrategy,status:l.status}:null};
+ return {line:l?{...pick(l),id:l.id,campaignId:l.campaignId,targetRetailerId:l.targetRetailerId,keywordStrategy:l.keywordStrategy,status:l.status}:null,
+  ...(Array.isArray(data.products)?{products:Object.fromEntries(data.products.map((x:JsonObject)=>[criteoProductKey(x.id),{present:true,bidOverride:x.bidOverride,status:x.status}]))}:{})};
 }
 /**
  * Owner policy amounts: the lifetime budget and the monthly and daily paces, each compared with its current value. A

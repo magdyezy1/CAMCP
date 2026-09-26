@@ -52,7 +52,10 @@ function fixture(){
   writes++;const body=JSON.parse(String(init.body)),a=body.data.attributes;
   let m=/^\/2026-01\/retail-media\/campaigns\/(\d+)\/auction-line-items$/.exec(u.pathname);
   if(method==='POST'&&m){
-   const id=String(next++),attributes=stored({...defaults,keywordStrategy:'genericAndBranded',...a,campaignId:m[1],status:'draft',budgetSpent:0,budgetRemaining:a.budget,createdAt:'2026-09-27T00:00:00+00:00',updatedAt:'2026-09-27T00:00:00+00:00'});
+   let id=String(next++);while(lines.has(id))id=String(next++);
+   const attributes=stored({...defaults,keywordStrategy:'genericAndBranded',...a,campaignId:m[1],status:'draft',budgetSpent:0,budgetRemaining:a.budget,createdAt:'2026-09-27T00:00:00+00:00',updatedAt:'2026-09-27T00:00:00+00:00'});
+   // The 2026.01 guide shows capitalized days ("Weekends") in a read sample.
+   if(mode==='capitalized'&&attributes.flightSchedule)attributes.flightSchedule.legs=attributes.flightSchedule.legs.map(l=>({...l,dayOfWeek:l.dayOfWeek[0].toUpperCase()+l.dayOfWeek.slice(1)}));
    lines.set(id,{attributes,products:false});
    return Response.json({data:{id,type:'SponsoredProductsLineItem',attributes},errors:[],warnings:mode==='warning'?[{code:'conquesting-review',detail:'Keyword strategy needs review'}]:[]},{status:201});
   }
@@ -90,6 +93,10 @@ test('a draft line item is created once after spending confirmation and verifies
   assert.equal((await f.execute(p,{spend_change_confirmed:true})).data.replayed,true);assert.equal(f.writes(),1);
   // The verified line item belongs to the account now, so it can be edited without another listing.
   const {targetRetailerId,...rest}=draft();ok(await f.update('790',{...rest,name:'Q4 evenings',status:'paused'}));
+  // Days read back capitalized still match the lower-case days sent.
+  const q=ok(await f.create({...draft(),name:'Capitalized days'}));f.mode('capitalized');ok(await f.execute(q,{spend_change_confirmed:true}));
+  assert.equal(f.lines.get('792').attributes.name,'Capitalized days');assert.equal(f.lines.get('792').attributes.flightSchedule.legs[0].dayOfWeek,'Weekends');
+  assert.equal(ok(await f.verify(q)).data.status,'verified');
  }finally{f.store.close();}
 });
 

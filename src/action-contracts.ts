@@ -36,7 +36,7 @@ const familyFiles:Record<string,[string,string[]]>={
  x_report_jobs:['src/x-report-jobs.ts / src/x-report-download.ts',['tests/x-report-jobs.test.ts']],
  tiktok_report_jobs:['src/tiktok-report-jobs.ts',['tests/tiktok-report-jobs.test.ts']],
  google_shareable_previews:['src/google-preview-writes.ts',['tests/google-preview-writes.test.ts']],
- criteo_campaigns:['src/criteo-campaign-writes.ts',['tests/criteo-campaign-writes.test.ts']],criteo_auction_line_items:['src/criteo-auction-line-items.ts',['tests/criteo-auction-line-items.test.mjs']],
+ criteo_campaigns:['src/criteo-campaign-writes.ts',['tests/criteo-campaign-writes.test.ts']],criteo_auction_line_items:['src/criteo-auction-line-items.ts',['tests/criteo-auction-line-items.test.mjs']],criteo_promoted_products:['src/criteo-promoted-products.ts',['tests/criteo-promoted-products.test.mjs']],
  criteo_report_jobs:['src/criteo-report-jobs.ts',['tests/criteo-report-jobs.test.ts']],
  google_user_access:['src/google-user-access.ts',['tests/google-user-access.test.ts']],
  google_business_access:['src/google-business-access.ts',['tests/google-business-access.test.ts']],

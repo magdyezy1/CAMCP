@@ -56,6 +56,7 @@ import {tiktokBrandSafetyKind,assertTiktokBrandSafety,tiktokBrandSafetyReads,isT
 import {metaValueRuleKind,assertMetaValueRule,metaValueRuleReads,isMetaValueRuleRead,validateMetaValueRuleState,validateMetaValueRulePrerequisites,metaValueRuleOutcome} from './meta-value-rules.js';
 import {metaBrandSafetyKind,assertMetaBrandSafety,metaBrandSafetyReads,isMetaBrandSafetyRead,validateMetaBrandSafetyState,validateMetaBrandSafetyPrerequisites,metaBrandSafetyOutcome} from './meta-brand-safety.js';
 import {criteoLineItemKind,assertCriteoLineItem,assertCriteoLineItemScopes,criteoLineItemReads,isCriteoLineItemRead,validateCriteoLineItemState,validateCriteoLineItemPrerequisites,criteoLineItemOutcome,readCriteoLineItems} from './criteo-auction-line-items.js';
+import {criteoPromotedProductsKind,assertCriteoPromotedProducts,criteoPromotedProductsReads,validateCriteoPromotedProductsPrerequisites,criteoPromotedProductsOutcome} from './criteo-promoted-products.js';
 import {googleConfigurationKind,assertGoogleConfiguration,googleConfigurationSnapshots,validateGoogleConfigurationState,googleConfigurationOutcome} from './google-configuration-writes.js';
 import {checkSpendPolicy} from './spend-policy.js';
 import {randomUUID} from 'node:crypto';
@@ -154,6 +155,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(metaValueRuleKind(plan))return metaValueRuleOutcome(plan,result);
  if(metaBrandSafetyKind(plan))return metaBrandSafetyOutcome(plan,result);
  if(criteoLineItemKind(plan))return criteoLineItemOutcome(plan,result);
+ if(criteoPromotedProductsKind(plan))return criteoPromotedProductsOutcome(plan,result);
  if(dv360ListKind(plan))return dv360ListOutcome(plan,result);
  if(googleConfigurationKind(plan))return googleConfigurationOutcome(plan,result);
  if(googleAssetLinkKind(plan))return googleAssetLinkOutcome(plan,result);
@@ -308,6 +310,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(metaValueRuleKind(plan)){assertMetaValueRule(plan);return;}
  if(metaBrandSafetyKind(plan)){assertMetaBrandSafety(plan);return;}
  if(criteoLineItemKind(plan)){assertCriteoLineItem(plan);return;}
+ if(criteoPromotedProductsKind(plan)){assertCriteoPromotedProducts(plan);return;}
  if(plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['CREATE','PARTIAL_UPDATE','DELETE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))fail('WRITE_CONTRACT_UNAVAILABLE','This REST.li method override is not qualified for reviewed execution.');
  if(gtmWorkflowKind(plan)){assertGtmWorkflow(plan);return;}
  if(gtmWorkspaceKind(plan)){assertGtmWorkspace(plan);return;}
@@ -427,6 +430,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(metaValueRuleKind(plan))return metaValueRuleReads(plan);
  if(metaBrandSafetyKind(plan))return metaBrandSafetyReads(plan);
  if(criteoLineItemKind(plan))return criteoLineItemReads(plan);
+ if(criteoPromotedProductsKind(plan))return criteoPromotedProductsReads(plan);
  if(dv360ListKind(plan))return dv360ListSnapshots(plan);
  if(googleConfigurationKind(plan))return googleConfigurationSnapshots(plan);
  if(googleAssetLinkKind(plan))return googleAssetLinkSnapshots(plan);
@@ -548,7 +552,7 @@ export class WriteReviewService {
   if(criteoTargetingKind(plan))assertCriteoTargetingScopes(c);
   if(metaReportKind(plan))assertMetaReportScope(c);
   if(criteoCampaignKind(plan))assertCriteoCampaignScopes(c,true);
-  if(criteoLineItemKind(plan))assertCriteoLineItemScopes(c,true);
+  if(criteoLineItemKind(plan)||criteoPromotedProductsKind(plan))assertCriteoLineItemScopes(c,true);
   if(criteoReportKind(plan))assertCriteoReportScopes(c,criteoReportKind(plan));
   if(placeActionKind(plan))assertPlaceActionScope(c);
   if(businessNotificationKind(plan))assertBusinessNotificationScope(c);
@@ -701,6 +705,7 @@ export class WriteReviewService {
   validateMetaValueRulePrerequisites(plan,values);
   validateMetaBrandSafetyPrerequisites(plan,values);
   validateCriteoLineItemPrerequisites(plan,values);
+  validateCriteoPromotedProductsPrerequisites(plan,values);
   if(appleEntityKind(plan)==='shared_budget'&&!plan.scopeContext?.appleSharedOrgId){
    const account=object(values[reads.findIndex(r=>r.path==='/v1/ad-accounts/'+plan.accountId)]).result;
    const target=object(values[reads.findIndex(r=>r.path===plan.path)]).result;

@@ -2862,8 +2862,8 @@
         {
           "operation": "criteo_catalog_ops",
           "action": "APPEND_PROMOTED_PRODUCTS",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_promoted_products"
         }
       ],
       "mapping_status": "mapped",
@@ -2882,8 +2882,8 @@
         {
           "operation": "criteo_catalog_ops",
           "action": "DELETE_PROMOTED_PRODUCTS",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_promoted_products"
         }
       ],
       "mapping_status": "mapped",
@@ -2902,8 +2902,8 @@
         {
           "operation": "criteo_catalog_ops",
           "action": "PAUSE_PROMOTED_PRODUCTS",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_promoted_products"
         }
       ],
       "mapping_status": "mapped",
@@ -2922,8 +2922,8 @@
         {
           "operation": "criteo_catalog_ops",
           "action": "UNPAUSE_PROMOTED_PRODUCTS",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_promoted_products"
         }
       ],
       "mapping_status": "mapped",
