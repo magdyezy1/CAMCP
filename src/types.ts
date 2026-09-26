@@ -75,6 +75,8 @@ export interface CompiledRequest {
   metaLabelState?:{kind:'create'|'rename'|'delete'|'attach';labelId?:string;targetId?:string;verification?:boolean};
   /** Server-derived DV360 membership/absence read, never caller supplied. */
   dv360ListState?:{kind:string;collection:boolean};
+  /** Server-derived DV360 line item targeting read (line item, complete assigned targeting or assigned list); never caller supplied. */
+  dv360TargetingState?:{kind:'line_item'|'targeting'|'reference';lineItemIds?:string[];types?:string[];reference?:string};
   /** Server-derived GTM workflow read. Never accepted from external arguments. */
   gtmState?:{kind:'resource'|'collection'|'status'|'latest';key?:string};
   /** Internal complete GTM workspace read; targets only qualify absence checks. */

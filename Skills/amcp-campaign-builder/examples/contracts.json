@@ -1701,6 +1701,53 @@
       }
     },
     {
+      "gateway": "dv360_native_action",
+      "arguments": {
+        "action": "DV360_ADVERTISERS_LINE_ITEMS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS",
+        "params": {
+          "advertiserId": "123"
+        },
+        "body": {
+          "lineItemIds": [
+            "456"
+          ],
+          "createRequests": [
+            {
+              "targetingType": "TARGETING_TYPE_GEO_REGION",
+              "assignedTargetingOptions": [
+                {
+                  "geoRegionDetails": {
+                    "targetingOptionId": "2840"
+                  }
+                }
+              ]
+            },
+            {
+              "targetingType": "TARGETING_TYPE_ENVIRONMENT",
+              "assignedTargetingOptions": [
+                {
+                  "environmentDetails": {
+                    "environment": "ENVIRONMENT_WEB_OPTIMIZED"
+                  }
+                }
+              ]
+            },
+            {
+              "targetingType": "TARGETING_TYPE_CHANNEL",
+              "assignedTargetingOptions": [
+                {
+                  "channelDetails": {
+                    "channelId": "700",
+                    "negative": true
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
       "gateway": "gtm_native_action",
       "arguments": {
         "operation": "gtm_ops",

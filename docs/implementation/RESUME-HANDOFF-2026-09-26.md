@@ -436,7 +436,18 @@ Tests: `tests/tiktok-smart-plus-lead-adgroups.test.mjs` (4, red on `3bd855f` / g
 - Smart+ ads name one published Instant Form in `page_list` in lead generation ad groups, or one landing page in website ad groups; the review refuses the other destination.
 - `/page/get/` cannot filter by page ID, so `src/tiktok-instant-forms.ts` reads the advertiser's published forms page by page (up to 10 pages of 100) through follow-up state reads, validated before the generic pagination guard. `src/scope.ts` now authorizes `/page/get/` for the selected advertiser only, never with a Business Center `library_id`.
 
-Tests: `tests/tiktok-smart-plus-lead-ads.test.mjs` (4, red on `895cb29` / green after). Instant Form ad edits beyond renaming stay unqualified.
+Tests: `tests/tiktok-smart-plus-lead-ads.test.mjs` (4, red on `895cb29` / green after). Instant Form ad edits beyond renaming stay unqualified. Pushed as `d72743b`.
+
+## Finished batch — DV360 line item targeting
+
+[Implementation](DV360-LINE-ITEM-TARGETING-2026-09-26.md) and
+[qualification](DV360-LINE-ITEM-TARGETING-VERIFICATION-2026-09-26.json).
+
+- New reviewed family `dv360_line_item_targeting` (`src/dv360-line-item-targeting.ts`) for line item bulk edit and single create/delete of assigned targeting options: 1–10 line items, the 45 documented types, only the matching details member, no output-only fields.
+- The review reads each line item, every page of its targeting of the edited types (bulk list filtered by type) and each assigned channel, negative keyword list or location list under the advertiser. It refuses YouTube & Partners, Demand Gen and archived line items, inherited or absent deletions, duplicates and documented limits. A partial bulk receipt stays a failure.
+- Next DV360 step: audience group and inventory source assignment need reads of the advertiser's access to first-party, Google, custom and combined audiences and inventory sources.
+
+Tests: `tests/dv360-line-item-targeting.test.ts` (8, red on `d72743b` / green after).
 
 ## CI and live evidence
 
@@ -450,20 +461,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 508 in reviewed write families. **929 remaining rows** are in
+3241 captured actions; 511 in reviewed write families. **926 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 814 |
+| blocked_write | 811 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 191, Meta 131, LinkedIn 118, Google Ads 99,
-Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12.
+Snapchat 91, X 67, DV360 59, Criteo 43, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):
@@ -499,5 +510,6 @@ candidates wait for it; Google's developer documentation was reachable again. Th
 | P2 | LinkedIn lead gen creatives must reference owned forms | The documented creative field and URN type that point a lead gen creative at a form, then the same owned-reference check as Snapchat creatives |
 | P2 | LinkedIn lead form edits, publishing and archiving | A read of the creatives and campaigns that use a form, to tell pre-published from published forms and limit edits to the documented fields, plus the documented warning about CRM integrations |
 | P2 | TikTok Upgraded Smart+ ad group targeting edits | Name, schedule, dayparting, comment, share and bid edits are qualified. Targeting needs evidence of whether a partial `targeting_spec` update replaces or merges (a live read-back after a one-field edit) before it can be reviewed |
+| P2 | DV360 audience and inventory-source targeting | Reads of the advertiser's access to first-party and partner, Google, custom-list and combined audiences and to inventory sources and groups, then the existing line item targeting review for `TARGETING_TYPE_AUDIENCE_GROUP`, `TARGETING_TYPE_INVENTORY_SOURCE` and `TARGETING_TYPE_INVENTORY_SOURCE_GROUP` |
 | P3 | LinkedIn work-email submission criteria | The wire form of the `questionSubmissionCriteria` union, which the schema does not show |
 | P3 | X remaining writes (promoted accounts, cards, tracking tags) | The official X Ads API reference returned HTTP 402 from this environment; needs an accessible, versioned source first |

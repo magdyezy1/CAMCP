@@ -29,6 +29,7 @@ import {googleConversionActionKind,googleConversionActionServing} from './google
 import {xDraftKind} from './x-draft-writes.js';
 import {appleEntityServing} from './apple-entity-writes.js';
 import {dv360ListAffectsServing} from './dv360-list-writes.js';
+import {dv360TargetingKind} from './dv360-line-item-targeting.js';
 import {microsoftAssociationWrite} from './microsoft-associations.js';
 import {xPromotion} from './x-creative-writes.js';
 import {tiktokSmartPlusAdgroupUpdateServing} from './tiktok-smart-plus-adgroup-updates.js';
@@ -49,6 +50,7 @@ export function authorizeExecution(actor:Actor,plan:CompiledRequest,input:JsonOb
  if(criteoCampaignKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Criteo campaign creation and PUT can permit delivery. Review all limits, balances, dates and attribution and provide spend_change_confirmed=true.');
  if(criteoTargetingKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Criteo targeting can change delivery immediately. Review the complete scope and members and provide spend_change_confirmed=true.');
  if(appleEntityServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Apple shared budgets, exclusions, creative edits and serving settings can affect existing campaigns. Provide spend_change_confirmed=true.');
+ if(dv360TargetingKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','DV360 targeting changes which impressions line items can buy, at once for active line items. Review the line items and changes and provide spend_change_confirmed=true.');
  if(dv360ListAffectsServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','DV360 shared-list membership can change serving eligibility. Provide spend_change_confirmed=true.');
  if((googleAssetLinkKind(plan)||microsoftAssociationWrite(plan))&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Asset associations change which creative can serve. Review the parent state and provide spend_change_confirmed=true.');
  if((googleTargetingKind(plan)||plan.gateway==='reddit_native_action')&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Targeting, serving and shared-list changes require spend_change_confirmed=true.');

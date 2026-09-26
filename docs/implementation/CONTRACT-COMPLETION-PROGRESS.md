@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CM — DV360 line item targeting (2026-09-26)
+
+DV360 line item targeting can now be edited through reviewed bulk edit, create and delete. The
+review reads each line item, every page of its assigned targeting of the edited types and each
+assigned list, refuses inherited, absent, duplicate and over-limit assignments, and verifies the
+complete result. Audience and inventory-source assignment stays unqualified. See
+[implementation](DV360-LINE-ITEM-TARGETING-2026-09-26.md),
+[qualification](DV360-LINE-ITEM-TARGETING-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 926 (three DV360 rows reviewed). Pushed only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## CL — TikTok Upgraded Smart+ Instant Form lead generation ads (2026-09-26)
 
 Smart+ ads may now name one published Instant Form in `page_list` instead of a landing page, in
@@ -18,8 +31,8 @@ selected advertiser only, never for a Business Center library. See
 [qualification](TIKTOK-SMART-PLUS-LEAD-ADS-VERIFICATION-2026-09-26.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 929 (unchanged). Pushed only to CAMCP; its exact-commit CI result and live
-acceptance are pending.
+Remaining rows: 929 (unchanged). Pushed to CAMCP as `d72743b`; its exact-commit CI result and
+live acceptance are pending.
 
 ## CK — TikTok Upgraded Smart+ Instant Form lead generation ad groups (2026-09-26)
 

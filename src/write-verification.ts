@@ -64,6 +64,7 @@ import {googleConfigurationKind,googleConfigurationVerification,googleConfigurat
 import {measurementWriteGateways,measurementVerification,measurementVerificationPhase,optionalMissingState} from './measurement-writes.js';
 import {appleSharedAccounts} from './apple-entity-writes.js';
 import {dv360ListKind,dv360ListVerification,dv360ListObserved,readDV360List} from './dv360-list-writes.js';
+import {dv360TargetingKind,dv360TargetingVerification,dv360TargetingObserved,readDV360Targeting} from './dv360-line-item-targeting.js';
 import {gtmWorkflowKind,gtmWorkflowVerification,gtmWorkflowObserved,readGtmWorkflow} from './gtm-workflow-writes.js';
 import {gtmWorkspaceKind,gtmWorkspaceVerification,gtmWorkspaceObserved,readGtmWorkspace} from './gtm-workspace-writes.js';
 import {validateState,snapshotPlans} from './write-review.js';
@@ -92,6 +93,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
  if(redditCreativeKind(plan))return redditCreativeVerification(plan,result);
  if(gtmWorkspaceKind(plan))return gtmWorkspaceVerification(plan,result,before);
  if(gtmWorkflowKind(plan))return gtmWorkflowVerification(plan,result,before);
+ if(dv360TargetingKind(plan))return dv360TargetingVerification(plan,before);
  if(dv360ListKind(plan))return dv360ListVerification(plan,result,before);
  if(googleConfigurationKind(plan))return googleConfigurationVerification(plan,result);
  if(googleAssetLinkKind(plan))return googleAssetLinkVerification(plan);
@@ -159,6 +161,7 @@ function entity(plan:CompiledRequest,data:JsonObject):JsonObject{
  if(data.amcp_absent===true)return data;
  if(plan.gtmState)return gtmWorkflowObserved(plan,data);
  if(plan.dv360ListState)return dv360ListObserved(plan,data);
+ if(plan.dv360TargetingState)return dv360TargetingObserved(plan,data);
  if(plan.gateway===microsoftGateway&&plan.action==='GetAdExtensionsAssociations')return microsoftAssociationObserved(plan,data);
  if(plan.gateway==='apple_ads_native_action'){
   if(plan.action==='AMCP_STATE_OPTIONAL'&&data.result?.deleted===true)return {amcp_absent:true,path:plan.path};
@@ -338,7 +341,7 @@ export class WriteVerifier{
    const expected=normalize(item.expected),readback=await readConsistently(async()=>{
     this.store.assertActorActive(actor);checkAppleAccounts();const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(item.read,current);
     const auth=await this.credentials.get(current);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));
-    let response;try{response=await readLinkedInRules(item.read,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readGtmWorkspace(criteoPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(latest);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.request(actor,page,latest,auth);this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(current);new ScopeGuard(this.registry,this.store).authorize(page,current);return result;}))))))));}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
+    let response;try{response=await readLinkedInRules(item.read,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readGtmWorkspace(criteoPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(latest);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.request(actor,page,latest,auth);this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(current);new ScopeGuard(this.registry,this.store).authorize(page,current);return result;})))))))));}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
     checkAppleAccounts();return normalize(entity(item.read,response.data as JsonObject));
    },actual=>differing(expected,actual).length===0);
    const actual=readback.value,changed=differing(expected,actual),acknowledged=item.acknowledged??{},unacknowledged=Object.entries(acknowledged).filter(([,v])=>differing(normalize(v.sent),normalize(v.echoed)).length).map(([k])=>'/'+k);

@@ -69,6 +69,59 @@ means discover/reuse the existing member. A stale or uncertain write needs recon
 not another replacement or a new idempotency key. Keyword values use native ASCII words;
 do not transliterate a user's keyword without agreement.
 
+### Line item targeting
+
+`DV360_ADVERTISERS_LINE_ITEMS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS` edits the targeting of 1–10
+line items of the selected advertiser in one request: `params: {advertiserId}` and a native body
+with `lineItemIds` (decimal strings), `deleteRequests` (`targetingType` and
+`assignedTargetingOptionIds`) and `createRequests` (`targetingType` and
+`assignedTargetingOptions`). DV360 deletes, then creates. Each line item is updated atomically,
+but when one line item fails the others are still updated. A receipt that names
+`failedLineItemIds` is kept as a failure, and AMCP never resubmits it; inspect the line items
+before any new review. The single
+`..._TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_CREATE` and `..._DELETE` routes take
+`lineItemId`, `targetingType` and, for deletion, `assignedTargetingOptionId` in `params`.
+Deletion also accepts the documented alias, such as `ENVIRONMENT_WEB_OPTIMIZED`.
+
+- Each option holds only the details member of its type, for example `geoRegionDetails` for
+  `TARGETING_TYPE_GEO_REGION`, without output-only fields such as `displayName`. Find option IDs
+  with targeting search or the targeting option list. `*_UNSPECIFIED` values are refused.
+- The 45 types that DV360 documents for line items are accepted for deletion. Assigning
+  `TARGETING_TYPE_AUDIENCE_GROUP`, `TARGETING_TYPE_INVENTORY_SOURCE` or
+  `TARGETING_TYPE_INVENTORY_SOURCE_GROUP` is refused: the review cannot yet read whether the
+  advertiser may use those audiences or inventory. Assign them in Display & Video 360.
+- Channels, negative keyword lists and regional or proximity location lists must belong to the
+  selected advertiser; AMCP reads each one, and a location list must have the matching type.
+  Partner-owned lists are not assigned by this contract.
+- AMCP reads each line item and every page of its assigned targeting of the edited types (up
+  to 20 pages and 20,000 options). YouTube & Partners line items (the API cannot update them),
+  Demand Gen line items (targeted by ad group) and archived line items are refused.
+- Targeting inherited from the partner or advertiser cannot be deleted here. An existing
+  identical assignment, including an inherited one, returns `CONFIGURATION_EXISTS`. An absent
+  one returns `STATE_NOT_FOUND`.
+- Documented limits are checked on the line item's own assignments after the edit: one audience
+  group, viewability and authorized seller status option; at most 4 negative keyword lists and
+  5,000 direct negative keywords. All browser, carrier/ISP and language options must be either
+  targeted or excluded.
+- Keywords have 1–80 characters, at most 10 words and 255 bytes; keyword policy exemptions
+  (Demand Gen, allowlisted) are refused. App targets name `appPlatform`. Day and time targeting
+  runs from `startHour` 0–23 to a later `endHour` 1–24. Proximity radii are 1–500 miles or
+  1–800 kilometers; POI and business chain radii use steps of 0.1. Name exactly one third-party
+  verifier.
+- From 2026-10-01 DV360 accepts only `CONTENT_RATING_TIER_UNRATED` for digital content label
+  exclusions and only embedded or live-streaming video for sensitive category exclusions.
+
+Targeting changes which impressions a line item can buy, at once for active line items. Supply
+`spend_change_confirmed` at execution. Deletions count as removals under the owner's deletion
+policy. An owner policy that forbids activation also forbids targeting edits of active line
+items. `INVALID_DV360_TARGETING` means correct the named line item, type, option or limit.
+Verification reads the complete targeting of the edited types again and compares it with the
+expected result, ignoring output-only fields.
+Reference: [bulk edit](https://developers.google.com/display-video/api/reference/rest/v4/advertisers.lineItems/bulkEditAssignedTargetingOptions),
+[assigned targeting options](https://developers.google.com/display-video/api/reference/rest/v4/advertisers.lineItems.targetingTypes.assignedTargetingOptions)
+and [Assign targeting](https://developers.google.com/display-video/api/guides/tasks/run-ad-campaign/assign-targeting),
+checked 2026-09-26.
+
 ## GA4 — ga4_native_action
 
 Google social sign-in, Ads access, Analytics access and optional Sheets/Drive access are

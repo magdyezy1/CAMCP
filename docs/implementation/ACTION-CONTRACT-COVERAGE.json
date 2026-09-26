@@ -80,10 +80,10 @@
       "gateway": "dv360_native_action",
       "actions": 173,
       "counts": {
-        "blocked_write": 62,
+        "blocked_write": 59,
         "media_workflow": 1,
         "native_read": 78,
-        "reviewed_write_family": 30,
+        "reviewed_write_family": 33,
         "unqualified_read": 2
       },
       "captured_catalog_complete": true,
@@ -4979,7 +4979,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -4998,7 +4999,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5062,7 +5064,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5081,7 +5084,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5130,7 +5134,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5179,7 +5184,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5198,7 +5204,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5262,7 +5269,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5281,7 +5289,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5330,7 +5339,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5366,7 +5376,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5421,7 +5432,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5440,7 +5452,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5495,7 +5508,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5514,7 +5528,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5605,7 +5620,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5693,7 +5709,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5712,7 +5729,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5779,7 +5797,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5834,7 +5853,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5853,7 +5873,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5890,7 +5911,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5909,7 +5931,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -5921,12 +5944,15 @@
       ],
       "method": "POST",
       "path": "/v4/advertisers/{+advertiserId}/lineItems:bulkEditAssignedTargetingOptions",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/dv360-line-item-targeting.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/dv360-line-item-targeting.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "dv360_line_item_targeting"
     },
     {
       "gateway": "dv360_native_action",
@@ -5943,7 +5969,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6028,7 +6055,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6047,7 +6075,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6077,12 +6106,15 @@
       ],
       "method": "POST",
       "path": "/v4/advertisers/{+advertiserId}/lineItems/{+lineItemId}/targetingTypes/{+targetingType}/assignedTargetingOptions",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/dv360-line-item-targeting.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/dv360-line-item-targeting.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "dv360_line_item_targeting"
     },
     {
       "gateway": "dv360_native_action",
@@ -6092,12 +6124,15 @@
       ],
       "method": "DELETE",
       "path": "/v4/advertisers/{+advertiserId}/lineItems/{+lineItemId}/targetingTypes/{+targetingType}/assignedTargetingOptions/{+assignedTargetingOptionId}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/dv360-line-item-targeting.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/dv360-line-item-targeting.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "family": "dv360_line_item_targeting"
     },
     {
       "gateway": "dv360_native_action",
@@ -6114,7 +6149,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6133,7 +6169,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6182,7 +6219,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6201,7 +6239,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6220,7 +6259,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6293,7 +6333,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6330,7 +6371,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6349,7 +6391,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6422,7 +6465,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6441,7 +6485,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6514,7 +6559,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6614,7 +6660,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6633,7 +6680,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6652,7 +6700,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6671,7 +6720,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6705,7 +6755,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6724,7 +6775,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6773,7 +6825,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6792,7 +6845,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6826,7 +6880,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6845,7 +6900,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6894,7 +6950,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6913,7 +6970,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6962,7 +7020,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -6981,7 +7040,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7015,7 +7075,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7034,7 +7095,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7053,7 +7115,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7087,7 +7150,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7106,7 +7170,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7155,7 +7220,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7174,7 +7240,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7253,7 +7320,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7302,7 +7370,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7321,7 +7390,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7385,7 +7455,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7404,7 +7475,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7438,7 +7510,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7487,7 +7560,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7506,7 +7580,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7585,7 +7660,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7634,7 +7710,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7653,7 +7730,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7702,7 +7780,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7721,7 +7800,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7755,7 +7835,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7774,7 +7855,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7793,7 +7875,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7812,7 +7895,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7832,6 +7916,7 @@
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
         "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts",
         "tests/dv360-targeting-search.test.ts"
       ],
       "live_qualification": "unverified"
@@ -7896,7 +7981,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },
@@ -7915,7 +8001,8 @@
       "tests": [
         "tests/write-platforms.test.ts",
         "tests/dv360-list-writes.test.ts",
-        "tests/dv360-targeting-search.test.ts"
+        "tests/dv360-targeting-search.test.ts",
+        "tests/dv360-line-item-targeting.test.ts"
       ],
       "live_qualification": "unverified"
     },

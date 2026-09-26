@@ -1,0 +1,268 @@
+import fs from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {MirrorError} from './errors.js';
+import {validateDiscoveryBody} from './discovery-body.js';
+import {stable} from './security.js';
+import type {CompiledRequest,JsonObject} from './types.js';
+import type {TransportResult} from './transport.js';
+
+/**
+ * Reviewed DV360 line item targeting, per Display & Video 360 API v4 advertisers.lineItems.bulkEditAssignedTargetingOptions,
+ * advertisers.lineItems.targetingTypes.assignedTargetingOptions create and delete, and the "Assign targeting" guide (checked
+ * 2026-09-26). A line item inherits partner and advertiser targeting, which cannot be edited at line item level. A bulk edit
+ * deletes, then creates; each line item is updated atomically, but other line items of the same request can still be
+ * updated when one fails. YouTube & Partners line items cannot be updated through the API.
+ */
+export const dv360TargetingTypes=['AGE_RANGE','APP','APP_CATEGORY','AUDIENCE_GROUP','AUDIO_CONTENT_TYPE','AUTHORIZED_SELLER_STATUS','BROWSER','BUSINESS_CHAIN','CARRIER_AND_ISP','CATEGORY','CHANNEL','CONTENT_DURATION','CONTENT_GENRE','CONTENT_INSTREAM_POSITION','CONTENT_OUTSTREAM_POSITION','CONTENT_STREAM_TYPE','DAY_AND_TIME','DEVICE_MAKE_MODEL','DEVICE_TYPE','DIGITAL_CONTENT_LABEL_EXCLUSION','ENVIRONMENT','EXCHANGE','GENDER','GEO_REGION','HOUSEHOLD_INCOME','INVENTORY_SOURCE','INVENTORY_SOURCE_GROUP','KEYWORD','LANGUAGE','NATIVE_CONTENT_POSITION','NEGATIVE_KEYWORD_LIST','OMID','ON_SCREEN_POSITION','OPERATING_SYSTEM','PARENTAL_STATUS','POI','PROXIMITY_LOCATION_LIST','REGIONAL_LOCATION_LIST','SENSITIVE_CATEGORY_EXCLUSION','SUB_EXCHANGE','THIRD_PARTY_VERIFIER','URL','USER_REWARDED_CONTENT','VIDEO_PLAYER_SIZE','VIEWABILITY'].map(t=>'TARGETING_TYPE_'+t);
+/** Assigning these references audiences or inventory whose advertiser access this contract does not read; removing them is qualified. */
+const unreadReferences:Record<string,string>={TARGETING_TYPE_AUDIENCE_GROUP:'audiences',TARGETING_TYPE_INVENTORY_SOURCE:'inventory sources',TARGETING_TYPE_INVENTORY_SOURCE_GROUP:'inventory source groups'};
+/** Assigned lists must be owned by the selected advertiser; partner-owned channels are not read under an advertiser. */
+const references:Record<string,{field:string;collection:string;id:string;label:string;locationType?:string}>={
+ TARGETING_TYPE_CHANNEL:{field:'channelId',collection:'channels',id:'channelId',label:'channel'},
+ TARGETING_TYPE_NEGATIVE_KEYWORD_LIST:{field:'negativeKeywordListId',collection:'negativeKeywordLists',id:'negativeKeywordListId',label:'negative keyword list'},
+ TARGETING_TYPE_REGIONAL_LOCATION_LIST:{field:'regionalLocationListId',collection:'locationLists',id:'locationListId',label:'regional location list',locationType:'TARGETING_LOCATION_TYPE_REGIONAL'},
+ TARGETING_TYPE_PROXIMITY_LOCATION_LIST:{field:'proximityLocationListId',collection:'locationLists',id:'locationListId',label:'proximity location list',locationType:'TARGETING_LOCATION_TYPE_PROXIMITY'}
+};
+const lineItemTypes=new Set(['DISPLAY_DEFAULT','DISPLAY_MOBILE_APP_INSTALL','VIDEO_DEFAULT','VIDEO_MOBILE_APP_INSTALL','DISPLAY_MOBILE_APP_INVENTORY','VIDEO_MOBILE_APP_INVENTORY','AUDIO_DEFAULT','VIDEO_OVER_THE_TOP','DISPLAY_OUT_OF_HOME','VIDEO_OUT_OF_HOME'].map(t=>'LINE_ITEM_TYPE_'+t));
+const editableStatus=new Set(['ENTITY_STATUS_ACTIVE','ENTITY_STATUS_PAUSED','ENTITY_STATUS_DRAFT']);
+/** One option per line item for these types; all browser, carrier/ISP and language options of a line item share `negative`. */
+const singleOption=new Set(['TARGETING_TYPE_AUDIENCE_GROUP','TARGETING_TYPE_AUTHORIZED_SELLER_STATUS','TARGETING_TYPE_VIEWABILITY']);
+const sharedNegative=new Set(['TARGETING_TYPE_BROWSER','TARGETING_TYPE_CARRIER_AND_ISP','TARGETING_TYPE_LANGUAGE']);
+const maxLineItems=10,maxChanges=1000,maxRows=20000,maxPages=20,pageSize=5000,maxFilter=500;
+const origin='https://displayvideo.googleapis.com',numeric=/^[1-9]\d*$/;
+const bulkRoute=/^\/v4\/advertisers\/([1-9]\d*)\/lineItems:bulkEditAssignedTargetingOptions$/;
+const oneRoute=/^\/v4\/advertisers\/([1-9]\d*)\/lineItems\/([1-9]\d*)\/targetingTypes\/([^/]+)\/assignedTargetingOptions(?:\/([^/]+))?$/;
+type Edit={route:'bulk'|'create'|'delete';advertiser:string;lineItems:string[];deletes:{type:string;ids:string[]}[];creates:{type:string;options:unknown[]}[]};
+const obj=(v:unknown):v is JsonObject=>!!v&&typeof v==='object'&&!Array.isArray(v);
+const list=(v:unknown):unknown[]=>Array.isArray(v)?v:[];
+function fail(code:string,message:string,details:JsonObject={}):never{throw new MirrorError(code,message,details);}
+function invalid(message:string):never{return fail('INVALID_DV360_TARGETING',message);}
+function decoded(value:string):string|undefined{try{return decodeURIComponent(value);}catch{return undefined;}}
+const sameName=(actual:unknown,expected:string)=>typeof actual==='string'&&decoded(actual)!==undefined&&decoded(actual)===decoded(expected);
+let schemas:Record<string,JsonObject>|undefined;
+const models=()=>schemas??=JSON.parse(fs.readFileSync(fileURLToPath(new URL('../../.mirror/VENDOR/dv360-v4.json',import.meta.url)),'utf8')).document.schemas as Record<string,JsonObject>;
+/** TARGETING_TYPE_GEO_REGION → geoRegionDetails, the union member that must match the targeting type. */
+export const dv360DetailsField=(type:string)=>type.slice(15).toLowerCase().replace(/_([a-z])/g,(_,c:string)=>c.toUpperCase())+'Details';
+
+export function dv360TargetingKind(p:CompiledRequest):Edit|undefined{
+ if(p.gateway!=='dv360_native_action'||p.origin!==undefined&&p.origin!==origin)return;
+ const bulk=bulkRoute.exec(p.path);
+ if(bulk&&p.method==='POST'){
+  const b=obj(p.body)?p.body:{};
+  return {route:'bulk',advertiser:bulk[1]!,lineItems:list(b.lineItemIds).map(String),
+   deletes:list(b.deleteRequests).map(r=>({type:String(obj(r)?r.targetingType:''),ids:list(obj(r)?r.assignedTargetingOptionIds:[]).map(String)})),
+   creates:list(b.createRequests).map(r=>({type:String(obj(r)?r.targetingType:''),options:list(obj(r)?r.assignedTargetingOptions:[])}))};
+ }
+ const one=oneRoute.exec(p.path);if(!one)return;
+ const type=decoded(one[3]!)??'';
+ if(p.method==='POST'&&one[4]===undefined)return {route:'create',advertiser:one[1]!,lineItems:[one[2]!],deletes:[],creates:[{type,options:[p.body]}]};
+ if(p.method==='DELETE'&&one[4]!==undefined)return {route:'delete',advertiser:one[1]!,lineItems:[one[2]!],deletes:[{type,ids:[decoded(one[4])??'']}],creates:[]};
+ return;
+}
+/** Output-only fields dropped, int64 values as strings and an unset `negative` equal to false, so sent and read options compare. */
+function clean(schema:JsonObject,value:unknown):unknown{
+ const s=schema.$ref?models()[schema.$ref as string]??{}:schema;
+ if(Array.isArray(value))return value.map(v=>clean(obj(s.items)?s.items:{},v));
+ if(obj(value)){const out:JsonObject={};for(const [k,v] of Object.entries(value)){const child=obj(s.properties)?s.properties[k]:undefined;if(!obj(child)||child.readOnly===true||k==='negative'&&v===false)continue;out[k]=clean(child,v);}return out;}
+ if((s.format==='int64'||s.format==='uint64')&&(typeof value==='number'||typeof value==='string'))return String(value);
+ return value;
+}
+const detailsSchema=(type:string):JsonObject=>{const p=models().AssignedTargetingOption?.properties as JsonObject|undefined,f=p?.[dv360DetailsField(type)];return obj(f)?f:{};};
+const canonical=(type:string,details:unknown)=>type+' '+stable(clean(detailsSchema(type),details));
+const optionKey=(type:string,option:unknown)=>canonical(type,obj(option)?option[dv360DetailsField(type)]:undefined);
+const matches=(o:JsonObject,id:string)=>o.assignedTargetingOptionId===id||o.assignedTargetingOptionIdAlias===id;
+const inherited=(o:JsonObject)=>o.inheritance==='INHERITED_FROM_PARTNER'||o.inheritance==='INHERITED_FROM_ADVERTISER';
+function radius(amount:unknown,unit:unknown,step:boolean){
+ const max=unit==='DISTANCE_UNIT_MILES'?500:unit==='DISTANCE_UNIT_KILOMETERS'?800:0;
+ if(!max||typeof amount!=='number'||amount<1||amount>max||step&&Math.abs(amount*10-Math.round(amount*10))>1e-9)invalid('The proximity radius must be 1 to 500 miles or 1 to 800 kilometers'+(step?', in steps of 0.1':'')+'.');
+}
+function option(type:string,value:unknown,at:string):void{
+ if(!obj(value))invalid(at+' must be an assigned targeting option object.');
+ validateDiscoveryBody('AssignedTargetingOption',models(),value,true);
+ const field=dv360DetailsField(type),d=value[field];
+ if(Object.keys(value).length!==1||!obj(d))invalid(at+' must hold only '+field+', the details of '+type+'.');
+ for(const [k,v] of Object.entries(d))if(typeof v==='string'&&/_UNSPECIFIED$/.test(v))invalid(at+'.'+field+'.'+k+' must name a specific value.');
+ if(typeof d.targetingOptionId==='string'&&(!d.targetingOptionId||/[\s/\\]/.test(d.targetingOptionId)))invalid(at+' needs the native targetingOptionId from targeting option search or list.');
+ const ref=references[type];if(ref&&!numeric.test(String(d[ref.field])))invalid(at+'.'+field+'.'+ref.field+' must be the ID of an advertiser-owned '+ref.label+'.');
+ if(type==='TARGETING_TYPE_KEYWORD'){
+  const k=d.keyword;if(typeof k!=='string'||!k.trim()||k!==k.trim()||Buffer.byteLength(k,'utf8')>255||[...k].length>80||k.split(/\s+/).length>10)invalid('A keyword needs 1–80 characters, at most 10 words and 255 UTF-8 bytes, without surrounding spaces.');
+  if(d.exemptedPolicyNames!==undefined)invalid('Keyword policy exemptions apply only to allowlisted Demand Gen resources and are not qualified here.');
+ }
+ if(type==='TARGETING_TYPE_URL'&&(typeof d.url!=='string'||!d.url||/[\s\x00-\x1f]/.test(d.url)||d.url.length>2048))invalid('A URL target is a native URL such as example.com/path, without spaces.');
+ if(type==='TARGETING_TYPE_APP'){
+  if(typeof d.appId!=='string'||!d.appId||/[\s\x00-\x1f]/.test(d.appId))invalid('An app target needs the native app ID.');
+  if(d.appPlatform===undefined)invalid('Name appPlatform explicitly; DV360 otherwise derives it from the app ID, and the review compares what it sent.');
+ }
+ if(type==='TARGETING_TYPE_DAY_AND_TIME'&&(!Number.isInteger(d.startHour)||!Number.isInteger(d.endHour)||d.startHour<0||d.startHour>23||d.endHour<1||d.endHour>24||d.endHour<=d.startHour))invalid('Day and time targeting needs a startHour from 0 to 23 before an endHour from 1 to 24.');
+ if(type==='TARGETING_TYPE_POI'||type==='TARGETING_TYPE_BUSINESS_CHAIN')radius(d.proximityRadiusAmount,d.proximityRadiusUnit,true);
+ if(type==='TARGETING_TYPE_PROXIMITY_LOCATION_LIST')radius(d.proximityRadius,d.proximityRadiusUnit,false);
+ if(type==='TARGETING_TYPE_THIRD_PARTY_VERIFIER'&&['integralAdScience','doubleVerify','adloox'].filter(k=>d[k]!==undefined).length!==1)invalid('Third-party verification names exactly one verifier.');
+}
+export function assertDV360Targeting(p:CompiledRequest):void{
+ const e=dv360TargetingKind(p);if(!e)return;
+ if(e.advertiser!==p.accountId)fail('ACCOUNT_SCOPE_MISMATCH','DV360 path must belong to account_id.');
+ if(Object.keys(p.query).length||Object.keys(p.headers??{}).length)invalid('DV360 targeting reviews take no query parameters or header overrides.');
+ if(e.route==='delete'){
+  if(p.body!==undefined&&(!obj(p.body)||Object.keys(p.body).length))invalid('Deleting an assigned targeting option takes no body.');
+  if(!e.deletes[0]!.ids[0])invalid('Name the assigned targeting option ID to delete.');
+ }else if(!obj(p.body))invalid('Provide the native request object.');
+ if(e.route==='bulk'){
+  const b=p.body as JsonObject;
+  validateDiscoveryBody('BulkEditAssignedTargetingOptionsRequest',models(),b,true);
+  if(!Array.isArray(b.lineItemIds)||!b.lineItemIds.length||b.lineItemIds.length>maxLineItems||b.lineItemIds.some(id=>typeof id!=='string'||!numeric.test(id))||new Set(b.lineItemIds).size!==b.lineItemIds.length)invalid('lineItemIds must name 1 to '+maxLineItems+' distinct line items of the selected advertiser as decimal strings.');
+  if(list(b.deleteRequests).some(r=>!obj(r)||!Array.isArray(r.assignedTargetingOptionIds)||!r.assignedTargetingOptionIds.length))invalid('Each delete request names a targeting type and at least one assigned targeting option ID.');
+  if(list(b.createRequests).some(r=>!obj(r)||!Array.isArray(r.assignedTargetingOptions)||!r.assignedTargetingOptions.length))invalid('Each create request names a targeting type and at least one assigned targeting option.');
+  if(!list(b.deleteRequests).length&&!list(b.createRequests).length)invalid('A bulk edit needs at least one delete or create request.');
+ }
+ const deleted=new Set<string>(),created=new Set<string>();let changes=0;
+ for(const d of e.deletes){
+  if(!dv360TargetingTypes.includes(d.type))invalid(d.type+' is not a line item targeting type DV360 supports for deletion.');
+  if(deleted.has(d.type))invalid('Name '+d.type+' once in deleteRequests.');deleted.add(d.type);
+  if(d.ids.some(id=>!id||id.length>1024||/[\x00-\x1f]/.test(id)||e.route==='delete'&&/[/\\]/.test(id))||new Set(d.ids).size!==d.ids.length)invalid('Assigned targeting option IDs must be distinct native IDs.');
+  changes+=d.ids.length;
+ }
+ for(const c of e.creates){
+  if(!dv360TargetingTypes.includes(c.type))invalid(c.type+' is not a line item targeting type DV360 supports for creation.');
+  if(unreadReferences[c.type])invalid('Assigning '+c.type+' references '+unreadReferences[c.type]+' whose access by this advertiser the review does not read yet; assign it in Display & Video 360.');
+  if(created.has(c.type))invalid('Name '+c.type+' once in createRequests.');created.add(c.type);
+  c.options.forEach((o,i)=>option(c.type,o,e.route==='bulk'?'createRequests['+c.type+']['+i+']':'The option'));
+  const keys=c.options.map(o=>optionKey(c.type,o));if(new Set(keys).size!==keys.length)invalid('A '+c.type+' option is repeated in this review.');
+  changes+=c.options.length;
+ }
+ if(changes*e.lineItems.length>maxChanges)invalid('A review supports at most '+maxChanges+' targeting changes across its line items.');
+}
+const filterOf=(types:string[])=>types.map(t=>'targetingType="'+t+'"').join(' OR ');
+function chunks(types:string[]):string[][]{const out:string[][]=[];for(const t of types){const last=out.at(-1);if(last&&filterOf([...last,t]).length<=maxFilter)last.push(t);else out.push([t]);}return out;}
+function stateRead(p:CompiledRequest,path:string,marker:NonNullable<CompiledRequest['dv360TargetingState']>,optional=false):CompiledRequest{
+ return {...p,path,action:optional?'AMCP_STATE_OPTIONAL':'AMCP_DV360_TARGETING_STATE',method:'GET',query:{},body:undefined,headers:{},readOnly:true,destructive:false,requiresConfirmation:false,responseControls:undefined,specialTransport:undefined,queryArrayEncoding:undefined,dv360TargetingState:marker};
+}
+function targetingRead(p:CompiledRequest,advertiser:string,lineItems:string[],types:string[]):CompiledRequest{
+ return {...stateRead(p,'/v4/advertisers/'+advertiser+'/lineItems:bulkListAssignedTargetingOptions',{kind:'targeting',lineItemIds:lineItems,types}),query:{lineItemIds:lineItems,filter:filterOf(types),pageSize},queryArrayEncoding:'repeat'};
+}
+/** Each line item, then its complete assigned targeting of the edited types, then each assigned list. */
+export function dv360TargetingSnapshots(p:CompiledRequest):CompiledRequest[]{
+ const e=dv360TargetingKind(p)!,a=e.advertiser,lineItems=[...e.lineItems].sort();
+ const types=[...new Set([...e.deletes.map(d=>d.type),...e.creates.map(c=>c.type)])].sort();
+ const refs=new Map<string,CompiledRequest>();
+ for(const c of e.creates){const ref=references[c.type];if(!ref)continue;for(const o of c.options){const id=String((o as JsonObject)[dv360DetailsField(c.type)][ref.field]),path='/v4/advertisers/'+a+'/'+ref.collection+'/'+id;if(!refs.has(path))refs.set(path,stateRead(p,path,{kind:'reference',reference:c.type},true));}}
+ return [...e.lineItems.map(id=>stateRead(p,'/v4/advertisers/'+a+'/lineItems/'+id,{kind:'line_item'})),...chunks(types).map(ts=>targetingRead(p,a,lineItems,ts)),...refs.values()];
+}
+export function isDV360TargetingRead(p:CompiledRequest):boolean{return p.gateway==='dv360_native_action'&&!!p.dv360TargetingState;}
+function rowsOf(value:unknown):JsonObject[]{return obj(value)&&Array.isArray(value.lineItemAssignedTargetingOptions)?value.lineItemAssignedTargetingOptions.filter(obj):[];}
+export function validateDV360TargetingState(read:CompiledRequest,result:TransportResult):void{
+ const m=read.dv360TargetingState!,d=result.data,account=read.accountId!;
+ if(m.kind==='reference'&&result.status===404){if(read.action!=='AMCP_STATE_OPTIONAL'||!obj(d)||d.amcp_absent!==true||d.path!==read.path)fail('STATE_TARGET_MISMATCH','Unqualified absent DV360 reference.');return;}
+ if(result.status!==200||!obj(d)||d.error)fail('STATE_READ_FAILED','DV360 targeting state requires a successful native response.');
+ if(m.kind==='line_item'){
+  const id=read.path.split('/').at(-1);
+  if(String(d.advertiserId)!==account||String(d.lineItemId)!==id||d.name!==read.path.slice(4)||typeof d.lineItemType!=='string'||typeof d.entityStatus!=='string')fail('STATE_TARGET_MISMATCH','Line item state did not identify the exact selected-advertiser line item.');
+  return;
+ }
+ if(m.kind==='reference'){
+  const ref=references[m.reference!]!,id=read.path.split('/').at(-1);
+  if(String(d[ref.id])!==id||String(d.advertiserId)!==account)fail('STATE_TARGET_MISMATCH','The '+ref.label+' did not identify the exact selected-advertiser resource.');
+  return;
+ }
+ if(d.nextPageToken)fail('INCOMPLETE_STATE','Assigned targeting was read incompletely.');
+ if(d.lineItemAssignedTargetingOptions!==undefined&&!Array.isArray(d.lineItemAssignedTargetingOptions))fail('STATE_READ_FAILED','Malformed assigned targeting list.');
+ const seen=new Set<string>();
+ for(const row of list(d.lineItemAssignedTargetingOptions)){
+  const o=obj(row)&&obj(row.assignedTargetingOption)?row.assignedTargetingOption:undefined,lineItem=obj(row)?String(row.lineItemId):'';
+  if(!o||!m.lineItemIds!.includes(lineItem)||!m.types!.includes(o.targetingType)||typeof o.assignedTargetingOptionId!=='string'||!o.assignedTargetingOptionId||!sameName(o.name,'advertisers/'+account+'/lineItems/'+lineItem+'/targetingTypes/'+o.targetingType+'/assignedTargetingOptions/'+o.assignedTargetingOptionId))fail('STATE_TARGET_MISMATCH','Assigned targeting must belong to the requested line items and targeting types of the selected advertiser.');
+  const key=lineItem+' '+o.targetingType+' '+o.assignedTargetingOptionId;if(seen.has(key))fail('STATE_TARGET_MISMATCH','DV360 returned an assigned targeting option twice.');seen.add(key);
+ }
+}
+/** Complete bounded pagination of assigned targeting. Page tokens are opaque query values and are never followed as links. */
+export async function readDV360Targeting(p:CompiledRequest,request:(read:CompiledRequest)=>Promise<TransportResult>):Promise<TransportResult>{
+ if(p.dv360TargetingState?.kind!=='targeting')return request(p);
+ const rows:JsonObject[]=[],tokens=new Set<string>();let current=p;
+ for(let page=0;page<maxPages;page++){
+  const response=await request(current),d=response.data;
+  if(response.status!==200||!obj(d)||d.error||d.lineItemAssignedTargetingOptions!==undefined&&!Array.isArray(d.lineItemAssignedTargetingOptions)||d.nextPageToken!==undefined&&typeof d.nextPageToken!=='string')fail('STATE_READ_FAILED','DV360 must return pages of the assigned targeting of the selected line items.');
+  rows.push(...list(d.lineItemAssignedTargetingOptions) as JsonObject[]);if(rows.length>maxRows)fail('STATE_TOO_LARGE','The line items have more than '+maxRows+' assigned targeting options of these types; no mutation was submitted.');
+  if(!d.nextPageToken){
+   const sorted=rows.sort((a,b)=>{const x=String(a.lineItemId)+' '+String(a.assignedTargetingOption?.targetingType)+' '+String(a.assignedTargetingOption?.assignedTargetingOptionId),y=String(b.lineItemId)+' '+String(b.assignedTargetingOption?.targetingType)+' '+String(b.assignedTargetingOption?.assignedTargetingOptionId);return x<y?-1:x>y?1:0;});
+   const result={...response,data:{lineItemAssignedTargetingOptions:sorted}};validateDV360TargetingState(p,result);return result;
+  }
+  if(tokens.has(d.nextPageToken))fail('INCOMPLETE_STATE','DV360 repeated an assigned targeting page token.');tokens.add(d.nextPageToken);current={...p,query:{...p.query,pageToken:d.nextPageToken}};
+ }
+ return fail('INCOMPLETE_STATE','Assigned targeting pagination exceeded '+maxPages+' pages.');
+}
+/** Current assignments per line item and type after this edit, as comparable keys. */
+function finalKeys(e:Edit,rows:JsonObject[],lineItem:string,type:string):string[]{
+ const del=e.deletes.find(d=>d.type===type)?.ids??[];
+ const kept=rows.filter(r=>String(r.lineItemId)===lineItem&&r.assignedTargetingOption.targetingType===type&&!del.some(id=>matches(r.assignedTargetingOption,id))).map(r=>optionKey(type,r.assignedTargetingOption));
+ return [...kept,...(e.creates.find(c=>c.type===type)?.options??[]).map(o=>optionKey(type,o))].sort();
+}
+export function validateDV360TargetingPrerequisites(plan:CompiledRequest,state:unknown[]):void{
+ const e=dv360TargetingKind(plan);if(!e)return;
+ const reads=dv360TargetingSnapshots(plan);if(state.length<reads.length)fail('STATE_READ_FAILED','DV360 targeting state is incomplete.');
+ e.lineItems.forEach((id,i)=>{
+  const li=obj(state[i])?state[i]:{};
+  if(!lineItemTypes.has(li.lineItemType))invalid('Line item '+id+' is '+li.lineItemType+'. YouTube & Partners line items cannot be updated through the API, and Demand Gen line items are targeted by ad group.');
+  if(!editableStatus.has(li.entityStatus))invalid('Line item '+id+' is '+li.entityStatus+'; only active, paused and draft line items can be retargeted.');
+ });
+ reads.forEach((r,i)=>{
+  if(r.dv360TargetingState?.kind!=='reference')return;
+  const ref=references[r.dv360TargetingState.reference!]!,d=obj(state[i])?state[i]:{},id=r.path.split('/').at(-1);
+  if(d.amcp_absent===true)fail('STATE_TARGET_MISMATCH',ref.label[0]!.toUpperCase()+ref.label.slice(1)+' '+id+' is not owned by the selected advertiser. Partner-owned lists are not assigned by this contract.',{[ref.field]:id});
+  if(ref.locationType&&d.locationType!==ref.locationType)invalid('Location list '+id+' is '+d.locationType+', not '+ref.locationType+'.');
+ });
+ const rows=reads.flatMap((r,i)=>r.dv360TargetingState?.kind==='targeting'?rowsOf(state[i]):[]);
+ for(const lineItem of e.lineItems){
+  const mine=rows.filter(r=>String(r.lineItemId)===lineItem).map(r=>r.assignedTargetingOption as JsonObject);
+  for(const d of e.deletes)for(const id of d.ids){
+   const row=mine.find(o=>o.targetingType===d.type&&matches(o,id));
+   if(!row)fail('STATE_NOT_FOUND','Line item '+lineItem+' has no '+d.type+' assignment '+id+'.',{line_item_id:lineItem,assigned_targeting_option_id:id});
+   if(inherited(row))invalid('Line item '+lineItem+' inherits '+d.type+' assignment '+id+' ('+row.inheritance+'); change it at the partner or advertiser.');
+  }
+  const kept=mine.filter(o=>!e.deletes.some(d=>d.type===o.targetingType&&d.ids.some(id=>matches(o,id))));
+  for(const c of e.creates)for(const o of c.options){const key=optionKey(c.type,o),existing=kept.find(k=>k.targetingType===c.type&&optionKey(c.type,k)===key);if(existing)fail('CONFIGURATION_EXISTS','Line item '+lineItem+' already has this '+c.type+' assignment'+(inherited(existing)?' ('+existing.inheritance+')':'')+'.',{line_item_id:lineItem,assigned_targeting_option_id:existing.assignedTargetingOptionId});}
+  // Limits apply to the line item's own assignments after the edit.
+  for(const type of new Set(e.creates.map(c=>c.type))){
+   const own=[...kept.filter(o=>o.targetingType===type&&!inherited(o)).map(o=>o[dv360DetailsField(type)] as JsonObject),...(e.creates.find(c=>c.type===type)!.options as JsonObject[]).map(o=>o[dv360DetailsField(type)] as JsonObject)];
+   if(singleOption.has(type)&&own.length>1)invalid('Line item '+lineItem+' can have only one '+type+' assignment; delete the current one in the same review.');
+   if(type==='TARGETING_TYPE_NEGATIVE_KEYWORD_LIST'&&own.length>4)invalid('Line item '+lineItem+' can have at most 4 negative keyword lists.');
+   if(type==='TARGETING_TYPE_KEYWORD'&&own.filter(o=>o?.negative===true).length>5000)invalid('Line item '+lineItem+' can have at most 5000 direct negative keywords.');
+   if(sharedNegative.has(type)&&new Set(own.map(o=>o?.negative===true)).size>1)invalid('All '+type+' assignments of line item '+lineItem+' must be either targeted or excluded; delete the others in the same review.');
+  }
+ }
+}
+export function dv360TargetingImpact(plan:CompiledRequest,state:unknown[]):JsonObject|undefined{
+ const e=dv360TargetingKind(plan);if(!e)return;
+ const lineItems=e.lineItems.map((id,i)=>{const li=obj(state[i])?state[i]:{};return {line_item_id:id,display_name:li.displayName??null,line_item_type:li.lineItemType??null,entity_status:li.entityStatus??null,serving:li.entityStatus==='ENTITY_STATUS_ACTIVE'};});
+ return {provider:'dv360',scope:'line_item_targeting',line_items:lineItems,may_affect_serving:lineItems.some(l=>l.serving),
+  deletes:e.deletes.map(d=>({targeting_type:d.type,assigned_targeting_option_ids:d.ids})),
+  creates:e.creates.map(c=>({targeting_type:c.type,options:c.options.map(o=>clean(detailsSchema(c.type),(o as JsonObject)[dv360DetailsField(c.type)]))})),
+  effect:'Changes which impressions the listed line items can buy. Removing targeting broadens eligible inventory and audiences; adding narrows it. Active line items change delivery immediately.',
+  ...(e.route==='bulk'?{bulk_semantics:'DV360 deletes, then creates. Each line item is updated atomically, but when one line item fails the others are still updated; the receipt lists failed line items.'}:{}),
+  inheritance:'Partner and advertiser targeting is inherited and cannot be changed at line item level.',
+  verification:'Reads the complete assigned targeting of the edited types for every listed line item and compares it with the expected result.',
+  source:'https://developers.google.com/display-video/api/guides/tasks/run-ad-campaign/assign-targeting'};
+}
+export function dv360TargetingOutcome(plan:CompiledRequest,response:TransportResult):boolean{
+ const e=dv360TargetingKind(plan)!,d=response.data;
+ if(response.status!==200||!obj(d)||d.error)return false;
+ if(e.route==='delete')return Object.keys(d).length===0;
+ if(e.route==='create'){const type=e.creates[0]!.type;return typeof d.assignedTargetingOptionId==='string'&&!!d.assignedTargetingOptionId&&d.targetingType===type&&obj(d[dv360DetailsField(type)])&&sameName(d.name,'advertisers/'+e.advertiser+'/lineItems/'+e.lineItems[0]+'/targetingTypes/'+type+'/assignedTargetingOptions/'+d.assignedTargetingOptionId);}
+ const updated=list(d.updatedLineItemIds).map(String).sort();
+ return stable(updated)===stable([...e.lineItems].sort())&&!list(d.failedLineItemIds).length&&!list(d.errors).length;
+}
+export function dv360TargetingVerification(plan:CompiledRequest,before:unknown[]):{read:CompiledRequest;expected:JsonObject;id:string}[]{
+ const e=dv360TargetingKind(plan)!;
+ return dv360TargetingSnapshots(plan).flatMap((read,i)=>{
+  const m=read.dv360TargetingState!;if(m.kind!=='targeting')return [];
+  const rows=rowsOf(before[i]),expected:JsonObject={};
+  for(const lineItem of m.lineItemIds!){expected[lineItem]={};for(const type of m.types!)expected[lineItem][type]=finalKeys(e,rows,lineItem,type);}
+  return [{read,expected:{targeting:expected},id:'lineItems '+m.lineItemIds!.join(',')+' '+m.types!.join(',')}];
+ });
+}
+export function dv360TargetingObserved(read:CompiledRequest,data:JsonObject):JsonObject{
+ const m=read.dv360TargetingState;if(m?.kind!=='targeting')return data;
+ const rows=rowsOf(data),out:JsonObject={};
+ for(const lineItem of m.lineItemIds!){out[lineItem]={};for(const type of m.types!)out[lineItem][type]=rows.filter(r=>String(r.lineItemId)===lineItem&&r.assignedTargetingOption.targetingType===type).map(r=>optionKey(type,r.assignedTargetingOption)).sort();}
+ return {targeting:out};
+}
+export function dv360TargetingRemoves(p:CompiledRequest):boolean{const e=dv360TargetingKind(p);return !!e&&e.deletes.some(d=>d.ids.length>0);}
+/** Targeting of an active line item changes delivery at once, so an owner policy that forbids activation forbids it; unknown state counts as active. */
+export function dv360TargetingServing(p:CompiledRequest,before:unknown):boolean{const e=dv360TargetingKind(p);if(!e)return false;return !Array.isArray(before)||e.lineItems.some((_,i)=>!obj(before[i])||before[i].entityStatus==='ENTITY_STATUS_ACTIVE');}
