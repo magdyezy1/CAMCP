@@ -318,6 +318,28 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
   needs `spend_change_confirmed: true`; renames and PO numbers need neither.
 - Verification reads the campaign and compares the edited fields.
 
+## TikTok dynamic CTA portfolios
+
+- `tiktok_creative_portfolio_create` (alias `tiktok_cta_portfolio_create`) creates a dynamic
+  call-to-action portfolio: `creative_portfolio_type: "CTA"` and `portfolio_content`, 1-20 groups of
+  `asset_content` (the CTA text) and `asset_ids` (1-20 CTA IDs as numeric strings). Take both from
+  `tiktok_creative_cta_recommend_get` with `new_version: true`, `objective_type` and
+  `promotion_type`; TikTok accepts the IDs only in the advertiser they were recommended for. The
+  group and ID bounds are AMCP's. Card, sticker, showcase, gesture and superlike portfolios, other
+  keys, and repeated texts or IDs are refused with `INVALID_TIKTOK_CTA_PORTFOLIO`.
+- The review reads the advertiser. A portfolio neither delivers nor spends by itself, needs no
+  spending confirmation, and cannot be edited after creation.
+- Verification reads the portfolio by ID and compares the CTA groups as sets. TikTok may read the
+  text back in its own form (`learn_more` for "Learn More"), so texts are compared without case,
+  treating spaces and underscores alike. The portfolio list omits CTA portfolios, so a lost
+  creation response stays uncertain and is never resubmitted.
+- A manual ad (`tiktok_ad_create`, `tiktok_ad_update`) that sets `creatives[].call_to_action_id`
+  must name a CTA portfolio of the advertiser. The review reads each named portfolio before review
+  and again before execution: TikTok's error for a missing portfolio is returned as
+  `PLATFORM_ERROR`, an empty read is `STATE_TARGET_MISMATCH`, and other portfolio types are
+  refused. Send `call_to_action` or `call_to_action_id`, not both; TikTok ignores
+  `call_to_action` when `call_to_action_id` is set, so the pair is refused.
+
 ## TikTok lookalike audiences
 
 - `tiktok_dmp_custom_audience_lookalike_create` creates a lookalike from a seed audience the selected

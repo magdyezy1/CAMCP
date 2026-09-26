@@ -321,7 +321,20 @@ Tests: `tests/tiktok-smart-plus-adgroups.test.mjs` (6, red on `3497651` / green 
 - Name, campaign budget and PO number edits; Goal-based budget increase, status and other keys are refused.
 - A budget edit needs a campaign that has a campaign budget, is compared with its current budget under the owner spending policy and needs spending confirmation; renames do not.
 
-Tests: `tests/tiktok-smart-plus-campaign-updates.test.mjs` (6, red on `ec0cddd` / green after). The Smart+ campaign creation suite's negative check now uses the still-blocked campaign copy task.
+Tests: `tests/tiktok-smart-plus-campaign-updates.test.mjs` (6, red on `ec0cddd` / green after). The Smart+ campaign creation suite's negative check now uses the still-blocked campaign copy task. Pushed as `b8338ab`.
+
+## Finished batch — TikTok dynamic CTA portfolios
+
+[Implementation](TIKTOK-CTA-PORTFOLIOS-2026-09-26.md) and
+[qualification](TIKTOK-CTA-PORTFOLIOS-VERIFICATION-2026-09-26.json).
+
+`tiktok_creative_portfolio_create` (and alias) is the new reviewed family `tiktok_cta_portfolios`:
+
+- CTA portfolios only: groups of recommended CTA texts and IDs; other portfolio types are refused.
+- Verification compares the groups as sets, since TikTok reads texts back as keys (`learn_more`); a lost response is never resubmitted because the portfolio list omits CTA portfolios.
+- Manual ads (`tiktok_entities`) that set `call_to_action_id` read the named portfolio before review and execution; `call_to_action` beside it, which TikTok ignores, is refused.
+
+Tests: `tests/tiktok-cta-portfolios.test.mjs` (6, red on `b8338ab` / green after).
 
 ## CI and live evidence
 
@@ -335,19 +348,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 491 in reviewed write families. **946 remaining rows** are in
+3241 captured actions; 493 in reviewed write families. **944 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 831 |
+| blocked_write | 829 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 200, Meta 131, LinkedIn 118, Google Ads 107,
+Blocked writes by platform: TikTok 198, Meta 131, LinkedIn 118, Google Ads 107,
 Snapchat 91, X 67, DV360 62, Criteo 43, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
@@ -383,6 +396,7 @@ on 2026-09-26 afternoon; LinkedIn and Google candidates wait for them. The ticke
 | P3 | TikTok asynchronous campaign copy | `/campaign/copy/task/create/` is allowlist-only; needs an allowlisted advertiser, a paused-copy guarantee for every ad group and a task-result verification design |
 | P2 | LinkedIn lead gen creatives must reference owned forms | The documented creative field and URN type that point a lead gen creative at a form, then the same owned-reference check as Snapchat creatives |
 | P2 | LinkedIn lead form edits, publishing and archiving | A read of the creatives and campaigns that use a form, to tell pre-published from published forms and limit edits to the documented fields, plus the documented warning about CRM integrations |
-| P1 | TikTok Upgraded Smart+ ads | Smart+ campaigns and website conversion ad groups can be created paused and campaigns edited; ads are still blocked, so a Smart+ campaign cannot deliver yet. In order: authorized TikTok account identities (`TT_USER`, `BC_AUTH_TT`) with post or pushed-video checks, a dynamic call-to-action portfolio from `/creative/cta/recommend/`, then explicit values for the allowlist-dependent automatic enhancement switches |
+| P1 | TikTok Upgraded Smart+ ads | Smart+ campaigns and website conversion ad groups can be created paused and campaigns edited; ads are still blocked, so a Smart+ campaign cannot deliver yet. Dynamic CTA portfolios are qualified; still needed, in order: authorized TikTok account identities (`TT_USER`, `BC_AUTH_TT`) with post or pushed-video checks, then explicit values for the allowlist-dependent automatic enhancement switches |
+| P2 | TikTok manual ads with custom identities | TikTok no longer accepts new non-Spark ads with a `CUSTOMIZED_USER` identity in ad groups that deliver on TikTok (Update ads, read 2026-09-26); the generic ad review should read the ad group placements and refuse that pair before TikTok does |
 | P3 | LinkedIn work-email submission criteria | The wire form of the `questionSubmissionCriteria` union, which the schema does not show |
 | P3 | X remaining writes (promoted accounts, cards, tracking tags) | The official X Ads API reference returned HTTP 402 from this environment; needs an accessible, versioned source first |

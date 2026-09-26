@@ -224,10 +224,10 @@
       "gateway": "tiktok_native_action",
       "actions": 561,
       "counts": {
-        "blocked_write": 200,
+        "blocked_write": 198,
         "media_workflow": 4,
         "native_read": 310,
-        "reviewed_write_family": 35,
+        "reviewed_write_family": 37,
         "unqualified_read": 12
       },
       "captured_catalog_complete": true,
@@ -48324,12 +48324,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v1.3/creative/portfolio/create/",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/tiktok-cta-portfolios.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/tiktok-cta-portfolios.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "tiktok_cta_portfolios"
     },
     {
       "gateway": "tiktok_native_action",
@@ -48455,12 +48458,15 @@
       ],
       "method": "POST",
       "path": "/v1.3/creative/portfolio/create/",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/tiktok-cta-portfolios.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/tiktok-cta-portfolios.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "tiktok_cta_portfolios"
     },
     {
       "gateway": "tiktok_native_action",

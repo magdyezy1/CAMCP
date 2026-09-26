@@ -8,6 +8,20 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CC — TikTok dynamic CTA portfolios (2026-09-26)
+
+`tiktok_creative_portfolio_create` is a reviewed family for dynamic call-to-action portfolios:
+groups of recommended CTA texts and IDs, read-back that compares the groups as sets despite
+TikTok's own text keys, and no resubmission after a lost response. Manual ads that set
+`call_to_action_id` now read the named portfolio before review and execution, and sending
+`call_to_action` beside it (which TikTok ignores) is refused. See
+[implementation](TIKTOK-CTA-PORTFOLIOS-2026-09-26.md),
+[qualification](TIKTOK-CTA-PORTFOLIOS-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 944 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
+Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## CB — TikTok Upgraded Smart+ campaign edits (2026-09-26)
 
 `tiktok_smart_plus_campaign_update` is a reviewed family for Smart+ campaign name, campaign
@@ -19,7 +33,7 @@ confirmation; renames do not. Goal-based budget increase and status stay outside
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
 Remaining rows: 946 in [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv).
-Pushed only to CAMCP; its exact-commit CI result and live acceptance are pending.
+Pushed to CAMCP as `b8338ab`; its exact-commit CI result and live acceptance are pending.
 
 ## CA — TikTok Upgraded Smart+ ad groups (2026-09-26)
 

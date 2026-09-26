@@ -1,0 +1,111 @@
+{
+  "format_version": 1,
+  "date": "2026-09-26",
+  "branch": "Codex-branch",
+  "base_revision": "b8338aba67c1e6eb5c20a44f959feafd3735beea",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/tiktok-cta-portfolios-20260926-a",
+    "files": 745,
+    "source_tree_hash": "afcea3fef09e68122770e8db16aa1a4414dd3b979df31a108065d473985622e1",
+    "index_code_test_guidance_files_compared": 636,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/tiktok-cta-portfolios-20260926-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/tiktok-cta-portfolios-20260926/install.log",
+      "sha256": "fd1d9de07b2f08802677e9eb68653e02fcf4423e062c4d00c4a3afe0d39973f2"
+    },
+    {
+      "path": ".runtime/tiktok-cta-portfolios-20260926/run1-check.log",
+      "sha256": "d7ee8680e2c4a1dcc72649a1b287096eeae5d8db55d7f3764868e0b70bce9846",
+      "exit_code": 1,
+      "meaning": "First full run in the same candidate: 2197/2198. tests/linkedin-media-resume.test.mjs failed in teardown (EPERM removing its temporary directory while batch 21 suites ran in the working copy); the file passed 43/43 three times alone in the candidate and the full run was repeated without other load."
+    },
+    {
+      "path": ".runtime/tiktok-cta-portfolios-20260926/check.log",
+      "sha256": "7d02c823067f5d191a1aad75936bf5b4cebb5af4075037e78f3eb3ee981401f6",
+      "started": "2026-09-26T14:46:43Z",
+      "finished": "2026-09-26T14:56:45Z",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2198,
+          "pass": 2198,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/tiktok-cta-portfolios-20260926/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/tiktok-cta-portfolios-20260926/red-check.log",
+      "sha256": "485ce08090ff4b9b60191e8a89272f6d6b346bd05ccbf1c14a03746e654c3aae",
+      "meaning": "tests/tiktok-cta-portfolios.test.mjs against a build of b8338ab: expected red, 0/6 pass (WRITE_CONTRACT_UNAVAILABLE; the ad reference test because the call_to_action pair was accepted)"
+    },
+    {
+      "path": ".runtime/tiktok-cta-portfolios-20260926/targeted.log",
+      "sha256": "ca37c2a3cc6b27a903e0f00e7c01e74e40d7efe7d8ad21165447e5327232c5cd",
+      "meaning": "96 related TikTok, review, spending, creative-chain and contract suites in the working copy: 1309/1309 pass."
+    }
+  ],
+  "development_failures": [
+    "The first full qualification run failed one unrelated test in teardown: tests/linkedin-media-resume.test.mjs could not remove its temporary directory (EPERM) while other suites ran in the working copy. It passed alone three times in the same candidate, and the repeated full run is the recorded result.",
+    "The first run of the new suite failed one case: another advertiser_id is refused by the generic account scope check (ACCOUNT_SCOPE_MISMATCH) before the family validation, so the test now asserts that code for it.",
+    "The bash heredoc for the wiring script failed to parse and applied nothing; the same edits were applied from a script file.",
+    "Design review: the documented read-back returns CTA text as keys (learn_more) and may omit the ID and type, so verification compares texts without case and the review state takes the ID from the read itself."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2198,
+    "main_pass": 2198,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Whether the CTA IDs were recommended for this advertiser is enforced by TikTok, not checked in review; the recommendation depends on settings the portfolio request does not carry.",
+    "Card, sticker, showcase, gesture and superlike portfolios, portfolio deletion and card_id references stay unqualified.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

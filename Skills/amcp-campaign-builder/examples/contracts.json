@@ -1326,6 +1326,32 @@
       }
     },
     {
+      "gateway": "tiktok_native_action",
+      "arguments": {
+        "action": "tiktok_creative_portfolio_create",
+        "account_id": "123",
+        "payload": {
+          "creative_portfolio_type": "CTA",
+          "portfolio_content": [
+            {
+              "asset_content": "Learn more",
+              "asset_ids": [
+                "201781",
+                "201535"
+              ]
+            },
+            {
+              "asset_content": "Shop now",
+              "asset_ids": [
+                "201902",
+                "201404"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
       "gateway": "linkedin_native_action",
       "arguments": {
         "action": "linkedin_rest_posts_post",
