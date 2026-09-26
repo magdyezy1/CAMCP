@@ -50,7 +50,7 @@ const familyFiles:Record<string,[string,string[]]>={
  linkedin_conversion_rules:['src/linkedin-conversion-rules.ts',['tests/linkedin-conversion-rules.test.ts']],linkedin_lead_forms:['src/linkedin-lead-forms.ts',['tests/linkedin-lead-forms.test.mjs']],
  linkedin_audience_templates:['src/linkedin-audience-templates.ts',['tests/linkedin-audience-templates.test.mjs']],
  linkedin_conversion_links:['src/linkedin-conversion-links.ts',['tests/linkedin-conversion-links.test.ts']],
- google_bid_modifiers:['src/google-bid-modifiers.ts / src/google-campaign-bid-modifiers.ts',['tests/google-bid-modifiers.test.ts','tests/google-campaign-bid-modifiers.test.ts']],
+ google_bid_modifiers:['src/google-bid-modifiers.ts / src/google-campaign-bid-modifiers.ts',['tests/google-bid-modifiers.test.ts','tests/google-campaign-bid-modifiers.test.ts']],google_listing_groups:['src/google-listing-groups.ts',['tests/google-listing-groups.test.ts']],
  google_bidding_events:['src/google-bidding-events.ts',['tests/google-bidding-events.test.ts']],
  google_portfolio_strategies:['src/google-portfolio-strategies.ts',['tests/google-portfolio-strategies.test.ts']],
  meta_labels:['src/meta-label-writes.ts',['tests/meta-label-writes.test.ts']],

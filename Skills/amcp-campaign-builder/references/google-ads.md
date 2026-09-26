@@ -184,6 +184,44 @@ resources. These are the audiences an asset-group signal (`assetGroupSignals` wi
   sorted and false defaults dropped, so reordering by Google verifies and a changed value
   stays inconclusive.
 
+## Performance Max retail listing groups
+
+`google_ads_v23_asset_group_listing_group_filter_mutate_asset_group_listing_group_filters`
+(and the `CREATE_ASSET_GROUP_LISTING_GROUP_FILTER` and `REMOVE_ASSET_GROUP_LISTING_GROUP_FILTER`
+aliases) edits the product partition tree of one asset group of a Performance Max retail
+campaign. Every such asset group needs a valid tree, or its ads do not serve; a single root
+`UNIT_INCLUDED` node includes all products.
+
+- **Operations:** `create` and `remove` only; type, asset group and listing source are
+  immutable. Send `operations`, optionally `responseContentType: RESOURCE_NAME_ONLY`; one asset
+  group per review, at most 500 operations.
+- **Create:** `assetGroup`, `type` (`SUBDIVISION`, `UNIT_INCLUDED` or `UNIT_EXCLUDED`),
+  `listingSource: SHOPPING` and, except for the root, `parentListingGroupFilter` and `caseValue`
+  with one of `productBrand`, `productCategory` (with `level`), `productChannel`,
+  `productCondition`, `productCustomAttribute` (with `index`), `productItemId` or `productType`
+  (with `level`). The "Other" node sets the dimension without a value, for example
+  `productBrand: {}`. Name new subdivisions with a temporary
+  `resourceName` (`customers/{id}/assetGroupListingGroupFilters/{assetGroupId}~-1`) so their
+  children can reference them, and create parents before children.
+- **Remove:** existing nodes, leaves first. To replace a tree, remove the old nodes (children
+  before parents) and create the new tree in the same review.
+- **Checks:** the campaign must be `PERFORMANCE_MAX` with a linked Merchant Center account and
+  the asset group enabled or paused. AMCP reads the asset group, its campaign and the complete
+  tree, applies the operations in order, and refuses an empty tree. The resulting tree must
+  have one root that is not excluded; each subdivision needs at least one product group and
+  exactly one "Other" node, all children on one dimension (and level or index) and no repeated
+  value; units have no children. Webpage listing groups are not edited.
+- **Safety:** execution needs `spend_change_confirmed: true`. Removals count as deletions under
+  the owner's deletion policy. An enabled asset group of an enabled campaign serves at once and
+  counts as serving under an activation-forbidding policy.
+- **Refusals:** schema errors fail with `INVALID_VENDOR_BODY`; rule violations with
+  `INVALID_LISTING_GROUP`; a missing node with `STATE_NOT_FOUND`, before any request. A
+  response without a result for every operation stays a failure and is never resubmitted.
+- **Verification:** reads the tree again and compares its shape (each node's dimension path
+  and type) with the reviewed result, because Google assigns new IDs to created nodes.
+  Reference: [Listing Groups for Retail](https://developers.google.com/google-ads/api/performance-max/listing-groups)
+  and the v23 `asset_group_listing_group_filter` fields, checked 2026-09-26.
+
 ## Rule-based remarketing lists
 
 `google_ads_v23_user_list_mutate_user_lists` (and aliases such as `CREATE_USER_LIST`) creates

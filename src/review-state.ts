@@ -18,6 +18,7 @@ import {tiktokPortfolioGetPath,tiktokCtaPortfolioState} from './tiktok-cta-portf
 import {tiktokSmartPlusAdState} from './tiktok-smart-plus-ads.js';
 import {tiktokSmartPlusAdgroupCampaignState} from './tiktok-smart-plus-adgroup-updates.js';
 import {tiktokInstantFormState} from './tiktok-instant-forms.js';
+import {isGoogleListingGroupRead,googleListingGroupState} from './google-listing-groups.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 
 // Response envelopes are validated before projection. Within each resource keep
@@ -56,6 +57,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(!data||Array.isArray(data)||typeof data!=='object')return normalizeReviewState(data);
  const d=data as JsonObject;
  if(isGoogleBidRead(read))return normalizeReviewState(data);
+ if(isGoogleListingGroupRead(read))return normalizeReviewState(googleListingGroupState(read,d));
  if(read.gateway==='gtm_native_action')return normalizeReviewState(gtmSafeConfiguration(data));
  if(read.gateway==='tiktok_native_action'&&read.path===tiktokPixelListPath&&Array.isArray(d.data?.pixels))return normalizeReviewState({data:tiktokPixelState(d)});
  if(read.gateway==='tiktok_native_action'){const state=tiktokSmartPlusAdState(read,d)??tiktokSmartPlusAdgroupCampaignState(read,d)??tiktokInstantFormState(read,d);if(state)return normalizeReviewState(state);}

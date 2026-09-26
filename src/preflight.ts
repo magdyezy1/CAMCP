@@ -30,6 +30,7 @@ import {xDraftKind} from './x-draft-writes.js';
 import {appleEntityServing} from './apple-entity-writes.js';
 import {dv360ListAffectsServing} from './dv360-list-writes.js';
 import {dv360TargetingKind} from './dv360-line-item-targeting.js';
+import {googleListingGroupKind} from './google-listing-groups.js';
 import {microsoftAssociationWrite} from './microsoft-associations.js';
 import {xPromotion} from './x-creative-writes.js';
 import {tiktokSmartPlusAdgroupUpdateServing} from './tiktok-smart-plus-adgroup-updates.js';
@@ -54,6 +55,7 @@ export function authorizeExecution(actor:Actor,plan:CompiledRequest,input:JsonOb
  if(dv360ListAffectsServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','DV360 shared-list membership can change serving eligibility. Provide spend_change_confirmed=true.');
  if((googleAssetLinkKind(plan)||microsoftAssociationWrite(plan))&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Asset associations change which creative can serve. Review the parent state and provide spend_change_confirmed=true.');
  if((googleTargetingKind(plan)||plan.gateway==='reddit_native_action')&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Targeting, serving and shared-list changes require spend_change_confirmed=true.');
+ if(googleListingGroupKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Listing groups decide which Merchant Center products a Performance Max asset group advertises. Review the resulting tree and provide spend_change_confirmed=true.');
  if(googleConfigurationServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Customizer, ad-parameter, segment, signal, exclusion and feed changes can affect existing ads. Review their impact and provide spend_change_confirmed=true.');
  if(googleConversionGoalServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Goal edits, attachment, inheritance and removal can change optimization. Review affected campaigns and conversion definitions, then provide spend_change_confirmed=true.');
  if(googleBiddingEventKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Seasonality adjustments and data exclusions can change bids, including after removal. Review the account timezone, scope and bidding impact, then provide spend_change_confirmed=true.');

@@ -1,0 +1,53 @@
+{
+  "api_version": "v23",
+  "resources": {
+    "asset_group_listing_group_filter": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/asset_group_listing_group_filter",
+      "checked_at": "2026-09-26",
+      "method": "Rendered public reference read in the built-in browser; not a live account query",
+      "attributed_resources": ["asset_group", "campaign", "customer"],
+      "fields": {
+        "asset_group": {"selectable": true, "filterable": true, "immutable": true},
+        "case_value.product_brand.value": {"selectable": true, "filterable": true},
+        "case_value.product_category.category_id": {"selectable": true, "filterable": true},
+        "case_value.product_category.level": {"selectable": true, "filterable": true},
+        "case_value.product_channel.channel": {"selectable": true, "filterable": true},
+        "case_value.product_condition.condition": {"selectable": true, "filterable": true},
+        "case_value.product_custom_attribute.index": {"selectable": true, "filterable": true},
+        "case_value.product_custom_attribute.value": {"selectable": true, "filterable": true},
+        "case_value.product_item_id.value": {"selectable": true, "filterable": true},
+        "case_value.product_type.level": {"selectable": true, "filterable": true},
+        "case_value.product_type.value": {"selectable": true, "filterable": true},
+        "case_value.webpage.conditions": {"selectable": true, "filterable": true},
+        "id": {"selectable": true, "filterable": true},
+        "listing_source": {"selectable": true, "filterable": true},
+        "parent_listing_group_filter": {"selectable": true, "filterable": true},
+        "path": {"selectable": true, "filterable": false},
+        "resource_name": {"selectable": true, "filterable": true},
+        "type": {"selectable": true, "filterable": true, "immutable": true}
+      }
+    },
+    "asset_group": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/asset_group",
+      "checked_at": "2026-09-26",
+      "method": "Rendered public reference read in the built-in browser; not a live account query",
+      "attributed_resources": ["campaign", "customer"],
+      "fields": {
+        "resource_name": {"selectable": true, "filterable": true},
+        "status": {"selectable": true, "filterable": true},
+        "campaign": {"selectable": true, "filterable": true}
+      }
+    },
+    "campaign": {
+      "source": "https://developers.google.com/google-ads/api/fields/v23/campaign",
+      "checked_at": "2026-09-26",
+      "method": "Rendered public reference read in the built-in browser; not a live account query",
+      "fields": {
+        "resource_name": {"selectable": true, "filterable": true},
+        "status": {"selectable": true, "filterable": true},
+        "advertising_channel_type": {"selectable": true, "filterable": true},
+        "shopping_setting.merchant_id": {"selectable": true, "filterable": true}
+      }
+    }
+  }
+}

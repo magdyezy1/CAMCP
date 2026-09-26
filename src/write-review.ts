@@ -50,6 +50,7 @@ import {gtmWorkflowKind,assertGtmWorkflow,assertGtmWorkflowActor,gtmWorkflowSnap
 import {appleEntityKind,appleSharedAccounts,appleSharedAccountReads,validateAppleEntityPrerequisites} from './apple-entity-writes.js';
 import {dv360ListKind,assertDV360ListWrite,dv360ListSnapshots,validateDV360ListState,readDV360List,validateDV360ListPrerequisites,dv360ListOutcome} from './dv360-list-writes.js';
 import {dv360TargetingKind,assertDV360Targeting,dv360TargetingSnapshots,isDV360TargetingRead,validateDV360TargetingState,readDV360Targeting,validateDV360TargetingPrerequisites,dv360TargetingOutcome} from './dv360-line-item-targeting.js';
+import {googleListingGroupKind,assertGoogleListingGroups,googleListingGroupSnapshots,isGoogleListingGroupRead,validateGoogleListingGroupState,validateGoogleListingGroupPrerequisites,googleListingGroupOutcome} from './google-listing-groups.js';
 import {googleConfigurationKind,assertGoogleConfiguration,googleConfigurationSnapshots,validateGoogleConfigurationState,googleConfigurationOutcome} from './google-configuration-writes.js';
 import {checkSpendPolicy} from './spend-policy.js';
 import {randomUUID} from 'node:crypto';
@@ -142,6 +143,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(gtmWorkspaceKind(plan))return gtmWorkspaceOutcome(plan,result,before);
  if(gtmWorkflowKind(plan))return gtmWorkflowOutcome(plan,result);
  if(dv360TargetingKind(plan))return dv360TargetingOutcome(plan,result);
+ if(googleListingGroupKind(plan))return googleListingGroupOutcome(plan,result);
  if(dv360ListKind(plan))return dv360ListOutcome(plan,result);
  if(googleConfigurationKind(plan))return googleConfigurationOutcome(plan,result);
  if(googleAssetLinkKind(plan))return googleAssetLinkOutcome(plan,result);
@@ -180,6 +182,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
 export function validateState(read:CompiledRequest,result:TransportResult):void {
  if(isLinkedInRuleRead(read)){validateLinkedInRuleState(read,result);return;}
  if(isDV360TargetingRead(read)){validateDV360TargetingState(read,result);return;}
+ if(isGoogleListingGroupRead(read)){validateGoogleListingGroupState(read,result);return;}
  if(isLinkedInLeadFormRead(read)){validateLinkedInLeadFormState(read,result);return;}
  if(isLinkedInConversionRead(read)){validateLinkedInConversionState(read,result);return;}
  if(isGoogleBidRead(read)){validateGoogleBidState(read,result);return;}
@@ -284,6 +287,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(linkedinConversionKind(plan)){assertLinkedInConversion(plan);return;}
  if(xDraftKind(plan)){assertXDraft(plan);return;}
  if(dv360TargetingKind(plan)){assertDV360Targeting(plan);return;}
+ if(googleListingGroupKind(plan)){assertGoogleListingGroups(plan);return;}
  if(plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['CREATE','PARTIAL_UPDATE','DELETE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))fail('WRITE_CONTRACT_UNAVAILABLE','This REST.li method override is not qualified for reviewed execution.');
  if(gtmWorkflowKind(plan)){assertGtmWorkflow(plan);return;}
  if(gtmWorkspaceKind(plan)){assertGtmWorkspace(plan);return;}
@@ -397,6 +401,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(gtmWorkflowKind(plan))return gtmWorkflowSnapshots(plan);
  if(gtmWorkspaceKind(plan))return gtmWorkspaceSnapshots(plan);
  if(dv360TargetingKind(plan))return dv360TargetingSnapshots(plan);
+ if(googleListingGroupKind(plan))return googleListingGroupSnapshots(plan);
  if(dv360ListKind(plan))return dv360ListSnapshots(plan);
  if(googleConfigurationKind(plan))return googleConfigurationSnapshots(plan);
  if(googleAssetLinkKind(plan))return googleAssetLinkSnapshots(plan);
@@ -525,7 +530,7 @@ export class WriteReviewService {
   if(metaLabelKind(plan))assertMetaLabelScope(c,true);
   if(googleBidKind(plan))assertGoogleBidScope(c);
   if(googlePreviewKind(plan)||googleDismissalKind(plan)||googleAccessKind(plan))assertGoogleAdsScope(c);
-  if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan)||googlePortfolioKind(plan)||googleConversionActionKind(plan))assertGoogleAdsScope(c);
+  if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan)||googlePortfolioKind(plan)||googleConversionActionKind(plan)||googleListingGroupKind(plan))assertGoogleAdsScope(c);
   if(linkedinConversionKind(plan)||linkedinRuleKind(plan))assertLinkedInConversionScope(c,true);
   if((dv360ListKind(plan)||dv360TargetingKind(plan))&&!c.scopes.includes('https://www.googleapis.com/auth/display-video'))fail('PROVIDER_WRITE_SCOPE_REQUIRED','Reconnect DV360 with the display-video OAuth scope.');
   if(plan.gateway===microsoftGateway&&!c.scopes.some(s=>s===microsoftScope||s==='msads.manage'))fail('INSUFFICIENT_SCOPE','Reconnect Microsoft Advertising with msads.manage permission.');
@@ -664,6 +669,7 @@ export class WriteReviewService {
   validateGtmWorkspacePrerequisites(plan,values);
   validateDV360ListPrerequisites(plan,values);
   validateDV360TargetingPrerequisites(plan,values);
+  validateGoogleListingGroupPrerequisites(plan,values);
   if(appleEntityKind(plan)==='shared_budget'&&!plan.scopeContext?.appleSharedOrgId){
    const account=object(values[reads.findIndex(r=>r.path==='/v1/ad-accounts/'+plan.accountId)]).result;
    const target=object(values[reads.findIndex(r=>r.path===plan.path)]).result;

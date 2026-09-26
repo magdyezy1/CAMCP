@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CO — Google Performance Max retail listing groups (2026-09-26)
+
+Retail Performance Max asset groups can now get their product partition tree through reviewed
+create and remove operations, with temporary IDs, leaves-first removal and a complete tree read.
+The resulting tree is validated before any request (one root, fully partitioned subdivisions with
+one "Other" node) and verified by shape. Webpage listing groups stay unqualified. See
+[implementation](GOOGLE-LISTING-GROUPS-2026-09-26.md),
+[qualification](GOOGLE-LISTING-GROUPS-VERIFICATION-2026-09-26.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 920 (three Google Ads rows reviewed). Pushed only to CAMCP; its exact-commit CI
+result and live acceptance are pending.
+
 ## CN — DV360 advertiser targeting (2026-09-26)
 
 Advertiser brand-safety targeting (channel and keyword exclusions, digital content labels,
@@ -18,8 +31,8 @@ See [implementation](DV360-ADVERTISER-TARGETING-2026-09-26.md),
 [qualification](DV360-ADVERTISER-TARGETING-VERIFICATION-2026-09-26.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 923 (three DV360 rows reviewed). Pushed only to CAMCP; its exact-commit CI result
-and live acceptance are pending.
+Remaining rows: 923 (three DV360 rows reviewed). Pushed to CAMCP as `4b67890`; its exact-commit CI
+result and live acceptance are pending.
 
 ## CM — DV360 line item targeting (2026-09-26)
 
