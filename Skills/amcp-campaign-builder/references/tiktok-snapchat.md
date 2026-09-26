@@ -381,6 +381,12 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
 - The paused ad needs no spending confirmation. Verification reads the ad and compares its name,
   status, posts, landing page and configuration; TikTok's added material IDs and list order are
   ignored.
+- **Instant Form lead generation ads:** in an Instant Form lead generation ad group, send
+  `page_list: [{page_id}]` with one published Instant Form instead of `landing_page_url_list`, and
+  no `utm_params`. `/page/get/` cannot filter by page ID, so the review reads the advertiser's
+  published `LEAD_GEN` pages page by page (up to 10 pages of 100) and refuses a form it does not
+  find; Business Center form libraries are never read. A website ad group needs a landing page
+  and a lead ad group needs `page_list`; the review refuses the other destination.
 
 ## TikTok Upgraded Smart+ Spark Ad edits
 

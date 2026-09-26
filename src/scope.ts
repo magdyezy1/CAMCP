@@ -140,6 +140,8 @@ export class ScopeGuard {
   if(plan.gateway==='tiktok_native_action'){
    if(plan.readOnly&&plan.method==='GET'&&['/v1.3/report/integrated/get/','/v1.3/campaign/get/'].includes(decoded)&&plan.query.advertiser_id===id)return id;
    if(plan.readOnly&&decoded==='/v1.3/advertiser/info/'&&Array.isArray(plan.query.advertiser_ids)&&plan.query.advertiser_ids.length===1){compare(plan.query.advertiser_ids,'advertiser_ids');return id;}
+   // /page/get/ takes advertiser_id or a Business Center library_id; only the advertiser's own pages are in scope.
+   if(plan.readOnly&&plan.method==='GET'&&decoded==='/v1.3/page/get/'&&plan.query.advertiser_id===id&&plan.query.library_id===undefined)return id;
    const action=this.registry.action(plan.gateway,plan.action);
    // Some Business Center routes ignore advertiser_id. Only vendor-declared required
    // advertiser parameters establish this automatic boundary.

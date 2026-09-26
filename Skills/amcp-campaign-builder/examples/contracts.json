@@ -1412,6 +1412,38 @@
     {
       "gateway": "tiktok_native_action",
       "arguments": {
+        "action": "tiktok_smart_plus_ad_create",
+        "account_id": "123",
+        "payload": {
+          "adgroup_id": "310",
+          "ad_name": "Lead form ad",
+          "operation_status": "DISABLE",
+          "creative_list": [
+            {
+              "creative_info": {
+                "ad_format": "SINGLE_VIDEO",
+                "tiktok_item_id": "9001",
+                "identity_type": "TT_USER",
+                "identity_id": "tt-1"
+              }
+            }
+          ],
+          "page_list": [
+            {
+              "page_id": "7700149"
+            }
+          ],
+          "ad_configuration": {
+            "call_to_action_id": "700",
+            "creative_auto_add_toggle": false,
+            "creative_auto_enhancement_strategy_list": []
+          }
+        }
+      }
+    },
+    {
+      "gateway": "tiktok_native_action",
+      "arguments": {
         "action": "tiktok_smart_plus_ad_update",
         "account_id": "123",
         "payload": {

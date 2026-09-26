@@ -426,7 +426,17 @@ Tests: `tests/google-value-rules.test.mjs` (5, red on `f289b11` / green after); 
 
 - The Smart+ ad group contract gains an Instant Form lead generation mode: `LEAD_GENERATION` promotion and goal with `INSTANT_PAGE`, no pixel or attribution fields, Global App Bundle placements allowed, a lead generation campaign, and a target CPA only with a daily budget.
 
-Tests: `tests/tiktok-smart-plus-lead-adgroups.test.mjs` (4, red on `3bd855f` / green after). Next: Smart+ lead generation ads with an Instant Form (`page_list`). `/page/get/` cannot filter by page ID and its catalog entry does not require `advertiser_id`, and `/page/field/get/` is weakly documented, so a reviewed check that the form exists and is published needs a paged form reader or live evidence first.
+Tests: `tests/tiktok-smart-plus-lead-adgroups.test.mjs` (4, red on `3bd855f` / green after). Pushed as `895cb29`.
+
+## Finished batch — TikTok Upgraded Smart+ Instant Form lead generation ads
+
+[Implementation](TIKTOK-SMART-PLUS-LEAD-ADS-2026-09-26.md) and
+[qualification](TIKTOK-SMART-PLUS-LEAD-ADS-VERIFICATION-2026-09-26.json).
+
+- Smart+ ads name one published Instant Form in `page_list` in lead generation ad groups, or one landing page in website ad groups; the review refuses the other destination.
+- `/page/get/` cannot filter by page ID, so `src/tiktok-instant-forms.ts` reads the advertiser's published forms page by page (up to 10 pages of 100) through follow-up state reads, validated before the generic pagination guard. `src/scope.ts` now authorizes `/page/get/` for the selected advertiser only, never with a Business Center `library_id`.
+
+Tests: `tests/tiktok-smart-plus-lead-ads.test.mjs` (4, red on `895cb29` / green after). Instant Form ad edits beyond renaming stay unqualified.
 
 ## CI and live evidence
 

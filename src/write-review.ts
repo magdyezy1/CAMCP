@@ -20,6 +20,7 @@ import {tiktokSmartPlusAdUpdateKind,assertTiktokSmartPlusAdUpdate,tiktokSmartPlu
 import {tiktokSmartPlusAdgroupUpdateKind,assertTiktokSmartPlusAdgroupUpdate,tiktokSmartPlusAdgroupUpdateRead,tiktokSmartPlusAdgroupUpdateSiblingRead,validateTiktokSmartPlusAdgroupCampaignState,tiktokSmartPlusAdgroupUpdatePrerequisites} from './tiktok-smart-plus-adgroup-updates.js';
 import {tiktokSmartPlusMaterialStatusKind,assertTiktokSmartPlusMaterialStatus,tiktokSmartPlusMaterialStatusRead,tiktokSmartPlusMaterialStatusPrerequisites,tiktokSmartPlusMaterialStatusOutcome} from './tiktok-smart-plus-material-status.js';
 import {tiktokManualAdIdentityPrerequisites} from './tiktok-manual-ad-identities.js';
+import {tiktokInstantFormFollowUps,validateTiktokInstantFormState} from './tiktok-instant-forms.js';
 import {linkedinLeadFormKind,assertLinkedInLeadForm,linkedinLeadFormOutcome,rememberLinkedInLeadForm,isLinkedInLeadFormRead,validateLinkedInLeadFormState} from './linkedin-lead-forms.js';
 import {googlePreviewKind,assertGooglePreview,googlePreviewSnapshots,readGooglePreviewState,googlePreviewOutcome,googlePreviewDelivery,googlePreviewSafeOutcome} from './google-preview-writes.js';
 import {criteoCampaignKind,assertCriteoCampaign,assertCriteoCampaignScopes,criteoCampaignSnapshots,readCriteoCampaignState,criteoCampaignOutcome} from './criteo-campaign-writes.js';
@@ -211,6 +212,9 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  if(ga4Job&&data.reportMetadata?.state==='FAILED'&&typeof data.reportMetadata.errorMessage==='string')jobData={...jobData,reportMetadata:withoutJobError(data.reportMetadata)};
  const statusResult=sitemapCount?{...result,data:{...data,errors:0}}:emptyGoogle?{...result,data:{...data,results:[]}}:jobData!==data?{...result,data:jobData}:result;
  if(read.gateway!==microsoftGateway&&writeOutcome(statusResult).success!==true)fail('STATE_READ_FAILED','Failed or partial provider responses cannot verify before-state.');
+ // Published Instant Forms cannot be read by ID; every page is read through follow-up reads
+ // (src/tiktok-instant-forms.ts), so their page information is expected rather than incomplete.
+ if(validateTiktokInstantFormState(read,data))return;
  // Reuse provider pagination contracts (including Reddit pagination.next_url)
  // before envelope projection; discarding cursors is never proof of completeness.
  if(nextPage(read,data))fail('INCOMPLETE_STATE','State read was paginated; narrow the mutation.');
@@ -625,6 +629,8 @@ export class WriteReviewService {
    const reader=this.access(actor,plan,connectionId);validateState(read,result);if(read.gateway==='snapchat_native_action')new ScopeGuard(this.registry,this.store).observe(read,reader,result.data);
    // A Smart+ bid edit also reads the campaign's ad groups once the ad group names its campaign.
    const sibling=tiktokSmartPlusAdgroupUpdateSiblingRead(plan,read,result.data);if(sibling&&!reads.some(r=>r.path===sibling.path&&stable(r.query)===stable(sibling.query)))reads.push(sibling);
+   // Instant Forms cannot be read by ID; the first page names how many more pages to read.
+   for(const more of tiktokInstantFormFollowUps(read,result.data))if(!reads.some(r=>r.path===more.path&&stable(r.query)===stable(more.query)))reads.push(more);
    if(appleEntityKind(plan)==='shared_budget'&&read.path===plan.path){
     const accounts=appleSharedAccounts(plan,result.data),frozen=plan.scopeContext?.appleSharedAccountIds;
     for(const account of accounts){const current=this.store.resolveConnection(actor,plan.gateway,account,connectionId);assertAccountWrite(this.store,current,account);}

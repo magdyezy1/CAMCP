@@ -114,7 +114,7 @@ test('a Spark Ad reads its ad group, identities, posts and CTA portfolio, is cre
 
 test('ad groups, identities, posts and portfolios that cannot carry the ad are refused before any write',async()=>{
  const f=fixture();try{
-  const cases=[['lead ad group',ad({adgroup_id:'301'}),'INVALID_TIKTOK_SMART_PLUS_AD',/not a website conversion ad group/],['Pangle-only ad group',ad({adgroup_id:'302'}),'INVALID_TIKTOK_SMART_PLUS_AD',/excludes the TikTok placement/],
+  const cases=[['lead ad group without an Instant Form',ad({adgroup_id:'301'}),'INVALID_TIKTOK_SMART_PLUS_AD',/neither a website conversion ad group/],['Pangle-only ad group',ad({adgroup_id:'302'}),'INVALID_TIKTOK_SMART_PLUS_AD',/excludes the TikTok placement/],
    ['full ad group',ad({adgroup_id:'303'}),'INVALID_TIKTOK_SMART_PLUS_AD',/already has 30 ads/],['missing ad group',ad({adgroup_id:'399'}),'STATE_TARGET_MISMATCH',/./],
    ['private account',ad({creative_list:[post('9201',{identity_id:'tt-private'})]}),'INVALID_TIKTOK_SMART_PLUS_AD',/not available \(IS_PRIVATE_ACCOUNT\)/],['posts not usable',ad({creative_list:[post('9301',{identity_id:'tt-nopull'})]}),'INVALID_TIKTOK_SMART_PLUS_AD',/can_pull_video/],
    ['political account',ad({creative_list:[post('9401',{identity_id:'tt-gov'})]}),'INVALID_TIKTOK_SMART_PLUS_AD',/political party/],['other business center',ad({creative_list:[post('9101',{identity_type:'BC_AUTH_TT',identity_id:'bc-1',identity_authorized_bc_id:'7999'})]}),'INVALID_TIKTOK_SMART_PLUS_AD',/Business Center 7000/],

@@ -17,6 +17,7 @@ import {tiktokConversionEligibility} from './tiktok-adgroup-conversions.js';
 import {tiktokPortfolioGetPath,tiktokCtaPortfolioState} from './tiktok-cta-portfolios.js';
 import {tiktokSmartPlusAdState} from './tiktok-smart-plus-ads.js';
 import {tiktokSmartPlusAdgroupCampaignState} from './tiktok-smart-plus-adgroup-updates.js';
+import {tiktokInstantFormState} from './tiktok-instant-forms.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 
 // Response envelopes are validated before projection. Within each resource keep
@@ -57,7 +58,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isGoogleBidRead(read))return normalizeReviewState(data);
  if(read.gateway==='gtm_native_action')return normalizeReviewState(gtmSafeConfiguration(data));
  if(read.gateway==='tiktok_native_action'&&read.path===tiktokPixelListPath&&Array.isArray(d.data?.pixels))return normalizeReviewState({data:tiktokPixelState(d)});
- if(read.gateway==='tiktok_native_action'){const state=tiktokSmartPlusAdState(read,d)??tiktokSmartPlusAdgroupCampaignState(read,d);if(state)return normalizeReviewState(state);}
+ if(read.gateway==='tiktok_native_action'){const state=tiktokSmartPlusAdState(read,d)??tiktokSmartPlusAdgroupCampaignState(read,d)??tiktokInstantFormState(read,d);if(state)return normalizeReviewState(state);}
  if(read.gateway==='tiktok_native_action'&&read.path===tiktokPortfolioGetPath&&d.data&&typeof d.data==='object'&&!Array.isArray(d.data))return normalizeReviewState({data:tiktokCtaPortfolioState(read,d.data)});
  if(read.gateway==='tiktok_native_action'&&read.path===tiktokConversionGetPath&&d.data&&typeof d.data==='object'&&!Array.isArray(d.data))return normalizeReviewState({data:tiktokConversionEligibility(d.data)});
  if(read.gateway==='tiktok_native_action'&&Array.isArray(d.data?.list))return normalizeReviewState({data:read.path===tiktokImageInfoPath?tiktokImageState(d):read.path===tiktokAudienceGetPath?tiktokAudienceState(d):read.path===tiktokConversionListPath?tiktokConversionListState(d):{list:d.data.list}});

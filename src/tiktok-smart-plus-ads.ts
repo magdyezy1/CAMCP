@@ -1,9 +1,11 @@
 import {MirrorError} from './errors.js';
 import {tiktokPortfolioGetPath,tiktokCtaPortfolioCheck} from './tiktok-cta-portfolios.js';
+import {tiktokInstantFormRead,tiktokInstantFormCheck} from './tiktok-instant-forms.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 
 /**
- * Paused Upgraded Smart+ website conversion Spark Ads from existing TikTok posts, per API for Business v1.3 "Create an
+ * Paused Upgraded Smart+ website conversion and Instant Form lead generation Spark Ads from existing TikTok posts, per
+ * API for Business v1.3 "Create an Upgraded Smart+ Lead Generation Campaign with Location as Instant Form", "Create an
  * Upgraded Smart+ Ad", "Upgraded Smart+ ad creative combinations by identity and ad type", "Create a regular Upgraded
  * Smart+ Web Campaign", "Get info about an identity", "Get info about TikTok posts" and "Get Upgraded Smart+ Ads"
  * (checked 2026-09-26). Non-Spark ads no longer run on the TikTok placement, Spark identities there need a dynamic CTA
@@ -24,7 +26,7 @@ const maxCreatives=20,maxAds=30;
 /** The post type each ad format uses. */
 const formats:Record<string,string>={SINGLE_VIDEO:'VIDEO',CAROUSEL_ADS:'CAROUSEL'};
 const enhancements=['TRANSLATE_AND_DUB','MUSIC_REFRESH','VIDEO_QUALITY','IMAGE_QUALITY','IMAGE_RESIZE'];
-const topKeys=['advertiser_id','adgroup_id','ad_name','operation_status','creative_list','landing_page_url_list','ad_configuration'];
+const topKeys=['advertiser_id','adgroup_id','ad_name','operation_status','creative_list','landing_page_url_list','page_list','ad_configuration'];
 const configKeys=['call_to_action_id','creative_auto_add_toggle','creative_auto_enhancement_strategy_list','utm_params'];
 
 export const tiktokSmartPlusAdKind=(p:CompiledRequest)=>p.gateway==='tiktok_native_action'&&p.method==='POST'&&p.path===tiktokSmartPlusAdPath;
@@ -55,7 +57,17 @@ export function assertTiktokSmartPlusAd(plan:CompiledRequest,body:JsonObject):vo
  if(body.operation_status!=='DISABLE')invalid('operation_status','Create Smart+ ads paused: set operation_status to DISABLE (TikTok defaults to ENABLE).');
  if(typeof body.ad_name!=='string'||!body.ad_name.trim()||width(body.ad_name)>512||emoji.test(body.ad_name))invalid('ad_name','ad_name must be nonempty, at most 512 characters (Chinese and Japanese count twice) and without emoji.');
  assertSparkCreatives(body.creative_list);
- assertAdConfiguration(body.ad_configuration,assertLandingPages(body.landing_page_url_list));
+ if(body.page_list!==undefined){
+  if(body.landing_page_url_list!==undefined)invalid('landing_page_url_list','An Instant Form ad takes page_list and no landing_page_url_list.');
+  assertInstantFormPages(body.page_list);
+  assertAdConfiguration(body.ad_configuration,undefined);
+  if(obj(body.ad_configuration)&&body.ad_configuration.utm_params!==undefined)invalid('ad_configuration.utm_params','utm_params record landing page parameters; Instant Form ads have no landing page.');
+ }else assertAdConfiguration(body.ad_configuration,assertLandingPages(body.landing_page_url_list));
+}
+/** Exactly one Instant Form as the destination of a lead generation ad. */
+export function assertInstantFormPages(pages:unknown):string{
+ if(!Array.isArray(pages)||pages.length!==1||!obj(pages[0])||Object.keys(pages[0]).some(k=>k!=='page_id')||!numeric(pages[0].page_id))invalid('page_list','page_list must hold exactly one {page_id} of a published Instant Form.');
+ return pages[0].page_id;
 }
 /** A Spark creative list: 1-20 existing posts, each with a TT_USER or BC_AUTH_TT identity. */
 export function assertSparkCreatives(list:unknown):void{
@@ -107,6 +119,7 @@ export function tiktokSmartPlusAdReads(plan:CompiledRequest):Read[]{
  const reads:Read[]=[{path:'/v1.3/smart_plus/adgroup/get/',query:{advertiser_id:id,filtering,page_size:100},action:'tiktok_smart_plus_adgroup_get'},
   {path:tiktokSmartPlusAdGetPath,query:{advertiser_id:id,filtering,page_size:100},action:'tiktok_smart_plus_ad_get'}];
  reads.push(...sparkReads(id,b.creative_list as JsonObject[]));
+ if(b.page_list!==undefined)reads.push(tiktokInstantFormRead(id));
  reads.push({path:tiktokPortfolioGetPath,query:{advertiser_id:id,creative_portfolio_id:(b.ad_configuration as JsonObject).call_to_action_id},action:'tiktok_creative_portfolio_get'});
  return reads;
 }
@@ -152,12 +165,16 @@ export function tiktokSmartPlusAdPrerequisites(plan:CompiledRequest,values:unkno
  const b=plan.body as JsonObject,data=values.map(v=>obj(v)&&obj(v.data)?v.data:undefined).filter((d):d is JsonObject=>!!d);
  const group=data.flatMap(d=>Array.isArray(d.list)?d.list:[]).find((r:JsonObject)=>String(r?.adgroup_id)===b.adgroup_id&&Object.hasOwn(r,'promotion_type')) as JsonObject|undefined;
  if(!group)throw new MirrorError('STATE_TARGET_MISMATCH','Smart+ ad group '+b.adgroup_id+' was not returned for the selected advertiser.',{adgroup_id:b.adgroup_id});
- if(group.promotion_type!=='WEBSITE'||group.optimization_goal!=='CONVERT')invalid('adgroup_id','Ad group '+b.adgroup_id+' is not a website conversion ad group (promotion_type WEBSITE with optimization_goal CONVERT).');
+ const website=group.promotion_type==='WEBSITE'&&group.optimization_goal==='CONVERT',lead=group.promotion_type==='LEAD_GENERATION'&&group.promotion_target_type==='INSTANT_PAGE'&&group.optimization_goal==='LEAD_GENERATION';
+ if(!website&&!lead)invalid('adgroup_id','Ad group '+b.adgroup_id+' is neither a website conversion ad group (WEBSITE, CONVERT) nor an Instant Form lead generation ad group (LEAD_GENERATION, INSTANT_PAGE).');
+ if(website&&b.page_list!==undefined)invalid('page_list','Ad group '+b.adgroup_id+' optimizes for website conversions; its ads need landing_page_url_list, not an Instant Form.');
+ if(lead&&b.page_list===undefined)invalid('page_list','Ad group '+b.adgroup_id+' collects leads with an Instant Form; its ads need page_list with the form, not a landing page.');
  if(group.placement_type==='PLACEMENT_TYPE_NORMAL'&&!(Array.isArray(group.placements)&&group.placements.includes('PLACEMENT_TIKTOK')))invalid('adgroup_id','Ad group '+b.adgroup_id+' excludes the TikTok placement; the Spark Ads in this contract deliver on TikTok.');
  const ads=data.find(d=>obj(d.adgroup_ads))?.adgroup_ads as JsonObject|undefined;
  if(!ads)throw new MirrorError('STATE_READ_FAILED','The ads of ad group '+b.adgroup_id+' were not read.');
  if((ads.smart_plus_ad_ids as string[]).length>=maxAds)invalid('adgroup_id','Ad group '+b.adgroup_id+' already has '+(ads.smart_plus_ad_ids as string[]).length+' ads; an Upgraded Smart+ ad group holds at most '+maxAds+'.');
  sparkPrerequisites(b.creative_list as JsonObject[],data);
+ if(b.page_list!==undefined)tiktokInstantFormCheck((b.page_list as JsonObject[])[0]!.page_id as string,values,invalid);
  tiktokCtaPortfolioCheck((b.ad_configuration as JsonObject).call_to_action_id as string,values,'ad_configuration.call_to_action_id');
 }
 /** Each identity is available, may use its posts, is not a political account and is in the stated Business Center; each post is its own, of the matching type. */
@@ -185,7 +202,7 @@ export function tiktokSmartPlusAdImpact(plan:CompiledRequest,state:unknown[]):Js
   effect:'Creates a paused Upgraded Smart+ ad from '+creatives(b).length+' existing TikTok post(s); nothing delivers until the ad is enabled.',
   ad_group:{adgroup_id:b.adgroup_id,operation_status:group?.operation_status??null,placement_type:group?.placement_type??null,existing_ads:existing?.length??null,limit:maxAds},
   creatives:creatives(b).map(c=>({tiktok_item_id:c.tiktok_item_id,ad_format:c.ad_format,identity_type:c.identity_type,identity_id:c.identity_id})),
-  landing_page_url:(b.landing_page_url_list as JsonObject[])[0]!.landing_page_url,call_to_action_id:ac.call_to_action_id,
+  destination:b.page_list!==undefined?{instant_form:(b.page_list as JsonObject[])[0]!.page_id}:{landing_page_url:(b.landing_page_url_list as JsonObject[])[0]!.landing_page_url},call_to_action_id:ac.call_to_action_id,
   automatic_creative:{creative_auto_add_toggle:ac.creative_auto_add_toggle,creative_auto_enhancement_strategy_list:ac.creative_auto_enhancement_strategy_list,fixed_after_creation:'TRANSLATE_AND_DUB cannot be added or removed later ('+((ac.creative_auto_enhancement_strategy_list as string[]).includes('TRANSLATE_AND_DUB')?'included':'excluded')+').'},source:tiktokSmartPlusAdSource};
 }
 export const tiktokSmartPlusAdId=(d:JsonObject)=>obj(d.data)&&numeric(d.data.smart_plus_ad_id)?d.data.smart_plus_ad_id:undefined;
@@ -198,6 +215,7 @@ export function tiktokSmartPlusAdProjection(row:unknown):JsonObject|undefined{
  if(Array.isArray(row.creative_list)&&row.creative_list.some((c:JsonObject)=>obj(c)&&c.ad_material_id!==undefined))out.material_statuses=Object.fromEntries(row.creative_list.filter((c:JsonObject)=>obj(c)&&c.ad_material_id!==undefined).map((c:JsonObject)=>[String(c.ad_material_id),c.material_operation_status??null]));
  if(Array.isArray(row.creative_list))out.creative_list=row.creative_list.map((c:JsonObject)=>{const ci=obj(c)&&obj(c.creative_info)?c.creative_info:{};return {ad_format:ci.ad_format??null,tiktok_item_id:blank(ci.tiktok_item_id),identity_type:ci.identity_type??null,identity_id:blank(ci.identity_id),identity_authorized_bc_id:blank(ci.identity_authorized_bc_id)};}).sort(order);
  if(Array.isArray(row.landing_page_url_list))out.landing_page_url_list=row.landing_page_url_list.map((p:JsonObject)=>obj(p)?p.landing_page_url??null:null).sort();
+ if(Array.isArray(row.page_list))out.page_list=row.page_list.map((p:JsonObject)=>obj(p)?blank(p.page_id):null).sort();
  if(obj(row.ad_configuration)){
   const ac:JsonObject={...row.ad_configuration};
   if(Array.isArray(ac.creative_auto_enhancement_strategy_list))ac.creative_auto_enhancement_strategy_list=[...ac.creative_auto_enhancement_strategy_list].sort();
@@ -210,7 +228,7 @@ export function tiktokSmartPlusAdProjection(row:unknown):JsonObject|undefined{
 export function tiktokSmartPlusAdVerification(plan:CompiledRequest,result:JsonObject){
  const id=tiktokSmartPlusAdId(obj(result.data)?result.data:{}),b=plan.body as JsonObject;
  if(!id)throw new MirrorError('VERIFICATION_UNSUPPORTED','The creation receipt has no Smart+ ad ID.');
- const sent=tiktokSmartPlusAdProjection({creative_list:b.creative_list,landing_page_url_list:b.landing_page_url_list,ad_configuration:b.ad_configuration})!;
+ const sent=tiktokSmartPlusAdProjection({creative_list:b.creative_list,...(b.page_list!==undefined?{page_list:b.page_list}:{landing_page_url_list:b.landing_page_url_list}),ad_configuration:b.ad_configuration})!;
  const expected:JsonObject={smart_plus_ad_id:id,adgroup_id:b.adgroup_id,ad_name:b.ad_name,operation_status:'DISABLE',...sent};
  return [{path:tiktokSmartPlusAdGetPath,query:{advertiser_id:plan.accountId,filtering:{smart_plus_ad_ids:[id]},page_size:100},expected,id}];
 }
