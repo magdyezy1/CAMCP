@@ -1910,6 +1910,23 @@
     {
       "gateway": "dv360_native_action",
       "arguments": {
+        "action": "DV360_ADVERTISERS_AD_ASSETS_CREATE",
+        "params": {
+          "advertiserId": "123"
+        },
+        "body": {
+          "adAsset": {
+            "adAssetType": "AD_ASSET_TYPE_YOUTUBE_VIDEO",
+            "youtubeVideoAsset": {
+              "youtubeVideoId": "SYNTHETIC01"
+            }
+          }
+        }
+      }
+    },
+    {
+      "gateway": "dv360_native_action",
+      "arguments": {
         "action": "DV360_ADVERTISERS_LINE_ITEMS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS",
         "params": {
           "advertiserId": "123"

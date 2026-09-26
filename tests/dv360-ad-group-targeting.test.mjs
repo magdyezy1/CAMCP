@@ -106,6 +106,10 @@ test('Demand Gen line items and ad groups take only their documented targeting t
   const device=await f.create('901','TARGETING_TYPE_DEVICE_TYPE',{deviceTypeDetails:{deviceType:'DEVICE_TYPE_COMPUTER'}});assert.equal(device.error?.code,'INVALID_DV360_TARGETING');assert.equal(f.calls.length,0);
   ok(await f.lineCreate('556','TARGETING_TYPE_DEVICE_TYPE',{deviceTypeDetails:{deviceType:'DEVICE_TYPE_COMPUTER'}}));
   assert.match((await f.lineCreate('556','TARGETING_TYPE_AGE_RANGE',age)).error?.message??'',/not among its targeting types/);
+  // Demand Gen only excludes keywords, categories and placements.
+  assert.match((await f.create('901','TARGETING_TYPE_YOUTUBE_CHANNEL',{youtubeChannelDetails:{channelId:'UCsynthetic0000000000000'}})).error?.message??'',/only excludes/);
+  assert.match((await f.lineCreate('556','TARGETING_TYPE_KEYWORD',{keywordDetails:{keyword:'ice cream'}})).error?.message??'',/only excludes/);
+  ok(await f.lineCreate('556','TARGETING_TYPE_KEYWORD',{keywordDetails:{keyword:'ice cream',negative:true}}));
   assert.equal(f.writes(),0);
  }finally{f.store.close();}
 });

@@ -91,6 +91,8 @@ export interface CompiledRequest {
   criteoLineItemState?:{campaignId?:string;lineItemId?:string;siblings:boolean;products?:boolean;keywords?:boolean;multipliers?:boolean};
   /** Server-derived DV360 Demand Gen ad group read of the selected advertiser; never caller supplied. */
   dv360AdGroupState?:{adGroupId?:string;lineItemId?:string;optional?:boolean};
+  /** Server-derived DV360 ad asset read of one YouTube video of the selected advertiser; never caller supplied. */
+  dv360AdAssetState?:{youtubeVideoId:string};
   /** Server-derived GTM workflow read. Never accepted from external arguments. */
   gtmState?:{kind:'resource'|'collection'|'status'|'latest';key?:string};
   /** Internal complete GTM workspace read; targets only qualify absence checks. */

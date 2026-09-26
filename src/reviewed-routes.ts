@@ -35,6 +35,7 @@ import {criteoLineItemKind} from './criteo-auction-line-items.js';
 import {criteoPromotedProductsKind} from './criteo-promoted-products.js';
 import {criteoKeywordKind,criteoBidMultiplierKind} from './criteo-line-item-bidding.js';
 import {dv360AdGroupKind} from './dv360-demand-gen-ad-groups.js';
+import {dv360AdAssetKind} from './dv360-ad-assets.js';
 import {googleTargetingKind} from './google-targeting-writes.js';
 import {googleAssetLinkKind} from './google-asset-links.js';
 import {googleConfigurationKind} from './google-configuration-writes.js';
@@ -84,6 +85,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(criteoKeywordKind(p))return 'criteo_keywords';
  if(criteoBidMultiplierKind(p))return 'criteo_bid_multipliers';
  if(dv360AdGroupKind(p))return 'dv360_demand_gen_ad_groups';
+ if(dv360AdAssetKind(p))return 'dv360_ad_assets';
  if(googleBiddingEventKind(p))return 'google_bidding_events';
  if(googlePortfolioKind(p))return 'google_portfolio_strategies';
  if(googleConversionActionKind(p))return 'google_conversion_actions';

@@ -4682,8 +4682,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_AD_ASSETS_CREATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_ad_assets"
         }
       ],
       "mapping_status": "mapped",
@@ -4735,8 +4735,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_AD_ASSETS_BULK_CREATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_ad_assets"
         }
       ],
       "mapping_status": "mapped",

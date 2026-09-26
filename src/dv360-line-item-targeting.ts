@@ -23,6 +23,8 @@ export const dv360DemandGenLineItemTypes=['CARRIER_AND_ISP','DAY_AND_TIME','DEVI
 export const dv360AdGroupTargetingTypes=['AGE_RANGE','APP','APP_CATEGORY','AUDIENCE_GROUP','CATEGORY','GENDER','GEO_REGION','HOUSEHOLD_INCOME','KEYWORD','LANGUAGE','PARENTAL_STATUS','URL','YOUTUBE_CHANNEL','YOUTUBE_VIDEO'].map(t=>'TARGETING_TYPE_'+t);
 /** Location and language targeting of a Demand Gen line item sits on the line item when demandGenSettings.geoLanguageTargetingEnabled is true, and on its ad groups otherwise. */
 const geoLanguage=new Set(['TARGETING_TYPE_GEO_REGION','TARGETING_TYPE_POI','TARGETING_TYPE_LANGUAGE']);
+/** Demand Gen only excludes keywords, categories and placements (DV360 Help, "Create a Demand Gen line item", checked 2026-09-27). */
+const demandGenExclusions=new Set(['KEYWORD','CATEGORY','URL','APP','APP_CATEGORY','YOUTUBE_CHANNEL','YOUTUBE_VIDEO'].map(t=>'TARGETING_TYPE_'+t));
 /** Assigning these references audiences or inventory whose advertiser access this contract does not read; removing them is qualified. */
 const unreadReferences:Record<string,string>={TARGETING_TYPE_AUDIENCE_GROUP:'audiences',TARGETING_TYPE_INVENTORY_SOURCE:'inventory sources',TARGETING_TYPE_INVENTORY_SOURCE_GROUP:'inventory source groups'};
 /** Assigned lists must be owned by the selected advertiser; partner-owned channels are not read under an advertiser. */
@@ -249,6 +251,7 @@ function finalKeys(e:Edit,rows:Row[],owner:string,type:string):string[]{
 /** Demand Gen targeting takes the documented types of its level, and location and language only where the line item's setting puts them. */
 function demandGen(e:Edit,label:string,geoHere:boolean,types:string[]):void{
  for(const t of [...e.deletes.map(d=>d.type),...e.creates.map(c=>c.type)])if(!types.includes(t))invalid(label+' is Demand Gen; '+t+' is not among its targeting types ('+types.map(x=>x.slice(15)).join(', ')+').');
+ for(const c of e.creates)if(demandGenExclusions.has(c.type)&&c.options.some(o=>obj(o)&&obj(o[dv360DetailsField(c.type)])&&o[dv360DetailsField(c.type)].negative!==true))invalid(label+' is Demand Gen, which only excludes keywords, categories and placements; set negative to true for '+c.type+'.');
  for(const c of e.creates)if(geoLanguage.has(c.type)&&!geoHere)invalid(label+': location and language targeting of this Demand Gen line item belongs to '+(e.level==='ad_group'?'the line item':'its ad groups')+' (demandGenSettings.geoLanguageTargetingEnabled).');
 }
 export function validateDV360TargetingPrerequisites(plan:CompiledRequest,state:unknown[]):void{

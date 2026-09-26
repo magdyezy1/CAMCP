@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## CZ — DV360 YouTube video ad assets and Demand Gen exclusions (2026-09-27)
+
+YouTube video ad assets can now be created (singly or up to 25 at once) after a check for an
+existing active asset of each video, and verified by ID. Demand Gen targeting now refuses positive
+keywords, categories and placements, which DV360 does not offer. See
+[implementation](DV360-AD-ASSETS-2026-09-27.md),
+[qualification](DV360-AD-ASSETS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 891 (two DV360 rows reviewed). Pushed only to CAMCP; its exact-commit CI result and
+live acceptance are pending.
+
 ## CY — DV360 Demand Gen targeting (2026-09-27)
 
 Demand Gen ad groups can now be targeted (bulk edit, create, delete) with the documented ad group
@@ -17,8 +29,8 @@ and language go where the line item's setting puts them. See
 [qualification](DV360-DEMAND-GEN-TARGETING-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 893 (three DV360 rows reviewed). Pushed only to CAMCP; its exact-commit CI result and
-live acceptance are pending.
+Remaining rows: 893 (three DV360 rows reviewed). Pushed to CAMCP as `1d90531`; its exact-commit CI
+result and live acceptance are pending.
 
 ## CX — DV360 Demand Gen ad groups (2026-09-27)
 

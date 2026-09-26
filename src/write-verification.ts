@@ -74,6 +74,7 @@ import {criteoLineItemKind,criteoLineItemVerification,isCriteoLineItemRead,crite
 import {criteoPromotedProductsKind,criteoPromotedProductsVerification} from './criteo-promoted-products.js';
 import {criteoKeywordKind,criteoBidMultiplierKind,criteoLineItemBiddingVerification} from './criteo-line-item-bidding.js';
 import {dv360AdGroupKind,dv360AdGroupVerification,isDV360AdGroupRead,dv360AdGroupObserved,readDV360AdGroups} from './dv360-demand-gen-ad-groups.js';
+import {dv360AdAssetKind,dv360AdAssetVerification} from './dv360-ad-assets.js';
 import {gtmWorkflowKind,gtmWorkflowVerification,gtmWorkflowObserved,readGtmWorkflow} from './gtm-workflow-writes.js';
 import {gtmWorkspaceKind,gtmWorkspaceVerification,gtmWorkspaceObserved,readGtmWorkspace} from './gtm-workspace-writes.js';
 import {validateState,snapshotPlans} from './write-review.js';
@@ -113,6 +114,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
  if(criteoPromotedProductsKind(plan))return criteoPromotedProductsVerification(plan);
  if(criteoKeywordKind(plan)||criteoBidMultiplierKind(plan))return criteoLineItemBiddingVerification(plan);
  if(dv360AdGroupKind(plan))return dv360AdGroupVerification(plan,result,before);
+ if(dv360AdAssetKind(plan))return dv360AdAssetVerification(plan,result);
  if(googleConfigurationKind(plan))return googleConfigurationVerification(plan,result);
  if(googleAssetLinkKind(plan))return googleAssetLinkVerification(plan);
  if(microsoftAssociationWrite(plan))return microsoftAssociationVerification(plan,compileMicrosoft);

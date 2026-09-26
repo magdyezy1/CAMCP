@@ -177,7 +177,7 @@ created through the line item route as a draft). DV360 writes ad groups of no ot
   every setting the request sets, or confirms a deleted ad group is gone.
   `INVALID_DV360_AD_GROUP` names the field or rule to correct.
 
-Ads and assets of Demand Gen ad groups are not qualified yet; their targeting follows. References:
+Demand Gen ads are not qualified yet; targeting and YouTube video assets follow. References:
 [Serve a Demand Gen ad](https://developers.google.com/display-video/api/guides/tasks/serve-demand-gen-ad/overview)
 and [adGroups](https://developers.google.com/display-video/api/reference/rest/v4/advertisers.adGroups),
 checked 2026-09-27.
@@ -197,6 +197,8 @@ single `DV360_ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_C
   region, household income, keyword, language, parental status, URL, YouTube channel and YouTube
   video targeting. Assigning audience groups stays refused, as for line items; removing them is
   qualified.
+- Demand Gen only excludes keywords, categories and placements: keyword, category, URL, app, app
+  category, YouTube channel and YouTube video options must set `negative: true`.
 - Location and language (geo region, POI, language) belong to the line item when its
   `demandGenSettings.geoLanguageTargetingEnabled` is true, and to its ad groups when it is false;
   a review that assigns them at the other level is refused.
@@ -209,6 +211,28 @@ single `DV360_ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_C
 
 Reference: [Assign targeting](https://developers.google.com/display-video/api/guides/tasks/serve-demand-gen-ad/assign-targeting)
 and [ad group bulk edit](https://developers.google.com/display-video/api/reference/rest/v4/advertisers.adGroups/bulkEditAssignedTargetingOptions),
+checked 2026-09-27.
+
+### Demand Gen ad assets
+
+Demand Gen ads reference ad assets by `adAssetId`. `DV360_ADVERTISERS_AD_ASSETS_CREATE`
+(`params: {advertiserId}`, body `{adAsset}`) and `..._BULK_CREATE` (body `{adAssets: [...]}`, 1–25
+assets) create YouTube video assets: `adAssetType: AD_ASSET_TYPE_YOUTUBE_VIDEO`,
+`youtubeVideoAsset: {youtubeVideoId}` (the 11-character ID of the video URL) and optionally
+`syntheticContentAttestationStatus` (`NOT_SYNTHETIC` or `IS_SYNTHETIC`, the AI label where local
+rules require it).
+
+- AMCP reads the advertiser's assets of each video first. A video that is already an active asset
+  is refused with `CONFIGURATION_EXISTS` and the asset ID to reuse; an archived one may be created
+  again.
+- An asset serves nothing on its own, so no spending confirmation is needed.
+- Verification reads each new asset by ID and compares its type, video and attestation. A
+  receipt that misses an asset or names another video is a failure and is not resubmitted.
+- Image assets (logos, marketing images, companion banners) are uploaded as media with
+  `..._UPLOAD`, which is not qualified, and the API does not read them back; create them in
+  Display & Video 360. `INVALID_DV360_AD_ASSET` names the field to correct.
+
+Reference: [Create ad assets](https://developers.google.com/display-video/api/guides/tasks/serve-demand-gen-ad/create-ad-assets),
 checked 2026-09-27.
 
 ## GA4 — ga4_native_action
