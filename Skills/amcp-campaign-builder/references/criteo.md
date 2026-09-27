@@ -427,3 +427,33 @@ cap as merged runs. `INVALID_CRITEO_BUDGET_OVERRIDE` names the field to correct.
 
 Reference: [Budget Overrides](https://developers.criteo.com/retail-media/docs/budget-overrides)
 and the pinned 2026-01 OpenAPI document, checked 2026-09-27.
+
+## Audience segments (2026.01)
+
+Maintainer: AMCP integration maintainer; reviewed 2026-09-27. Segments are audiences of one retailer
+that line items target. Select one login/account with `RetailMedia_Accounts_Read`,
+`RetailMedia_Audience_Read` and `RetailMedia_Audience_Manage` (and `RetailMedia_Campaign_Read` to
+create, for the retailer check).
+
+- `criteo_audience_ops / BULK_CREATE_AUDIENCE_SEGMENTS` with `payload: {data: [{type,
+  attributes: {name, description, retailerId, events | contactList}}]}` (1–50). An Events segment
+  sets `events: {shopperActivity: View|Buy|AddToCart, lookbackDays: Last7Days…Last180Days,
+  categoryIds, brandIds, minPrice, maxPrice}`; a contact list segment sets `contactList:
+  {identifierType}` and starts empty (adding contacts carries customer data and is outside AMCP's
+  reviewed writes).
+- `BULK_UPDATE_AUDIENCE_SEGMENTS` with `payload: {data: [{id, attributes: {name, description:
+  {value}, events: {...}}}]}`; prices are `{value}` (null clears). The retailer, the type and a
+  contact list identifier cannot change.
+- `BULK_DELETE_AUDIENCE_SEGMENTS` with `payload: {data: [{id, type}]}`.
+
+AMCP searches the account's retailers (for creations) or segments (for updates and deletions):
+an unknown retailer or segment is `STATE_NOT_FOUND`, another account's segment
+`STATE_TARGET_MISMATCH`; event rules apply only to Events segments, and unchanged values are
+refused. New event rules change who targeting line items reach, so they need
+`spend_change_confirmed` and count as activation; deletion counts as a deletion. A response with
+errors or warnings is a failure that is never resubmitted. Verification searches the segments
+again. `INVALID_CRITEO_AUDIENCE_SEGMENT` names the field to correct.
+
+Reference: the pinned 2026-01 OpenAPI document (`bulkCreateAudienceSegments`,
+`bulkUpdateAudienceSegments`, `bulkDeleteAudienceSegments`, `searchAudienceSegments`), checked
+2026-09-27.

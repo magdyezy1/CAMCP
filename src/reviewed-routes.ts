@@ -46,6 +46,7 @@ import {metaValueRuleKind} from './meta-value-rules.js';
 import {metaBrandSafetyKind} from './meta-brand-safety.js';
 import {criteoLineItemKind} from './criteo-auction-line-items.js';
 import {criteoOverrideKind} from './criteo-budget-overrides.js';
+import {criteoSegmentKind} from './criteo-audience-segments.js';
 import {criteoPromotedProductsKind} from './criteo-promoted-products.js';
 import {criteoKeywordKind,criteoBidMultiplierKind} from './criteo-line-item-bidding.js';
 import {dv360AdGroupKind} from './dv360-demand-gen-ad-groups.js';
@@ -117,6 +118,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(metaBrandSafetyKind(p))return 'meta_brand_safety';
  if(criteoLineItemKind(p))return 'criteo_auction_line_items';
  if(criteoOverrideKind(p))return 'criteo_budget_overrides';
+ if(criteoSegmentKind(p))return 'criteo_audience_segments';
  if(criteoPromotedProductsKind(p))return 'criteo_promoted_products';
  if(criteoKeywordKind(p))return 'criteo_keywords';
  if(criteoBidMultiplierKind(p))return 'criteo_bid_multipliers';

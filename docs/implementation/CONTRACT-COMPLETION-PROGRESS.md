@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DY — Criteo audience segments (2026-09-27)
+
+Criteo Retail Media audience segments can now be created (Events rules or an empty contact list),
+changed and deleted through reviewed requests: the account's retailers or segments are searched
+first, new event rules need spending confirmation, and the segments are searched again afterwards.
+See [implementation](CRITEO-AUDIENCE-SEGMENTS-2026-09-27.md),
+[qualification](CRITEO-AUDIENCE-SEGMENTS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 807 (three Criteo rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## DX — DV360 advertiser settings (2026-09-27)
 
 The selected DV360 advertiser's name, status, domain, default business name and logo, integration
@@ -18,7 +30,7 @@ confirmation, and the settings are read back. See
 [qualification](DV360-ADVERTISER-SETTINGS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 810 (one DV360 row reviewed). Pushes go only to CAMCP; its exact-commit CI result and
+Remaining rows: 810 (one DV360 row reviewed). Committed as `3faac7b`; its exact-commit CI result and
 live acceptance are pending.
 
 ## DW — Google Ads recommendation subscriptions and Smart campaign settings (2026-09-27)

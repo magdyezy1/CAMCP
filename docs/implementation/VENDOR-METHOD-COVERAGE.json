@@ -1562,8 +1562,8 @@
         {
           "operation": "criteo_audience_ops",
           "action": "BULK_UPDATE_AUDIENCE_SEGMENTS",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_audience_segments"
         }
       ],
       "mapping_status": "mapped",
@@ -1602,8 +1602,8 @@
         {
           "operation": "criteo_audience_ops",
           "action": "BULK_CREATE_AUDIENCE_SEGMENTS",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_audience_segments"
         }
       ],
       "mapping_status": "mapped",
@@ -1622,8 +1622,8 @@
         {
           "operation": "criteo_audience_ops",
           "action": "BULK_DELETE_AUDIENCE_SEGMENTS",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_audience_segments"
         }
       ],
       "mapping_status": "mapped",

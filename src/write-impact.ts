@@ -67,6 +67,7 @@ import {metaValueRuleImpact} from './meta-value-rules.js';
 import {metaBrandSafetyImpact} from './meta-brand-safety.js';
 import {criteoLineItemImpact} from './criteo-auction-line-items.js';
 import {criteoOverrideImpact} from './criteo-budget-overrides.js';
+import {criteoSegmentImpact} from './criteo-audience-segments.js';
 import {criteoPromotedProductsImpact} from './criteo-promoted-products.js';
 import {criteoLineItemBiddingImpact} from './criteo-line-item-bidding.js';
 import {dv360AdGroupImpact} from './dv360-demand-gen-ad-groups.js';
@@ -153,6 +154,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  const metaBrandSafety=metaBrandSafetyImpact(plan,state);if(metaBrandSafety)return metaBrandSafety;
  const criteoLineItem=criteoLineItemImpact(plan,state);if(criteoLineItem)return criteoLineItem;
  const criteoOverride=criteoOverrideImpact(plan,state);if(criteoOverride)return criteoOverride;
+ const criteoSegment=criteoSegmentImpact(plan,state);if(criteoSegment)return criteoSegment;
  const criteoProducts=criteoPromotedProductsImpact(plan,state);if(criteoProducts)return criteoProducts;
  const criteoBidding=criteoLineItemBiddingImpact(plan,state);if(criteoBidding)return criteoBidding;
  const dv360AdGroup=dv360AdGroupImpact(plan,state);if(dv360AdGroup)return dv360AdGroup;

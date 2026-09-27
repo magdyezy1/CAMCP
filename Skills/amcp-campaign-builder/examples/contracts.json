@@ -2183,6 +2183,34 @@
     {
       "gateway": "criteo_native_action",
       "arguments": {
+        "operation": "criteo_audience_ops",
+        "arguments": {
+          "action": "BULK_CREATE_AUDIENCE_SEGMENTS",
+          "account_id": "123",
+          "payload": {
+            "data": [
+              {
+                "type": "RmAudienceSegment",
+                "attributes": {
+                  "name": "Snack viewers",
+                  "retailerId": "456",
+                  "events": {
+                    "shopperActivity": "View",
+                    "lookbackDays": "Last30Days",
+                    "categoryIds": [
+                      "789"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "gateway": "criteo_native_action",
+      "arguments": {
         "operation": "criteo_campaign_ops",
         "arguments": {
           "action": "UPDATE_CAMPAIGN_BUDGET_OVERRIDES",
