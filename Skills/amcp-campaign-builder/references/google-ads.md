@@ -910,6 +910,29 @@ and [official dismissal sample](https://developers.google.com/google-ads/api/sam
 The sample currently uses newer versions; execution remains pinned to the
 unchanged v23 Discovery route and request/response fields, which tests check.
 
+## Applying keyword and campaign budget recommendations
+
+`google_ads_v23_recommendation_apply_recommendation` (or `APPLY_RECOMMENDATION`) with
+`payload: {operations: [{resourceName, keyword | campaignBudget}]}` applies 1–20 recommendations of
+one type (Google requires one type when `partialFailure` is false, which it must be):
+
+- A `KEYWORD` recommendation adds its keyword; `keyword: {matchType, adGroup, cpcBidMicros}` chooses
+  another match type (EXACT, PHRASE or BROAD), ad group or CPC bid.
+- A `CAMPAIGN_BUDGET` recommendation sets the budget to the recommended amount, or to
+  `campaignBudget: {newBudgetAmountMicros}`.
+
+Other recommendation types change bidding strategies, assets or campaign types and stay outside this
+contract; dismiss them or change the resource through its own review. AMCP reads each recommendation
+(current, not dismissed, of the customer), its campaign budget or ad group, and the keywords of the
+ad group: a keyword already there with that match type is `CONFIGURATION_EXISTS`, and a budget that
+already has the amount is refused. Every application needs `spend_change_confirmed`; added keywords
+count as activation under owner policies, and budget amounts follow owner budget limits. A reply
+that does not name each recommendation is a failure never resubmitted. Verification reads the
+budgets or the ad group keywords again. `INVALID_GOOGLE_RECOMMENDATION_APPLY` names the field to
+correct.
+
+Reference: the pinned v23 `RecommendationService.ApplyRecommendation` document, checked 2026-09-27.
+
 ## Client-account user access and invitations
 
 Six actions now share the administrator-only user-access contract:

@@ -41,6 +41,7 @@ import {googleAutoAssetImpact} from './google-auto-assets.js';
 import {googleUploadImpact} from './google-youtube-uploads.js';
 import {googleSubscriptionImpact} from './google-recommendation-subscriptions.js';
 import {googleSmartImpact} from './google-smart-campaign-settings.js';
+import {googleApplyImpact} from './google-recommendation-apply.js';
 import {googleSegmentKind,googleSegmentImpact} from './google-custom-segments.js';
 import {googleConversionGoalKind,googleConversionGoalServing,googleConversionGoalImpact} from './google-conversion-goals.js';
 import {googleBiddingEventKind,googleBiddingEventImpact} from './google-bidding-events.js';
@@ -148,6 +149,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  const uploads=googleUploadImpact(plan,state);if(uploads)return uploads;
  const subscriptions=googleSubscriptionImpact(plan,state);if(subscriptions)return subscriptions;
  const smart=googleSmartImpact(plan,state);if(smart)return smart;
+ const recommendationApply=googleApplyImpact(plan,state);if(recommendationApply)return recommendationApply;
  if(googleSegmentKind(plan))return {...googleSegmentImpact,may_affect_serving:googleConfigurationServing(plan)};
  if(googleBiddingEventKind(plan))return googleBiddingEventImpact;
  if(googlePortfolioKind(plan))return googlePortfolioImpact;

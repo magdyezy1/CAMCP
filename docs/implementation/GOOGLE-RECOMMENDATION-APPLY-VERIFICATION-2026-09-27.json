@@ -1,0 +1,100 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "2ac11274f770cdb26abeca6affd83bf92971b70f",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/google-recommendation-apply-20260927-a",
+    "files": 990,
+    "source_tree_hash": "475a669dbab0e7754d1b4240055f5b2db19eb0393c5d550a4f228e3404d5e97c",
+    "index_code_test_guidance_files_compared": 759,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/google-recommendation-apply-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/google-recommendation-apply-20260927/install.log",
+      "sha256": "bde7d279256b0d5606fe571c148e3c4bfb648e5d1a422c0085d458c785271463"
+    },
+    {
+      "path": ".runtime/google-recommendation-apply-20260927/check.log",
+      "sha256": "9841cb1e53a0d55fd0347156944b99f6ff571fe946a6183e56c753005a0ccba8",
+      "started": "Sun Sep 27 20:57:47 UTC 2026",
+      "finished": "Mon Sep 28 00:16:44 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2543,
+          "pass": 2543,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/google-recommendation-apply-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/google-recommendation-apply-20260927/red-check.log",
+      "sha256": "fedbfb47ce5cc16f73ede934d1c411096bdeca64f2bbb5b455d98f8cccad962f",
+      "meaning": "tests/google-recommendation-apply.test.mjs against a build of 2ac1127 with the pinned document present: expected red, 4/4 fail (no reviewed family: WRITE_CONTRACT_UNAVAILABLE)"
+    },
+    {
+      "path": ".runtime/google-recommendation-apply-20260927/targeted.log",
+      "sha256": "44e8378483f04915e19db8eeb5c7f1fb5dec5ae9836cae473c0ad556c682cf78",
+      "meaning": "185 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1938/1938 pass, none skipped."
+    }
+  ],
+  "development_failures": [],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2543,
+    "main_pass": 2543,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Whether Google removes an applied recommendation from later reads, and the exact keyword it adds for a broad or phrase recommendation, follow the pinned document, not a live observation; verification looks for the keyword text and match type.",
+    "The 20-operation bound and case-insensitive keyword duplicate check are AMCP's.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

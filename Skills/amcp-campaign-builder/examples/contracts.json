@@ -748,6 +748,23 @@
     {
       "gateway": "google_ads_native_action",
       "arguments": {
+        "action": "google_ads_v23_recommendation_apply_recommendation",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "resourceName": "customers/123/recommendations/abc",
+              "campaignBudget": {
+                "newBudgetAmountMicros": "55000000"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
         "action": "google_ads_v23_recommendation_subscription_mutate_recommendation_subscription",
         "account_id": "123",
         "payload": {
