@@ -719,7 +719,17 @@ Tests: `tests/x-tracking-tags.test.mjs` (5), red on `1836baf` / green after. Pus
 
 - New reviewed family `linkedin_third_party_tracking` (`src/linkedin-third-party-tracking.ts`) for `POST /rest/thirdPartyTrackingTags` and `DELETE /rest/thirdPartyTrackingTags/{id}`: DoubleClick impression and click tags of creatives, with the ad account, the creative, the tag and the creative's tags read; duplicates refused; the new tag read back by its `x-restli-id`, or a deleted tag checked gone.
 
-Tests: `tests/linkedin-third-party-tracking.test.mjs` (5), red on `3a2d50d` / green after.
+Tests: `tests/linkedin-third-party-tracking.test.mjs` (5), red on `3a2d50d` / green after. Pushed as `4403458`.
+
+## Finished batch — X promoted accounts, media creatives and scheduled promoted Tweets (2026-09-27)
+
+[Implementation](X-LINE-ITEM-ASSOCIATIONS-2026-09-27.md) and
+[qualification](X-LINE-ITEM-ASSOCIATIONS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `x_line_item_associations` (`src/x-line-item-associations.ts`) for the create and delete routes of `promoted_accounts`, `media_creatives` and `scheduled_promoted_tweets`: PROMOTED_ACCOUNT line items and promotable users, account media with the landing URL rules, unpublished scheduled Tweets, duplicates refused, creation with activation confirmation (it serves ACTIVE), and each association read back by ID.
+- X preroll call to actions stay blocked for now: they are documented in the Creatives reference, which this checkout has no copy of.
+
+Tests: `tests/x-line-item-associations.test.mjs` (6), red on `4403458` / green after.
 
 ## CI and live evidence
 
@@ -733,20 +743,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 561 in reviewed write families. **870 remaining rows** are in
+3241 captured actions; 567 in reviewed write families. **864 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 755 |
+| blocked_write | 749 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 113, Google Ads 93,
-Snapchat 85, X 64, DV360 42, Criteo 34, Business Profile 12.
+Snapchat 85, X 58, DV360 42, Criteo 34, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

@@ -2041,6 +2041,17 @@
     {
       "gateway": "x_ads_native_action",
       "arguments": {
+        "action": "x_accounts_account_id_promoted_accounts_post",
+        "account_id": "acct1",
+        "payload": {
+          "line_item_id": "follow",
+          "user_id": "756201191646691328"
+        }
+      }
+    },
+    {
+      "gateway": "x_ads_native_action",
+      "arguments": {
         "action": "x_accounts_account_id_tracking_tags_post",
         "account_id": "acct1",
         "payload": {

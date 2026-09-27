@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DN — X promoted accounts, media creatives and scheduled promoted Tweets (2026-09-27)
+
+Follower, in-stream video, Audience Platform image and scheduled Tweet campaigns on X can now be
+completed through reviewed requests: promoted accounts, media creatives and scheduled promoted
+Tweets are created with activation confirmation and removed, with the line item, its campaign,
+current associations and the user, media or scheduled Tweet read, and each association read back. See [implementation](X-LINE-ITEM-ASSOCIATIONS-2026-09-27.md),
+[qualification](X-LINE-ITEM-ASSOCIATIONS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 864 (six X rows reviewed). Pushed only to CAMCP; its exact-commit CI result and live
+acceptance are pending.
+
 ## DM — LinkedIn third-party tracking tags (2026-09-27)
 
 DoubleClick impression and click tags can now be added to and removed from LinkedIn creatives
@@ -17,8 +29,8 @@ duplicates are refused, and each change is read back. See
 [qualification](LINKEDIN-THIRD-PARTY-TRACKING-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 870 (two LinkedIn rows reviewed). Pushed only to CAMCP; its exact-commit CI result
-and live acceptance are pending.
+Remaining rows: 870 (two LinkedIn rows reviewed). Pushed to CAMCP as `4403458`; its exact-commit
+CI result and live acceptance are pending.
 
 ## DL — X line item tracking tags (2026-09-27)
 

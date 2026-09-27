@@ -1,0 +1,103 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "4403458a19da79febd4d7c09b4bd18d5949f6f93",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/x-line-item-associations-20260927-a",
+    "files": 887,
+    "source_tree_hash": "0d4b293d7cdec40abd9cf98fdd1ec9814f70adc44ccbb71df11176ef5e0d0e0a",
+    "index_code_test_guidance_files_compared": 704,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/x-line-item-associations-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/x-line-item-associations-20260927/install.log",
+      "sha256": "ae48f9f8721d24990e1f5dce53c39d526ea0b5dc0e153929da1126e972830ba4"
+    },
+    {
+      "path": ".runtime/x-line-item-associations-20260927/check.log",
+      "sha256": "52f2d1995a0eebe1fec93557e69180ff91352fa1eaf635a92a47282cced946a0",
+      "started": "Sun Sep 27 05:53:06 UTC 2026",
+      "finished": "Sun Sep 27 09:16:55 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2425,
+          "pass": 2425,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/x-line-item-associations-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/x-line-item-associations-20260927/red-check.log",
+      "sha256": "a87d6106c1224a27fbbce4e04d93ea6613cdbe40056ac16722a3614efda23b87",
+      "meaning": "tests/x-line-item-associations.test.mjs against a build of 4403458: expected red, 6/6 fail (the six routes had no reviewed family)"
+    },
+    {
+      "path": ".runtime/x-line-item-associations-20260927/targeted.log",
+      "sha256": "8d0c8de2c4c7b6a5550834411f94d59b2b16020893960287f7e3747b420871a1",
+      "meaning": "157 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1820/1820 pass, none skipped."
+    }
+  ],
+  "development_failures": [
+    "The first run failed the malformed-request test on its expectations, not on behaviour: user and scheduled Tweet IDs sent as JSON numbers are refused by the compiler (UNSAFE_NUMERIC_ID) before the family. Both already sent nothing; the test now names that code."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2425,
+    "main_pass": 2425,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "In-stream media creatives need a PREROLL_VIEWS line item, which X enables per account; the review works on line items that already exist.",
+    "The scheduled Tweet read uses only its ID and publication time; the Creatives reference that documents scheduled Tweets is not copied in this checkout.",
+    "X preroll call to actions and line item curated categories stay blocked in this batch.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

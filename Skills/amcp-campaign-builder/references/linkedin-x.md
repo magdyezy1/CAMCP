@@ -527,6 +527,41 @@ and URL, or that it is deleted. `INVALID_X_TRACKING_TAG` names the field to corr
 Reference: [Tracking Tags](https://docs.x.com/x-ads-api/campaign-management/reference), checked
 2026-09-27.
 
+### X promoted accounts, media creatives and scheduled promoted Tweets
+
+Three line item associations that cannot be updated:
+
+- `x_accounts_account_id_promoted_accounts_post` (`CREATE_PROMOTED_ACCOUNT`): `payload: {line_item_id,
+  user_id}` promotes a user (the numeric ID as a string) in a `PROMOTED_ACCOUNT` line item. The user
+  must be a promotable user of the account; a user already promoted is `CONFIGURATION_EXISTS`.
+- `x_accounts_account_id_media_creatives_post` (`CREATE_MEDIA_CREATIVE`): `payload: {line_item_id,
+  account_media_id, landing_url}` adds an account media item (in-stream `PREROLL` video or an
+  Audience Platform image) to a line item. `landing_url` is only for images: it is required when the
+  line item objective is `WEBSITE_CLICKS` and refused for preroll media, whose link comes from a
+  preroll call to action. The same media twice on a line item is `CONFIGURATION_EXISTS`.
+- `x_accounts_account_id_scheduled_promoted_tweets_post` (`CREATE_SCHEDULED_PROMOTED_TWEET`):
+  `payload: {line_item_id, scheduled_tweet_id}` promotes a scheduled Tweet (the numeric ID as a
+  string) once it is published, in a `PROMOTED_TWEETS` or `PROMOTED_ACCOUNT` line item. An already
+  published scheduled Tweet is refused (promote the published Tweet instead), and the same scheduled
+  Tweet twice on a line item is `CONFIGURATION_EXISTS`.
+- `..._promoted_account_id_delete` (`params: {promoted_account_id}`),
+  `..._media_creative_id_delete` (`params: {media_creative_id}`) and
+  `..._scheduled_promoted_tweet_id_delete` (`params: {scheduled_promoted_tweet_id}`) remove them; they
+  count under the owner's deletion policy.
+
+In-stream media creatives need a line item with the `PREROLL_VIEWS` objective, which X enables per
+account (an account feature); the review works on line items that already exist.
+
+AMCP reads the line item (not deleted), its campaign, the existing associations of the line item,
+and the promotable users, the account media item or the scheduled Tweet. Promoted accounts and
+media creatives are ACTIVE at once and a scheduled promoted Tweet serves when its Tweet is published,
+so creation needs `spend_change_confirmed` and counts as activation under owner policies.
+Verification reads the association by ID (line item, user, media or scheduled Tweet, landing URL)
+or checks that it is deleted. `INVALID_X_LINE_ITEM_ASSOCIATION` names the field to correct.
+
+Reference: [Promoted Accounts, Media Creatives and Scheduled Promoted Tweets](https://docs.x.com/x-ads-api/campaign-management/reference),
+checked 2026-09-27.
+
 ### X atomic targeting batches
 
 Use `x_batch_accounts_account_id_targeting_criteria_post` through

@@ -238,10 +238,10 @@
       "gateway": "x_ads_native_action",
       "actions": 186,
       "counts": {
-        "blocked_write": 64,
+        "blocked_write": 58,
         "media_workflow": 1,
         "native_read": 96,
-        "reviewed_write_family": 25
+        "reviewed_write_family": 31
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -57383,7 +57383,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57406,7 +57407,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57444,7 +57446,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57467,7 +57470,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57490,7 +57494,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57513,7 +57518,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57536,7 +57542,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57559,7 +57566,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57601,7 +57609,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57644,7 +57653,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57686,7 +57696,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57709,7 +57720,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57750,7 +57762,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57791,7 +57804,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57829,7 +57843,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57867,7 +57882,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57920,7 +57936,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57943,7 +57960,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58014,7 +58032,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58052,7 +58071,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58090,7 +58110,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58113,7 +58134,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58151,7 +58173,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58189,7 +58212,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58242,7 +58266,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58280,7 +58305,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58348,7 +58374,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58404,7 +58431,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58445,7 +58473,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58519,7 +58548,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58572,7 +58602,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58610,7 +58641,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58648,7 +58680,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58671,7 +58704,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58709,7 +58743,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58762,7 +58797,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58804,7 +58840,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58865,7 +58902,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58877,12 +58915,15 @@
       ],
       "method": "DELETE",
       "path": "/12/accounts/{account_id}/media_creatives/{media_creative_id}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/x-line-item-associations.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/x-line-item-associations.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "x_line_item_associations"
     },
     {
       "gateway": "x_ads_native_action",
@@ -58903,7 +58944,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58915,12 +58957,15 @@
       ],
       "method": "POST",
       "path": "/12/accounts/{account_id}/media_creatives",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/x-line-item-associations.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/x-line-item-associations.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "x_line_item_associations"
     },
     {
       "gateway": "x_ads_native_action",
@@ -58941,7 +58986,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58979,7 +59025,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59035,7 +59082,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59088,7 +59136,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59126,7 +59175,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59149,7 +59199,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59172,7 +59223,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59184,12 +59236,15 @@
       ],
       "method": "POST",
       "path": "/12/accounts/{account_id}/promoted_accounts",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/x-line-item-associations.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/x-line-item-associations.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "x_line_item_associations"
     },
     {
       "gateway": "x_ads_native_action",
@@ -59199,12 +59254,15 @@
       ],
       "method": "DELETE",
       "path": "/12/accounts/{account_id}/promoted_accounts/{promoted_account_id}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/x-line-item-associations.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/x-line-item-associations.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "x_line_item_associations"
     },
     {
       "gateway": "x_ads_native_action",
@@ -59225,7 +59283,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59248,7 +59307,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59308,7 +59368,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59346,7 +59407,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59369,7 +59431,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59392,7 +59455,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59404,12 +59468,15 @@
       ],
       "method": "POST",
       "path": "/12/accounts/{account_id}/scheduled_promoted_tweets",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/x-line-item-associations.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/x-line-item-associations.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "x_line_item_associations"
     },
     {
       "gateway": "x_ads_native_action",
@@ -59419,12 +59486,15 @@
       ],
       "method": "DELETE",
       "path": "/12/accounts/{account_id}/scheduled_promoted_tweets/{scheduled_promoted_tweet_id}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/x-line-item-associations.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/x-line-item-associations.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "x_line_item_associations"
     },
     {
       "gateway": "x_ads_native_action",
@@ -59445,7 +59515,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59468,7 +59539,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59521,7 +59593,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59559,7 +59632,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59612,7 +59686,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59673,7 +59748,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59711,7 +59787,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59734,7 +59811,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59772,7 +59850,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59831,7 +59910,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59890,7 +59970,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59914,7 +59995,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59955,7 +60037,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59993,7 +60076,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60031,7 +60115,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60132,7 +60217,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60155,7 +60241,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60193,7 +60280,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60216,7 +60304,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60239,7 +60328,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60280,7 +60370,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60333,7 +60424,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60356,7 +60448,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60409,7 +60502,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60462,7 +60556,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60516,7 +60611,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60587,7 +60683,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60610,7 +60707,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60633,7 +60731,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60656,7 +60755,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60679,7 +60779,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60717,7 +60818,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60758,7 +60860,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60781,7 +60884,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60804,7 +60908,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60827,7 +60932,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60850,7 +60956,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60873,7 +60980,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60896,7 +61004,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60919,7 +61028,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60942,7 +61052,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60965,7 +61076,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60988,7 +61100,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61011,7 +61124,8 @@
         "tests/x-draft-writes.test.ts",
         "tests/x-report-jobs.test.ts",
         "tests/x-audience-estimate.test.mjs",
-        "tests/x-tracking-tags.test.mjs"
+        "tests/x-tracking-tags.test.mjs",
+        "tests/x-line-item-associations.test.mjs"
       ],
       "live_qualification": "unverified"
     }

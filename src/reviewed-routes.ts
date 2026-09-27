@@ -45,6 +45,7 @@ import {dv360AdKind} from './dv360-demand-gen-ads.js';
 import {dv360LineItemBulkKind} from './dv360-line-item-bulk-update.js';
 import {dv360LineItemDuplicateKind} from './dv360-line-item-duplicate.js';
 import {xTrackingTagKind} from './x-tracking-tags.js';
+import {xAssociationKind} from './x-line-item-associations.js';
 import {googleTargetingKind} from './google-targeting-writes.js';
 import {googleAssetLinkKind} from './google-asset-links.js';
 import {googleConfigurationKind} from './google-configuration-writes.js';
@@ -104,6 +105,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(dv360LineItemBulkKind(p))return 'dv360_line_item_bulk_update';
  if(dv360LineItemDuplicateKind(p))return 'dv360_line_item_duplicate';
  if(xTrackingTagKind(p))return 'x_tracking_tags';
+ if(xAssociationKind(p))return 'x_line_item_associations';
  if(googleBiddingEventKind(p))return 'google_bidding_events';
  if(googlePortfolioKind(p))return 'google_portfolio_strategies';
  if(googleConversionActionKind(p))return 'google_conversion_actions';
