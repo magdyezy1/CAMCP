@@ -493,3 +493,32 @@ writable field and the status. `INVALID_CRITEO_PREFERRED_LINE_ITEM` names the fi
 
 Reference: the pinned 2026-01 OpenAPI document (`CreatePreferredLineItemByCampaignId`,
 `UpdatePreferredLineItemByLineItemId`, `GetPreferredLineItemsByLineItemId`), checked 2026-09-27.
+
+## Catalog requests and exports (2026.01)
+
+A catalog request asks Criteo to build a file of the products available to the account, for
+example to choose promoted products. Nothing about campaigns, budgets or serving changes, so no
+spending confirmation is needed. Use `operation: criteo_catalog_ops` with `payload: {data: {type,
+attributes}}`:
+
+- `CATALOG_API_POST_API_V1_EXTERNAL_ACCOUNT_CATALOGS_BY_ACCOUNT_ID`: `type` (for example
+  `CatalogRequest`) and `attributes: {format: "json-newline", brandIdFilter}`.
+- `CATALOG_POST_API_EXTERNAL_V1_ACCOUNT_CATALOGS_SELLERS_BY_ACCOUNT_ID`: `type` (for example
+  `SellerCatalogRequest`) and `attributes: {sellers: [{retailerId, sellerId}]}` (required).
+- `CREATE_BRAND_CATALOG_EXPORT`: `attributes: {brandIdFilter, retailerIdFilter, includeFields,
+  modifiedAfter}`; needs `RetailMedia_Campaign_Manage`.
+- `CREATE_SELLER_CATALOG_EXPORT`: `attributes: {sellers, includeFields, modifiedAfter}`; needs
+  `RetailMedia_Campaign_Manage`.
+
+Brand IDs are numeric strings, retailer IDs positive integers, each listed once (up to 500);
+`includeFields` names `Description`, `ImageUrl`, `GoogleCategory`, `RetailerName`, `Category` or
+`BrandName`; `modifiedAfter` is a past ISO 8601 date-time. The reply is a catalog status with an ID;
+a reply that is not pending or success is a failure never resubmitted. Verification reads
+`catalogs/{catalogId}/status` and expects pending or success; after that, `GET_CATALOG_STATUS` and
+`GET_CATALOG_OUTPUT` with `params: {catalogId}` work for five minutes (AMCP's window for resources it
+has seen), and the output is available once the status is success. `INVALID_CRITEO_CATALOG_REQUEST`
+names the field to correct.
+
+Reference: the pinned 2026-01 OpenAPI document (`CatalogApi_PostApiV1ExternalAccountCatalogsByAccountId`,
+`Catalog_PostApiExternalV1AccountCatalogsSellersByAccountId`, `CreateBrandCatalogExport`,
+`CreateSellerCatalogExport`, `GetCatalogStatus`, `GetCatalogOutput`), checked 2026-09-27.

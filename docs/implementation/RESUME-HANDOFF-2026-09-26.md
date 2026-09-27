@@ -897,7 +897,16 @@ Tests: `tests/x-custom-audiences.test.mjs` (5), red on `63ad83a` / green after. 
 
 - New reviewed family `criteo_preferred_line_items` (`src/criteo-preferred-line-items.ts`) for creating preferred line items in preferred campaigns (draft or paused) and the complete PUT. Writes need account-scoped membership, every write needs spending confirmation, and a verified creation is remembered as the account's.
 
-Tests: `tests/criteo-preferred-line-items.test.mjs` (6), red on `ac37309` / green after.
+Tests: `tests/criteo-preferred-line-items.test.mjs` (6), red on `ac37309` / green after. Committed as `a20537d`.
+
+## Finished batch — Criteo catalog requests and exports (2026-09-27)
+
+[Implementation](CRITEO-CATALOG-REQUESTS-2026-09-27.md) and
+[qualification](CRITEO-CATALOG-REQUESTS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `criteo_catalog_requests` (`src/criteo-catalog-requests.ts`) for the four catalog request and export POSTs. No spending confirmation; verification reads the catalog status by the receipt's ID, and a verified catalog is then readable natively for five minutes.
+
+Tests: `tests/criteo-catalog-requests.test.mjs` (4), red on `a20537d` / green after.
 
 ## CI and live evidence
 
@@ -911,20 +920,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 647 in reviewed write families. **784 remaining rows** are in
+3241 captured actions; 651 in reviewed write families. **780 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 669 |
+| blocked_write | 665 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 119, LinkedIn 105, Snapchat 83,
-Google Ads 59, X 43, DV360 35, Criteo 27, Business Profile 12.
+Google Ads 59, X 43, DV360 35, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

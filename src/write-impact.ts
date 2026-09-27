@@ -70,6 +70,7 @@ import {metaBrandSafetyImpact} from './meta-brand-safety.js';
 import {criteoLineItemImpact} from './criteo-auction-line-items.js';
 import {criteoOverrideImpact} from './criteo-budget-overrides.js';
 import {criteoPreferredImpact} from './criteo-preferred-line-items.js';
+import {criteoCatalogImpact} from './criteo-catalog-requests.js';
 import {criteoSegmentImpact} from './criteo-audience-segments.js';
 import {criteoPromotedProductsImpact} from './criteo-promoted-products.js';
 import {criteoLineItemBiddingImpact} from './criteo-line-item-bidding.js';
@@ -164,6 +165,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  const criteoLineItem=criteoLineItemImpact(plan,state);if(criteoLineItem)return criteoLineItem;
  const criteoOverride=criteoOverrideImpact(plan,state);if(criteoOverride)return criteoOverride;
  const criteoPreferred=criteoPreferredImpact(plan,state);if(criteoPreferred)return criteoPreferred;
+ const criteoCatalog=criteoCatalogImpact(plan,state);if(criteoCatalog)return criteoCatalog;
  const criteoSegment=criteoSegmentImpact(plan,state);if(criteoSegment)return criteoSegment;
  const criteoProducts=criteoPromotedProductsImpact(plan,state);if(criteoProducts)return criteoProducts;
  const criteoBidding=criteoLineItemBiddingImpact(plan,state);if(criteoBidding)return criteoBidding;

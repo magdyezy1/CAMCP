@@ -53,7 +53,7 @@ export interface CompiledRequest {
   /** Process-local monotonic deadline for a server-derived report retrieval. */
   criteoReportDeadline?:number;
  criteoCampaignDeadline?:number;
-  scopeContext?:{metaReportReviewId?:string;campaignId?:string;linkedinPostReviewId?:string;microsoftExtensionTypes?:string[];microsoftAssociationPairs?:{entityId:string;extensionId:string}[];appleSharedAccountIds?:string[];appleSharedResultAccounts?:string[];appleSharedOrgId?:string;appleCurrency?:string;gtmPriorAuthHash?:string;redditProfileId?:string;redditProfileUserId?:string;redditPostReviewId?:string;criteoVerifiedLineId?:string;criteoVerifiedCampaignId?:string;criteoLineItemCampaignId?:string;criteoLineItemId?:string;criteoOverrideCampaignId?:string;criteoOverrideLineItemId?:string;criteoPreferredLineItemId?:string};
+  scopeContext?:{metaReportReviewId?:string;campaignId?:string;linkedinPostReviewId?:string;microsoftExtensionTypes?:string[];microsoftAssociationPairs?:{entityId:string;extensionId:string}[];appleSharedAccountIds?:string[];appleSharedResultAccounts?:string[];appleSharedOrgId?:string;appleCurrency?:string;gtmPriorAuthHash?:string;redditProfileId?:string;redditProfileUserId?:string;redditPostReviewId?:string;criteoVerifiedLineId?:string;criteoVerifiedCampaignId?:string;criteoLineItemCampaignId?:string;criteoLineItemId?:string;criteoOverrideCampaignId?:string;criteoOverrideLineItemId?:string;criteoPreferredLineItemId?:string;criteoCatalogId?:string};
   reportDownload?:{offset:number;limit:number};
   contractEvidence?:JsonObject;
   /** Internal, derived exact-target GAQL read. Never accepted from client input. */
@@ -91,6 +91,8 @@ export interface CompiledRequest {
   criteoLineItemState?:{campaignId?:string;lineItemId?:string;siblings:boolean;products?:boolean;keywords?:boolean;multipliers?:boolean};
   /** Server-derived Criteo preferred line item read of the selected account; never caller supplied. */
   criteoPreferredState?:{campaignId?:string;lineItemId?:string;creativeId?:string};
+  /** Server-derived Criteo catalog request read of the selected account; never caller supplied. */
+  criteoCatalogState?:{catalogId?:string;optional?:boolean};
   /** Server-derived DV360 Demand Gen ad group read of the selected advertiser; never caller supplied. */
   dv360AdGroupState?:{adGroupId?:string;lineItemId?:string;optional?:boolean};
   /** Server-derived DV360 ad asset read of one YouTube video of the selected advertiser; never caller supplied. */

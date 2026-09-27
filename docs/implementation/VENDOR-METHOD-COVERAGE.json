@@ -1982,8 +1982,8 @@
         {
           "operation": "criteo_catalog_ops",
           "action": "CREATE_BRAND_CATALOG_EXPORT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_catalog_requests"
         }
       ],
       "mapping_status": "mapped",
@@ -2022,8 +2022,8 @@
         {
           "operation": "criteo_catalog_ops",
           "action": "CATALOG_API_POST_API_V1_EXTERNAL_ACCOUNT_CATALOGS_BY_ACCOUNT_ID",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_catalog_requests"
         }
       ],
       "mapping_status": "mapped",
@@ -2042,8 +2042,8 @@
         {
           "operation": "criteo_catalog_ops",
           "action": "CATALOG_POST_API_EXTERNAL_V1_ACCOUNT_CATALOGS_SELLERS_BY_ACCOUNT_ID",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_catalog_requests"
         }
       ],
       "mapping_status": "mapped",
@@ -2102,8 +2102,8 @@
         {
           "operation": "criteo_catalog_ops",
           "action": "CREATE_SELLER_CATALOG_EXPORT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_catalog_requests"
         }
       ],
       "mapping_status": "mapped",

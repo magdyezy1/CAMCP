@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## EG — Criteo catalog requests and exports (2026-09-27)
+
+Criteo catalog files (catalogs, seller catalogs and the brand and seller exports) can now be requested
+through reviewed requests: the account is read first, nothing that spends changes, and the catalog
+status is read back by the receipt's ID, after which the catalog's status and output are readable. See
+[implementation](CRITEO-CATALOG-REQUESTS-2026-09-27.md),
+[qualification](CRITEO-CATALOG-REQUESTS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 780 (four Criteo rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## EF — Criteo preferred line items (2026-09-27)
 
 Criteo preferred (onsite display) line items can now be created in preferred campaigns and replaced
@@ -17,8 +29,8 @@ and the result is read back. See [implementation](CRITEO-PREFERRED-LINE-ITEMS-20
 [qualification](CRITEO-PREFERRED-LINE-ITEMS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 784 (two Criteo rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
-and live acceptance are pending.
+Remaining rows: 784 (two Criteo rows reviewed). Committed as `a20537d`; its exact-commit CI
+result and live acceptance are pending.
 
 ## EE — X custom audiences (2026-09-27)
 

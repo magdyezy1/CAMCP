@@ -1,0 +1,100 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "a20537d5ace8bb258f2162c025f7c093b5815239",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/criteo-catalogs-20260927-a",
+    "files": 968,
+    "source_tree_hash": "5e5dd01bd5ddaa956c43ce90e956e7ef3272b0d2c6257201f160c85478a239bd",
+    "index_code_test_guidance_files_compared": 747,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/criteo-catalogs-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/criteo-catalogs-20260927/install.log",
+      "sha256": "e0241a93e865b80c723edae460de62714000838add04667a87b54771ad5a4a18"
+    },
+    {
+      "path": ".runtime/criteo-catalogs-20260927/check.log",
+      "sha256": "c920f5d0df32883cc02b8abb041bf649b6cc152b6abedfe758f089ca57b58d30",
+      "started": "Sun Sep 27 18:19:44 UTC 2026",
+      "finished": "Sun Sep 27 21:53:29 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2523,
+          "pass": 2523,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/criteo-catalogs-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/criteo-catalogs-20260927/red-check.log",
+      "sha256": "ea6a3f495aadaa14a8ffa58e7e6e6e03b0ca7d4ee89d685c24ad5256ad951098",
+      "meaning": "tests/criteo-catalog-requests.test.mjs against a build of a20537d with the pinned document present: expected red, 4/4 fail (no reviewed family: WRITE_CONTRACT_UNAVAILABLE)"
+    },
+    {
+      "path": ".runtime/criteo-catalogs-20260927/targeted.log",
+      "sha256": "15a01b32849751bc4f687d22625554a482333a04c4bf7200ad285a48478383b4",
+      "meaning": "179 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1918/1918 pass, none skipped."
+    }
+  ],
+  "development_failures": [],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2523,
+    "main_pass": 2523,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "That the V2 export IDs are read through the same catalogs/{catalogId}/status endpoint is AMCP's reading of the pinned document; an export whose status cannot be read reads as not verified.",
+    "The 500-identifier bound is AMCP's; the five-minute window in which a verified catalog stays readable is AMCP's general ownership window.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

@@ -72,6 +72,7 @@ import {metaObjectKind,assertMetaObject,assertMetaObjectScope,metaObjectSnapshot
 import {metaValueRuleKind,assertMetaValueRule,metaValueRuleReads,isMetaValueRuleRead,validateMetaValueRuleState,validateMetaValueRulePrerequisites,metaValueRuleOutcome} from './meta-value-rules.js';
 import {metaBrandSafetyKind,assertMetaBrandSafety,metaBrandSafetyReads,isMetaBrandSafetyRead,validateMetaBrandSafetyState,validateMetaBrandSafetyPrerequisites,metaBrandSafetyOutcome} from './meta-brand-safety.js';
 import {criteoSegmentKind,assertCriteoSegments,assertCriteoSegmentScopes,criteoSegmentSnapshots,readCriteoSegments,isCriteoSegmentRead,validateCriteoSegmentState,criteoSegmentPrerequisites,criteoSegmentOutcome} from './criteo-audience-segments.js';
+import {criteoCatalogKind,assertCriteoCatalog,assertCriteoCatalogScopes,criteoCatalogSnapshots,readCriteoCatalog,isCriteoCatalogRead,validateCriteoCatalogState,criteoCatalogPrerequisites,criteoCatalogOutcome} from './criteo-catalog-requests.js';
 import {criteoPreferredKind,assertCriteoPreferred,assertCriteoPreferredScopes,criteoPreferredSnapshots,readCriteoPreferred,isCriteoPreferredRead,validateCriteoPreferredState,criteoPreferredPrerequisites,criteoPreferredOutcome} from './criteo-preferred-line-items.js';
 import {criteoOverrideKind,assertCriteoOverride,assertCriteoOverrideScopes,criteoOverrideSnapshots,readCriteoOverrides,isCriteoOverrideRead,validateCriteoOverrideState,criteoOverridePrerequisites,criteoOverrideOutcome} from './criteo-budget-overrides.js';
 import {criteoLineItemKind,assertCriteoLineItem,assertCriteoLineItemScopes,criteoLineItemReads,isCriteoLineItemRead,validateCriteoLineItemState,validateCriteoLineItemPrerequisites,criteoLineItemOutcome,readCriteoLineItems} from './criteo-auction-line-items.js';
@@ -206,6 +207,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(criteoLineItemKind(plan))return criteoLineItemOutcome(plan,result);
  if(criteoOverrideKind(plan))return criteoOverrideOutcome(plan,result);
  if(criteoPreferredKind(plan))return criteoPreferredOutcome(plan,result);
+ if(criteoCatalogKind(plan))return criteoCatalogOutcome(plan,result);
  if(criteoSegmentKind(plan))return criteoSegmentOutcome(plan,result);
  if(criteoPromotedProductsKind(plan))return criteoPromotedProductsOutcome(plan,result);
  if(criteoKeywordKind(plan)||criteoBidMultiplierKind(plan))return criteoLineItemBiddingOutcome(plan,result);
@@ -270,6 +272,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  if(isCriteoLineItemRead(read)){validateCriteoLineItemState(read,result);return;}
  if(isCriteoOverrideRead(read)){validateCriteoOverrideState(read,result);return;}
  if(isCriteoPreferredRead(read)){validateCriteoPreferredState(read,result);return;}
+ if(isCriteoCatalogRead(read)){validateCriteoCatalogState(read,result);return;}
  if(isCriteoSegmentRead(read)){validateCriteoSegmentState(read,result);return;}
  if(isDV360AdGroupRead(read)){validateDV360AdGroupState(read,result);return;}
  if(isDV360AdAssetRead(read)){validateDV360AdAssetState(read,result);return;}
@@ -431,6 +434,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(criteoLineItemKind(plan)){assertCriteoLineItem(plan);return;}
  if(criteoOverrideKind(plan)){assertCriteoOverride(plan);return;}
  if(criteoPreferredKind(plan)){assertCriteoPreferred(plan);return;}
+ if(criteoCatalogKind(plan)){assertCriteoCatalog(plan);return;}
  if(criteoSegmentKind(plan)){assertCriteoSegments(plan);return;}
  if(criteoPromotedProductsKind(plan)){assertCriteoPromotedProducts(plan);return;}
  if(criteoKeywordKind(plan)||criteoBidMultiplierKind(plan)){assertCriteoKeywords(plan);assertCriteoBidMultipliers(plan);return;}
@@ -579,6 +583,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(criteoLineItemKind(plan))return criteoLineItemReads(plan);
  if(criteoOverrideKind(plan))return criteoOverrideSnapshots(plan);
  if(criteoPreferredKind(plan))return criteoPreferredSnapshots(plan);
+ if(criteoCatalogKind(plan))return criteoCatalogSnapshots(plan);
  if(criteoSegmentKind(plan))return criteoSegmentSnapshots(plan);
  if(criteoPromotedProductsKind(plan))return criteoPromotedProductsReads(plan);
  if(criteoKeywordKind(plan)||criteoBidMultiplierKind(plan))return criteoLineItemBiddingReads(plan);
@@ -720,6 +725,7 @@ export class WriteReviewService {
   if(criteoLineItemKind(plan)||criteoPromotedProductsKind(plan)||criteoKeywordKind(plan)||criteoBidMultiplierKind(plan))assertCriteoLineItemScopes(c,true);
   if(criteoOverrideKind(plan))assertCriteoOverrideScopes(c,true);
   if(criteoPreferredKind(plan))assertCriteoPreferredScopes(c,true);
+  if(criteoCatalogKind(plan))assertCriteoCatalogScopes(c,criteoCatalogKind(plan));
   if(criteoSegmentKind(plan))assertCriteoSegmentScopes(c,true,plan);
   if(criteoReportKind(plan))assertCriteoReportScopes(c,criteoReportKind(plan));
   if(placeActionKind(plan))assertPlaceActionScope(c);
@@ -841,7 +847,7 @@ export class WriteReviewService {
   });
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
-   try{result=await readCriteoPreferred(read,preferredPage=>readXAudience(preferredPage,audiencePage=>readXScheduled(audiencePage,scheduledPage=>readXMedia(scheduledPage,mediaPage=>readXPrerollCtas(mediaPage,ctaPage=>readSnapDisclaimers(ctaPage,disclaimerPage=>readMetaObject(disclaimerPage,metaObjectPage=>readCriteoSegments(metaObjectPage,segmentPage=>readDV360Advertiser(segmentPage,advertiserPage=>readGoogleSubscriptions(advertiserPage,subscriptionPage=>readGoogleSmart(subscriptionPage,smartPage=>readGoogleCustomerSettings(smartPage,settingsPage=>readGoogleAutoAssets(settingsPage,autoAssetPage=>readGoogleUploads(autoAssetPage,uploadPage=>readGoogleExperiments(uploadPage,experimentPage=>readDV360InventoryGroup(experimentPage,inventoryPage=>readCriteoOverrides(inventoryPage,overridePage=>readLinkedInMessage(overridePage,messagePage=>readXCurated(messagePage,curatedPage=>readGoogleDrafts(curatedPage,draftPage=>readXAssociations(draftPage,xAssociationPage=>readLinkedInThirdParty(xAssociationPage,thirdPartyPage=>readXTrackingTags(thirdPartyPage,xTagPage=>readDV360LineItemDuplicate(xTagPage,copyLinePage=>readGoogleCustomerTypes(copyLinePage,typePage=>readSnapchatMediaCopy(typePage,copyPage=>readDV360LineItemBulk(copyPage,bulkPage=>readGoogleBrandGuidelines(bulkPage,brandPage=>readLinkedInTracking(brandPage,trackingPage=>readLinkedInRules(trackingPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;})))))))))))))))))))))))))))))))))))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
+   try{result=await readCriteoCatalog(read,catalogPage=>readCriteoPreferred(catalogPage,preferredPage=>readXAudience(preferredPage,audiencePage=>readXScheduled(audiencePage,scheduledPage=>readXMedia(scheduledPage,mediaPage=>readXPrerollCtas(mediaPage,ctaPage=>readSnapDisclaimers(ctaPage,disclaimerPage=>readMetaObject(disclaimerPage,metaObjectPage=>readCriteoSegments(metaObjectPage,segmentPage=>readDV360Advertiser(segmentPage,advertiserPage=>readGoogleSubscriptions(advertiserPage,subscriptionPage=>readGoogleSmart(subscriptionPage,smartPage=>readGoogleCustomerSettings(smartPage,settingsPage=>readGoogleAutoAssets(settingsPage,autoAssetPage=>readGoogleUploads(autoAssetPage,uploadPage=>readGoogleExperiments(uploadPage,experimentPage=>readDV360InventoryGroup(experimentPage,inventoryPage=>readCriteoOverrides(inventoryPage,overridePage=>readLinkedInMessage(overridePage,messagePage=>readXCurated(messagePage,curatedPage=>readGoogleDrafts(curatedPage,draftPage=>readXAssociations(draftPage,xAssociationPage=>readLinkedInThirdParty(xAssociationPage,thirdPartyPage=>readXTrackingTags(thirdPartyPage,xTagPage=>readDV360LineItemDuplicate(xTagPage,copyLinePage=>readGoogleCustomerTypes(copyLinePage,typePage=>readSnapchatMediaCopy(typePage,copyPage=>readDV360LineItemBulk(copyPage,bulkPage=>readGoogleBrandGuidelines(bulkPage,brandPage=>readLinkedInTracking(brandPage,trackingPage=>readLinkedInRules(trackingPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;}))))))))))))))))))))))))))))))))))))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
    const reader=this.access(actor,plan,connectionId);validateState(read,result);if(read.gateway==='snapchat_native_action')new ScopeGuard(this.registry,this.store).observe(read,reader,result.data);
    // A Smart+ bid edit also reads the campaign's ad groups once the ad group names its campaign.
    const sibling=tiktokSmartPlusAdgroupUpdateSiblingRead(plan,read,result.data);if(sibling&&!reads.some(r=>r.path===sibling.path&&stable(r.query)===stable(sibling.query)))reads.push(sibling);
@@ -898,6 +904,7 @@ export class WriteReviewService {
   validateCriteoLineItemPrerequisites(plan,values);
   criteoOverridePrerequisites(plan,values);
   criteoPreferredPrerequisites(plan,values);
+  criteoCatalogPrerequisites(plan,values);
   criteoSegmentPrerequisites(plan,values);
   validateCriteoPromotedProductsPrerequisites(plan,values);
   validateCriteoLineItemBiddingPrerequisites(plan,values);
