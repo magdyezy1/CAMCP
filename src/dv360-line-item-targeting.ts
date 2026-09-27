@@ -3,6 +3,7 @@ import {fileURLToPath} from 'node:url';
 import {MirrorError} from './errors.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import {dv360AdGroupStateRead} from './dv360-demand-gen-ad-groups.js';
+import {dv360AudienceCollections} from './dv360-audiences.js';
 import {stable} from './security.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -25,8 +26,25 @@ export const dv360AdGroupTargetingTypes=['AGE_RANGE','APP','APP_CATEGORY','AUDIE
 const geoLanguage=new Set(['TARGETING_TYPE_GEO_REGION','TARGETING_TYPE_POI','TARGETING_TYPE_LANGUAGE']);
 /** Demand Gen only excludes keywords, categories and placements (DV360 Help, "Create a Demand Gen line item", checked 2026-09-27). */
 const demandGenExclusions=new Set(['KEYWORD','CATEGORY','URL','APP','APP_CATEGORY','YOUTUBE_CHANNEL','YOUTUBE_VIDEO'].map(t=>'TARGETING_TYPE_'+t));
-/** Assigning these references audiences or inventory whose advertiser access this contract does not read; removing them is qualified. */
-const unreadReferences:Record<string,string>={TARGETING_TYPE_AUDIENCE_GROUP:'audiences',TARGETING_TYPE_INVENTORY_SOURCE:'inventory sources',TARGETING_TYPE_INVENTORY_SOURCE_GROUP:'inventory source groups'};
+/** Assigning these references inventory whose advertiser access this contract does not read; removing them is qualified. */
+const unreadReferences:Record<string,string>={TARGETING_TYPE_INVENTORY_SOURCE:'inventory sources',TARGETING_TYPE_INVENTORY_SOURCE_GROUP:'inventory source groups'};
+/**
+ * Audience group targeting (AudienceGroupAssignedTargetingOptionDetails of the pinned model and "Audience list targeting",
+ * checked 2026-09-27): one option, ID audienceGroup, per resource. Included first-party and partner groups intersect;
+ * every other included group is a union; excluded audiences are removed from the result. Each audience is read with the
+ * advertiser's access (advertiserId), so an audience the advertiser cannot use is refused before any write.
+ */
+const audienceGroups:Record<string,{collection:string;id:string;many?:boolean;excluded?:boolean}>={
+ includedFirstPartyAndPartnerAudienceGroups:{collection:'firstPartyAndPartnerAudiences',id:'firstPartyAndPartnerAudienceId',many:true},
+ excludedFirstPartyAndPartnerAudienceGroup:{collection:'firstPartyAndPartnerAudiences',id:'firstPartyAndPartnerAudienceId',excluded:true},
+ includedGoogleAudienceGroup:{collection:'googleAudiences',id:'googleAudienceId'},
+ excludedGoogleAudienceGroup:{collection:'googleAudiences',id:'googleAudienceId',excluded:true},
+ includedCustomListGroup:{collection:'customLists',id:'customListId'},
+ includedCombinedAudienceGroup:{collection:'combinedAudiences',id:'combinedAudienceId'}
+};
+/** Only these Google audience types can be excluded (excludedGoogleAudienceGroup of the pinned model). */
+const excludableGoogleAudiences=new Set(['GOOGLE_AUDIENCE_TYPE_AFFINITY','GOOGLE_AUDIENCE_TYPE_IN_MARKET','GOOGLE_AUDIENCE_TYPE_INSTALLED_APPS']);
+const maxAudiences=100,maxCombinedAudiences=5;
 /** Assigned lists must be owned by the selected advertiser; partner-owned channels are not read under an advertiser. */
 const references:Record<string,{field:string;collection:string;id:string;label:string;locationType?:string}>={
  TARGETING_TYPE_CHANNEL:{field:'channelId',collection:'channels',id:'channelId',label:'channel'},
@@ -102,7 +120,39 @@ function clean(schema:JsonObject,value:unknown):unknown{
  return value;
 }
 const detailsSchema=(type:string):JsonObject=>{const p=models().AssignedTargetingOption?.properties as JsonObject|undefined,f=p?.[dv360DetailsField(type)];return obj(f)?f:{};};
-const canonical=(type:string,details:unknown)=>type+' '+stable(clean(detailsSchema(type),details));
+/** Settings and first-party groups compare without order; RECENCY_NO_LIMIT is the documented meaning of no recency. */
+function audienceCanonical(details:unknown):unknown{
+ if(!obj(details))return details;
+ const order=(a:unknown,b:unknown)=>{const x=stable(a),y=stable(b);return x<y?-1:x>y?1:0;};
+ const group=(g:unknown)=>obj(g)&&Array.isArray(g.settings)?{...g,settings:g.settings.map(s=>obj(s)&&s.recency==='RECENCY_NO_LIMIT'?Object.fromEntries(Object.entries(s).filter(([k])=>k!=='recency')):s).sort(order)}:g;
+ return Object.fromEntries(Object.entries(details).map(([k,v])=>[k,k==='includedFirstPartyAndPartnerAudienceGroups'&&Array.isArray(v)?v.map(group).sort(order):group(v)]));
+}
+const canonical=(type:string,details:unknown)=>type+' '+stable(type==='TARGETING_TYPE_AUDIENCE_GROUP'?audienceCanonical(clean(detailsSchema(type),details)):clean(detailsSchema(type),details));
+/** The audiences named by audience group details, in request order. */
+function audienceRefs(details:unknown):{group:string;collection:string;id:string;recency?:unknown}[]{
+ const out:{group:string;collection:string;id:string;recency?:unknown}[]=[];if(!obj(details))return out;
+ for(const [k,g] of Object.entries(audienceGroups))for(const grp of g.many?list(details[k]):details[k]===undefined?[]:[details[k]])for(const s of list(obj(grp)?grp.settings:[]))if(obj(s))out.push({group:k,collection:g.collection,id:String(s[g.id]),...(s.recency!==undefined?{recency:s.recency}:{})});
+ return out;
+}
+function audienceGroup(d:JsonObject,at:string):void{
+ if(!Object.keys(d).length)invalid(at+' needs at least one included or excluded audience group.');
+ const firstParty=new Set<string>();
+ for(const [k,v] of Object.entries(d)){
+  const g=audienceGroups[k];if(!g)invalid(at+'.'+k+' is not an audience group of the pinned model.');
+  if(g.many&&(!Array.isArray(v)||!v.length))invalid(at+'.'+k+' lists at least one first-party and partner audience group.');
+  (g.many?v as unknown[]:[v]).forEach((grp,i)=>{
+   const where=at+'.'+k+(g.many?'['+i+']':''),fields=g.collection==='firstPartyAndPartnerAudiences'?[g.id,'recency']:[g.id];
+   if(!obj(grp)||Object.keys(grp).some(x=>x!=='settings')||!Array.isArray(grp.settings)||!grp.settings.length)invalid(where+' is {settings} with at least one audience.');
+   const ids=grp.settings.map((s:unknown,j:number)=>{if(!obj(s)||Object.keys(s).some(x=>!fields.includes(x))||typeof s[g.id]!=='string'||!numeric.test(s[g.id]))invalid(where+'.settings['+j+'] is {'+fields.join(', ')+'} with the numeric '+g.id+' as a string.');return s[g.id] as string;});
+   if(new Set(ids).size!==ids.length)invalid(where+' names an audience twice; DV360 '+(g.collection==='firstPartyAndPartnerAudiences'?'refuses':'ignores')+' repeated settings.');
+   if(g.collection==='combinedAudiences'&&ids.length>maxCombinedAudiences)invalid(where+' lists at most '+maxCombinedAudiences+' combined audiences.');
+   if(g.many){const key=stable(audienceCanonical({[k]:[grp]}));if(firstParty.has(key))invalid(where+' repeats another included first-party and partner audience group; DV360 ignores repeated groups.');firstParty.add(key);}
+  });
+ }
+ const refs=audienceRefs(d),audiences=new Set(refs.map(r=>r.collection+'/'+r.id));
+ if(audiences.size>maxAudiences)invalid(at+' names '+audiences.size+' audiences; a review reads at most '+maxAudiences+'.');
+ for(const r of refs)if(!audienceGroups[r.group]!.excluded&&refs.some(x=>audienceGroups[x.group]!.excluded&&x.collection===r.collection&&x.id===r.id))invalid(at+': audience '+r.id+' is both included and excluded.');
+}
 const optionKey=(type:string,option:unknown)=>canonical(type,obj(option)?option[dv360DetailsField(type)]:undefined);
 const matches=(o:JsonObject,id:string)=>o.assignedTargetingOptionId===id||o.assignedTargetingOptionIdAlias===id;
 const inherited=(o:JsonObject)=>o.inheritance==='INHERITED_FROM_PARTNER'||o.inheritance==='INHERITED_FROM_ADVERTISER';
@@ -130,6 +180,7 @@ function option(type:string,value:unknown,at:string):void{
  if(type==='TARGETING_TYPE_DAY_AND_TIME'&&(!Number.isInteger(d.startHour)||!Number.isInteger(d.endHour)||d.startHour<0||d.startHour>23||d.endHour<1||d.endHour>24||d.endHour<=d.startHour))invalid('Day and time targeting needs a startHour from 0 to 23 before an endHour from 1 to 24.');
  if(type==='TARGETING_TYPE_POI'||type==='TARGETING_TYPE_BUSINESS_CHAIN')radius(d.proximityRadiusAmount,d.proximityRadiusUnit,true);
  if(type==='TARGETING_TYPE_PROXIMITY_LOCATION_LIST')radius(d.proximityRadius,d.proximityRadiusUnit,false);
+ if(type==='TARGETING_TYPE_AUDIENCE_GROUP')audienceGroup(d,at);
  if(type==='TARGETING_TYPE_THIRD_PARTY_VERIFIER'&&['integralAdScience','doubleVerify','adloox'].filter(k=>d[k]!==undefined).length!==1)invalid('Third-party verification names exactly one verifier.');
 }
 export function assertDV360Targeting(p:CompiledRequest):void{
@@ -187,10 +238,18 @@ export function dv360TargetingSnapshots(p:CompiledRequest):CompiledRequest[]{
  const types=[...new Set([...e.deletes.map(d=>d.type),...e.creates.map(c=>c.type)])].sort();
  const refs=new Map<string,CompiledRequest>();
  for(const c of e.creates){const ref=references[c.type];if(!ref)continue;for(const o of c.options){const id=String((o as JsonObject)[dv360DetailsField(c.type)][ref.field]),path='/v4/advertisers/'+a+'/'+ref.collection+'/'+id;if(!refs.has(path))refs.set(path,stateRead(p,path,{kind:'reference',reference:c.type},true));}}
+ for(const c of e.creates){if(c.type!=='TARGETING_TYPE_AUDIENCE_GROUP')continue;for(const o of c.options)for(const r of audienceRefs((o as JsonObject)[dv360DetailsField(c.type)])){const path='/v4/'+r.collection+'/'+r.id;if(!refs.has(path))refs.set(path,{...stateRead(p,path,{kind:'audience',reference:r.collection},true),query:{advertiserId:a}});}}
  const holders=e.level==='advertiser'?[stateRead(p,'/v4/advertisers/'+a,{kind:'advertiser'})]:e.level==='ad_group'?e.owners.map(id=>dv360AdGroupStateRead(p,{adGroupId:id})):e.owners.map(id=>stateRead(p,'/v4/advertisers/'+a+'/lineItems/'+id,{kind:'line_item'}));
  return [...holders,...chunks(types).map(ts=>targetingRead(p,e,ts)),...refs.values()];
 }
 export function isDV360TargetingRead(p:CompiledRequest):boolean{return p.gateway==='dv360_native_action'&&!!p.dv360TargetingState;}
+export function isDV360AudienceStateRead(p:CompiledRequest):boolean{return p.gateway==='dv360_native_action'&&p.dv360TargetingState?.kind==='audience';}
+/** The identity and types of an audience; its sizes change daily and do not change what the review assigns. */
+export function dv360AudienceReviewState(read:CompiledRequest,d:JsonObject):JsonObject{
+ if(d.amcp_absent===true)return d;
+ const c=dv360AudienceCollections[read.dv360TargetingState!.reference!]!;
+ return Object.fromEntries([c.id,'name','displayName','firstPartyAndPartnerAudienceType','audienceType','audienceSource','googleAudienceType'].filter(k=>d[k]!==undefined).map(k=>[k,d[k]]));
+}
 function rowsOf(value:unknown):Row[]{
  if(!obj(value))return [];
  if(Array.isArray(value.assignedTargetingOptions))return value.assignedTargetingOptions.filter(obj).map(o=>({owner:advertiserOwner,option:o}));
@@ -199,6 +258,7 @@ function rowsOf(value:unknown):Row[]{
 }
 export function validateDV360TargetingState(read:CompiledRequest,result:TransportResult):void{
  const m=read.dv360TargetingState!,d=result.data,account=read.accountId!;
+ if(m.kind==='audience'&&result.status===404){if(read.action!=='AMCP_STATE_OPTIONAL'||!obj(d)||d.amcp_absent!==true||d.path!==read.path)fail('STATE_TARGET_MISMATCH','Unqualified absent DV360 audience.');return;}
  if(m.kind==='reference'&&result.status===404){if(read.action!=='AMCP_STATE_OPTIONAL'||!obj(d)||d.amcp_absent!==true||d.path!==read.path)fail('STATE_TARGET_MISMATCH','Unqualified absent DV360 reference.');return;}
  if(result.status!==200||!obj(d)||d.error)fail('STATE_READ_FAILED','DV360 targeting state requires a successful native response.');
  if(m.kind==='line_item'){
@@ -208,6 +268,11 @@ export function validateDV360TargetingState(read:CompiledRequest,result:Transpor
  }
  if(m.kind==='advertiser'){
   if(String(d.advertiserId)!==account||d.name!=='advertisers/'+account||typeof d.entityStatus!=='string')fail('STATE_TARGET_MISMATCH','Advertiser state did not identify the selected advertiser.');
+  return;
+ }
+ if(m.kind==='audience'){
+  const c=dv360AudienceCollections[m.reference!]!,id=read.path.split('/').at(-1);
+  if(String(d[c.id])!==id||d.name!==undefined&&d.name!==m.reference+'/'+id)fail('STATE_TARGET_MISMATCH','The '+c.label+' did not identify the requested audience.');
   return;
  }
  if(m.kind==='reference'){
@@ -278,6 +343,18 @@ export function validateDV360TargetingPrerequisites(plan:CompiledRequest,state:u
   if(d.amcp_absent===true)fail('STATE_TARGET_MISMATCH',ref.label[0]!.toUpperCase()+ref.label.slice(1)+' '+id+' is not owned by the selected advertiser. Partner-owned lists are not assigned by this contract.',{[ref.field]:id});
   if(ref.locationType&&d.locationType!==ref.locationType)invalid('Location list '+id+' is '+d.locationType+', not '+ref.locationType+'.');
  });
+ const audiences=new Map<string,JsonObject>();
+ reads.forEach((r,i)=>{
+  if(r.dv360TargetingState?.kind!=='audience')return;
+  const c=dv360AudienceCollections[r.dv360TargetingState.reference!]!,d=obj(state[i])?state[i]:{},id=r.path.split('/').at(-1)!;
+  if(d.amcp_absent===true)fail('STATE_TARGET_MISMATCH',c.label[0]!.toUpperCase()+c.label.slice(1)+' '+id+' is not available to advertiser '+e.advertiser+'.',{[c.id]:id});
+  audiences.set(r.dv360TargetingState.reference+'/'+id,d);
+ });
+ for(const c of e.creates)if(c.type==='TARGETING_TYPE_AUDIENCE_GROUP')for(const o of c.options)for(const r of audienceRefs((o as JsonObject)[dv360DetailsField(c.type)])){
+  const a=audiences.get(r.collection+'/'+r.id);if(!a)fail('STATE_READ_FAILED','Audience '+r.id+' was not read.');
+  if(r.recency!==undefined&&r.recency!=='RECENCY_NO_LIMIT'&&a.firstPartyAndPartnerAudienceType!=='TYPE_FIRST_PARTY')invalid('Recency applies only to first-party audiences; audience '+r.id+' is '+String(a.firstPartyAndPartnerAudienceType)+'.');
+  if(r.group==='excludedGoogleAudienceGroup'&&!excludableGoogleAudiences.has(a.googleAudienceType))invalid('Only affinity, in-market and installed-apps Google audiences can be excluded; audience '+r.id+' is '+String(a.googleAudienceType)+'.');
+ }
  const rows=reads.flatMap((r,i)=>r.dv360TargetingState?.kind==='targeting'?rowsOf(state[i]):[]);
  for(const owner of e.owners){
   const label=ownerLabel(e,owner),mine=rows.filter(r=>r.owner===owner).map(r=>r.option);

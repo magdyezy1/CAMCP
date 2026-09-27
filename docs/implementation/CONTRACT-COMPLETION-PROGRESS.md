@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DC — DV360 audience targeting (2026-09-27)
+
+Audience groups can now be assigned to DV360 line items and Demand Gen ad groups: each audience is
+read with the advertiser's access, the documented group rules are checked, and verification
+compares the audiences regardless of DV360's order. Audience lists and gets by `advertiserId`,
+previously refused by the scope guard, now work for finding audience IDs. See
+[implementation](DV360-AUDIENCE-TARGETING-2026-09-27.md),
+[qualification](DV360-AUDIENCE-TARGETING-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 887 (unchanged; this closes the audience half of a P2 ticket). Pushed only to
+CAMCP; its exact-commit CI result and live acceptance are pending.
+
 ## DB — DV360 Demand Gen image ad assets (2026-09-27)
 
 Demand Gen image ad assets can now be uploaded through the reviewed media import (`amcp_media` with
@@ -18,7 +31,7 @@ API does not read images back, so the receipt is the evidence. See
 [qualification](DV360-IMAGE-AD-ASSETS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 887 (one DV360 row moves to the media workflow). Pushed only to CAMCP; its
+Remaining rows: 887 (one DV360 row moves to the media workflow). Pushed to CAMCP as `bc4faba`; its
 exact-commit CI result and live acceptance are pending.
 
 ## DA — DV360 Demand Gen ads (2026-09-27)

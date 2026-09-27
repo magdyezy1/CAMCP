@@ -609,7 +609,18 @@ Tests: `tests/dv360-demand-gen-ads.test.mjs` (7), red on `e8e4a8a` / green after
 - The API reads back only YouTube video assets, so the receipt is the evidence; `platform_media_upload` keeps its captured schema and uploads creative assets only.
 - Every Demand Gen level below the line item now has a reviewed route: ad groups, targeting, video and image assets, and ads. Remaining DV360 Demand Gen gap: audience group assignment (see the Demand Gen targeting batch above).
 
-Tests: `tests/dv360-image-ad-assets.test.mjs` (6), red on `a9f32c0` / green after.
+Tests: `tests/dv360-image-ad-assets.test.mjs` (6), red on `a9f32c0` / green after. Pushed as `bc4faba`.
+
+## Finished batch — DV360 audience targeting (2026-09-27)
+
+[Implementation](DV360-AUDIENCE-TARGETING-2026-09-27.md) and
+[qualification](DV360-AUDIENCE-TARGETING-VERIFICATION-2026-09-27.json).
+
+- `src/dv360-audiences.ts` and `src/scope.ts`: gets and lists of first-party and partner, Google, custom-list and combined audiences are in scope with the selected `advertiserId` (no `partnerId`, documented list parameters only). They were refused before, so audience IDs could not be found.
+- `TARGETING_TYPE_AUDIENCE_GROUP` is assignable on line items and Demand Gen ad groups: each audience is read with the advertiser's access; recency only on first-party audiences; only affinity, in-market and installed-apps Google audiences excluded; no repeats, at most 5 combined audiences and 100 audiences per review. Audience sizes are left out of the reviewed state; verification ignores DV360's order and treats `RECENCY_NO_LIMIT` as no recency.
+- Inventory source and inventory source group targeting stay refused (the other half of the P2).
+
+Tests: `tests/dv360-audience-targeting.test.mjs` (8) and updated audience cases in `tests/dv360-line-item-targeting.test.ts` and `tests/dv360-ad-group-targeting.test.mjs`, red on `bc4faba` / green after.
 
 ## CI and live evidence
 
@@ -672,6 +683,6 @@ candidates wait for it; Google's developer documentation was reachable again. Th
 | P2 | LinkedIn lead gen creatives must reference owned forms | The documented creative field and URN type that point a lead gen creative at a form, then the same owned-reference check as Snapchat creatives |
 | P2 | LinkedIn lead form edits, publishing and archiving | A read of the creatives and campaigns that use a form, to tell pre-published from published forms and limit edits to the documented fields, plus the documented warning about CRM integrations |
 | P2 | TikTok Upgraded Smart+ ad group targeting edits | Name, schedule, dayparting, comment, share and bid edits are qualified. Targeting needs evidence of whether a partial `targeting_spec` update replaces or merges (a live read-back after a one-field edit) before it can be reviewed |
-| P2 | DV360 audience and inventory-source targeting | Reads of the advertiser's access to first-party and partner, Google, custom-list and combined audiences and to inventory sources and groups, then the existing line item targeting review for `TARGETING_TYPE_AUDIENCE_GROUP`, `TARGETING_TYPE_INVENTORY_SOURCE` and `TARGETING_TYPE_INVENTORY_SOURCE_GROUP` |
+| P2 | DV360 inventory-source targeting | Reads of the advertiser's access to inventory sources and groups, then the existing line item targeting review for `TARGETING_TYPE_INVENTORY_SOURCE` and `TARGETING_TYPE_INVENTORY_SOURCE_GROUP` (audience groups done 2026-09-27) |
 | P3 | LinkedIn work-email submission criteria | The wire form of the `questionSubmissionCriteria` union, which the schema does not show |
 | P3 | X remaining writes (promoted accounts, cards, tracking tags) | The official X Ads API reference returned HTTP 402 from this environment; needs an accessible, versioned source first |

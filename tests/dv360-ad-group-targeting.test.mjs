@@ -37,6 +37,7 @@ function fixture(){
  const transport=new NativeTransport(async(url,init)=>{
   const u=new URL(String(url)),path=u.pathname,method=init.method,body=init.body?JSON.parse(String(init.body)):undefined;calls.push({path,method});
   if(method==='GET'){
+   if(path==='/v4/firstPartyAndPartnerAudiences/42'&&u.searchParams.get('advertiserId')==='123')return Response.json({name:'firstPartyAndPartnerAudiences/42',firstPartyAndPartnerAudienceId:'42',displayName:'Site visitors',firstPartyAndPartnerAudienceType:'TYPE_FIRST_PARTY',audienceType:'ACTIVITY_BASED',audienceSource:'DISPLAY_VIDEO_360',activeDisplayAudienceSize:'1200'});
    if(path==='/v4/advertisers/123')return Response.json({name:'advertisers/123',advertiserId:'123',displayName:'Advertiser',entityStatus:'ENTITY_STATUS_ACTIVE',generalConfig:{currencyCode:'USD'}});
    let m=/^\/v4\/advertisers\/123\/lineItems\/(\d+)$/.exec(path);
    if(m&&lineItems[m[1]])return Response.json({name:'advertisers/123/lineItems/'+m[1],advertiserId:'123',campaignId:'10',insertionOrderId:'20',lineItemId:m[1],...lineItems[m[1]]});
@@ -80,13 +81,13 @@ test('a bulk edit of two Demand Gen ad groups creates an age range and a YouTube
  }finally{f.store.close();}
 });
 
-test('single creates and deletes on an ad group verify; audiences can be removed but not yet assigned',async()=>{
+test('single creates and deletes on an ad group verify, including a removed and reassigned audience group',async()=>{
  const f=fixture();try{
   const c=ok(await f.create('901','TARGETING_TYPE_GENDER',{genderDetails:{gender:'GENDER_FEMALE'}}));ok(await f.execute(c));assert.equal(ok(await f.verify(c)).data.status,'verified');
   const audience=f.targeting.get('adGroups/901').find(o=>o.targetingType==='TARGETING_TYPE_AUDIENCE_GROUP');
   const d=ok(await f.remove('901','TARGETING_TYPE_AUDIENCE_GROUP',audience.assignedTargetingOptionId));ok(await f.execute(d));assert.equal(ok(await f.verify(d)).data.status,'verified');
-  const a=await f.create('901','TARGETING_TYPE_AUDIENCE_GROUP',{audienceGroupDetails:{includedFirstPartyAndPartnerAudienceGroups:[{settings:[{firstPartyAndPartnerAudienceId:'42',recency:'RECENCY_NO_LIMIT'}]}]}});
-  assert.equal(a.error?.code,'INVALID_DV360_TARGETING');assert.match(a.error.message,/audiences/);
+  const a=ok(await f.create('901','TARGETING_TYPE_AUDIENCE_GROUP',{audienceGroupDetails:{includedFirstPartyAndPartnerAudienceGroups:[{settings:[{firstPartyAndPartnerAudienceId:'42',recency:'RECENCY_NO_LIMIT'}]}]}}));
+  ok(await f.execute(a));assert.equal(ok(await f.verify(a)).data.status,'verified');
  }finally{f.store.close();}
 });
 

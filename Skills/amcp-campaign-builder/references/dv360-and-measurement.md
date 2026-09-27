@@ -87,9 +87,9 @@ Deletion also accepts the documented alias, such as `ENVIRONMENT_WEB_OPTIMIZED`.
   `TARGETING_TYPE_GEO_REGION`, without output-only fields such as `displayName`. Find option IDs
   with targeting search or the targeting option list. `*_UNSPECIFIED` values are refused.
 - The 45 types that DV360 documents for line items are accepted for deletion. Assigning
-  `TARGETING_TYPE_AUDIENCE_GROUP`, `TARGETING_TYPE_INVENTORY_SOURCE` or
-  `TARGETING_TYPE_INVENTORY_SOURCE_GROUP` is refused: the review cannot yet read whether the
-  advertiser may use those audiences or inventory. Assign them in Display & Video 360.
+  `TARGETING_TYPE_INVENTORY_SOURCE` or `TARGETING_TYPE_INVENTORY_SOURCE_GROUP` is refused: the
+  review cannot yet read whether the advertiser may use that inventory. Assign it in Display &
+  Video 360. Audience groups follow "Audience targeting" below.
 - Channels, negative keyword lists and regional or proximity location lists must belong to the
   selected advertiser; AMCP reads each one, and a location list must have the matching type.
   Partner-owned lists are not assigned by this contract.
@@ -122,6 +122,44 @@ Reference: [bulk edit](https://developers.google.com/display-video/api/reference
 [assigned targeting options](https://developers.google.com/display-video/api/reference/rest/v4/advertisers.lineItems.targetingTypes.assignedTargetingOptions)
 and [Assign targeting](https://developers.google.com/display-video/api/guides/tasks/run-ad-campaign/assign-targeting),
 checked 2026-09-26.
+
+### Audience targeting
+
+Find audiences with `DV360_GOOGLE_AUDIENCES_LIST`, `DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_LIST`,
+`DV360_CUSTOM_LISTS_LIST` and `DV360_COMBINED_AUDIENCES_LIST` (`params: {advertiserId}` and
+optionally `filter`, `orderBy`, `pageSize`, `pageToken`), or the `..._GET` actions with the audience
+ID and `advertiserId`. DV360 returns only audiences the advertiser can access. A `partnerId` read
+uses partner access, which an advertiser connection is not bound to, and returns
+`RESOURCE_SCOPE_REQUIRED`.
+
+A line item or Demand Gen ad group has at most one `TARGETING_TYPE_AUDIENCE_GROUP` option (ID
+`audienceGroup`). Its `audienceGroupDetails` hold:
+
+- `includedFirstPartyAndPartnerAudienceGroups`: groups that intersect; each group is a union.
+- `includedGoogleAudienceGroup`, `includedCustomListGroup` and `includedCombinedAudienceGroup` (at
+  most 5 combined audiences). All included audiences form one union with the intersection above.
+- `excludedFirstPartyAndPartnerAudienceGroup` and `excludedGoogleAudienceGroup`: removed from the
+  result. Exclusions alone are allowed.
+
+Each group is `{settings: [...]}` with IDs as decimal strings, for example
+`{googleAudienceId: "123"}`. First-party and partner settings need `recency`
+(`RECENCY_NO_LIMIT` for none); DV360 applies it to first-party audiences only. An audience appears
+once per group and is not both included and excluded; identical first-party groups are refused,
+since DV360 ignores repeats. A review names at most 100 audiences.
+
+- AMCP reads each audience with the advertiser's access. One the advertiser cannot use returns
+  `STATE_TARGET_MISMATCH` naming it. Recency on a partner audience, and excluding Google audiences
+  other than affinity, in-market and installed apps, return `INVALID_DV360_TARGETING`.
+- To change audiences, delete `audienceGroup` and create the new option in the same bulk edit, as
+  Google documents; a second option is refused and an identical one returns
+  `CONFIGURATION_EXISTS`.
+- Audience sizes change daily and are not part of the reviewed state; a renamed audience or a
+  changed audience type stops execution. Verification compares the audiences regardless of
+  order, with `RECENCY_NO_LIMIT` equal to no recency.
+
+Reference: [Audience list targeting](https://developers.google.com/display-video/api/guides/concepts/targeting/audience-list),
+[Configure audience targeting](https://developers.google.com/display-video/api/guides/tasks/upload-customer-match-audience/target-audience)
+and the pinned `AudienceGroupAssignedTargetingOptionDetails` model, checked 2026-09-27.
 
 ### Advertiser targeting
 
@@ -195,8 +233,7 @@ single `DV360_ADVERTISERS_AD_GROUPS_TARGETING_TYPES_ASSIGNED_TARGETING_OPTIONS_C
   geo region, keyword, language, negative keyword list, operating system and POI targeting.
 - Demand Gen ad groups take age range, app, app category, audience group, category, gender, geo
   region, household income, keyword, language, parental status, URL, YouTube channel and YouTube
-  video targeting. Assigning audience groups stays refused, as for line items; removing them is
-  qualified.
+  video targeting. Audience groups follow "Audience targeting" above.
 - Demand Gen only excludes keywords, categories and placements: keyword, category, URL, app, app
   category, YouTube channel and YouTube video options must set `negative: true`.
 - Location and language (geo region, POI, language) belong to the line item when its

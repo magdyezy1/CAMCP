@@ -76,7 +76,7 @@ export interface CompiledRequest {
   /** Server-derived DV360 membership/absence read, never caller supplied. */
   dv360ListState?:{kind:string;collection:boolean};
   /** Server-derived DV360 targeting read (line item or advertiser, complete assigned targeting or assigned list); never caller supplied. */
-  dv360TargetingState?:{kind:'line_item'|'advertiser'|'targeting'|'reference';lineItemIds?:string[];adGroupIds?:string[];types?:string[];reference?:string};
+  dv360TargetingState?:{kind:'line_item'|'advertiser'|'targeting'|'reference'|'audience';lineItemIds?:string[];adGroupIds?:string[];types?:string[];reference?:string};
   /** Server-derived Performance Max listing group read (asset group with campaign, or its complete tree); never caller supplied. */
   googleListingGroupState?:{kind:'group'|'tree';group:string};
   /** Server-derived TikTok negative keyword read (campaigns, ad groups or one complete keyword list); never caller supplied. */

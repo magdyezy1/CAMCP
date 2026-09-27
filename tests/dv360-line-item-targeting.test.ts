@@ -134,7 +134,8 @@ test('line item type and status, inherited and absent assignments, duplicates an
 
 test('malformed options, unread references and other advertisers fail locally without network requests',async()=>{
  for(const [label,payload,code] of [
-  ['audience group',{lineItemIds:['456'],createRequests:[{targetingType:'TARGETING_TYPE_AUDIENCE_GROUP',assignedTargetingOptions:[{audienceGroupDetails:{includedGoogleAudienceGroup:{settings:[{googleAudienceId:'1'}]}}}]}]},'INVALID_DV360_TARGETING'],
+  ['inventory source',{lineItemIds:['456'],createRequests:[{targetingType:'TARGETING_TYPE_INVENTORY_SOURCE',assignedTargetingOptions:[{inventorySourceDetails:{inventorySourceId:'1'}}]}]},'INVALID_DV360_TARGETING'],
+  ['empty audience group',{lineItemIds:['456'],createRequests:[{targetingType:'TARGETING_TYPE_AUDIENCE_GROUP',assignedTargetingOptions:[{audienceGroupDetails:{includedGoogleAudienceGroup:{settings:[]}}}]}]},'INVALID_DV360_TARGETING'],
   ['details of another type',{lineItemIds:['456'],createRequests:[{targetingType:'TARGETING_TYPE_LANGUAGE',assignedTargetingOptions:[geo('2840')]}]},'INVALID_DV360_TARGETING'],
   ['output-only display name',{lineItemIds:['456'],createRequests:[{targetingType:'TARGETING_TYPE_GEO_REGION',assignedTargetingOptions:[{geoRegionDetails:{targetingOptionId:'2826',displayName:'United Kingdom'}}]}]},'INVALID_VENDOR_BODY'],
   ['keyword policy exemption',{lineItemIds:['456'],createRequests:[{targetingType:'TARGETING_TYPE_KEYWORD',assignedTargetingOptions:[{keywordDetails:{keyword:'insurance',exemptedPolicyNames:['x']}}]}]},'INVALID_DV360_TARGETING'],
