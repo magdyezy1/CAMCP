@@ -2,6 +2,7 @@ import {businessNotificationDisables} from './google-business-notifications.js';
 import {googleDismissalKind} from './google-recommendation-dismissal.js';
 import type {CompiledRequest} from './types.js';
 import {dv360ListRemoves} from './dv360-list-writes.js';
+import {dv360InventoryGroupRemoves} from './dv360-inventory-source-groups.js';
 import {dv360TargetingRemoves} from './dv360-line-item-targeting.js';
 import {googleListingGroupRemoves} from './google-listing-groups.js';
 import {tiktokNegativeKeywordRemoves} from './tiktok-negative-keywords.js';
@@ -75,5 +76,5 @@ export function applyExecutionRisk(plan:CompiledRequest):CompiledRequest{
  // cannot decide whether the frozen operation deletes an association or entity.
  const googleRemoval=plan.gateway==='google_ads_native_action'&&plan.method==='POST'&&plan.path.endsWith(':mutate')&&[...(Array.isArray((plan.body as any)?.operations)?(plan.body as any).operations:[]),(plan.body as any)?.operation].some((op:any)=>op&&typeof op.remove==='string');
  const warnings=[...plan.warnings,...xCreativeWarnings(plan),...(plan.readOnly&&!readOnly?['Catalog read-only metadata is not sufficient for this route; execution is treated as a mutation or an unqualified operation.']:[])];
- return {...plan,readOnly,destructive:plan.destructive||xTargetingBatchDeletes(plan)||googleDismissalKind(plan)||businessNotificationDisables(plan)||googleRemoval||googleSegmentRemoval(plan)||!!criteoTargetingKind(plan)&&plan.path.endsWith('/delete')||criteoPromotedProductsKind(plan)==='delete'||xCreativeEdit(plan)||dv360ListRemoves(plan)||dv360TargetingRemoves(plan)||googleListingGroupRemoves(plan)||tiktokNegativeKeywordRemoves(plan)||tiktokBrandSafetyRemoves(plan)||metaValueRuleRemoves(plan)||gtmWorkflowDestructive(plan)||gtmWorkspaceDestructive(plan),requiresConfirmation:plan.requiresConfirmation||!readOnly,warnings:[...new Set(warnings)]};
+ return {...plan,readOnly,destructive:plan.destructive||xTargetingBatchDeletes(plan)||googleDismissalKind(plan)||businessNotificationDisables(plan)||googleRemoval||googleSegmentRemoval(plan)||!!criteoTargetingKind(plan)&&plan.path.endsWith('/delete')||criteoPromotedProductsKind(plan)==='delete'||xCreativeEdit(plan)||dv360ListRemoves(plan)||dv360InventoryGroupRemoves(plan)||dv360TargetingRemoves(plan)||googleListingGroupRemoves(plan)||tiktokNegativeKeywordRemoves(plan)||tiktokBrandSafetyRemoves(plan)||metaValueRuleRemoves(plan)||gtmWorkflowDestructive(plan)||gtmWorkspaceDestructive(plan),requiresConfirmation:plan.requiresConfirmation||!readOnly,warnings:[...new Set(warnings)]};
 }

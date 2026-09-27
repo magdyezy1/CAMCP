@@ -23,6 +23,7 @@ import {googleGlobalReadMethods} from './execution-risk.js';
 import {authorizeQualifiedProviderRead} from './provider-read-contracts.js';
 import {authorizeDV360TargetingSearch} from './dv360-targeting-search.js';
 import {authorizeDV360AudienceRead} from './dv360-audiences.js';
+import {authorizeDV360InventoryGroup} from './dv360-inventory-source-groups.js';
 import {authorizeXAudienceEstimate} from './x-audience-estimate.js';
 import {authorizeCriteoInternalRead,assertCriteoReadScope} from './criteo-targeting-writes.js';
 import {assertGoogleGenerationScope} from './google-generation.js';
@@ -112,6 +113,7 @@ export class ScopeGuard {
   if(authorizeBusinessAccessRead(plan,connection,id))return id;
   if(authorizeDV360TargetingSearch(plan,connection,id))return id;
   if(authorizeDV360AudienceRead(plan,connection,id))return id;
+  if(authorizeDV360InventoryGroup(plan,connection,id))return id;
   if(authorizeXAudienceEstimate(plan,connection,id))return id;
   if(authorizeLinkedInTemplate(plan,connection,id))return id;
   if(authorizeLinkedInConversion(plan,connection,id))return id;

@@ -72,6 +72,7 @@ import {dv360AdAssetKind,assertDV360AdAsset,dv360AdAssetReads,isDV360AdAssetRead
 import {xCuratedKind,assertXCurated,xCuratedSnapshots,isXCuratedRead,validateXCuratedState,xCuratedPrerequisites,xCuratedOutcome,readXCurated} from './x-curated-categories.js';
 import {xAssociationKind,assertXAssociation,xAssociationSnapshots,isXAssociationRead,validateXAssociationState,xAssociationPrerequisites,xAssociationOutcome,readXAssociations} from './x-line-item-associations.js';
 import {xTrackingTagKind,assertXTrackingTag,xTrackingTagSnapshots,isXTrackingTagRead,validateXTrackingTagState,xTrackingTagPrerequisites,xTrackingTagOutcome,readXTrackingTags} from './x-tracking-tags.js';
+import {dv360InventoryGroupKind,assertDV360InventoryGroup,dv360InventoryGroupSnapshots,readDV360InventoryGroup,isDV360InventoryGroupRead,validateDV360InventoryGroupState,dv360InventoryGroupPrerequisites,dv360InventoryGroupOutcome} from './dv360-inventory-source-groups.js';
 import {dv360LineItemDuplicateKind,assertDV360LineItemDuplicate,dv360LineItemDuplicateSnapshots,isDV360LineItemDuplicateRead,validateDV360LineItemDuplicateState,dv360LineItemDuplicatePrerequisites,dv360LineItemDuplicateOutcome,readDV360LineItemDuplicate} from './dv360-line-item-duplicate.js';
 import {dv360LineItemBulkKind,assertDV360LineItemBulk,dv360LineItemBulkSnapshots,isDV360LineItemBulkRead,validateDV360LineItemBulkState,dv360LineItemBulkPrerequisites,dv360LineItemBulkOutcome,readDV360LineItemBulk} from './dv360-line-item-bulk-update.js';
 import {dv360AdKind,assertDV360Ad,dv360AdReads,isDV360AdRead,validateDV360AdState,validateDV360AdPrerequisites,dv360AdOutcome,readDV360Ads} from './dv360-demand-gen-ads.js';
@@ -188,6 +189,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(dv360AdKind(plan))return dv360AdOutcome(plan,result);
  if(dv360LineItemBulkKind(plan))return dv360LineItemBulkOutcome(plan,result);
  if(dv360LineItemDuplicateKind(plan))return dv360LineItemDuplicateOutcome(plan,result);
+ if(dv360InventoryGroupKind(plan))return dv360InventoryGroupOutcome(plan,result);
  if(xTrackingTagKind(plan))return xTrackingTagOutcome(plan,result);
  if(xAssociationKind(plan))return xAssociationOutcome(plan,result);
  if(xCuratedKind(plan))return xCuratedOutcome(plan,result);
@@ -242,6 +244,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  if(isSnapchatMediaCopyRead(read)){validateSnapchatMediaCopyState(read,result);return;}
  if(isDV360LineItemBulkRead(read)){validateDV360LineItemBulkState(read,result);return;}
  if(isDV360LineItemDuplicateRead(read)){validateDV360LineItemDuplicateState(read,result);return;}
+ if(isDV360InventoryGroupRead(read)){validateDV360InventoryGroupState(read,result);return;}
  if(isXTrackingTagRead(read)){validateXTrackingTagState(read,result);return;}
  if(isXAssociationRead(read)){validateXAssociationState(read,result);return;}
  if(isXCuratedRead(read)){validateXCuratedState(read,result);return;}
@@ -378,6 +381,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(dv360AdKind(plan)){assertDV360Ad(plan);return;}
  if(dv360LineItemBulkKind(plan)){assertDV360LineItemBulk(plan);return;}
  if(dv360LineItemDuplicateKind(plan)){assertDV360LineItemDuplicate(plan);return;}
+ if(dv360InventoryGroupKind(plan)){assertDV360InventoryGroup(plan);return;}
  if(plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['CREATE','PARTIAL_UPDATE','DELETE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))fail('WRITE_CONTRACT_UNAVAILABLE','This REST.li method override is not qualified for reviewed execution.');
  if(gtmWorkflowKind(plan)){assertGtmWorkflow(plan);return;}
  if(gtmWorkspaceKind(plan)){assertGtmWorkspace(plan);return;}
@@ -513,6 +517,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(dv360AdKind(plan))return dv360AdReads(plan);
  if(dv360LineItemBulkKind(plan))return dv360LineItemBulkSnapshots(plan);
  if(dv360LineItemDuplicateKind(plan))return dv360LineItemDuplicateSnapshots(plan);
+ if(dv360InventoryGroupKind(plan))return dv360InventoryGroupSnapshots(plan);
  if(xTrackingTagKind(plan))return xTrackingTagSnapshots(plan);
  if(xAssociationKind(plan))return xAssociationSnapshots(plan);
  if(xCuratedKind(plan))return xCuratedSnapshots(plan);
@@ -654,7 +659,7 @@ export class WriteReviewService {
   if(linkedinTrackingKind(plan))assertLinkedInTrackingScope(c,true);
   if(linkedinThirdPartyKind(plan))assertLinkedInThirdPartyScope(c,true);
   if(linkedinMessageKind(plan))assertLinkedInMessageScope(c,true);
-  if((dv360ListKind(plan)||dv360TargetingKind(plan)||dv360AdGroupKind(plan)||dv360AdAssetKind(plan)||dv360AdKind(plan)||dv360LineItemBulkKind(plan)||dv360LineItemDuplicateKind(plan))&&!c.scopes.includes('https://www.googleapis.com/auth/display-video'))fail('PROVIDER_WRITE_SCOPE_REQUIRED','Reconnect DV360 with the display-video OAuth scope.');
+  if((dv360ListKind(plan)||dv360TargetingKind(plan)||dv360AdGroupKind(plan)||dv360AdAssetKind(plan)||dv360AdKind(plan)||dv360LineItemBulkKind(plan)||dv360LineItemDuplicateKind(plan)||dv360InventoryGroupKind(plan))&&!c.scopes.includes('https://www.googleapis.com/auth/display-video'))fail('PROVIDER_WRITE_SCOPE_REQUIRED','Reconnect DV360 with the display-video OAuth scope.');
   if(plan.gateway===microsoftGateway&&!c.scopes.some(s=>s===microsoftScope||s==='msads.manage'))fail('INSUFFICIENT_SCOPE','Reconnect Microsoft Advertising with msads.manage permission.');
   plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);assertMeasurementScopes(plan,c);return c;
  }
@@ -757,7 +762,7 @@ export class WriteReviewService {
   });
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
-   try{result=await readCriteoOverrides(read,overridePage=>readLinkedInMessage(overridePage,messagePage=>readXCurated(messagePage,curatedPage=>readGoogleDrafts(curatedPage,draftPage=>readXAssociations(draftPage,xAssociationPage=>readLinkedInThirdParty(xAssociationPage,thirdPartyPage=>readXTrackingTags(thirdPartyPage,xTagPage=>readDV360LineItemDuplicate(xTagPage,copyLinePage=>readGoogleCustomerTypes(copyLinePage,typePage=>readSnapchatMediaCopy(typePage,copyPage=>readDV360LineItemBulk(copyPage,bulkPage=>readGoogleBrandGuidelines(bulkPage,brandPage=>readLinkedInTracking(brandPage,trackingPage=>readLinkedInRules(trackingPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;})))))))))))))))))))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
+   try{result=await readDV360InventoryGroup(read,inventoryPage=>readCriteoOverrides(inventoryPage,overridePage=>readLinkedInMessage(overridePage,messagePage=>readXCurated(messagePage,curatedPage=>readGoogleDrafts(curatedPage,draftPage=>readXAssociations(draftPage,xAssociationPage=>readLinkedInThirdParty(xAssociationPage,thirdPartyPage=>readXTrackingTags(thirdPartyPage,xTagPage=>readDV360LineItemDuplicate(xTagPage,copyLinePage=>readGoogleCustomerTypes(copyLinePage,typePage=>readSnapchatMediaCopy(typePage,copyPage=>readDV360LineItemBulk(copyPage,bulkPage=>readGoogleBrandGuidelines(bulkPage,brandPage=>readLinkedInTracking(brandPage,trackingPage=>readLinkedInRules(trackingPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;}))))))))))))))))))))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
    const reader=this.access(actor,plan,connectionId);validateState(read,result);if(read.gateway==='snapchat_native_action')new ScopeGuard(this.registry,this.store).observe(read,reader,result.data);
    // A Smart+ bid edit also reads the campaign's ad groups once the ad group names its campaign.
    const sibling=tiktokSmartPlusAdgroupUpdateSiblingRead(plan,read,result.data);if(sibling&&!reads.some(r=>r.path===sibling.path&&stable(r.query)===stable(sibling.query)))reads.push(sibling);
@@ -812,6 +817,7 @@ export class WriteReviewService {
   validateDV360AdPrerequisites(plan,values);
   dv360LineItemBulkPrerequisites(plan,values);
   dv360LineItemDuplicatePrerequisites(plan,values);
+  dv360InventoryGroupPrerequisites(plan,values);
   xTrackingTagPrerequisites(plan,values);
   xAssociationPrerequisites(plan,values);
   xCuratedPrerequisites(plan,values);

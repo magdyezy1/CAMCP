@@ -1,0 +1,103 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "b45a4b5269e90b0d022d8da6aa77c7fced8962e8",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/dv360-inventory-groups-20260927-a",
+    "files": 907,
+    "source_tree_hash": "5cb9e702749a5219f60412dc31905d56c15d264f8bc312e02ef56aea9b25a674",
+    "index_code_test_guidance_files_compared": 714,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/dv360-inventory-groups-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/dv360-inventory-groups-20260927/install.log",
+      "sha256": "8220c7e33c4018ad2159ccda049d52c66891056b2f120f09d6c86f93c08348c4"
+    },
+    {
+      "path": ".runtime/dv360-inventory-groups-20260927/check.log",
+      "sha256": "556d1a025ccf384bc126b53624fddebcd4c88ff0364ae3f50eee65c5519f8b74",
+      "started": "Sun Sep 27 08:47:06 UTC 2026",
+      "finished": "Sun Sep 27 12:19:21 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2451,
+          "pass": 2451,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/dv360-inventory-groups-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/dv360-inventory-groups-20260927/red-check.log",
+      "sha256": "cefc91c70c0343ec10256f286236554164a6974d65aeaec76eb3b56286fa626a",
+      "meaning": "tests/dv360-inventory-source-groups.test.mjs against a build of b45a4b5: expected red, 6/6 fail (no reviewed family; inventory reads outside the scope guard)"
+    },
+    {
+      "path": ".runtime/dv360-inventory-groups-20260927/targeted.log",
+      "sha256": "2217757fbd8c87d9f611b971be7c09ff89ba1ed98d570d9092aa736070c61661",
+      "meaning": "162 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1846/1846 pass, none skipped."
+    }
+  ],
+  "development_failures": [
+    "A first wiring pass stopped at src/execution-risk.ts, whose checkout line endings (CRLF) did not match the LF anchors; the four files already edited were restored exactly and the wiring script now keeps each file's line endings.",
+    "A draft of the review test expected ACCOUNT_REQUIRED for an advertiser without a connection and read native list data one level too shallow; the service answers CONNECTION_REQUIRED and wraps provider data, so the expectations were corrected."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2451,
+    "main_pass": 2451,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "The group resource has no owner field; that DV360 refuses advertiser writes to a partner group shared with the advertiser follows the documented ownership rules and is not observed live.",
+    "inventorySources.list cannot filter by ID, so a review reads at most 5,000 usable sources; a source beyond that bound is refused as not found.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

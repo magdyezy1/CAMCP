@@ -1961,6 +1961,26 @@
     {
       "gateway": "dv360_native_action",
       "arguments": {
+        "action": "DV360_INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_BULK_EDIT",
+        "params": {
+          "inventorySourceGroupId": "456"
+        },
+        "body": {
+          "advertiserId": "123",
+          "createdAssignedInventorySources": [
+            {
+              "inventorySourceId": "789"
+            }
+          ],
+          "deletedAssignedInventorySources": [
+            "11"
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "dv360_native_action",
+      "arguments": {
         "action": "DV360_ADVERTISERS_AD_GROUPS_CREATE",
         "params": {
           "advertiserId": "123"

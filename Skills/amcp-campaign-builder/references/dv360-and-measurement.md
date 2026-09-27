@@ -371,6 +371,43 @@ Reference: [Create a Demand Gen ad](https://developers.google.com/display-video/
 and [adGroupAds](https://developers.google.com/display-video/api/reference/rest/v4/advertisers.adGroupAds),
 checked 2026-09-27.
 
+### Inventory source groups
+
+An inventory source group gathers deals and auction packages (inventory sources); line items that
+target the group buy from them. AMCP writes groups the advertiser owns, always naming it in
+`advertiserId`:
+
+- `DV360_INVENTORY_SOURCE_GROUPS_CREATE` (`params: {advertiserId}`, `body: {displayName}`),
+  `..._PATCH` (`params: {advertiserId, inventorySourceGroupId, updateMask: "displayName"}`) and
+  `..._DELETE` (`params: {advertiserId, inventorySourceGroupId}`). Only the name (up to 240 UTF-8
+  bytes) can change.
+- `DV360_INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_CREATE` (`params: {advertiserId,
+  inventorySourceGroupId}`, `body: {inventorySourceId}`), `..._DELETE` (`params: {advertiserId,
+  inventorySourceGroupId, assignedInventorySourceId}`) and `..._BULK_EDIT` (`params:
+  {inventorySourceGroupId}`, `body: {advertiserId, createdAssignedInventorySources: [{inventorySourceId}],
+  deletedAssignedInventorySources: [assignedInventorySourceId]}`, 1–1000 changes; DV360 deletes
+  first, then creates).
+
+`partnerId` is refused: it would act with partner access, which an advertiser connection is not
+bound to. A partner group shared with the advertiser can be read but only its partner can change
+it, so DV360 refuses such a write. Reads of groups, assignments and inventory sources
+(`DV360_INVENTORY_SOURCE_GROUPS_GET`/`_LIST`, `..._ASSIGNED_INVENTORY_SOURCES_LIST`,
+`DV360_INVENTORY_SOURCES_GET`/`_LIST`) likewise name the advertiser in `advertiserId`.
+
+- AMCP reads the advertiser, the group with every assignment (up to 5,000) and, for sources to
+  assign, the inventory sources the advertiser can use, page by page until each is found (up to
+  5,000; archived sources are not listed). An unknown assignment, a source already in the group,
+  a source the advertiser cannot use, a source removed and added again in one request and an
+  unchanged name are refused.
+- Assigning or removing sources and deleting a group change what targeting line items buy: they
+  need `spend_change_confirmed`, count as activation under owner policies, and removals and
+  deletion count as deletions. Creating or renaming a group changes nothing that serves.
+- Verification reads the group again: its name, that it is gone, or every assigned inventory
+  source. `INVALID_DV360_INVENTORY_GROUP` names the field or rule to correct.
+
+Reference: [inventorySourceGroups](https://developers.google.com/display-video/api/reference/rest/v4/inventorySourceGroups)
+and the pinned v4 Discovery document, checked 2026-09-27.
+
 ## GA4 — ga4_native_action
 
 Google social sign-in, Ads access, Analytics access and optional Sheets/Drive access are

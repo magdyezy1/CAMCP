@@ -766,7 +766,18 @@ Tests: `tests/linkedin-message-ads.test.mjs` (5), red on `268cd70` / green after
 
 - New reviewed family `criteo_budget_overrides` (`src/criteo-budget-overrides.ts`) for the two override PUTs: both lists required, chronological without overlaps, null starts following the previous override, membership and current overrides read, expired overrides kept with their caps, spending confirmation, owner monetary limits refusing what they cannot measure, and read-back of every start, duration and cap as merged runs (Criteo merges back-to-back equal caps and returns following starts as null, as noted earlier).
 
-Tests: `tests/criteo-budget-overrides.test.mjs` (6), red on `6bf3f05` / green after.
+Tests: `tests/criteo-budget-overrides.test.mjs` (6), red on `6bf3f05` / green after. Pushed as `b45a4b5`.
+
+## Finished batch — DV360 inventory source groups (2026-09-27)
+
+[Implementation](DV360-INVENTORY-SOURCE-GROUPS-2026-09-27.md) and
+[qualification](DV360-INVENTORY-SOURCE-GROUPS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `dv360_inventory_source_groups` (`src/dv360-inventory-source-groups.ts`) for the six group and assignment writes, always owned by the selected advertiser (`advertiserId`; `partnerId` refused). A new authorizer also admits advertiser-named reads of groups, assignments and inventory sources. The reader reads every assignment and, for sources to assign, the advertiser's usable sources page by page; membership changes and deletion need spending confirmation and count as activation and deletion under owner policies.
+- Line item targeting still refuses `TARGETING_TYPE_INVENTORY_SOURCE` and `..._GROUP` assignments; with these reads available, that contract can now be extended to check the referenced group or sources.
+- Also checked and left: DV360 YouTube asset associations (line item and ad group create and delete, four rows) are documented as available only to an informed subset of users, so they stay allowlist-only.
+
+Tests: `tests/dv360-inventory-source-groups.test.mjs` (6), red on `b45a4b5` / green after.
 
 ## CI and live evidence
 
@@ -780,20 +791,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 586 in reviewed write families. **845 remaining rows** are in
+3241 captured actions; 592 in reviewed write families. **839 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 730 |
+| blocked_write | 724 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 105, Google Ads 87,
-Snapchat 85, X 55, DV360 42, Criteo 32, Business Profile 12.
+Snapchat 85, X 55, DV360 36, Criteo 32, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

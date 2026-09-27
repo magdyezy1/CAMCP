@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DS — DV360 inventory source groups (2026-09-27)
+
+Advertiser-owned DV360 inventory source groups can now be created, renamed and deleted, and their
+deals and auction packages assigned, removed and bulk edited through reviewed requests: the group,
+every assignment and the sources the advertiser can use are read, membership changes need
+spending confirmation, and the result is read back. See
+[implementation](DV360-INVENTORY-SOURCE-GROUPS-2026-09-27.md),
+[qualification](DV360-INVENTORY-SOURCE-GROUPS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 839 (six DV360 rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## DR — Criteo campaign and line item budget overrides (2026-09-27)
 
 Budget overrides of Criteo campaigns and line items can now be replaced through reviewed requests:
@@ -17,8 +30,8 @@ overlaps, execution needs spending confirmation, and the overrides are read back
 [qualification](CRITEO-BUDGET-OVERRIDES-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 845 (two Criteo rows reviewed). Pushed only to CAMCP; its exact-commit CI result and
-live acceptance are pending.
+Remaining rows: 845 (two Criteo rows reviewed). Pushed to CAMCP as `b45a4b5`; its exact-commit CI
+result and live acceptance are pending.
 
 ## DQ — LinkedIn Message Ads and Conversation Ads content (2026-09-27)
 

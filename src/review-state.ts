@@ -35,6 +35,7 @@ import {isDV360LineItemBulkRead} from './dv360-line-item-bulk-update.js';
 import {isLinkedInThirdPartyRead} from './linkedin-third-party-tracking.js';
 import {isLinkedInMessageRead} from './linkedin-message-ads.js';
 import {isDV360LineItemDuplicateRead} from './dv360-line-item-duplicate.js';
+import {isDV360InventoryGroupRead} from './dv360-inventory-source-groups.js';
 import {isXTrackingTagRead} from './x-tracking-tags.js';
 import {isXAssociationRead} from './x-line-item-associations.js';
 import {isXCuratedRead} from './x-curated-categories.js';
@@ -94,6 +95,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isLinkedInThirdPartyRead(read))return normalizeReviewState(d);
  if(isLinkedInMessageRead(read))return normalizeReviewState(d);
  if(isDV360LineItemDuplicateRead(read))return normalizeReviewState(d);
+ if(isDV360InventoryGroupRead(read))return normalizeReviewState(d);
  if(isXTrackingTagRead(read))return normalizeReviewState(d);
  if(isXAssociationRead(read))return normalizeReviewState(d);
  if(isXCuratedRead(read))return normalizeReviewState(d);

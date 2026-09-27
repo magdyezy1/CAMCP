@@ -6112,8 +6112,8 @@
         {
           "operation": null,
           "action": "DV360_INVENTORY_SOURCE_GROUPS_DELETE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_inventory_source_groups"
         }
       ],
       "mapping_status": "mapped",
@@ -6152,8 +6152,8 @@
         {
           "operation": null,
           "action": "DV360_INVENTORY_SOURCE_GROUPS_CREATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_inventory_source_groups"
         }
       ],
       "mapping_status": "mapped",
@@ -6172,8 +6172,8 @@
         {
           "operation": null,
           "action": "DV360_INVENTORY_SOURCE_GROUPS_PATCH",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_inventory_source_groups"
         }
       ],
       "mapping_status": "mapped",
@@ -6192,8 +6192,8 @@
         {
           "operation": null,
           "action": "DV360_INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_CREATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_inventory_source_groups"
         }
       ],
       "mapping_status": "mapped",
@@ -6232,8 +6232,8 @@
         {
           "operation": null,
           "action": "DV360_INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_BULK_EDIT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_inventory_source_groups"
         }
       ],
       "mapping_status": "mapped",
@@ -6252,8 +6252,8 @@
         {
           "operation": null,
           "action": "DV360_INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_DELETE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_inventory_source_groups"
         }
       ],
       "mapping_status": "mapped",
