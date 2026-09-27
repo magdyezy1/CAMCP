@@ -40,6 +40,7 @@ import {reviewedWriteFamily} from './reviewed-routes.js';
 import {xDraftKind,assertXDraft,xDraftSnapshots,readXDraftState,xDraftOutcome} from './x-draft-writes.js';
 import {linkedinRuleKind,assertLinkedInRule,linkedinRuleSnapshots,readLinkedInRules,isLinkedInRuleRead,validateLinkedInRuleState,linkedinRulePrerequisites,linkedinRuleOutcome} from './linkedin-conversion-rules.js';
 import {googleBidKind,assertGoogleBid,assertGoogleBidScope,googleBidSnapshots,readGoogleBidState,isGoogleBidRead,validateGoogleBidState,googleBidPrerequisites,googleBidOutcome} from './google-bid-modifiers.js';
+import {linkedinTrackingKind,assertLinkedInTracking,assertLinkedInTrackingScope,linkedinTrackingSnapshots,readLinkedInTracking,isLinkedInTrackingRead,validateLinkedInTrackingState,linkedinTrackingPrerequisites,linkedinTrackingOutcome} from './linkedin-tracking-parameters.js';
 import {linkedinConversionKind,assertLinkedInConversion,assertLinkedInConversionScope,linkedinConversionSnapshots,readLinkedInConversions,isLinkedInConversionRead,validateLinkedInConversionState,linkedinConversionPrerequisites,linkedinConversionOutcome} from './linkedin-conversion-links.js';
 import {metaLabelKind,assertMetaLabel,assertMetaLabelScope,metaLabelSnapshots,readMetaLabels,validateMetaLabelState,validateMetaLabelPrerequisites,metaLabelOutcome} from './meta-label-writes.js';
 import {criteoTargetingKind,assertCriteoTargeting,assertCriteoTargetingScopes,criteoTargetingSnapshots,readCriteoTargeting,validateCriteoTargetState,validateCriteoTargetingPrerequisites,criteoTargetingOutcome} from './criteo-targeting-writes.js';
@@ -137,6 +138,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(googleAccessKind(plan))return googleAccessOutcome(plan,result,before);
  if(linkedinRuleKind(plan))return linkedinRuleOutcome(plan,result);
  if(linkedinConversionKind(plan))return linkedinConversionOutcome(plan,result);
+ if(linkedinTrackingKind(plan))return linkedinTrackingOutcome(plan,result);
  if(googleBidKind(plan))return googleBidOutcome(plan,result);
  if(googleBiddingEventKind(plan))return googleBiddingEventOutcome(plan,result,before);
  if(googlePortfolioKind(plan))return googlePortfolioOutcome(plan,result,before);
@@ -213,6 +215,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  if(isDV360AdRead(read)){validateDV360AdState(read,result);return;}
  if(isLinkedInLeadFormRead(read)){validateLinkedInLeadFormState(read,result);return;}
  if(isLinkedInConversionRead(read)){validateLinkedInConversionState(read,result);return;}
+ if(isLinkedInTrackingRead(read)){validateLinkedInTrackingState(read,result);return;}
  if(isGoogleBidRead(read)){validateGoogleBidState(read,result);return;}
  if(read.metaLabelState){validateMetaLabelState(read,result);return;}
  if(read.criteoTargetState){validateCriteoTargetState(read,result);return;}
@@ -313,6 +316,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(linkedinRuleKind(plan)){assertLinkedInRule(plan);return;}
  if(linkedinLeadFormKind(plan)){assertLinkedInLeadForm(plan);return;}
  if(linkedinConversionKind(plan)){assertLinkedInConversion(plan);return;}
+ if(linkedinTrackingKind(plan)){assertLinkedInTracking(plan);return;}
  if(xDraftKind(plan)){assertXDraft(plan);return;}
  if(dv360TargetingKind(plan)){assertDV360Targeting(plan);return;}
  if(googleListingGroupKind(plan)){assertGoogleListingGroups(plan);return;}
@@ -424,6 +428,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(xDraftKind(plan))return xDraftSnapshots(plan);
  if(linkedinRuleKind(plan))return linkedinRuleSnapshots(plan);
  if(linkedinConversionKind(plan))return linkedinConversionSnapshots(plan);
+ if(linkedinTrackingKind(plan))return linkedinTrackingSnapshots(plan);
  if(googleBidKind(plan))return googleBidSnapshots(plan);
  if(googleBiddingEventKind(plan))return googleBiddingEventSnapshots(plan);
  if(googlePortfolioKind(plan))return googlePortfolioSnapshots(plan);
@@ -581,6 +586,7 @@ export class WriteReviewService {
   if(googlePreviewKind(plan)||googleDismissalKind(plan)||googleAccessKind(plan))assertGoogleAdsScope(c);
   if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan)||googlePortfolioKind(plan)||googleConversionActionKind(plan)||googleListingGroupKind(plan))assertGoogleAdsScope(c);
   if(linkedinConversionKind(plan)||linkedinRuleKind(plan))assertLinkedInConversionScope(c,true);
+  if(linkedinTrackingKind(plan))assertLinkedInTrackingScope(c,true);
   if((dv360ListKind(plan)||dv360TargetingKind(plan)||dv360AdGroupKind(plan)||dv360AdAssetKind(plan)||dv360AdKind(plan))&&!c.scopes.includes('https://www.googleapis.com/auth/display-video'))fail('PROVIDER_WRITE_SCOPE_REQUIRED','Reconnect DV360 with the display-video OAuth scope.');
   if(plan.gateway===microsoftGateway&&!c.scopes.some(s=>s===microsoftScope||s==='msads.manage'))fail('INSUFFICIENT_SCOPE','Reconnect Microsoft Advertising with msads.manage permission.');
   plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);assertMeasurementScopes(plan,c);return c;
@@ -684,7 +690,7 @@ export class WriteReviewService {
   });
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
-   try{result=await readLinkedInRules(read,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;}))))))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
+   try{result=await readLinkedInTracking(read,trackingPage=>readLinkedInRules(trackingPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;})))))))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
    const reader=this.access(actor,plan,connectionId);validateState(read,result);if(read.gateway==='snapchat_native_action')new ScopeGuard(this.registry,this.store).observe(read,reader,result.data);
    // A Smart+ bid edit also reads the campaign's ad groups once the ad group names its campaign.
    const sibling=tiktokSmartPlusAdgroupUpdateSiblingRead(plan,read,result.data);if(sibling&&!reads.some(r=>r.path===sibling.path&&stable(r.query)===stable(sibling.query)))reads.push(sibling);
@@ -705,6 +711,7 @@ export class WriteReviewService {
   validateMetaLabelPrerequisites(plan,values);
   googleBidPrerequisites(plan,values);
   linkedinConversionPrerequisites(plan,values);
+  linkedinTrackingPrerequisites(plan,values);
   linkedinRulePrerequisites(plan,values);
   tiktokAdgroupConversionPrerequisites(plan,values);
   tiktokCtaPortfolioPrerequisites(plan,values);

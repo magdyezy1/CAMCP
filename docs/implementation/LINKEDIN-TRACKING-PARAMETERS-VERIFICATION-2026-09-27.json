@@ -1,0 +1,105 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "c156b32da1c5b342ed7ca58fc45f62e88e08bae2",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/linkedin-tracking-20260927-a",
+    "files": 853,
+    "source_tree_hash": "e9923690a4d05ee0252a4e5c960d9f64476fac9827f2c431d34177f6a6b19864",
+    "index_code_test_guidance_files_compared": 688,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/linkedin-tracking-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/linkedin-tracking-20260927/install.log",
+      "sha256": "3f297ffae731871d8165981fa63d8ab903590393e8d20a27170174d3292ab9db"
+    },
+    {
+      "path": ".runtime/linkedin-tracking-20260927/check.log",
+      "sha256": "121836fd4cfe35e4005c2dfa864047e1e31db86a496d562ef6a232f6812518e1",
+      "started": "Sun Sep 27 01:15:04 UTC 2026",
+      "finished": "Sun Sep 27 04:33:37 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2382,
+          "pass": 2382,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/linkedin-tracking-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/linkedin-tracking-20260927/red-check.log",
+      "sha256": "010cfda75a8d32380ee5b9d5443c3c9e6d0d3207251eb2dd7143d825d70b2937",
+      "meaning": "tests/linkedin-tracking-parameters.test.mjs against a build of c156b32: expected red, 8/8 fail (the three writes had no reviewed family)"
+    },
+    {
+      "path": ".runtime/linkedin-tracking-20260927/targeted.log",
+      "sha256": "5e3a22717ea77248a0db0e28423c58174658059c16274886af28664f61b0af6c",
+      "meaning": "149 related suite files in the working copy, including every DV360, LinkedIn, Snapchat, media, scope and security suite, with FFmpeg configured: 1777/1777 pass, none skipped."
+    }
+  ],
+  "development_failures": [
+    "The first run failed four of eight tests: the transport refused the empty 201/200 body of the tracking parameter PUT, which LinkedIn documents only by status; it is now accepted on that path only.",
+    "A token changed after review was expected to stop at the state comparison; the prerequisite check at execution refuses it first as a stale token. The test now checks that refusal.",
+    "One test edit redeclared a variable and the file failed to load; it was renamed."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2382,
+    "main_pass": 2382,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "LinkedIn documents no response body for the PUT and no x-restli-id header; the receipt is its status, and read-back is the evidence.",
+    "Whether LinkedIn answers 404 or an empty object when a campaign has no parameters is not documented; both read as no parameters.",
+    "Account-level parameters and CREATIVE_NAME need a newer LinkedIn-Version than the default 202605.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

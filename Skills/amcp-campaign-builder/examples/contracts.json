@@ -714,6 +714,26 @@
     {
       "gateway": "linkedin_native_action",
       "arguments": {
+        "action": "linkedin_rest_ad_tracking_parameters_ad_entity_campaign_campaign_urn_put",
+        "account_id": "123",
+        "path_params": {
+          "ad_entity_campaign_campaign_urn": "(adEntity:(sponsoredCampaign:urn:li:sponsoredCampaign:456))"
+        },
+        "payload": {
+          "dynamicValueParameters": {
+            "utm_campaign": "CAMPAIGN_NAME",
+            "utm_campaign_id": "CAMPAIGN_ID"
+          },
+          "customValueParameters": {
+            "utm_source": "linkedin",
+            "utm_medium": "paid_social"
+          }
+        }
+      }
+    },
+    {
+      "gateway": "linkedin_native_action",
+      "arguments": {
         "action": "linkedin_rest_campaign_conversions_campaign_conversion_id_put",
         "account_id": "123",
         "path_params": {

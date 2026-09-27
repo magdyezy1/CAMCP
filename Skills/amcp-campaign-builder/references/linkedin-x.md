@@ -166,6 +166,38 @@ responses require reconciliation; keep the original claim and do not repeat the
 batch. The contract does not certify an installed Insight Tag, event receipt,
 attribution accuracy, auction delivery or current provider approval.
 
+## Reviewed LinkedIn dynamic UTM tracking parameters
+
+`linkedin_rest_ad_tracking_parameters_ad_entity_campaign_campaign_urn_put` sets the tracking
+parameters that LinkedIn appends to the landing page URLs of every creative in a campaign,
+including running ads, without another ad review. Pass `path_params.ad_entity_campaign_campaign_urn`
+as `(adEntity:(sponsoredCampaign:urn:li:sponsoredCampaign:<id>))`; AMCP encodes the URN once. The
+`..._ad_tracking_parameter_id_put` alias takes the same key. The payload has
+`dynamicValueParameters` (name to `ACCOUNT_ID`, `ACCOUNT_NAME`, `CAMPAIGN_GROUP_ID`,
+`CAMPAIGN_GROUP_NAME`, `CAMPAIGN_ID`, `CAMPAIGN_NAME`, `CREATIVE_ID`; `CREATIVE_NAME` needs
+LinkedIn-Version 202606) and `customValueParameters` (name to fixed text).
+
+- Names have 1–100 URL-safe characters (letters, digits, `_ . ~ -`) and appear once across both
+  maps, compared without case; a review sets 1–50 parameters. Values are 1–500 characters without
+  control characters. A static UTM parameter already in a creative URL stays, so do not repeat its
+  name. Conversation Ads and Message Ads do not take these parameters.
+- AMCP reads the ad account, the campaign (it must belong to the account and not be removed) and
+  the current parameters. Creating parameters sends no `idempotencyToken`. When parameters exist,
+  send `query: {idempotencyToken}` with the token that the review reports; without it the review
+  returns `CONFIGURATION_EXISTS` with the token, and a stale token is refused before LinkedIn
+  would answer 409. A parameter change after the review stops execution.
+- `..._campaign_urn_delete` removes all of a campaign's parameters and counts as a deletion under
+  owner policies; deleting none returns `STATE_NOT_FOUND`.
+- Account-level parameters use `(adEntity:(sponsoredAccount:urn:li:sponsoredAccount:<selected id>))`
+  and need LinkedIn-Version 202608 or later (`AMCP_LINKEDIN_API_VERSION`); the default 202605
+  refuses them.
+- Writes need `rw_ads`, reads `r_ads` or `rw_ads`. Verification reads the parameters again and
+  compares every name and value, or expects none after deletion. `INVALID_LINKEDIN_TRACKING` names
+  the field to correct.
+
+Reference: [Dynamic UTM Tracking](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/dynamic-utm-tracking),
+checked 2026-09-27.
+
 ## Reviewed LinkedIn conversion rules
 
 Use `linkedin_rest_conversions_post` with `restli_method: CREATE`, the selected

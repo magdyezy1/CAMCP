@@ -38,6 +38,7 @@ import {xDraftKind,xDraftImpact} from './x-draft-writes.js';
 import {xTargetingBatchRoute,xTargetingBatchImpact} from './x-targeting-batch.js';
 import {linkedinTemplateKind,linkedinTemplateImpact} from './linkedin-audience-templates.js';
 import {linkedinConversionKind,linkedinConversionImpact} from './linkedin-conversion-links.js';
+import {linkedinTrackingImpact} from './linkedin-tracking-parameters.js';
 import {linkedinRuleKind,linkedinRuleImpact} from './linkedin-conversion-rules.js';
 import {redditPostCreation,redditPromotedSource} from './reddit-post-creation.js';
 import {microsoftAssociationWrite,microsoftAssociationActivates} from './microsoft-associations.js';
@@ -94,6 +95,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  if(xTargetingBatchRoute(plan))return xTargetingBatchImpact();
  if(xDraftKind(plan))return xDraftImpact(plan);
  if(linkedinConversionKind(plan))return linkedinConversionImpact;
+ const linkedinTracking=linkedinTrackingImpact(plan,state);if(linkedinTracking)return linkedinTracking;
  if(linkedinRuleKind(plan))return linkedinRuleImpact;
  if(linkedinLeadFormKind(plan))return linkedinLeadFormImpact(plan,state);
  if(googleBidKind(plan))return googleBidImpactFor(plan);

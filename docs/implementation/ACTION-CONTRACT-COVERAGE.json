@@ -162,9 +162,9 @@
       "gateway": "linkedin_native_action",
       "actions": 287,
       "counts": {
-        "blocked_write": 118,
+        "blocked_write": 115,
         "native_read": 146,
-        "reviewed_write_family": 23
+        "reviewed_write_family": 26
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -22025,7 +22025,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22044,7 +22045,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22102,7 +22104,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22147,7 +22150,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22166,7 +22170,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22185,7 +22190,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22249,7 +22255,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22300,7 +22307,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22335,7 +22343,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22370,7 +22379,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22421,7 +22431,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22469,7 +22480,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22517,7 +22529,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22549,7 +22562,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22581,7 +22595,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22600,7 +22615,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22632,7 +22648,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22651,7 +22668,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22670,7 +22688,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22702,7 +22721,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22760,7 +22780,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22792,7 +22813,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22824,7 +22846,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22856,7 +22879,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22888,7 +22912,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22946,7 +22971,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23004,7 +23030,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23036,7 +23063,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23068,7 +23096,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23113,7 +23142,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23132,7 +23162,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23164,7 +23195,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23199,7 +23231,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23250,7 +23283,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23285,7 +23319,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23304,7 +23339,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23314,12 +23350,15 @@
       "aliases": [],
       "method": "DELETE",
       "path": "/rest/adTrackingParameters/{ad_entity_campaign_campaign_urn}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/linkedin-tracking-parameters.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/linkedin-tracking-parameters.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "linkedin_tracking_parameters"
     },
     {
       "gateway": "linkedin_native_action",
@@ -23336,7 +23375,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23346,12 +23386,15 @@
       "aliases": [],
       "method": "PUT",
       "path": "/rest/adTrackingParameters/{ad_entity_campaign_campaign_urn}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/linkedin-tracking-parameters.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/linkedin-tracking-parameters.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "linkedin_tracking_parameters"
     },
     {
       "gateway": "linkedin_native_action",
@@ -23359,12 +23402,15 @@
       "aliases": [],
       "method": "PUT",
       "path": "/rest/adTrackingParameters/{ad_tracking_parameter_id}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/linkedin-tracking-parameters.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/linkedin-tracking-parameters.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "linkedin_tracking_parameters"
     },
     {
       "gateway": "linkedin_native_action",
@@ -23394,7 +23440,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23426,7 +23473,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23445,7 +23493,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23496,7 +23545,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23547,7 +23597,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23595,7 +23646,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23640,7 +23692,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23659,7 +23712,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23704,7 +23758,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23749,7 +23804,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23784,7 +23840,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23819,7 +23876,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23851,7 +23909,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23896,7 +23955,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23928,7 +23988,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23947,7 +24008,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23966,7 +24028,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -23985,7 +24048,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24017,7 +24081,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24036,7 +24101,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24068,7 +24134,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24113,7 +24180,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24145,7 +24213,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24203,7 +24272,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24222,7 +24292,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24280,7 +24351,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24299,7 +24371,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24331,7 +24404,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24376,7 +24450,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24395,7 +24470,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24440,7 +24516,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24485,7 +24562,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24504,7 +24582,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24536,7 +24615,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24581,7 +24661,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24613,7 +24694,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24632,7 +24714,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24677,7 +24760,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24696,7 +24780,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24715,7 +24800,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24760,7 +24846,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24779,7 +24866,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24824,7 +24912,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24843,7 +24932,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24875,7 +24965,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24920,7 +25011,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24939,7 +25031,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24958,7 +25051,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -24977,7 +25071,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25038,7 +25133,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25070,7 +25166,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25115,7 +25212,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25134,7 +25232,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25166,7 +25265,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25185,7 +25285,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25204,7 +25305,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25223,7 +25325,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25242,7 +25345,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25274,7 +25378,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25293,7 +25398,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25312,7 +25418,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25331,7 +25438,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25350,7 +25458,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25370,6 +25479,7 @@
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
         "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -25389,7 +25499,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25408,7 +25519,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25427,7 +25539,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25446,7 +25559,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25465,7 +25579,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25484,7 +25599,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25503,7 +25619,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25522,7 +25639,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25557,7 +25675,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25589,7 +25708,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25634,7 +25754,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25679,7 +25800,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25698,7 +25820,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25717,7 +25840,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25762,7 +25886,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25794,7 +25919,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25878,7 +26004,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25910,7 +26037,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25942,7 +26070,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25974,7 +26103,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25993,7 +26123,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26025,7 +26156,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26057,7 +26189,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26089,7 +26222,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26108,7 +26242,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26127,7 +26262,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26146,7 +26282,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26191,7 +26328,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26236,7 +26374,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26268,7 +26407,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26287,7 +26427,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26306,7 +26447,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26338,7 +26480,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26409,7 +26552,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26467,7 +26611,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26499,7 +26644,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26518,7 +26664,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26537,7 +26684,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26556,7 +26704,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26588,7 +26737,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26607,7 +26757,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26626,7 +26777,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26645,7 +26797,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26664,7 +26817,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26683,7 +26837,8 @@
         "tests/creative-chain-audit.test.ts",
         "tests/linkedin-conversion-links.test.ts",
         "tests/linkedin-conversion-rules.test.ts",
-        "tests/linkedin-audience-templates.test.mjs"
+        "tests/linkedin-audience-templates.test.mjs",
+        "tests/linkedin-tracking-parameters.test.mjs"
       ],
       "live_qualification": "unverified"
     },

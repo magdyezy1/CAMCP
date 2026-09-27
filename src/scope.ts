@@ -27,6 +27,7 @@ import {authorizeCriteoInternalRead,assertCriteoReadScope} from './criteo-target
 import {assertGoogleGenerationScope} from './google-generation.js';
 import {assertMetaLabelScope,metaLabelIdentities} from './meta-label-writes.js';
 import {authorizeLinkedInConversion} from './linkedin-conversion-links.js';
+import {authorizeLinkedInTracking} from './linkedin-tracking-parameters.js';
 import {authorizeLinkedInTemplate} from './linkedin-audience-templates.js';
 import {authorizeLinkedInRule} from './linkedin-conversion-rules.js';
 import {authorizeLinkedInLeadForm,observeLinkedInLeadForms} from './linkedin-lead-forms.js';
@@ -109,6 +110,7 @@ export class ScopeGuard {
   if(authorizeXAudienceEstimate(plan,connection,id))return id;
   if(authorizeLinkedInTemplate(plan,connection,id))return id;
   if(authorizeLinkedInConversion(plan,connection,id))return id;
+  if(authorizeLinkedInTracking(plan,connection,id))return id;
   if(authorizeLinkedInRule(plan,connection,id))return id;
   if(authorizeLinkedInLeadForm(plan,connection,this.store,id))return id;
   if(authorizeCriteoInternalRead(plan,connection,id))return id;

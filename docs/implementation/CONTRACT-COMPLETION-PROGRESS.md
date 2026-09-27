@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DE — LinkedIn dynamic UTM tracking parameters (2026-09-27)
+
+Campaign tracking parameters can now be created, replaced (with the token the review reads) and
+deleted on LinkedIn, with account, campaign and parameter reads, owner deletion policy and exact
+read-back; account-level parameters need LinkedIn-Version 202608. See
+[implementation](LINKEDIN-TRACKING-PARAMETERS-2026-09-27.md),
+[qualification](LINKEDIN-TRACKING-PARAMETERS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 881 (three LinkedIn rows reviewed). Pushed only to CAMCP; its exact-commit CI
+result and live acceptance are pending.
+
 ## DD — Snapchat chunked media upload (2026-09-27)
 
 Snapchat videos over 32 MB can now be imported: the reviewed media upload sends them with Snap's
@@ -18,8 +30,8 @@ INIT actions route to the same import. See
 [qualification](SNAPCHAT-CHUNKED-MEDIA-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 884 (three Snapchat rows move to the media workflow). Pushed only to CAMCP; its
-exact-commit CI result and live acceptance are pending.
+Remaining rows: 884 (three Snapchat rows move to the media workflow). Pushed to CAMCP as
+`c156b32`; its exact-commit CI result and live acceptance are pending.
 
 ## DC — DV360 audience targeting (2026-09-27)
 

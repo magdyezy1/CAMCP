@@ -631,7 +631,18 @@ Tests: `tests/dv360-audience-targeting.test.mjs` (8) and updated audience cases 
 - `src/transport.ts` allows field-only multipart forms only for those INIT and FINALIZE paths; `src/media-routing.ts` routes the native INIT actions to the import. Ownership of an `existing_media_id` is checked before the Drive download.
 - Not done: resuming a partially uploaded Snapchat file (Snap documents no part listing), and the public profile media upload.
 
-Tests: `tests/snapchat-chunked-media.test.mjs` (6), red on `fefc545` / green after.
+Tests: `tests/snapchat-chunked-media.test.mjs` (6), red on `fefc545` / green after. Pushed as `c156b32`.
+
+## Finished batch — LinkedIn dynamic UTM tracking parameters (2026-09-27)
+
+[Implementation](LINKEDIN-TRACKING-PARAMETERS-2026-09-27.md) and
+[qualification](LINKEDIN-TRACKING-PARAMETERS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `linkedin_tracking_parameters` (`src/linkedin-tracking-parameters.ts`) for `/rest/adTrackingParameters` PUT and DELETE of campaign parameters (and account-level ones with LinkedIn-Version 202608): canonical REST.li key, documented dynamic values, unique URL-safe names, the current `idempotencyToken` for replacement, owner deletion policy and exact read-back.
+- `src/transport.ts` accepts the undocumented empty body of this PUT's 201/200 on this path only. The provider review date of Snapchat and LinkedIn is now 2026-09-27.
+- Microsoft Learn is reachable again; LinkedIn candidates (engagement retargeting audiences, Conversation Ads, document uploads) can use it.
+
+Tests: `tests/linkedin-tracking-parameters.test.mjs` (8), red on `c156b32` / green after.
 
 ## CI and live evidence
 
@@ -645,19 +656,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 547 in reviewed write families. **884 remaining rows** are in
+3241 captured actions; 550 in reviewed write families. **881 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 769 |
+| blocked_write | 766 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 118, Google Ads 96,
+Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 115, Google Ads 96,
 Snapchat 86, X 67, DV360 44, Criteo 34, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
