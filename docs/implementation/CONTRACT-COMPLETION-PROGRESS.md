@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DF — Google Performance Max brand guidelines (2026-09-27)
+
+Brand guidelines can now be enabled on existing Performance Max campaigns: explicit or
+Google-chosen brand assets checked against Google's asset requirements, colors and font, an
+irreversibility notice with spending confirmation, and read-back of campaign links, colors and
+font. See [implementation](GOOGLE-PMAX-BRAND-GUIDELINES-2026-09-27.md),
+[qualification](GOOGLE-PMAX-BRAND-GUIDELINES-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 879 (two Google Ads rows reviewed). Pushed only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## DE — LinkedIn dynamic UTM tracking parameters (2026-09-27)
 
 Campaign tracking parameters can now be created, replaced (with the token the review reads) and
@@ -17,8 +29,8 @@ read-back; account-level parameters need LinkedIn-Version 202608. See
 [qualification](LINKEDIN-TRACKING-PARAMETERS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 881 (three LinkedIn rows reviewed). Pushed only to CAMCP; its exact-commit CI
-result and live acceptance are pending.
+Remaining rows: 881 (three LinkedIn rows reviewed). Pushed to CAMCP as `3dac065`; its
+exact-commit CI result and live acceptance are pending.
 
 ## DD — Snapchat chunked media upload (2026-09-27)
 

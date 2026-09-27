@@ -748,6 +748,29 @@
     {
       "gateway": "google_ads_native_action",
       "arguments": {
+        "action": "google_ads_v23_campaign_enable_p_max_brand_guidelines",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "campaign": "customers/123/campaigns/456",
+              "autoPopulateBrandAssets": false,
+              "brandAssets": {
+                "businessNameAsset": "customers/123/assets/701",
+                "logoAsset": [
+                  "customers/123/assets/702"
+                ]
+              },
+              "mainColor": "#00aa55",
+              "accentColor": "#112233"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
         "action": "google_ads_v23_ad_group_bid_modifier_mutate_ad_group_bid_modifiers",
         "account_id": "123",
         "payload": {

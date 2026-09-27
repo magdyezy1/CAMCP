@@ -12615,14 +12615,14 @@
         {
           "operation": null,
           "action": "ENABLE_PMAX_BRAND_GUIDELINES",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_pmax_brand_guidelines"
         },
         {
           "operation": null,
           "action": "google_ads_v23_campaign_enable_p_max_brand_guidelines",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_pmax_brand_guidelines"
         }
       ],
       "mapping_status": "mapped",

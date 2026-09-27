@@ -29,6 +29,7 @@ import {criteoTargetingKind} from './criteo-targeting-writes.js';
 import {keywordPlanKind} from './google-keyword-plan-writes.js';
 import {metaLabelImpact} from './meta-label-writes.js';
 import {googleBidKind,googleBidImpactFor} from './google-bid-modifiers.js';
+import {googleBrandGuidelinesImpact} from './google-pmax-brand-guidelines.js';
 import {googleSegmentKind,googleSegmentImpact} from './google-custom-segments.js';
 import {googleConversionGoalKind,googleConversionGoalServing,googleConversionGoalImpact} from './google-conversion-goals.js';
 import {googleBiddingEventKind,googleBiddingEventImpact} from './google-bidding-events.js';
@@ -99,6 +100,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  if(linkedinRuleKind(plan))return linkedinRuleImpact;
  if(linkedinLeadFormKind(plan))return linkedinLeadFormImpact(plan,state);
  if(googleBidKind(plan))return googleBidImpactFor(plan);
+ const googleBrand=googleBrandGuidelinesImpact(plan,state);if(googleBrand)return googleBrand;
  if(googleSegmentKind(plan))return {...googleSegmentImpact,may_affect_serving:googleConfigurationServing(plan)};
  if(googleBiddingEventKind(plan))return googleBiddingEventImpact;
  if(googlePortfolioKind(plan))return googlePortfolioImpact;

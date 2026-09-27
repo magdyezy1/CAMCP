@@ -642,7 +642,18 @@ Tests: `tests/snapchat-chunked-media.test.mjs` (6), red on `fefc545` / green aft
 - `src/transport.ts` accepts the undocumented empty body of this PUT's 201/200 on this path only. The provider review date of Snapchat and LinkedIn is now 2026-09-27.
 - Microsoft Learn is reachable again; LinkedIn candidates (engagement retargeting audiences, Conversation Ads, document uploads) can use it.
 
-Tests: `tests/linkedin-tracking-parameters.test.mjs` (8), red on `c156b32` / green after.
+Tests: `tests/linkedin-tracking-parameters.test.mjs` (8), red on `c156b32` / green after. Pushed as `3dac065`.
+
+## Finished batch — Google Performance Max brand guidelines (2026-09-27)
+
+[Implementation](GOOGLE-PMAX-BRAND-GUIDELINES-2026-09-27.md) and
+[qualification](GOOGLE-PMAX-BRAND-GUIDELINES-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `google_pmax_brand_guidelines` (`src/google-pmax-brand-guidelines.ts`) for `campaigns:enablePMaxBrandGuidelines` (RPC and legacy alias): 1–10 campaigns; explicit brand assets (business name of at most 25 characters, 1–5 logos with at least one square logo of 128 x 128 or more, 4:1 landscape logos of 512 x 128 or more) or Google-chosen ones; paired hex colors; a documented font.
+- Reads the customer, campaigns (Performance Max, not removed, no travel goals, not yet enabled) and assets; irreversible, so `spend_change_confirmed` is required; any enablement error fails the outcome; read-back compares links, colors and font.
+- LinkedIn engagement retargeting was researched: DMP segments document the `rw_dmp_segments` permission of LinkedIn's Audiences program, which AMCP does not request, while engagement rules list `rw_ads`. It needs that permission question settled first.
+
+Tests: `tests/google-pmax-brand-guidelines.test.mjs` (6), red on `3dac065` / green after.
 
 ## CI and live evidence
 
@@ -656,19 +667,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 550 in reviewed write families. **881 remaining rows** are in
+3241 captured actions; 552 in reviewed write families. **879 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 766 |
+| blocked_write | 764 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 115, Google Ads 96,
+Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 115, Google Ads 94,
 Snapchat 86, X 67, DV360 44, Criteo 34, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

@@ -1,0 +1,104 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "3dac06584ed4751259e0dca453d7f1c16c67c7c8",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/google-pmax-brand-20260927-a",
+    "files": 857,
+    "source_tree_hash": "a3a919280b5360f1c6d27ef5fb6bea314d8bc4f3f87818dc3cc28b2f9123792a",
+    "index_code_test_guidance_files_compared": 690,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/google-pmax-brand-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/google-pmax-brand-20260927/install.log",
+      "sha256": "3f297ffae731871d8165981fa63d8ab903590393e8d20a27170174d3292ab9db"
+    },
+    {
+      "path": ".runtime/google-pmax-brand-20260927/check.log",
+      "sha256": "4b92aeb0d643a636a246dfb6fa45098709563f6034f0ea3a88a74dfc4df196a4",
+      "started": "Sun Sep 27 01:38:24 UTC 2026",
+      "finished": "Sun Sep 27 05:00:54 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2388,
+          "pass": 2388,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/google-pmax-brand-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/google-pmax-brand-20260927/red-check.log",
+      "sha256": "597e101df4ce533225b9e3ff9d144684cbc76978fdf62f9d4021817d86d6f1a4",
+      "meaning": "tests/google-pmax-brand-guidelines.test.mjs against a build of 3dac065 with the pinned document present: expected red, 6/6 fail (both actions had no reviewed family)"
+    },
+    {
+      "path": ".runtime/google-pmax-brand-20260927/targeted.log",
+      "sha256": "872cccdf541355eb135845972f58a1b4931d7aabd8f0d95e1c00506de804dd60",
+      "meaning": "150 related suite files in the working copy, including every Google, DV360, LinkedIn, Snapchat, media, scope and security suite, with FFmpeg configured: 1783/1783 pass, none skipped."
+    }
+  ],
+  "development_failures": [
+    "The first run failed five of six tests: the generic Google write shape check requires one create, update or remove per operation and ran before the family check. The family now returns early from that check, like the other special Google methods; the local wiring script was corrected by hand.",
+    "An unknown operation field is refused by the pinned Discovery model itself (INVALID_VENDOR_BODY); the malformed-request test now names that code for that case."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2388,
+    "main_pass": 2388,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "finalUriDomain is sent but not read back; no documented campaign field returns it.",
+    "Asset requirements are checked from the asset type, text and full image size; file size and policy are left to Google.",
+    "Many campaigns were migrated automatically by Google in 2025; the review reports those as already enabled.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

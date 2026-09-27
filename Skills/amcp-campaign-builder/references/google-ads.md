@@ -222,6 +222,38 @@ campaign. Every such asset group needs a valid tree, or its ads do not serve; a 
   Reference: [Listing Groups for Retail](https://developers.google.com/google-ads/api/performance-max/listing-groups)
   and the v23 `asset_group_listing_group_filter` fields, checked 2026-09-26.
 
+## Performance Max brand guidelines
+
+`google_ads_v23_campaign_enable_p_max_brand_guidelines` (or the `ENABLE_PMAX_BRAND_GUIDELINES`
+alias) enables brand guidelines on 1–10 existing Performance Max campaigns. Brand guidelines link
+the business name and logos to the campaign instead of its asset groups and set the brand colors
+and font of automatically generated assets. **They cannot be turned off again.** Campaigns with
+travel goals do not support them, and Google has migrated many campaigns automatically since
+2025, so check the campaign first.
+
+Each operation has `campaign` and the required `autoPopulateBrandAssets`:
+
+- `true`: Google chooses top-performing brand assets; send no `brandAssets`.
+- `false`: send `brandAssets` with `businessNameAsset` (a text asset of 1–25 characters),
+  `logoAsset` (square images, at least 128 x 128) and optional `landscapeLogoAsset` (4:1 images,
+  at least 512 x 128); one to five logos in total, each asset once.
+- Optional `mainColor` and `accentColor` together (hex such as `#00aa55`), `fontFamily` (Open
+  Sans, Roboto, Roboto Slab, Montserrat, Poppins, Lato, Oswald or Playfair Display) and
+  `finalUriDomain` (a domain without scheme or path).
+
+AMCP reads the customer, each campaign (Performance Max, not removed, no travel goals, brand
+guidelines not yet enabled: otherwise `CONFIGURATION_EXISTS`) and each asset (type, text length and
+image size). Execution needs `spend_change_confirmed`: enabled campaigns serve with the new brand
+assets at once. A result with an `enablementError` is a failure and is not resubmitted.
+Verification reads each campaign again: brand guidelines enabled, the colors and font sent, and
+enabled campaign links of every asset sent (or at least one business name and logo that Google
+chose). `finalUriDomain` is sent but not read back. `INVALID_BRAND_GUIDELINES` names the field to
+correct; `BRAND_GUIDELINES_STATE_UNVERIFIED` means the reads were incomplete.
+
+Reference: [EnablePMaxBrandGuidelines](https://developers.google.com/google-ads/api/reference/rpc/v23/CampaignService/EnablePMaxBrandGuidelines)
+and [Asset requirements](https://developers.google.com/google-ads/api/performance-max/asset-requirements),
+checked 2026-09-27.
+
 ## Rule-based remarketing lists
 
 `google_ads_v23_user_list_mutate_user_lists` (and aliases such as `CREATE_USER_LIST`) creates
