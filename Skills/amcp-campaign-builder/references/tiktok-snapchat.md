@@ -752,6 +752,38 @@ deleted set gone.
 Reference: [Dynamic Product Ads](https://developers.snap.com/api/marketing-api/Ads-API/dynamic-product-ads)
 ("Product Set"), checked 2026-09-27.
 
+## Snapchat dynamic templates
+
+Dynamic templates define how dynamic creatives render catalog products: a layout, up to two catalog
+text fields and overlays. Snapchat documents creating and updating them, not deleting them.
+
+- `snapchat_adaccounts_ad_account_id_dynamic_templates_create` with `params: {ad_account_id}` and
+  `payload: {dynamic_templates: [...]}` creates 1–10 templates; the update action (`..._update`)
+  sends each template in full with its `id`.
+- Each template names the selected `ad_account_id`, a `name` of 1–375 characters that no other
+  template of the account uses (ignoring case), `ios_url` and `android_url` set to the guide's
+  renderer `https://ads-interfaces.sc-cdn.net/adformats/templates/V2/index.html`, a `layout`
+  (`AUTOMATIC`, `FILL_WIDTH`, `FILL_HEIGHT`, `FIT`, `HEADER`, `TILT`, `CAROUSEL` or `SLIDESHOW`;
+  the last two need a collection ad), and `text_fields` with one or two catalog field names such as
+  `title`, `price`, `salePrice` or `brand` (empty strings as in the guide's examples are accepted).
+- Optional: `background_color` as three or six hexadecimal digits without `#`,
+  `preferred_image_tags` and `preferred_video_tags` (1–10 tags from the product feed), and up to 10
+  `overlay_specs`: `IMAGE` or `FRAME` overlays name READY image media of the account (one `FRAME`,
+  always `CENTER`), `TEXT` overlays carry 1–34 characters and optional `text_overlay_properties`
+  (`shape` `NONE`, `CIRCLE`, `PILL` or `RECTANGLE`, `text_color`, `shape_color`); `opacity` is
+  75–100.
+
+AMCP lists the account's templates (following cursors), the media the overlays name and, for
+updates, the account's creatives: an unknown template or media is `STATE_NOT_FOUND`, a taken name is
+`CONFIGURATION_EXISTS`, and video or unready media and unchanged templates are refused. An update
+shows the dynamic creatives that use each template, which changes how they render. No request
+changes spending. A reply that is not SUCCESS for every template is a failure never resubmitted.
+Verification lists the templates again and compares each field sent.
+`INVALID_SNAPCHAT_DYNAMIC_TEMPLATE` names the field to correct.
+
+Reference: [Dynamic Product Ads](https://developers.snap.com/api/marketing-api/Ads-API/dynamic-product-ads)
+("Dynamic Templates"), checked 2026-09-27.
+
 ## Snapchat nested updates
 
 Ad/ad-squad updates now use the documented native parent routes:

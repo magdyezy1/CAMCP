@@ -8,6 +8,17 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## ER — Snapchat dynamic templates (2026-09-27)
+
+Snapchat dynamic templates can now be created and updated through reviewed requests: the account's
+templates, the overlay media and the creatives that use each template are read first, and the result
+is read back. See [implementation](SNAPCHAT-DYNAMIC-TEMPLATES-2026-09-27.md),
+[qualification](SNAPCHAT-DYNAMIC-TEMPLATES-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 752 (two Snapchat rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## EQ — LinkedIn Insight Tag domains (2026-09-27)
 
 The domains LinkedIn lists for an Insight Tag can now be blocked or allowed, one at a time or in a
@@ -17,7 +28,7 @@ the accounts sharing the tag are shown, and the result is read back. See
 [qualification](LINKEDIN-INSIGHT-DOMAINS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 754 (two LinkedIn rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 754 (two LinkedIn rows reviewed). Committed as `683a2da`; its exact-commit CI result
 and live acceptance are pending.
 
 ## EP — Snapchat product sets (2026-09-27)

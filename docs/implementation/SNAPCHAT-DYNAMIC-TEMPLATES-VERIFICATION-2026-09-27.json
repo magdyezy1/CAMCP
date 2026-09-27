@@ -1,0 +1,102 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "683a2dada74612c8b24adb9ce78b5e2969e49d26",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/snapchat-dynamic-templates-20260927-a",
+    "files": 1014,
+    "source_tree_hash": "9b6ef6f4f73debcd7d2a8c925e6ea0c36d32a8ca57606ab44fb76a3d582f12f8",
+    "index_code_test_guidance_files_compared": 771,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/snapchat-dynamic-templates-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/snapchat-dynamic-templates-20260927/install.log",
+      "sha256": "ae48f9f8721d24990e1f5dce53c39d526ea0b5dc0e153929da1126e972830ba4"
+    },
+    {
+      "path": ".runtime/snapchat-dynamic-templates-20260927/check.log",
+      "sha256": "85129712492326c7eb3e374ee26b3bca7ec924ed66076af3a25bc19b0e00f260",
+      "started": "Sun Sep 27 23:05:34 UTC 2026",
+      "finished": "Mon Sep 28 02:27:13 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2562,
+          "pass": 2562,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/snapchat-dynamic-templates-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/snapchat-dynamic-templates-20260927/red-check.log",
+      "sha256": "a7a830c914bf54b071728f15719c4a6d0f730cddb3f52a20602aa59d7217b34f",
+      "meaning": "tests/snapchat-dynamic-templates.test.mjs against a build of 683a2da: expected red, 3/3 fail (no reviewed family: WRITE_CONTRACT_UNAVAILABLE)"
+    },
+    {
+      "path": ".runtime/snapchat-dynamic-templates-20260927/targeted.log",
+      "sha256": "ee13e679ef6621203be5e8ffe802f69696f9b51b7a92c669997938811b3c14a4",
+      "meaning": "191 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1957/1957 pass, none skipped."
+    }
+  ],
+  "development_failures": [],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2562,
+    "main_pass": 2562,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Only the guide's V2 renderer URL is accepted for ios_url and android_url; another renderer would need a contract update.",
+    "Text field names are checked against the union of the guide's COMMERCE, HOTELS and FLIGHTS lists, not against the vertical of the catalog a creative later uses.",
+    "Overlay media dimensions and file size are not read; AMCP checks only that each is a READY image of the account.",
+    "Limits of 10 templates per request, 10 overlays and 10 tags are AMCP's bounds; Snapchat documents none.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}
