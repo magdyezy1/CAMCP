@@ -748,7 +748,16 @@ Tests: `tests/google-campaign-drafts.test.mjs` (5), red on `d355933` / green aft
 
 - New reviewed family `x_curated_categories` (`src/x-curated-categories.ts`) for the three `line_item_curated_categories` writes: PREROLL_VIEWS line items only, the category, the line item and every association of the account for it read, duplicates and unchanged categories refused, additions and replacements with spending confirmation, and each association read back.
 
-Tests: `tests/x-curated-categories.test.mjs` (4), red on `830de73` / green after.
+Tests: `tests/x-curated-categories.test.mjs` (4), red on `830de73` / green after. Pushed as `268cd70`.
+
+## Finished batch — LinkedIn Message Ads and Conversation Ads content (2026-09-27)
+
+[Implementation](LINKEDIN-MESSAGE-ADS-2026-09-27.md) and
+[qualification](LINKEDIN-MESSAGE-ADS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `linkedin_message_ads` (`src/linkedin-message-ads.ts`) for InMail content (create, partial update) and sponsored conversations (create, first message and headline updates, message creation single or batch, message updates and batch deletion): the whole message tree checked as it will be, lead forms and conversations of the selected ad account, and read-back. Compound message URNs are fully REST.li-encoded in paths (`src/compiler.ts`).
+
+Tests: `tests/linkedin-message-ads.test.mjs` (5), red on `268cd70` / green after.
 
 ## CI and live evidence
 
@@ -762,19 +771,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 576 in reviewed write families. **855 remaining rows** are in
+3241 captured actions; 584 in reviewed write families. **847 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 740 |
+| blocked_write | 732 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 113, Google Ads 87,
+Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 105, Google Ads 87,
 Snapchat 85, X 55, DV360 42, Criteo 34, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

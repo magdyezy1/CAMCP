@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DQ — LinkedIn Message Ads and Conversation Ads content (2026-09-27)
+
+InMail content and sponsored conversations with their message trees can now be created, updated
+and deleted through reviewed requests: the conversation, all its messages, the content and the
+lead forms are read, the whole tree is checked as it will be (size, links, cycles, reply rules,
+first message), and the content is read back. See
+[implementation](LINKEDIN-MESSAGE-ADS-2026-09-27.md),
+[qualification](LINKEDIN-MESSAGE-ADS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 847 (eight LinkedIn rows reviewed). Pushed only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## DP — X pre-roll curated categories (2026-09-27)
 
 Curated categories of X pre-roll line items can now be added, replaced and removed through reviewed
@@ -17,8 +30,8 @@ read back. See [implementation](X-CURATED-CATEGORIES-2026-09-27.md),
 [qualification](X-CURATED-CATEGORIES-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 855 (three X rows reviewed). Pushed only to CAMCP; its exact-commit CI result and
-live acceptance are pending.
+Remaining rows: 855 (three X rows reviewed). Pushed to CAMCP as `268cd70`; its exact-commit CI
+result and live acceptance are pending.
 
 ## DO — Google Ads campaign drafts (2026-09-27)
 

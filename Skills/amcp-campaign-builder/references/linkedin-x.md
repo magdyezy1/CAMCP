@@ -221,6 +221,47 @@ platform, URL) or checks that a deleted tag is gone. Writes need `rw_ads`.
 Reference: [Third-Party Tracking](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/third-party-tracking),
 checked 2026-09-27.
 
+## Reviewed LinkedIn Message Ads and Conversation Ads content
+
+Message Ads send InMail content; Conversation Ads send a tree of messages with reply options. Build
+the content, then a DRAFT creative that references it, test it, and activate the creative (LinkedIn
+reviews it then).
+
+- InMail content: `linkedin_rest_in_mail_contents_post` with `payload: {account: <selected ad account
+  URN>, name, subject, sender (person or organization URN allowed to send Message Ads), htmlBody,
+  customFooter, subContent}` and exactly one sub-content: `regular` (`callToActionText` 1–20
+  characters, `callToActionLandingPageUrl` up to 1,024), `guidedReplies` (`sponsoredConversation`,
+  which must already have a first message) or `form` (`callToActionText`). Update with
+  `linkedin_rest_in_mail_contents_inmail_content_urn_post`, `restli_method: PARTIAL_UPDATE` and
+  `payload: {patch: {$set: {...}}}` of name, sender, subject, htmlBody or subContent; LinkedIn refuses
+  changes once a creative using it is live.
+- Conversations: `linkedin_rest_conversation_ads_post` with `{parentAccount, headlineText}`, then
+  messages with `..._sponsored_message_contents_post` (`path_params: {conversation_urn}`, or
+  `conversation_ads_id` with the numeric ID), one per call or `restli_method: BATCH_CREATE` with
+  `{elements}`. A message has `bodySource` (`text` up to 500 characters, `leadGenerationForm`, or
+  `mediaAttachment` with an image URN and text) and optional `nextAction: {options}` with 1–5
+  options: `replyType`, `optionText` (1–35), `nextContent` (another message of the conversation)
+  and `landingPage`. Create leaves first: an option can only point at an existing message.
+- Set the first message with `linkedin_rest_conversation_ads_conversation_urn_post`,
+  `restli_method: PARTIAL_UPDATE`, `{patch: {$set: {firstMessageContent}}}`; update a message with
+  `..._message_urn_post` (`PARTIAL_UPDATE` of bodySource or nextAction); delete messages with
+  `..._sponsored_message_contents_delete`, `restli_method: BATCH_DELETE` and `query: {ids: [...]}`.
+
+AMCP reads the ad account, the conversation (it must belong to the ad account) with all its
+messages, the InMail content being updated, and every lead form a message uses (same ad account).
+It then checks the whole tree as it will be: at most 25 messages, every `nextContent` present, no
+cycles, lead form messages with a LEAD_GENERATION_THANK_YOU option, only LEAD_GENERATION options
+leading to lead form messages, EXTERNAL_WEBSITE options with a landing page, SIMPLE_REPLY options
+with a next message, and a first message that exists (it cannot be deleted). Unchanged updates are
+refused. Content changes need no spending confirmation; changes to content an active creative uses
+reach members. Verification reads the content again; the text of LEAD_GENERATION_THANK_YOU options
+is not compared because LinkedIn replaces it with the form's thank-you message.
+`INVALID_LINKEDIN_MESSAGE_AD` names the field to correct.
+
+Reference: [Message Ads API](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/advertising-targeting/version/message-ads-integrations)
+and [Conversation Ads API](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/advertising-targeting/version/conversation-ads-integrations),
+checked 2026-09-27.
+
 ## Reviewed LinkedIn conversion rules
 
 Use `linkedin_rest_conversions_post` with `restli_method: CREATE`, the selected

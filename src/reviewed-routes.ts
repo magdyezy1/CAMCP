@@ -15,6 +15,7 @@ import {redditCreativeKind} from './reddit-creative-writes.js';
 import {linkedinConversionKind} from './linkedin-conversion-links.js';
 import {linkedinTrackingKind} from './linkedin-tracking-parameters.js';
 import {linkedinThirdPartyKind} from './linkedin-third-party-tracking.js';
+import {linkedinMessageKind} from './linkedin-message-ads.js';
 import {linkedinTemplateKind} from './linkedin-audience-templates.js';
 import {linkedinRuleKind} from './linkedin-conversion-rules.js';
 import {linkedinLeadFormKind} from './linkedin-lead-forms.js';
@@ -82,6 +83,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(linkedinConversionKind(p))return 'linkedin_conversion_links';
  if(linkedinTrackingKind(p))return 'linkedin_tracking_parameters';
  if(linkedinThirdPartyKind(p))return 'linkedin_third_party_tracking';
+ if(linkedinMessageKind(p))return 'linkedin_message_ads';
  if(linkedinRuleKind(p))return 'linkedin_conversion_rules';
  if(linkedinLeadFormKind(p))return 'linkedin_lead_forms';
  if(metaReportKind(p))return 'meta_insights_jobs';

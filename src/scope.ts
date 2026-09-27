@@ -30,6 +30,7 @@ import {authorizeLinkedInConversion} from './linkedin-conversion-links.js';
 import {authorizeSnapchatMediaCopyRead} from './snapchat-media-copy.js';
 import {authorizeLinkedInTracking} from './linkedin-tracking-parameters.js';
 import {authorizeLinkedInThirdParty} from './linkedin-third-party-tracking.js';
+import {authorizeLinkedInMessage} from './linkedin-message-ads.js';
 import {authorizeLinkedInTemplate} from './linkedin-audience-templates.js';
 import {authorizeLinkedInRule} from './linkedin-conversion-rules.js';
 import {authorizeLinkedInLeadForm,observeLinkedInLeadForms} from './linkedin-lead-forms.js';
@@ -115,6 +116,7 @@ export class ScopeGuard {
   if(authorizeSnapchatMediaCopyRead(plan,connection,id))return id;
   if(authorizeLinkedInTracking(plan,connection,id))return id;
   if(authorizeLinkedInThirdParty(plan,connection,id))return id;
+  if(authorizeLinkedInMessage(plan,connection,id))return id;
   if(authorizeLinkedInRule(plan,connection,id))return id;
   if(authorizeLinkedInLeadForm(plan,connection,this.store,id))return id;
   if(authorizeCriteoInternalRead(plan,connection,id))return id;

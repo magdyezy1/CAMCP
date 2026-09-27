@@ -5,6 +5,7 @@ import {xAudienceEstimatePlan} from './x-audience-estimate.js';
 import {snapchatPlanningPlan} from './snapchat-planning-reads.js';
 import {linkedinConversionPlan} from './linkedin-conversion-links.js';
 import {linkedinTrackingPlan} from './linkedin-tracking-parameters.js';
+import {linkedinMessagePlan} from './linkedin-message-ads.js';
 import type {Action,CallOptions,CompiledRequest,JsonObject} from './types.js';
 import {Registry} from './catalog.js';
 import {guardInput} from './security.js';
@@ -140,7 +141,7 @@ export class Compiler {
    readOnly=readOnly&&['GET','HEAD'].includes(override);
   }
   if(gateway==='meta_native_action'&&query.batch!==undefined)readOnly=false;
-  return snapchatPlanningPlan(xAudienceEstimatePlan(xReportPlan(metaReportPlan(dv360TargetingSearchPlan(linkedinTrackingPlan(linkedinConversionPlan(googleGenerationPlan(googleContractEvidence(validateApplePlan({gateway,action:action.canonical_name||action.name,method,path,query,...(absolute?{origin:absolute.origin}:{}),...(body===undefined?{}:{body}),headers,readOnly,destructive:action.destructive===true||headers['X-HTTP-Method-Override']==='DELETE',requiresConfirmation:!readOnly,accountId,evidence:action.evidence,warnings:['Request routing compiled locally; live behavioral parity is tracked separately.'],specialTransport:action.raw.special_transport??undefined,...(projection?{responseControls:projection}:{})}))))))),input)));
+  return linkedinMessagePlan(snapchatPlanningPlan(xAudienceEstimatePlan(xReportPlan(metaReportPlan(dv360TargetingSearchPlan(linkedinTrackingPlan(linkedinConversionPlan(googleGenerationPlan(googleContractEvidence(validateApplePlan({gateway,action:action.canonical_name||action.name,method,path,query,...(absolute?{origin:absolute.origin}:{}),...(body===undefined?{}:{body}),headers,readOnly,destructive:action.destructive===true||headers['X-HTTP-Method-Override']==='DELETE',requiresConfirmation:!readOnly,accountId,evidence:action.evidence,warnings:['Request routing compiled locally; live behavioral parity is tracked separately.'],specialTransport:action.raw.special_transport??undefined,...(projection?{responseControls:projection}:{})}))))))),input))));
  }
  private native(gateway:string,input:JsonObject):CompiledRequest{
   const n=input.native_request;if(!['GET','POST','PUT','PATCH','DELETE'].includes(n.method)||typeof n.path!=='string')throw new MirrorError('INVALID_NATIVE_REQUEST','Provide a supported HTTP method and a relative path.');

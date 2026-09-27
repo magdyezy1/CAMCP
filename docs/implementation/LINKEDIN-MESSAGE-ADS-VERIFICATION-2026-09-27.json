@@ -1,0 +1,102 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "268cd7040359ad218d2bf92d41b4aa63131024fd",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/linkedin-conversation-ads-20260927-a",
+    "files": 899,
+    "source_tree_hash": "a763bc39edcff9a6d8fd2917dddd50a9fb66e7debf7a05ff2ce3e6c109785880",
+    "index_code_test_guidance_files_compared": 710,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/linkedin-conversation-ads-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/linkedin-conversation-ads-20260927/install.log",
+      "sha256": "0e8044bde52d80702c42319f44a717e7e0246411f429f08dbfc02945cfd52473"
+    },
+    {
+      "path": ".runtime/linkedin-conversation-ads-20260927/check.log",
+      "sha256": "8a138ee63bbb905b4299b50969a7ba73121ca5bb7f94213de31e0d9bbfb4bcd6",
+      "started": "Sun Sep 27 07:25:15 UTC 2026",
+      "finished": "Sun Sep 27 10:50:02 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2439,
+          "pass": 2439,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/linkedin-conversation-ads-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/linkedin-conversation-ads-20260927/red-check.log",
+      "sha256": "90effcc064dd288c63201f8030d31805bd91155ed10c76a70c1167a254b4c7a8",
+      "meaning": "tests/linkedin-message-ads.test.mjs against a build of 268cd70: expected red, 5/5 fail (the eight routes had no reviewed family)"
+    },
+    {
+      "path": ".runtime/linkedin-conversation-ads-20260927/targeted.log",
+      "sha256": "f28d86919b1305c3f53aa9ea177e7b0ccde70f7c5bd0867c72f08fc48c43627a",
+      "meaning": "160 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1834/1834 pass, none skipped."
+    }
+  ],
+  "development_failures": [
+    "None: the five tests passed on their first run after wiring. While drafting, an observed-state projection built on a JavaScript Proxy was replaced by an explicit list of deleted messages, because verification normalizes plain objects."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2439,
+    "main_pass": 2439,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Message Ads sender permission is checked by LinkedIn; the review does not read the ad account's senders.",
+    "Which creatives use a conversation or InMail content is not read; LinkedIn refuses changes to InMail content of live creatives, and the impact warns about conversations.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}
