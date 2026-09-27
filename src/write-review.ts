@@ -80,6 +80,7 @@ import {dv360AdGroupKind,assertDV360AdGroup,dv360AdGroupReads,isDV360AdGroupRead
 import {dv360AdAssetKind,assertDV360AdAsset,dv360AdAssetReads,isDV360AdAssetRead,validateDV360AdAssetState,validateDV360AdAssetPrerequisites,dv360AdAssetOutcome} from './dv360-ad-assets.js';
 import {xCuratedKind,assertXCurated,xCuratedSnapshots,isXCuratedRead,validateXCuratedState,xCuratedPrerequisites,xCuratedOutcome,readXCurated} from './x-curated-categories.js';
 import {xAssociationKind,assertXAssociation,xAssociationSnapshots,isXAssociationRead,validateXAssociationState,xAssociationPrerequisites,xAssociationOutcome,readXAssociations} from './x-line-item-associations.js';
+import {xMediaKind,assertXMedia,xMediaSnapshots,isXMediaRead,validateXMediaState,xMediaPrerequisites,xMediaOutcome,readXMedia} from './x-media-library.js';
 import {xPrerollCtaKind,assertXPrerollCta,xPrerollCtaSnapshots,isXPrerollCtaRead,validateXPrerollCtaState,xPrerollCtaPrerequisites,xPrerollCtaOutcome,readXPrerollCtas} from './x-preroll-ctas.js';
 import {xTrackingTagKind,assertXTrackingTag,xTrackingTagSnapshots,isXTrackingTagRead,validateXTrackingTagState,xTrackingTagPrerequisites,xTrackingTagOutcome,readXTrackingTags} from './x-tracking-tags.js';
 import {dv360AdvertiserKind,assertDV360Advertiser,dv360AdvertiserSnapshots,readDV360Advertiser,isDV360AdvertiserRead,validateDV360AdvertiserState,dv360AdvertiserPrerequisites,dv360AdvertiserOutcome} from './dv360-advertiser-settings.js';
@@ -213,6 +214,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(dv360AdvertiserKind(plan))return dv360AdvertiserOutcome(plan,result);
  if(xTrackingTagKind(plan))return xTrackingTagOutcome(plan,result);
  if(xPrerollCtaKind(plan))return xPrerollCtaOutcome(plan,result);
+ if(xMediaKind(plan))return xMediaOutcome(plan,result);
  if(xAssociationKind(plan))return xAssociationOutcome(plan,result);
  if(xCuratedKind(plan))return xCuratedOutcome(plan,result);
  if(dv360ListKind(plan))return dv360ListOutcome(plan,result);
@@ -273,6 +275,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  if(isDV360AdvertiserRead(read)){validateDV360AdvertiserState(read,result);return;}
  if(isXTrackingTagRead(read)){validateXTrackingTagState(read,result);return;}
  if(isXPrerollCtaRead(read)){validateXPrerollCtaState(read,result);return;}
+ if(isXMediaRead(read)){validateXMediaState(read,result);return;}
  if(isXAssociationRead(read)){validateXAssociationState(read,result);return;}
  if(isXCuratedRead(read)){validateXCuratedState(read,result);return;}
  if(isLinkedInLeadFormRead(read)){validateLinkedInLeadFormState(read,result);return;}
@@ -404,6 +407,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(xDraftKind(plan)){assertXDraft(plan);return;}
  if(xTrackingTagKind(plan)){assertXTrackingTag(plan);return;}
  if(xPrerollCtaKind(plan)){assertXPrerollCta(plan);return;}
+ if(xMediaKind(plan)){assertXMedia(plan);return;}
  if(xAssociationKind(plan)){assertXAssociation(plan);return;}
  if(xCuratedKind(plan)){assertXCurated(plan);return;}
  if(dv360TargetingKind(plan)){assertDV360Targeting(plan);return;}
@@ -574,6 +578,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(dv360AdvertiserKind(plan))return dv360AdvertiserSnapshots(plan);
  if(xTrackingTagKind(plan))return xTrackingTagSnapshots(plan);
  if(xPrerollCtaKind(plan))return xPrerollCtaSnapshots(plan);
+ if(xMediaKind(plan))return xMediaSnapshots(plan);
  if(xAssociationKind(plan))return xAssociationSnapshots(plan);
  if(xCuratedKind(plan))return xCuratedSnapshots(plan);
  if(dv360ListKind(plan))return dv360ListSnapshots(plan);
@@ -820,7 +825,7 @@ export class WriteReviewService {
   });
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
-   try{result=await readXPrerollCtas(read,ctaPage=>readSnapDisclaimers(ctaPage,disclaimerPage=>readMetaObject(disclaimerPage,metaObjectPage=>readCriteoSegments(metaObjectPage,segmentPage=>readDV360Advertiser(segmentPage,advertiserPage=>readGoogleSubscriptions(advertiserPage,subscriptionPage=>readGoogleSmart(subscriptionPage,smartPage=>readGoogleCustomerSettings(smartPage,settingsPage=>readGoogleAutoAssets(settingsPage,autoAssetPage=>readGoogleUploads(autoAssetPage,uploadPage=>readGoogleExperiments(uploadPage,experimentPage=>readDV360InventoryGroup(experimentPage,inventoryPage=>readCriteoOverrides(inventoryPage,overridePage=>readLinkedInMessage(overridePage,messagePage=>readXCurated(messagePage,curatedPage=>readGoogleDrafts(curatedPage,draftPage=>readXAssociations(draftPage,xAssociationPage=>readLinkedInThirdParty(xAssociationPage,thirdPartyPage=>readXTrackingTags(thirdPartyPage,xTagPage=>readDV360LineItemDuplicate(xTagPage,copyLinePage=>readGoogleCustomerTypes(copyLinePage,typePage=>readSnapchatMediaCopy(typePage,copyPage=>readDV360LineItemBulk(copyPage,bulkPage=>readGoogleBrandGuidelines(bulkPage,brandPage=>readLinkedInTracking(brandPage,trackingPage=>readLinkedInRules(trackingPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;})))))))))))))))))))))))))))))))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
+   try{result=await readXMedia(read,mediaPage=>readXPrerollCtas(mediaPage,ctaPage=>readSnapDisclaimers(ctaPage,disclaimerPage=>readMetaObject(disclaimerPage,metaObjectPage=>readCriteoSegments(metaObjectPage,segmentPage=>readDV360Advertiser(segmentPage,advertiserPage=>readGoogleSubscriptions(advertiserPage,subscriptionPage=>readGoogleSmart(subscriptionPage,smartPage=>readGoogleCustomerSettings(smartPage,settingsPage=>readGoogleAutoAssets(settingsPage,autoAssetPage=>readGoogleUploads(autoAssetPage,uploadPage=>readGoogleExperiments(uploadPage,experimentPage=>readDV360InventoryGroup(experimentPage,inventoryPage=>readCriteoOverrides(inventoryPage,overridePage=>readLinkedInMessage(overridePage,messagePage=>readXCurated(messagePage,curatedPage=>readGoogleDrafts(curatedPage,draftPage=>readXAssociations(draftPage,xAssociationPage=>readLinkedInThirdParty(xAssociationPage,thirdPartyPage=>readXTrackingTags(thirdPartyPage,xTagPage=>readDV360LineItemDuplicate(xTagPage,copyLinePage=>readGoogleCustomerTypes(copyLinePage,typePage=>readSnapchatMediaCopy(typePage,copyPage=>readDV360LineItemBulk(copyPage,bulkPage=>readGoogleBrandGuidelines(bulkPage,brandPage=>readLinkedInTracking(brandPage,trackingPage=>readLinkedInRules(trackingPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;}))))))))))))))))))))))))))))))))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
    const reader=this.access(actor,plan,connectionId);validateState(read,result);if(read.gateway==='snapchat_native_action')new ScopeGuard(this.registry,this.store).observe(read,reader,result.data);
    // A Smart+ bid edit also reads the campaign's ad groups once the ad group names its campaign.
    const sibling=tiktokSmartPlusAdgroupUpdateSiblingRead(plan,read,result.data);if(sibling&&!reads.some(r=>r.path===sibling.path&&stable(r.query)===stable(sibling.query)))reads.push(sibling);
@@ -888,6 +893,7 @@ export class WriteReviewService {
   dv360AdvertiserPrerequisites(plan,values);
   xTrackingTagPrerequisites(plan,values);
   xPrerollCtaPrerequisites(plan,values);
+  xMediaPrerequisites(plan,values);
   xAssociationPrerequisites(plan,values);
   xCuratedPrerequisites(plan,values);
   if(appleEntityKind(plan)==='shared_budget'&&!plan.scopeContext?.appleSharedOrgId){

@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## EC — X media library and account media (2026-09-27)
+
+X media library items can now be renamed and titled, and library media and account media assets
+deleted, through reviewed requests: the item is read first, media still used by a card or media
+creative is refused, deletions count as deletions, and the result is read back. See
+[implementation](X-MEDIA-LIBRARY-2026-09-27.md),
+[qualification](X-MEDIA-LIBRARY-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 792 (three X rows reviewed). Pushes go only to CAMCP; its exact-commit CI result and
+live acceptance are pending.
+
 ## EB — X pre-roll calls to action (2026-09-27)
 
 The button of an X pre-roll line item (GO_TO, SEE_MORE, SHOP, VISIT_SITE or WATCH_NOW with its
@@ -17,7 +29,7 @@ the result is read back. See [implementation](X-PREROLL-CTAS-2026-09-27.md),
 [qualification](X-PREROLL-CTAS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 795 (three X rows reviewed). Pushes go only to CAMCP; its exact-commit CI result and
+Remaining rows: 795 (three X rows reviewed). Committed as `5f2acb4`; its exact-commit CI result and
 live acceptance are pending.
 
 ## EA — Snapchat offer disclaimers (2026-09-27)

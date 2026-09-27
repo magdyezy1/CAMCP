@@ -2295,6 +2295,20 @@
     {
       "gateway": "x_ads_native_action",
       "arguments": {
+        "action": "x_accounts_account_id_media_library_media_key_put",
+        "account_id": "acct1",
+        "params": {
+          "media_key": "13_909110614026444802"
+        },
+        "payload": {
+          "name": "Spring trailer",
+          "title": "Spring collection"
+        }
+      }
+    },
+    {
+      "gateway": "x_ads_native_action",
+      "arguments": {
         "action": "x_accounts_account_id_preroll_call_to_actions_post",
         "account_id": "acct1",
         "payload": {

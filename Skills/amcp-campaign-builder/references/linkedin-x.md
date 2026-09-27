@@ -651,6 +651,28 @@ correct.
 Reference: [Preroll Call To Actions](https://docs.x.com/x-ads-api/creatives/reference), checked
 2026-09-27.
 
+### X media library and account media
+
+- `x_accounts_account_id_media_library_media_key_put`: `params: {media_key}` and `payload` with
+  `name` (up to 100 characters), `file_name` (255) and, for videos and GIFs, `title` (70),
+  `description` (200) and `poster_media_key` (a ready image of the library). Values have no
+  surrounding spaces or control characters; unchanged values are refused.
+- `x_accounts_account_id_media_library_media_key_delete` removes an item from the media library.
+- `x_accounts_account_id_account_media_account_media_id_delete` (`params: {account_media_id}`)
+  removes an account media asset, such as the `PREROLL` asset X creates for a library video.
+
+X does not say what happens to cards and ads that use deleted media, so AMCP refuses to delete media
+still in use (`MEDIA_IN_USE` names the cards and media creatives): it reads every card of the account,
+legacy cards included (up to 2000), and, for a library video or an account media asset, the account
+media made from it and the media creatives that use them (up to 5000 each). Tweets that already show
+an image are not checked; the review says when X reports the media was used in Tweets. Deletions
+count under the owner's deletion policy; nothing needs spending confirmation. Verification reads the
+item again: the values sent, or deleted or gone. `INVALID_X_MEDIA_LIBRARY` names the field to
+correct.
+
+Reference: [Media Library and Account Media](https://docs.x.com/x-ads-api/creatives/reference),
+checked 2026-09-27.
+
 ### X atomic targeting batches
 
 Use `x_batch_accounts_account_id_targeting_criteria_post` through
