@@ -13,7 +13,7 @@ import {dv360InventoryGroupKind,dv360InventoryGroupServing} from './dv360-invent
 import {xTrackingTagKind} from './x-tracking-tags.js';
 import {xAssociationKind,xAssociationNeedsConfirmation} from './x-line-item-associations.js';
 import {googleDraftKind,googleDraftNeedsConfirmation} from './google-campaign-drafts.js';
-import {googleExperimentKind} from './google-experiments.js';
+import {googleExperimentKind,googleExperimentNeedsConfirmation} from './google-experiments.js';
 import {xCuratedKind,xCuratedNeedsConfirmation} from './x-curated-categories.js';
 import {metaReportKind} from './meta-insights-jobs.js';
 import {xReportKind} from './x-report-jobs.js';
@@ -69,6 +69,7 @@ export function authorizeExecution(actor:Actor,plan:CompiledRequest,input:JsonOb
  if(policy.requireBeforeState&&!verifiedBeforeState)throw new MirrorError('WRITE_REVIEW_REQUIRED','Use amcp_write prepare and execute; caller-supplied before_state is not a verified snapshot.');
  if(snapUpdateKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Snapchat entity updates can change current delivery, dates, bidding and spending. Review the exact effects and provide spend_change_confirmed=true.');
  if(xCuratedNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','A curated category decides next to which publishers the pre-roll line item runs. Review it and provide spend_change_confirmed=true.');
+ if(googleExperimentNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Scheduling, promoting or graduating an experiment starts or changes what its campaigns serve and spend. Review it and provide spend_change_confirmed=true.');
  if(googleDraftNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Promoting a campaign draft applies every change staged in the draft campaign to the base campaign, which may be serving. Review them and provide spend_change_confirmed=true.');
  if(xAssociationNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','A new promoted account or media creative is ACTIVE and serves at once under an active line item and campaign. Review them and provide spend_change_confirmed=true.');
  if(xPromotion(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','X promotion may serve immediately. Review the parent delivery state and provide spend_change_confirmed=true.');

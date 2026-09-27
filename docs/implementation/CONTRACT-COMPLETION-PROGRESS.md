@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DU — Google Ads experiment scheduling, ending, promotion and graduation (2026-09-27)
+
+Google Ads experiments can now be scheduled, ended, promoted and graduated through reviewed
+requests: each action checks the experiment's status and arms (and, for graduation, the mapped
+campaign and its new budget), serving changes need spending confirmation, and the result is read
+back, including the asynchronous ones. See
+[implementation](GOOGLE-EXPERIMENT-LIFECYCLE-2026-09-27.md),
+[qualification](GOOGLE-EXPERIMENT-LIFECYCLE-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 823 (eight Google Ads rows reviewed). Pushes go only to CAMCP; its exact-commit CI
+result and live acceptance are pending.
+
 ## DT — Google Ads experiments and experiment arms (2026-09-27)
 
 System-managed Google Ads experiments and their arms can now be set up through reviewed requests:
@@ -18,8 +31,8 @@ valid; every change is read back. Scheduling, ending, promoting and graduating r
 [qualification](GOOGLE-EXPERIMENTS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 831 (eight Google Ads rows reviewed). Pushes go only to CAMCP; its exact-commit CI
-result and live acceptance are pending.
+Remaining rows: 831 (eight Google Ads rows reviewed). Committed as `1970383`; its exact-commit
+CI result and live acceptance are pending.
 
 ## DS — DV360 inventory source groups (2026-09-27)
 

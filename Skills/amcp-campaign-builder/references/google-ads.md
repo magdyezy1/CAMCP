@@ -351,10 +351,11 @@ means the reads were incomplete.
 Reference: [Campaign drafts](https://developers.google.com/google-ads/api/docs/experiments/campaign-drafts)
 and the pinned v23 `CampaignDraftService` document, checked 2026-09-27.
 
-## Experiments (setup)
+## Experiments
 
 A system-managed experiment tests changes to a campaign against the campaign itself. It is set up in
-two requests and serves nothing until it is scheduled.
+two requests, serves nothing until it is scheduled, and finishes by being ended, promoted or
+graduated.
 
 - `google_ads_v23_experiment_mutate_experiments` (or `CREATE_EXPERIMENT`, `UPDATE_EXPERIMENT`,
   `REMOVE_EXPERIMENT`, each limited to its own operation) takes 1–10 operations. Create with
@@ -380,6 +381,28 @@ at least one treatment arm with distinct names and splits summing to 100, or no 
 serves, so no spending confirmation is needed; removals count as deletions. Verification reads
 every experiment and arm written. `INVALID_GOOGLE_EXPERIMENT` names the rule to correct;
 `EXPERIMENT_STATE_UNVERIFIED` means the reads were incomplete.
+
+Lifecycle actions name the experiment in `path_params`: `resource_name` for
+`google_ads_v23_experiment_schedule_experiment` and `..._promote_experiment`, `experiment` for
+`..._end_experiment` and `..._graduate_experiment` (or `SCHEDULE_EXPERIMENT`, `END_EXPERIMENT`,
+`PROMOTE_EXPERIMENT`, `GRADUATE_EXPERIMENT`).
+
+- Schedule an experiment in SETUP whose arms are complete and whose treatment arms have in-design
+  campaigns. It needs `spend_change_confirmed` and counts as activation; it runs asynchronously
+  (INITIATED, then ENABLED) and verification waits for ENABLED.
+- End a running (ENABLED) experiment that has not ended: its end date becomes today in the customer
+  time zone and its experiment campaigns stop serving. No confirmation is needed.
+- Promote an ENABLED or HALTED experiment that is not already promoted: the treatment changes are
+  applied to the base campaign asynchronously. It needs `spend_change_confirmed`, and verification
+  waits for `promote_status` COMPLETED (or COMPLETED_WITH_WARNING).
+- Graduate an ENABLED or HALTED experiment with `payload: {campaignBudgetMappings:
+  [{experimentCampaign, campaignBudget}]}`: the campaign of a treatment arm keeps serving on its own
+  with a new enabled daily budget that is neither shared nor used by another campaign (create it
+  first). It needs `spend_change_confirmed`; verification reads GRADUATED and the budget on the
+  campaign.
+
+Failures of scheduling and promotion are listed by ListExperimentAsyncErrors; until the expected
+state is read, verification is not verified and can be run again.
 
 Reference: [System-managed experiments](https://developers.google.com/google-ads/api/docs/experiments/system-managed)
 and the pinned v23 `ExperimentService` and `ExperimentArmService` document, checked 2026-09-27.

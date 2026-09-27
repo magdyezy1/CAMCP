@@ -1,0 +1,102 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "19703837ee0c39b412b94ea01f8cd08befa20ee7",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/google-experiment-lifecycle-20260927-a",
+    "files": 914,
+    "source_tree_hash": "25b6a1402069010433d2bdbea1c40fb3fe3edcfdff67fa869a9f7c9f361c5376",
+    "index_code_test_guidance_files_compared": 717,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/google-experiment-lifecycle-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/google-experiment-lifecycle-20260927/install.log",
+      "sha256": "8220c7e33c4018ad2159ccda049d52c66891056b2f120f09d6c86f93c08348c4"
+    },
+    {
+      "path": ".runtime/google-experiment-lifecycle-20260927/check.log",
+      "sha256": "231d15f2c34888d8436ac7bd5a1941146ecdb36418acbaf6ccc8e0289f9c7f52",
+      "started": "Sun Sep 27 10:10:14 UTC 2026",
+      "finished": "Sun Sep 27 13:42:33 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2462,
+          "pass": 2462,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/google-experiment-lifecycle-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/google-experiment-lifecycle-20260927/red-check.log",
+      "sha256": "605c61ee5152870e8346ee19fd11ec1fadb4f92e2d3191367b97a2086379db23",
+      "meaning": "tests/google-experiment-lifecycle.test.mjs against a build of 1970383 with the pinned document present: expected red, 6/6 fail (no reviewed family: WRITE_CONTRACT_UNAVAILABLE)"
+    },
+    {
+      "path": ".runtime/google-experiment-lifecycle-20260927/targeted.log",
+      "sha256": "5194971baa62ba2f09c69d100d8e29c26054b4db4b8329c9caa6695596e80960",
+      "meaning": "164 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1857/1857 pass, none skipped."
+    }
+  ],
+  "development_failures": [
+    "Two draft malformed-request expectations named the wrong refusal: a schedule body carrying partialFailure is refused by the vendor body check (INVALID_VENDOR_BODY), and a graduation without its campaign budget mapping is refused by the compiler before the family sees it."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2462,
+    "main_pass": 2462,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "That a scheduled experiment becomes ENABLED, and which statuses allow promotion and graduation, follow the pinned enum descriptions and guides, not a live observation.",
+    "Graduation requires a new unused daily budget, AMCP's reading of 'will be assigned a new budget'; Google may accept other budgets.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

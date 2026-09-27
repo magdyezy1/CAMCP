@@ -787,7 +787,16 @@ Tests: `tests/dv360-inventory-source-groups.test.mjs` (6), red on `b45a4b5` / gr
 - New reviewed family `google_experiments` (`src/google-experiments.ts`) for the experiment and experiment arm mutate services and their six legacy aliases: system-managed experiments in SETUP (create, edit, remove) and their arms (all created together around a BASE control campaign of the right channel with its own daily budget and EU declaration; edits and removals that keep the arms valid). Nothing serves in SETUP, so no spending confirmation; removals count as deletions.
 - Next: `scheduleExperiment` and `promoteExperiment` (long-running operations), `endExperiment` and `graduateExperiment` (budget mappings), eight more rows.
 
-Tests: `tests/google-experiments.test.mjs` (5), red on `0679aef` / green after.
+Tests: `tests/google-experiments.test.mjs` (5), red on `0679aef` / green after. Committed as `1970383`.
+
+## Finished batch — Google Ads experiment scheduling, ending, promotion and graduation (2026-09-27)
+
+[Implementation](GOOGLE-EXPERIMENT-LIFECYCLE-2026-09-27.md) and
+[qualification](GOOGLE-EXPERIMENT-LIFECYCLE-VERIFICATION-2026-09-27.json).
+
+- The `google_experiments` family now covers `scheduleExperiment`, `endExperiment`, `promoteExperiment` and `graduateExperiment` and their legacy aliases. Scheduling, promotion and graduation need spending confirmation and count as activation; ending needs neither. Verification waits for ENABLED, an end date of today, `promote_status` COMPLETED, or GRADUATED with the new budget on the campaign.
+
+Tests: `tests/google-experiment-lifecycle.test.mjs` (6), red on `1970383` / green after.
 
 ## CI and live evidence
 
@@ -801,20 +810,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 600 in reviewed write families. **831 remaining rows** are in
+3241 captured actions; 608 in reviewed write families. **823 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 716 |
+| blocked_write | 708 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 105, Snapchat 85,
-Google Ads 79, X 55, DV360 36, Criteo 32, Business Profile 12.
+Google Ads 71, X 55, DV360 36, Criteo 32, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

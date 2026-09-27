@@ -108,11 +108,11 @@
       "actions": 456,
       "counts": {
         "adapter_requires_input": 8,
-        "blocked_write": 79,
+        "blocked_write": 71,
         "media_workflow": 2,
         "native_read": 175,
         "provider_unsupported": 1,
-        "reviewed_write_family": 191
+        "reviewed_write_family": 199
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -10420,7 +10420,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "google_experiments"
@@ -10436,7 +10437,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "google_experiments"
@@ -10647,12 +10649,16 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/{experiment=customers/*/experiments/*}:endExperiment",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-experiments.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_experiments"
     },
     {
       "gateway": "google_ads_native_action",
@@ -10682,7 +10688,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -10714,7 +10721,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -10746,7 +10754,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -10778,7 +10787,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -10810,7 +10820,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -10842,7 +10853,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -10874,7 +10886,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -10921,7 +10934,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -10953,7 +10967,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -10985,7 +11000,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -11032,7 +11048,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -11064,7 +11081,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -11096,7 +11114,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -11129,6 +11148,7 @@
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
         "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs",
         "tests/google-generation.test.ts"
       ],
       "live_qualification": "unverified"
@@ -11161,7 +11181,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -11193,7 +11214,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -11225,7 +11247,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -11257,7 +11280,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -11290,6 +11314,7 @@
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
         "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs",
         "tests/google-generation.test.ts"
       ],
       "live_qualification": "unverified"
@@ -11339,6 +11364,7 @@
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
         "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs",
         "tests/google-generation.test.ts"
       ],
       "live_qualification": "unverified"
@@ -11371,7 +11397,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -11696,6 +11723,7 @@
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
         "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs",
         "tests/google-generation.test.ts"
       ],
       "live_qualification": "unverified"
@@ -11729,6 +11757,7 @@
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
         "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs",
         "tests/google-generation.test.ts"
       ],
       "live_qualification": "unverified"
@@ -11887,7 +11916,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -11919,7 +11949,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -11951,7 +11982,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -11983,7 +12015,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -12015,7 +12048,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -12047,7 +12081,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -12079,7 +12114,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -12111,7 +12147,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -12189,7 +12226,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -12247,7 +12285,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -12279,7 +12318,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -12311,7 +12351,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -12343,7 +12384,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -12375,7 +12417,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -12468,7 +12511,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -12622,7 +12666,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -12801,7 +12846,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -12833,7 +12879,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -13176,7 +13223,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -13354,7 +13402,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "google_experiments"
@@ -13365,12 +13414,16 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/{experiment=customers/*/experiments/*}:endExperiment",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-experiments.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_experiments"
     },
     {
       "gateway": "google_ads_native_action",
@@ -13378,12 +13431,16 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/{experiment=customers/*/experiments/*}:graduateExperiment",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-experiments.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_experiments"
     },
     {
       "gateway": "google_ads_native_action",
@@ -13413,7 +13470,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -13428,7 +13486,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "google_experiments"
@@ -13439,12 +13498,16 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/{resource_name=customers/*/experiments/*}:promoteExperiment",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-experiments.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_experiments"
     },
     {
       "gateway": "google_ads_native_action",
@@ -13452,12 +13515,16 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/{resource_name=customers/*/experiments/*}:scheduleExperiment",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-experiments.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_experiments"
     },
     {
       "gateway": "google_ads_native_action",
@@ -13487,7 +13554,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -13532,7 +13600,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -13564,7 +13633,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -13609,7 +13679,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -13641,7 +13712,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -13673,7 +13745,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -13731,7 +13804,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -13763,7 +13837,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -13875,7 +13950,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -13907,7 +13983,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -13939,7 +14016,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -13971,7 +14049,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -14023,7 +14102,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -14153,7 +14233,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -14250,7 +14331,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -14282,7 +14364,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -14314,7 +14397,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -14346,7 +14430,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -14378,7 +14463,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -14410,7 +14496,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -14472,6 +14559,7 @@
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
         "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs",
         "tests/google-generation.test.ts"
       ],
       "live_qualification": "unverified"
@@ -14550,7 +14638,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -14630,7 +14719,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -14675,7 +14765,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -14707,7 +14798,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -14739,7 +14831,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -14784,7 +14877,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -14884,12 +14978,16 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/{experiment=customers/*/experiments/*}:graduateExperiment",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-experiments.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_experiments"
     },
     {
       "gateway": "google_ads_native_action",
@@ -14919,7 +15017,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -14951,7 +15050,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -14983,7 +15083,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15015,7 +15116,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15047,7 +15149,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15079,7 +15182,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15111,7 +15215,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15143,7 +15248,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15175,7 +15281,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15207,7 +15314,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15239,7 +15347,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15271,7 +15380,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15303,7 +15413,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15335,7 +15446,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15367,7 +15479,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15399,7 +15512,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15431,7 +15545,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15463,7 +15578,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15495,7 +15611,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15527,7 +15644,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15559,7 +15677,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15591,7 +15710,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15623,7 +15743,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15655,7 +15776,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15687,7 +15809,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15734,7 +15857,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15766,7 +15890,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15798,7 +15923,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15830,7 +15956,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15862,7 +15989,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15894,7 +16022,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15926,7 +16055,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15958,7 +16088,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -15990,7 +16121,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16022,7 +16154,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16054,7 +16187,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16086,7 +16220,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16118,7 +16253,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16150,7 +16286,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16182,7 +16319,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16214,7 +16352,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16246,7 +16385,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16278,7 +16418,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16310,7 +16451,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16342,7 +16484,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16374,7 +16517,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16406,7 +16550,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16438,7 +16583,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16470,7 +16616,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16502,7 +16649,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16534,7 +16682,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16566,7 +16715,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16598,7 +16748,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16630,7 +16781,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16662,7 +16814,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16694,7 +16847,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16726,7 +16880,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16758,7 +16913,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16790,7 +16946,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16822,7 +16979,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16854,7 +17012,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16886,7 +17045,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16918,7 +17078,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16950,7 +17111,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -16982,7 +17144,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17014,7 +17177,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17046,7 +17210,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17078,7 +17243,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17110,7 +17276,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17142,7 +17309,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17174,7 +17342,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17206,7 +17375,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17238,7 +17408,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17270,7 +17441,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17302,7 +17474,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17334,7 +17507,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17366,7 +17540,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17398,7 +17573,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17430,7 +17606,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17462,7 +17639,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17494,7 +17672,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17526,7 +17705,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17558,7 +17738,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17590,7 +17771,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17622,7 +17804,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17654,7 +17837,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17686,7 +17870,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17718,7 +17903,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17750,7 +17936,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17782,7 +17969,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17814,7 +18002,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17846,7 +18035,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17878,7 +18068,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17910,7 +18101,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17942,7 +18134,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -17974,7 +18167,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -18006,7 +18200,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -18038,7 +18233,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -18070,7 +18266,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -18124,12 +18321,16 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/{resource_name=customers/*/experiments/*}:promoteExperiment",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-experiments.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_experiments"
     },
     {
       "gateway": "google_ads_native_action",
@@ -18763,7 +18964,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "google_experiments"
@@ -18779,7 +18981,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "google_experiments"
@@ -18861,7 +19064,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -18884,12 +19088,16 @@
       "aliases": [],
       "method": "POST",
       "path": "/v23/{resource_name=customers/*/experiments/*}:scheduleExperiment",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-experiments.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_experiments"
     },
     {
       "gateway": "google_ads_native_action",
@@ -18919,7 +19127,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -18951,7 +19160,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -18983,7 +19193,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -19127,7 +19338,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -19159,7 +19371,8 @@
         "tests/google-pmax-brand-guidelines.test.mjs",
         "tests/google-user-list-customer-types.test.mjs",
         "tests/google-campaign-drafts.test.mjs",
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -19560,7 +19773,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "google_experiments"
@@ -19576,7 +19790,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "src/google-legacy-mapping.json",
       "tests": [
-        "tests/google-experiments.test.mjs"
+        "tests/google-experiments.test.mjs",
+        "tests/google-experiment-lifecycle.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "google_experiments"
