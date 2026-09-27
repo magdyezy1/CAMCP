@@ -25,6 +25,7 @@ import {googleBidKind} from './google-bid-modifiers.js';
 import {googleBrandGuidelinesKind} from './google-pmax-brand-guidelines.js';
 import {googleCustomerTypeKind} from './google-user-list-customer-types.js';
 import {googleDraftKind} from './google-campaign-drafts.js';
+import {googleExperimentKind} from './google-experiments.js';
 import {googleConversionGoalKind} from './google-conversion-goals.js';
 import {googleBiddingEventKind} from './google-bidding-events.js';
 import {googlePortfolioKind} from './google-portfolio-strategies.js';
@@ -97,6 +98,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(googleBrandGuidelinesKind(p))return 'google_pmax_brand_guidelines';
  if(googleCustomerTypeKind(p))return 'google_user_list_customer_types';
  if(googleDraftKind(p))return 'google_campaign_drafts';
+ if(googleExperimentKind(p))return 'google_experiments';
  if(googleListingGroupKind(p))return 'google_listing_groups';
  if(tiktokNegativeKeywordKind(p))return 'tiktok_negative_keywords';
  if(tiktokBrandSafetyKind(p))return 'tiktok_brand_safety';

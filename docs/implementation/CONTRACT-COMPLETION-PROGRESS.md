@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DT — Google Ads experiments and experiment arms (2026-09-27)
+
+System-managed Google Ads experiments and their arms can now be set up through reviewed requests:
+experiments are created, edited and removed in SETUP, all arms of an experiment are created
+together around a suitable control campaign, and arms are edited or removed while the result stays
+valid; every change is read back. Scheduling, ending, promoting and graduating remain. See
+[implementation](GOOGLE-EXPERIMENTS-2026-09-27.md),
+[qualification](GOOGLE-EXPERIMENTS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 831 (eight Google Ads rows reviewed). Pushes go only to CAMCP; its exact-commit CI
+result and live acceptance are pending.
+
 ## DS — DV360 inventory source groups (2026-09-27)
 
 Advertiser-owned DV360 inventory source groups can now be created, renamed and deleted, and their
@@ -18,7 +31,7 @@ spending confirmation, and the result is read back. See
 [qualification](DV360-INVENTORY-SOURCE-GROUPS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 839 (six DV360 rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 839 (six DV360 rows reviewed). Committed as `0679aef`; its exact-commit CI result
 and live acceptance are pending.
 
 ## DR — Criteo campaign and line item budget overrides (2026-09-27)

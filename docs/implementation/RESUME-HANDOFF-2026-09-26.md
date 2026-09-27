@@ -777,7 +777,17 @@ Tests: `tests/criteo-budget-overrides.test.mjs` (6), red on `6bf3f05` / green af
 - Line item targeting still refuses `TARGETING_TYPE_INVENTORY_SOURCE` and `..._GROUP` assignments; with these reads available, that contract can now be extended to check the referenced group or sources.
 - Also checked and left: DV360 YouTube asset associations (line item and ad group create and delete, four rows) are documented as available only to an informed subset of users, so they stay allowlist-only.
 
-Tests: `tests/dv360-inventory-source-groups.test.mjs` (6), red on `b45a4b5` / green after.
+Tests: `tests/dv360-inventory-source-groups.test.mjs` (6), red on `b45a4b5` / green after. Committed as `0679aef`.
+
+## Finished batch — Google Ads experiments and experiment arms (2026-09-27)
+
+[Implementation](GOOGLE-EXPERIMENTS-2026-09-27.md) and
+[qualification](GOOGLE-EXPERIMENTS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `google_experiments` (`src/google-experiments.ts`) for the experiment and experiment arm mutate services and their six legacy aliases: system-managed experiments in SETUP (create, edit, remove) and their arms (all created together around a BASE control campaign of the right channel with its own daily budget and EU declaration; edits and removals that keep the arms valid). Nothing serves in SETUP, so no spending confirmation; removals count as deletions.
+- Next: `scheduleExperiment` and `promoteExperiment` (long-running operations), `endExperiment` and `graduateExperiment` (budget mappings), eight more rows.
+
+Tests: `tests/google-experiments.test.mjs` (5), red on `0679aef` / green after.
 
 ## CI and live evidence
 
@@ -791,20 +801,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 592 in reviewed write families. **839 remaining rows** are in
+3241 captured actions; 600 in reviewed write families. **831 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 724 |
+| blocked_write | 716 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 105, Google Ads 87,
-Snapchat 85, X 55, DV360 36, Criteo 32, Business Profile 12.
+Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 105, Snapchat 85,
+Google Ads 79, X 55, DV360 36, Criteo 32, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

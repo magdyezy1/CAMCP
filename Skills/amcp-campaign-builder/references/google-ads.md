@@ -351,6 +351,39 @@ means the reads were incomplete.
 Reference: [Campaign drafts](https://developers.google.com/google-ads/api/docs/experiments/campaign-drafts)
 and the pinned v23 `CampaignDraftService` document, checked 2026-09-27.
 
+## Experiments (setup)
+
+A system-managed experiment tests changes to a campaign against the campaign itself. It is set up in
+two requests and serves nothing until it is scheduled.
+
+- `google_ads_v23_experiment_mutate_experiments` (or `CREATE_EXPERIMENT`, `UPDATE_EXPERIMENT`,
+  `REMOVE_EXPERIMENT`, each limited to its own operation) takes 1–10 operations. Create with
+  `{name, type, suffix, status: "SETUP"}` and optional `description`, `startDate`, `endDate`
+  (YYYY-MM-DD) and `syncEnabled`; `type` is `SEARCH_CUSTOM`, `DISPLAY_CUSTOM`, `YOUTUBE_CUSTOM` or
+  `HOTEL_CUSTOM`, sync exists for search and display only, and Google appends the `suffix` to the
+  names of the treatment campaigns. Updates name `name`, `description`, `suffix`, `startDate` or
+  `endDate` in `updateMask`; removal takes `customers/<customer>/experiments/<ID>`.
+- `google_ads_v23_experiment_arm_mutate_experiment_arms` (or `CREATE_EXPERIMENT_ARM`,
+  `UPDATE_EXPERIMENT_ARM`, `REMOVE_EXPERIMENT_ARM`) creates all arms of one experiment in one
+  request: `{experiment, name, control: true, trafficSplit, campaigns: [base campaign]}` and one or
+  more treatment arms `{experiment, name, control: false, trafficSplit}`, splits 1–99 summing to
+  100, at most 10 arms. Google creates an in-design campaign for each treatment arm; change it with
+  ordinary campaign requests before scheduling. Arm updates name `name` and/or `trafficSplit`.
+
+AMCP reads the customer, every experiment that is not removed (names are unique among them), the
+arms of each experiment involved and the control campaign with its budget. Experiments and arms
+change only while the experiment is in SETUP; status changes go through schedule, end, promote and
+graduate. The control campaign is a normal (BASE) campaign of the experiment's channel (search,
+display, video or hotel), not removed, with its own daily budget (not shared) and an EU political
+advertising declaration. After arm updates or removals the experiment still has one control arm and
+at least one treatment arm with distinct names and splits summing to 100, or no arms. Nothing
+serves, so no spending confirmation is needed; removals count as deletions. Verification reads
+every experiment and arm written. `INVALID_GOOGLE_EXPERIMENT` names the rule to correct;
+`EXPERIMENT_STATE_UNVERIFIED` means the reads were incomplete.
+
+Reference: [System-managed experiments](https://developers.google.com/google-ads/api/docs/experiments/system-managed)
+and the pinned v23 `ExperimentService` and `ExperimentArmService` document, checked 2026-09-27.
+
 ## Conversion value rules
 
 `google_ads_v23_conversion_value_rule_mutate_conversion_value_rules` creates, updates and removes
