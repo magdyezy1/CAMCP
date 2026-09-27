@@ -748,6 +748,54 @@
     {
       "gateway": "google_ads_native_action",
       "arguments": {
+        "action": "google_ads_v23_customer_mutate_customer",
+        "account_id": "123",
+        "payload": {
+          "operation": {
+            "update": {
+              "resourceName": "customers/123",
+              "finalUrlSuffix": "utm_source=google&utm_medium=cpc"
+            },
+            "updateMask": "finalUrlSuffix"
+          }
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "google_ads_v23_ad_group_ad_remove_automatically_created_assets",
+        "account_id": "123",
+        "path_params": {
+          "ad_group_ad": "customers/123/adGroupAds/456~789"
+        },
+        "payload": {
+          "assetsWithFieldType": [
+            {
+              "asset": "customers/123/assets/1011",
+              "assetFieldType": "HEADLINE"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "google_ads_v23_you_tube_video_upload_update_you_tube_video_upload",
+        "account_id": "123",
+        "payload": {
+          "youTubeVideoUpload": {
+            "resourceName": "customers/123/youTubeVideoUploads/1213",
+            "videoPrivacy": "PUBLIC"
+          },
+          "updateMask": "videoPrivacy"
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
         "action": "google_ads_v23_experiment_mutate_experiments",
         "account_id": "123",
         "payload": {

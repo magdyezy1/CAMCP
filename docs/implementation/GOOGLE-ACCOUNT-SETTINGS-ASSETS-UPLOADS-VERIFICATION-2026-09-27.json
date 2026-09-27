@@ -1,0 +1,103 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "e9db0db8a403d5acfc38d4a7e6d6e2fec6b2363c",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/google-account-assets-20260927-a",
+    "files": 922,
+    "source_tree_hash": "2ba572aed55207b4911a2c2566d4c12cd1f47d8337df4a58bd2863fb1ee92445",
+    "index_code_test_guidance_files_compared": 723,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/google-account-assets-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/google-account-assets-20260927/install.log",
+      "sha256": "e0241a93e865b80c723edae460de62714000838add04667a87b54771ad5a4a18"
+    },
+    {
+      "path": ".runtime/google-account-assets-20260927/check.log",
+      "sha256": "ac614a5c4125f8cdda341fec2b778c0a2e9ead7a02377981497c7d1a227c22dc",
+      "started": "Sun Sep 27 10:49:23 UTC 2026",
+      "finished": "Sun Sep 27 14:23:51 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2472,
+          "pass": 2472,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/google-account-assets-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/google-account-assets-20260927/red-check.log",
+      "sha256": "75467abea0c4095e0aa57333211e43bba13f65ce6b08ee32cda34943116cd0b9",
+      "meaning": "tests/google-customer-settings.test.mjs, tests/google-auto-assets.test.mjs and tests/google-youtube-uploads.test.mjs against a build of e9db0db with the pinned document present: expected red, 10/10 fail (no reviewed family: WRITE_CONTRACT_UNAVAILABLE)"
+    },
+    {
+      "path": ".runtime/google-account-assets-20260927/targeted.log",
+      "sha256": "849c561214b53450118950e0fc1636564c92eab6467cd7e078eff53f6b83144f",
+      "meaning": "167 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1867/1867 pass, none skipped."
+    }
+  ],
+  "development_failures": [
+    "A draft observed-state function returned a Proxy for the fields to compare; verification copies the observed keys, so the observed state now lists every compared field explicitly.",
+    "A draft owner-policy test reused an automatically created asset that an earlier step had already removed; it now uses a fresh fixture."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2472,
+    "main_pass": 2472,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Tracking template and suffix checks are AMCP's minimum (a landing-page tag, no spaces, 2048 characters); Google validates the rest.",
+    "That a removed upload disappears from you_tube_video_upload reads (or reads UNAVAILABLE) is assumed and not observed live.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

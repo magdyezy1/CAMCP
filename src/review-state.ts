@@ -11,6 +11,9 @@ import {isGoogleBrandGuidelinesRead} from './google-pmax-brand-guidelines.js';
 import {isGoogleCustomerTypeRead} from './google-user-list-customer-types.js';
 import {isGoogleDraftRead} from './google-campaign-drafts.js';
 import {isGoogleExperimentRead} from './google-experiments.js';
+import {isGoogleCustomerSettingsRead} from './google-customer-settings.js';
+import {isGoogleAutoAssetRead} from './google-auto-assets.js';
+import {isGoogleUploadRead} from './google-youtube-uploads.js';
 import {googleSegmentResource,googleSegmentCanonical} from './google-custom-segments.js';
 import {googleUserListCanonical} from './google-user-lists.js';
 import {googleValueRuleCanonical} from './google-value-rules.js';
@@ -84,6 +87,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isGoogleCustomerTypeRead(read))return normalizeReviewState(data);
  if(isGoogleDraftRead(read))return normalizeReviewState(data);
  if(isGoogleExperimentRead(read))return normalizeReviewState(data);
+ if(isGoogleCustomerSettingsRead(read)||isGoogleAutoAssetRead(read)||isGoogleUploadRead(read))return normalizeReviewState(data);
  if(isGoogleListingGroupRead(read))return normalizeReviewState(googleListingGroupState(read,d));
  if(isTiktokBrandSafetyRead(read))return normalizeReviewState(tiktokBrandSafetyState(read,d));
  if(isMetaValueRuleRead(read))return normalizeReviewState(metaValueRuleState(d));

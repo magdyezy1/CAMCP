@@ -8730,8 +8730,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_customer_mutate_customer",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_customer_settings"
         }
       ],
       "mapping_status": "mapped",
@@ -8854,8 +8854,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_automatically_created_asset_removal_remove_campaign_automatically_created_asset",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_auto_assets"
         }
       ],
       "mapping_status": "mapped",
@@ -13109,14 +13109,14 @@
         {
           "operation": null,
           "action": "google_ads_v23_you_tube_video_upload_remove_you_tube_video_upload",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_youtube_uploads"
         },
         {
           "operation": null,
           "action": "REMOVE_YOUTUBE_VIDEO_UPLOAD",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_youtube_uploads"
         }
       ],
       "mapping_status": "mapped",
@@ -13135,14 +13135,14 @@
         {
           "operation": null,
           "action": "google_ads_v23_you_tube_video_upload_update_you_tube_video_upload",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_youtube_uploads"
         },
         {
           "operation": null,
           "action": "UPDATE_YOUTUBE_VIDEO_UPLOAD",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_youtube_uploads"
         }
       ],
       "mapping_status": "mapped",
@@ -13199,8 +13199,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_ad_group_ad_remove_automatically_created_assets",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_auto_assets"
         }
       ],
       "mapping_status": "mapped",

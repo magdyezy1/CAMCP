@@ -796,7 +796,17 @@ Tests: `tests/google-experiments.test.mjs` (5), red on `0679aef` / green after. 
 
 - The `google_experiments` family now covers `scheduleExperiment`, `endExperiment`, `promoteExperiment` and `graduateExperiment` and their legacy aliases. Scheduling, promotion and graduation need spending confirmation and count as activation; ending needs neither. Verification waits for ENABLED, an end date of today, `promote_status` COMPLETED, or GRADUATED with the new budget on the campaign.
 
-Tests: `tests/google-experiment-lifecycle.test.mjs` (6), red on `1970383` / green after.
+Tests: `tests/google-experiment-lifecycle.test.mjs` (6), red on `1970383` / green after. Committed as `e9db0db`.
+
+## Finished batch — Google Ads account settings, automatically created assets and YouTube uploads (2026-09-27)
+
+[Implementation](GOOGLE-ACCOUNT-SETTINGS-ASSETS-UPLOADS-2026-09-27.md) and
+[qualification](GOOGLE-ACCOUNT-SETTINGS-ASSETS-UPLOADS-VERIFICATION-2026-09-27.json).
+
+- New reviewed families `google_customer_settings` (customer update of tracking, name, call reporting and video suitability), `google_auto_assets` (removal of automatically created ad and campaign assets, checked against the links' source) and `google_youtube_uploads` (privacy of brand channel uploads and removal, with the video assets that use each video).
+- Also checked and left: lifecycle goal configuration (four rows) has only output-only fields in v23; the v23 retention `Goals` services are partly allowlisted.
+
+Tests: `tests/google-customer-settings.test.mjs` (4), `tests/google-auto-assets.test.mjs` (3) and `tests/google-youtube-uploads.test.mjs` (3), red on `e9db0db` / green after.
 
 ## CI and live evidence
 
@@ -810,20 +820,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 608 in reviewed write families. **823 remaining rows** are in
+3241 captured actions; 615 in reviewed write families. **816 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 708 |
+| blocked_write | 701 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 105, Snapchat 85,
-Google Ads 71, X 55, DV360 36, Criteo 32, Business Profile 12.
+Google Ads 64, X 55, DV360 36, Criteo 32, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

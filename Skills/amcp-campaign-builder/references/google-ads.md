@@ -407,6 +407,60 @@ state is read, verification is not verified and can be run again.
 Reference: [System-managed experiments](https://developers.google.com/google-ads/api/docs/experiments/system-managed)
 and the pinned v23 `ExperimentService` and `ExperimentArmService` document, checked 2026-09-27.
 
+## Account settings
+
+`google_ads_v23_customer_mutate_customer` takes `{operation: {update: {resourceName:
+"customers/<customer>", ...}, updateMask}}` for the selected customer. The mask names
+`autoTaggingEnabled`, `trackingUrlTemplate`, `finalUrlSuffix`, `descriptiveName`,
+`videoBrandSafetySuitability` or `callReportingSetting` (whole, or `callReportingSetting.
+callReportingEnabled`, `.callConversionReportingEnabled`, `.callConversionAction`); the time zone
+and currency are immutable. A tracking template includes `{lpurl}` (or another landing-page tag)
+and starts with `http(s)://` or a ValueTrack parameter; a final URL suffix is `key=value` pairs
+joined by `&`; `""` clears either. `videoBrandSafetySuitability` is `LIMITED_INVENTORY`,
+`STANDARD_INVENTORY` or `EXPANDED_INVENTORY`.
+
+AMCP reads the customer's settings and, for `callConversionAction`, that conversion action (it must
+be enabled). An unchanged request is refused. Any suitability change needs `spend_change_confirmed`;
+a broader one counts as activation under owner policies. Turning auto-tagging off loses the gclid
+for Google Analytics and offline conversion imports; the review says so. Verification reads the
+settings again. `INVALID_GOOGLE_CUSTOMER_SETTING` names the field to correct;
+`CUSTOMER_SETTING_STATE_UNVERIFIED` means the reads were incomplete.
+
+## Automatically created assets
+
+Google may create assets, such as headlines, for an ad or a campaign. Remove them with
+`google_ads_v23_ad_group_ad_remove_automatically_created_assets` (`path_params: {ad_group_ad:
+"customers/<customer>/adGroupAds/<ad group>~<ad>"}`, `payload: {assetsWithFieldType: [{asset,
+assetFieldType}]}`) or
+`google_ads_v23_automatically_created_asset_removal_remove_campaign_automatically_created_asset`
+(`payload: {operations: [{campaign, asset, fieldType}], partialFailure: false}`), 1–50 each.
+
+AMCP reads the ad or campaign and its automatically created asset links; an asset the advertiser
+added, or one not linked, is `STATE_NOT_FOUND` (remove those with ordinary asset link requests).
+Removals count as deletions under owner policies. A partial failure is a failure that is never
+resubmitted. Verification reads the links again and expects the removed ones gone.
+`INVALID_GOOGLE_AUTO_ASSET_REMOVAL` names the entry to correct; `AUTO_ASSET_STATE_UNVERIFIED` means
+the reads were incomplete.
+
+## YouTube video uploads
+
+For videos uploaded through the API: `google_ads_v23_you_tube_video_upload_update_you_tube_video_upload`
+(or `UPDATE_YOUTUBE_VIDEO_UPLOAD`) with `payload: {youTubeVideoUpload: {resourceName, videoPrivacy},
+updateMask: "videoPrivacy"}` makes a brand channel video `PUBLIC` or `UNLISTED` (Google-managed
+channel videos stay unlisted; titles and descriptions cannot change), and
+`google_ads_v23_you_tube_video_upload_remove_you_tube_video_upload` (or
+`REMOVE_YOUTUBE_VIDEO_UPLOAD`) with `payload: {resourceNames: [...]}` (1–20) deletes the videos.
+
+AMCP reads each upload (state, channel, privacy) and the account's video assets that point at the
+videos; the review names them, because their ads stop showing a deleted video. Privacy changes need
+an uploaded video. Removal counts as a deletion. Verification reads the uploads again: the privacy,
+or that the videos are gone. `INVALID_GOOGLE_YOUTUBE_UPLOAD` names the field to correct;
+`YOUTUBE_UPLOAD_STATE_UNVERIFIED` means the reads were incomplete.
+
+Reference: the pinned v23 `CustomerService`, `AdGroupAdService`,
+`AutomaticallyCreatedAssetRemovalService` and `YouTubeVideoUploadService` document, checked
+2026-09-27.
+
 ## Conversion value rules
 
 `google_ads_v23_conversion_value_rule_mutate_conversion_value_rules` creates, updates and removes
