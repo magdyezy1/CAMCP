@@ -9,6 +9,7 @@ import {isGoogleBidRead} from './google-bid-modifiers.js';
 import {isSnapchatMediaCopyRead} from './snapchat-media-copy.js';
 import {isGoogleBrandGuidelinesRead} from './google-pmax-brand-guidelines.js';
 import {isGoogleCustomerTypeRead} from './google-user-list-customer-types.js';
+import {isGoogleDraftRead} from './google-campaign-drafts.js';
 import {googleSegmentResource,googleSegmentCanonical} from './google-custom-segments.js';
 import {googleUserListCanonical} from './google-user-lists.js';
 import {googleValueRuleCanonical} from './google-value-rules.js';
@@ -76,6 +77,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isSnapchatMediaCopyRead(read))return normalizeReviewState(data);
  if(isGoogleBrandGuidelinesRead(read))return normalizeReviewState(data);
  if(isGoogleCustomerTypeRead(read))return normalizeReviewState(data);
+ if(isGoogleDraftRead(read))return normalizeReviewState(data);
  if(isGoogleListingGroupRead(read))return normalizeReviewState(googleListingGroupState(read,d));
  if(isTiktokBrandSafetyRead(read))return normalizeReviewState(tiktokBrandSafetyState(read,d));
  if(isMetaValueRuleRead(read))return normalizeReviewState(metaValueRuleState(d));

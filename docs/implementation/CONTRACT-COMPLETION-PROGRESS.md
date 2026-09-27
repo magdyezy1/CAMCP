@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DO — Google Ads campaign drafts (2026-09-27)
+
+Campaign drafts can now be created, renamed, removed and promoted through reviewed requests: base
+campaigns and their drafts are read, duplicate names and invalid status transitions are refused,
+promotion needs spending confirmation, and drafts are read back (a promotion until PROMOTED). See
+[implementation](GOOGLE-CAMPAIGN-DRAFTS-2026-09-27.md),
+[qualification](GOOGLE-CAMPAIGN-DRAFTS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 858 (six Google Ads rows reviewed). Pushed only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## DN — X promoted accounts, media creatives and scheduled promoted Tweets (2026-09-27)
 
 Follower, in-stream video, Audience Platform image and scheduled Tweet campaigns on X can now be
@@ -17,8 +29,8 @@ current associations and the user, media or scheduled Tweet read, and each assoc
 [qualification](X-LINE-ITEM-ASSOCIATIONS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 864 (six X rows reviewed). Pushed only to CAMCP; its exact-commit CI result and live
-acceptance are pending.
+Remaining rows: 864 (six X rows reviewed). Pushed to CAMCP as `d355933`; its exact-commit CI
+result and live acceptance are pending.
 
 ## DM — LinkedIn third-party tracking tags (2026-09-27)
 

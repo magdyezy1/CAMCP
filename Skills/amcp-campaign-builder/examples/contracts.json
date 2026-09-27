@@ -748,6 +748,23 @@
     {
       "gateway": "google_ads_native_action",
       "arguments": {
+        "action": "google_ads_v23_campaign_draft_mutate_campaign_drafts",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "baseCampaign": "customers/123/campaigns/1001",
+                "name": "Bid strategy test"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
         "action": "google_ads_v23_user_list_customer_type_mutate_user_list_customer_types",
         "account_id": "123",
         "payload": {

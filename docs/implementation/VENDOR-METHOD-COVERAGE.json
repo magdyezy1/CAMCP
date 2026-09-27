@@ -10375,14 +10375,14 @@
         {
           "operation": null,
           "action": "google_ads_v23_campaign_draft_promote_campaign_draft",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_campaign_drafts"
         },
         {
           "operation": null,
           "action": "PROMOTE_CAMPAIGN_DRAFT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_campaign_drafts"
         }
       ],
       "mapping_status": "mapped",
@@ -10401,26 +10401,26 @@
         {
           "operation": null,
           "action": "CREATE_CAMPAIGN_DRAFT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_campaign_drafts"
         },
         {
           "operation": null,
           "action": "google_ads_v23_campaign_draft_mutate_campaign_drafts",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_campaign_drafts"
         },
         {
           "operation": null,
           "action": "REMOVE_CAMPAIGN_DRAFT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_campaign_drafts"
         },
         {
           "operation": null,
           "action": "UPDATE_CAMPAIGN_DRAFT",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_campaign_drafts"
         }
       ],
       "mapping_status": "mapped",

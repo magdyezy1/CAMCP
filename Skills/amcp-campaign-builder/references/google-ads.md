@@ -321,6 +321,36 @@ attach and remove.
 Reference: [UserListCustomerTypeService](https://developers.google.com/google-ads/api/reference/rpc/v23/UserListCustomerTypeService)
 and the `UserListCustomerTypeError` values of the pinned Discovery document, checked 2026-09-27.
 
+## Campaign drafts
+
+A campaign draft copies a normal campaign into a draft campaign that cannot serve ads. Stage changes
+there with the usual reviewed campaign, ad group and criterion requests, then promote the draft to
+apply every staged change to the base campaign.
+
+- `google_ads_v23_campaign_draft_mutate_campaign_drafts` (or `CREATE_CAMPAIGN_DRAFT`,
+  `UPDATE_CAMPAIGN_DRAFT`, `REMOVE_CAMPAIGN_DRAFT`, each limited to its own operation) takes 1–10
+  operations: `{create: {baseCampaign, name}}`, `{update: {resourceName, name}, updateMask: "name"}`
+  or `{remove: "customers/<customer>/campaignDrafts/<base campaign ID>~<draft ID>"}`. Names have
+  1–255 characters without NUL, line feed or carriage return, unique among the drafts of the
+  campaign.
+- `google_ads_v23_campaign_draft_promote_campaign_draft` (or `PROMOTE_CAMPAIGN_DRAFT`) with
+  `path_params: {campaign_draft: "customers/<customer>/campaignDrafts/<base campaign ID>~<draft ID>"}`
+  and an empty payload promotes a proposed draft.
+
+AMCP reads the customer, each base campaign (not removed, and a normal BASE campaign, not a draft or
+experiment) and every draft of those campaigns. A name already used is `CONFIGURATION_EXISTS`;
+removed, promoting, promoted or failed drafts are not renamed or removed; a draft with a serving
+experiment is not removed or promoted; only a PROPOSED draft is promoted. Creating, renaming and
+removing drafts serve nothing, so they need no spending confirmation. Promotion needs
+`spend_change_confirmed`, counts as activation under owner policies and runs asynchronously:
+verification reads the draft until it is PROMOTED, stays open while it is PROMOTING and fails on
+PROMOTE_FAILED (Google lists the reasons with ListCampaignDraftAsyncErrors).
+`INVALID_GOOGLE_CAMPAIGN_DRAFT` names the operation to correct; `CAMPAIGN_DRAFT_STATE_UNVERIFIED`
+means the reads were incomplete.
+
+Reference: [Campaign drafts](https://developers.google.com/google-ads/api/docs/experiments/campaign-drafts)
+and the pinned v23 `CampaignDraftService` document, checked 2026-09-27.
+
 ## Conversion value rules
 
 `google_ads_v23_conversion_value_rule_mutate_conversion_value_rules` creates, updates and removes

@@ -32,6 +32,7 @@ import {metaLabelImpact} from './meta-label-writes.js';
 import {googleBidKind,googleBidImpactFor} from './google-bid-modifiers.js';
 import {googleBrandGuidelinesImpact} from './google-pmax-brand-guidelines.js';
 import {googleCustomerTypeImpact} from './google-user-list-customer-types.js';
+import {googleDraftImpact} from './google-campaign-drafts.js';
 import {googleSegmentKind,googleSegmentImpact} from './google-custom-segments.js';
 import {googleConversionGoalKind,googleConversionGoalServing,googleConversionGoalImpact} from './google-conversion-goals.js';
 import {googleBiddingEventKind,googleBiddingEventImpact} from './google-bidding-events.js';
@@ -111,6 +112,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  if(googleBidKind(plan))return googleBidImpactFor(plan);
  const googleBrand=googleBrandGuidelinesImpact(plan,state);if(googleBrand)return googleBrand;
  const customerTypes=googleCustomerTypeImpact(plan,state);if(customerTypes)return customerTypes;
+ const drafts=googleDraftImpact(plan,state);if(drafts)return drafts;
  if(googleSegmentKind(plan))return {...googleSegmentImpact,may_affect_serving:googleConfigurationServing(plan)};
  if(googleBiddingEventKind(plan))return googleBiddingEventImpact;
  if(googlePortfolioKind(plan))return googlePortfolioImpact;
