@@ -1667,6 +1667,19 @@
     {
       "gateway": "meta_native_action",
       "arguments": {
+        "action": "meta_custom_audience_id_update",
+        "account_id": "123",
+        "params": {
+          "custom_audience_id": "456"
+        },
+        "payload": {
+          "name": "Site visitors 30 days"
+        }
+      }
+    },
+    {
+      "gateway": "meta_native_action",
+      "arguments": {
         "action": "meta_ad_account_id_value_rule_set_create",
         "account_id": "123",
         "payload": {

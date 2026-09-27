@@ -31,6 +31,7 @@ import {tiktokInstantFormState} from './tiktok-instant-forms.js';
 import {isGoogleListingGroupRead,googleListingGroupState} from './google-listing-groups.js';
 import {isTiktokBrandSafetyRead,tiktokBrandSafetyState} from './tiktok-brand-safety.js';
 import {isMetaValueRuleRead,metaValueRuleState} from './meta-value-rules.js';
+import {isMetaObjectRead} from './meta-object-edits.js';
 import {isMetaBrandSafetyRead,metaBrandSafetyState} from './meta-brand-safety.js';
 import {isCriteoLineItemRead,criteoLineItemReviewState} from './criteo-auction-line-items.js';
 import {isCriteoOverrideRead} from './criteo-budget-overrides.js';
@@ -95,6 +96,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isGoogleListingGroupRead(read))return normalizeReviewState(googleListingGroupState(read,d));
  if(isTiktokBrandSafetyRead(read))return normalizeReviewState(tiktokBrandSafetyState(read,d));
  if(isMetaValueRuleRead(read))return normalizeReviewState(metaValueRuleState(d));
+ if(isMetaObjectRead(read))return normalizeReviewState(d);
  if(isMetaBrandSafetyRead(read))return normalizeReviewState(metaBrandSafetyState(read,d));
  if(isCriteoLineItemRead(read))return normalizeReviewState(criteoLineItemReviewState(d));
  if(isCriteoOverrideRead(read))return normalizeReviewState(d);

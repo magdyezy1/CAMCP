@@ -383,3 +383,27 @@ structures instead of re-creating each object.
   `unobservable_fields`.
 - Meta takes 1 to 6 hours to populate a lookalike. Add it to an ad set's
   `targeting.custom_audiences` to use it.
+
+## Renaming and deleting creatives and custom audiences
+
+List the account's creatives (`meta_ad_account_id_adcreatives_get` with `ad_account_id:
+"act_<account>"`) or custom audiences (`meta_ad_account_id_customaudiences_get`) first; only objects
+of the selected account change here, never audiences shared from other accounts.
+
+- `meta_creative_id_update` (or `meta_creative_update`) with `params: {creative_id}` and
+  `payload: {name}` (up to 100 characters); `meta_creative_id_delete` deletes the creative.
+- `meta_custom_audience_id_update` (or `meta_custom_audience_update`) with `params:
+  {custom_audience_id}` and `payload: {name, description}` (either or both);
+  `meta_custom_audience_id_delete` (or `meta_custom_audience_delete`) deletes the audience.
+
+Status, rules, retention, opt-out links and customer lists are outside these requests. AMCP reads
+the object first (it must belong to the account and not be deleted; unchanged renames are refused).
+Deleting an audience is permanent: Meta says ads that use it stop running, and refuses while
+lookalikes derive from it. Deletions count as deletions under owner policies; a reply without
+`success: true` is a failure that is never resubmitted. Verification reads the object again: the
+new name, or that it is gone (Meta's "does not exist" error) or DELETED.
+`INVALID_META_OBJECT_EDIT` names the field to correct; `META_OBJECT_STATE_UNVERIFIED` means the read
+was incomplete.
+
+Reference: the Marketing API v25.0 "Ad Creative" and "Custom Audience" references (Updating,
+Deleting), checked 2026-09-27.

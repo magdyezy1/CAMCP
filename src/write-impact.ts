@@ -64,6 +64,7 @@ import {googleListingGroupImpact} from './google-listing-groups.js';
 import {tiktokNegativeKeywordImpact} from './tiktok-negative-keywords.js';
 import {tiktokBrandSafetyImpact} from './tiktok-brand-safety.js';
 import {metaValueRuleImpact} from './meta-value-rules.js';
+import {metaObjectImpact} from './meta-object-edits.js';
 import {metaBrandSafetyImpact} from './meta-brand-safety.js';
 import {criteoLineItemImpact} from './criteo-auction-line-items.js';
 import {criteoOverrideImpact} from './criteo-budget-overrides.js';
@@ -151,6 +152,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  const negativeKeywords=tiktokNegativeKeywordImpact(plan,state);if(negativeKeywords)return negativeKeywords;
  const brandSafety=tiktokBrandSafetyImpact(plan,state);if(brandSafety)return brandSafety;
  const valueRules=metaValueRuleImpact(plan,state);if(valueRules)return valueRules;
+ const metaObject=metaObjectImpact(plan,state);if(metaObject)return metaObject;
  const metaBrandSafety=metaBrandSafetyImpact(plan,state);if(metaBrandSafety)return metaBrandSafety;
  const criteoLineItem=criteoLineItemImpact(plan,state);if(criteoLineItem)return criteoLineItem;
  const criteoOverride=criteoOverrideImpact(plan,state);if(criteoOverride)return criteoOverride;

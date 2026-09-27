@@ -834,7 +834,16 @@ Tests: `tests/dv360-advertiser-settings.test.mjs` (4), red on `a7f4754` / green 
 
 - New reviewed family `criteo_audience_segments` (`src/criteo-audience-segments.ts`) for bulk creation (Events segments, empty contact list segments), update (name, description, event rules) and deletion, with the account's retailer or segment search before and after. New event rules need spending confirmation; contact list uploads stay out (customer data).
 
-Tests: `tests/criteo-audience-segments.test.mjs` (4), red on `3faac7b` / green after.
+Tests: `tests/criteo-audience-segments.test.mjs` (4), red on `3faac7b` / green after. Committed as `bf6e4a1`.
+
+## Finished batch — Meta creative and custom audience renames and deletions (2026-09-27)
+
+[Implementation](META-OBJECT-EDITS-2026-09-27.md) and
+[qualification](META-OBJECT-EDITS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `meta_object_edits` (`src/meta-object-edits.ts`) for renaming and deleting the account's own ad creatives and custom audiences (seven rows with aliases). A deleted object reads as Meta's "does not exist" error or status DELETED; deleting an audience stops ads that use it, and Meta refuses while lookalikes derive from it.
+
+Tests: `tests/meta-object-edits.test.mjs` (4), red on `bf6e4a1` / green after.
 
 ## CI and live evidence
 
@@ -848,19 +857,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 624 in reviewed write families. **807 remaining rows** are in
+3241 captured actions; 631 in reviewed write families. **800 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 692 |
+| blocked_write | 685 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 105, Snapchat 85,
+Blocked writes by platform: TikTok 186, Meta 119, LinkedIn 105, Snapchat 85,
 Google Ads 59, X 55, DV360 35, Criteo 29, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

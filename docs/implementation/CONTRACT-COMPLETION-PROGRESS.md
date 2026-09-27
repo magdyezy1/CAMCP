@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DZ — Meta creative and custom audience renames and deletions (2026-09-27)
+
+The selected Meta account's ad creatives and custom audiences can now be renamed and deleted through
+reviewed requests: the object is read first (it must belong to the account), deletions count as
+deletions, and the result is read back, a deleted object reading as gone or DELETED. See
+[implementation](META-OBJECT-EDITS-2026-09-27.md),
+[qualification](META-OBJECT-EDITS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 800 (seven Meta rows reviewed). Pushes go only to CAMCP; its exact-commit CI result and
+live acceptance are pending.
+
 ## DY — Criteo audience segments (2026-09-27)
 
 Criteo Retail Media audience segments can now be created (Events rules or an empty contact list),
@@ -17,7 +29,7 @@ See [implementation](CRITEO-AUDIENCE-SEGMENTS-2026-09-27.md),
 [qualification](CRITEO-AUDIENCE-SEGMENTS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 807 (three Criteo rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 807 (three Criteo rows reviewed). Committed as `bf6e4a1`; its exact-commit CI result
 and live acceptance are pending.
 
 ## DX — DV360 advertiser settings (2026-09-27)
