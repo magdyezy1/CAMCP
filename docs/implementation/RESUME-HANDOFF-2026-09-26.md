@@ -620,7 +620,18 @@ Tests: `tests/dv360-image-ad-assets.test.mjs` (6), red on `a9f32c0` / green afte
 - `TARGETING_TYPE_AUDIENCE_GROUP` is assignable on line items and Demand Gen ad groups: each audience is read with the advertiser's access; recency only on first-party audiences; only affinity, in-market and installed-apps Google audiences excluded; no repeats, at most 5 combined audiences and 100 audiences per review. Audience sizes are left out of the reviewed state; verification ignores DV360's order and treats `RECENCY_NO_LIMIT` as no recency.
 - Inventory source and inventory source group targeting stay refused (the other half of the P2).
 
-Tests: `tests/dv360-audience-targeting.test.mjs` (8) and updated audience cases in `tests/dv360-line-item-targeting.test.ts` and `tests/dv360-ad-group-targeting.test.mjs`, red on `bc4faba` / green after.
+Tests: `tests/dv360-audience-targeting.test.mjs` (8) and updated audience cases in `tests/dv360-line-item-targeting.test.ts` and `tests/dv360-ad-group-targeting.test.mjs`, red on `bc4faba` / green after. Pushed as `fefc545`.
+
+## Finished batch — Snapchat chunked media upload (2026-09-27)
+
+[Implementation](SNAPCHAT-CHUNKED-MEDIA-2026-09-27.md) and
+[qualification](SNAPCHAT-CHUNKED-MEDIA-VERIFICATION-2026-09-27.json).
+
+- `src/media-upload.ts`: Snapchat files over 32,000,000 bytes use `multipart-upload-v2` INIT, ADD (16 MiB parts, at most 32) and FINALIZE as multipart forms; returned paths must name the allocated media and action; confirmed parts are journaled; an interrupted upload is uncertain and is not resumed (a new review can target the same `existing_media_id`).
+- `src/transport.ts` allows field-only multipart forms only for those INIT and FINALIZE paths; `src/media-routing.ts` routes the native INIT actions to the import. Ownership of an `existing_media_id` is checked before the Drive download.
+- Not done: resuming a partially uploaded Snapchat file (Snap documents no part listing), and the public profile media upload.
+
+Tests: `tests/snapchat-chunked-media.test.mjs` (6), red on `fefc545` / green after.
 
 ## CI and live evidence
 
@@ -634,20 +645,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 547 in reviewed write families. **887 remaining rows** are in
+3241 captured actions; 547 in reviewed write families. **884 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 772 |
+| blocked_write | 769 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 118, Google Ads 96,
-Snapchat 89, X 67, DV360 44, Criteo 34, Business Profile 12.
+Snapchat 86, X 67, DV360 44, Criteo 34, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

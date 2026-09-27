@@ -43,7 +43,7 @@ export function oauth1(method:string,url:URL,credentials:Credentials,bodyParams?
 }
 const camelKeys=googleJson;
 export interface TransportResult {data:unknown;status:number;headers:Record<string,string>;bodyIntegrity?:{bytes:number;md5:string}}
-export interface BinaryUpload {field:string;bytes:Buffer;filename:string;mime:string;format?:'related'}
+export interface BinaryUpload {field:string;bytes:Buffer;filename:string;mime:string;format?:'related'|'fields'}
 export function providerRetryDelay(response:Response,gateway:string,now=Date.now()):number|undefined{
  const header=response.headers.get('retry-after');let delay:number|undefined;
  if(header!==null){const seconds=/^\d+(?:\.\d+)?$/.test(header.trim())?Number(header):NaN,date=Date.parse(header);if(Number.isFinite(seconds))delay=seconds*1000;else if(Number.isFinite(date))delay=Math.max(0,date-now);}
@@ -92,6 +92,11 @@ export class NativeTransport {
    if(upload.format==='related'){
     if(plan.gateway!=='dv360_native_action'||plan.method!=='POST'||!/^\/upload\/v4\/advertisers\/\d+\/(?:assets|adAssets:uploadAdAsset)$/.test(plan.path)||plan.query.uploadType!=='multipart')throw new MirrorError('INVALID_UPLOAD','Multipart-related is restricted to the DV360 advertiser asset and image ad asset contracts.');
     const boundary='amcp_'+randomUUID();body=new Uint8Array(Buffer.concat([Buffer.from('--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(plan.body)+'\r\n--'+boundary+'\r\nContent-Type: '+upload.mime+'\r\n\r\n'),upload.bytes,Buffer.from('\r\n--'+boundary+'--\r\n')]));headers['Content-Type']='multipart/related; boundary='+boundary;
+   }else if(upload.format==='fields'){
+    // Snapchat chunked upload INIT and FINALIZE are multipart forms without a file part.
+    if(plan.gateway!=='snapchat_native_action'||plan.method!=='POST'||!/^\/(?:[a-z]{2}\/)?v1\/media\/[\w-]+\/multipart-upload-v2$/.test(plan.path)||!['INIT','FINALIZE'].includes(plan.query.action))throw new MirrorError('INVALID_UPLOAD','Field-only multipart forms are restricted to the Snapchat chunked upload contract.');
+    const multipart=new FormData();for(const [k,v]of Object.entries((plan.body??{}) as JsonObject))multipart.set(k,String(v));body=multipart;
+    for(const key of Object.keys(headers))if(key.toLowerCase()==='content-type')delete headers[key];
    }else{
    const multipart=new FormData();for(const [k,v]of Object.entries((plan.body??{}) as JsonObject))multipart.set(k,typeof v==='object'?JSON.stringify(v):String(v));
    multipart.set(upload.field,new Blob([new Uint8Array(upload.bytes)],{type:upload.mime}),upload.filename);body=multipart;

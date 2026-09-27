@@ -22,6 +22,8 @@ import {assertLinkedInOrganization} from './linkedin-posts.js';
 import {linkedInTransfer,linkedInPartId,linkedInResumeReason,assertLinkedInResume,assertLinkedInWaiting} from './linkedin-media-resume.js';
 
 const platforms=mediaPlatforms;
+/** Snapchat simple uploads take up to 32 MB; larger files are sent in parts well under the 32 MB part limit (either unit). */
+const snapchatSimpleLimit=32_000_000,snapchatPartSize=16*1024*1024;
 export const mediaTool={name:'amcp_media',description:'Import a public or selected private Google Drive file into a selected advertising account. prepare downloads and encrypts the exact file for a five-minute review; execute uploads those frozen bytes after explicit confirmation. Supports PNG/JPEG and MP4/MOV across Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360 (X/LinkedIn video: MP4). Google videos are uploaded as UNLISTED on the account Google-managed YouTube channel. Normal native media actions and platform_media_upload use this same server transfer; the MCP client never downloads bytes. status reads provider processing state; prepare_library reviews adding an X video to its account library once processing succeeds. Never publishes ads or posts. Uses operator role, account write grants and durable idempotency. Files up to the configured media limit (128 MiB by default) with lower platform image limits. Private files use a separate selected Google Drive connection. variant creates an encrypted, expiring preview with explicit contain/crop presets; prepare accepts variant_id. execute_async queues the frozen confirmed review; job_status shows durable progress. list returns account-scoped receipts. recovery exposes safe continuation; resume supports Google video offsets and LinkedIn confirmed-part boundaries within the original review, never an uncertain part or finalization. reuse requires a fresh provider availability check. DV360 uploads creative assets by default; dv360_target ad_asset uploads a PNG/JPEG image (up to 5120 KB) as a Demand Gen image ad asset, optionally labelled with synthetic_content, and returns its assetId. inspect_eligibility checks source dimensions, duration and codec against a placement preset before any provider upload; it does not certify provider policy approval.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['prepare','prepare_library','execute','resume','execute_async','job_status','status','recovery','cancel','variant','inspect_eligibility','list','reuse']},platform:{type:'string',enum:platforms},account_id:{type:'string'},connection_id:{type:'string'},drive_url:{type:'string'},drive_connection_id:{type:'string'},variant_id:{type:'string'},preset:{type:'string',enum:Object.keys(variantPresets)},fit:{type:'string',enum:['contain','crop']},reuse_existing:{type:'boolean'},asset_id:{type:'string'},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:100},name:{type:'string'},media_type:{type:'string',enum:['image','video']},expected_mime:{type:'string'},expected_size:{type:'integer',minimum:1},existing_media_id:{type:'string'},owner_urn:{type:'string'},dv360_target:{type:'string',enum:['creative_asset','ad_asset']},synthetic_content:{type:'string',enum:['NOT_SYNTHETIC','IS_SYNTHETIC']},review_id:{type:'string'},idempotency_key:{type:'string'},confirmed:{type:'boolean'}},additionalProperties:false}};
 const fail=(code:string,message:string,details:JsonObject={}):never=>{throw new MirrorError(code,message,details);};
 const responseId=(value:unknown,pattern=/^[A-Za-z0-9_-]+$/)=>{if(typeof value!=='string'||!pattern.test(value))fail('MEDIA_RESPONSE_INVALID','The provider did not return a valid media identifier.');return value as string;};
@@ -143,6 +145,8 @@ export class MediaUploadService {
    if(input.name!==undefined&&(typeof input.name!=='string'||!input.name.trim()||input.name.length>80||/[\x00-\x1f\/\\]/.test(input.name)))fail('INVALID_ARGUMENT','Use a media name of 1–80 characters without paths or control characters.');
    if(input.dv360_target!==undefined&&(input.platform!=='dv360'||!['creative_asset','ad_asset'].includes(input.dv360_target)))fail('INVALID_ARGUMENT','dv360_target selects a DV360 creative asset (the default) or a Demand Gen image ad asset.');
    const adAsset=input.dv360_target==='ad_asset';
+   // An existing Snapchat allocation must be owned before any Drive download.
+   if(input.existing_media_id!==undefined){if(input.platform!=='snapchat'||typeof input.existing_media_id!=='string'||!/^[-\w]+$/.test(input.existing_media_id))fail('INVALID_ARGUMENT','existing_media_id identifies an existing Snapchat media allocation.');new ScopeGuard(this.registry,this.store).authorize({...this.accountRead(input.platform,account),path:'/v1/media/'+input.existing_media_id},c);}
    if(input.synthetic_content!==undefined&&(!adAsset||!['NOT_SYNTHETIC','IS_SYNTHETIC'].includes(input.synthetic_content)))fail('INVALID_ARGUMENT','synthetic_content (NOT_SYNTHETIC or IS_SYNTHETIC) labels a DV360 image ad asset.');
    if(adAsset&&input.media_type!==undefined&&input.media_type!=='image')fail('MEDIA_TYPE_UNSUPPORTED','DV360 uploads only images as ad assets; YouTube video ad assets are created by video ID with DV360_ADVERTISERS_AD_ASSETS_CREATE.');
    this.store.reserveMedia(actor.tenantId,reviewId,expires);
@@ -283,7 +287,7 @@ export class MediaUploadService {
     if(String(created.request_status).toUpperCase()!=='SUCCESS'||String(row?.sub_request_status).toUpperCase()!=='SUCCESS'||row.media.ad_account_id!==p.account_id)fail('MEDIA_RESPONSE_INVALID','Snapchat did not confirm the account-bound media allocation.');id=responseId(row.media.id);}
    record({media_id:id});
    const c=this.access(actor,p.platform,p.account_id,p.connection_id);this.store.rememberResource(c,p.account_id,'media/'+id);
-   const d=(await send('/v1/media/'+id+'/upload',{}, {upload:binary('file')})).data as JsonObject;
+   const d=(bytes.length>snapchatSimpleLimit?await this.snapchatChunks(p,id,bytes,send,binary,record):(await send('/v1/media/'+id+'/upload',{}, {upload:binary('file')})).data) as JsonObject;
    if(String(d.request_status).toUpperCase()!=='SUCCESS'||d.result?.id!==id||d.result?.ad_account_id!==p.account_id)fail('MEDIA_RESPONSE_INVALID','Snapchat did not confirm this media upload.');
    return {media_id:id,ready:d.result.media_status==='READY',processing_status:d.result.media_status??'PROCESSING'};
   }
@@ -422,6 +426,28 @@ export class MediaUploadService {
   if(id!==receipt.media_id||p.platform==='snapchat'&&(d.request_status!=='SUCCESS'||d.media?.length!==1||d.media[0].sub_request_status!=='SUCCESS'||d.media[0].media.ad_account_id!==p.account_id)||p.platform==='linkedin'&&(d.owner!==(p.owner_urn??'urn:li:sponsoredAccount:'+p.account_id)||d.mediaLibraryMetadata?.associatedAccount!==undefined&&d.mediaLibraryMetadata.associatedAccount!=='urn:li:sponsoredAccount:'+p.account_id))fail('MEDIA_RESPONSE_INVALID','The platform did not return the exact uploaded media in the selected account.');
   const ready=['ready','AVAILABLE','succeeded','READY'].includes(state),out={...receipt,executed:false,ready,...(p.platform==='linkedin'?{owner_urn:d.owner}:{}),...(p.platform==='x_ads'?{data:{media_id_string:d.media_id_string,media_key:d.media_key,processing_info:{state:d.processing_info?.state}}}:{}),processing_status:state??'UNKNOWN',status_source:'provider',...(!ready?{next_call:poll}:{}),...(p.platform==='x_ads'&&ready&&!receipt.library_id?{ready:false,next_call:{tool:'amcp_media',arguments:{action:'prepare_library',review_id:receipt.review_id}}}:{})};
   return finish(out);
+ }
+ /**
+  * Snapchat chunked upload ("Upload large media files", Media of the Ads API, checked 2026-09-27): INIT names the file,
+  * its size and the number of parts; each part (at most 32 MB, at most 32 parts) is added to the returned add path in any
+  * order, then the finalize path completes the media. Parts go only to paths of the allocated media.
+  */
+ private async snapchatChunks(p:UploadPlan,id:string,bytes:Buffer,send:(path:string,body?:JsonObject,options?:Parameters<MediaUploadService['send']>[4])=>Promise<TransportResult>,binary:(field:string,part?:Buffer)=>BinaryUpload,record:(v:JsonObject)=>void):Promise<JsonObject>{
+  const parts=Math.ceil(bytes.length/snapchatPartSize);if(parts>32)fail('MEDIA_TOO_LARGE','Snapchat takes at most 32 parts.',{maximum_bytes:32*snapchatPartSize});
+  const fields={format:'fields' as const,field:'',bytes:Buffer.alloc(0),filename:p.filename,mime:p.mime};
+  const init=(await send('/v1/media/'+id+'/multipart-upload-v2',{file_name:p.filename,file_size:String(bytes.length),number_of_parts:String(parts)},{query:{action:'INIT'},upload:fields})).data as JsonObject;
+  const step=(v:unknown,action:string)=>{const m=typeof v==='string'?/^(\/(?:[a-z]{2}\/)?v1\/media\/([\w-]+)\/multipart-upload-v2)\?action=([A-Z]+)$/.exec(v):null;if(!m||m[2]!==id||m[3]!==action)return fail('MEDIA_RESPONSE_INVALID','Snapchat returned a chunked upload path for another media or action.');return m[1]!;};
+  if(String(init.request_status).toUpperCase()!=='SUCCESS'||typeof init.upload_id!=='string'||!/^[\w-]{1,128}$/.test(init.upload_id))fail('MEDIA_RESPONSE_INVALID','Snapchat did not start this chunked upload.');
+  const add=step(init.add_path,'ADD'),finish=step(init.finalize_path,'FINALIZE'),upload=init.upload_id as string;
+  record({upload_id:upload,parts_total:parts,total_bytes:bytes.length});
+  for(let i=0;i<parts;i++){
+   const part=bytes.subarray(i*snapchatPartSize,Math.min(bytes.length,(i+1)*snapchatPartSize));
+   const r=(await send(add,{part_number:String(i+1),upload_id:upload},{query:{action:'ADD'},upload:binary('file',part)})).data as JsonObject;
+   if(r!==null&&typeof r==='object'&&r.request_status!==undefined&&String(r.request_status).toUpperCase()!=='SUCCESS')fail('MEDIA_RESPONSE_INVALID','Snapchat did not accept part '+(i+1)+'.');
+   record({parts_confirmed:i+1,bytes_confirmed:Math.min(bytes.length,(i+1)*snapchatPartSize)});
+  }
+  record({finalization_started:true});
+  return (await send(finish,{upload_id:upload},{query:{action:'FINALIZE'},upload:fields})).data as JsonObject;
  }
  private references(p:UploadPlan,out:UploadResult):JsonObject {
   const id=out.media_id;

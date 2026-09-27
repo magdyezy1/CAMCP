@@ -1,0 +1,105 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "fefc545b223117127307666569626ea5cdd5ece5",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/snapchat-chunked-media-20260927-a",
+    "files": 849,
+    "source_tree_hash": "643c1092e717fa155ef3c819c031f691fa5055a69c4010b8a8e5d249e2c8f031",
+    "index_code_test_guidance_files_compared": 686,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/snapchat-chunked-media-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/snapchat-chunked-media-20260927/install.log",
+      "sha256": "ae48f9f8721d24990e1f5dce53c39d526ea0b5dc0e153929da1126e972830ba4"
+    },
+    {
+      "path": ".runtime/snapchat-chunked-media-20260927/check.log",
+      "sha256": "afa9dc1193780bc294cd2125e709ee799382213fe569b14708d39c506797b5c8",
+      "started": "Sun Sep 27 00:49:03 UTC 2026",
+      "finished": "Sun Sep 27 04:10:06 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2374,
+          "pass": 2374,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/snapchat-chunked-media-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/snapchat-chunked-media-20260927/red-check.log",
+      "sha256": "d417e29ca83c8c3b46e0ab2a6eced2d7dd3c20b2d658a94299494e5c741e36a9",
+      "meaning": "tests/snapchat-chunked-media.test.mjs against a build of fefc545: expected red, 5/6 fail (no chunked upload, no field-only forms, the INIT actions still blocked); the exactly-32,000,000-byte test passes, since the base always used the simple upload"
+    },
+    {
+      "path": ".runtime/snapchat-chunked-media-20260927/targeted.log",
+      "sha256": "0429b558cdd17b7fc2d10dd588ac047ce0eebf03e421474d6ad75b4dbcdd8b75",
+      "meaning": "148 related suite files in the working copy, including every DV360, Snapchat, media, scope and security suite, with FFmpeg configured: 1769/1769 pass, none skipped."
+    }
+  ],
+  "development_failures": [
+    "The first compile failed: a path check inside an arrow function did not narrow after a never-returning helper; it now returns the failure.",
+    "The first test run failed one of six tests: an unowned existing_media_id was refused only after the Drive file was downloaded. The ownership check now runs before the download."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2374,
+    "main_pass": 2374,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "The ADD response body is not documented; any non-SUCCESS request_status stops the upload, and an empty body is accepted by the transport outcome check.",
+    "An interrupted chunked upload is not resumed: Snap documents no way to list accepted parts.",
+    "Parts are sent in order one at a time, although Snap allows parallel parts.",
+    "The public profile media upload stays blocked.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

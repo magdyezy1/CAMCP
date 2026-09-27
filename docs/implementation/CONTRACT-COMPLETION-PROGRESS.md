@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DD — Snapchat chunked media upload (2026-09-27)
+
+Snapchat videos over 32 MB can now be imported: the reviewed media upload sends them with Snap's
+chunked upload (INIT, one ADD per 16 MiB part, FINALIZE), checks that the returned paths name the
+allocated media, journals every confirmed part and never retries an interrupted upload. The native
+INIT actions route to the same import. See
+[implementation](SNAPCHAT-CHUNKED-MEDIA-2026-09-27.md),
+[qualification](SNAPCHAT-CHUNKED-MEDIA-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 884 (three Snapchat rows move to the media workflow). Pushed only to CAMCP; its
+exact-commit CI result and live acceptance are pending.
+
 ## DC — DV360 audience targeting (2026-09-27)
 
 Audience groups can now be assigned to DV360 line items and Demand Gen ad groups: each audience is
@@ -18,8 +31,8 @@ previously refused by the scope guard, now work for finding audience IDs. See
 [qualification](DV360-AUDIENCE-TARGETING-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 887 (unchanged; this closes the audience half of a P2 ticket). Pushed only to
-CAMCP; its exact-commit CI result and live acceptance are pending.
+Remaining rows: 887 (unchanged; this closes the audience half of a P2 ticket). Pushed to CAMCP as
+`fefc545`; its exact-commit CI result and live acceptance are pending.
 
 ## DB — DV360 Demand Gen image ad assets (2026-09-27)
 

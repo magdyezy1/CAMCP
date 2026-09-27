@@ -23,6 +23,9 @@ export function mediaRoute(plan:CompiledRequest):{platform:string;media_type?:st
  if(p==='snapchat'){
   const existing=/^\/v1\/media\/([\w-]+)\/upload$/.exec(path);
   if(existing)return {platform:p,existing_media_id:existing[1]};
+  // The chunked upload of an existing allocation; AMCP performs INIT, ADD and FINALIZE itself.
+  const chunked=/^\/(?:us\/)?v1\/media\/([\w-]+)\/multipart-upload-v2$/.exec(path);
+  if(chunked&&plan.query.action==='INIT')return {platform:p,existing_media_id:chunked[1]};
   if(/^\/v1\/adaccounts\/[^/]+\/media$/.test(path))return {platform:p};
  }
  if(p==='x_ads'&&path==='/1.1/media/upload.json')return {platform:p};
@@ -47,7 +50,7 @@ export function nativeMediaInput(plan:CompiledRequest,connectionId?:string):Json
  for(const k of Object.keys(body))if(!allowed.has(k))throw new MirrorError('UNSUPPORTED_MEDIA_PARAMETER','This server-side import does not consume this native field. Remove it or use its dedicated native contract.',{parameter:k});
  if(adAsset&&body.adAssetType!==undefined&&body.adAssetType!=='AD_ASSET_TYPE_IMAGE')throw new MirrorError('INVALID_ARGUMENT','DV360 uploads only AD_ASSET_TYPE_IMAGE ad assets; YouTube video ad assets are created by video ID with DV360_ADVERTISERS_AD_ASSETS_CREATE.');
  if(adAsset&&body.syntheticContentAttestationStatus!==undefined&&!['NOT_SYNTHETIC','IS_SYNTHETIC'].includes(body.syntheticContentAttestationStatus))throw new MirrorError('INVALID_ARGUMENT','syntheticContentAttestationStatus is NOT_SYNTHETIC or IS_SYNTHETIC; omit it when there is no attestation.');
- if(Object.keys(plan.query).some(k=>!(route.platform==='linkedin'&&k==='action'))||plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['ACTION','CREATE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))throw new MirrorError('UNSUPPORTED_MEDIA_PARAMETER','Media imports cannot contain query mutations or method overrides.');
+ if(Object.keys(plan.query).some(k=>!(['linkedin','snapchat'].includes(route.platform)&&k==='action'))||plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['ACTION','CREATE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))throw new MirrorError('UNSUPPORTED_MEDIA_PARAMETER','Media imports cannot contain query mutations or method overrides.');
  if(body.upload_type!==undefined&&!['UPLOAD_BY_URL','UPLOAD_BY_FILE'].includes(body.upload_type))throw new MirrorError('INVALID_ARGUMENT','Unsupported media upload type.');
  const names=['name','title','file_name','filename'].filter(k=>body[k]!==undefined).map(k=>body[k]);
  if(names.some(n=>typeof n!=='string'||n!==names[0]))throw new MirrorError('CONFLICTING_PARAMETER','Media name aliases must agree.');

@@ -12,6 +12,16 @@ For explicit format variants and receipt reuse, see [workspace operations](works
 
 Upload completion and account-library readiness are distinct. After execute, AMCP durably retains the successful upload and attempts one exact availability read. Follow `handoff_status`, `status_source`, `ready` and `next_call`. An unreadable or processing asset remains unusable even if upload returned an ID; `handoff_status: inconclusive` does not permit another upload. An unsupported availability read (currently DV360) remains unverified. For X, registration omits media_category but upload INIT/image requests retain their category; preserve the entire media_key. The exact account-library read must return TRANSCODE_COMPLETED. A fresh successful read may make execute return ready immediately. Availability under another login is not implied by a receipt.
 
+Snapchat videos over 32,000,000 bytes are sent in parts, as Snap documents for files over 32 MB.
+AMCP allocates the media, or uses an owned `existing_media_id` (also through the native
+`snapchat_media_multipart_upload_init` with a Drive link), sends `multipart-upload-v2` INIT with
+the file name, size and part count, adds each 16 MiB part and finalizes once every part is
+accepted. Parts go only to paths of the allocated media: an INIT response naming another media is
+`MEDIA_RESPONSE_INVALID` before any part is sent. An interrupted chunked upload is uncertain and is
+neither resumed nor retried: inspect `recovery` (`parts_confirmed`) and `status`, then prepare a
+new review with the same `existing_media_id`. The raw ADD and FINALIZE actions stay blocked.
+Reference: [Media](https://developers.snap.com/api/marketing-api/Ads-API/media), checked 2026-09-27.
+
 LinkedIn video uploads require `owner_urn` identifying a person or organization; sponsoredAccount is not an accepted video owner. `LINKEDIN_VIDEO_OWNER_REQUIRED` names the missing prerequisite. Supply the exact administrator owner binding and use the same organization as the DSC author for AMCP's qualified post workflow. Exact status reads require the returned owner; absent ownership is not evidence. Signed download URLs and unrelated media metadata are omitted from status results.
 
 LinkedIn checks the current login, organization binding, account grant and selected
