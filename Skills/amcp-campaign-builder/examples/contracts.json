@@ -2440,6 +2440,23 @@
     {
       "gateway": "linkedin_native_action",
       "arguments": {
+        "action": "linkedin_rest_insight_tag_domains_insight_tag_domain_id_post",
+        "account_id": "507",
+        "path_params": {
+          "insight_tag_domain_id": "(account:urn:li:sponsoredAccount:507,domainName:www.example.com)"
+        },
+        "payload": {
+          "patch": {
+            "$set": {
+              "blocked": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "gateway": "linkedin_native_action",
+      "arguments": {
         "action": "linkedin_rest_insight_tags_post",
         "account_id": "507",
         "payload": {

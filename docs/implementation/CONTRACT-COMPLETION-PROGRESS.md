@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## EQ — LinkedIn Insight Tag domains (2026-09-27)
+
+The domains LinkedIn lists for an Insight Tag can now be blocked or allowed, one at a time or in a
+batch, through reviewed requests: the account's tag, its FULL access and each domain are read first,
+the accounts sharing the tag are shown, and the result is read back. See
+[implementation](LINKEDIN-INSIGHT-DOMAINS-2026-09-27.md),
+[qualification](LINKEDIN-INSIGHT-DOMAINS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 754 (two LinkedIn rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## EP — Snapchat product sets (2026-09-27)
 
 Product sets of Snapchat catalogs can now be created, updated and deleted through reviewed requests:
@@ -17,7 +29,7 @@ ads use are protected, and the result is read back. See
 [qualification](SNAPCHAT-PRODUCT-SETS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 756 (six Snapchat rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 756 (six Snapchat rows reviewed). Committed as `38b5f00`; its exact-commit CI result
 and live acceptance are pending.
 
 ## EO — Snapchat custom conversions (2026-09-27)

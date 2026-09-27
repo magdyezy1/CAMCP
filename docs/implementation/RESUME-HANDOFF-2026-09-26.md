@@ -987,7 +987,16 @@ Tests: `tests/snapchat-custom-conversions.test.mjs` (3), red on `8becdaa` / gree
 
 - New reviewed family `snapchat_product_sets` (`src/snapchat-product-sets.ts`) for creating, updating and deleting product sets of the catalogs of the selected account's organization, six rows with aliases and the update by ID. Filters follow the guide's attribute and operator table; default sets and sets that ad squads or creatives use are protected.
 
-Tests: `tests/snapchat-product-sets.test.mjs` (3), red on `09b5472` / green after.
+Tests: `tests/snapchat-product-sets.test.mjs` (3), red on `09b5472` / green after. Committed as `38b5f00`.
+
+## Finished batch — LinkedIn Insight Tag domains (2026-09-27)
+
+[Implementation](LINKEDIN-INSIGHT-DOMAINS-2026-09-27.md) and
+[qualification](LINKEDIN-INSIGHT-DOMAINS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `linkedin_insight_tag_domains` (`src/linkedin-insight-domains.ts`) for blocking and allowing Insight Tag domains of the selected account, singly or in a batch of up to 20, two rows. Keys are re-encoded at compile time as in the reference; only FULL access to the tag may change domains.
+
+Tests: `tests/linkedin-insight-domains.test.mjs` (3), red on `38b5f00` / green after.
 
 ## CI and live evidence
 
@@ -1001,19 +1010,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 675 in reviewed write families. **756 remaining rows** are in
+3241 captured actions; 677 in reviewed write families. **754 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 641 |
+| blocked_write | 639 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 186, Meta 117, LinkedIn 98, Snapchat 73,
+Blocked writes by platform: TikTok 186, Meta 117, LinkedIn 96, Snapchat 73,
 Google Ads 57, X 43, DV360 32, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

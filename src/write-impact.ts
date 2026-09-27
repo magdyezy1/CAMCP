@@ -4,6 +4,7 @@ import {snapDisclaimerImpact} from './snapchat-offer-disclaimers.js';
 import {snapSegmentDeleteImpact} from './snapchat-segment-deletions.js';
 import {snapConversionImpact} from './snapchat-custom-conversions.js';
 import {snapProductSetImpact} from './snapchat-product-sets.js';
+import {linkedinDomainImpact} from './linkedin-insight-domains.js';
 import {snapSegmentImpact} from './snapchat-segments.js';
 import {tiktokIdentityKind,tiktokIdentityImpact} from './tiktok-identities.js';
 import {metaCopyKind,metaCopyImpact} from './meta-copies.js';
@@ -128,6 +129,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  const snapSegmentDelete=snapSegmentDeleteImpact(plan,state);if(snapSegmentDelete)return snapSegmentDelete;
  const snapConversion=snapConversionImpact(plan,state);if(snapConversion)return snapConversion;
  const snapProductSet=snapProductSetImpact(plan,state);if(snapProductSet)return snapProductSet;
+ const linkedinDomain=linkedinDomainImpact(plan,state);if(linkedinDomain)return linkedinDomain;
  if(metaCopyKind(plan))return metaCopyImpact(plan,state);
  if(googlePreviewKind(plan))return googlePreviewImpact;
  if(googleDismissalKind(plan))return googleDismissalImpact(plan,state);

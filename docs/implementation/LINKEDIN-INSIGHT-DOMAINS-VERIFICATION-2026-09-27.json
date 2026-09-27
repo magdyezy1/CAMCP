@@ -1,0 +1,101 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "38b5f006ca61571cdc03478c944e118e1543457c",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/linkedin-insight-domains-20260927-a",
+    "files": 1010,
+    "source_tree_hash": "04f338c88f898efac8b6456adc633bbf82d58c04557bfcef4abf7e15526412f5",
+    "index_code_test_guidance_files_compared": 769,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/linkedin-insight-domains-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/linkedin-insight-domains-20260927/install.log",
+      "sha256": "bde7d279256b0d5606fe571c148e3c4bfb648e5d1a422c0085d458c785271463"
+    },
+    {
+      "path": ".runtime/linkedin-insight-domains-20260927/check.log",
+      "sha256": "d4f866327595a787b15679c4873f55e95676ccfb463371baedead93b603efa96",
+      "started": "Sun Sep 27 22:41:56 UTC 2026",
+      "finished": "Mon Sep 28 02:03:34 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2559,
+          "pass": 2559,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/linkedin-insight-domains-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/linkedin-insight-domains-20260927/red-check.log",
+      "sha256": "cf2c1f38391300f927036986655302a91909b4a12cff81a80da100ee456cbf62",
+      "meaning": "tests/linkedin-insight-domains.test.mjs against a build of 38b5f00: expected red, 3/3 fail (no reviewed family: WRITE_CONTRACT_UNAVAILABLE)"
+    },
+    {
+      "path": ".runtime/linkedin-insight-domains-20260927/targeted.log",
+      "sha256": "0c5ac327dcf0a90d1b3cca0cc9a1817d78f751077f8ec70f42d9912fbc3a9af9",
+      "meaning": "190 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1954/1954 pass, none skipped."
+    }
+  ],
+  "development_failures": [],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2559,
+    "main_pass": 2559,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "The reference's batch example omits X-RestLi-Method; AMCP requires BATCH_PARTIAL_UPDATE as REST.li does for batch partial updates.",
+    "Whether blocking a domain for one account affects other accounts that share the tag is not documented; the review lists them.",
+    "The batch size of 20 is AMCP's bound; LinkedIn documents none.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

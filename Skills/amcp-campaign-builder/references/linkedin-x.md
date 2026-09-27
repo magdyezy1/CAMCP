@@ -236,11 +236,39 @@ checked 2026-09-27.
 AMCP reads the ad account, the account's Insight Tag and, for an update, the tag and the account's
 access role. Nothing needs spending confirmation. Verification finds the account's tag again (by the
 `x-restli-id` of the receipt) or reads the tag and compares `firstPartyTrackingEnabled`. Sharing
-(Insight Tag permissions) and blocking domains stay outside this contract.
+(Insight Tag permissions) stays outside this contract; blocking domains is covered below.
 `INVALID_LINKEDIN_INSIGHT_TAG` names the field to correct.
 
 Reference: [Conversion Tracking](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/conversion-tracking)
 (Insight Tags), checked 2026-09-27.
+
+## Reviewed LinkedIn Insight Tag domains
+
+LinkedIn lists the domains that send Insight Tag traffic for an ad account; a blocked domain "won't
+send a signal to downstream services", so conversions, website audiences and website demographics
+from it are no longer captured. Domains are keyed `(account:urn:li:sponsoredAccount:{id},domainName:{host})`,
+with the host written without its protocol.
+
+- `linkedin_rest_insight_tag_domains_insight_tag_domain_id_post` with
+  `path_params: {insight_tag_domain_id: "(account:urn:li:sponsoredAccount:507,domainName:www.example.com)"}`
+  and `payload: {patch: {$set: {blocked: true}}}` blocks or allows one domain (`restli_method:
+  PARTIAL_UPDATE` is optional).
+- `linkedin_rest_insight_tag_domains_post` with `restli_method: BATCH_PARTIAL_UPDATE`, `query: {ids:
+  [{account, domainName}, ...]}` and `payload: {entities: {"<key>": {patch: {$set: {blocked}}}}}`
+  updates 1–20 domains, one entity per id.
+
+Every key names the selected sponsored account; AMCP writes the keys in LinkedIn's encoded form
+(`urn%3Ali%3AsponsoredAccount%3A507`), and both forms are accepted as input. AMCP reads the ad
+account, its Insight Tag, its access role and each named domain: an account without a tag, or a
+domain LinkedIn has not listed for the account, is `STATE_NOT_FOUND`; only an account with FULL access
+to the tag may change domains (`ACCOUNT_SCOPE_MISMATCH` otherwise); a domain already in the requested
+state is refused. The review lists the other ad accounts that share the tag. Nothing needs spending
+confirmation; blocking is shown as affecting serving because website audiences may shrink. A batch
+reply with any error is a failure never resubmitted. Verification finds each domain again and
+compares `blocked`. `INVALID_LINKEDIN_INSIGHT_DOMAIN` names the field to correct.
+
+Reference: [Conversion Tracking](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/conversion-tracking)
+(Insight Tag Domains), checked 2026-09-27.
 
 ## Reviewed LinkedIn A/B tests
 
