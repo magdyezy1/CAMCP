@@ -2147,6 +2147,26 @@
     {
       "gateway": "dv360_native_action",
       "arguments": {
+        "action": "DV360_SDFDOWNLOADTASKS_CREATE",
+        "params": {},
+        "body": {
+          "advertiserId": "123",
+          "version": "SDF_VERSION_UNSPECIFIED",
+          "parentEntityFilter": {
+            "fileType": [
+              "FILE_TYPE_LINE_ITEM"
+            ],
+            "filterType": "FILTER_TYPE_ADVERTISER_ID",
+            "filterIds": [
+              "123"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "gateway": "dv360_native_action",
+      "arguments": {
         "action": "DV360_CUSTOM_BIDDING_ALGORITHMS_CREATE",
         "params": {},
         "body": {

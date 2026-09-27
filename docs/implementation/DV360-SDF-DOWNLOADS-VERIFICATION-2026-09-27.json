@@ -1,0 +1,100 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "f2c29f99f0dadd64b61be242405ecc38f2e152e3",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/dv360-sdf-tasks-20260927-a",
+    "files": 994,
+    "source_tree_hash": "4fd895c20a6b4bdc8283f628d4217473d51214347da9b28db8118c5a14c0274e",
+    "index_code_test_guidance_files_compared": 761,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/dv360-sdf-tasks-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/dv360-sdf-tasks-20260927/install.log",
+      "sha256": "3f297ffae731871d8165981fa63d8ab903590393e8d20a27170174d3292ab9db"
+    },
+    {
+      "path": ".runtime/dv360-sdf-tasks-20260927/check.log",
+      "sha256": "512d850e798c76a874c6477da0e7e95bddd4fa03d4a1f1391552e45c146728db",
+      "started": "Sun Sep 27 21:18:16 UTC 2026",
+      "finished": "Mon Sep 28 00:37:40 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2546,
+          "pass": 2546,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/dv360-sdf-tasks-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/dv360-sdf-tasks-20260927/red-check.log",
+      "sha256": "cfe87760f1eeda3720c1dbb07832d42206db2f43a9f6e6e02cf4f088959185ee",
+      "meaning": "tests/dv360-sdf-downloads.test.mjs against a build of f2c29f9 with the pinned document present: expected red, 2/3 fail (no reviewed family: WRITE_CONTRACT_UNAVAILABLE); the malformed-task test passes because the base refuses the route before any request"
+    },
+    {
+      "path": ".runtime/dv360-sdf-tasks-20260927/targeted.log",
+      "sha256": "26b817971d353c5578785fb15fca6fb66740580a637092231becd7550216f1ac",
+      "meaning": "186 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1941/1941 pass, none skipped."
+    }
+  ],
+  "development_failures": [],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2546,
+    "main_pass": 2546,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "The filter ID bounds are AMCP's; DV360 checks that the IDs belong to the advertiser.",
+    "Only authorization of the files' resource name is tested; how DV360_MEDIA_DOWNLOAD transfers the bytes is outside this batch.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

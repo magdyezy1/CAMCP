@@ -92,6 +92,7 @@ import {xScheduledKind,assertXScheduled,xScheduledSnapshots,isXScheduledRead,val
 import {xMediaKind,assertXMedia,xMediaSnapshots,isXMediaRead,validateXMediaState,xMediaPrerequisites,xMediaOutcome,readXMedia} from './x-media-library.js';
 import {xPrerollCtaKind,assertXPrerollCta,xPrerollCtaSnapshots,isXPrerollCtaRead,validateXPrerollCtaState,xPrerollCtaPrerequisites,xPrerollCtaOutcome,readXPrerollCtas} from './x-preroll-ctas.js';
 import {xTrackingTagKind,assertXTrackingTag,xTrackingTagSnapshots,isXTrackingTagRead,validateXTrackingTagState,xTrackingTagPrerequisites,xTrackingTagOutcome,readXTrackingTags} from './x-tracking-tags.js';
+import {dv360SdfKind,assertDV360Sdf,dv360SdfSnapshots,readDV360Sdf,isDV360SdfRead,validateDV360SdfState,dv360SdfPrerequisites,dv360SdfOutcome} from './dv360-sdf-downloads.js';
 import {dv360BiddingKind,assertDV360Bidding,dv360BiddingSnapshots,readDV360Bidding,isDV360BiddingRead,validateDV360BiddingState,dv360BiddingPrerequisites,dv360BiddingOutcome} from './dv360-custom-bidding.js';
 import {dv360AdvertiserKind,assertDV360Advertiser,dv360AdvertiserSnapshots,readDV360Advertiser,isDV360AdvertiserRead,validateDV360AdvertiserState,dv360AdvertiserPrerequisites,dv360AdvertiserOutcome} from './dv360-advertiser-settings.js';
 import {dv360InventoryGroupKind,assertDV360InventoryGroup,dv360InventoryGroupSnapshots,readDV360InventoryGroup,isDV360InventoryGroupRead,validateDV360InventoryGroupState,dv360InventoryGroupPrerequisites,dv360InventoryGroupOutcome} from './dv360-inventory-source-groups.js';
@@ -230,6 +231,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(dv360InventoryGroupKind(plan))return dv360InventoryGroupOutcome(plan,result);
  if(dv360AdvertiserKind(plan))return dv360AdvertiserOutcome(plan,result);
  if(dv360BiddingKind(plan))return dv360BiddingOutcome(plan,result);
+ if(dv360SdfKind(plan))return dv360SdfOutcome(plan,result);
  if(xTrackingTagKind(plan))return xTrackingTagOutcome(plan,result);
  if(xPrerollCtaKind(plan))return xPrerollCtaOutcome(plan,result);
  if(xMediaKind(plan))return xMediaOutcome(plan,result);
@@ -299,6 +301,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  if(isDV360InventoryGroupRead(read)){validateDV360InventoryGroupState(read,result);return;}
  if(isDV360AdvertiserRead(read)){validateDV360AdvertiserState(read,result);return;}
  if(isDV360BiddingRead(read)){validateDV360BiddingState(read,result);return;}
+ if(isDV360SdfRead(read)){validateDV360SdfState(read,result);return;}
  if(isXTrackingTagRead(read)){validateXTrackingTagState(read,result);return;}
  if(isXPrerollCtaRead(read)){validateXPrerollCtaState(read,result);return;}
  if(isXMediaRead(read)){validateXMediaState(read,result);return;}
@@ -468,6 +471,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(dv360InventoryGroupKind(plan)){assertDV360InventoryGroup(plan);return;}
  if(dv360AdvertiserKind(plan)){assertDV360Advertiser(plan);return;}
  if(dv360BiddingKind(plan)){assertDV360Bidding(plan);return;}
+ if(dv360SdfKind(plan)){assertDV360Sdf(plan);return;}
  if(plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['CREATE','PARTIAL_UPDATE','DELETE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))fail('WRITE_CONTRACT_UNAVAILABLE','This REST.li method override is not qualified for reviewed execution.');
  if(gtmWorkflowKind(plan)){assertGtmWorkflow(plan);return;}
  if(gtmWorkspaceKind(plan)){assertGtmWorkspace(plan);return;}
@@ -624,6 +628,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(dv360InventoryGroupKind(plan))return dv360InventoryGroupSnapshots(plan);
  if(dv360AdvertiserKind(plan))return dv360AdvertiserSnapshots(plan);
  if(dv360BiddingKind(plan))return dv360BiddingSnapshots(plan);
+ if(dv360SdfKind(plan))return dv360SdfSnapshots(plan);
  if(xTrackingTagKind(plan))return xTrackingTagSnapshots(plan);
  if(xPrerollCtaKind(plan))return xPrerollCtaSnapshots(plan);
  if(xMediaKind(plan))return xMediaSnapshots(plan);
@@ -777,7 +782,7 @@ export class WriteReviewService {
   if(linkedinThirdPartyKind(plan))assertLinkedInThirdPartyScope(c,true);
   if(linkedinInsightKind(plan))assertLinkedInInsightScope(c,true);
   if(linkedinMessageKind(plan))assertLinkedInMessageScope(c,true);
-  if((dv360ListKind(plan)||dv360TargetingKind(plan)||dv360AdGroupKind(plan)||dv360AdAssetKind(plan)||dv360AdKind(plan)||dv360LineItemBulkKind(plan)||dv360LineItemDuplicateKind(plan)||dv360InventoryGroupKind(plan)||dv360AdvertiserKind(plan)||dv360BiddingKind(plan))&&!c.scopes.includes('https://www.googleapis.com/auth/display-video'))fail('PROVIDER_WRITE_SCOPE_REQUIRED','Reconnect DV360 with the display-video OAuth scope.');
+  if((dv360ListKind(plan)||dv360TargetingKind(plan)||dv360AdGroupKind(plan)||dv360AdAssetKind(plan)||dv360AdKind(plan)||dv360LineItemBulkKind(plan)||dv360LineItemDuplicateKind(plan)||dv360InventoryGroupKind(plan)||dv360AdvertiserKind(plan)||dv360BiddingKind(plan)||dv360SdfKind(plan))&&!c.scopes.includes('https://www.googleapis.com/auth/display-video'))fail('PROVIDER_WRITE_SCOPE_REQUIRED','Reconnect DV360 with the display-video OAuth scope.');
   if(plan.gateway===microsoftGateway&&!c.scopes.some(s=>s===microsoftScope||s==='msads.manage'))fail('INSUFFICIENT_SCOPE','Reconnect Microsoft Advertising with msads.manage permission.');
   plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);assertMeasurementScopes(plan,c);return c;
  }
@@ -880,7 +885,7 @@ export class WriteReviewService {
   });
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
-   try{result=await readGoogleApply(read,applyPage=>readLinkedInInsight(applyPage,insightPage=>readSnapSegmentDelete(insightPage,segmentDeletePage=>readMetaImage(segmentDeletePage,imagePage=>readMetaConversions(imagePage,conversionPage=>readDV360Bidding(conversionPage,biddingPage=>readCriteoCatalog(biddingPage,catalogPage=>readCriteoPreferred(catalogPage,preferredPage=>readXAudience(preferredPage,audiencePage=>readXScheduled(audiencePage,scheduledPage=>readXMedia(scheduledPage,mediaPage=>readXPrerollCtas(mediaPage,ctaPage=>readSnapDisclaimers(ctaPage,disclaimerPage=>readMetaObject(disclaimerPage,metaObjectPage=>readCriteoSegments(metaObjectPage,segmentPage=>readDV360Advertiser(segmentPage,advertiserPage=>readGoogleSubscriptions(advertiserPage,subscriptionPage=>readGoogleSmart(subscriptionPage,smartPage=>readGoogleCustomerSettings(smartPage,settingsPage=>readGoogleAutoAssets(settingsPage,autoAssetPage=>readGoogleUploads(autoAssetPage,uploadPage=>readGoogleExperiments(uploadPage,experimentPage=>readDV360InventoryGroup(experimentPage,inventoryPage=>readCriteoOverrides(inventoryPage,overridePage=>readLinkedInMessage(overridePage,messagePage=>readXCurated(messagePage,curatedPage=>readGoogleDrafts(curatedPage,draftPage=>readXAssociations(draftPage,xAssociationPage=>readLinkedInThirdParty(xAssociationPage,thirdPartyPage=>readXTrackingTags(thirdPartyPage,xTagPage=>readDV360LineItemDuplicate(xTagPage,copyLinePage=>readGoogleCustomerTypes(copyLinePage,typePage=>readSnapchatMediaCopy(typePage,copyPage=>readDV360LineItemBulk(copyPage,bulkPage=>readGoogleBrandGuidelines(bulkPage,brandPage=>readLinkedInTracking(brandPage,trackingPage=>readLinkedInRules(trackingPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;}))))))))))))))))))))))))))))))))))))))))))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
+   try{result=await readDV360Sdf(read,sdfPage=>readGoogleApply(sdfPage,applyPage=>readLinkedInInsight(applyPage,insightPage=>readSnapSegmentDelete(insightPage,segmentDeletePage=>readMetaImage(segmentDeletePage,imagePage=>readMetaConversions(imagePage,conversionPage=>readDV360Bidding(conversionPage,biddingPage=>readCriteoCatalog(biddingPage,catalogPage=>readCriteoPreferred(catalogPage,preferredPage=>readXAudience(preferredPage,audiencePage=>readXScheduled(audiencePage,scheduledPage=>readXMedia(scheduledPage,mediaPage=>readXPrerollCtas(mediaPage,ctaPage=>readSnapDisclaimers(ctaPage,disclaimerPage=>readMetaObject(disclaimerPage,metaObjectPage=>readCriteoSegments(metaObjectPage,segmentPage=>readDV360Advertiser(segmentPage,advertiserPage=>readGoogleSubscriptions(advertiserPage,subscriptionPage=>readGoogleSmart(subscriptionPage,smartPage=>readGoogleCustomerSettings(smartPage,settingsPage=>readGoogleAutoAssets(settingsPage,autoAssetPage=>readGoogleUploads(autoAssetPage,uploadPage=>readGoogleExperiments(uploadPage,experimentPage=>readDV360InventoryGroup(experimentPage,inventoryPage=>readCriteoOverrides(inventoryPage,overridePage=>readLinkedInMessage(overridePage,messagePage=>readXCurated(messagePage,curatedPage=>readGoogleDrafts(curatedPage,draftPage=>readXAssociations(draftPage,xAssociationPage=>readLinkedInThirdParty(xAssociationPage,thirdPartyPage=>readXTrackingTags(thirdPartyPage,xTagPage=>readDV360LineItemDuplicate(xTagPage,copyLinePage=>readGoogleCustomerTypes(copyLinePage,typePage=>readSnapchatMediaCopy(typePage,copyPage=>readDV360LineItemBulk(copyPage,bulkPage=>readGoogleBrandGuidelines(bulkPage,brandPage=>readLinkedInTracking(brandPage,trackingPage=>readLinkedInRules(trackingPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;})))))))))))))))))))))))))))))))))))))))))))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
    const reader=this.access(actor,plan,connectionId);validateState(read,result);if(read.gateway==='snapchat_native_action')new ScopeGuard(this.registry,this.store).observe(read,reader,result.data);
    // A Smart+ bid edit also reads the campaign's ad groups once the ad group names its campaign.
    const sibling=tiktokSmartPlusAdgroupUpdateSiblingRead(plan,read,result.data);if(sibling&&!reads.some(r=>r.path===sibling.path&&stable(r.query)===stable(sibling.query)))reads.push(sibling);
@@ -954,6 +959,7 @@ export class WriteReviewService {
   dv360InventoryGroupPrerequisites(plan,values);
   dv360AdvertiserPrerequisites(plan,values);
   dv360BiddingPrerequisites(plan,values);
+  dv360SdfPrerequisites(plan,values);
   xTrackingTagPrerequisites(plan,values);
   xPrerollCtaPrerequisites(plan,values);
   xMediaPrerequisites(plan,values);

@@ -453,6 +453,31 @@ Verification reads the algorithm again. `INVALID_DV360_CUSTOM_BIDDING` names the
 Reference: [customBiddingAlgorithms](https://developers.google.com/display-video/api/reference/rest/v4/customBiddingAlgorithms)
 and the pinned v4 Discovery document, checked 2026-09-27.
 
+### SDF download tasks
+
+`DV360_SDFDOWNLOADTASKS_CREATE` with `body: {advertiserId, version, parentEntityFilter | idFilter |
+inventorySourceFilter}` starts an asynchronous export of the selected advertiser's entities as
+Structured Data Files; nothing about them changes and no spending confirmation is needed.
+
+- `version` is an SDF version such as `SDF_VERSION_9`, or `SDF_VERSION_UNSPECIFIED` for the
+  advertiser's default; partner-level downloads (`partnerId`) are outside the contract.
+- `parentEntityFilter: {fileType: [...], filterType, filterIds}` exports file types such as
+  `FILE_TYPE_LINE_ITEM` for the advertiser (`FILTER_TYPE_ADVERTISER_ID` with the selected advertiser)
+  or for campaigns, insertion orders, line items or media products by ID; `FILTER_TYPE_NONE` takes
+  no IDs.
+- `idFilter` names entities by ID (up to 150 per list); `inventorySourceFilter` names inventory
+  sources (empty for all).
+
+The reply is an operation (`sdfdownloadtasks/operations/{id}`). Verification reads it until it is
+done without an error; run verify again while it is still running. Once verified, the operation
+(`DV360_SDFDOWNLOADTASKS_OPERATIONS_GET` with `params: {name}`) and the resource name of its files
+(`DV360_MEDIA_DOWNLOAD` with `params: {resourceName}`) are authorized for this advertiser for five
+minutes, AMCP's window for resources it has seen. `INVALID_DV360_SDF_DOWNLOAD` names the field to
+correct.
+
+Reference: [sdfdownloadtasks.create](https://developers.google.com/display-video/api/reference/rest/v4/sdfdownloadtasks/create)
+and the pinned v4 Discovery document, checked 2026-09-27.
+
 ## GA4 — ga4_native_action
 
 Google social sign-in, Ads access, Analytics access and optional Sheets/Drive access are

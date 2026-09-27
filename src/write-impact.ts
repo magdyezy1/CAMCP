@@ -87,6 +87,7 @@ import {dv360LineItemDuplicateImpact} from './dv360-line-item-duplicate.js';
 import {dv360InventoryGroupImpact} from './dv360-inventory-source-groups.js';
 import {dv360AdvertiserImpact} from './dv360-advertiser-settings.js';
 import {dv360BiddingImpact} from './dv360-custom-bidding.js';
+import {dv360SdfImpact} from './dv360-sdf-downloads.js';
 import {xTrackingTagImpact} from './x-tracking-tags.js';
 import {xPrerollCtaImpact} from './x-preroll-ctas.js';
 import {xMediaImpact} from './x-media-library.js';
@@ -188,6 +189,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  const dv360InventoryGroup=dv360InventoryGroupImpact(plan,state);if(dv360InventoryGroup)return dv360InventoryGroup;
  const dv360Advertiser=dv360AdvertiserImpact(plan,state);if(dv360Advertiser)return dv360Advertiser;
  const dv360Bidding=dv360BiddingImpact(plan,state);if(dv360Bidding)return dv360Bidding;
+ const dv360Sdf=dv360SdfImpact(plan,state);if(dv360Sdf)return dv360Sdf;
  const xTag=xTrackingTagImpact(plan,state);if(xTag)return xTag;
  const xCta=xPrerollCtaImpact(plan,state);if(xCta)return xCta;
  const xMedia=xMediaImpact(plan,state);if(xMedia)return xMedia;

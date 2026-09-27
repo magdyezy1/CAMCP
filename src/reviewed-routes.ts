@@ -66,6 +66,7 @@ import {dv360LineItemDuplicateKind} from './dv360-line-item-duplicate.js';
 import {dv360InventoryGroupKind} from './dv360-inventory-source-groups.js';
 import {dv360AdvertiserKind} from './dv360-advertiser-settings.js';
 import {dv360BiddingKind} from './dv360-custom-bidding.js';
+import {dv360SdfKind} from './dv360-sdf-downloads.js';
 import {xTrackingTagKind} from './x-tracking-tags.js';
 import {xPrerollCtaKind} from './x-preroll-ctas.js';
 import {xMediaKind} from './x-media-library.js';
@@ -153,6 +154,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(dv360InventoryGroupKind(p))return 'dv360_inventory_source_groups';
  if(dv360AdvertiserKind(p))return 'dv360_advertiser_settings';
  if(dv360BiddingKind(p))return 'dv360_custom_bidding';
+ if(dv360SdfKind(p))return 'dv360_sdf_downloads';
  if(xTrackingTagKind(p))return 'x_tracking_tags';
  if(xPrerollCtaKind(p))return 'x_preroll_ctas';
  if(xMediaKind(p))return 'x_media_library';

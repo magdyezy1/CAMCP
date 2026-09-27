@@ -6046,8 +6046,8 @@
         {
           "operation": null,
           "action": "DV360_SDFDOWNLOADTASKS_CREATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_sdf_downloads"
         }
       ],
       "mapping_status": "mapped",

@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## EM — DV360 SDF download tasks (2026-09-27)
+
+SDF download tasks of the selected DV360 advertiser can now be started through reviewed requests: one
+filter, never partner access, nothing that spends, and verification that waits until the task is done,
+after which its operation and files are readable for the advertiser. See
+[implementation](DV360-SDF-DOWNLOADS-2026-09-27.md),
+[qualification](DV360-SDF-DOWNLOADS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 769 (one DV360 row reviewed). Pushes go only to CAMCP; its exact-commit CI result and
+live acceptance are pending.
+
 ## EL — Applying Google Ads keyword and campaign budget recommendations (2026-09-27)
 
 Google Ads keyword and campaign budget recommendations can now be applied one review at a time: the
@@ -17,8 +29,8 @@ read back. See [implementation](GOOGLE-RECOMMENDATION-APPLY-2026-09-27.md),
 [qualification](GOOGLE-RECOMMENDATION-APPLY-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 770 (two Google Ads rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
-and live acceptance are pending.
+Remaining rows: 770 (two Google Ads rows reviewed). Committed as `f2c29f9`; its exact-commit CI
+result and live acceptance are pending.
 
 ## EK — LinkedIn Insight Tags (2026-09-27)
 
