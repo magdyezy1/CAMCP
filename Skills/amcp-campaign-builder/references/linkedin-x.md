@@ -562,6 +562,30 @@ or checks that it is deleted. `INVALID_X_LINE_ITEM_ASSOCIATION` names the field 
 Reference: [Promoted Accounts, Media Creatives and Scheduled Promoted Tweets](https://docs.x.com/x-ads-api/campaign-management/reference),
 checked 2026-09-27.
 
+### X pre-roll curated categories
+
+Pre-roll (`PREROLL_VIEWS`) line items run next to the videos of a curated category of publishers;
+each category is available in specific countries (`GET accounts/:account_id/curated_categories`
+with `country_codes`).
+
+- `x_accounts_account_id_line_item_curated_categories_post` (`CREATE_LINE_ITEM_CURATED_CATEGORY`):
+  `payload: {line_item_id, curated_category_id}`.
+- `..._line_item_curated_category_id_put` (`UPDATE_LINE_ITEM_CURATED_CATEGORY`):
+  `params: {line_item_curated_category_id}` and `payload: {curated_category_id}`; the line item of an
+  association never changes.
+- `..._line_item_curated_category_id_delete` (`DELETE_LINE_ITEM_CURATED_CATEGORY`); it counts under
+  the owner's deletion policy.
+
+AMCP reads the association (updates and deletions), the line item (not deleted, `PREROLL_VIEWS`
+objective), its campaign, every association of the account for that line item, and the curated
+category. The same category twice on a line item is `CONFIGURATION_EXISTS`; an unchanged category is
+refused. Adding or replacing a category changes where the ads run, so it needs
+`spend_change_confirmed` and counts as activation under owner policies. Verification reads the
+association by ID. `INVALID_X_CURATED_CATEGORY` names the field to correct.
+
+Reference: [Line Item Curated Categories](https://docs.x.com/x-ads-api/campaign-management/reference),
+checked 2026-09-27.
+
 ### X atomic targeting batches
 
 Use `x_batch_accounts_account_id_targeting_criteria_post` through

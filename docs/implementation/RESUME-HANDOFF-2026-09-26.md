@@ -739,7 +739,16 @@ Tests: `tests/x-line-item-associations.test.mjs` (6), red on `4403458` / green a
 - New reviewed family `google_campaign_drafts` (`src/google-campaign-drafts.ts`) for `CampaignDraftService` mutate (create, rename, remove; legacy actions limited to their own operation) and promote: base campaigns and their drafts read, duplicate names and invalid status transitions refused, promotion with spending confirmation and activation policy, drafts read back and a promotion verified once PROMOTED.
 - Google campaign call bid modifier creation stays blocked: its resource name needs the criterion ID of the CALLS interaction type, which the pinned v23 document does not give.
 
-Tests: `tests/google-campaign-drafts.test.mjs` (5), red on `d355933` / green after.
+Tests: `tests/google-campaign-drafts.test.mjs` (5), red on `d355933` / green after. Pushed as `830de73`.
+
+## Finished batch — X pre-roll curated categories (2026-09-27)
+
+[Implementation](X-CURATED-CATEGORIES-2026-09-27.md) and
+[qualification](X-CURATED-CATEGORIES-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `x_curated_categories` (`src/x-curated-categories.ts`) for the three `line_item_curated_categories` writes: PREROLL_VIEWS line items only, the category, the line item and every association of the account for it read, duplicates and unchanged categories refused, additions and replacements with spending confirmation, and each association read back.
+
+Tests: `tests/x-curated-categories.test.mjs` (4), red on `830de73` / green after.
 
 ## CI and live evidence
 
@@ -753,20 +762,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 573 in reviewed write families. **858 remaining rows** are in
+3241 captured actions; 576 in reviewed write families. **855 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 743 |
+| blocked_write | 740 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 113, Google Ads 87,
-Snapchat 85, X 58, DV360 42, Criteo 34, Business Profile 12.
+Snapchat 85, X 55, DV360 42, Criteo 34, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

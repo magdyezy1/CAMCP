@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DP — X pre-roll curated categories (2026-09-27)
+
+Curated categories of X pre-roll line items can now be added, replaced and removed through reviewed
+requests: the line item, its campaign, its associations and the category are read, non-pre-roll
+line items and duplicates are refused, changes need spending confirmation, and each association is
+read back. See [implementation](X-CURATED-CATEGORIES-2026-09-27.md),
+[qualification](X-CURATED-CATEGORIES-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 855 (three X rows reviewed). Pushed only to CAMCP; its exact-commit CI result and
+live acceptance are pending.
+
 ## DO — Google Ads campaign drafts (2026-09-27)
 
 Campaign drafts can now be created, renamed, removed and promoted through reviewed requests: base
@@ -17,8 +29,8 @@ promotion needs spending confirmation, and drafts are read back (a promotion unt
 [qualification](GOOGLE-CAMPAIGN-DRAFTS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 858 (six Google Ads rows reviewed). Pushed only to CAMCP; its exact-commit CI result
-and live acceptance are pending.
+Remaining rows: 858 (six Google Ads rows reviewed). Pushed to CAMCP as `830de73`; its exact-commit
+CI result and live acceptance are pending.
 
 ## DN — X promoted accounts, media creatives and scheduled promoted Tweets (2026-09-27)
 

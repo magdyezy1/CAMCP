@@ -1,0 +1,102 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "830de738edd670bab401ba6dd03d946dc0945537",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/x-curated-categories-20260927-a",
+    "files": 895,
+    "source_tree_hash": "ceb4e4bd426f5a4e93482f6090db9a8d638494fd1e95f22cbc11e053849d13ec",
+    "index_code_test_guidance_files_compared": 708,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/x-curated-categories-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/x-curated-categories-20260927/install.log",
+      "sha256": "34db277aa3e217cdd93f8ea8f59080455aeb68639bee90222f094aecfbf8d88a"
+    },
+    {
+      "path": ".runtime/x-curated-categories-20260927/check.log",
+      "sha256": "5ab1126b48dc05c6763879de6a67f20d5d312aa49de4c5051d03428bc1c80138",
+      "started": "Sun Sep 27 06:53:20 UTC 2026",
+      "finished": "Sun Sep 27 10:16:52 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2434,
+          "pass": 2434,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/x-curated-categories-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/x-curated-categories-20260927/red-check.log",
+      "sha256": "91b08c711208c5e065353a15b8d9b05fb8b1f33c9368b2984e1a20ed4a305da1",
+      "meaning": "tests/x-curated-categories.test.mjs against a build of 830de73: expected red, 4/4 fail (the three routes had no reviewed family)"
+    },
+    {
+      "path": ".runtime/x-curated-categories-20260927/targeted.log",
+      "sha256": "92c34bf6988f95c598ed5064a54e9f0b8d2017445aa96afbbe79e421a97f3e7e",
+      "meaning": "159 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1829/1829 pass, none skipped."
+    }
+  ],
+  "development_failures": [
+    "None: the four tests passed on their first run after wiring. While drafting, a quotation meant for curated categories turned out to describe advertiser business categories; the implementation note now cites the curated category reference itself."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2434,
+    "main_pass": 2434,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Pre-roll line items need an account feature X grants; the review works on line items that already exist.",
+    "The countries of the line item's targeting are not compared with the category's countries; X refuses a mismatch itself.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

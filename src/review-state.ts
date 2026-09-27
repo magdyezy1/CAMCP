@@ -35,6 +35,7 @@ import {isLinkedInThirdPartyRead} from './linkedin-third-party-tracking.js';
 import {isDV360LineItemDuplicateRead} from './dv360-line-item-duplicate.js';
 import {isXTrackingTagRead} from './x-tracking-tags.js';
 import {isXAssociationRead} from './x-line-item-associations.js';
+import {isXCuratedRead} from './x-curated-categories.js';
 import {isDV360AudienceStateRead,dv360AudienceReviewState} from './dv360-line-item-targeting.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 
@@ -91,6 +92,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isDV360LineItemDuplicateRead(read))return normalizeReviewState(d);
  if(isXTrackingTagRead(read))return normalizeReviewState(d);
  if(isXAssociationRead(read))return normalizeReviewState(d);
+ if(isXCuratedRead(read))return normalizeReviewState(d);
  if(isDV360AudienceStateRead(read))return normalizeReviewState(dv360AudienceReviewState(read,d));
  if(read.gateway==='gtm_native_action')return normalizeReviewState(gtmSafeConfiguration(data));
  if(read.gateway==='tiktok_native_action'&&read.path===tiktokPixelListPath&&Array.isArray(d.data?.pixels))return normalizeReviewState({data:tiktokPixelState(d)});

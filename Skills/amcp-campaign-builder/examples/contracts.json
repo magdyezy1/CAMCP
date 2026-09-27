@@ -2058,6 +2058,17 @@
     {
       "gateway": "x_ads_native_action",
       "arguments": {
+        "action": "x_accounts_account_id_line_item_curated_categories_post",
+        "account_id": "acct1",
+        "payload": {
+          "line_item_id": "pre",
+          "curated_category_id": "9ddrgesiap6o"
+        }
+      }
+    },
+    {
+      "gateway": "x_ads_native_action",
+      "arguments": {
         "action": "x_accounts_account_id_promoted_accounts_post",
         "account_id": "acct1",
         "payload": {
