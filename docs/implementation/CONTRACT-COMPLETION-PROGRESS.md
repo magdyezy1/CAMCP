@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## EN — LinkedIn A/B tests (2026-09-27)
+
+LinkedIn A/B tests can now be created, updated within the limits of their execution state and deleted
+while pending, through reviewed requests: the experiment and its two campaigns are read first, running
+a test needs spending confirmation and counts as activation, and the result is read back. See
+[implementation](LINKEDIN-AB-TESTS-2026-09-27.md),
+[qualification](LINKEDIN-AB-TESTS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 764 (five LinkedIn rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## EM — DV360 SDF download tasks (2026-09-27)
 
 SDF download tasks of the selected DV360 advertiser can now be started through reviewed requests: one
@@ -17,7 +29,7 @@ after which its operation and files are readable for the advertiser. See
 [qualification](DV360-SDF-DOWNLOADS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 769 (one DV360 row reviewed). Pushes go only to CAMCP; its exact-commit CI result and
+Remaining rows: 769 (one DV360 row reviewed). Committed as `4298a36`; its exact-commit CI result and
 live acceptance are pending.
 
 ## EL — Applying Google Ads keyword and campaign budget recommendations (2026-09-27)

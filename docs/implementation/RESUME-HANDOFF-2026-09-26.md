@@ -960,7 +960,16 @@ Tests: `tests/google-recommendation-apply.test.mjs` (4), red on `2ac1127` / gree
 
 - New reviewed family `dv360_sdf_downloads` (`src/dv360-sdf-downloads.ts`) for advertiser SDF download tasks. Verification waits until the operation is done; the verified operation and its files' resource name are then authorized for the advertiser for AMCP's five-minute window.
 
-Tests: `tests/dv360-sdf-downloads.test.mjs` (3), red on `f2c29f9` / green after.
+Tests: `tests/dv360-sdf-downloads.test.mjs` (3), red on `f2c29f9` / green after. Committed as `4298a36`.
+
+## Finished batch — LinkedIn A/B tests (2026-09-27)
+
+[Implementation](LINKEDIN-AB-TESTS-2026-09-27.md) and
+[qualification](LINKEDIN-AB-TESTS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `linkedin_ab_tests` (`src/linkedin-ab-tests.ts`) for creating, updating (by execution state) and deleting (while PENDING) A/B tests, five rows with the alternate path names. Running a test needs spending confirmation and counts as activation.
+
+Tests: `tests/linkedin-ab-tests.test.mjs` (4), red on `4298a36` / green after.
 
 ## CI and live evidence
 
@@ -974,19 +983,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 662 in reviewed write families. **769 remaining rows** are in
+3241 captured actions; 667 in reviewed write families. **764 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 654 |
+| blocked_write | 649 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 186, Meta 117, LinkedIn 103, Snapchat 81,
+Blocked writes by platform: TikTok 186, Meta 117, LinkedIn 98, Snapchat 81,
 Google Ads 57, X 43, DV360 32, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

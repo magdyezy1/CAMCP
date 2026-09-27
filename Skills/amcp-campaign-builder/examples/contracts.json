@@ -2364,6 +2364,24 @@
     {
       "gateway": "linkedin_native_action",
       "arguments": {
+        "action": "linkedin_rest_ad_experiments_ad_experiment_id_post",
+        "account_id": "507",
+        "restli_method": "PARTIAL_UPDATE",
+        "path_params": {
+          "ad_experiment_id": "500"
+        },
+        "payload": {
+          "patch": {
+            "$set": {
+              "name": "Image vs video, round 2"
+            }
+          }
+        }
+      }
+    },
+    {
+      "gateway": "linkedin_native_action",
+      "arguments": {
         "action": "linkedin_rest_insight_tags_post",
         "account_id": "507",
         "payload": {

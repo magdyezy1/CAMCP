@@ -242,6 +242,34 @@ access role. Nothing needs spending confirmation. Verification finds the account
 Reference: [Conversion Tracking](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/conversion-tracking)
 (Insight Tags), checked 2026-09-27.
 
+## Reviewed LinkedIn A/B tests
+
+- `linkedin_rest_ad_experiments_post` creates an experiment: `payload: {account, name, keyMetric,
+  confidence, scheduledStartAt, scheduledEndAt, userIntendedState, autoStop, description, cells}`.
+  `account` is the selected sponsored account; `keyMetric` is CPC, CPM, CPV or CPMS; `confidence` a
+  whole percent from 51 to 99; the schedule (epoch milliseconds) runs at most 90 days and ends in the
+  next 180; a new experiment is `DRAFT` or `ACTIVE`. `cells` holds exactly two cells, each `{name,
+  description, trafficWeight, reference: {campaign}}`, with weights of 1–99 adding up to 100 and two
+  campaigns of the same campaign group that are active, paused or draft.
+- `linkedin_rest_ad_experiments_ad_experiment_id_post` (or `..._experiment_id_post`) with
+  `restli_method: PARTIAL_UPDATE` and `payload: {patch: {$set: {...}}}` sets whole top-level fields.
+  Before the start almost all fields change; after it only `name`, `description`, `scheduledEndAt`,
+  `autoStop`, `confidence`, `userIntendedState` and the names and descriptions of the cells (send the
+  same campaigns and weights). An ENDED experiment is immutable.
+- `linkedin_rest_ad_experiments_ad_experiment_id_delete` (or `..._experiment_id_delete`) deletes an
+  experiment whose `executionState` is PENDING.
+
+AMCP reads the ad account, the experiment (it must belong to the account) and the campaigns of the
+cells. Setting `userIntendedState` to ACTIVE runs the test: its campaigns serve under the traffic
+split, so it needs `spend_change_confirmed` and counts as activation under owner policies; with
+`AUTO_STOP_DISABLED` the campaigns keep running after the test ends. Unchanged values are refused.
+Verification reads the experiment again, or expects it gone after a deletion. LinkedIn refuses
+campaigns already in an overlapping experiment and accounts running a brand lift test; those replies
+are failures never resubmitted. `INVALID_LINKEDIN_AB_TEST` names the field to correct.
+
+Reference: [A/B Testing Management API](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/experimentation/ab-testing/ab-testing),
+checked 2026-09-27.
+
 ## Reviewed LinkedIn Message Ads and Conversation Ads content
 
 Message Ads send InMail content; Conversation Ads send a tree of messages with reply options. Build

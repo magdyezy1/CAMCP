@@ -18,6 +18,7 @@ import {linkedinConversionKind} from './linkedin-conversion-links.js';
 import {linkedinTrackingKind} from './linkedin-tracking-parameters.js';
 import {linkedinThirdPartyKind} from './linkedin-third-party-tracking.js';
 import {linkedinInsightKind} from './linkedin-insight-tags.js';
+import {linkedinAbKind} from './linkedin-ab-tests.js';
 import {linkedinMessageKind} from './linkedin-message-ads.js';
 import {linkedinTemplateKind} from './linkedin-audience-templates.js';
 import {linkedinRuleKind} from './linkedin-conversion-rules.js';
@@ -111,6 +112,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(linkedinTrackingKind(p))return 'linkedin_tracking_parameters';
  if(linkedinThirdPartyKind(p))return 'linkedin_third_party_tracking';
  if(linkedinInsightKind(p))return 'linkedin_insight_tags';
+ if(linkedinAbKind(p))return 'linkedin_ab_tests';
  if(linkedinMessageKind(p))return 'linkedin_message_ads';
  if(linkedinRuleKind(p))return 'linkedin_conversion_rules';
  if(linkedinLeadFormKind(p))return 'linkedin_lead_forms';

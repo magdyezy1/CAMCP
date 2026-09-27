@@ -1,0 +1,100 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "4298a3658263b66a3597318929d581a5a6192378",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/linkedin-ab-tests-20260927-a",
+    "files": 998,
+    "source_tree_hash": "40e9fbcd634ca24727a0ab3f4c6253478ee088aeacce05459a3fd89231075762",
+    "index_code_test_guidance_files_compared": 763,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/linkedin-ab-tests-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/linkedin-ab-tests-20260927/install.log",
+      "sha256": "34db277aa3e217cdd93f8ea8f59080455aeb68639bee90222f094aecfbf8d88a"
+    },
+    {
+      "path": ".runtime/linkedin-ab-tests-20260927/check.log",
+      "sha256": "c3894cffc8935b43844bd6d539c372192cdb4cd9b9cc2044725826ae2e29c470",
+      "started": "Sun Sep 27 21:39:27 UTC 2026",
+      "finished": "Mon Sep 28 00:58:15 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2550,
+          "pass": 2550,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/linkedin-ab-tests-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/linkedin-ab-tests-20260927/red-check.log",
+      "sha256": "abd7a4f39c9bf037086be02d494b34a94ae59b988aa44943f9ef74e0b4af97f4",
+      "meaning": "tests/linkedin-ab-tests.test.mjs against a build of 4298a36: expected red, 3/4 fail (no reviewed family: WRITE_CONTRACT_UNAVAILABLE); the malformed-request test passes because the base refuses the route before any request"
+    },
+    {
+      "path": ".runtime/linkedin-ab-tests-20260927/targeted.log",
+      "sha256": "34dd09fdee5fa76aa586e3fad96669a3cfe8f82c463d725325dff5e3d45a4189",
+      "meaning": "187 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1945/1945 pass, none skipped."
+    }
+  ],
+  "development_failures": [],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2550,
+    "main_pass": 2550,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Overlapping experiments and brand lift tests are left to LinkedIn's refusal; the review does not search other experiments.",
+    "Which campaign statuses LinkedIn accepts in an experiment (active, paused, draft) is AMCP's reading of CAMPAIGN_NOT_SERVABLE, not a documented list.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}
