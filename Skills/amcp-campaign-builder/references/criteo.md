@@ -457,3 +457,39 @@ again. `INVALID_CRITEO_AUDIENCE_SEGMENT` names the field to correct.
 Reference: the pinned 2026-01 OpenAPI document (`bulkCreateAudienceSegments`,
 `bulkUpdateAudienceSegments`, `bulkDeleteAudienceSegments`, `searchAudienceSegments`), checked
 2026-09-27.
+
+## Preferred line items (2026.01)
+
+A preferred (onsite display) line item buys one page placement on one retailer for a budget between
+two dates, with standard or accelerated pacing, an optional frequency cap and an optional creative
+of the account. It belongs to a preferred campaign; the campaign and retailer never change. Select
+one login/account with `RetailMedia_Accounts_Read`, `RetailMedia_Campaign_Read` and
+`RetailMedia_Campaign_Manage` plus an AMCP write grant. Use `operation: criteo_line_item_ops`:
+
+- `CREATE_PREFERRED_LINE_ITEM_BY_CAMPAIGN_ID` with `params: {campaignId}` and `payload: {data:
+  {type: "PreferredLineItem", attributes}}`: `name` (1–255 characters), `startDate` and `endDate`
+  (`YYYY-MM-DD`), `pacing` (`standard` or `accelerated`), `page`, `targetRetailerId`, `budget` (in
+  the account currency) and optionally `capping` (`{type: day | session, count: 1–1000}`),
+  `creativeId` and `status` (`draft` or `paused`; a new line item never starts active). First list
+  the campaign with `criteo_campaign_ops / GET_CAMPAIGNS_BY_ACCOUNT_ID` and `params: {limitToId:
+  ["<campaign ID>"], pageIndex: 0, pageSize: 2}`.
+- `UPDATE_PREFERRED_LINE_ITEM_BY_LINE_ITEM_ID` with `params: {lineItemId}` replaces the whole line
+  item: send `name`, `startDate`, `endDate`, `status` (`active` or `paused`), `budget`, `capping`,
+  `creativeId` (null for none), `pacing` and `page`, never the retailer. First list the line item
+  with `GET_LINE_ITEMS_BY_ACCOUNT_ID` and `params: {limitToId: ["<line item ID>"], limitToType:
+  "Preferred", pageIndex: 0, pageSize: 2}`; one created and verified through AMCP needs no listing.
+
+`page` is `{pageType}` with one of `search`, `home`, `browse`, `checkout`, `category`,
+`productDetail`, `confirmation`, `merchandising`, `deals`, `favorites`, `searchBar` or
+`categoryMenu`; a `category` page may list 1–100 `categories` (`{categoryId, includeChildren}`) and
+a `search` page 1–100 `searchKeywords`.
+
+AMCP reads the account (for its currency), the campaign (it must be a preferred campaign; one tied to
+a retailer takes only that retailer), the line item for updates, and the creative (not archived or
+deleted, and for the same retailer). Every creation and update needs `spend_change_confirmed`; setting
+the status to active counts as activation under owner policies, and budgets follow owner budget
+limits. Unchanged PUTs are refused. Verification reads the line item again and compares every
+writable field and the status. `INVALID_CRITEO_PREFERRED_LINE_ITEM` names the field to correct.
+
+Reference: the pinned 2026-01 OpenAPI document (`CreatePreferredLineItemByCampaignId`,
+`UpdatePreferredLineItemByLineItemId`, `GetPreferredLineItemsByLineItemId`), checked 2026-09-27.

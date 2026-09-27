@@ -2462,8 +2462,8 @@
         {
           "operation": "criteo_line_item_ops",
           "action": "CREATE_PREFERRED_LINE_ITEM_BY_CAMPAIGN_ID",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_preferred_line_items"
         }
       ],
       "mapping_status": "mapped",
@@ -3022,8 +3022,8 @@
         {
           "operation": "criteo_line_item_ops",
           "action": "UPDATE_PREFERRED_LINE_ITEM_BY_LINE_ITEM_ID",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_preferred_line_items"
         }
       ],
       "mapping_status": "mapped",

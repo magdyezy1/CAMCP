@@ -36,6 +36,7 @@ import {isMetaObjectRead} from './meta-object-edits.js';
 import {isMetaBrandSafetyRead,metaBrandSafetyState} from './meta-brand-safety.js';
 import {isCriteoLineItemRead,criteoLineItemReviewState} from './criteo-auction-line-items.js';
 import {isCriteoOverrideRead} from './criteo-budget-overrides.js';
+import {isCriteoPreferredRead} from './criteo-preferred-line-items.js';
 import {isCriteoSegmentRead} from './criteo-audience-segments.js';
 import {isDV360AdGroupRead,dv360AdGroupReviewState} from './dv360-demand-gen-ad-groups.js';
 import {isDV360AdAssetRead,dv360AdAssetReviewState} from './dv360-ad-assets.js';
@@ -106,6 +107,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isMetaBrandSafetyRead(read))return normalizeReviewState(metaBrandSafetyState(read,d));
  if(isCriteoLineItemRead(read))return normalizeReviewState(criteoLineItemReviewState(d));
  if(isCriteoOverrideRead(read))return normalizeReviewState(d);
+ if(isCriteoPreferredRead(read))return normalizeReviewState(d);
  if(isCriteoSegmentRead(read))return normalizeReviewState(d);
  if(isDV360AdGroupRead(read))return normalizeReviewState(dv360AdGroupReviewState(d));
  if(isDV360AdAssetRead(read))return normalizeReviewState(dv360AdAssetReviewState(read,d));

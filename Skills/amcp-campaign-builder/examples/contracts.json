@@ -2637,6 +2637,42 @@
       "arguments": {
         "operation": "criteo_line_item_ops",
         "arguments": {
+          "action": "CREATE_PREFERRED_LINE_ITEM_BY_CAMPAIGN_ID",
+          "account_id": "123",
+          "params": {
+            "campaignId": "458"
+          },
+          "payload": {
+            "data": {
+              "type": "PreferredLineItem",
+              "attributes": {
+                "name": "Category spotlight",
+                "targetRetailerId": "55",
+                "startDate": "2030-10-01",
+                "endDate": "2030-10-31",
+                "budget": 2500,
+                "pacing": "standard",
+                "page": {
+                  "pageType": "category",
+                  "categories": [
+                    {
+                      "categoryId": "shoes",
+                      "includeChildren": true
+                    }
+                  ]
+                },
+                "status": "draft"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "gateway": "criteo_native_action",
+      "arguments": {
+        "operation": "criteo_line_item_ops",
+        "arguments": {
           "action": "CREATE_AUCTION_LINE_ITEM",
           "account_id": "123",
           "params": {
