@@ -61,6 +61,7 @@ import {dv360AdvertiserKind} from './dv360-advertiser-settings.js';
 import {xTrackingTagKind} from './x-tracking-tags.js';
 import {xPrerollCtaKind} from './x-preroll-ctas.js';
 import {xMediaKind} from './x-media-library.js';
+import {xScheduledKind} from './x-scheduled-tweets.js';
 import {xAssociationKind} from './x-line-item-associations.js';
 import {xCuratedKind} from './x-curated-categories.js';
 import {googleTargetingKind} from './google-targeting-writes.js';
@@ -138,6 +139,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(xTrackingTagKind(p))return 'x_tracking_tags';
  if(xPrerollCtaKind(p))return 'x_preroll_ctas';
  if(xMediaKind(p))return 'x_media_library';
+ if(xScheduledKind(p))return 'x_scheduled_tweets';
  if(xAssociationKind(p))return 'x_line_item_associations';
  if(xCuratedKind(p))return 'x_curated_categories';
  if(googleBiddingEventKind(p))return 'google_bidding_events';

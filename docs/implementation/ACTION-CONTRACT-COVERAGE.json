@@ -238,10 +238,10 @@
       "gateway": "x_ads_native_action",
       "actions": 186,
       "counts": {
-        "blocked_write": 49,
+        "blocked_write": 46,
         "media_workflow": 1,
         "native_read": 96,
-        "reviewed_write_family": 40
+        "reviewed_write_family": 43
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -60087,7 +60087,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60114,7 +60115,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60159,7 +60161,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60186,7 +60189,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60213,7 +60217,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60240,7 +60245,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60267,7 +60273,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60294,7 +60301,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60340,7 +60348,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60387,7 +60396,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60433,7 +60443,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60460,7 +60471,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60505,7 +60517,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60550,7 +60563,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60592,7 +60606,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60634,7 +60649,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60691,7 +60707,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60718,7 +60735,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60793,7 +60811,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60835,7 +60854,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60877,7 +60897,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60904,7 +60925,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60946,7 +60968,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60988,7 +61011,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61045,7 +61069,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61087,7 +61112,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61159,7 +61185,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61219,7 +61246,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61264,7 +61292,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61342,7 +61371,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61399,7 +61429,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61441,7 +61472,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61483,7 +61515,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61510,7 +61543,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61555,7 +61589,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61618,7 +61653,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61664,7 +61700,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61729,7 +61766,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61774,7 +61812,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61819,7 +61858,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61864,7 +61904,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61927,7 +61968,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61990,7 +62032,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62035,7 +62078,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62062,7 +62106,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62089,7 +62134,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62152,7 +62198,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62179,7 +62226,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62243,7 +62291,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62285,7 +62334,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62312,7 +62362,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62339,7 +62390,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62402,7 +62454,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62429,7 +62482,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62441,12 +62495,15 @@
       ],
       "method": "POST",
       "path": "/12/accounts/{account_id}/scheduled_tweets",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/x-scheduled-tweets.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/x-scheduled-tweets.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "x_scheduled_tweets"
     },
     {
       "gateway": "x_ads_native_action",
@@ -62456,12 +62513,15 @@
       ],
       "method": "DELETE",
       "path": "/12/accounts/{account_id}/scheduled_tweets/{scheduled_tweet_id}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/x-scheduled-tweets.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/x-scheduled-tweets.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "x_scheduled_tweets"
     },
     {
       "gateway": "x_ads_native_action",
@@ -62486,7 +62546,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62498,12 +62559,15 @@
       ],
       "method": "PUT",
       "path": "/12/accounts/{account_id}/scheduled_tweets/{scheduled_tweet_id}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/x-scheduled-tweets.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/x-scheduled-tweets.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "x_scheduled_tweets"
     },
     {
       "gateway": "x_ads_native_action",
@@ -62528,7 +62592,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62585,7 +62650,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62650,7 +62716,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62692,7 +62759,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62719,7 +62787,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62761,7 +62830,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62824,7 +62894,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62887,7 +62958,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62915,7 +62987,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62960,7 +63033,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63002,7 +63076,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63044,7 +63119,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63149,7 +63225,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63176,7 +63253,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63218,7 +63296,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63245,7 +63324,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63272,7 +63352,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63317,7 +63398,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63374,7 +63456,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63401,7 +63484,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63458,7 +63542,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63515,7 +63600,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63573,7 +63659,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63648,7 +63735,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63675,7 +63763,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63702,7 +63791,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63729,7 +63819,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63756,7 +63847,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63798,7 +63890,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63843,7 +63936,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63870,7 +63964,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63897,7 +63992,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63924,7 +64020,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63951,7 +64048,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63978,7 +64076,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64005,7 +64104,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64032,7 +64132,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64059,7 +64160,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64086,7 +64188,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64113,7 +64216,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64140,7 +64244,8 @@
         "tests/x-line-item-associations.test.mjs",
         "tests/x-curated-categories.test.mjs",
         "tests/x-preroll-ctas.test.mjs",
-        "tests/x-media-library.test.mjs"
+        "tests/x-media-library.test.mjs",
+        "tests/x-scheduled-tweets.test.mjs"
       ],
       "live_qualification": "unverified"
     }

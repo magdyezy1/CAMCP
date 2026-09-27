@@ -82,6 +82,7 @@ import {dv360AdvertiserImpact} from './dv360-advertiser-settings.js';
 import {xTrackingTagImpact} from './x-tracking-tags.js';
 import {xPrerollCtaImpact} from './x-preroll-ctas.js';
 import {xMediaImpact} from './x-media-library.js';
+import {xScheduledImpact} from './x-scheduled-tweets.js';
 import {xAssociationImpact} from './x-line-item-associations.js';
 import {xCuratedImpact} from './x-curated-categories.js';
 import {gtmWorkflowKind} from './gtm-workflow-writes.js';
@@ -173,6 +174,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  const xTag=xTrackingTagImpact(plan,state);if(xTag)return xTag;
  const xCta=xPrerollCtaImpact(plan,state);if(xCta)return xCta;
  const xMedia=xMediaImpact(plan,state);if(xMedia)return xMedia;
+ const xScheduled=xScheduledImpact(plan,state);if(xScheduled)return xScheduled;
  const xAssociation=xAssociationImpact(plan,state);if(xAssociation)return xAssociation;
  const xCurated=xCuratedImpact(plan,state);if(xCurated)return xCurated;
  if(dv360ListKind(plan))return {provider:'dv360',effect:'Channel, location and negative-keyword lists can be shared by enabled line items. Membership edits affect all consumers of this selected-advertiser list. Replacement removes previous members not in the supplied complete list.',verification:'Complete membership read-back, including all pages, compares the resulting set. It does not establish serving or policy approval.',limits:'Advertiser-owned lists only; partner ownership requires separate grants. Maximum 1000 changes, 10000 snapshot members and 100 pages per review.',recovery:'Partial receipts and lost responses do not authorize replay. Preserve the frozen request and inspect membership; corrections require a fresh review.'};

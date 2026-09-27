@@ -2295,6 +2295,19 @@
     {
       "gateway": "x_ads_native_action",
       "arguments": {
+        "action": "x_accounts_account_id_scheduled_tweets_scheduled_tweet_id_put",
+        "account_id": "acct1",
+        "params": {
+          "scheduled_tweet_id": "870358555227860992"
+        },
+        "payload": {
+          "text": "Spring collection, Friday 9am"
+        }
+      }
+    },
+    {
+      "gateway": "x_ads_native_action",
+      "arguments": {
         "action": "x_accounts_account_id_media_library_media_key_put",
         "account_id": "acct1",
         "params": {

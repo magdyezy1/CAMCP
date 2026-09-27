@@ -673,6 +673,31 @@ correct.
 Reference: [Media Library and Account Media](https://docs.x.com/x-ads-api/creatives/reference),
 checked 2026-09-27.
 
+### X scheduled Tweets
+
+A scheduled Tweet is published by X at `scheduled_at`; a line item promotes it through a scheduled
+promoted Tweet (above). AMCP schedules promoted-only Tweets (`nullcast` true, the default), like its
+other Tweet contracts.
+
+- `x_accounts_account_id_scheduled_tweets_post`: `payload: {as_user_id, scheduled_at, text,
+  card_uri | media_keys}`. `as_user_id` is a FULL promotable user of the account; `scheduled_at` is
+  an ISO 8601 UTC time at least 10 minutes ahead (X requires 5 when the request runs); `text` has
+  up to 280 characters and is required unless there is media; `media_keys` is a comma-separated
+  string of up to four images, one GIF or one video; a card and media do not go together.
+- `..._scheduled_tweet_id_put` (`params: {scheduled_tweet_id}`) changes `text`, `card_uri` or
+  `media_keys` (an empty string removes the card or media) until 10 minutes before publication. The
+  time does not change: delete the scheduled Tweet and schedule a new one.
+- `..._scheduled_tweet_id_delete` removes it before publication; the review lists the line items
+  that promote it, and it counts under the owner's deletion policy.
+
+AMCP reads the scheduled Tweet (still `SCHEDULED`, no `tweet_id`), the author among the promotable
+users, the card and each media item (ready, not deleted). Nothing serves until a line item promotes
+the Tweet, so no spending confirmation is needed. A receipt for another author or with other values
+is a failure never resubmitted. Verification reads the scheduled Tweet again: its text, card, media
+and time, or that it is gone. `INVALID_X_SCHEDULED_TWEET` names the field to correct.
+
+Reference: [Scheduled Tweets](https://docs.x.com/x-ads-api/creatives/reference), checked 2026-09-27.
+
 ### X atomic targeting batches
 
 Use `x_batch_accounts_account_id_targeting_criteria_post` through
