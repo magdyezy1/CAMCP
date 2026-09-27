@@ -198,6 +198,29 @@ LinkedIn-Version 202606) and `customValueParameters` (name to fixed text).
 Reference: [Dynamic UTM Tracking](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/dynamic-utm-tracking),
 checked 2026-09-27.
 
+## Reviewed LinkedIn third-party tracking tags
+
+LinkedIn accepts DoubleClick (Campaign Manager 360) impression and click tags on the creatives of
+Sponsored Content, Spotlight Dynamic Ads and Text Ads:
+
+- `linkedin_rest_third_party_tracking_tags_post` with `payload: {entity: "urn:li:sponsoredCreative:<id>",
+  event: "IMPRESSION" | "CLICK", platform: "DOUBLECLICK", trackingUrl}`; the URL is the https tag
+  from DoubleClick (at most 2048 characters, no spaces). LinkedIn sets `id` and `account`.
+- `linkedin_rest_third_party_tracking_tags_tracking_tag_id_delete` with
+  `path_params: {tracking_tag_id}`; it counts under the owner's deletion policy.
+
+AMCP reads the ad account, the creative (it must belong to the selected ad account and not be
+removed or canceled), the tag (for deletions; it must belong to the ad account) and the creative's
+current tags: the same event, platform and URL twice is `CONFIGURATION_EXISTS`. Monitoring or
+blocking tags are refused by LinkedIn. Tags change measurement, not delivery or budgets, so no
+spending confirmation is needed; click tags together with landing page link wrappers double count
+clicks. The new tag's ID comes from `x-restli-id`; verification reads it back (creative, event,
+platform, URL) or checks that a deleted tag is gone. Writes need `rw_ads`.
+`INVALID_LINKEDIN_THIRD_PARTY_TAG` names the field to correct.
+
+Reference: [Third-Party Tracking](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/third-party-tracking),
+checked 2026-09-27.
+
 ## Reviewed LinkedIn conversion rules
 
 Use `linkedin_rest_conversions_post` with `restli_method: CREATE`, the selected

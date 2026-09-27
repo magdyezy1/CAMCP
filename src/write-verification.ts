@@ -48,6 +48,7 @@ import {googleConversionActionKind,verifyGoogleConversionAction} from './google-
 import {xDraftKind,verifyXDraft} from './x-draft-writes.js';
 import {xTargetingBatchRoute,verifyXTargetingBatch} from './x-targeting-batch.js';
 import {linkedinTemplateKind,verifyLinkedInTemplate} from './linkedin-audience-templates.js';
+import {linkedinThirdPartyKind,linkedinThirdPartyVerification,readLinkedInThirdParty,isLinkedInThirdPartyRead,linkedinThirdPartyObserved,assertLinkedInThirdPartyScope} from './linkedin-third-party-tracking.js';
 import {linkedinTrackingKind,linkedinTrackingVerification,readLinkedInTracking,isLinkedInTrackingRead,linkedinTrackingObserved,assertLinkedInTrackingScope} from './linkedin-tracking-parameters.js';
 import {linkedinConversionKind,linkedinConversionVerification,readLinkedInConversions,isLinkedInConversionRead,assertLinkedInConversionScope} from './linkedin-conversion-links.js';
 import {linkedinRuleKind,linkedinRuleVerification,readLinkedInRules,isLinkedInRuleRead} from './linkedin-conversion-rules.js';
@@ -107,6 +108,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
  if(linkedinLeadFormKind(plan))return linkedinLeadFormVerification(plan,result);
  if(linkedinConversionKind(plan))return linkedinConversionVerification(plan);
  if(linkedinTrackingKind(plan))return linkedinTrackingVerification(plan);
+ if(linkedinThirdPartyKind(plan))return linkedinThirdPartyVerification(plan,result,before);
  if(googleBidKind(plan))return googleBidVerification(plan,result);
  if(googleBrandGuidelinesKind(plan))return googleBrandGuidelinesVerification(plan);
  if(googleCustomerTypeKind(plan))return googleCustomerTypeVerification(plan,result,before);
@@ -192,6 +194,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
 }
 function entity(plan:CompiledRequest,data:JsonObject):JsonObject{
  if(isLinkedInTrackingRead(plan))return linkedinTrackingObserved(plan,data);
+ if(isLinkedInThirdPartyRead(plan))return linkedinThirdPartyObserved(plan,data);
  if(isLinkedInConversionRead(plan)||isLinkedInRuleRead(plan))return data;
  if(isLinkedInLeadFormRead(plan))return linkedinLeadFormProjection(data);
  if(isGoogleBidRead(plan))return data;
@@ -267,6 +270,7 @@ export class WriteVerifier{
   if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan)||googlePortfolioKind(plan)||googleConversionActionKind(plan))assertGoogleAdsScope(c);
   if(linkedinConversionKind(plan)||linkedinRuleKind(plan)||linkedinTemplateKind(plan))assertLinkedInConversionScope(c);
   if(linkedinTrackingKind(plan))assertLinkedInTrackingScope(c);
+  if(linkedinThirdPartyKind(plan))assertLinkedInThirdPartyScope(c);
   if(result.success!==true)bad('Inspect the retained partial failure before recovery.','WRITE_PARTIAL_OR_FAILED');
   const cached=optional(this.store,actor.tenantId,'write_verification',reviewId);if(!linkedinTemplateKind(plan)&&!xTargetingBatchRoute(plan)&&!snapUpdateKind(plan)&&!xReportKind(plan)&&!tiktokReportKind(plan)&&!googlePreviewKind(plan)&&cached?.status==='verified'&&Date.now()-cached.checked_at<10000)return {...cached,cached:true};
   let reads:ReturnType<typeof verificationReads>=[],status='unverified',checks:JsonObject[]=[],resources:JsonObject[]=[];
@@ -397,7 +401,7 @@ export class WriteVerifier{
    const expected=normalize(item.expected),readback=await readConsistently(async()=>{
     this.store.assertActorActive(actor);checkAppleAccounts();const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(item.read,current);
     const auth=await this.credentials.get(current);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));
-    let response;try{response=await readXTrackingTags(item.read,xTagPage=>readDV360LineItemDuplicate(xTagPage,copyLinePage=>readGoogleCustomerTypes(copyLinePage,typePage=>readSnapchatMediaCopy(typePage,copyPage=>readDV360LineItemBulk(copyPage,bulkPage=>readGoogleBrandGuidelines(bulkPage,brandPage=>readLinkedInTracking(brandPage,trackingPage=>readLinkedInRules(trackingPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readGtmWorkspace(criteoPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(latest);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.request(actor,page,latest,auth);this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(current);new ScopeGuard(this.registry,this.store).authorize(page,current);return result;}))))))))))))))))))));}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
+    let response;try{response=await readLinkedInThirdParty(item.read,thirdPartyPage=>readXTrackingTags(thirdPartyPage,xTagPage=>readDV360LineItemDuplicate(xTagPage,copyLinePage=>readGoogleCustomerTypes(copyLinePage,typePage=>readSnapchatMediaCopy(typePage,copyPage=>readDV360LineItemBulk(copyPage,bulkPage=>readGoogleBrandGuidelines(bulkPage,brandPage=>readLinkedInTracking(brandPage,trackingPage=>readLinkedInRules(trackingPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readGtmWorkspace(criteoPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(latest);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.request(actor,page,latest,auth);this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(current);new ScopeGuard(this.registry,this.store).authorize(page,current);return result;})))))))))))))))))))));}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
     checkAppleAccounts();return normalize(entity(item.read,response.data as JsonObject));
    },actual=>differing(expected,actual).length===0);
    const actual=readback.value,changed=differing(expected,actual),acknowledged=item.acknowledged??{},unacknowledged=Object.entries(acknowledged).filter(([,v])=>differing(normalize(v.sent),normalize(v.echoed)).length).map(([k])=>'/'+k);

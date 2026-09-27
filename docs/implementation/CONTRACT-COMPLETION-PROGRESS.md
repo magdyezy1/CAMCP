@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DM — LinkedIn third-party tracking tags (2026-09-27)
+
+DoubleClick impression and click tags can now be added to and removed from LinkedIn creatives
+through reviewed requests: the ad account, the creative, the tag and the creative's tags are read,
+duplicates are refused, and each change is read back. See
+[implementation](LINKEDIN-THIRD-PARTY-TRACKING-2026-09-27.md),
+[qualification](LINKEDIN-THIRD-PARTY-TRACKING-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 870 (two LinkedIn rows reviewed). Pushed only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## DL — X line item tracking tags (2026-09-27)
 
 Third-party impression and click trackers of X line items can now be created, re-pointed and
@@ -17,8 +29,8 @@ read, duplicates and deleted targets are refused, and each tag is read back. See
 [qualification](X-TRACKING-TAGS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 872 (three X rows reviewed). Pushed only to CAMCP; its exact-commit CI result and
-live acceptance are pending.
+Remaining rows: 872 (three X rows reviewed). Pushed to CAMCP as `3a2d50d`; its exact-commit CI
+result and live acceptance are pending.
 
 ## DK — DV360 line item duplication (2026-09-27)
 

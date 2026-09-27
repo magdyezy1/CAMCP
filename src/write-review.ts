@@ -44,6 +44,7 @@ import {googleBrandGuidelinesKind,assertGoogleBrandGuidelines,googleBrandGuideli
 import {assertGoogleAdsScope as assertBrandGuidelinesScope} from './google-contracts.js';
 import {googleCustomerTypeKind,assertGoogleCustomerTypes,googleCustomerTypeSnapshots,readGoogleCustomerTypes,isGoogleCustomerTypeRead,validateGoogleCustomerTypeState,googleCustomerTypePrerequisites,googleCustomerTypeOutcome} from './google-user-list-customer-types.js';
 import {googleBidKind,assertGoogleBid,assertGoogleBidScope,googleBidSnapshots,readGoogleBidState,isGoogleBidRead,validateGoogleBidState,googleBidPrerequisites,googleBidOutcome} from './google-bid-modifiers.js';
+import {linkedinThirdPartyKind,assertLinkedInThirdParty,assertLinkedInThirdPartyScope,linkedinThirdPartySnapshots,readLinkedInThirdParty,isLinkedInThirdPartyRead,validateLinkedInThirdPartyState,linkedinThirdPartyPrerequisites,linkedinThirdPartyOutcome} from './linkedin-third-party-tracking.js';
 import {linkedinTrackingKind,assertLinkedInTracking,assertLinkedInTrackingScope,linkedinTrackingSnapshots,readLinkedInTracking,isLinkedInTrackingRead,validateLinkedInTrackingState,linkedinTrackingPrerequisites,linkedinTrackingOutcome} from './linkedin-tracking-parameters.js';
 import {linkedinConversionKind,assertLinkedInConversion,assertLinkedInConversionScope,linkedinConversionSnapshots,readLinkedInConversions,isLinkedInConversionRead,validateLinkedInConversionState,linkedinConversionPrerequisites,linkedinConversionOutcome} from './linkedin-conversion-links.js';
 import {metaLabelKind,assertMetaLabel,assertMetaLabelScope,metaLabelSnapshots,readMetaLabels,validateMetaLabelState,validateMetaLabelPrerequisites,metaLabelOutcome} from './meta-label-writes.js';
@@ -146,6 +147,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(linkedinRuleKind(plan))return linkedinRuleOutcome(plan,result);
  if(linkedinConversionKind(plan))return linkedinConversionOutcome(plan,result);
  if(linkedinTrackingKind(plan))return linkedinTrackingOutcome(plan,result);
+ if(linkedinThirdPartyKind(plan))return linkedinThirdPartyOutcome(plan,result);
  if(googleBidKind(plan))return googleBidOutcome(plan,result);
  if(googleBrandGuidelinesKind(plan))return googleBrandGuidelinesOutcome(plan,result);
  if(googleCustomerTypeKind(plan))return googleCustomerTypeOutcome(plan,result);
@@ -233,6 +235,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  if(isLinkedInLeadFormRead(read)){validateLinkedInLeadFormState(read,result);return;}
  if(isLinkedInConversionRead(read)){validateLinkedInConversionState(read,result);return;}
  if(isLinkedInTrackingRead(read)){validateLinkedInTrackingState(read,result);return;}
+ if(isLinkedInThirdPartyRead(read)){validateLinkedInThirdPartyState(read,result);return;}
  if(isGoogleBidRead(read)){validateGoogleBidState(read,result);return;}
  if(isGoogleBrandGuidelinesRead(read)){validateGoogleBrandGuidelinesState(read,result);return;}
  if(isGoogleCustomerTypeRead(read)){validateGoogleCustomerTypeState(read,result);return;}
@@ -336,6 +339,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(linkedinLeadFormKind(plan)){assertLinkedInLeadForm(plan);return;}
  if(linkedinConversionKind(plan)){assertLinkedInConversion(plan);return;}
  if(linkedinTrackingKind(plan)){assertLinkedInTracking(plan);return;}
+ if(linkedinThirdPartyKind(plan)){assertLinkedInThirdParty(plan);return;}
  if(googleBrandGuidelinesKind(plan)){assertGoogleBrandGuidelines(plan);return;}
  if(googleCustomerTypeKind(plan)){assertGoogleCustomerTypes(plan);return;}
  if(xDraftKind(plan)){assertXDraft(plan);return;}
@@ -455,6 +459,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(linkedinRuleKind(plan))return linkedinRuleSnapshots(plan);
  if(linkedinConversionKind(plan))return linkedinConversionSnapshots(plan);
  if(linkedinTrackingKind(plan))return linkedinTrackingSnapshots(plan);
+ if(linkedinThirdPartyKind(plan))return linkedinThirdPartySnapshots(plan);
  if(googleBidKind(plan))return googleBidSnapshots(plan);
  if(googleBrandGuidelinesKind(plan))return googleBrandGuidelinesSnapshots(plan);
  if(googleCustomerTypeKind(plan))return googleCustomerTypeSnapshots(plan);
@@ -620,6 +625,7 @@ export class WriteReviewService {
   if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan)||googlePortfolioKind(plan)||googleConversionActionKind(plan)||googleListingGroupKind(plan))assertGoogleAdsScope(c);
   if(linkedinConversionKind(plan)||linkedinRuleKind(plan))assertLinkedInConversionScope(c,true);
   if(linkedinTrackingKind(plan))assertLinkedInTrackingScope(c,true);
+  if(linkedinThirdPartyKind(plan))assertLinkedInThirdPartyScope(c,true);
   if((dv360ListKind(plan)||dv360TargetingKind(plan)||dv360AdGroupKind(plan)||dv360AdAssetKind(plan)||dv360AdKind(plan)||dv360LineItemBulkKind(plan)||dv360LineItemDuplicateKind(plan))&&!c.scopes.includes('https://www.googleapis.com/auth/display-video'))fail('PROVIDER_WRITE_SCOPE_REQUIRED','Reconnect DV360 with the display-video OAuth scope.');
   if(plan.gateway===microsoftGateway&&!c.scopes.some(s=>s===microsoftScope||s==='msads.manage'))fail('INSUFFICIENT_SCOPE','Reconnect Microsoft Advertising with msads.manage permission.');
   plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);assertMeasurementScopes(plan,c);return c;
@@ -723,7 +729,7 @@ export class WriteReviewService {
   });
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
-   try{result=await readXTrackingTags(read,xTagPage=>readDV360LineItemDuplicate(xTagPage,copyLinePage=>readGoogleCustomerTypes(copyLinePage,typePage=>readSnapchatMediaCopy(typePage,copyPage=>readDV360LineItemBulk(copyPage,bulkPage=>readGoogleBrandGuidelines(bulkPage,brandPage=>readLinkedInTracking(brandPage,trackingPage=>readLinkedInRules(trackingPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;})))))))))))))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
+   try{result=await readLinkedInThirdParty(read,thirdPartyPage=>readXTrackingTags(thirdPartyPage,xTagPage=>readDV360LineItemDuplicate(xTagPage,copyLinePage=>readGoogleCustomerTypes(copyLinePage,typePage=>readSnapchatMediaCopy(typePage,copyPage=>readDV360LineItemBulk(copyPage,bulkPage=>readGoogleBrandGuidelines(bulkPage,brandPage=>readLinkedInTracking(brandPage,trackingPage=>readLinkedInRules(trackingPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;}))))))))))))))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
    const reader=this.access(actor,plan,connectionId);validateState(read,result);if(read.gateway==='snapchat_native_action')new ScopeGuard(this.registry,this.store).observe(read,reader,result.data);
    // A Smart+ bid edit also reads the campaign's ad groups once the ad group names its campaign.
    const sibling=tiktokSmartPlusAdgroupUpdateSiblingRead(plan,read,result.data);if(sibling&&!reads.some(r=>r.path===sibling.path&&stable(r.query)===stable(sibling.query)))reads.push(sibling);
@@ -748,6 +754,7 @@ export class WriteReviewService {
   googleCustomerTypePrerequisites(plan,values);
   linkedinConversionPrerequisites(plan,values);
   linkedinTrackingPrerequisites(plan,values);
+  linkedinThirdPartyPrerequisites(plan,values);
   linkedinRulePrerequisites(plan,values);
   tiktokAdgroupConversionPrerequisites(plan,values);
   tiktokCtaPortfolioPrerequisites(plan,values);

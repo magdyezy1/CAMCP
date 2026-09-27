@@ -30,6 +30,7 @@ import {isDV360AdGroupRead,dv360AdGroupReviewState} from './dv360-demand-gen-ad-
 import {isDV360AdAssetRead,dv360AdAssetReviewState} from './dv360-ad-assets.js';
 import {isDV360AdRead,dv360AdReviewState} from './dv360-demand-gen-ads.js';
 import {isDV360LineItemBulkRead} from './dv360-line-item-bulk-update.js';
+import {isLinkedInThirdPartyRead} from './linkedin-third-party-tracking.js';
 import {isDV360LineItemDuplicateRead} from './dv360-line-item-duplicate.js';
 import {isXTrackingTagRead} from './x-tracking-tags.js';
 import {isDV360AudienceStateRead,dv360AudienceReviewState} from './dv360-line-item-targeting.js';
@@ -83,6 +84,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isDV360AdAssetRead(read))return normalizeReviewState(dv360AdAssetReviewState(read,d));
  if(isDV360AdRead(read))return normalizeReviewState(dv360AdReviewState(d));
  if(isDV360LineItemBulkRead(read))return normalizeReviewState(d);
+ if(isLinkedInThirdPartyRead(read))return normalizeReviewState(d);
  if(isDV360LineItemDuplicateRead(read))return normalizeReviewState(d);
  if(isXTrackingTagRead(read))return normalizeReviewState(d);
  if(isDV360AudienceStateRead(read))return normalizeReviewState(dv360AudienceReviewState(read,d));

@@ -710,7 +710,16 @@ Tests: `tests/dv360-line-item-duplicate.test.mjs` (5), red on `37b18b3` / green 
 
 - New reviewed family `x_tracking_tags` (`src/x-tracking-tags.ts`) for the three `tracking_tags` writes: impression and click trackers created on a line item, their URL replaced and the tag deleted, with the tag, the line item and its current tags read; duplicates, unchanged URLs and deleted targets refused; each tag read back by ID.
 
-Tests: `tests/x-tracking-tags.test.mjs` (5), red on `1836baf` / green after.
+Tests: `tests/x-tracking-tags.test.mjs` (5), red on `1836baf` / green after. Pushed as `3a2d50d`.
+
+## Finished batch — LinkedIn third-party tracking tags (2026-09-27)
+
+[Implementation](LINKEDIN-THIRD-PARTY-TRACKING-2026-09-27.md) and
+[qualification](LINKEDIN-THIRD-PARTY-TRACKING-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `linkedin_third_party_tracking` (`src/linkedin-third-party-tracking.ts`) for `POST /rest/thirdPartyTrackingTags` and `DELETE /rest/thirdPartyTrackingTags/{id}`: DoubleClick impression and click tags of creatives, with the ad account, the creative, the tag and the creative's tags read; duplicates refused; the new tag read back by its `x-restli-id`, or a deleted tag checked gone.
+
+Tests: `tests/linkedin-third-party-tracking.test.mjs` (5), red on `3a2d50d` / green after.
 
 ## CI and live evidence
 
@@ -724,19 +733,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 559 in reviewed write families. **872 remaining rows** are in
+3241 captured actions; 561 in reviewed write families. **870 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 757 |
+| blocked_write | 755 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 115, Google Ads 93,
+Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 113, Google Ads 93,
 Snapchat 85, X 64, DV360 42, Criteo 34, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

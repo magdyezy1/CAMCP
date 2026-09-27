@@ -2026,6 +2026,19 @@
       }
     },
     {
+      "gateway": "linkedin_native_action",
+      "arguments": {
+        "action": "linkedin_rest_third_party_tracking_tags_post",
+        "account_id": "507",
+        "payload": {
+          "entity": "urn:li:sponsoredCreative:801",
+          "event": "IMPRESSION",
+          "platform": "DOUBLECLICK",
+          "trackingUrl": "https://ad.doubleclick.net/ddm/trackimp/N1234.1234LINKEDIN/B1.2;dc_trk_aid=3;dc_trk_cid=4"
+        }
+      }
+    },
+    {
       "gateway": "x_ads_native_action",
       "arguments": {
         "action": "x_accounts_account_id_tracking_tags_post",
