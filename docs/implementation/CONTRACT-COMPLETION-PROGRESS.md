@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DL — X line item tracking tags (2026-09-27)
+
+Third-party impression and click trackers of X line items can now be created, re-pointed and
+deleted through reviewed requests: the tag, its line item and the line item's current tags are
+read, duplicates and deleted targets are refused, and each tag is read back. See
+[implementation](X-TRACKING-TAGS-2026-09-27.md),
+[qualification](X-TRACKING-TAGS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 872 (three X rows reviewed). Pushed only to CAMCP; its exact-commit CI result and
+live acceptance are pending.
+
 ## DK — DV360 line item duplication (2026-09-27)
 
 A DV360 line item can now be copied into its insertion order in one reviewed request: the line
@@ -16,8 +28,8 @@ copy is read back in draft. See [implementation](DV360-LINE-ITEM-DUPLICATE-2026-
 [qualification](DV360-LINE-ITEM-DUPLICATE-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 875 (one DV360 row reviewed). Pushed only to CAMCP; its exact-commit CI result and
-live acceptance are pending.
+Remaining rows: 875 (one DV360 row reviewed). Pushed to CAMCP as `1836baf`; its exact-commit CI
+result and live acceptance are pending.
 
 ## DJ — Google Ads user list customer types (2026-09-27)
 

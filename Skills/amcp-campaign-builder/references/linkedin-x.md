@@ -480,6 +480,30 @@ ALL_ON_TWITTER, SPOTLIGHT and TREND. Segmented values may not reconcile to total
 recent values, attribution and billing adjustments remain estimates. These
 contracts have synthetic tests; account-specific native acceptance is unverified.
 
+### X line item tracking tags
+
+Third-party impression and click trackers of a line item are separate `tracking_tags`
+resources:
+
+- `x_accounts_account_id_tracking_tags_post` (`CREATE_TRACKING_TAG`): `payload: {line_item_id,
+  tracking_tag_type, tracking_tag_url}` with `IMPRESSION_TAG` or `CLICK_TRACKER` and the https URL
+  the tracking partner gave (at most 2048 characters, no spaces or credentials).
+- `x_accounts_account_id_tracking_tags_tracking_tag_id_put` (`UPDATE_TRACKING_TAG`):
+  `params: {tracking_tag_id}` and `payload: {tracking_tag_url}`; the line item and type of a tag
+  never change, so create a new tag instead.
+- `x_accounts_account_id_tracking_tags_tracking_tag_id_delete` (`DELETE_TRACKING_TAG`):
+  `params: {tracking_tag_id}`; it counts under the owner's deletion policy.
+
+AMCP reads the tag (for updates and deletions), its line item (it must not be deleted) and the
+current tags of the line item: the same type and URL twice is `CONFIGURATION_EXISTS`, an unchanged
+URL and deleted tags are refused. Trackers change measurement, not delivery or budgets, so no
+spending confirmation is needed; a broken click tracker can still break the way to the landing
+page. X decides which partners it accepts. Verification reads the tag again: its line item, type
+and URL, or that it is deleted. `INVALID_X_TRACKING_TAG` names the field to correct.
+
+Reference: [Tracking Tags](https://docs.x.com/x-ads-api/campaign-management/reference), checked
+2026-09-27.
+
 ### X atomic targeting batches
 
 Use `x_batch_accounts_account_id_targeting_criteria_post` through

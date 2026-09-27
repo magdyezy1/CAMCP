@@ -2026,6 +2026,18 @@
       }
     },
     {
+      "gateway": "x_ads_native_action",
+      "arguments": {
+        "action": "x_accounts_account_id_tracking_tags_post",
+        "account_id": "acct1",
+        "payload": {
+          "line_item_id": "line1",
+          "tracking_tag_type": "IMPRESSION_TAG",
+          "tracking_tag_url": "https://ad.doubleclick.net/ddm/trackimp/N1234.2061500TWITTER-OFFICIAL/B9156151.125630439;dc_trk_aid=1355;dc_trk_cid=8675309"
+        }
+      }
+    },
+    {
       "gateway": "dv360_native_action",
       "arguments": {
         "action": "DV360_ADVERTISERS_LINE_ITEMS_DUPLICATE",

@@ -11,6 +11,7 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {MirrorError} from '../dist/src/errors.js';
 import {errorRemedy} from '../dist/src/errors.js';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 
 const size=5*1024*1024,partSize=4*1024*1024,owner='urn:li:organization:500',key=Buffer.alloc(32,68).toString('base64');
 const connection={id:'login',tenantId:'t',gateway:'linkedin_native_action',accounts:['123'],writeAccounts:['123'],enabled:true,label:'Synthetic',scopes:[],resourceBindings:[{accountId:'123',pathPrefix:'/rest/organizations/500'}]};
@@ -53,7 +54,7 @@ function fixture(options={}){
  }
  open(true);
  const call=(args,who=actor)=>service.call('amcp_media',args,who);
- return {get store(){return store;},call,counts:()=>({initialized,parts:[...parts],finalized}),restart:()=>{store.close();open();},crash:reviewId=>{store.close();const result=spawnSync(process.execPath,[fileURLToPath(new URL('./fixtures/linkedin-resume-crash.mjs',import.meta.url)),db,reviewId],{encoding:'utf8',timeout:20000,windowsHide:true});open();return result;},prepare:()=>call({action:'prepare',platform:'linkedin',account_id:'123',connection_id:'login',drive_url:'https://drive.google.com/file/d/abcdefghijklmno/view',owner_urn:owner}),close:()=>{store.close();const resolved=fs.realpathSync(directory);assert.equal(path.dirname(resolved),fs.realpathSync(os.tmpdir()));assert.equal(path.basename(resolved),path.basename(directory));assert.match(path.basename(resolved),/^amcp-linkedin-resume-/);assert.equal(fs.lstatSync(directory).isSymbolicLink(),false);fs.rmSync(resolved,{recursive:true,force:true,maxRetries:5,retryDelay:50});}};
+ return {get store(){return store;},call,counts:()=>({initialized,parts:[...parts],finalized}),restart:()=>{store.close();open();},crash:reviewId=>{store.close();const result=spawnSync(process.execPath,[fileURLToPath(new URL('./fixtures/linkedin-resume-crash.mjs',import.meta.url)),db,reviewId],{encoding:'utf8',timeout:20000,windowsHide:true});open();return result;},prepare:()=>call({action:'prepare',platform:'linkedin',account_id:'123',connection_id:'login',drive_url:'https://drive.google.com/file/d/abcdefghijklmno/view',owner_urn:owner}),close:()=>{store.close();const resolved=fs.realpathSync(directory);assert.equal(path.dirname(resolved),fs.realpathSync(os.tmpdir()));assert.equal(path.basename(resolved),path.basename(directory));assert.match(path.basename(resolved),/^amcp-linkedin-resume-/);assert.equal(fs.lstatSync(directory).isSymbolicLink(),false);removeTestDirectory(resolved,'amcp-linkedin-resume-');}};
 }
 const execution=(p,action='execute')=>({action,review_id:p.data.review_id,idempotency_key:p.data.review_id,confirmed:true});
 
