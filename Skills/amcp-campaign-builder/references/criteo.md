@@ -393,3 +393,37 @@ OpenAPI spelling. Live acceptance remains unverified. The
 [2026.07 migration](https://developers.criteo.com/retail-media/docs/dsp-analytics-migration-guide)
 changes endpoints, filters and limits. Do not silently change the version or copy
 its 10-million-row limit into this 2026.01 workflow.
+
+## Budget overrides (2026.01)
+
+Maintainer: AMCP integration maintainer; reviewed 2026-09-27. An override replaces the daily or
+monthly spending cap of a campaign or line item for a run of days or months, for example a sale
+week. Select one login/account with `RetailMedia_Accounts_Read`, `RetailMedia_Campaign_Read` and
+`RetailMedia_Campaign_Manage`, and list the target first (`GET_CAMPAIGNS_BY_ACCOUNT_ID` or
+`GET_LINE_ITEMS_BY_ACCOUNT_ID` with `limitToId`).
+
+- `criteo_campaign_ops / UPDATE_CAMPAIGN_BUDGET_OVERRIDES` with `params: {campaignId}` and
+  `payload: {data: {attributes: {dailyBudgetOverrides, monthlyBudgetOverrides}}}`.
+- `criteo_line_item_ops / UPDATE_LINE_ITEM_BUDGET_OVERRIDES` with `params: {lineItemId}` and
+  `payload: {data: {attributes: {dailyLineItemBudgetOverrides, monthlyLineItemBudgetOverrides}}}`.
+
+The PUT replaces every override, so send both lists (empty lists remove them all). Daily entries
+are `{startDate: "yyyy-MM-dd", duration: "3D", maxDailySpend}`, monthly entries
+`{startMonth: "yyyy-MM", duration: "2M", maxMonthlySpend}`; caps are amounts of 0 or more in the
+account currency. Each list is chronological without overlaps; a later entry may leave its start
+null to follow the previous one. Criteo computes `status`, which is not sent. AMCP bounds a list at
+50 entries, 366 days or 36 months each.
+
+AMCP reads the account (currency), the target's membership in the account and its current
+overrides. Criteo stores back-to-back overrides with equal caps as one and may return the start of
+an override that follows the previous one as null, so AMCP compares merged runs; an unchanged
+request is refused. Keep every expired override (status `Expired` in the GET) with its cap:
+whether Criteo deletes one left out is undocumented, so such a request is refused. Execution needs
+`spend_change_confirmed`. Owner
+monetary limits measure budgets and paces, not these caps, so a policy with such limits refuses
+overrides (`POLICY_AMOUNT_UNSUPPORTED`). A response with errors or warnings is a failure that is
+never resubmitted. Verification reads the overrides again and compares every start, duration and
+cap as merged runs. `INVALID_CRITEO_BUDGET_OVERRIDE` names the field to correct.
+
+Reference: [Budget Overrides](https://developers.criteo.com/retail-media/docs/budget-overrides)
+and the pinned 2026-01 OpenAPI document, checked 2026-09-27.

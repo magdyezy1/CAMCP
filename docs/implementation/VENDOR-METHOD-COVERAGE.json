@@ -2582,8 +2582,8 @@
         {
           "operation": "criteo_campaign_ops",
           "action": "UPDATE_CAMPAIGN_BUDGET_OVERRIDES",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_budget_overrides"
         }
       ],
       "mapping_status": "mapped",
@@ -2962,8 +2962,8 @@
         {
           "operation": "criteo_line_item_ops",
           "action": "UPDATE_LINE_ITEM_BUDGET_OVERRIDES",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "criteo_budget_overrides"
         }
       ],
       "mapping_status": "mapped",

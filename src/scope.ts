@@ -1,5 +1,6 @@
 import {authorizeCriteoCampaign} from './criteo-campaign-writes.js';
 import {authorizeCriteoLineItem} from './criteo-auction-line-items.js';
+import {authorizeCriteoOverride} from './criteo-budget-overrides.js';
 import {authorizeCriteoPromotedProducts} from './criteo-promoted-products.js';
 import {authorizeCriteoLineItemBidding} from './criteo-line-item-bidding.js';
 import {authorizeMetaReportRead,assertMetaReportScope} from './meta-insights-jobs.js';
@@ -99,6 +100,7 @@ export class ScopeGuard {
   if(plan.gateway==='criteo_native_action'&&plan.action==='AMCP_CRITEO_REPORT_READ')assertCriteoReportScopes(connection);
   if(authorizeCriteoCampaign(plan,connection,this.store,id))return id;
   if(authorizeCriteoLineItem(plan,connection,this.store,id))return id;
+  if(authorizeCriteoOverride(plan,connection,this.store,id))return id;
   if(authorizeCriteoPromotedProducts(plan,connection,this.store,id))return id;
   if(authorizeCriteoLineItemBidding(plan,connection,this.store,id))return id;
   if(authorizeXReport(plan,connection,this.store,id))return id;

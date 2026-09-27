@@ -757,7 +757,16 @@ Tests: `tests/x-curated-categories.test.mjs` (4), red on `830de73` / green after
 
 - New reviewed family `linkedin_message_ads` (`src/linkedin-message-ads.ts`) for InMail content (create, partial update) and sponsored conversations (create, first message and headline updates, message creation single or batch, message updates and batch deletion): the whole message tree checked as it will be, lead forms and conversations of the selected ad account, and read-back. Compound message URNs are fully REST.li-encoded in paths (`src/compiler.ts`).
 
-Tests: `tests/linkedin-message-ads.test.mjs` (5), red on `268cd70` / green after.
+Tests: `tests/linkedin-message-ads.test.mjs` (5), red on `268cd70` / green after. Pushed as `6bf3f05`.
+
+## Finished batch — Criteo campaign and line item budget overrides (2026-09-27)
+
+[Implementation](CRITEO-BUDGET-OVERRIDES-2026-09-27.md) and
+[qualification](CRITEO-BUDGET-OVERRIDES-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `criteo_budget_overrides` (`src/criteo-budget-overrides.ts`) for the two override PUTs: both lists required, chronological without overlaps, null starts following the previous override, membership and current overrides read, expired overrides kept with their caps, spending confirmation, owner monetary limits refusing what they cannot measure, and read-back of every start, duration and cap as merged runs (Criteo merges back-to-back equal caps and returns following starts as null, as noted earlier).
+
+Tests: `tests/criteo-budget-overrides.test.mjs` (6), red on `6bf3f05` / green after.
 
 ## CI and live evidence
 
@@ -771,20 +780,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 584 in reviewed write families. **847 remaining rows** are in
+3241 captured actions; 586 in reviewed write families. **845 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 732 |
+| blocked_write | 730 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 105, Google Ads 87,
-Snapchat 85, X 55, DV360 42, Criteo 34, Business Profile 12.
+Snapchat 85, X 55, DV360 42, Criteo 32, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

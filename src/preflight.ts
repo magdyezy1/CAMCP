@@ -1,6 +1,7 @@
 import {snapUpdateKind} from './snapchat-nested-updates.js';
 import {criteoCampaignKind} from './criteo-campaign-writes.js';
 import {criteoLineItemKind} from './criteo-auction-line-items.js';
+import {criteoOverrideNeedsConfirmation} from './criteo-budget-overrides.js';
 import {criteoPromotedProductsKind} from './criteo-promoted-products.js';
 import {criteoKeywordKind,criteoBidMultiplierKind,criteoKeywordsWiden} from './criteo-line-item-bidding.js';
 import {dv360AdGroupKind,dv360AdGroupNeedsConfirmation} from './dv360-demand-gen-ad-groups.js';
@@ -73,6 +74,7 @@ export function authorizeExecution(actor:Actor,plan:CompiledRequest,input:JsonOb
  if(linkedinConversionKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Campaign conversion associations can affect optimization. Review the selected campaigns and conversion rules and confirm the spending impact.');
  if(linkedinRuleServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Conversion-rule enablement, attribution and matching can affect optimization. Review every associated campaign and confirm this impact.');
  if(criteoCampaignKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Criteo campaign creation and PUT can permit delivery. Review all limits, balances, dates and attribution and provide spend_change_confirmed=true.');
+ if(criteoOverrideNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Budget overrides replace the daily or monthly spending caps of their periods and remove every override left out. Review them and provide spend_change_confirmed=true.');
  if(criteoLineItemKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED',criteoLineItemKind(plan)==='create'?'The new line item carries budgets and bids that apply once products are added and it is activated. Review them and provide spend_change_confirmed=true.':'A complete line item PUT replaces its budgets, bids, dates and status and can start or change delivery. Review every field and provide spend_change_confirmed=true.');
  if(dv360LineItemBulkNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Active line items spend once their insertion order is active. Review the line items and provide spend_change_confirmed=true.');
  if(dv360AdNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','An active Demand Gen ad serves once its ad group and line item are active. Review the ad and provide spend_change_confirmed=true.');

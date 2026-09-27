@@ -2043,6 +2043,33 @@
       }
     },
     {
+      "gateway": "criteo_native_action",
+      "arguments": {
+        "operation": "criteo_campaign_ops",
+        "arguments": {
+          "action": "UPDATE_CAMPAIGN_BUDGET_OVERRIDES",
+          "account_id": "123",
+          "params": {
+            "campaignId": "456"
+          },
+          "payload": {
+            "data": {
+              "attributes": {
+                "dailyBudgetOverrides": [
+                  {
+                    "startDate": "2030-11-24",
+                    "duration": "7D",
+                    "maxDailySpend": 500
+                  }
+                ],
+                "monthlyBudgetOverrides": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "gateway": "linkedin_native_action",
       "arguments": {
         "action": "linkedin_rest_conversation_ads_post",

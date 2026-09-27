@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DR — Criteo campaign and line item budget overrides (2026-09-27)
+
+Budget overrides of Criteo campaigns and line items can now be replaced through reviewed requests:
+the target's membership and current overrides are read, the lists are checked for order and
+overlaps, execution needs spending confirmation, and the overrides are read back. See
+[implementation](CRITEO-BUDGET-OVERRIDES-2026-09-27.md),
+[qualification](CRITEO-BUDGET-OVERRIDES-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 845 (two Criteo rows reviewed). Pushed only to CAMCP; its exact-commit CI result and
+live acceptance are pending.
+
 ## DQ — LinkedIn Message Ads and Conversation Ads content (2026-09-27)
 
 InMail content and sponsored conversations with their message trees can now be created, updated
@@ -18,8 +30,8 @@ first message), and the content is read back. See
 [qualification](LINKEDIN-MESSAGE-ADS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 847 (eight LinkedIn rows reviewed). Pushed only to CAMCP; its exact-commit CI result
-and live acceptance are pending.
+Remaining rows: 847 (eight LinkedIn rows reviewed). Pushed to CAMCP as `6bf3f05`; its exact-commit
+CI result and live acceptance are pending.
 
 ## DP — X pre-roll curated categories (2026-09-27)
 

@@ -1,0 +1,104 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "6bf3f05e0f33aacc137238cab61b05120f4bbe1f",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/criteo-budget-overrides-20260927-a",
+    "files": 903,
+    "source_tree_hash": "2ad192aaba1f7d6960654786d31f749fe585db967fb4da438b661cfddd748323",
+    "index_code_test_guidance_files_compared": 712,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/criteo-budget-overrides-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/criteo-budget-overrides-20260927/install.log",
+      "sha256": "e0241a93e865b80c723edae460de62714000838add04667a87b54771ad5a4a18"
+    },
+    {
+      "path": ".runtime/criteo-budget-overrides-20260927/check.log",
+      "sha256": "0459db6c57f0a206f089a0aa43bdfb42eb0856158d28f43288345c56032fec84",
+      "started": "Sun Sep 27 07:58:46 UTC 2026",
+      "finished": "Sun Sep 27 11:27:44 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2445,
+          "pass": 2445,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/criteo-budget-overrides-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/criteo-budget-overrides-20260927/red-check.log",
+      "sha256": "5500f4330dc0b6492eada99b94620cdf06b0703b29eebd550500733430ca8ba6",
+      "meaning": "tests/criteo-budget-overrides.test.mjs against a build of 6bf3f05: expected red, 6/6 fail (the two routes had no reviewed family)"
+    },
+    {
+      "path": ".runtime/criteo-budget-overrides-20260927/targeted.log",
+      "sha256": "f47658aa646ae0f28345e73793bdfc47896b2188f00c1247c1a2756cfb785ad0",
+      "meaning": "161 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1840/1840 pass, none skipped."
+    }
+  ],
+  "development_failures": [
+    "The synthetic PUT first answered 201 without a body, which the transport refuses (UPSTREAM_RESPONSE_INVALID); the documented answer is 201 with the stored overrides, so the fixture returns that.",
+    "The first draft compared overrides entry by entry and ignored expired ones. The guide's examples (noted in an earlier handoff) show Criteo merging back-to-back equal caps and returning following starts as null, so comparisons now use merged runs, reads accept merged durations, and every expired override must be kept with its cap; a sixth test covers the expired rule."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2445,
+    "main_pass": 2445,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Criteo documents no bounds on the number or length of overrides; AMCP bounds a list at 50 entries of at most 366 days or 36 months.",
+    "Read-back behaviour (back-to-back equal caps merged, following starts returned as null) follows the guide's examples; that Criteo keeps expired overrides sent back unchanged is assumed, and verification fails closed if it does not.",
+    "The documented answer is 201 with the stored overrides; 200 and an empty 204 are also accepted when they carry no errors or warnings. No live answer was observed.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

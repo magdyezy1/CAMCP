@@ -53,7 +53,7 @@ export interface CompiledRequest {
   /** Process-local monotonic deadline for a server-derived report retrieval. */
   criteoReportDeadline?:number;
  criteoCampaignDeadline?:number;
-  scopeContext?:{metaReportReviewId?:string;campaignId?:string;linkedinPostReviewId?:string;microsoftExtensionTypes?:string[];microsoftAssociationPairs?:{entityId:string;extensionId:string}[];appleSharedAccountIds?:string[];appleSharedResultAccounts?:string[];appleSharedOrgId?:string;appleCurrency?:string;gtmPriorAuthHash?:string;redditProfileId?:string;redditProfileUserId?:string;redditPostReviewId?:string;criteoVerifiedLineId?:string;criteoVerifiedCampaignId?:string;criteoLineItemCampaignId?:string;criteoLineItemId?:string};
+  scopeContext?:{metaReportReviewId?:string;campaignId?:string;linkedinPostReviewId?:string;microsoftExtensionTypes?:string[];microsoftAssociationPairs?:{entityId:string;extensionId:string}[];appleSharedAccountIds?:string[];appleSharedResultAccounts?:string[];appleSharedOrgId?:string;appleCurrency?:string;gtmPriorAuthHash?:string;redditProfileId?:string;redditProfileUserId?:string;redditPostReviewId?:string;criteoVerifiedLineId?:string;criteoVerifiedCampaignId?:string;criteoLineItemCampaignId?:string;criteoLineItemId?:string;criteoOverrideCampaignId?:string;criteoOverrideLineItemId?:string};
   reportDownload?:{offset:number;limit:number};
   contractEvidence?:JsonObject;
   /** Internal, derived exact-target GAQL read. Never accepted from client input. */
