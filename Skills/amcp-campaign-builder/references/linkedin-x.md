@@ -627,6 +627,30 @@ association by ID. `INVALID_X_CURATED_CATEGORY` names the field to correct.
 Reference: [Line Item Curated Categories](https://docs.x.com/x-ads-api/campaign-management/reference),
 checked 2026-09-27.
 
+### X pre-roll calls to action
+
+A pre-roll (`PREROLL_VIEWS`) line item can show one button on its ads: `GO_TO`, `SEE_MORE`, `SHOP`,
+`VISIT_SITE` or `WATCH_NOW`, which sends viewers to a destination URL.
+
+- `x_accounts_account_id_preroll_call_to_actions_post`: `payload: {line_item_id, call_to_action,
+  call_to_action_url}`.
+- `..._preroll_call_to_action_id_put`: `params: {preroll_call_to_action_id}` and `payload` with
+  `call_to_action`, `call_to_action_url` or both; the line item never changes.
+- `..._preroll_call_to_action_id_delete` removes the button; it counts under the owner's deletion
+  policy.
+
+The URL is an absolute HTTP(S) address of up to 2048 characters, without spaces or embedded
+credentials. AMCP reads the button (changes and deletions), the line item (not deleted, `PREROLL_VIEWS`
+objective), its campaign and the buttons of the line item. A line item keeps one button, so a second
+one is `CONFIGURATION_EXISTS` (change the first with PUT), and an unchanged button is refused.
+Delivery and budgets do not change, so no spending confirmation is needed; the review says when the
+line item and campaign are active and the change applies at once. Verification reads the button by
+ID: its line item, button and URL, or that it is deleted. `INVALID_X_PREROLL_CTA` names the field to
+correct.
+
+Reference: [Preroll Call To Actions](https://docs.x.com/x-ads-api/creatives/reference), checked
+2026-09-27.
+
 ### X atomic targeting batches
 
 Use `x_batch_accounts_account_id_targeting_criteria_post` through

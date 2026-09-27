@@ -2295,6 +2295,18 @@
     {
       "gateway": "x_ads_native_action",
       "arguments": {
+        "action": "x_accounts_account_id_preroll_call_to_actions_post",
+        "account_id": "acct1",
+        "payload": {
+          "line_item_id": "pre",
+          "call_to_action": "WATCH_NOW",
+          "call_to_action_url": "https://example.com/trailer"
+        }
+      }
+    },
+    {
+      "gateway": "x_ads_native_action",
+      "arguments": {
         "action": "x_accounts_account_id_line_item_curated_categories_post",
         "account_id": "acct1",
         "payload": {

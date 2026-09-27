@@ -852,7 +852,16 @@ Tests: `tests/meta-object-edits.test.mjs` (4), red on `bf6e4a1` / green after. C
 
 - New reviewed family `snapchat_offer_disclaimers` (`src/snapchat-offer-disclaimers.ts`) for creating (1–20, STATIC with text or DYNAMIC from the catalog) and deleting the ad account's offer disclaimers. The review lists every disclaimer of the account (up to 1000); no update is documented, so a changed text is a new disclaimer.
 
-Tests: `tests/snapchat-offer-disclaimers.test.mjs` (3), red on `61f4621` / green after.
+Tests: `tests/snapchat-offer-disclaimers.test.mjs` (3), red on `61f4621` / green after. Committed as `5b0caa4`.
+
+## Finished batch — X pre-roll calls to action (2026-09-27)
+
+[Implementation](X-PREROLL-CTAS-2026-09-27.md) and
+[qualification](X-PREROLL-CTAS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `x_preroll_ctas` (`src/x-preroll-ctas.ts`) for the call-to-action button of `PREROLL_VIEWS` line items (create, change, delete; one button per line item, HTTP(S) destination). No spending confirmation: delivery and budgets do not change.
+
+Tests: `tests/x-preroll-ctas.test.mjs` (5), red on `5b0caa4` / green after.
 
 ## CI and live evidence
 
@@ -866,20 +875,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 633 in reviewed write families. **798 remaining rows** are in
+3241 captured actions; 636 in reviewed write families. **795 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 683 |
+| blocked_write | 680 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 119, LinkedIn 105, Snapchat 83,
-Google Ads 59, X 55, DV360 35, Criteo 29, Business Profile 12.
+Google Ads 59, X 52, DV360 35, Criteo 29, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

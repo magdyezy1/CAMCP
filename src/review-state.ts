@@ -47,6 +47,7 @@ import {isDV360LineItemDuplicateRead} from './dv360-line-item-duplicate.js';
 import {isDV360InventoryGroupRead} from './dv360-inventory-source-groups.js';
 import {isDV360AdvertiserRead} from './dv360-advertiser-settings.js';
 import {isXTrackingTagRead} from './x-tracking-tags.js';
+import {isXPrerollCtaRead} from './x-preroll-ctas.js';
 import {isXAssociationRead} from './x-line-item-associations.js';
 import {isXCuratedRead} from './x-curated-categories.js';
 import {isDV360AudienceStateRead,dv360AudienceReviewState} from './dv360-line-item-targeting.js';
@@ -113,6 +114,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isDV360InventoryGroupRead(read))return normalizeReviewState(d);
  if(isDV360AdvertiserRead(read))return normalizeReviewState(d);
  if(isXTrackingTagRead(read))return normalizeReviewState(d);
+ if(isXPrerollCtaRead(read))return normalizeReviewState(d);
  if(isXAssociationRead(read))return normalizeReviewState(d);
  if(isXCuratedRead(read))return normalizeReviewState(d);
  if(isDV360AudienceStateRead(read))return normalizeReviewState(dv360AudienceReviewState(read,d));

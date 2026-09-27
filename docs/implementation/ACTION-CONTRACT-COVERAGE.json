@@ -238,10 +238,10 @@
       "gateway": "x_ads_native_action",
       "actions": 186,
       "counts": {
-        "blocked_write": 55,
+        "blocked_write": 52,
         "media_workflow": 1,
         "native_read": 96,
-        "reviewed_write_family": 34
+        "reviewed_write_family": 37
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -60085,7 +60085,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60110,7 +60111,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60150,7 +60152,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60175,7 +60178,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60200,7 +60204,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60225,7 +60230,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60250,7 +60256,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60275,7 +60282,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60319,7 +60327,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60364,7 +60373,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60408,7 +60418,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60433,7 +60444,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60476,7 +60488,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60519,7 +60532,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60559,7 +60573,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60599,7 +60614,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60654,7 +60670,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60679,7 +60696,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60752,7 +60770,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60792,7 +60811,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60832,7 +60852,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60857,7 +60878,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60897,7 +60919,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60937,7 +60960,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60992,7 +61016,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61032,7 +61057,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61102,7 +61128,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61160,7 +61187,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61203,7 +61231,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61279,7 +61308,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61334,7 +61364,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61374,7 +61405,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61414,7 +61446,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61439,7 +61472,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61482,7 +61516,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61543,7 +61578,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61587,7 +61623,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61650,7 +61687,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61693,7 +61731,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61736,7 +61775,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61776,7 +61816,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61834,7 +61875,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61846,12 +61888,15 @@
       ],
       "method": "POST",
       "path": "/12/accounts/{account_id}/preroll_call_to_actions",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/x-preroll-ctas.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/x-preroll-ctas.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "x_preroll_ctas"
     },
     {
       "gateway": "x_ads_native_action",
@@ -61861,12 +61906,15 @@
       ],
       "method": "DELETE",
       "path": "/12/accounts/{account_id}/preroll_call_to_actions/{preroll_call_to_action_id}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/x-preroll-ctas.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/x-preroll-ctas.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "x_preroll_ctas"
     },
     {
       "gateway": "x_ads_native_action",
@@ -61889,7 +61937,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61901,12 +61950,15 @@
       ],
       "method": "PUT",
       "path": "/12/accounts/{account_id}/preroll_call_to_actions/{preroll_call_to_action_id}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/x-preroll-ctas.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/x-preroll-ctas.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "x_preroll_ctas"
     },
     {
       "gateway": "x_ads_native_action",
@@ -61929,7 +61981,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61954,7 +62007,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61979,7 +62033,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62040,7 +62095,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62065,7 +62121,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62127,7 +62184,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62167,7 +62225,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62192,7 +62251,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62217,7 +62277,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62278,7 +62339,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62303,7 +62365,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62358,7 +62421,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62398,7 +62462,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62453,7 +62518,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62516,7 +62582,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62556,7 +62623,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62581,7 +62649,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62621,7 +62690,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62682,7 +62752,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62743,7 +62814,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62769,7 +62841,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62812,7 +62885,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62852,7 +62926,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62892,7 +62967,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62995,7 +63071,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63020,7 +63097,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63060,7 +63138,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63085,7 +63164,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63110,7 +63190,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63153,7 +63234,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63208,7 +63290,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63233,7 +63316,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63288,7 +63372,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63343,7 +63428,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63399,7 +63485,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63472,7 +63559,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63497,7 +63585,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63522,7 +63611,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63547,7 +63637,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63572,7 +63663,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63612,7 +63704,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63655,7 +63748,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63680,7 +63774,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63705,7 +63800,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63730,7 +63826,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63755,7 +63852,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63780,7 +63878,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63805,7 +63904,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63830,7 +63930,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63855,7 +63956,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63880,7 +63982,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63905,7 +64008,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63930,7 +64034,8 @@
         "tests/x-audience-estimate.test.mjs",
         "tests/x-tracking-tags.test.mjs",
         "tests/x-line-item-associations.test.mjs",
-        "tests/x-curated-categories.test.mjs"
+        "tests/x-curated-categories.test.mjs",
+        "tests/x-preroll-ctas.test.mjs"
       ],
       "live_qualification": "unverified"
     }
