@@ -1990,6 +1990,25 @@
     {
       "gateway": "dv360_native_action",
       "arguments": {
+        "action": "DV360_ADVERTISERS_LINE_ITEMS_BULK_UPDATE",
+        "params": {
+          "advertiserId": "123"
+        },
+        "body": {
+          "lineItemIds": [
+            "456",
+            "457"
+          ],
+          "targetLineItem": {
+            "entityStatus": "ENTITY_STATUS_PAUSED"
+          },
+          "updateMask": "entityStatus"
+        }
+      }
+    },
+    {
+      "gateway": "dv360_native_action",
+      "arguments": {
         "action": "DV360_ADVERTISERS_LINE_ITEMS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS",
         "params": {
           "advertiserId": "123"

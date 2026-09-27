@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DG — DV360 line item bulk status updates (2026-09-27)
+
+The status or EU political advertising declaration of 1–100 line items can now be set in one
+reviewed request: each line item and insertion order is read, YouTube & Partners, archived and
+unchanged requests are refused, activation needs spending confirmation, and a partial receipt is
+never resubmitted. See [implementation](DV360-LINE-ITEM-BULK-UPDATE-2026-09-27.md),
+[qualification](DV360-LINE-ITEM-BULK-UPDATE-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 878 (one DV360 row reviewed). Pushed only to CAMCP; its exact-commit CI result and
+live acceptance are pending.
+
 ## DF — Google Performance Max brand guidelines (2026-09-27)
 
 Brand guidelines can now be enabled on existing Performance Max campaigns: explicit or
@@ -17,8 +29,8 @@ font. See [implementation](GOOGLE-PMAX-BRAND-GUIDELINES-2026-09-27.md),
 [qualification](GOOGLE-PMAX-BRAND-GUIDELINES-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 879 (two Google Ads rows reviewed). Pushed only to CAMCP; its exact-commit CI result
-and live acceptance are pending.
+Remaining rows: 879 (two Google Ads rows reviewed). Pushed to CAMCP as `903b5c5`; its exact-commit
+CI result and live acceptance are pending.
 
 ## DE — LinkedIn dynamic UTM tracking parameters (2026-09-27)
 

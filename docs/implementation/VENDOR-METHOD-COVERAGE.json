@@ -4262,8 +4262,8 @@
         {
           "operation": null,
           "action": "DV360_ADVERTISERS_LINE_ITEMS_BULK_UPDATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_line_item_bulk_update"
         }
       ],
       "mapping_status": "mapped",

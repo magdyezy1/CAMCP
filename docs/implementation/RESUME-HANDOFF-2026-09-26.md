@@ -653,7 +653,17 @@ Tests: `tests/linkedin-tracking-parameters.test.mjs` (8), red on `c156b32` / gre
 - Reads the customer, campaigns (Performance Max, not removed, no travel goals, not yet enabled) and assets; irreversible, so `spend_change_confirmed` is required; any enablement error fails the outcome; read-back compares links, colors and font.
 - LinkedIn engagement retargeting was researched: DMP segments document the `rw_dmp_segments` permission of LinkedIn's Audiences program, which AMCP does not request, while engagement rules list `rw_ads`. It needs that permission question settled first.
 
-Tests: `tests/google-pmax-brand-guidelines.test.mjs` (6), red on `3dac065` / green after.
+Tests: `tests/google-pmax-brand-guidelines.test.mjs` (6), red on `3dac065` / green after. Pushed as `903b5c5`.
+
+## Finished batch — DV360 line item bulk status updates (2026-09-27)
+
+[Implementation](DV360-LINE-ITEM-BULK-UPDATE-2026-09-27.md) and
+[qualification](DV360-LINE-ITEM-BULK-UPDATE-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `dv360_line_item_bulk_update` (`src/dv360-line-item-bulk-update.ts`) for `lineItems:bulkUpdate`: 1–100 line items, `entityStatus` (active, paused, archived; never back to draft) and/or `containsEuPoliticalAds`, with each line item and insertion order read, YouTube & Partners and archived line items refused, activation confirmation, and read-back of every line item.
+- DV360 YouTube asset associations stay blocked: the pinned document marks them "only available to an informed subset of users" (allowlist).
+
+Tests: `tests/dv360-line-item-bulk-update.test.mjs` (6), red on `903b5c5` / green after.
 
 ## CI and live evidence
 
@@ -667,20 +677,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 552 in reviewed write families. **879 remaining rows** are in
+3241 captured actions; 553 in reviewed write families. **878 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 764 |
+| blocked_write | 763 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 115, Google Ads 94,
-Snapchat 86, X 67, DV360 44, Criteo 34, Business Profile 12.
+Snapchat 86, X 67, DV360 43, Criteo 34, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

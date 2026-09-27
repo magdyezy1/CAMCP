@@ -1,0 +1,103 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "903b5c59cfa32f9b4a74aae72184f1af0c03113b",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/dv360-line-item-bulk-20260927-a",
+    "files": 861,
+    "source_tree_hash": "592c84c61ceeb7ac0de2bf20653c97efc4cc8477b417f0e2e568c5242af417d1",
+    "index_code_test_guidance_files_compared": 692,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/dv360-line-item-bulk-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/dv360-line-item-bulk-20260927/install.log",
+      "sha256": "bde7d279256b0d5606fe571c148e3c4bfb648e5d1a422c0085d458c785271463"
+    },
+    {
+      "path": ".runtime/dv360-line-item-bulk-20260927/check.log",
+      "sha256": "03cfdd07283bfb2308073874e3e21225317a265870686d1bb94244c242c8c9f6",
+      "started": "Sun Sep 27 02:07:27 UTC 2026",
+      "finished": "Sun Sep 27 05:30:04 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2394,
+          "pass": 2394,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/dv360-line-item-bulk-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/dv360-line-item-bulk-20260927/red-check.log",
+      "sha256": "c95f6dd441317fe94aa6099b8ba844dfaf61bbf26c125300338b1cb6eb94df07",
+      "meaning": "tests/dv360-line-item-bulk-update.test.mjs against a build of 903b5c5 with the pinned document present: expected red, 6/6 fail (the route had no reviewed family)"
+    },
+    {
+      "path": ".runtime/dv360-line-item-bulk-20260927/targeted.log",
+      "sha256": "4cbf56b035ecf8404251df8f7e26d709069c9cd3b61c5ee5d373dbb3579e79d9",
+      "meaning": "151 related suite files in the working copy, including every Google, DV360, LinkedIn, Snapchat, media, scope and security suite, with FFmpeg configured: 1789/1789 pass, none skipped."
+    }
+  ],
+  "development_failures": [
+    "The first run failed one of six tests on the wording of a test expectation, not on behaviour; the test was corrected.",
+    "The malformed-request test first accepted two codes; a check showed that every case reaches INVALID_DV360_LINE_ITEM_BULK, and the test now names it."
+  ],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2394,
+    "main_pass": 2394,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "The pinned document states no limit on lineItemIds; AMCP bounds a review at 100 line items.",
+    "Whether DV360 lets an archived line item return to paused or active through this call is not documented; archived line items are refused unless the request archives.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

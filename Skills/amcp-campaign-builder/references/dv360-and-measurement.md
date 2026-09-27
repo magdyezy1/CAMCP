@@ -69,6 +69,30 @@ means discover/reuse the existing member. A stale or uncertain write needs recon
 not another replacement or a new idempotency key. Keyword values use native ASCII words;
 do not transliterate a user's keyword without agreement.
 
+### Line item bulk status updates
+
+`DV360_ADVERTISERS_LINE_ITEMS_BULK_UPDATE` (`params: {advertiserId}`) sets the status or the EU
+political advertising declaration of 1–100 line items at once: `lineItemIds` (decimal strings),
+`targetLineItem` with the new values and `updateMask` listing exactly those fields. DV360 supports
+only `entityStatus` (`ENTITY_STATUS_ACTIVE`, `ENTITY_STATUS_PAUSED` or `ENTITY_STATUS_ARCHIVED`; a
+line item never returns to draft) and `containsEuPoliticalAds` (`CONTAINS_EU_POLITICAL_ADVERTISING`
+or `DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING`) in this call.
+
+- AMCP reads each line item and its insertion order. YouTube & Partners line items (the API cannot
+  update them) and archived line items (unless the request archives) are refused, and so is a
+  request that changes nothing. Line items that already have the values are reported and DV360
+  skips them.
+- Activation needs `spend_change_confirmed` and counts as activation under owner policies: an
+  active line item spends once its insertion order is active.
+- DV360 reports updated, skipped and failed line items; one failure does not undo the others, so a
+  receipt with failed line items is kept as a failure and never resubmitted. Do not run other
+  updates of the same line items at the same time.
+- Verification reads every line item again and compares the updated fields.
+  `INVALID_DV360_LINE_ITEM_BULK` names the field to correct.
+
+Reference: [bulkUpdate](https://developers.google.com/display-video/api/reference/rest/v4/advertisers.lineItems/bulkUpdate),
+checked 2026-09-27.
+
 ### Line item targeting
 
 `DV360_ADVERTISERS_LINE_ITEMS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS` edits the targeting of 1–10

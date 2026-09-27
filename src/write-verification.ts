@@ -78,6 +78,7 @@ import {criteoPromotedProductsKind,criteoPromotedProductsVerification} from './c
 import {criteoKeywordKind,criteoBidMultiplierKind,criteoLineItemBiddingVerification} from './criteo-line-item-bidding.js';
 import {dv360AdGroupKind,dv360AdGroupVerification,isDV360AdGroupRead,dv360AdGroupObserved,readDV360AdGroups} from './dv360-demand-gen-ad-groups.js';
 import {dv360AdAssetKind,dv360AdAssetVerification} from './dv360-ad-assets.js';
+import {dv360LineItemBulkKind,dv360LineItemBulkVerification,readDV360LineItemBulk,isDV360LineItemBulkRead,dv360LineItemBulkObserved} from './dv360-line-item-bulk-update.js';
 import {dv360AdKind,dv360AdVerification,isDV360AdRead,dv360AdObserved,readDV360Ads} from './dv360-demand-gen-ads.js';
 import {gtmWorkflowKind,gtmWorkflowVerification,gtmWorkflowObserved,readGtmWorkflow} from './gtm-workflow-writes.js';
 import {gtmWorkspaceKind,gtmWorkspaceVerification,gtmWorkspaceObserved,readGtmWorkspace} from './gtm-workspace-writes.js';
@@ -122,6 +123,7 @@ function verificationReads(plan:CompiledRequest,result:JsonObject,registry:Regis
  if(dv360AdGroupKind(plan))return dv360AdGroupVerification(plan,result,before);
  if(dv360AdAssetKind(plan))return dv360AdAssetVerification(plan,result);
  if(dv360AdKind(plan))return dv360AdVerification(plan,result,before);
+ if(dv360LineItemBulkKind(plan))return dv360LineItemBulkVerification(plan);
  if(googleConfigurationKind(plan))return googleConfigurationVerification(plan,result);
  if(googleAssetLinkKind(plan))return googleAssetLinkVerification(plan);
  if(microsoftAssociationWrite(plan))return microsoftAssociationVerification(plan,compileMicrosoft);
@@ -205,6 +207,7 @@ function entity(plan:CompiledRequest,data:JsonObject):JsonObject{
  if(isCriteoLineItemRead(plan))return criteoLineItemObserved(plan,data);
  if(isDV360AdGroupRead(plan))return dv360AdGroupObserved(plan,data);
  if(isDV360AdRead(plan))return dv360AdObserved(plan,data);
+ if(isDV360LineItemBulkRead(plan))return dv360LineItemBulkObserved(plan,data);
  if(plan.gateway==='google_ads_native_action')return googleConfigurationObserved(plan,Object.values(data.results?.[0]??{})[0] as JsonObject);
  if(plan.gateway===microsoftGateway)return data[microsoftContracts.get(plan.action)!.result]?.[0];
  if(plan.gateway==='tiktok_native_action'&&plan.path==='/v1.3/identity/info/')return data.data?.identity_info;
@@ -381,7 +384,7 @@ export class WriteVerifier{
    const expected=normalize(item.expected),readback=await readConsistently(async()=>{
     this.store.assertActorActive(actor);checkAppleAccounts();const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);new ScopeGuard(this.registry,this.store).authorize(item.read,current);
     const auth=await this.credentials.get(current);this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));
-    let response;try{response=await readGoogleBrandGuidelines(item.read,brandPage=>readLinkedInTracking(brandPage,trackingPage=>readLinkedInRules(trackingPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readGtmWorkspace(criteoPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(latest);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.request(actor,page,latest,auth);this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(current);new ScopeGuard(this.registry,this.store).authorize(page,current);return result;})))))))))))))));}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
+    let response;try{response=await readDV360LineItemBulk(item.read,bulkPage=>readGoogleBrandGuidelines(bulkPage,brandPage=>readLinkedInTracking(brandPage,trackingPage=>readLinkedInRules(trackingPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readGtmWorkspace(criteoPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{this.store.assertActorActive(actor);const latest=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(latest);new ScopeGuard(this.registry,this.store).authorize(page,latest);const result=await this.request(actor,page,latest,auth);this.store.assertActorActive(actor);const current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id);if(googleBidKind(plan))assertGoogleBidScope(current);new ScopeGuard(this.registry,this.store).authorize(page,current);return result;}))))))))))))))));}catch(e){const absent=optionalMissingState(item.read,e);if(!absent)throw e;response=absent;}this.store.assertActorActive(actor);new ScopeGuard(this.registry,this.store).authorize(item.read,this.store.resolveConnection(actor,plan.gateway,plan.accountId,c.id));validateState(item.read,response);
     checkAppleAccounts();return normalize(entity(item.read,response.data as JsonObject));
    },actual=>differing(expected,actual).length===0);
    const actual=readback.value,changed=differing(expected,actual),acknowledged=item.acknowledged??{},unacknowledged=Object.entries(acknowledged).filter(([,v])=>differing(normalize(v.sent),normalize(v.echoed)).length).map(([k])=>'/'+k);

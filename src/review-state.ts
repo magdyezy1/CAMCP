@@ -27,6 +27,7 @@ import {isCriteoLineItemRead,criteoLineItemReviewState} from './criteo-auction-l
 import {isDV360AdGroupRead,dv360AdGroupReviewState} from './dv360-demand-gen-ad-groups.js';
 import {isDV360AdAssetRead,dv360AdAssetReviewState} from './dv360-ad-assets.js';
 import {isDV360AdRead,dv360AdReviewState} from './dv360-demand-gen-ads.js';
+import {isDV360LineItemBulkRead} from './dv360-line-item-bulk-update.js';
 import {isDV360AudienceStateRead,dv360AudienceReviewState} from './dv360-line-item-targeting.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 
@@ -75,6 +76,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isDV360AdGroupRead(read))return normalizeReviewState(dv360AdGroupReviewState(d));
  if(isDV360AdAssetRead(read))return normalizeReviewState(dv360AdAssetReviewState(read,d));
  if(isDV360AdRead(read))return normalizeReviewState(dv360AdReviewState(d));
+ if(isDV360LineItemBulkRead(read))return normalizeReviewState(d);
  if(isDV360AudienceStateRead(read))return normalizeReviewState(dv360AudienceReviewState(read,d));
  if(read.gateway==='gtm_native_action')return normalizeReviewState(gtmSafeConfiguration(data));
  if(read.gateway==='tiktok_native_action'&&read.path===tiktokPixelListPath&&Array.isArray(d.data?.pixels))return normalizeReviewState({data:tiktokPixelState(d)});
