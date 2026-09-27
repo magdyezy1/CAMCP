@@ -2028,6 +2028,20 @@
     {
       "gateway": "dv360_native_action",
       "arguments": {
+        "action": "DV360_ADVERTISERS_LINE_ITEMS_DUPLICATE",
+        "params": {
+          "advertiserId": "123",
+          "lineItemId": "456"
+        },
+        "body": {
+          "targetDisplayName": "Line 456 copy",
+          "containsEuPoliticalAds": "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING"
+        }
+      }
+    },
+    {
+      "gateway": "dv360_native_action",
+      "arguments": {
         "action": "DV360_ADVERTISERS_LINE_ITEMS_BULK_UPDATE",
         "params": {
           "advertiserId": "123"

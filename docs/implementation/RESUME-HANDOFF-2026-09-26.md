@@ -692,7 +692,16 @@ Tests: `tests/criteo-auction-line-items.test.mjs` (fixture and model test change
 
 - New reviewed family `google_user_list_customer_types` (`src/google-user-list-customer-types.ts`) for `UserListCustomerTypeService.MutateUserListCustomerTypes`: 1–100 attach or remove operations, with the customer's conversion tracking, each list and its current types read; CRM-based or rule-based lists only, conflicting types (the seven documented pairs and loyalty tiers) refused on the types after the request, and every list read back.
 
-Tests: `tests/google-user-list-customer-types.test.mjs` (5), red on `220e746` / green after.
+Tests: `tests/google-user-list-customer-types.test.mjs` (5), red on `220e746` / green after. Pushed as `37b18b3`.
+
+## Finished batch — DV360 line item duplication (2026-09-27)
+
+[Implementation](DV360-LINE-ITEM-DUPLICATE-2026-09-27.md) and
+[qualification](DV360-LINE-ITEM-DUPLICATE-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `dv360_line_item_duplicate` (`src/dv360-line-item-duplicate.ts`) for `lineItems.duplicate`: one line item, a required name (240 UTF-8 bytes) and EU declaration, with the line item and insertion order read; YouTube & Partners and archived sources refused; the copy read back in draft, so no spending confirmation.
+
+Tests: `tests/dv360-line-item-duplicate.test.mjs` (5), red on `37b18b3` / green after.
 
 ## CI and live evidence
 
@@ -706,20 +715,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 555 in reviewed write families. **876 remaining rows** are in
+3241 captured actions; 556 in reviewed write families. **875 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 761 |
+| blocked_write | 760 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 115, Google Ads 93,
-Snapchat 85, X 67, DV360 43, Criteo 34, Business Profile 12.
+Snapchat 85, X 67, DV360 42, Criteo 34, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

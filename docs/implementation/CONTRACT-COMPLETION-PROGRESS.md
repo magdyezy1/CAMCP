@@ -8,6 +8,17 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DK — DV360 line item duplication (2026-09-27)
+
+A DV360 line item can now be copied into its insertion order in one reviewed request: the line
+item and insertion order are read, YouTube & Partners and archived sources are refused, and the
+copy is read back in draft. See [implementation](DV360-LINE-ITEM-DUPLICATE-2026-09-27.md),
+[qualification](DV360-LINE-ITEM-DUPLICATE-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 875 (one DV360 row reviewed). Pushed only to CAMCP; its exact-commit CI result and
+live acceptance are pending.
+
 ## DJ — Google Ads user list customer types (2026-09-27)
 
 Customer types can now be attached to and removed from the advertiser's user lists in one reviewed
@@ -17,8 +28,8 @@ read back. See [implementation](GOOGLE-USER-LIST-CUSTOMER-TYPES-2026-09-27.md),
 [qualification](GOOGLE-USER-LIST-CUSTOMER-TYPES-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 876 (one Google Ads row reviewed). Pushed only to CAMCP; its exact-commit CI result
-and live acceptance are pending.
+Remaining rows: 876 (one Google Ads row reviewed). Pushed to CAMCP as `37b18b3`; its exact-commit
+CI result and live acceptance are pending.
 
 ## DI — Criteo line items in retailer-billed campaigns (2026-09-27)
 

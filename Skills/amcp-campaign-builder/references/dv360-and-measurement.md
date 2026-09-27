@@ -93,6 +93,26 @@ or `DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING`) in this call.
 Reference: [bulkUpdate](https://developers.google.com/display-video/api/reference/rest/v4/advertisers.lineItems/bulkUpdate),
 checked 2026-09-27.
 
+### Line item duplication
+
+`DV360_ADVERTISERS_LINE_ITEMS_DUPLICATE` (`params: {advertiserId, lineItemId}`) copies a line item
+into its own insertion order: `targetDisplayName` (1–240 UTF-8 bytes) and `containsEuPoliticalAds`
+(`CONTAINS_EU_POLITICAL_ADVERTISING` or `DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING`), both
+required by AMCP because a new line item needs the declaration.
+
+- AMCP reads the advertiser, the line item and its insertion order. YouTube & Partners line items
+  (the API cannot create them), archived line items and archived insertion orders are refused.
+- Line items are created in draft, so the copy serves nothing and needs no spending confirmation;
+  review its settings and activate it with a reviewed update.
+- DV360 answers slowly; a request that times out is kept as a lost receipt and never resubmitted.
+  Look for a line item with the new name in the insertion order before preparing another copy.
+- Verification reads the copy returned in `duplicateLineItemId`: its insertion order, type, name,
+  EU declaration and draft status. `INVALID_DV360_LINE_ITEM_DUPLICATE` names the field to correct.
+
+Reference: [duplicate](https://developers.google.com/display-video/api/reference/rest/v4/advertisers.lineItems/duplicate)
+and [Activate Line Item](https://developers.google.com/display-video/api/guides/managing-line-items/activation),
+checked 2026-09-27.
+
 ### Line item targeting
 
 `DV360_ADVERTISERS_LINE_ITEMS_BULK_EDIT_ASSIGNED_TARGETING_OPTIONS` edits the targeting of 1–10
