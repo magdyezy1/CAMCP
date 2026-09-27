@@ -288,6 +288,39 @@ is targeted only once a campaign or ad group criterion or an audience signal use
   `OR_OF_ANDS` default filled and any prepopulation outcome counted as the request, so Google's
   own ordering verifies and a changed rule stays inconclusive.
 
+## User list customer types
+
+`google_ads_v23_user_list_customer_type_mutate_user_list_customer_types` attaches customer types
+to user lists or removes them. A customer type says what a list holds (for example purchasers,
+qualified leads or loyalty members); campaigns with a customer acquisition goal use these lists
+to tell new customers from existing ones, which can change their bids. Types have no update:
+attach and remove.
+
+- 1–100 operations in one request, each `{create: {userList, customerTypeCategory}}` or
+  `{remove: "customers/<customer>/userListCustomerTypes/<user list ID>~<category>"}`, each list
+  and category once; lists of the selected customer only. `partialFailure` and `validateOnly`
+  stay false.
+- Categories: `ALL_CUSTOMERS`, `PURCHASERS`, `HIGH_VALUE_CUSTOMERS`, `DISENGAGED_CUSTOMERS`,
+  `QUALIFIED_LEADS`, `CONVERTED_LEADS`, `PAID_SUBSCRIBERS`, `LOYALTY_SIGN_UPS`, `CART_ABANDONERS`
+  and `LOYALTY_TIER_1_MEMBERS` to `LOYALTY_TIER_7_MEMBERS`.
+- Google refuses conflicting types on one list: purchasers with converted leads, qualified leads
+  or cart abandoners; qualified with converted leads; disengaged customers with converted leads,
+  qualified leads or cart abandoners; and two different loyalty tiers. AMCP checks the types the
+  list will have after the request, so a request can move a list from one tier to another.
+- AMCP reads the customer (conversion tracking must be enabled and managed by this account, or by
+  this manager), each list (CRM-based or rule-based to attach a type; a revoked share is refused)
+  and the current types of each list. An existing type is `CONFIGURATION_EXISTS`; removing a type
+  the list does not have is refused. Lists that v23 cannot name (data-model and GCN lists read as
+  `UNKNOWN`) are refused too.
+- No spending confirmation is needed: budgets and list members do not change. A result that does
+  not name every requested type is a failure and is not resubmitted.
+- Verification reads the types of every list again and compares them with the types after the
+  request. `INVALID_GOOGLE_CUSTOMER_TYPE` names the operation to correct;
+  `CUSTOMER_TYPE_STATE_UNVERIFIED` means the reads were incomplete.
+
+Reference: [UserListCustomerTypeService](https://developers.google.com/google-ads/api/reference/rpc/v23/UserListCustomerTypeService)
+and the `UserListCustomerTypeError` values of the pinned Discovery document, checked 2026-09-27.
+
 ## Conversion value rules
 
 `google_ads_v23_conversion_value_rule_mutate_conversion_value_rules` creates, updates and removes

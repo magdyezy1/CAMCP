@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DJ — Google Ads user list customer types (2026-09-27)
+
+Customer types can now be attached to and removed from the advertiser's user lists in one reviewed
+request, for customer acquisition goals: the customer's conversion tracking, each list and its
+current types are read, ineligible lists and conflicting types are refused, and every list is
+read back. See [implementation](GOOGLE-USER-LIST-CUSTOMER-TYPES-2026-09-27.md),
+[qualification](GOOGLE-USER-LIST-CUSTOMER-TYPES-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 876 (one Google Ads row reviewed). Pushed only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## DI — Criteo line items in retailer-billed campaigns (2026-09-27)
 
 Auction line item, promoted product, keyword and bid multiplier reviews in retailer-billed Criteo
@@ -17,8 +29,8 @@ retailer partners). See [implementation](CRITEO-RETAILER-BILLED-LINE-ITEMS-2026-
 [qualification](CRITEO-RETAILER-BILLED-LINE-ITEMS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 877 (a defect fix). Pushed only to CAMCP; its exact-commit CI result and live
-acceptance are pending.
+Remaining rows: 877 (a defect fix). Pushed to CAMCP as `220e746`; its exact-commit CI result and
+live acceptance are pending.
 
 ## DH — Snapchat media copy between ad accounts (2026-09-27)
 

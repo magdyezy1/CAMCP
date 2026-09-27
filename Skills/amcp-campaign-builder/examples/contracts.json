@@ -748,6 +748,26 @@
     {
       "gateway": "google_ads_native_action",
       "arguments": {
+        "action": "google_ads_v23_user_list_customer_type_mutate_user_list_customer_types",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "userList": "customers/123/userLists/501",
+                "customerTypeCategory": "PURCHASERS"
+              }
+            },
+            {
+              "remove": "customers/123/userListCustomerTypes/501~ALL_CUSTOMERS"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
         "action": "google_ads_v23_campaign_enable_p_max_brand_guidelines",
         "account_id": "123",
         "payload": {

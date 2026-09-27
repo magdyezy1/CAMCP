@@ -683,7 +683,16 @@ Tests: `tests/snapchat-media-copy.test.mjs` (5), red on `e24d475` / green after.
 - Defect fix in `src/criteo-auction-line-items.ts`: the campaign read took only a numeric string as the retailer, while the pinned document types `CampaignV202301.retailerId` as an int32, so every auction line item, promoted product, keyword and bid multiplier review in a retailer-billed campaign stopped as incomplete state. The retailer is now compared as a string.
 - Criteo preferred (onsite display) line items stay blocked: Criteo documents Preferred Deals as a beta "available only to our Retailer partners", with documentation from the account manager, and AMCP connects demand accounts.
 
-Tests: `tests/criteo-auction-line-items.test.mjs` (fixture and model test changed), red on `3123374` / green after.
+Tests: `tests/criteo-auction-line-items.test.mjs` (fixture and model test changed), red on `3123374` / green after. Pushed as `220e746`.
+
+## Finished batch — Google Ads user list customer types (2026-09-27)
+
+[Implementation](GOOGLE-USER-LIST-CUSTOMER-TYPES-2026-09-27.md) and
+[qualification](GOOGLE-USER-LIST-CUSTOMER-TYPES-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `google_user_list_customer_types` (`src/google-user-list-customer-types.ts`) for `UserListCustomerTypeService.MutateUserListCustomerTypes`: 1–100 attach or remove operations, with the customer's conversion tracking, each list and its current types read; CRM-based or rule-based lists only, conflicting types (the seven documented pairs and loyalty tiers) refused on the types after the request, and every list read back.
+
+Tests: `tests/google-user-list-customer-types.test.mjs` (5), red on `220e746` / green after.
 
 ## CI and live evidence
 
@@ -697,19 +706,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 554 in reviewed write families. **877 remaining rows** are in
+3241 captured actions; 555 in reviewed write families. **876 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 762 |
+| blocked_write | 761 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 115, Google Ads 94,
+Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 115, Google Ads 93,
 Snapchat 85, X 67, DV360 43, Criteo 34, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
