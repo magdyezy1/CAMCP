@@ -698,6 +698,25 @@ and time, or that it is gone. `INVALID_X_SCHEDULED_TWEET` names the field to cor
 
 Reference: [Scheduled Tweets](https://docs.x.com/x-ads-api/creatives/reference), checked 2026-09-27.
 
+### X custom audiences
+
+- `x_accounts_account_id_custom_audiences_post`: `payload: {name, description}` creates an empty
+  placeholder audience. Adding users is customer data and stays outside this contract.
+- `..._custom_audience_id_put` (`params: {custom_audience_id}`) changes the name, the description or
+  both.
+- `..._custom_audience_id_delete` deletes the audience; it counts under the owner's deletion policy.
+
+X requires unique names and states no lengths: AMCP keeps names to 1–255 characters (the length
+name search accepts), without surrounding spaces or control characters, and descriptions to 1000.
+AMCP reads the audience (owned by the account: a shared audience is `ACCOUNT_SCOPE_MISMATCH`), the
+audiences whose names match in any case (`CONFIGURATION_EXISTS`) and, for a deletion, every line
+item that targets it, active or not; a targeted audience is refused with `AUDIENCE_IN_USE` (remove
+it from the targeting first). Nothing needs spending confirmation. Verification reads the audience
+again: its name and description, or that it is deleted. `INVALID_X_CUSTOM_AUDIENCE` names the field
+to correct.
+
+Reference: [Custom Audiences](https://docs.x.com/x-ads-api/audiences/reference), checked 2026-09-27.
+
 ### X atomic targeting batches
 
 Use `x_batch_accounts_account_id_targeting_criteria_post` through

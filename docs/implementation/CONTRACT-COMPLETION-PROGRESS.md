@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## EE — X custom audiences (2026-09-27)
+
+X custom audiences can now be created as placeholders, renamed and deleted through reviewed
+requests: ownership and same-name audiences are read first, an audience that a line item targets is
+not deleted, deletions count as deletions, and the result is read back. See
+[implementation](X-CUSTOM-AUDIENCES-2026-09-27.md),
+[qualification](X-CUSTOM-AUDIENCES-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 786 (three X rows reviewed). Pushes go only to CAMCP; its exact-commit CI result and
+live acceptance are pending.
+
 ## ED — X scheduled Tweets (2026-09-27)
 
 Promoted-only scheduled Tweets can now be created, edited until shortly before publication and
@@ -17,7 +29,7 @@ still scheduled changes, deletions count as deletions, and the result is read ba
 [qualification](X-SCHEDULED-TWEETS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 789 (three X rows reviewed). Pushes go only to CAMCP; its exact-commit CI result and
+Remaining rows: 789 (three X rows reviewed). Committed as `63ad83a`; its exact-commit CI result and
 live acceptance are pending.
 
 ## EC — X media library and account media (2026-09-27)

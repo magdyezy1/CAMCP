@@ -50,6 +50,7 @@ import {isXTrackingTagRead} from './x-tracking-tags.js';
 import {isXPrerollCtaRead} from './x-preroll-ctas.js';
 import {isXMediaRead} from './x-media-library.js';
 import {isXScheduledRead} from './x-scheduled-tweets.js';
+import {isXAudienceRead} from './x-custom-audiences.js';
 import {isXAssociationRead} from './x-line-item-associations.js';
 import {isXCuratedRead} from './x-curated-categories.js';
 import {isDV360AudienceStateRead,dv360AudienceReviewState} from './dv360-line-item-targeting.js';
@@ -119,6 +120,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isXPrerollCtaRead(read))return normalizeReviewState(d);
  if(isXMediaRead(read))return normalizeReviewState(d);
  if(isXScheduledRead(read))return normalizeReviewState(d);
+ if(isXAudienceRead(read))return normalizeReviewState(d);
  if(isXAssociationRead(read))return normalizeReviewState(d);
  if(isXCuratedRead(read))return normalizeReviewState(d);
  if(isDV360AudienceStateRead(read))return normalizeReviewState(dv360AudienceReviewState(read,d));

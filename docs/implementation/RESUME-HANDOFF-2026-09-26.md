@@ -879,7 +879,16 @@ Tests: `tests/x-media-library.test.mjs` (5), red on `5f2acb4` / green after. Com
 
 - New reviewed family `x_scheduled_tweets` (`src/x-scheduled-tweets.ts`) for promoted-only scheduled Tweets: create (FULL promotable author, at least 10 minutes ahead), edit text, card or media until 10 minutes before publication, delete before publication. The time never changes; organic (nullcast=false) scheduling stays outside the contract.
 
-Tests: `tests/x-scheduled-tweets.test.mjs` (5), red on `bff2fa6` / green after.
+Tests: `tests/x-scheduled-tweets.test.mjs` (5), red on `bff2fa6` / green after. Committed as `63ad83a`.
+
+## Finished batch — X custom audiences (2026-09-27)
+
+[Implementation](X-CUSTOM-AUDIENCES-2026-09-27.md) and
+[qualification](X-CUSTOM-AUDIENCES-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `x_custom_audiences` (`src/x-custom-audiences.ts`) for placeholder creation, renames and deletions of the account's own custom audiences. Deletion reads what targets the audience and is refused while any line item does (`AUDIENCE_IN_USE`). Users (customer data) and sharing stay outside the contract.
+
+Tests: `tests/x-custom-audiences.test.mjs` (5), red on `63ad83a` / green after.
 
 ## CI and live evidence
 
@@ -893,20 +902,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 642 in reviewed write families. **789 remaining rows** are in
+3241 captured actions; 645 in reviewed write families. **786 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 674 |
+| blocked_write | 671 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 119, LinkedIn 105, Snapchat 83,
-Google Ads 59, X 46, DV360 35, Criteo 29, Business Profile 12.
+Google Ads 59, X 43, DV360 35, Criteo 29, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

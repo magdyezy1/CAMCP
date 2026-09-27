@@ -2295,6 +2295,17 @@
     {
       "gateway": "x_ads_native_action",
       "arguments": {
+        "action": "x_accounts_account_id_custom_audiences_post",
+        "account_id": "acct1",
+        "payload": {
+          "name": "Spring buyers",
+          "description": "CRM list for the spring sale"
+        }
+      }
+    },
+    {
+      "gateway": "x_ads_native_action",
+      "arguments": {
         "action": "x_accounts_account_id_scheduled_tweets_scheduled_tweet_id_put",
         "account_id": "acct1",
         "params": {
