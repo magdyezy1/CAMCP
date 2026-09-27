@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## EK — LinkedIn Insight Tags (2026-09-27)
+
+The Insight Tag of a LinkedIn ad account can now be created, and its first-party tracking switched,
+through reviewed requests: the account's tag and access role are read first (one tag per account,
+FULL access to change it), the review lists every account the setting reaches, and the result is read
+back. See [implementation](LINKEDIN-INSIGHT-TAGS-2026-09-27.md),
+[qualification](LINKEDIN-INSIGHT-TAGS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 772 (two LinkedIn rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## EJ — Snapchat audience segment deletion (2026-09-27)
 
 Snapchat audience segments of the selected ad account can now be deleted through reviewed requests:
@@ -17,8 +29,8 @@ refused, deletions count as deletions, and the segment is read back as gone. See
 [qualification](SNAPCHAT-SEGMENT-DELETION-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 774 (two Snapchat rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
-and live acceptance are pending.
+Remaining rows: 774 (two Snapchat rows reviewed). Committed as `993ee35`; its exact-commit CI
+result and live acceptance are pending.
 
 ## EI — Meta ad image deletion and custom conversion creation (2026-09-27)
 

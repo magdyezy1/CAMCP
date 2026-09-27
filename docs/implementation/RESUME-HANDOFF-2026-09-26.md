@@ -933,7 +933,16 @@ Tests: `tests/meta-ad-images.test.mjs` (3) and `tests/meta-custom-conversions.te
 
 - New reviewed family `snapchat_segment_deletions` (`src/snapchat-segment-deletions.ts`) for deleting listed segments of the ad account (two rows with the alias). A segment that an ad squad includes or excludes is refused (`AUDIENCE_IN_USE`); users and rule audiences stay blocked.
 
-Tests: `tests/snapchat-segment-deletions.test.mjs` (3), red on `7c5d198` / green after.
+Tests: `tests/snapchat-segment-deletions.test.mjs` (3), red on `7c5d198` / green after. Committed as `993ee35`.
+
+## Finished batch — LinkedIn Insight Tags (2026-09-27)
+
+[Implementation](LINKEDIN-INSIGHT-TAGS-2026-09-27.md) and
+[qualification](LINKEDIN-INSIGHT-TAGS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `linkedin_insight_tags` (`src/linkedin-insight-tags.ts`) for creating the ad account's Insight Tag (one per account) and switching its first-party tracking (FULL access; the setting reaches every account sharing the tag). Permissions and domain blocking stay blocked.
+
+Tests: `tests/linkedin-insight-tags.test.mjs` (3), red on `993ee35` / green after.
 
 ## CI and live evidence
 
@@ -947,19 +956,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 657 in reviewed write families. **774 remaining rows** are in
+3241 captured actions; 659 in reviewed write families. **772 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 659 |
+| blocked_write | 657 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 186, Meta 117, LinkedIn 105, Snapchat 81,
+Blocked writes by platform: TikTok 186, Meta 117, LinkedIn 103, Snapchat 81,
 Google Ads 59, X 43, DV360 33, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

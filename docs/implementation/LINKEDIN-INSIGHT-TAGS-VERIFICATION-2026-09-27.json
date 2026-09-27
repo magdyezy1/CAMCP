@@ -1,0 +1,100 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "993ee3513a688866eb3fde6222deab5bf0c03d82",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/linkedin-insight-tags-20260927-a",
+    "files": 986,
+    "source_tree_hash": "25061a2a32cfa93012f5e69ff3cb6cfc0696dc489cf7e5272f600beb689c5672",
+    "index_code_test_guidance_files_compared": 757,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/linkedin-insight-tags-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/linkedin-insight-tags-20260927/install.log",
+      "sha256": "fd1d9de07b2f08802677e9eb68653e02fcf4423e062c4d00c4a3afe0d39973f2"
+    },
+    {
+      "path": ".runtime/linkedin-insight-tags-20260927/check.log",
+      "sha256": "246e8dec9ef00d24d20867790f675bc65e7bff12d0e4eda83f7c01ec22403e85",
+      "started": "Sun Sep 27 20:37:05 UTC 2026",
+      "finished": "Sun Sep 27 23:56:10 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2539,
+          "pass": 2539,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/linkedin-insight-tags-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/linkedin-insight-tags-20260927/red-check.log",
+      "sha256": "e063d2b931fa27d19f159caa505aa5f8b6586247a7c5bd15065b553759665c4e",
+      "meaning": "tests/linkedin-insight-tags.test.mjs against a build of 993ee35: expected red, 2/3 fail (no reviewed family: WRITE_CONTRACT_UNAVAILABLE); the malformed-request test passes because the base refuses the route before any request"
+    },
+    {
+      "path": ".runtime/linkedin-insight-tags-20260927/targeted.log",
+      "sha256": "057ffdc68f0744186d235c74024e34cd7e1fcd1e7f37e68d4404d063bfd320e3",
+      "meaning": "184 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1934/1934 pass, none skipped."
+    }
+  ],
+  "development_failures": [],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2539,
+    "main_pass": 2539,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "The access-role field of the Insight Tag permission read (accessRole) follows the guide's FULL and USE_ONLY roles; its exact response shape is not observed live, and an unreadable role refuses the update.",
+    "Whether LinkedIn accepts turning first-party tracking off for a tag shared by several accounts is left to LinkedIn; the review lists those accounts.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

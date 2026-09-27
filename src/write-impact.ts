@@ -52,6 +52,7 @@ import {linkedinTemplateKind,linkedinTemplateImpact} from './linkedin-audience-t
 import {linkedinConversionKind,linkedinConversionImpact} from './linkedin-conversion-links.js';
 import {linkedinTrackingImpact} from './linkedin-tracking-parameters.js';
 import {linkedinThirdPartyImpact} from './linkedin-third-party-tracking.js';
+import {linkedinInsightImpact} from './linkedin-insight-tags.js';
 import {linkedinMessageImpact} from './linkedin-message-ads.js';
 import {linkedinRuleKind,linkedinRuleImpact} from './linkedin-conversion-rules.js';
 import {redditPostCreation,redditPromotedSource} from './reddit-post-creation.js';
@@ -133,6 +134,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  if(linkedinConversionKind(plan))return linkedinConversionImpact;
  const linkedinTracking=linkedinTrackingImpact(plan,state);if(linkedinTracking)return linkedinTracking;
  const linkedinThirdParty=linkedinThirdPartyImpact(plan,state);if(linkedinThirdParty)return linkedinThirdParty;
+ const linkedinInsight=linkedinInsightImpact(plan,state);if(linkedinInsight)return linkedinInsight;
  const linkedinMessage=linkedinMessageImpact(plan,state);if(linkedinMessage)return linkedinMessage;
  if(linkedinRuleKind(plan))return linkedinRuleImpact;
  if(linkedinLeadFormKind(plan))return linkedinLeadFormImpact(plan,state);

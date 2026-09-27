@@ -2327,6 +2327,18 @@
     {
       "gateway": "linkedin_native_action",
       "arguments": {
+        "action": "linkedin_rest_insight_tags_post",
+        "account_id": "507",
+        "payload": {
+          "sponsoredAccounts": [
+            "urn:li:sponsoredAccount:507"
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "linkedin_native_action",
+      "arguments": {
         "action": "linkedin_rest_third_party_tracking_tags_post",
         "account_id": "507",
         "payload": {

@@ -221,6 +221,27 @@ platform, URL) or checks that a deleted tag is gone. Writes need `rw_ads`.
 Reference: [Third-Party Tracking](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/third-party-tracking),
 checked 2026-09-27.
 
+## Reviewed LinkedIn Insight Tags
+
+- `linkedin_rest_insight_tags_post` with `payload: {sponsoredAccounts: ["urn:li:sponsoredAccount:{selected}"]}`
+  creates the Insight Tag of the selected ad account. "An account can have only one Insight Tag", so
+  an account that already has one (its own or a shared one) is `CONFIGURATION_EXISTS`. The tag tracks
+  nothing until its code is placed on the advertiser's site.
+- `linkedin_rest_insight_tags_insight_tag_id_post` with `restli_method: PARTIAL_UPDATE`,
+  `path_params: {insight_tag_id}` and `payload: {patch: {$set: {firstPartyTrackingEnabled}}}` turns
+  first-party cookie tracking on or off. LinkedIn applies it to every ad account that shares the tag
+  (the review lists them), and only an account with FULL access to its own tag may change it
+  (`ACCOUNT_SCOPE_MISMATCH` otherwise). An unchanged value is refused.
+
+AMCP reads the ad account, the account's Insight Tag and, for an update, the tag and the account's
+access role. Nothing needs spending confirmation. Verification finds the account's tag again (by the
+`x-restli-id` of the receipt) or reads the tag and compares `firstPartyTrackingEnabled`. Sharing
+(Insight Tag permissions) and blocking domains stay outside this contract.
+`INVALID_LINKEDIN_INSIGHT_TAG` names the field to correct.
+
+Reference: [Conversion Tracking](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/conversion-tracking)
+(Insight Tags), checked 2026-09-27.
+
 ## Reviewed LinkedIn Message Ads and Conversation Ads content
 
 Message Ads send InMail content; Conversation Ads send a tree of messages with reply options. Build
