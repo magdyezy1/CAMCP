@@ -906,7 +906,16 @@ Tests: `tests/criteo-preferred-line-items.test.mjs` (6), red on `ac37309` / gree
 
 - New reviewed family `criteo_catalog_requests` (`src/criteo-catalog-requests.ts`) for the four catalog request and export POSTs. No spending confirmation; verification reads the catalog status by the receipt's ID, and a verified catalog is then readable natively for five minutes.
 
-Tests: `tests/criteo-catalog-requests.test.mjs` (4), red on `a20537d` / green after.
+Tests: `tests/criteo-catalog-requests.test.mjs` (4), red on `a20537d` / green after. Committed as `295b1e3`.
+
+## Finished batch — DV360 custom bidding algorithms (2026-09-27)
+
+[Implementation](DV360-CUSTOM-BIDDING-2026-09-27.md) and
+[qualification](DV360-CUSTOM-BIDDING-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `dv360_custom_bidding` (`src/dv360-custom-bidding.ts`) for creating advertiser-owned custom bidding algorithms and patching their name and status. Partner-owned algorithms are refused; scripts and rules (uploads, two rows) remain blocked.
+
+Tests: `tests/dv360-custom-bidding.test.mjs` (4), red on `295b1e3` / green after.
 
 ## CI and live evidence
 
@@ -920,20 +929,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 651 in reviewed write families. **780 remaining rows** are in
+3241 captured actions; 653 in reviewed write families. **778 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 665 |
+| blocked_write | 663 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 119, LinkedIn 105, Snapchat 83,
-Google Ads 59, X 43, DV360 35, Criteo 23, Business Profile 12.
+Google Ads 59, X 43, DV360 33, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

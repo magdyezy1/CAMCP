@@ -3762,8 +3762,8 @@
         {
           "operation": null,
           "action": "DV360_CUSTOM_BIDDING_ALGORITHMS_CREATE",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_custom_bidding"
         }
       ],
       "mapping_status": "mapped",
@@ -3782,8 +3782,8 @@
         {
           "operation": null,
           "action": "DV360_CUSTOM_BIDDING_ALGORITHMS_PATCH",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_custom_bidding"
         }
       ],
       "mapping_status": "mapped",

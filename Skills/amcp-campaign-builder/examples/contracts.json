@@ -2097,6 +2097,18 @@
     {
       "gateway": "dv360_native_action",
       "arguments": {
+        "action": "DV360_CUSTOM_BIDDING_ALGORITHMS_CREATE",
+        "params": {},
+        "body": {
+          "advertiserId": "123",
+          "displayName": "Store visits model",
+          "customBiddingAlgorithmType": "SCRIPT_BASED"
+        }
+      }
+    },
+    {
+      "gateway": "dv360_native_action",
+      "arguments": {
         "action": "DV360_ADVERTISERS_PATCH",
         "params": {
           "advertiserId": "123",

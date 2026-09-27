@@ -48,6 +48,7 @@ import {isLinkedInMessageRead} from './linkedin-message-ads.js';
 import {isDV360LineItemDuplicateRead} from './dv360-line-item-duplicate.js';
 import {isDV360InventoryGroupRead} from './dv360-inventory-source-groups.js';
 import {isDV360AdvertiserRead} from './dv360-advertiser-settings.js';
+import {isDV360BiddingRead} from './dv360-custom-bidding.js';
 import {isXTrackingTagRead} from './x-tracking-tags.js';
 import {isXPrerollCtaRead} from './x-preroll-ctas.js';
 import {isXMediaRead} from './x-media-library.js';
@@ -120,6 +121,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isDV360LineItemDuplicateRead(read))return normalizeReviewState(d);
  if(isDV360InventoryGroupRead(read))return normalizeReviewState(d);
  if(isDV360AdvertiserRead(read))return normalizeReviewState(d);
+ if(isDV360BiddingRead(read))return normalizeReviewState(d);
  if(isXTrackingTagRead(read))return normalizeReviewState(d);
  if(isXPrerollCtaRead(read))return normalizeReviewState(d);
  if(isXMediaRead(read))return normalizeReviewState(d);

@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## EH — DV360 custom bidding algorithms (2026-09-27)
+
+Advertiser-owned DV360 custom bidding algorithms can now be created, renamed and archived through
+reviewed requests: the algorithm is read with the advertiser as accessor, only the advertiser's own
+algorithms change, and the result is read back. Scripts and rules (file uploads) stay outside. See
+[implementation](DV360-CUSTOM-BIDDING-2026-09-27.md),
+[qualification](DV360-CUSTOM-BIDDING-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 778 (two DV360 rows reviewed). Pushes go only to CAMCP; its exact-commit CI result and
+live acceptance are pending.
+
 ## EG — Criteo catalog requests and exports (2026-09-27)
 
 Criteo catalog files (catalogs, seller catalogs and the brand and seller exports) can now be requested
@@ -17,8 +29,8 @@ status is read back by the receipt's ID, after which the catalog's status and ou
 [qualification](CRITEO-CATALOG-REQUESTS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 780 (four Criteo rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
-and live acceptance are pending.
+Remaining rows: 780 (four Criteo rows reviewed). Committed as `295b1e3`; its exact-commit CI
+result and live acceptance are pending.
 
 ## EF — Criteo preferred line items (2026-09-27)
 

@@ -431,6 +431,28 @@ contract.
 Reference: [advertisers.patch](https://developers.google.com/display-video/api/reference/rest/v4/advertisers/patch)
 and the pinned v4 Discovery document, checked 2026-09-27.
 
+### Custom bidding algorithms
+
+- `DV360_CUSTOM_BIDDING_ALGORITHMS_CREATE` with `body: {advertiserId, displayName,
+  customBiddingAlgorithmType, entityStatus}`: the selected advertiser owns it; the name has up to
+  240 UTF-8 bytes; the type is `SCRIPT_BASED` or `RULE_BASED` and never changes; the status is
+  `ENTITY_STATUS_ACTIVE` (usable as a bidding strategy) or `ENTITY_STATUS_ARCHIVED`.
+- `DV360_CUSTOM_BIDDING_ALGORITHMS_PATCH` with `params: {customBiddingAlgorithmId, updateMask}` and
+  `body: {advertiserId, ...}`: the mask names `displayName`, `entityStatus` or both, and the body
+  carries exactly those fields plus the owning advertiser (DV360 ignores it outside the mask).
+
+An algorithm bids only after a script or rules are uploaded (file uploads, outside this contract)
+and a line item uses it, which is a separate reviewed line item change; so nothing here needs
+spending confirmation, though an active status counts as activation under owner policies. AMCP reads
+the advertiser and, for a patch, the algorithm with the advertiser as accessor: partner-owned or
+shared algorithms are `ACCOUNT_SCOPE_MISMATCH`, and unchanged values are refused. DV360 refuses
+changes to an algorithm assigned to a line item; that reply is a failure never resubmitted.
+Verification reads the algorithm again. `INVALID_DV360_CUSTOM_BIDDING` names the field to correct.
+`DV360_CUSTOM_BIDDING_ALGORITHMS_GET` and `..._LIST` read with `params: {advertiserId}` only.
+
+Reference: [customBiddingAlgorithms](https://developers.google.com/display-video/api/reference/rest/v4/customBiddingAlgorithms)
+and the pinned v4 Discovery document, checked 2026-09-27.
+
 ## GA4 — ga4_native_action
 
 Google social sign-in, Ads access, Analytics access and optional Sheets/Drive access are
