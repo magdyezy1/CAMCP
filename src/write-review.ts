@@ -1,4 +1,5 @@
 import {snapUpdateKind,assertSnapUpdate,snapUpdateSnapshots,readSnapUpdateState,snapUpdateOutcome} from './snapchat-nested-updates.js';
+import {snapchatMediaCopyKind,assertSnapchatMediaCopy,snapchatMediaCopySnapshots,isSnapchatMediaCopyRead,validateSnapchatMediaCopyState,snapchatMediaCopyPrerequisites,snapchatMediaCopyOutcome,readSnapchatMediaCopy} from './snapchat-media-copy.js';
 import {assertSnapLeadForms,assertSnapLeadCreativeRefs,snapLeadDependencyPaths,assertSnapCreativeReferences} from './snapchat-lead-forms.js';
 import {assertSnapSegments,assertSnapSegmentUpdates,snapSegmentDependencyPaths} from './snapchat-segments.js';
 import {tiktokIdentityKind,assertTiktokIdentity,tiktokIdentityImage,tiktokImageInfoPath} from './tiktok-identities.js';
@@ -151,6 +152,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(metaReportKind(plan))return metaReportOutcome(plan,result);
  if(criteoCampaignKind(plan))return criteoCampaignOutcome(plan,result);
  if(snapUpdateKind(plan))return snapUpdateOutcome(plan,result);
+ if(snapchatMediaCopyKind(plan))return snapchatMediaCopyOutcome(plan,result);
  if(xReportKind(plan))return xReportOutcome(plan,result);
  if(tiktokReportKind(plan))return tiktokReportOutcome(plan,result);
  if(criteoReportKind(plan))return criteoReportOutcome(plan,result);
@@ -218,6 +220,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  if(isDV360AdGroupRead(read)){validateDV360AdGroupState(read,result);return;}
  if(isDV360AdAssetRead(read)){validateDV360AdAssetState(read,result);return;}
  if(isDV360AdRead(read)){validateDV360AdState(read,result);return;}
+ if(isSnapchatMediaCopyRead(read)){validateSnapchatMediaCopyState(read,result);return;}
  if(isDV360LineItemBulkRead(read)){validateDV360LineItemBulkState(read,result);return;}
  if(isLinkedInLeadFormRead(read)){validateLinkedInLeadFormState(read,result);return;}
  if(isLinkedInConversionRead(read)){validateLinkedInConversionState(read,result);return;}
@@ -353,6 +356,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(metaReportKind(plan))assertMetaReport(plan);
  if(criteoCampaignKind(plan))assertCriteoCampaign(plan);
  if(snapUpdateKind(plan)){assertSnapUpdate(plan);return;}
+ if(snapchatMediaCopyKind(plan)){assertSnapchatMediaCopy(plan);return;}
  if(xReportKind(plan)){assertXReport(plan);return;}
  if(tiktokReportKind(plan))assertTiktokReport(plan);
  if(criteoReportKind(plan))assertCriteoReport(plan);
@@ -426,6 +430,7 @@ export function assertWriteShape(plan:CompiledRequest){
 /** Reads are explicitly derived from the target, never supplied by the caller as proof. */
 export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRequest[]{
  if(snapUpdateKind(plan))return snapUpdateSnapshots(plan);
+ if(snapchatMediaCopyKind(plan))return snapchatMediaCopySnapshots(plan);
  if(googlePreviewKind(plan))return googlePreviewSnapshots(plan);
  if(placeActionKind(plan))return placeActionSnapshots(plan);
  if(businessNotificationKind(plan))return businessNotificationSnapshots(plan);
@@ -702,7 +707,7 @@ export class WriteReviewService {
   });
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
-   try{result=await readDV360LineItemBulk(read,bulkPage=>readGoogleBrandGuidelines(bulkPage,brandPage=>readLinkedInTracking(brandPage,trackingPage=>readLinkedInRules(trackingPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;})))))))))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
+   try{result=await readSnapchatMediaCopy(read,copyPage=>readDV360LineItemBulk(copyPage,bulkPage=>readGoogleBrandGuidelines(bulkPage,brandPage=>readLinkedInTracking(brandPage,trackingPage=>readLinkedInRules(trackingPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;}))))))))))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
    const reader=this.access(actor,plan,connectionId);validateState(read,result);if(read.gateway==='snapchat_native_action')new ScopeGuard(this.registry,this.store).observe(read,reader,result.data);
    // A Smart+ bid edit also reads the campaign's ad groups once the ad group names its campaign.
    const sibling=tiktokSmartPlusAdgroupUpdateSiblingRead(plan,read,result.data);if(sibling&&!reads.some(r=>r.path===sibling.path&&stable(r.query)===stable(sibling.query)))reads.push(sibling);
@@ -722,6 +727,7 @@ export class WriteReviewService {
   validateCriteoTargetingPrerequisites(plan,values);
   validateMetaLabelPrerequisites(plan,values);
   googleBidPrerequisites(plan,values);
+  snapchatMediaCopyPrerequisites(plan,values);
   googleBrandGuidelinesPrerequisites(plan,values);
   linkedinConversionPrerequisites(plan,values);
   linkedinTrackingPrerequisites(plan,values);

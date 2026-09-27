@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DH — Snapchat media copy between ad accounts (2026-09-27)
+
+READY images and videos can now be copied into the selected ad account from other ad accounts of
+the same organization in one reviewed request: the destination, every source ad account and each
+source media are read first, a partial receipt is never resubmitted, the copies become media of
+the selected ad account, and each copy is read back under its new ID. See
+[implementation](SNAPCHAT-MEDIA-COPY-2026-09-27.md),
+[qualification](SNAPCHAT-MEDIA-COPY-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 877 (one Snapchat row reviewed). Pushed only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## DG — DV360 line item bulk status updates (2026-09-27)
 
 The status or EU political advertising declaration of 1–100 line items can now be set in one
@@ -17,8 +30,8 @@ never resubmitted. See [implementation](DV360-LINE-ITEM-BULK-UPDATE-2026-09-27.m
 [qualification](DV360-LINE-ITEM-BULK-UPDATE-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 878 (one DV360 row reviewed). Pushed only to CAMCP; its exact-commit CI result and
-live acceptance are pending.
+Remaining rows: 878 (one DV360 row reviewed). Pushed to CAMCP as `e24d475`; its exact-commit CI
+result and live acceptance are pending.
 
 ## DF — Google Performance Max brand guidelines (2026-09-27)
 

@@ -27,6 +27,7 @@ import {authorizeCriteoInternalRead,assertCriteoReadScope} from './criteo-target
 import {assertGoogleGenerationScope} from './google-generation.js';
 import {assertMetaLabelScope,metaLabelIdentities} from './meta-label-writes.js';
 import {authorizeLinkedInConversion} from './linkedin-conversion-links.js';
+import {authorizeSnapchatMediaCopyRead} from './snapchat-media-copy.js';
 import {authorizeLinkedInTracking} from './linkedin-tracking-parameters.js';
 import {authorizeLinkedInTemplate} from './linkedin-audience-templates.js';
 import {authorizeLinkedInRule} from './linkedin-conversion-rules.js';
@@ -110,6 +111,7 @@ export class ScopeGuard {
   if(authorizeXAudienceEstimate(plan,connection,id))return id;
   if(authorizeLinkedInTemplate(plan,connection,id))return id;
   if(authorizeLinkedInConversion(plan,connection,id))return id;
+  if(authorizeSnapchatMediaCopyRead(plan,connection,id))return id;
   if(authorizeLinkedInTracking(plan,connection,id))return id;
   if(authorizeLinkedInRule(plan,connection,id))return id;
   if(authorizeLinkedInLeadForm(plan,connection,this.store,id))return id;
@@ -258,7 +260,7 @@ export class ScopeGuard {
   // A Meta copy is made from an owned source inside the same account; verification then reads each copy's account.
   if(metaCopyKind(plan))for(const copied of metaCopiedIds(plan,d))this.store.rememberResource(connection,id,copied);
   if(plan.gateway==='snapchat_native_action'){
-   const match=/^\/v1\/(?:adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives|media|lead_generation_forms|segments)|campaigns\/[^/]+\/(adsquads)|adsquads\/[^/]+\/(ads))$/.exec(plan.path);
+   const match=/^\/v1\/(?:adaccounts\/[^/]+\/(campaigns|adsquads|ads|creatives|media|lead_generation_forms|segments)|adaccounts\/[^/]+\/(media)_copy|campaigns\/[^/]+\/(adsquads)|adsquads\/[^/]+\/(ads))$/.exec(plan.path);
    const kind=match?.slice(1).find(Boolean);
    if(!kind||String(d?.request_status).toUpperCase()!=='SUCCESS'||!Array.isArray(d[kind]))return;
    for(const row of d[kind]){

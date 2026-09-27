@@ -663,7 +663,17 @@ Tests: `tests/google-pmax-brand-guidelines.test.mjs` (6), red on `3dac065` / gre
 - New reviewed family `dv360_line_item_bulk_update` (`src/dv360-line-item-bulk-update.ts`) for `lineItems:bulkUpdate`: 1–100 line items, `entityStatus` (active, paused, archived; never back to draft) and/or `containsEuPoliticalAds`, with each line item and insertion order read, YouTube & Partners and archived line items refused, activation confirmation, and read-back of every line item.
 - DV360 YouTube asset associations stay blocked: the pinned document marks them "only available to an informed subset of users" (allowlist).
 
-Tests: `tests/dv360-line-item-bulk-update.test.mjs` (6), red on `903b5c5` / green after.
+Tests: `tests/dv360-line-item-bulk-update.test.mjs` (6), red on `903b5c5` / green after. Pushed as `e24d475`.
+
+## Finished batch — Snapchat media copy between ad accounts (2026-09-27)
+
+[Implementation](SNAPCHAT-MEDIA-COPY-2026-09-27.md) and
+[qualification](SNAPCHAT-MEDIA-COPY-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `snapchat_media_copy` (`src/snapchat-media-copy.ts`) for `POST /v1/adaccounts/{ad_account_id}/media_copy`: 1–20 READY images and videos from other ad accounts of the same organization, each source account bound to the login, each source media read under its own account, a partial receipt kept as a failure and never resubmitted, and each copy read back in the selected ad account under its new ID.
+- The copies become media of the selected ad account from the receipt, so creatives can use them without another listing.
+
+Tests: `tests/snapchat-media-copy.test.mjs` (5), red on `e24d475` / green after.
 
 ## CI and live evidence
 
@@ -677,20 +687,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 553 in reviewed write families. **878 remaining rows** are in
+3241 captured actions; 554 in reviewed write families. **877 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 763 |
+| blocked_write | 762 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 115, Google Ads 94,
-Snapchat 86, X 67, DV360 43, Criteo 34, Business Profile 12.
+Snapchat 85, X 67, DV360 43, Criteo 34, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

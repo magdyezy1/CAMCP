@@ -852,6 +852,24 @@
     {
       "gateway": "snapchat_native_action",
       "arguments": {
+        "action": "snapchat_adaccounts_ad_account_id_media_copy_create",
+        "account_id": "123",
+        "path_params": {
+          "ad_account_id": "123"
+        },
+        "payload": {
+          "media_copy": [
+            {
+              "source_media_id": "11111111-2222-3333-4444-555555555555",
+              "source_ad_account_id": "456"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "snapchat_native_action",
+      "arguments": {
         "action": "snapchat_campaign_create",
         "account_id": "123",
         "payload": {

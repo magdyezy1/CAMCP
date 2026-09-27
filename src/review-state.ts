@@ -6,6 +6,7 @@ import {microsoftAssociationProjection} from './microsoft-associations.js';
 import {gtmSafeConfiguration} from './gtm-workflow-writes.js';
 import {assetSetCanonical} from './google-asset-set-writes.js';
 import {isGoogleBidRead} from './google-bid-modifiers.js';
+import {isSnapchatMediaCopyRead} from './snapchat-media-copy.js';
 import {isGoogleBrandGuidelinesRead} from './google-pmax-brand-guidelines.js';
 import {googleSegmentResource,googleSegmentCanonical} from './google-custom-segments.js';
 import {googleUserListCanonical} from './google-user-lists.js';
@@ -67,6 +68,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(!data||Array.isArray(data)||typeof data!=='object')return normalizeReviewState(data);
  const d=data as JsonObject;
  if(isGoogleBidRead(read))return normalizeReviewState(data);
+ if(isSnapchatMediaCopyRead(read))return normalizeReviewState(data);
  if(isGoogleBrandGuidelinesRead(read))return normalizeReviewState(data);
  if(isGoogleListingGroupRead(read))return normalizeReviewState(googleListingGroupState(read,d));
  if(isTiktokBrandSafetyRead(read))return normalizeReviewState(tiktokBrandSafetyState(read,d));

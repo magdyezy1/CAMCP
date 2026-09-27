@@ -210,10 +210,10 @@
       "gateway": "snapchat_native_action",
       "actions": 412,
       "counts": {
-        "blocked_write": 86,
+        "blocked_write": 85,
         "media_workflow": 7,
         "native_read": 271,
-        "reviewed_write_family": 40,
+        "reviewed_write_family": 41,
         "unqualified_read": 8
       },
       "captured_catalog_complete": true,
@@ -40304,7 +40304,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40324,7 +40325,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40344,7 +40346,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40364,7 +40367,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40384,7 +40388,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40404,7 +40409,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40424,7 +40430,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40489,7 +40496,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40509,7 +40517,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40529,7 +40538,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40549,7 +40559,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40611,7 +40622,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40631,7 +40643,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40651,7 +40664,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40707,7 +40721,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40727,7 +40742,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40747,7 +40763,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40767,7 +40784,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40787,7 +40805,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40823,7 +40842,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40841,7 +40861,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40859,7 +40880,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40877,7 +40899,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40895,7 +40918,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40913,7 +40937,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40931,7 +40956,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40949,7 +40975,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40967,7 +40994,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41023,7 +41051,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41163,7 +41192,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41213,7 +41243,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41257,7 +41288,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41275,7 +41307,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41293,7 +41326,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41311,7 +41345,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41329,7 +41364,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41347,7 +41383,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41365,7 +41402,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41396,7 +41434,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41414,7 +41453,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41432,7 +41472,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41469,7 +41510,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41487,7 +41529,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41510,12 +41553,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v1/adaccounts/{ad_account_id}/media_copy",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/snapchat-media-copy.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/snapchat-media-copy.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "snapchat_media_copy"
     },
     {
       "gateway": "snapchat_native_action",
@@ -41546,7 +41592,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41564,7 +41611,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41595,7 +41643,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41626,7 +41675,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41644,7 +41694,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41662,7 +41713,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41693,7 +41745,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41724,7 +41777,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41774,7 +41828,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41811,7 +41866,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41829,7 +41885,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41847,7 +41904,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41865,7 +41923,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41883,7 +41942,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41901,7 +41961,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41919,7 +41980,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41937,7 +41999,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41974,7 +42037,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41992,7 +42056,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42010,7 +42075,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42028,7 +42094,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42046,7 +42113,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42064,7 +42132,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42082,7 +42151,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42100,7 +42170,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42120,7 +42191,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42140,7 +42212,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42160,7 +42233,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42180,7 +42254,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42200,7 +42275,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42220,7 +42296,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42282,7 +42359,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42302,7 +42380,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42322,7 +42401,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42378,7 +42458,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42398,7 +42479,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42418,7 +42500,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42438,7 +42521,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42458,7 +42542,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42494,7 +42579,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42525,7 +42611,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42578,7 +42665,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42612,7 +42700,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42630,7 +42719,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42667,7 +42757,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42685,7 +42776,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42703,7 +42795,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42721,7 +42814,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42739,7 +42833,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42770,7 +42865,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42788,7 +42884,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42857,7 +42954,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42877,7 +42975,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42961,7 +43060,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42981,7 +43081,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43001,7 +43102,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43021,7 +43123,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43041,7 +43144,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43061,7 +43165,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43081,7 +43186,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43143,7 +43249,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43163,7 +43270,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43183,7 +43291,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43245,7 +43354,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43265,7 +43375,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43285,7 +43396,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43305,7 +43417,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43325,7 +43438,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43364,7 +43478,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43417,7 +43532,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43470,7 +43586,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43488,7 +43605,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43506,7 +43624,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43524,7 +43643,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43619,7 +43739,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43669,7 +43790,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43689,7 +43811,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43739,7 +43862,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43759,7 +43883,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43794,7 +43919,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43825,7 +43951,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43843,7 +43970,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43861,7 +43989,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43879,7 +44008,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43910,7 +44040,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43941,7 +44072,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43972,7 +44104,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44003,7 +44136,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44021,7 +44155,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44067,7 +44202,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44087,7 +44223,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44107,7 +44244,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44148,7 +44286,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44168,7 +44307,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44188,7 +44328,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44229,7 +44370,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44249,7 +44391,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44288,7 +44431,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44306,7 +44450,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44324,7 +44469,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44342,7 +44488,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44360,7 +44507,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44391,7 +44539,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44411,7 +44560,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44431,7 +44581,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44449,7 +44600,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44467,7 +44619,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44498,7 +44651,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44516,7 +44670,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44534,7 +44689,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44552,7 +44708,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44593,7 +44750,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44613,7 +44771,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44633,7 +44792,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44651,7 +44811,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44682,7 +44843,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44736,7 +44898,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44754,7 +44917,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44774,7 +44938,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44809,7 +44974,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44874,7 +45040,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44894,7 +45061,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44929,7 +45097,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44949,7 +45118,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44969,7 +45139,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44987,7 +45158,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45005,7 +45177,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45042,7 +45215,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45062,7 +45236,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45082,7 +45257,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45100,7 +45276,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45118,7 +45295,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45177,7 +45355,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45195,7 +45374,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45213,7 +45393,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45312,7 +45493,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45332,7 +45514,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45352,7 +45535,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45372,7 +45556,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45409,7 +45594,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45440,7 +45626,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45458,7 +45645,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45489,7 +45677,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45507,7 +45696,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45525,7 +45715,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45543,7 +45734,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45561,7 +45753,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45579,7 +45772,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45599,7 +45793,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45634,7 +45829,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45665,7 +45861,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45709,7 +45906,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45753,7 +45951,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45784,7 +45983,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45802,7 +46002,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45833,7 +46034,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45851,7 +46053,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45869,7 +46072,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45900,7 +46104,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45931,7 +46136,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45949,7 +46155,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45969,7 +46176,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45989,7 +46197,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46009,7 +46218,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46040,7 +46250,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46073,7 +46284,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46093,7 +46305,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46126,7 +46339,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46157,7 +46371,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46175,7 +46390,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46193,7 +46409,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46211,7 +46428,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46229,7 +46447,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46273,7 +46492,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46291,7 +46511,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46322,7 +46543,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46353,7 +46575,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46371,7 +46594,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46389,7 +46613,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46407,7 +46632,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46425,7 +46651,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46443,7 +46670,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46461,7 +46689,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46492,7 +46721,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46510,7 +46740,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46528,7 +46759,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46598,7 +46830,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46616,7 +46849,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46634,7 +46868,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46652,7 +46887,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46683,7 +46919,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46714,7 +46951,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46732,7 +46970,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46750,7 +46989,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46768,7 +47008,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46799,7 +47040,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46817,7 +47059,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46835,7 +47078,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46853,7 +47097,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46923,7 +47168,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47006,7 +47252,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47024,7 +47271,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47042,7 +47290,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47060,7 +47309,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47078,7 +47328,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47096,7 +47347,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47114,7 +47366,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47132,7 +47385,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47150,7 +47404,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47168,7 +47423,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47186,7 +47442,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47204,7 +47461,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47222,7 +47480,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47240,7 +47499,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47258,7 +47518,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47276,7 +47537,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47294,7 +47556,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47312,7 +47575,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47330,7 +47594,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47348,7 +47613,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47366,7 +47632,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47384,7 +47651,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47402,7 +47670,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47420,7 +47689,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47438,7 +47708,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47456,7 +47727,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47474,7 +47746,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47492,7 +47765,8 @@
         "tests/snapchat-writes.test.ts",
         "tests/snapchat-nested-updates.test.ts",
         "tests/snapchat-planning-reads.test.mjs",
-        "tests/snapchat-chunked-media.test.mjs"
+        "tests/snapchat-chunked-media.test.mjs",
+        "tests/snapchat-media-copy.test.mjs"
       ],
       "live_qualification": "unverified"
     },

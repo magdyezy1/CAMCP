@@ -554,6 +554,27 @@ them, and a read-only deployment allows them). They do not go through `amcp_writ
 - `amcp_write execute` accepts the review's own `gateway` and `connection_id`, never different ones
   and never `arguments`.
 
+## Snapchat media copy between ad accounts
+
+`snapchat_adaccounts_ad_account_id_media_copy_create` copies READY images and videos from other ad
+accounts of the same organization into the selected ad account, for example before cloning a
+campaign there: `path_params: {ad_account_id: <selected>}` and `payload: {media_copy: [{source_media_id,
+source_ad_account_id}]}`, 1–20 copies, each source media once and never from the selected account
+itself.
+
+- The source ad accounts must be bound to the same Snapchat login. AMCP reads the destination and
+  every source ad account (they must share an organization) and each source media under its own
+  ad account (it must be a READY image or video there; Lens media cannot be copied).
+- Snapchat copies each item separately. A receipt in which any copy failed is kept as a failure and
+  never resubmitted; inspect the destination media before a new review.
+- A copy keeps the name, type and file under a new media ID, which the receipt returns and which
+  AMCP then treats as media of the selected ad account for creatives.
+- Verification reads each new media in the selected ad account and compares its account, name and
+  type with the source. `INVALID_SNAPCHAT_MEDIA_COPY` names the item to correct.
+
+Reference: [Media](https://developers.snap.com/api/marketing-api/Ads-API/media) (Copy Media),
+checked 2026-09-27.
+
 ## Snapchat lead generation forms
 
 - `snapchat_lead_form_create` (and its two captured aliases) creates forms under
