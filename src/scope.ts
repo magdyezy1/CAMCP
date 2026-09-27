@@ -42,6 +42,7 @@ import {authorizeSnapConversion} from './snapchat-custom-conversions.js';
 import {authorizeSnapProductSet} from './snapchat-product-sets.js';
 import {authorizeLinkedInDomain} from './linkedin-insight-domains.js';
 import {authorizeSnapTemplate} from './snapchat-dynamic-templates.js';
+import {authorizeSnapEvent} from './snapchat-event-details.js';
 import {authorizeLinkedInMessage} from './linkedin-message-ads.js';
 import {authorizeLinkedInTemplate} from './linkedin-audience-templates.js';
 import {authorizeLinkedInRule} from './linkedin-conversion-rules.js';
@@ -140,6 +141,7 @@ export class ScopeGuard {
   if(authorizeSnapProductSet(plan,connection,id))return id;
   if(authorizeLinkedInDomain(plan,connection,id))return id;
   if(authorizeSnapTemplate(plan,connection,id))return id;
+  if(authorizeSnapEvent(plan,connection,id))return id;
   if(authorizeLinkedInMessage(plan,connection,id))return id;
   if(authorizeLinkedInRule(plan,connection,id))return id;
   if(authorizeLinkedInLeadForm(plan,connection,this.store,id))return id;

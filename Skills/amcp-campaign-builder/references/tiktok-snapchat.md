@@ -784,6 +784,35 @@ Verification lists the templates again and compares each field sent.
 Reference: [Dynamic Product Ads](https://developers.snap.com/api/marketing-api/Ads-API/dynamic-product-ads)
 ("Dynamic Templates"), checked 2026-09-27.
 
+## Snapchat event details
+
+Reminder creatives promote an event described by event details, which Snapchat makes immutable once
+created; a changed event is new event details.
+
+- `snapchat_adaccounts_ad_account_id_event_details_create` with `params: {ad_account_id}` and
+  `payload: {event_details: [{event_name, event_start_time, event_time_zone, ad_account_id}]}`
+  creates 1–10 events of the selected account. `event_name` has 1–300 characters;
+  `event_start_time` is a date with optional hour, minutes and seconds (`2026-11-16T09:00:00`), read
+  as UTC unless it carries an offset as in the guide's example (`2026-11-16T00:00:00-04:00:00`), and
+  lies in the future, within three years. `event_time_zone` is optional, only for display, and one
+  of the guide's zones (for example `America/New_York` or `UTC`); without it Snapchat uses the
+  account's zone.
+- `snapchat_event_details_event_details_id_delete` with `params: {event_details_id}` deletes one;
+  Snapchat cannot reinstate it.
+
+AMCP lists the account's event details first (following cursors): an event with the same name and
+start is `CONFIGURATION_EXISTS`, and an unknown one is `STATE_NOT_FOUND`. For a deletion it also
+reads the account's creatives; event details that a creative promotes
+(`reminder_properties.event_details_id`, or `event_detail_id` as in the guide's example) are refused
+with `EVENT_DETAILS_IN_USE`. No request changes spending; deletions count under owner deletion
+policies. A reply that is not SUCCESS is a failure never resubmitted. Verification lists the event
+details again and compares the name, the start as a UTC instant and any time zone sent, or expects
+the deleted ones gone. `INVALID_SNAPCHAT_EVENT_DETAILS` names the field to correct.
+
+Reference: [Event Details](https://developers.snap.com/api/marketing-api/Ads-API/event-details) and
+[Creatives](https://developers.snap.com/api/marketing-api/Ads-API/creatives) (Reminder creatives),
+checked 2026-09-27.
+
 ## Snapchat nested updates
 
 Ad/ad-squad updates now use the documented native parent routes:

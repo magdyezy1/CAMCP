@@ -1,0 +1,101 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "140396fff58c4c87948e922cb5fadeb8af87327f",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/snapchat-event-details-20260927-a",
+    "files": 1018,
+    "source_tree_hash": "1ffef48f078a8b2f41c39d5c42da7c707cb40b9bfd8a5090fde869e39385eef0",
+    "index_code_test_guidance_files_compared": 773,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/snapchat-event-details-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/snapchat-event-details-20260927/install.log",
+      "sha256": "e88e407faaa2503b662c04c5f1491f8f0c66a4eee13fbd3b1be82f628246f716"
+    },
+    {
+      "path": ".runtime/snapchat-event-details-20260927/check.log",
+      "sha256": "d4e4d151ed0c5f6d4b884d3997aa8e020af066a4ae26a4e2d2221e2b12248cad",
+      "started": "Sun Sep 27 23:29:27 UTC 2026",
+      "finished": "Mon Sep 28 02:48:28 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2566,
+          "pass": 2566,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/snapchat-event-details-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/snapchat-event-details-20260927/red-check.log",
+      "sha256": "31a10a466cb3a8eb51dbcd791121e67c8076d206d605db94adcdffefb5868767",
+      "meaning": "tests/snapchat-event-details.test.mjs against a build of 140396f: expected red, the file fails to load (1 failure: ERR_MODULE_NOT_FOUND for dist/src/snapchat-event-details.js, which the change adds)"
+    },
+    {
+      "path": ".runtime/snapchat-event-details-20260927/targeted.log",
+      "sha256": "724a9cde251780e044192bf869845b28beee4b4a9101f90cae236317cb5fcf79",
+      "meaning": "192 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1961/1961 pass, none skipped."
+    }
+  ],
+  "development_failures": [],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2566,
+    "main_pass": 2566,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Requiring a start in the future and within three years is AMCP's rule for an entity that cannot be edited; Snapchat documents no bound.",
+    "The guide names the creative field event_details_id in its table and event_detail_id in its example; AMCP checks both and has not observed which one Snapchat returns.",
+    "Refusing deletion covers creatives of the selected account; the guide only asks that no active Reminder creative use the entity.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

@@ -1005,7 +1005,16 @@ Tests: `tests/linkedin-insight-domains.test.mjs` (3), red on `38b5f00` / green a
 
 - New reviewed family `snapchat_dynamic_templates` (`src/snapchat-dynamic-templates.ts`) for creating and updating dynamic templates of the selected ad account, two rows. Fields follow the guide's tables; overlay media must be READY account images; updates show the dynamic creatives that use each template.
 
-Tests: `tests/snapchat-dynamic-templates.test.mjs` (3), red on `683a2da` / green after.
+Tests: `tests/snapchat-dynamic-templates.test.mjs` (3), red on `683a2da` / green after. Committed as `140396f`.
+
+## Finished batch — Snapchat event details (2026-09-27)
+
+[Implementation](SNAPCHAT-EVENT-DETAILS-2026-09-27.md) and
+[qualification](SNAPCHAT-EVENT-DETAILS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `snapchat_event_details` (`src/snapchat-event-details.ts`) for creating and deleting the event details of Reminder creatives, two rows. Starts are UTC instants in the future; event details that creatives promote are not deleted.
+
+Tests: `tests/snapchat-event-details.test.mjs` (4), red on `140396f` / green after.
 
 ## CI and live evidence
 
@@ -1019,19 +1028,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 679 in reviewed write families. **752 remaining rows** are in
+3241 captured actions; 681 in reviewed write families. **750 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 637 |
+| blocked_write | 635 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 186, Meta 117, LinkedIn 96, Snapchat 71,
+Blocked writes by platform: TikTok 186, Meta 117, LinkedIn 96, Snapchat 69,
 Google Ads 57, X 43, DV360 32, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

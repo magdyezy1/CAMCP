@@ -210,10 +210,10 @@
       "gateway": "snapchat_native_action",
       "actions": 412,
       "counts": {
-        "blocked_write": 71,
+        "blocked_write": 69,
         "media_workflow": 7,
         "native_read": 271,
-        "reviewed_write_family": 55,
+        "reviewed_write_family": 57,
         "unqualified_read": 8
       },
       "captured_catalog_complete": true,
@@ -44921,7 +44921,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44947,7 +44948,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44973,7 +44975,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44999,7 +45002,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45025,7 +45029,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45051,7 +45056,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45077,7 +45083,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45148,7 +45155,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45174,7 +45182,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45200,7 +45209,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45226,7 +45236,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45294,7 +45305,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45320,7 +45332,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45346,7 +45359,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45408,7 +45422,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45434,7 +45449,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45460,7 +45476,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45486,7 +45503,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45512,7 +45530,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45554,7 +45573,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45578,7 +45598,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45602,7 +45623,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45626,7 +45648,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45650,7 +45673,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45674,7 +45698,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45698,7 +45723,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45722,7 +45748,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45746,7 +45773,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45808,7 +45836,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -45954,7 +45983,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46013,7 +46043,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46039,12 +46070,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v1/adaccounts/{ad_account_id}/event_details",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/snapchat-event-details.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/snapchat-event-details.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "snapchat_event_details"
     },
     {
       "gateway": "snapchat_native_action",
@@ -46066,7 +46100,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46090,7 +46125,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46114,7 +46150,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46138,7 +46175,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46162,7 +46200,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46186,7 +46225,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46210,7 +46250,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46247,7 +46288,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46271,7 +46313,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46295,7 +46338,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46338,7 +46382,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46362,7 +46407,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46430,7 +46476,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46454,7 +46501,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46494,7 +46542,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46534,7 +46583,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46558,7 +46608,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46582,7 +46633,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46619,7 +46671,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46656,7 +46709,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46712,7 +46766,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46755,7 +46810,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46779,7 +46835,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46803,7 +46860,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46827,7 +46885,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46851,7 +46910,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46875,7 +46935,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46899,7 +46960,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46923,7 +46985,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46966,7 +47029,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -46990,7 +47054,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47014,7 +47079,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47038,7 +47104,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47062,7 +47129,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47086,7 +47154,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47110,7 +47179,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47134,7 +47204,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47160,7 +47231,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47186,7 +47258,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47212,7 +47285,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47238,7 +47312,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47264,7 +47339,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47290,7 +47366,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47358,7 +47435,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47384,7 +47462,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47410,7 +47489,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47472,7 +47552,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47498,7 +47579,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47524,7 +47606,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47550,7 +47633,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47576,7 +47660,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47618,7 +47703,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47655,7 +47741,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47714,7 +47801,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47754,7 +47842,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47778,7 +47867,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47821,7 +47911,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47845,7 +47936,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47869,7 +47961,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47893,7 +47986,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47917,7 +48011,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47954,7 +48049,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -47978,7 +48074,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48056,7 +48153,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48082,7 +48180,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48172,7 +48271,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48198,7 +48298,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48224,7 +48325,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48250,7 +48352,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48276,7 +48379,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48302,7 +48406,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48328,7 +48433,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48396,7 +48502,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48422,7 +48529,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48448,7 +48556,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48516,7 +48625,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48542,7 +48652,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48568,7 +48679,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48594,7 +48706,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48620,7 +48733,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48665,7 +48779,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48724,7 +48839,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48783,7 +48899,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48807,7 +48924,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48831,7 +48949,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48855,7 +48974,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -48956,7 +49076,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49012,7 +49133,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49038,7 +49160,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49100,7 +49223,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49126,7 +49250,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49167,7 +49292,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49204,7 +49330,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49228,7 +49355,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49252,7 +49380,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49276,7 +49405,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49313,7 +49443,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49350,7 +49481,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49390,7 +49522,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49430,7 +49563,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49454,7 +49588,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49506,7 +49641,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49532,7 +49668,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49558,7 +49695,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49605,7 +49743,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49631,7 +49770,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49657,7 +49797,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49704,7 +49845,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49730,7 +49872,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49775,7 +49918,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49799,7 +49943,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49823,7 +49968,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49847,7 +49993,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49871,7 +50018,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49911,7 +50059,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49937,7 +50086,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49963,7 +50113,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -49987,7 +50138,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50011,7 +50163,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50021,12 +50174,15 @@
       "aliases": [],
       "method": "DELETE",
       "path": "/v1/event_details/{event_details_id}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/snapchat-event-details.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/snapchat-event-details.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "snapchat_event_details"
     },
     {
       "gateway": "snapchat_native_action",
@@ -50048,7 +50204,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50072,7 +50229,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50096,7 +50254,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50120,7 +50279,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50167,7 +50327,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50193,7 +50354,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50219,7 +50381,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50243,7 +50406,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50280,7 +50444,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50340,7 +50505,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50364,7 +50530,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50390,7 +50557,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50431,7 +50599,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50502,7 +50671,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50528,7 +50698,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50569,7 +50740,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50595,7 +50767,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50621,7 +50794,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50645,7 +50819,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50669,7 +50844,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50712,7 +50888,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50738,7 +50915,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50764,7 +50942,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50788,7 +50967,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50812,7 +50992,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50877,7 +51058,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50901,7 +51083,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -50925,7 +51108,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51030,7 +51214,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51056,7 +51241,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51082,7 +51268,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51108,7 +51295,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51151,7 +51339,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51188,7 +51377,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51212,7 +51402,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51249,7 +51440,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51273,7 +51465,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51297,7 +51490,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51321,7 +51515,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51345,7 +51540,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51369,7 +51565,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51395,7 +51592,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51436,7 +51634,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51473,7 +51672,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51523,7 +51723,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51573,7 +51774,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51610,7 +51812,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51634,7 +51837,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51671,7 +51875,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51695,7 +51900,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51719,7 +51925,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51756,7 +51963,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51793,7 +52001,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51817,7 +52026,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51843,7 +52053,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51869,7 +52080,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51895,7 +52107,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51932,7 +52145,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51971,7 +52185,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -51997,7 +52212,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52036,7 +52252,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52076,7 +52293,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52100,7 +52318,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52124,7 +52343,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52148,7 +52368,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52172,7 +52393,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52222,7 +52444,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52246,7 +52469,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52286,7 +52510,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52326,7 +52551,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52350,7 +52576,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52374,7 +52601,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52398,7 +52626,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52422,7 +52651,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52446,7 +52676,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52470,7 +52701,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52507,7 +52739,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52531,7 +52764,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52555,7 +52789,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52631,7 +52866,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52655,7 +52891,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52679,7 +52916,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52703,7 +52941,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52740,7 +52979,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52777,7 +53017,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52801,7 +53042,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52825,7 +53067,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52849,7 +53092,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52886,7 +53130,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52910,7 +53155,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52934,7 +53180,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -52958,7 +53205,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53037,7 +53285,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53126,7 +53375,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53150,7 +53400,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53174,7 +53425,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53198,7 +53450,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53222,7 +53475,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53246,7 +53500,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53270,7 +53525,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53294,7 +53550,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53318,7 +53575,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53342,7 +53600,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53366,7 +53625,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53390,7 +53650,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53414,7 +53675,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53438,7 +53700,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53462,7 +53725,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53486,7 +53750,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53510,7 +53775,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53534,7 +53800,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53558,7 +53825,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53582,7 +53850,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53606,7 +53875,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53630,7 +53900,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53654,7 +53925,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53678,7 +53950,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53702,7 +53975,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53726,7 +54000,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53750,7 +54025,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -53774,7 +54050,8 @@
         "tests/snapchat-segment-deletions.test.mjs",
         "tests/snapchat-custom-conversions.test.mjs",
         "tests/snapchat-product-sets.test.mjs",
-        "tests/snapchat-dynamic-templates.test.mjs"
+        "tests/snapchat-dynamic-templates.test.mjs",
+        "tests/snapchat-event-details.test.mjs"
       ],
       "live_qualification": "unverified"
     },

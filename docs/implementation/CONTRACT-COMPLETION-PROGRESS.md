@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## ES — Snapchat event details (2026-09-27)
+
+Event details for Snapchat Reminder creatives can now be created and deleted through reviewed
+requests: starts are read as UTC instants and must lie ahead, event details that creatives promote
+are protected, and the result is read back. See
+[implementation](SNAPCHAT-EVENT-DETAILS-2026-09-27.md),
+[qualification](SNAPCHAT-EVENT-DETAILS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 750 (two Snapchat rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## ER — Snapchat dynamic templates (2026-09-27)
 
 Snapchat dynamic templates can now be created and updated through reviewed requests: the account's
@@ -16,7 +28,7 @@ is read back. See [implementation](SNAPCHAT-DYNAMIC-TEMPLATES-2026-09-27.md),
 [qualification](SNAPCHAT-DYNAMIC-TEMPLATES-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 752 (two Snapchat rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 752 (two Snapchat rows reviewed). Committed as `140396f`; its exact-commit CI result
 and live acceptance are pending.
 
 ## EQ — LinkedIn Insight Tag domains (2026-09-27)

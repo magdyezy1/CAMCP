@@ -1009,6 +1009,16 @@
     {
       "gateway": "snapchat_native_action",
       "arguments": {
+        "action": "snapchat_event_details_event_details_id_delete",
+        "account_id": "123",
+        "params": {
+          "event_details_id": "b762edbd-7f9b-44ea-8dd0-f9f3e6405aec"
+        }
+      }
+    },
+    {
+      "gateway": "snapchat_native_action",
+      "arguments": {
         "action": "snapchat_adaccounts_ad_account_id_dynamic_templates_create",
         "account_id": "123",
         "params": {
