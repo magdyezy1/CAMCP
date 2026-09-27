@@ -54,6 +54,7 @@ import {dv360AdKind} from './dv360-demand-gen-ads.js';
 import {dv360LineItemBulkKind} from './dv360-line-item-bulk-update.js';
 import {dv360LineItemDuplicateKind} from './dv360-line-item-duplicate.js';
 import {dv360InventoryGroupKind} from './dv360-inventory-source-groups.js';
+import {dv360AdvertiserKind} from './dv360-advertiser-settings.js';
 import {xTrackingTagKind} from './x-tracking-tags.js';
 import {xAssociationKind} from './x-line-item-associations.js';
 import {xCuratedKind} from './x-curated-categories.js';
@@ -125,6 +126,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(dv360LineItemBulkKind(p))return 'dv360_line_item_bulk_update';
  if(dv360LineItemDuplicateKind(p))return 'dv360_line_item_duplicate';
  if(dv360InventoryGroupKind(p))return 'dv360_inventory_source_groups';
+ if(dv360AdvertiserKind(p))return 'dv360_advertiser_settings';
  if(xTrackingTagKind(p))return 'x_tracking_tags';
  if(xAssociationKind(p))return 'x_line_item_associations';
  if(xCuratedKind(p))return 'x_curated_categories';

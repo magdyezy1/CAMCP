@@ -2064,6 +2064,21 @@
     {
       "gateway": "dv360_native_action",
       "arguments": {
+        "action": "DV360_ADVERTISERS_PATCH",
+        "params": {
+          "advertiserId": "123",
+          "updateMask": "generalConfig.domainUrl"
+        },
+        "body": {
+          "generalConfig": {
+            "domainUrl": "https://www.example.com"
+          }
+        }
+      }
+    },
+    {
+      "gateway": "dv360_native_action",
+      "arguments": {
         "action": "DV360_INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_BULK_EDIT",
         "params": {
           "inventorySourceGroupId": "456"

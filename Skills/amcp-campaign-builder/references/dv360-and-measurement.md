@@ -408,6 +408,29 @@ it, so DV360 refuses such a write. Reads of groups, assignments and inventory so
 Reference: [inventorySourceGroups](https://developers.google.com/display-video/api/reference/rest/v4/inventorySourceGroups)
 and the pinned v4 Discovery document, checked 2026-09-27.
 
+### Advertiser settings
+
+`DV360_ADVERTISERS_PATCH` (`params: {advertiserId, updateMask}`) changes settings of the selected
+advertiser. The mask names `displayName` (up to 240 UTF-8 bytes), `entityStatus`
+(`ENTITY_STATUS_ACTIVE` or `ENTITY_STATUS_PAUSED`), `generalConfig.domainUrl` (http(s) and a
+domain, no path or query), `defaultBusinessName`, `defaultLogoAssetId` (an active image ad asset of
+the advertiser), `integrationDetails.integrationCode`,
+`servingConfig.exemptTvFromViewabilityTargeting` or `containsEuPoliticalAds`, and the body carries
+exactly those fields. Scheduling the advertiser for deletion, billing, ad server, currency, partner,
+data access and the consent flags (Prisma, video data sharing, About this Ad) are outside the
+contract.
+
+- AMCP reads the advertiser and, for a logo, the ad asset; an unchanged request is refused.
+- The status controls whether every insertion order and line item may spend: activating needs
+  `spend_change_confirmed` and counts as activation under owner policies; pausing does not.
+- `DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING` also applies to new line items, and DV360 sets it on
+  undeclared line items within a day; the review says so.
+- Verification reads the advertiser again. `INVALID_DV360_ADVERTISER_SETTING` names the field to
+  correct.
+
+Reference: [advertisers.patch](https://developers.google.com/display-video/api/reference/rest/v4/advertisers/patch)
+and the pinned v4 Discovery document, checked 2026-09-27.
+
 ## GA4 — ga4_native_action
 
 Google social sign-in, Ads access, Analytics access and optional Sheets/Drive access are

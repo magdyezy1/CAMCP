@@ -1,0 +1,99 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "a7f4754e08460bd6c7a2cf5b5df87b7c8af6a5e8",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/dv360-advertiser-settings-20260927-a",
+    "files": 932,
+    "source_tree_hash": "cd3727e7bd37e7c846f8aeee67dc21a26a0ae423f6c6379e9a51f120a5435608",
+    "index_code_test_guidance_files_compared": 729,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/dv360-advertiser-settings-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/dv360-advertiser-settings-20260927/install.log",
+      "sha256": "0e8044bde52d80702c42319f44a717e7e0246411f429f08dbfc02945cfd52473"
+    },
+    {
+      "path": ".runtime/dv360-advertiser-settings-20260927/check.log",
+      "sha256": "18493e4a6db0986b1c8c4dc352e78d04e8d302ce356769ea76f598742beba248",
+      "started": "Sun Sep 27 12:22:52 UTC 2026",
+      "finished": "Sun Sep 27 15:58:03 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2482,
+          "pass": 2482,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/dv360-advertiser-settings-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/dv360-advertiser-settings-20260927/red-check.log",
+      "sha256": "50a5467bdfd8327da0be2e53f7ba256fe003ab9d391b8f90ec93b2bfda70db8e",
+      "meaning": "tests/dv360-advertiser-settings.test.mjs against a build of a7f4754 with the pinned document present: expected red, 3/4 fail (no reviewed family: WRITE_CONTRACT_UNAVAILABLE); the malformed-request test passes because the base refuses the route before any request"
+    },
+    {
+      "path": ".runtime/dv360-advertiser-settings-20260927/targeted.log",
+      "sha256": "2a5760c2035d1186afa9b8bacc37d1d948c823c674834779f929610a5cd30a61",
+      "meaning": "170 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1877/1877 pass, none skipped."
+    }
+  ],
+  "development_failures": [],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2482,
+    "main_pass": 2482,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "That DV360 answers a patch with the whole advertiser follows the documented response and is not observed live.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

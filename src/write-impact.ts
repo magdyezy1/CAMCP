@@ -75,6 +75,7 @@ import {dv360AdImpact} from './dv360-demand-gen-ads.js';
 import {dv360LineItemBulkImpact} from './dv360-line-item-bulk-update.js';
 import {dv360LineItemDuplicateImpact} from './dv360-line-item-duplicate.js';
 import {dv360InventoryGroupImpact} from './dv360-inventory-source-groups.js';
+import {dv360AdvertiserImpact} from './dv360-advertiser-settings.js';
 import {xTrackingTagImpact} from './x-tracking-tags.js';
 import {xAssociationImpact} from './x-line-item-associations.js';
 import {xCuratedImpact} from './x-curated-categories.js';
@@ -160,6 +161,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  const dv360Bulk=dv360LineItemBulkImpact(plan,state);if(dv360Bulk)return dv360Bulk;
  const dv360Copy=dv360LineItemDuplicateImpact(plan,state);if(dv360Copy)return dv360Copy;
  const dv360InventoryGroup=dv360InventoryGroupImpact(plan,state);if(dv360InventoryGroup)return dv360InventoryGroup;
+ const dv360Advertiser=dv360AdvertiserImpact(plan,state);if(dv360Advertiser)return dv360Advertiser;
  const xTag=xTrackingTagImpact(plan,state);if(xTag)return xTag;
  const xAssociation=xAssociationImpact(plan,state);if(xAssociation)return xAssociation;
  const xCurated=xCuratedImpact(plan,state);if(xCurated)return xCurated;

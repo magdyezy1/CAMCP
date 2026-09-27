@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DX — DV360 advertiser settings (2026-09-27)
+
+The selected DV360 advertiser's name, status, domain, default business name and logo, integration
+code, TV viewability exemption and EU political advertising declaration can now be changed through
+reviewed requests: the advertiser (and a named logo asset) is read first, activation needs spending
+confirmation, and the settings are read back. See
+[implementation](DV360-ADVERTISER-SETTINGS-2026-09-27.md),
+[qualification](DV360-ADVERTISER-SETTINGS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 810 (one DV360 row reviewed). Pushes go only to CAMCP; its exact-commit CI result and
+live acceptance are pending.
+
 ## DW — Google Ads recommendation subscriptions and Smart campaign settings (2026-09-27)
 
 Auto-apply recommendation subscriptions can now be created, enabled and paused, and Smart campaign
@@ -17,8 +30,8 @@ enabling auto-apply needs spending confirmation, and the result is read back. Se
 [qualification](GOOGLE-SUBSCRIPTIONS-SMART-SETTINGS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 811 (five Google Ads rows reviewed). Pushes go only to CAMCP; its exact-commit CI
-result and live acceptance are pending.
+Remaining rows: 811 (five Google Ads rows reviewed). Committed as `a7f4754`; its exact-commit
+CI result and live acceptance are pending.
 
 ## DV — Google Ads account settings, automatically created assets and YouTube uploads (2026-09-27)
 
