@@ -1009,6 +1009,37 @@
     {
       "gateway": "snapchat_native_action",
       "arguments": {
+        "action": "snapchat_catalogs_catalog_id_product_sets_create",
+        "account_id": "123",
+        "params": {
+          "catalog_id": "123"
+        },
+        "payload": {
+          "product_sets": [
+            {
+              "name": "In stock under 20",
+              "filter": {
+                "AND": [
+                  {
+                    "AVAILABILITY": {
+                      "EQ": "IN_STOCK"
+                    }
+                  },
+                  {
+                    "PRICE_AMOUNT": {
+                      "LT": "20.00"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "snapchat_native_action",
+      "arguments": {
         "action": "snapchat_pixels_pixel_id_custom_conversions_create",
         "account_id": "123",
         "params": {

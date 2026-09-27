@@ -707,6 +707,51 @@ correct.
 Reference: [Custom Conversions](https://developers.snap.com/api/marketing-api/Ads-API/custom-conversions),
 checked 2026-09-27.
 
+## Snapchat product sets
+
+Product sets select the catalog products that dynamic product ads show. Catalogs belong to the
+organization of the selected ad account, and each catalog has a default set of all its products that
+Snapchat maintains.
+
+- `snapchat_catalogs_catalog_id_product_sets_create` (or `snapchat_catalog_product_set_create`) with
+  `params: {catalog_id}` and `payload: {product_sets: [{name, filter}]}` creates 1–50 sets; a catalog
+  holds at most 50 besides its default. Names have 3–255 characters and must not repeat within the
+  catalog (ignoring case).
+- `snapchat_catalogs_catalog_id_product_sets_update` (or `snapchat_catalog_product_set_update`) with
+  `params: {catalog_id}` updates 1–50 sets of that catalog; `snapchat_product_sets_update` updates
+  1–10 sets named by ID alone. Each item sends `{id, name, filter}` in full.
+- `snapchat_product_sets_product_set_id_delete` with `params: {product_set_id}` deletes a set.
+
+A filter is one condition `{ATTRIBUTE: {OPERATOR: value}}`, or `AND` or `OR` with a list of 1–10
+conditions (one logical operator, no nesting):
+
+- `AGE_GROUP`, `AVAILABILITY`, `CONDITION` and `GENDER` take `EQ` or `NEQ` with Snapchat's values,
+  for example `{"AVAILABILITY": {"EQ": "IN_STOCK"}}`.
+- `PRICE_AMOUNT` takes `EQ`, `NEQ`, `GT`, `GTE`, `LT` or `LTE` with a number of up to two decimals
+  written as a string (`"15.50"`); `PRICE_CURRENCY` takes `EQ` or `NEQ` with an ISO 4217 code.
+- Text attributes (`BRAND`, `COLOR`, `CUSTOM_LABEL_0` to `CUSTOM_LABEL_4`,
+  `GOOGLE_PRODUCT_CATEGORY`, `ID`, `ITEM_GROUP_ID`, `MATERIAL`, `PATTERN`, `PRODUCT_TYPE`, `SIZE`,
+  `TITLE`) take `EQ`, `NEQ`, `CONTAINS`, `NOT_CONTAINS`, `STARTS_WITH` and their case-insensitive
+  `I_` forms with one value of 1–255 characters, or `IS_ANY`, `IS_NOT_ANY`, `I_IS_ANY` and
+  `I_IS_NOT_ANY` with 1–10 different values (up to 1000 for `ID`). Snapchat notes that the list
+  operators only work with alphanumeric values.
+
+AMCP reads the account's organization, its catalogs (up to 200) and the sets of the catalogs
+involved; updates and deletions by ID read each set first to find its catalog. An unknown catalog or
+set, or one of another organization, fails with `STATE_NOT_FOUND`, and a taken name with
+`CONFIGURATION_EXISTS`. Changing or deleting a default set, an update that changes nothing and a
+full catalog fail with `INVALID_SNAPCHAT_PRODUCT_SET`, which also names any field to correct.
+AMCP also reads the account's ad squads and creatives. An update shows those that use each set and
+may affect serving when an active ad squad does; deleting a set that an ad squad
+(`product_properties.product_set_id` or `targeting.product_audiences`) or a dynamic creative uses is
+refused with `PRODUCT_SET_IN_USE`. No request changes spending; deletions count under owner
+deletion policies. A reply that is not SUCCESS for every set is a failure never resubmitted.
+Verification lists the catalog's sets again and compares each name and filter, or expects the
+deleted set gone.
+
+Reference: [Dynamic Product Ads](https://developers.snap.com/api/marketing-api/Ads-API/dynamic-product-ads)
+("Product Set"), checked 2026-09-27.
+
 ## Snapchat nested updates
 
 Ad/ad-squad updates now use the documented native parent routes:

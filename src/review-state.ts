@@ -10,6 +10,7 @@ import {isSnapchatMediaCopyRead} from './snapchat-media-copy.js';
 import {isSnapDisclaimerRead} from './snapchat-offer-disclaimers.js';
 import {isSnapSegmentDeleteRead} from './snapchat-segment-deletions.js';
 import {isSnapConversionRead} from './snapchat-custom-conversions.js';
+import {isSnapProductSetRead} from './snapchat-product-sets.js';
 import {isGoogleBrandGuidelinesRead} from './google-pmax-brand-guidelines.js';
 import {isGoogleCustomerTypeRead} from './google-user-list-customer-types.js';
 import {isGoogleDraftRead} from './google-campaign-drafts.js';
@@ -107,6 +108,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isSnapDisclaimerRead(read))return normalizeReviewState(data);
  if(isSnapSegmentDeleteRead(read))return normalizeReviewState(data);
  if(isSnapConversionRead(read))return normalizeReviewState(data);
+ if(isSnapProductSetRead(read))return normalizeReviewState(data);
  if(isGoogleBrandGuidelinesRead(read))return normalizeReviewState(data);
  if(isGoogleCustomerTypeRead(read))return normalizeReviewState(data);
  if(isGoogleDraftRead(read))return normalizeReviewState(data);

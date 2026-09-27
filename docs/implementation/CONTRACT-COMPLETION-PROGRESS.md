@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## EP — Snapchat product sets (2026-09-27)
+
+Product sets of Snapchat catalogs can now be created, updated and deleted through reviewed requests:
+the account's organization, its catalogs and their sets are read first, default sets and sets that
+ads use are protected, and the result is read back. See
+[implementation](SNAPCHAT-PRODUCT-SETS-2026-09-27.md),
+[qualification](SNAPCHAT-PRODUCT-SETS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 756 (six Snapchat rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## EO — Snapchat custom conversions (2026-09-27)
 
 Custom conversions of Snapchat pixels can now be created and deleted through reviewed requests: the
@@ -17,7 +29,7 @@ under owner policies, and the result is read back. See
 [qualification](SNAPCHAT-CUSTOM-CONVERSIONS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 762 (two Snapchat rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 762 (two Snapchat rows reviewed). Committed as `09b5472`; its exact-commit CI result
 and live acceptance are pending.
 
 ## EN — LinkedIn A/B tests (2026-09-27)

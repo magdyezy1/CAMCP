@@ -1,0 +1,102 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "09b54722399e7610ad89fe6b7f1b738765abe772",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/snapchat-product-sets-20260927-a",
+    "files": 1006,
+    "source_tree_hash": "9d9ca2f7d92e178390d39fd5e9ee14f1aaa515b524613856f0aa89493b674da8",
+    "index_code_test_guidance_files_compared": 767,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/snapchat-product-sets-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/snapchat-product-sets-20260927/install.log",
+      "sha256": "fd1d9de07b2f08802677e9eb68653e02fcf4423e062c4d00c4a3afe0d39973f2"
+    },
+    {
+      "path": ".runtime/snapchat-product-sets-20260927/check.log",
+      "sha256": "4124bc3793fa916bc9174e93b799a77eb9287808791ca1c42603411f45600cc2",
+      "started": "Sun Sep 27 22:19:49 UTC 2026",
+      "finished": "Mon Sep 28 01:40:05 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2556,
+          "pass": 2556,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/snapchat-product-sets-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/snapchat-product-sets-20260927/red-check.log",
+      "sha256": "023b067832d8168ce4d744ebe16c38ba42d10626f5d72227f63379e1ba7daf0e",
+      "meaning": "tests/snapchat-product-sets.test.mjs against a build of 09b5472: expected red, 3/3 fail (no reviewed family: WRITE_CONTRACT_UNAVAILABLE)"
+    },
+    {
+      "path": ".runtime/snapchat-product-sets-20260927/targeted.log",
+      "sha256": "3cc6de127c87e3fed2d2a3d0819c2f160d0fb2d035e806a64ef62fd8212831ad",
+      "meaning": "189 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1951/1951 pass, none skipped."
+    }
+  ],
+  "development_failures": [],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2556,
+    "main_pass": 2556,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Refusing to delete a set that an ad squad or creative uses covers only the selected ad account; other accounts of the organization may use the set too.",
+    "Whether the default set counts toward the 50 sets of a catalog is not documented; AMCP does not count it and leaves the edge to Snapchat's refusal.",
+    "Refusing comparisons on text attributes and requiring prices as strings follow the guide's operator table and note, not an observed refusal.",
+    "The guide shows PRICE_CURRENCY as US in one example but asks for ISO 4217 codes; AMCP accepts three-letter codes only.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}
