@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## EJ — Snapchat audience segment deletion (2026-09-27)
+
+Snapchat audience segments of the selected ad account can now be deleted through reviewed requests:
+every segment and ad squad of the account is read first, a segment that an ad squad targets is
+refused, deletions count as deletions, and the segment is read back as gone. See
+[implementation](SNAPCHAT-SEGMENT-DELETION-2026-09-27.md),
+[qualification](SNAPCHAT-SEGMENT-DELETION-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 774 (two Snapchat rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## EI — Meta ad image deletion and custom conversion creation (2026-09-27)
 
 Unused images can now be deleted from a Meta ad account library, and custom conversions created on the
@@ -17,7 +29,7 @@ first, Meta's refusal for an image in use is never resubmitted, and the results 
 [qualification](META-IMAGES-CONVERSIONS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 776 (two Meta rows reviewed). Pushes go only to CAMCP; its exact-commit CI result and
+Remaining rows: 776 (two Meta rows reviewed). Committed as `7c5d198`; its exact-commit CI result and
 live acceptance are pending.
 
 ## EH — DV360 custom bidding algorithms (2026-09-27)

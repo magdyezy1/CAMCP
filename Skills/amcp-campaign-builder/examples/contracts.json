@@ -992,6 +992,16 @@
     {
       "gateway": "snapchat_native_action",
       "arguments": {
+        "action": "snapchat_segments_segment_id_delete",
+        "account_id": "123",
+        "params": {
+          "segment_id": "11111111-2222-3333-4444-555555555555"
+        }
+      }
+    },
+    {
+      "gateway": "snapchat_native_action",
+      "arguments": {
         "action": "snapchat_adaccounts_ad_account_id_offer_disclaimers_create",
         "account_id": "123",
         "path_params": {

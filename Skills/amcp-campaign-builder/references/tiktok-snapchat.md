@@ -659,6 +659,22 @@ checked 2026-09-27.
   `status`, which change without any edit. Verification reads the segment back. A lookalike read
   back with the deprecated `country` matches the `countries` that were sent.
 
+## Snapchat segment deletion
+
+`snapchat_segments_segment_id_delete` (or `snapchat_audience_delete`) with `params: {segment_id}`
+deletes an audience segment; Snapchat says "Deleted Audience segments cannot be retrieved". List the
+segments of the selected ad account first (`snapchat_audience_list`), as for segment updates.
+
+AMCP reads every segment and every ad squad of the account (up to 5000 each). Snapchat does not say
+what happens to ad squads that target a deleted segment, so a segment that an ad squad includes or
+excludes in `targeting.segments` is refused with `AUDIENCE_IN_USE`; remove it from their targeting
+first. The deletion counts under owner deletion policies and needs no spending confirmation. A reply
+that is not SUCCESS is a failure never resubmitted. Verification lists the segments again and
+expects the segment to be gone. `INVALID_SNAPCHAT_SEGMENT_DELETION` names what to correct.
+
+Reference: [Audiences](https://developers.snap.com/api/marketing-api/Ads-API/audiences) (Delete a
+Segment) and the example targeting specs, checked 2026-09-27.
+
 ## Snapchat nested updates
 
 Ad/ad-squad updates now use the documented native parent routes:

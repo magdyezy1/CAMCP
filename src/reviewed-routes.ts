@@ -1,6 +1,7 @@
 import {snapUpdateKind} from './snapchat-nested-updates.js';
 import {snapchatMediaCopyKind} from './snapchat-media-copy.js';
 import {snapDisclaimerKind} from './snapchat-offer-disclaimers.js';
+import {snapSegmentDeleteKind} from './snapchat-segment-deletions.js';
 import {xReportKind} from './x-report-jobs.js';
 import {googlePreviewKind} from './google-preview-writes.js';
 import {criteoCampaignKind} from './criteo-campaign-writes.js';
@@ -95,6 +96,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(snapUpdateKind(p))return 'snapchat_nested_updates';
  if(snapchatMediaCopyKind(p))return 'snapchat_media_copy';
  if(snapDisclaimerKind(p))return 'snapchat_offer_disclaimers';
+ if(snapSegmentDeleteKind(p))return 'snapchat_segment_deletions';
  if(googlePreviewKind(p))return 'google_shareable_previews';
  if(placeActionKind(p))return 'google_place_actions';
  if(businessNotificationKind(p))return 'google_business_notifications';

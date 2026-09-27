@@ -1,0 +1,100 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "7c5d198cf0da0b8bcd625cbd4ce36bc9f0e6836e",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/snapchat-segment-delete-20260927-a",
+    "files": 982,
+    "source_tree_hash": "c242457bcab129e7ba07f9604dd01688233b2e06945d907b886f6794ebbf2408",
+    "index_code_test_guidance_files_compared": 755,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/snapchat-segment-delete-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/snapchat-segment-delete-20260927/install.log",
+      "sha256": "8977535ae5fdcef3bff142020cc9f4aabb492ebd7a9834a1221725961d958b29"
+    },
+    {
+      "path": ".runtime/snapchat-segment-delete-20260927/check.log",
+      "sha256": "a8fce2fd86da6aef9dd7e594b74523498c61c2ef10fd5a27bca37a564168f5ea",
+      "started": "Sun Sep 27 20:11:10 UTC 2026",
+      "finished": "Sun Sep 27 23:35:30 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2536,
+          "pass": 2536,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/snapchat-segment-delete-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/snapchat-segment-delete-20260927/red-check.log",
+      "sha256": "c207fd7adce102dc21242c59bf70d5dbe6da04ed0010ab09627ae2d01f60cbba",
+      "meaning": "tests/snapchat-segment-deletions.test.mjs against a build of 7c5d198: expected red, 3/3 fail (no reviewed family: WRITE_CONTRACT_UNAVAILABLE); the base's own segment test is unchanged and not copied"
+    },
+    {
+      "path": ".runtime/snapchat-segment-delete-20260927/targeted.log",
+      "sha256": "3375cf2ed4b3835264e2473a779076f9b8114b6e6c3997901528f2f690db9577",
+      "meaning": "183 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1931/1931 pass, none skipped."
+    }
+  ],
+  "development_failures": [],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2536,
+    "main_pass": 2536,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Refusing to delete a segment that an ad squad targets is AMCP's rule; Snapchat does not document what happens to such ad squads.",
+    "The list page size (1000) and cursor handling follow Snapchat's documented pagination, not a live observation.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

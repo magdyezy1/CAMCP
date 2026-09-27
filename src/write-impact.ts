@@ -1,6 +1,7 @@
 import {snapUpdateKind,snapUpdateImpact} from './snapchat-nested-updates.js';
 import {snapchatMediaCopyImpact} from './snapchat-media-copy.js';
 import {snapDisclaimerImpact} from './snapchat-offer-disclaimers.js';
+import {snapSegmentDeleteImpact} from './snapchat-segment-deletions.js';
 import {snapSegmentImpact} from './snapchat-segments.js';
 import {tiktokIdentityKind,tiktokIdentityImpact} from './tiktok-identities.js';
 import {metaCopyKind,metaCopyImpact} from './meta-copies.js';
@@ -118,6 +119,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  if(snapUpdateKind(plan))return snapUpdateImpact;
  const snapCopy=snapchatMediaCopyImpact(plan,state);if(snapCopy)return snapCopy;
  const snapDisclaimer=snapDisclaimerImpact(plan,state);if(snapDisclaimer)return snapDisclaimer;
+ const snapSegmentDelete=snapSegmentDeleteImpact(plan,state);if(snapSegmentDelete)return snapSegmentDelete;
  if(metaCopyKind(plan))return metaCopyImpact(plan,state);
  if(googlePreviewKind(plan))return googlePreviewImpact;
  if(googleDismissalKind(plan))return googleDismissalImpact(plan,state);

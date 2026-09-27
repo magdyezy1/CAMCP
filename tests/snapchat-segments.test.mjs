@@ -8,7 +8,8 @@ import {NativeTransport} from '../dist/src/transport.js';
 /**
  * Snapchat audience segment metadata (official Audiences guides, checked 2026-09-26): customer-list containers
  * and lookalikes are created; name, description and retention are updated. User uploads and removals carry
- * customer data and stay blocked, as do segment deletion and pixel/mobile/engagement rule audiences.
+ * customer data and stay blocked, as do pixel/mobile/engagement rule audiences. Deletion is reviewed separately
+ * (tests/snapchat-segment-deletions.test.mjs).
  */
 const SNAP='44444444-4444-4444-8444-444444444444',gateway='snapchat_native_action',account='acct1';
 const actor={tenantId:'snap-segments',userId:'operator',role:'operator'},admin={...actor,role:'admin'},key=Buffer.alloc(32,62).toString('base64');
@@ -52,7 +53,7 @@ test('segment create and update join the reviewed Snapchat family; users, deleti
    assert.equal(inspected.data.review_contract_supported,true,action+' '+JSON.stringify(inspected));
   }
   const contracts=(await f.call('amcp_workspace',{action:'contracts',gateway,search:'segment',limit:100})).data.actions,status=Object.fromEntries(contracts.map(r=>[r.action,r.status]));
-  for(const action of ['snapchat_segments_segment_id_users_create','snapchat_segments_segment_id_users_delete','snapchat_segments_segment_id_all_users_delete','snapchat_segments_segment_id_delete'])assert.equal(status[action],'blocked_write',action);
+  for(const action of ['snapchat_segments_segment_id_users_create','snapchat_segments_segment_id_users_delete','snapchat_segments_segment_id_all_users_delete'])assert.equal(status[action],'blocked_write',action);
   assert.equal(f.requests.length,0);
  }finally{f.store.close();}
 });
