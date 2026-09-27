@@ -806,7 +806,17 @@ Tests: `tests/google-experiment-lifecycle.test.mjs` (6), red on `1970383` / gree
 - New reviewed families `google_customer_settings` (customer update of tracking, name, call reporting and video suitability), `google_auto_assets` (removal of automatically created ad and campaign assets, checked against the links' source) and `google_youtube_uploads` (privacy of brand channel uploads and removal, with the video assets that use each video).
 - Also checked and left: lifecycle goal configuration (four rows) has only output-only fields in v23; the v23 retention `Goals` services are partly allowlisted.
 
-Tests: `tests/google-customer-settings.test.mjs` (4), `tests/google-auto-assets.test.mjs` (3) and `tests/google-youtube-uploads.test.mjs` (3), red on `e9db0db` / green after.
+Tests: `tests/google-customer-settings.test.mjs` (4), `tests/google-auto-assets.test.mjs` (3) and `tests/google-youtube-uploads.test.mjs` (3), red on `e9db0db` / green after. Committed as `b6124bd`.
+
+## Finished batch — Google Ads recommendation subscriptions and Smart campaign settings (2026-09-27)
+
+[Implementation](GOOGLE-SUBSCRIPTIONS-SMART-SETTINGS-2026-09-27.md) and
+[qualification](GOOGLE-SUBSCRIPTIONS-SMART-SETTINGS-VERIFICATION-2026-09-27.json).
+
+- New reviewed families `google_recommendation_subscriptions` (auto-apply subscriptions and their three aliases; enabling needs spending confirmation and counts as activation) and `google_smart_campaign_settings` (Smart campaign landing page, phone, language and business, one choice each where the API offers two).
+- Also checked and left: the SkAdNetwork conversion value schema mutation (two rows) carries only output-only fields in v23, so there is nothing to write.
+
+Tests: `tests/google-recommendation-subscriptions.test.mjs` (3) and `tests/google-smart-campaign-settings.test.mjs` (3), red on `b6124bd` / green after.
 
 ## CI and live evidence
 
@@ -820,20 +830,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 615 in reviewed write families. **816 remaining rows** are in
+3241 captured actions; 620 in reviewed write families. **811 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 701 |
+| blocked_write | 696 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 126, LinkedIn 105, Snapchat 85,
-Google Ads 64, X 55, DV360 36, Criteo 32, Business Profile 12.
+Google Ads 59, X 55, DV360 36, Criteo 32, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

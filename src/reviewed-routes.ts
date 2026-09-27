@@ -29,6 +29,8 @@ import {googleExperimentKind} from './google-experiments.js';
 import {googleCustomerSettingsKind} from './google-customer-settings.js';
 import {googleAutoAssetKind} from './google-auto-assets.js';
 import {googleUploadKind} from './google-youtube-uploads.js';
+import {googleSubscriptionKind} from './google-recommendation-subscriptions.js';
+import {googleSmartKind} from './google-smart-campaign-settings.js';
 import {googleConversionGoalKind} from './google-conversion-goals.js';
 import {googleBiddingEventKind} from './google-bidding-events.js';
 import {googlePortfolioKind} from './google-portfolio-strategies.js';
@@ -105,6 +107,8 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(googleCustomerSettingsKind(p))return 'google_customer_settings';
  if(googleAutoAssetKind(p))return 'google_auto_assets';
  if(googleUploadKind(p))return 'google_youtube_uploads';
+ if(googleSubscriptionKind(p))return 'google_recommendation_subscriptions';
+ if(googleSmartKind(p))return 'google_smart_campaign_settings';
  if(googleListingGroupKind(p))return 'google_listing_groups';
  if(tiktokNegativeKeywordKind(p))return 'tiktok_negative_keywords';
  if(tiktokBrandSafetyKind(p))return 'tiktok_brand_safety';

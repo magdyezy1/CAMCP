@@ -461,6 +461,38 @@ Reference: the pinned v23 `CustomerService`, `AdGroupAdService`,
 `AutomaticallyCreatedAssetRemovalService` and `YouTubeVideoUploadService` document, checked
 2026-09-27.
 
+## Auto-apply recommendation subscriptions
+
+`google_ads_v23_recommendation_subscription_mutate_recommendation_subscription` (or
+`SUBSCRIBE_RECOMMENDATION` for creation, `UNSUBSCRIBE_RECOMMENDATION` to pause,
+`UPDATE_RECOMMENDATION_SUBSCRIPTION`) takes 1–10 operations: `{create: {type, status}}` or
+`{update: {resourceName: "customers/<customer>/recommendationSubscriptions/<TYPE>", status},
+updateMask: "status"}`, with `status` ENABLED or PAUSED. The type (such as CAMPAIGN_BUDGET or
+KEYWORD) cannot change and a subscription is paused rather than removed.
+
+AMCP reads every subscription of the customer: a type already subscribed is `CONFIGURATION_EXISTS`
+(update it instead), an unknown one `STATE_NOT_FOUND`, an unchanged status is refused. While a
+subscription is ENABLED, Google applies its recommendations automatically, so enabling one needs
+`spend_change_confirmed` and counts as activation under owner policies. Verification reads each
+status again. `INVALID_GOOGLE_RECOMMENDATION_SUBSCRIPTION` names the operation to correct;
+`SUBSCRIPTION_STATE_UNVERIFIED` means the read was incomplete.
+
+## Smart campaign settings
+
+`google_ads_v23_smart_campaign_setting_mutate_smart_campaign_settings` takes 1–10 operations
+`{update: {resourceName: "customers/<customer>/smartCampaignSettings/<campaign>", ...}, updateMask}`
+naming `phoneNumber` (or `phoneNumber.phoneNumber`, `phoneNumber.countryCode`), `finalUrl` or
+`adOptimizedBusinessProfileSetting` (one landing page, not both), `advertisingLanguageCode`, and
+`businessName` or `businessProfileLocation` (`locations/<id>`, not both).
+
+AMCP reads each setting with its campaign, which must be a Smart campaign that is not removed; an
+unchanged setting is refused. The change reaches the ads at once, so the review shows every field
+from and to. Verification reads the settings again. `INVALID_GOOGLE_SMART_CAMPAIGN_SETTING` names
+the field to correct; `SMART_CAMPAIGN_STATE_UNVERIFIED` means the read was incomplete.
+
+Reference: the pinned v23 `RecommendationSubscriptionService` and `SmartCampaignSettingService`
+document, checked 2026-09-27.
+
 ## Conversion value rules
 
 `google_ads_v23_conversion_value_rule_mutate_conversion_value_rules` creates, updates and removes

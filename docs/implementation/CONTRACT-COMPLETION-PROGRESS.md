@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DW — Google Ads recommendation subscriptions and Smart campaign settings (2026-09-27)
+
+Auto-apply recommendation subscriptions can now be created, enabled and paused, and Smart campaign
+settings updated, through reviewed requests: the current subscriptions or settings are read first,
+enabling auto-apply needs spending confirmation, and the result is read back. See
+[implementation](GOOGLE-SUBSCRIPTIONS-SMART-SETTINGS-2026-09-27.md),
+[qualification](GOOGLE-SUBSCRIPTIONS-SMART-SETTINGS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 811 (five Google Ads rows reviewed). Pushes go only to CAMCP; its exact-commit CI
+result and live acceptance are pending.
+
 ## DV — Google Ads account settings, automatically created assets and YouTube uploads (2026-09-27)
 
 Three Google Ads gaps are closed with reviewed requests: account settings (auto-tagging, tracking
@@ -18,8 +30,8 @@ through the API. Each reads the current state first and reads the result back. S
 [qualification](GOOGLE-ACCOUNT-SETTINGS-ASSETS-UPLOADS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 816 (seven Google Ads rows reviewed). Pushes go only to CAMCP; its exact-commit CI
-result and live acceptance are pending.
+Remaining rows: 816 (seven Google Ads rows reviewed). Committed as `b6124bd`; its exact-commit
+CI result and live acceptance are pending.
 
 ## DU — Google Ads experiment scheduling, ending, promotion and graduation (2026-09-27)
 

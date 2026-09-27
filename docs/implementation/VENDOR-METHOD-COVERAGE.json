@@ -9190,8 +9190,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_smart_campaign_setting_mutate_smart_campaign_settings",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_smart_campaign_settings"
         }
       ],
       "mapping_status": "mapped",
@@ -9715,26 +9715,26 @@
         {
           "operation": null,
           "action": "google_ads_v23_recommendation_subscription_mutate_recommendation_subscription",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_recommendation_subscriptions"
         },
         {
           "operation": null,
           "action": "SUBSCRIBE_RECOMMENDATION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_recommendation_subscriptions"
         },
         {
           "operation": null,
           "action": "UNSUBSCRIBE_RECOMMENDATION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_recommendation_subscriptions"
         },
         {
           "operation": null,
           "action": "UPDATE_RECOMMENDATION_SUBSCRIPTION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_recommendation_subscriptions"
         }
       ],
       "mapping_status": "mapped",

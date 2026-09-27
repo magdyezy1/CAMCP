@@ -748,6 +748,41 @@
     {
       "gateway": "google_ads_native_action",
       "arguments": {
+        "action": "google_ads_v23_recommendation_subscription_mutate_recommendation_subscription",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "create": {
+                "type": "KEYWORD",
+                "status": "PAUSED"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
+        "action": "google_ads_v23_smart_campaign_setting_mutate_smart_campaign_settings",
+        "account_id": "123",
+        "payload": {
+          "operations": [
+            {
+              "update": {
+                "resourceName": "customers/123/smartCampaignSettings/456",
+                "finalUrl": "https://example.com/offer"
+              },
+              "updateMask": "finalUrl"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
         "action": "google_ads_v23_customer_mutate_customer",
         "account_id": "123",
         "payload": {
