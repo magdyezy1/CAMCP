@@ -673,7 +673,17 @@ Tests: `tests/dv360-line-item-bulk-update.test.mjs` (6), red on `903b5c5` / gree
 - New reviewed family `snapchat_media_copy` (`src/snapchat-media-copy.ts`) for `POST /v1/adaccounts/{ad_account_id}/media_copy`: 1–20 READY images and videos from other ad accounts of the same organization, each source account bound to the login, each source media read under its own account, a partial receipt kept as a failure and never resubmitted, and each copy read back in the selected ad account under its new ID.
 - The copies become media of the selected ad account from the receipt, so creatives can use them without another listing.
 
-Tests: `tests/snapchat-media-copy.test.mjs` (5), red on `e24d475` / green after.
+Tests: `tests/snapchat-media-copy.test.mjs` (5), red on `e24d475` / green after. Pushed as `3123374`.
+
+## Finished batch — Criteo line items in retailer-billed campaigns (2026-09-27)
+
+[Implementation](CRITEO-RETAILER-BILLED-LINE-ITEMS-2026-09-27.md) and
+[qualification](CRITEO-RETAILER-BILLED-LINE-ITEMS-VERIFICATION-2026-09-27.json).
+
+- Defect fix in `src/criteo-auction-line-items.ts`: the campaign read took only a numeric string as the retailer, while the pinned document types `CampaignV202301.retailerId` as an int32, so every auction line item, promoted product, keyword and bid multiplier review in a retailer-billed campaign stopped as incomplete state. The retailer is now compared as a string.
+- Criteo preferred (onsite display) line items stay blocked: Criteo documents Preferred Deals as a beta "available only to our Retailer partners", with documentation from the account manager, and AMCP connects demand accounts.
+
+Tests: `tests/criteo-auction-line-items.test.mjs` (fixture and model test changed), red on `3123374` / green after.
 
 ## CI and live evidence
 

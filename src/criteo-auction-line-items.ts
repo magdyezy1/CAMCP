@@ -150,9 +150,10 @@ function campaignOf(row:JsonObject,account:string):JsonObject{
  const a=row.attributes;
  if(a.accountId!==account)mismatch('Campaign '+row.id+' belongs to another account.');
  if(a.type!=='auction')invalid('Auction line items belong to auction campaigns; campaign '+row.id+' is '+String(a.type)+'.');
- if(a.retailerId!=null&&!id(a.retailerId))unverified('The campaign retailer is malformed.');
+ // CampaignV202301 types retailerId as an int32, while line items name their retailer with a long-id string.
+ const retailerId=a.retailerId==null?null:Number.isSafeInteger(a.retailerId)&&a.retailerId>0?String(a.retailerId):id(a.retailerId)?a.retailerId:unverified('The campaign retailer is malformed.');
  // Spend, remaining budget and computed pacing change while the campaign serves; they are not part of the review state.
- return {id:row.id,name:typeof a.name==='string'?a.name:null,retailerId:a.retailerId??null,budget:number(a.budget),monthlyPacing:number(a.monthlyPacing),dailyPacing:a.isAutoDailyPacing===true?null:number(a.dailyPacing)};
+ return {id:row.id,name:typeof a.name==='string'?a.name:null,retailerId,budget:number(a.budget),monthlyPacing:number(a.monthlyPacing),dailyPacing:a.isAutoDailyPacing===true?null:number(a.dailyPacing)};
 }
 /** One normalized form of a line item: instants in UTC, sorted flight legs with lower-case days, no telemetry, the derived statuses of an
  * active line item as "active", and maxBid 0 (how Criteo returns no ceiling) as null. It accepts its own output. */

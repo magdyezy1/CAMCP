@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## DI — Criteo line items in retailer-billed campaigns (2026-09-27)
+
+Auction line item, promoted product, keyword and bid multiplier reviews in retailer-billed Criteo
+campaigns no longer stop at the campaign read: the retailer, an int32 in the pinned document, is
+compared as the string line items use. Criteo preferred line items stay blocked (a beta for
+retailer partners). See [implementation](CRITEO-RETAILER-BILLED-LINE-ITEMS-2026-09-27.md),
+[qualification](CRITEO-RETAILER-BILLED-LINE-ITEMS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 877 (a defect fix). Pushed only to CAMCP; its exact-commit CI result and live
+acceptance are pending.
+
 ## DH — Snapchat media copy between ad accounts (2026-09-27)
 
 READY images and videos can now be copied into the selected ad account from other ad accounts of
@@ -18,8 +30,8 @@ the selected ad account, and each copy is read back under its new ID. See
 [qualification](SNAPCHAT-MEDIA-COPY-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 877 (one Snapchat row reviewed). Pushed only to CAMCP; its exact-commit CI result
-and live acceptance are pending.
+Remaining rows: 877 (one Snapchat row reviewed). Pushed to CAMCP as `3123374`; its exact-commit CI
+result and live acceptance are pending.
 
 ## DG — DV360 line item bulk status updates (2026-09-27)
 

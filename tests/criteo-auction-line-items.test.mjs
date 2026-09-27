@@ -26,7 +26,7 @@ const existing=()=>({campaignId:'456',targetRetailerId:'55',name:'Existing line'
 function fixture(){
  const store=new Store(':memory:',Buffer.alloc(32,61).toString('base64')),c={id:'criteo',tenantId:actor.tenantId,gateway,accounts:['123'],writeAccounts:['123'],enabled:true,label:'Synthetic Criteo',scopes:['RetailMedia_Accounts_Read','RetailMedia_Campaign_Read','RetailMedia_Campaign_Manage']};
  store.putConnection(owner,c,{accessToken:'synthetic'});
- const campaigns={'456':{name:'Summer',type:'auction',retailerId:null},'457':{name:'Retailer billed',type:'auction',retailerId:'77'},'458':{name:'Deals',type:'preferred',retailerId:null}};
+ const campaigns={'456':{name:'Summer',type:'auction',retailerId:null},'457':{name:'Retailer billed',type:'auction',retailerId:77},'458':{name:'Deals',type:'preferred',retailerId:null}};
  // Line 789 promotes products; 791 has none and stays in draft.
  const lines=new Map([['789',{attributes:existing(),products:true}],['791',{attributes:{...existing(),name:'Draft line',status:'draft'},products:false}]]);
  let writes=0,next=790,mode='';const calls=[];
@@ -198,6 +198,8 @@ test('the qualified fields match the pinned create and update models',async()=>{
  assert.deepEqual(Object.keys(update.properties).sort(),[...criteoLineItemFields,'status'].sort());
  assert.deepEqual([...create.required].sort(),['name','startDate','targetRetailerId']);assert.deepEqual([...update.required].sort(),['isAutoDailyPacing','name','startDate','status']);
  assert.deepEqual(update.properties.status.enum,['active','paused','draft']);
+ // Campaigns name their retailer with an int32; line items with a long-id string.
+ assert.deepEqual([spec.CampaignV202301.properties.retailerId.type,spec.SponsoredProductsLineItemCreateRequestModel.properties.targetRetailerId.type],['integer','string']);
  const routes=JSON.parse(readFileSync('generated/vendor-routes.json','utf8')).routes.filter(r=>r.gateway===gateway&&['CREATE_AUCTION_LINE_ITEM','UPDATE_AUCTION_LINE_ITEM'].includes(r.action));
  assert.deepEqual(routes.map(r=>[r.action,r.method,r.path]).sort(),[['CREATE_AUCTION_LINE_ITEM','POST',prefix+'/campaigns/{campaignId}/auction-line-items'],['UPDATE_AUCTION_LINE_ITEM','PUT',prefix+'/auction-line-items/{lineItemId}']]);
  const paths=JSON.parse(readFileSync('.mirror/VENDOR/criteo-retail-2026-01.json','utf8')).document.paths;
