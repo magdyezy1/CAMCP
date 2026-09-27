@@ -1687,6 +1687,29 @@
     {
       "gateway": "meta_native_action",
       "arguments": {
+        "action": "meta_ad_account_id_customconversions_create",
+        "account_id": "123",
+        "payload": {
+          "name": "Checkout complete",
+          "event_source_id": "4001",
+          "custom_event_type": "PURCHASE",
+          "rule": "{\"url\":{\"i_contains\":\"order-confirmed\"}}"
+        }
+      }
+    },
+    {
+      "gateway": "meta_native_action",
+      "arguments": {
+        "action": "meta_ad_account_id_adimages_delete",
+        "account_id": "123",
+        "params": {
+          "hash": "0123456789abcdef0123456789abcdef"
+        }
+      }
+    },
+    {
+      "gateway": "meta_native_action",
+      "arguments": {
         "action": "meta_custom_audience_id_update",
         "account_id": "123",
         "params": {

@@ -407,3 +407,25 @@ was incomplete.
 
 Reference: the Marketing API v25.0 "Ad Creative" and "Custom Audience" references (Updating,
 Deleting), checked 2026-09-27.
+
+## Ad images and custom conversions
+
+- `meta_ad_account_id_adimages_delete` with `params: {hash}` (the 32-character image hash) deletes an
+  image from the ad account library. AMCP lists the image by hash first (it must exist and not be
+  DELETED). Meta says "You can only delete ad images not currently being used in an ad creative",
+  so it refuses images in use; that reply is a failure never resubmitted. The deletion counts under
+  owner deletion policies; verification lists the image again and expects it gone or DELETED.
+  `INVALID_META_AD_IMAGE` names the field to correct.
+- `meta_ad_account_id_customconversions_create` with `payload: {name, event_source_id, rule,
+  custom_event_type, default_conversion_value, description, action_source_type}` creates a custom
+  conversion. AMCP asks for a name of up to 100 characters, a pixel of the ad account in
+  `event_source_id` (listed first) and an explicit `rule`: a JSON object in a string, for example
+  `{"url":{"i_contains":"thank-you"}}`. Names are unique among the account's custom conversions in
+  any case (`CONFIGURATION_EXISTS`); archived ones do not count. `advanced_rule` (several sources)
+  is outside the contract, and Meta offers no update or deletion on this edge. Nothing needs
+  spending confirmation: ad sets use the conversion only once they name it. Verification lists the
+  custom conversions and compares the new one, the rule as JSON. `INVALID_META_CUSTOM_CONVERSION`
+  names the field to correct.
+
+Reference: the Marketing API v25.0 "Ad Image" (Deleting) and "Ad Account Customconversions"
+(Creating) references, checked 2026-09-27.

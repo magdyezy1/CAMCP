@@ -66,6 +66,8 @@ import {tiktokNegativeKeywordImpact} from './tiktok-negative-keywords.js';
 import {tiktokBrandSafetyImpact} from './tiktok-brand-safety.js';
 import {metaValueRuleImpact} from './meta-value-rules.js';
 import {metaObjectImpact} from './meta-object-edits.js';
+import {metaImageImpact} from './meta-ad-images.js';
+import {metaConversionImpact} from './meta-custom-conversions.js';
 import {metaBrandSafetyImpact} from './meta-brand-safety.js';
 import {criteoLineItemImpact} from './criteo-auction-line-items.js';
 import {criteoOverrideImpact} from './criteo-budget-overrides.js';
@@ -162,6 +164,8 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  const brandSafety=tiktokBrandSafetyImpact(plan,state);if(brandSafety)return brandSafety;
  const valueRules=metaValueRuleImpact(plan,state);if(valueRules)return valueRules;
  const metaObject=metaObjectImpact(plan,state);if(metaObject)return metaObject;
+ const metaImage=metaImageImpact(plan,state);if(metaImage)return metaImage;
+ const metaConversion=metaConversionImpact(plan,state);if(metaConversion)return metaConversion;
  const metaBrandSafety=metaBrandSafetyImpact(plan,state);if(metaBrandSafety)return metaBrandSafety;
  const criteoLineItem=criteoLineItemImpact(plan,state);if(criteoLineItem)return criteoLineItem;
  const criteoOverride=criteoOverrideImpact(plan,state);if(criteoOverride)return criteoOverride;

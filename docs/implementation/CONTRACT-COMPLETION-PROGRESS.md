@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## EI — Meta ad image deletion and custom conversion creation (2026-09-27)
+
+Unused images can now be deleted from a Meta ad account library, and custom conversions created on the
+account's pixels, through reviewed requests: the image, pixels and existing conversions are listed
+first, Meta's refusal for an image in use is never resubmitted, and the results are read back. See
+[implementation](META-IMAGES-CONVERSIONS-2026-09-27.md),
+[qualification](META-IMAGES-CONVERSIONS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 776 (two Meta rows reviewed). Pushes go only to CAMCP; its exact-commit CI result and
+live acceptance are pending.
+
 ## EH — DV360 custom bidding algorithms (2026-09-27)
 
 Advertiser-owned DV360 custom bidding algorithms can now be created, renamed and archived through
@@ -17,7 +29,7 @@ algorithms change, and the result is read back. Scripts and rules (file uploads)
 [qualification](DV360-CUSTOM-BIDDING-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 778 (two DV360 rows reviewed). Pushes go only to CAMCP; its exact-commit CI result and
+Remaining rows: 778 (two DV360 rows reviewed). Committed as `9782618`; its exact-commit CI result and
 live acceptance are pending.
 
 ## EG — Criteo catalog requests and exports (2026-09-27)

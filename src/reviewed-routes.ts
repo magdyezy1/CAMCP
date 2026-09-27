@@ -45,6 +45,8 @@ import {tiktokNegativeKeywordKind} from './tiktok-negative-keywords.js';
 import {tiktokBrandSafetyKind} from './tiktok-brand-safety.js';
 import {metaValueRuleKind} from './meta-value-rules.js';
 import {metaObjectKind} from './meta-object-edits.js';
+import {metaImageKind} from './meta-ad-images.js';
+import {metaConversionKind} from './meta-custom-conversions.js';
 import {metaBrandSafetyKind} from './meta-brand-safety.js';
 import {criteoLineItemKind} from './criteo-auction-line-items.js';
 import {criteoOverrideKind} from './criteo-budget-overrides.js';
@@ -126,6 +128,8 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(tiktokBrandSafetyKind(p))return 'tiktok_brand_safety';
  if(metaValueRuleKind(p))return 'meta_value_rules';
  if(metaObjectKind(p))return 'meta_object_edits';
+ if(metaImageKind(p))return 'meta_ad_images';
+ if(metaConversionKind(p))return 'meta_custom_conversions';
  if(metaBrandSafetyKind(p))return 'meta_brand_safety';
  if(criteoLineItemKind(p))return 'criteo_auction_line_items';
  if(criteoOverrideKind(p))return 'criteo_budget_overrides';

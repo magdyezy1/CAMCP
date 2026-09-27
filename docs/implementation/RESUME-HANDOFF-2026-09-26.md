@@ -915,7 +915,16 @@ Tests: `tests/criteo-catalog-requests.test.mjs` (4), red on `a20537d` / green af
 
 - New reviewed family `dv360_custom_bidding` (`src/dv360-custom-bidding.ts`) for creating advertiser-owned custom bidding algorithms and patching their name and status. Partner-owned algorithms are refused; scripts and rules (uploads, two rows) remain blocked.
 
-Tests: `tests/dv360-custom-bidding.test.mjs` (4), red on `295b1e3` / green after.
+Tests: `tests/dv360-custom-bidding.test.mjs` (4), red on `295b1e3` / green after. Committed as `9782618`.
+
+## Finished batch — Meta ad image deletion and custom conversion creation (2026-09-27)
+
+[Implementation](META-IMAGES-CONVERSIONS-2026-09-27.md) and
+[qualification](META-IMAGES-CONVERSIONS-VERIFICATION-2026-09-27.json).
+
+- New reviewed families `meta_ad_images` (deletion by hash; Meta refuses images in use) and `meta_custom_conversions` (creation on a pixel of the account with an explicit JSON rule and a unique name; advanced multi-source rules stay outside).
+
+Tests: `tests/meta-ad-images.test.mjs` (3) and `tests/meta-custom-conversions.test.mjs` (3), red on `9782618` / green after.
 
 ## CI and live evidence
 
@@ -929,19 +938,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 653 in reviewed write families. **778 remaining rows** are in
+3241 captured actions; 655 in reviewed write families. **776 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 663 |
+| blocked_write | 661 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 186, Meta 119, LinkedIn 105, Snapchat 83,
+Blocked writes by platform: TikTok 186, Meta 117, LinkedIn 105, Snapchat 83,
 Google Ads 59, X 43, DV360 33, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
