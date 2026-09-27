@@ -7,6 +7,7 @@ import {gtmSafeConfiguration} from './gtm-workflow-writes.js';
 import {assetSetCanonical} from './google-asset-set-writes.js';
 import {isGoogleBidRead} from './google-bid-modifiers.js';
 import {isSnapchatMediaCopyRead} from './snapchat-media-copy.js';
+import {isSnapDisclaimerRead} from './snapchat-offer-disclaimers.js';
 import {isGoogleBrandGuidelinesRead} from './google-pmax-brand-guidelines.js';
 import {isGoogleCustomerTypeRead} from './google-user-list-customer-types.js';
 import {isGoogleDraftRead} from './google-campaign-drafts.js';
@@ -88,6 +89,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  const d=data as JsonObject;
  if(isGoogleBidRead(read))return normalizeReviewState(data);
  if(isSnapchatMediaCopyRead(read))return normalizeReviewState(data);
+ if(isSnapDisclaimerRead(read))return normalizeReviewState(data);
  if(isGoogleBrandGuidelinesRead(read))return normalizeReviewState(data);
  if(isGoogleCustomerTypeRead(read))return normalizeReviewState(data);
  if(isGoogleDraftRead(read))return normalizeReviewState(data);

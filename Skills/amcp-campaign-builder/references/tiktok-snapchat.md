@@ -575,6 +575,32 @@ itself.
 Reference: [Media](https://developers.snap.com/api/marketing-api/Ads-API/media) (Copy Media),
 checked 2026-09-27.
 
+## Snapchat offer disclaimers
+
+Ads in regulated verticals (auto, pharmaceutical and financial services) may need to show terms or
+a disclaimer. Offer disclaimers belong to the ad account; Snapchat documents creating and deleting
+them, not editing, so a changed text is a new disclaimer.
+
+- `snapchat_adaccounts_ad_account_id_offer_disclaimers_create` creates 1–20 disclaimers:
+  `path_params: {ad_account_id: <selected>}` and `payload: {offer_disclaimers: [{ad_account_id,
+  name, disclaimer_render_type, disclaimer_text}]}`. Each names the selected ad account and a name
+  of 1–255 characters that no other disclaimer of the account uses. A `STATIC` disclaimer carries
+  its text (up to 5000 characters); a `DYNAMIC` one takes its text from the product catalog and
+  sends none.
+- `snapchat_adaccounts_ad_account_id_offer_disclaimers_offer_disclaimer_id_delete` deletes one:
+  `path_params: {ad_account_id, offer_disclaimer_id}`. Ads that still show it lose that disclosure,
+  so it counts as a deletion under owner policies.
+
+AMCP lists every disclaimer of the account first (up to 1000 in one read; a longer list is refused
+as incomplete): a name already taken fails with `CONFIGURATION_EXISTS` and an unknown disclaimer
+with `STATE_NOT_FOUND`. Neither request changes spending, so no spending confirmation is needed. A
+reply that is not SUCCESS for every disclaimer is a failure that is never resubmitted. Verification
+lists the disclaimers again: each one created with its name, type and text, or the deleted one
+gone. `INVALID_SNAPCHAT_OFFER_DISCLAIMER` names the field to correct.
+
+Reference: [Offer Disclaimers](https://developers.snap.com/api/marketing-api/Ads-API/offer-disclaimers),
+checked 2026-09-27.
+
 ## Snapchat lead generation forms
 
 - `snapchat_lead_form_create` (and its two captured aliases) creates forms under

@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## EA — Snapchat offer disclaimers (2026-09-27)
+
+Offer disclaimers of the selected Snapchat ad account can now be created and deleted through reviewed
+requests: every disclaimer of the account is read first (names must be unique), deletion counts as a
+deletion, and the result is read back. See
+[implementation](SNAPCHAT-OFFER-DISCLAIMERS-2026-09-27.md),
+[qualification](SNAPCHAT-OFFER-DISCLAIMERS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 798 (two Snapchat rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## DZ — Meta creative and custom audience renames and deletions (2026-09-27)
 
 The selected Meta account's ad creatives and custom audiences can now be renamed and deleted through
@@ -17,7 +29,7 @@ deletions, and the result is read back, a deleted object reading as gone or DELE
 [qualification](META-OBJECT-EDITS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 800 (seven Meta rows reviewed). Pushes go only to CAMCP; its exact-commit CI result and
+Remaining rows: 800 (seven Meta rows reviewed). Committed as `61f4621`; its exact-commit CI result and
 live acceptance are pending.
 
 ## DY — Criteo audience segments (2026-09-27)

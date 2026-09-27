@@ -992,6 +992,26 @@
     {
       "gateway": "snapchat_native_action",
       "arguments": {
+        "action": "snapchat_adaccounts_ad_account_id_offer_disclaimers_create",
+        "account_id": "123",
+        "path_params": {
+          "ad_account_id": "123"
+        },
+        "payload": {
+          "offer_disclaimers": [
+            {
+              "ad_account_id": "123",
+              "name": "Finance APR",
+              "disclaimer_render_type": "STATIC",
+              "disclaimer_text": "Representative APR 19.9%. Subject to status."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "snapchat_native_action",
+      "arguments": {
         "action": "snapchat_adaccounts_ad_account_id_media_copy_create",
         "account_id": "123",
         "path_params": {

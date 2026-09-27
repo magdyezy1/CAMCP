@@ -843,7 +843,16 @@ Tests: `tests/criteo-audience-segments.test.mjs` (4), red on `3faac7b` / green a
 
 - New reviewed family `meta_object_edits` (`src/meta-object-edits.ts`) for renaming and deleting the account's own ad creatives and custom audiences (seven rows with aliases). A deleted object reads as Meta's "does not exist" error or status DELETED; deleting an audience stops ads that use it, and Meta refuses while lookalikes derive from it.
 
-Tests: `tests/meta-object-edits.test.mjs` (4), red on `bf6e4a1` / green after.
+Tests: `tests/meta-object-edits.test.mjs` (4), red on `bf6e4a1` / green after. Committed as `61f4621`.
+
+## Finished batch — Snapchat offer disclaimers (2026-09-27)
+
+[Implementation](SNAPCHAT-OFFER-DISCLAIMERS-2026-09-27.md) and
+[qualification](SNAPCHAT-OFFER-DISCLAIMERS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `snapchat_offer_disclaimers` (`src/snapchat-offer-disclaimers.ts`) for creating (1–20, STATIC with text or DYNAMIC from the catalog) and deleting the ad account's offer disclaimers. The review lists every disclaimer of the account (up to 1000); no update is documented, so a changed text is a new disclaimer.
+
+Tests: `tests/snapchat-offer-disclaimers.test.mjs` (3), red on `61f4621` / green after.
 
 ## CI and live evidence
 
@@ -857,19 +866,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 631 in reviewed write families. **800 remaining rows** are in
+3241 captured actions; 633 in reviewed write families. **798 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 685 |
+| blocked_write | 683 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 186, Meta 119, LinkedIn 105, Snapchat 85,
+Blocked writes by platform: TikTok 186, Meta 119, LinkedIn 105, Snapchat 83,
 Google Ads 59, X 55, DV360 35, Criteo 29, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
