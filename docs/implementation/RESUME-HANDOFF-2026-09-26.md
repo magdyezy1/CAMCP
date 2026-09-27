@@ -969,7 +969,16 @@ Tests: `tests/dv360-sdf-downloads.test.mjs` (3), red on `f2c29f9` / green after.
 
 - New reviewed family `linkedin_ab_tests` (`src/linkedin-ab-tests.ts`) for creating, updating (by execution state) and deleting (while PENDING) A/B tests, five rows with the alternate path names. Running a test needs spending confirmation and counts as activation.
 
-Tests: `tests/linkedin-ab-tests.test.mjs` (4), red on `4298a36` / green after.
+Tests: `tests/linkedin-ab-tests.test.mjs` (4), red on `4298a36` / green after. Committed as `8becdaa`.
+
+## Finished batch — Snapchat custom conversions (2026-09-27)
+
+[Implementation](SNAPCHAT-CUSTOM-CONVERSIONS-2026-09-27.md) and
+[qualification](SNAPCHAT-CUSTOM-CONVERSIONS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `snapchat_custom_conversions` (`src/snapchat-custom-conversions.ts`) for creating custom conversions on a pixel of the selected ad account and deleting them, two rows. Taken names are refused; deletions count under owner policies; mobile app conversions stay blocked.
+
+Tests: `tests/snapchat-custom-conversions.test.mjs` (3), red on `8becdaa` / green after.
 
 ## CI and live evidence
 
@@ -983,19 +992,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 667 in reviewed write families. **764 remaining rows** are in
+3241 captured actions; 669 in reviewed write families. **762 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 649 |
+| blocked_write | 647 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 186, Meta 117, LinkedIn 98, Snapchat 81,
+Blocked writes by platform: TikTok 186, Meta 117, LinkedIn 98, Snapchat 79,
 Google Ads 57, X 43, DV360 32, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

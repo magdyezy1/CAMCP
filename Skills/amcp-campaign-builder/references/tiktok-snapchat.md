@@ -675,6 +675,38 @@ expects the segment to be gone. `INVALID_SNAPCHAT_SEGMENT_DELETION` names what t
 Reference: [Audiences](https://developers.snap.com/api/marketing-api/Ads-API/audiences) (Delete a
 Segment) and the example targeting specs, checked 2026-09-27.
 
+## Snapchat custom conversions
+
+Custom conversions count the pixel events that match rules, for example purchases above a price or
+sign-ups by email. Snapchat documents creating, listing and deleting them, not editing, so a changed
+rule is a new conversion.
+
+- `snapchat_pixels_pixel_id_custom_conversions_create` with `params: {pixel_id}` and
+  `payload: {custom_conversions: [{name, description, event_type, rules: [{key, operator,
+  values}]}]}` creates 1–10 conversions on a pixel of the selected ad account. Each has a name of
+  1–375 characters that no other conversion of the pixel uses (ignoring case), an event type in
+  capitals such as `PURCHASE` or `SIGN_UP`, and 1–20 rules. A rule key is one of `event_tag`,
+  `item_id`, `item_category`, `currency`, `search_string`, `sign_up_method`, `page_url`, `category`,
+  `category_id`, `brand`, `delivery_method`, `customer_status`, `price` or `number_items`. `price`
+  and `number_items` take one number with `LESS_THAN`, `LESS_THAN_OR_EQUALS`, `GREATER_THAN` or
+  `GREATER_THAN_OR_EQUALS`; the other keys take 1–50 values with the equality, containment and
+  prefix operators (`EQUAL_TO`, `I_CONTAINS`, `STARTS_WITH` and their variants).
+- `snapchat_custom_conversions_custom_conversion_id_delete` with `params: {custom_conversion_id}`
+  deletes a conversion of one of the account's pixels. Ad squads or reports that use it lose it, so
+  it counts as a deletion under owner policies.
+
+AMCP lists the account's pixels and their conversions first (up to 1000 each; a longer list is
+refused as incomplete): a pixel of another account or an unknown conversion fails with
+`STATE_NOT_FOUND`, and a name already taken on the pixel with `CONFIGURATION_EXISTS`. Neither
+request changes spending, so no spending confirmation is needed. A reply that is not SUCCESS for
+every conversion is a failure never resubmitted. Verification lists the pixel's conversions again:
+each one created with its name, event type, rules and description, or the deleted one gone.
+Conversions of mobile apps are not covered. `INVALID_SNAPCHAT_CUSTOM_CONVERSION` names the field to
+correct.
+
+Reference: [Custom Conversions](https://developers.snap.com/api/marketing-api/Ads-API/custom-conversions),
+checked 2026-09-27.
+
 ## Snapchat nested updates
 
 Ad/ad-squad updates now use the documented native parent routes:

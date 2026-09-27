@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## EO — Snapchat custom conversions (2026-09-27)
+
+Custom conversions of Snapchat pixels can now be created and deleted through reviewed requests: the
+account's pixels and their conversions are read first, taken names are refused, deletions count
+under owner policies, and the result is read back. See
+[implementation](SNAPCHAT-CUSTOM-CONVERSIONS-2026-09-27.md),
+[qualification](SNAPCHAT-CUSTOM-CONVERSIONS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 762 (two Snapchat rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## EN — LinkedIn A/B tests (2026-09-27)
 
 LinkedIn A/B tests can now be created, updated within the limits of their execution state and deleted
@@ -17,7 +29,7 @@ a test needs spending confirmation and counts as activation, and the result is r
 [qualification](LINKEDIN-AB-TESTS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 764 (five LinkedIn rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 764 (five LinkedIn rows reviewed). Committed as `8becdaa`; its exact-commit CI result
 and live acceptance are pending.
 
 ## EM — DV360 SDF download tasks (2026-09-27)

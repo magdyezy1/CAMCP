@@ -1009,6 +1009,33 @@
     {
       "gateway": "snapchat_native_action",
       "arguments": {
+        "action": "snapchat_pixels_pixel_id_custom_conversions_create",
+        "account_id": "123",
+        "params": {
+          "pixel_id": "123"
+        },
+        "payload": {
+          "custom_conversions": [
+            {
+              "name": "Orders over 100",
+              "event_type": "PURCHASE",
+              "rules": [
+                {
+                  "key": "price",
+                  "operator": "GREATER_THAN",
+                  "values": [
+                    "100"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "snapchat_native_action",
+      "arguments": {
         "action": "snapchat_segments_segment_id_delete",
         "account_id": "123",
         "params": {

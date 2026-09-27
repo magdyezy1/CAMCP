@@ -1,0 +1,102 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "8becdaae803f1c853523699f6ff7657061870a8c",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/snapchat-custom-conversions-20260927-a",
+    "files": 1002,
+    "source_tree_hash": "9c28267e3c9326d5d268bbac110d03664ac185913b7a813e74989fc0c91d202f",
+    "index_code_test_guidance_files_compared": 765,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/snapchat-custom-conversions-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/snapchat-custom-conversions-20260927/install.log",
+      "sha256": "fd1d9de07b2f08802677e9eb68653e02fcf4423e062c4d00c4a3afe0d39973f2"
+    },
+    {
+      "path": ".runtime/snapchat-custom-conversions-20260927/check.log",
+      "sha256": "e45ff432afefa18d1ba0bfb832ac69cb0b3fc35d521f322f8e1b28fa5bd1c64c",
+      "started": "Sun Sep 27 21:59:46 UTC 2026",
+      "finished": "Mon Sep 28 01:18:25 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2553,
+          "pass": 2553,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/snapchat-custom-conversions-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/snapchat-custom-conversions-20260927/red-check.log",
+      "sha256": "5b3353cf711fad15dbd4afe55a237d4460d92d2e64a082b89797761ba0c092be",
+      "meaning": "tests/snapchat-custom-conversions.test.mjs against a build of 8becdaa: expected red, 3/3 fail (no reviewed family: WRITE_CONTRACT_UNAVAILABLE)"
+    },
+    {
+      "path": ".runtime/snapchat-custom-conversions-20260927/targeted.log",
+      "sha256": "49e649b015012f624eb72da1b74d9df6b95a45b63300ba3c423f8df711f5712d",
+      "meaning": "188 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1948/1948 pass, none skipped."
+    }
+  ],
+  "development_failures": [],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2553,
+    "main_pass": 2553,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Snapchat documents no limits on names, descriptions, rules or conversions per request; AMCP bounds them (10 conversions, 375-character names, 1000-character descriptions, 20 rules of up to 50 values).",
+    "Limiting comparison operators to price and number_items, and those keys to comparisons, is AMCP's reading of the rule keys, not a documented rule.",
+    "What happens to ad squads that optimize for a deleted conversion is not documented; deletions only count under owner deletion policies.",
+    "Mobile app conversions stay blocked because app ownership cannot be read from the ad account.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}
