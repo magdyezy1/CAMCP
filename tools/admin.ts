@@ -5,14 +5,23 @@ import {Store} from '../src/store.js';
 import {Registry} from '../src/catalog.js';
 import {MirrorError} from '../src/errors.js';
 import {guardInput} from '../src/security.js';
+import {passwordHashSync} from '../server/password-hashes.js';
 import type {Actor, Connection, Credentials} from '../src/types.js';
 const [command, ...args] = process.argv.slice(2);
 const help =
-  'Usage: admin keygen | init <tenant> | create-key <tenant> <user> <reader|operator|admin> | revoke-key <file> | provision <json-file> | status <tenant> | audit-verify | backup <new-encrypted-file> | backup-encrypted <new-encrypted-file> | backup-verify <encrypted-file> | backup-restore <encrypted-file> <new-sqlite-file>';
+  'Usage: admin keygen | password-hash (reads the password from standard input) | init <tenant> | create-key <tenant> <user> <reader|operator|admin> | revoke-key <file> | provision <json-file> | status <tenant> | audit-verify | backup <new-encrypted-file> | backup-encrypted <new-encrypted-file> | backup-verify <encrypted-file> | backup-restore <encrypted-file> <new-sqlite-file>';
 if (command === 'keygen') {
   process.stdout.write(randomBytes(32).toString('base64') + '\n');
 } else if (!command || command === 'help') {
   process.stdout.write(help + '\n');
+} else if (command === 'password-hash') {
+  // For AMCP_ADMIN_PASSWORD_HASH or AMCP_TEST_PASSWORD_HASH. Standard input keeps the password out of the shell
+  // history and the process list.
+  const password = fs.readFileSync(0, 'utf8').replace(/\r?\n$/, '');
+  if (password.length < 16 || password.length > 1024) {
+    process.stderr.write('Use a password of 16 characters or more (at most 1024).\n');
+    process.exitCode = 1;
+  } else process.stdout.write(passwordHashSync(password) + '\n');
 } else if (command === 'backup-verify' || command === 'backup-restore') {
   // Recovery must work even when MIRROR_DB is corrupt or unavailable. Never
   // bootstrap, migrate or create the configured application database here.

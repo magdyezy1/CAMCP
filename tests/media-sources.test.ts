@@ -15,7 +15,6 @@ import {mediaType} from '../src/drive-media.js';
 import {mediaFileInput} from '../src/media-routing.js';
 import {createHttpApp} from '../server/http-app.js';
 import {listenForFetch} from './http-listener.js';
-import {WebStore} from '../server/web-store.js';
 import {sha256} from '../src/security.js';
 import type {Actor, JsonObject} from '../src/types.js';
 
@@ -663,8 +662,11 @@ test('the website takes an upload in parts behind the session and CSRF token; te
       requireBeforeState: true,
       maxBudgetChange: 0,
     }),
+    reviewerPassword = 'synthetic-reviewer-password-only',
     listener = await listenForFetch(
-      createHttpApp(service, store, {website: {origin, masterKey: master, adminPassword: password}}),
+      createHttpApp(service, store, {
+        website: {origin, masterKey: master, adminPassword: password, testPassword: reviewerPassword},
+      }),
     ),
     base = 'http://127.0.0.1:' + (listener.address() as {port: number}).port;
   const send = async (url: string, init: RequestInit = {}) => {
@@ -718,11 +720,18 @@ test('the website takes an upload in parts behind the session and CSRF token; te
     assert.equal(removed.status, 200);
     assert.equal((await send('/api/media/sources/' + id + '/complete', {method: 'POST', headers: json})).status, 404);
     // A reviewer test account cannot reach the upload routes at all.
-    const web = new WebStore(store, {origin, masterKey: master, adminPassword: password}),
-      test = web.createSession({tenantId: 'review', userId: 'workspace-test', role: 'admin', testAccount: true});
+    const reviewer = await fetch(base + '/api/session/test', {
+      method: 'POST',
+      headers: {Origin: origin, 'Content-Type': 'application/json'},
+      body: JSON.stringify({password: reviewerPassword}),
+    });
     const refused = await send('/api/media/sources', {
       method: 'POST',
-      headers: {...json, Cookie: web.cookie(test.id).split(';')[0]!, 'X-AMCP-CSRF': test.csrf},
+      headers: {
+        ...json,
+        Cookie: reviewer.headers.get('set-cookie')!.split(';')[0]!,
+        'X-AMCP-CSRF': (await reviewer.json()).csrf,
+      },
       body: JSON.stringify({size: 10}),
     });
     assert.equal(refused.status, 403);

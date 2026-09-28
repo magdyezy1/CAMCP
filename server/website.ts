@@ -384,12 +384,12 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
   router.post(
     '/api/session',
     express.json({limit: '4kb'}),
-    handler((req, res) => {
+    handler(async (req, res) => {
       web.requireOrigin(req);
       if (typeof req.body?.password !== 'string')
         throw new MirrorError('INVALID_LOGIN', 'Enter your workspace password.', {}, 400);
       const old = web.session(req),
-        session = web.signIn(req.body.password, web.limitAddress(req));
+        session = await web.signIn(req.body.password, web.limitAddress(req));
       if (old) web.signOut(old.id);
       res.setHeader('Set-Cookie', web.cookie(session.id));
       res.json({authenticated: true, csrf: session.csrf, name: 'Workspace administrator'});
@@ -398,12 +398,12 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
   router.post(
     '/api/session/test',
     express.json({limit: '4kb'}),
-    handler((req, res) => {
+    handler(async (req, res) => {
       web.requireOrigin(req);
       if (typeof req.body?.password !== 'string')
         throw new MirrorError('INVALID_LOGIN', 'Enter the test password.', {}, 400);
       const old = web.session(req),
-        session = web.signInTest(req.body.password, web.limitAddress(req));
+        session = await web.signInTest(req.body.password, web.limitAddress(req));
       if (old) web.signOut(old.id);
       res.setHeader('Set-Cookie', web.cookie(session.id));
       res.json({authenticated: true, csrf: session.csrf, name: 'Test reviewer'});

@@ -17,14 +17,14 @@ const env: NodeJS.ProcessEnv = {
   AMCP_LINKEDIN_CLIENT_ID: 'synthetic-linkedin-client',
   AMCP_LINKEDIN_CLIENT_SECRET: 'synthetic-secret',
 };
-function fixture() {
+async function fixture() {
   const store = new Store(':memory:', master),
     web = new WebStore(store, {origin, masterKey: master, adminPassword: 'synthetic-scope-test-password'});
-  return {store, web, session: web.signIn('synthetic-scope-test-password', 'test')};
+  return {store, web, session: await web.signIn('synthetic-scope-test-password', 'test')};
 }
 
 test('new Meta and LinkedIn authorizations request write scopes only when enabled and Settings exposes them', async () => {
-  const f = fixture();
+  const f = await fixture();
   try {
     const reader = new PlatformOAuth(f.web, env, blocked),
       writer = new PlatformOAuth(f.web, env, blocked, true);
@@ -62,7 +62,7 @@ test('new Meta and LinkedIn authorizations request write scopes only when enable
 });
 
 test('provider scope overrides take precedence over write defaults, including an explicit empty override', async () => {
-  const f = fixture();
+  const f = await fixture();
   try {
     const adapter = new PlatformOAuth(
       f.web,
@@ -81,7 +81,7 @@ test('provider scope overrides take precedence over write defaults, including an
 });
 
 test('configuration changes do not upgrade existing connections or pending authorizations and provider-declared scopes win', async () => {
-  const f = fixture();
+  const f = await fixture();
   try {
     const c: Connection = {
       id: 'existing-read-login',
@@ -138,7 +138,7 @@ test('configuration changes do not upgrade existing connections or pending autho
 });
 
 test('X requests write authorization only when enabled and pending read tokens are exchanged without an upgrade', async () => {
-  const f = fixture();
+  const f = await fixture();
   try {
     const xenv = {...env, AMCP_X_CLIENT_ID: 'synthetic-x-client', AMCP_X_CLIENT_SECRET: 'synthetic-x-secret'},
       calls: {url: URL; authorization: string}[] = [],

@@ -35,14 +35,14 @@ function connection(gateway: string, accounts: string[]): Connection {
     scopes: [],
   };
 }
-function fixture() {
+async function fixture() {
   const store = new Store(':memory:', master),
     web = new WebStore(store, {origin, masterKey: master, adminPassword: password});
-  return {store, web, session: web.signIn(password, 'test')};
+  return {store, web, session: await web.signIn(password, 'test')};
 }
 
 test('Google measurement authorization uses separate callbacks, minimal scopes, PKCE and refresh credentials', async () => {
-  const f = fixture();
+  const f = await fixture();
   try {
     const calls: {url: URL; body: URLSearchParams}[] = [],
       env = {AMCP_GOOGLE_CLIENT_ID: 'synthetic-shared-client', AMCP_GOOGLE_CLIENT_SECRET: 'synthetic-shared-secret'};
@@ -82,7 +82,7 @@ test('Google measurement authorization uses separate callbacks, minimal scopes, 
 });
 
 test('GA4, Google tag containers, Search Console sites and Apple ACL discovery preserve resource grants', async () => {
-  const f = fixture();
+  const f = await fixture();
   try {
     const paths: string[] = [],
       fake: typeof fetch = async input => {
@@ -165,7 +165,7 @@ test('GA4, Google tag containers, Search Console sites and Apple ACL discovery p
 });
 
 test('Google measurement gateways execute scoped native reads and reject a different selected resource', async () => {
-  const f = fixture();
+  const f = await fixture();
   try {
     const calls: string[] = [],
       transport = new NativeTransport(async (input, init) => {
@@ -232,7 +232,7 @@ test('Google measurement gateways execute scoped native reads and reject a diffe
 });
 
 test('Apple Ads signs ES256 client secrets and automatically renews access credentials without browser OAuth', async () => {
-  const f = fixture(),
+  const f = await fixture(),
     pair = generateKeyPairSync('ec', {namedCurve: 'prime256v1'}),
     privateKey = pair.privateKey.export({type: 'pkcs8', format: 'pem'}).toString();
   const credentials: Credentials = {
@@ -292,7 +292,7 @@ test('Apple Ads signs ES256 client secrets and automatically renews access crede
 });
 
 test('Meta initial code is exchanged for the provider-reported long-lived token; TikTok advertiser tokens never use consumer refresh', async () => {
-  const f = fixture();
+  const f = await fixture();
   try {
     const calls: URL[] = [],
       adapter = new PlatformOAuth(
@@ -480,7 +480,7 @@ test('website onboarding persists selectable properties/sites and Apple accounts
 });
 
 test('Apple native reads, reports, pagination, projection and scope validation work through MirrorService', async () => {
-  const f = fixture();
+  const f = await fixture();
   try {
     const c = connection('apple_ads_native_action', ['77']);
     f.store.putConnection(owner, c, {accessToken: 'synthetic-apple'});

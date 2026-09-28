@@ -253,11 +253,11 @@ test('operator OAuth consent and scope narrowing work through the HTTP authoriza
   }
 });
 
-function oauthFixture(allowWrites = true) {
+async function oauthFixture(allowWrites = true) {
   const store = new Store(':memory:', master),
     web = new WebStore(store, {origin, masterKey: master, adminPassword: password}),
     oauth = new McpOAuth(web, allowWrites),
-    session = web.signIn(password, 'test');
+    session = await web.signIn(password, 'test');
   const register = (scope?: string) =>
     oauth.clientsStore.registerClient({
       redirect_uris: ['http://127.0.0.1:8769/callback?client=amcp'],
@@ -294,7 +294,7 @@ function oauthFixture(allowWrites = true) {
 }
 
 test('OAuth write scope has explicit consent, bound PKCE grants, and refresh cannot upgrade reader access', async () => {
-  const f = oauthFixture();
+  const f = await oauthFixture();
   try {
     const reader = await f.register('mcp:read'),
       writer = await f.register();
@@ -377,7 +377,7 @@ test('new connection selections and connector tokens default to read/write, expl
 });
 
 test('legacy OAuth grant data remains read-only and loopback redirects relax only the port', async () => {
-  const f = oauthFixture();
+  const f = await oauthFixture();
   try {
     const client = await f.register(),
       grant = await f.begin(client, [], 'http://127.0.0.1:49152/callback?client=amcp');

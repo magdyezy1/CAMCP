@@ -196,7 +196,7 @@ test('Microsoft OAuth uses S256, separate developer token and durable refresh ro
       masterKey: key,
       adminPassword: 'synthetic-microsoft-password',
     }),
-    session = web.signIn('synthetic-microsoft-password', 'test');
+    session = await web.signIn('synthetic-microsoft-password', 'test');
   try {
     const env = {
       AMCP_MICROSOFT_CLIENT_ID: 'synthetic-client',

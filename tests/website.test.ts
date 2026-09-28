@@ -70,20 +70,20 @@ async function site(fetcher: typeof fetch = blocked) {
     },
   };
 }
-test('website passwords, session cookies, origin, CSRF, expiry and encrypted single-use OAuth state', () => {
+test('website passwords, session cookies, origin, CSRF, expiry and encrypted single-use OAuth state', async () => {
   const store = new Store(':memory:', master),
     web = new WebStore(store, {origin, masterKey: master, adminPassword: password});
   try {
-    assert.ok(checkPassword(password, passwordHash(password)));
-    assert.equal(checkPassword('wrong', passwordHash(password)), false);
-    const session = web.signIn(password, '127.0.0.1'),
+    assert.ok(await checkPassword(password, passwordHash(password)));
+    assert.equal(await checkPassword('wrong', passwordHash(password)), false);
+    const session = await web.signIn(password, '127.0.0.1'),
       req = {headers: {cookie: web.cookie(session.id), origin, 'x-amcp-csrf': session.csrf}} as unknown as Request;
     assert.equal(web.requireMutation(req).actor.tenantId, 'local');
     assert.match(web.cookie(session.id), /HttpOnly; SameSite=Lax.*Secure/);
     assert.throws(() => web.requireMutation({headers: {...req.headers, 'x-amcp-csrf': 'wrong'}} as unknown as Request));
     assert.throws(() => web.requireMutation({headers: {...req.headers, origin: 'https://evil.invalid'}} as Request));
     const state = web.beginOAuth(session, 'meta', {privateValue: 'synthetic-state-secret'}),
-      other = web.signIn(password, '127.0.0.2');
+      other = await web.signIn(password, '127.0.0.2');
     assert.ok(
       !JSON.stringify(store.db.prepare('SELECT * FROM amcp_oauth_states').all()).includes('synthetic-state-secret'),
     );
@@ -100,13 +100,13 @@ test('website passwords, session cookies, origin, CSRF, expiry and encrypted sin
     store.close();
   }
 });
-test('failed login attempts are bounded and missing setup fails closed', () => {
+test('failed login attempts are bounded and missing setup fails closed', async () => {
   const store = new Store(':memory:');
   try {
     const web = new WebStore(store, {origin, adminPassword: password});
-    for (let i = 0; i < 8; i++) assert.throws(() => web.signIn('wrong', 'peer'), /incorrect/);
-    assert.throws(() => web.signIn(password, 'peer'), /Too many/);
-    assert.throws(() => new WebStore(store, {origin}).signIn(password, 'new'), /Configure/);
+    for (let i = 0; i < 8; i++) await assert.rejects(web.signIn('wrong', 'peer'), /incorrect/);
+    await assert.rejects(web.signIn(password, 'peer'), /Too many/);
+    await assert.rejects(new WebStore(store, {origin}).signIn(password, 'new'), /Configure/);
   } finally {
     store.close();
   }
@@ -280,7 +280,7 @@ for (const change of ['session', 'login'] as const)
 test('browser provider OAuth adapters preserve callback, state, PKCE and provider-specific token encoding', async () => {
   const store = new Store(':memory:', master),
     web = new WebStore(store, {origin, masterKey: master, adminPassword: password}),
-    session = web.signIn(password, 'test'),
+    session = await web.signIn(password, 'test'),
     env: NodeJS.ProcessEnv = {};
   for (const p of platforms) {
     env['AMCP_' + p.env + '_CLIENT_ID'] = 'synthetic-client';

@@ -167,7 +167,7 @@ export class AccountSecurity {
     if (
       !this.web.administratorHash ||
       typeof input.administratorPassword !== 'string' ||
-      !checkPassword(input.administratorPassword, this.web.administratorHash)
+      !(await checkPassword(input.administratorPassword, this.web.administratorHash))
     )
       throw new MirrorError('INVALID_LOGIN', 'Confirm your existing administrator password.', {}, 401);
     const email = accountEmail(input.email),

@@ -56,7 +56,7 @@ for (const provider of ['google', 'apple', 'facebook'])
       assert.equal(f.store.db.prepare('SELECT count(*) AS n FROM amcp_identities').get().n, 1);
       const user = f.store.db.prepare('SELECT * FROM amcp_users').get();
       assert.equal(user.approved, 0);
-      const owner = f.web.signIn('synthetic-admin-password', 'synthetic-ip');
+      const owner = await f.web.signIn('synthetic-admin-password', 'synthetic-ip');
       f.security.setAccess(f.req(owner), {user_id: user.id, grant: true});
       assert.ok((await attempt()).session);
     } finally {
@@ -64,14 +64,14 @@ for (const provider of ['google', 'apple', 'facebook'])
     }
   });
 
-test('disabled account invalidates a persisted actor and regrant does not revive its old authority', () => {
+test('disabled account invalidates a persisted actor and regrant does not revive its old authority', async () => {
   const f = fixture();
   try {
     const user = f.accounts.newUser('Member', 'member@example.test', null, true),
       session = f.accounts.session(user),
       actor = f.web.session(f.req(session)).actor,
       binding = f.store.bindJobActor(actor, 'scheduled-report'),
-      owner = f.web.signIn('synthetic-admin-password', 'synthetic-ip');
+      owner = await f.web.signIn('synthetic-admin-password', 'synthetic-ip');
     f.security.setAccess(f.req(owner), {user_id: user.id, grant: false});
     assert.equal(f.web.session(f.req(session)), undefined);
     assert.throws(

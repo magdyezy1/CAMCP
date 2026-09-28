@@ -114,7 +114,7 @@ test('Drive OAuth uses PKCE and separate read-only scopes, and discovery selects
         adminPassword: 'synthetic-long-password',
         tenantId: actor.tenantId,
       }),
-      session = web.signIn('synthetic-long-password', '127.0.0.1'),
+      session = await web.signIn('synthetic-long-password', '127.0.0.1'),
       oauth = new PlatformOAuth(
         web,
         {AMCP_DRIVE_CLIENT_ID: 'synthetic-client', AMCP_DRIVE_CLIENT_SECRET: 'synthetic-secret'},

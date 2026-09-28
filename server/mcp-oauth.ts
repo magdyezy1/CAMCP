@@ -150,6 +150,11 @@ export class McpOAuth implements OAuthServerProvider {
       .prepare('INSERT INTO amcp_mcp_grants VALUES(?,?,?,?,?,?,0)')
       .run(sha256(token), kind, client, tenant, JSON.stringify(data), Date.now() + ttl);
   }
+  /** MCP access approved from the administrator's or the reviewer's password sign-in ends with that password (F-16). */
+  private assertUsable(ownerUserId: unknown, tenant: unknown) {
+    if (!this.web.doorGrantUsable(ownerUserId, tenant))
+      throw new InvalidGrantError('This authorization has expired or was already used.');
+  }
   private get(token: string, kind: string, client?: string, allowUsed = false): JsonObject {
     const row = this.web.store.db
       .prepare('SELECT * FROM amcp_mcp_grants WHERE hash=? AND kind=?')
@@ -211,21 +216,16 @@ export class McpOAuth implements OAuthServerProvider {
   }
   decide(request: string, session: WebSession, approved: boolean) {
     this.consent(request, session);
+    const owner = session.actor.userId !== 'workspace-admin' ? {ownerUserId: session.actor.userId} : {};
     return this.web.store.transaction(() => {
+      this.assertUsable(owner.ownerUserId, session.actor.tenantId);
       const row = this.get(request, 'request');
       this.web.store.db.prepare('UPDATE amcp_mcp_grants SET used=1 WHERE hash=?').run(row.hash);
       const url = new URL(row.data.redirectUri);
       if (row.data.state !== undefined) url.searchParams.set('state', row.data.state);
       if (approved) {
         const code = opaque();
-        this.put(
-          code,
-          'code',
-          row.client_id,
-          {...row.data, ...(session.actor.userId !== 'workspace-admin' ? {ownerUserId: session.actor.userId} : {})},
-          300000,
-          session.actor.tenantId,
-        );
+        this.put(code, 'code', row.client_id, {...row.data, ...owner}, 300000, session.actor.tenantId);
         url.searchParams.set('code', code);
       } else url.searchParams.set('error', 'access_denied');
       return url.href;
@@ -277,6 +277,7 @@ export class McpOAuth implements OAuthServerProvider {
     this.validateResource(resource);
     return this.web.store.transaction(() => {
       const row = this.get(code, 'code', client.client_id);
+      this.assertUsable(row.data.ownerUserId, row.tenant_id);
       // The SDK validates PKCE before this method and omits verifier afterwards.
       if (
         redirectUri !== row.data.redirectUri ||
@@ -312,6 +313,7 @@ export class McpOAuth implements OAuthServerProvider {
         this.revokeFamily(row.data.family, row.tenant_id);
         return undefined;
       }
+      this.assertUsable(row.data.ownerUserId, row.tenant_id);
       const original = (row.data.scope ?? readScope).split(' ') as string[],
         requested = this.validateScopes(scopes ?? original);
       if (requested.some(s => !original.includes(s)))
@@ -325,6 +327,7 @@ export class McpOAuth implements OAuthServerProvider {
   async verifyAccessToken(token: string) {
     this.web.store.authenticate(token);
     const row = this.get(token, 'access');
+    this.assertUsable(row.data.ownerUserId, row.tenant_id);
     return {
       token,
       clientId: row.client_id,

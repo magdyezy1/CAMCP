@@ -40,7 +40,7 @@ function fixture() {
 test('one-time owner migration binds verified email to the original workspace without moving connections or reports', async () => {
   const f = fixture();
   try {
-    const admin = f.web.signIn(password, '127.0.0.1'),
+    const admin = await f.web.signIn(password, '127.0.0.1'),
       legacyKey = f.store.createKey(admin.actor),
       legacyJob = f.store.bindJobActor(admin.actor, 'legacy-job');
     f.store.putDocument(admin.actor.tenantId, 'existing-report', 'one', {preserved: true});
@@ -51,7 +51,7 @@ test('one-time owner migration binds verified email to the original workspace wi
     });
     const link = f.link();
     await assert.rejects(
-      () => f.security.finishOwner(f.req(f.web.signIn(password, '127.0.0.2')), {...link, password}),
+      async () => f.security.finishOwner(f.req(await f.web.signIn(password, '127.0.0.2')), {...link, password}),
       /browser/,
     );
     await f.security.finishOwner(f.req(admin), {...link, password});
@@ -60,7 +60,7 @@ test('one-time owner migration binds verified email to the original workspace wi
     assert.throws(() => f.store.authenticate(legacyKey));
     assert.throws(() => f.store.restoreJobActor(admin.actor.tenantId, 'legacy-job', legacyJob), /migrated/);
     assert.equal(f.store.document(owner.tenant_id, 'existing-report', 'one').preserved, true);
-    assert.throws(() => f.web.signIn(password, '127.0.0.1'), /owner|email/i);
+    await assert.rejects(f.web.signIn(password, '127.0.0.1'), /owner|email/i);
     const s = await f.accounts.login(f.req(), {email: owner.email, password});
     assert.ok(!('mfaRequired' in s));
     assert.equal(f.accounts.profile(s).workspaceRole, 'owner');
@@ -176,7 +176,7 @@ test('an invitation creates an approved account only when the instance owner sen
         .prepare('SELECT 1 FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
         .get(lead.tenant_id, id),
     );
-    const admin = f.web.signIn(password, '127.0.0.1');
+    const admin = await f.web.signIn(password, '127.0.0.1');
     await f.security.invite(f.req(admin), {email: 'second@example.test', role: 'viewer'});
     await f.accounts.deliverEmails();
     const accepted = await f.security.accept(f.req(), {...f.link(), password, name: 'Second person'});

@@ -1,43 +1,26 @@
-import {randomBytes, randomUUID, scrypt, timingSafeEqual} from 'node:crypto';
+import {randomBytes, randomUUID, timingSafeEqual} from 'node:crypto';
 import type {Request} from 'express';
 import {MirrorError} from '../src/errors.js';
 import {sha256} from '../src/security.js';
 import type {JsonObject} from '../src/types.js';
 import {WebStore, type WebSession} from './web-store.js';
+import {derivePassword, passwordHashParts} from './password-hashes.js';
 
 const opaque = () => randomBytes(32).toString('base64url');
-let passwordWork = 0;
-async function derive(password: string, salt: string, legacy = false): Promise<Buffer> {
-  if (passwordWork >= 4) throw new MirrorError('AUTH_BUSY', 'Sign-in is busy. Please try again shortly.', {}, 429);
-  passwordWork++;
-  try {
-    return await new Promise((resolve, reject) =>
-      scrypt(password, salt, 32, {N: 32768, r: 8, p: legacy ? 1 : 3, maxmem: 64 * 1024 * 1024}, (e, b) =>
-        e ? reject(e) : resolve(b),
-      ),
-    );
-  } finally {
-    passwordWork--;
-  }
-}
 export async function hashUserPassword(password: unknown) {
   if (typeof password !== 'string' || password.length < 15 || password.length > 128)
     throw new MirrorError('PASSWORD_LENGTH', 'Use a password between 15 and 128 characters.');
   const salt = randomBytes(16).toString('hex');
-  return 'scrypt-v3$' + salt + '$' + (await derive(password, salt)).toString('hex');
+  return 'scrypt-v3$' + salt + '$' + (await derivePassword(password, salt)).toString('hex');
 }
 export async function verifyPassword(password: unknown, hash?: string | null) {
   if (typeof password !== 'string' || password.length > 128) return false;
-  const [algorithm, salt, value] = (hash ?? 'scrypt-v3$00000000000000000000000000000000$' + '0'.repeat(64)).split('$');
-  if (
-    !['scrypt-v2', 'scrypt-v3'].includes(algorithm ?? '') ||
-    !/^[a-f0-9]{32}$/.test(salt ?? '') ||
-    !/^[a-f0-9]{64}$/.test(value ?? '')
-  )
-    return false;
-  return (
-    timingSafeEqual(await derive(password, salt!, algorithm === 'scrypt-v2'), Buffer.from(value!, 'hex')) && !!hash
-  );
+  // Without a hash a key is still derived, so an unknown account takes as long as a wrong password.
+  const parts = passwordHashParts(hash ?? 'scrypt-v3$' + '0'.repeat(32) + '$' + '0'.repeat(64), [
+    'scrypt-v2',
+    'scrypt-v3',
+  ]);
+  return !!parts && timingSafeEqual(await derivePassword(password, parts.salt, parts.form), parts.key) && !!hash;
 }
 export function accountEmail(value: unknown): string {
   if (typeof value !== 'string' || value.length > 254 || !/^([^\s@<>]+)@([^\s@<>]+\.[^\s@<>]+)$/.test(value.trim()))

@@ -111,7 +111,7 @@ test('Reddit authorization requests permanent access and rejects ephemeral token
       masterKey: key,
       adminPassword: 'synthetic-password-for-test',
     }),
-    session = web.signIn('synthetic-password-for-test', '127.0.0.1');
+    session = await web.signIn('synthetic-password-for-test', '127.0.0.1');
   const oauth = new PlatformOAuth(
     web,
     {AMCP_REDDIT_CLIENT_ID: 'synthetic', AMCP_REDDIT_CLIENT_SECRET: 'synthetic'},
