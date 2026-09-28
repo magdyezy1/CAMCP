@@ -444,3 +444,7 @@ Measured on 4 CPUs, median of 5–7 fresh processes, before (`32e2d3b`) and afte
 | HTTP server ready (`http_listening`) / RSS | 1,400 ms / 284 MB | 916 ms / 169 MB |
 | stdio MCP server answering `initialize` / RSS | 1,012 ms / 211 MB | 544 ms / 161 MB |
 | Full test suite (`node --test`, 2,779 tests) | about 530 s | 244 s |
+
+Full qualification (`.release/batch22-20260928`, up to `003b6a3`): **2,779 / 2,779** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 277 s, against 533–577 s for the
+previous five qualifications. The candidate's 1,201 source files equal `003b6a3`, apart from `release-manifest.json`.
