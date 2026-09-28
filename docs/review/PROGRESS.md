@@ -153,3 +153,7 @@ Findings: F-39, F-42, part of F-41, and F-59, F-60, F-63 in part.
 
 Kept wired on purpose, with the reason in `docs/ADDING-A-REVIEWED-FAMILY.md`: TikTok negative keywords, whose
 snapshots the generic TikTok branches normalize — registering it would change its state hash.
+
+Full qualification (`.release/batch6-20260928`, up to `b3f8d84`): **2,714 / 2,714** tests and **4 / 4** capture
+tests; every generated-artifact check and the Railway check pass. 504 s. The candidate's 1,144 source files equal
+`b3f8d84`, apart from the `release-manifest.json` the release tool writes.
