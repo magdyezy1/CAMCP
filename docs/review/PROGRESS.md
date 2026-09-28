@@ -245,3 +245,7 @@ pushed from the website to chosen accounts, and automatic resizing when pixels e
 A push stages one review at a time, so the workspace's two-review staging limit is unchanged. The first browser run
 found that preparing every account before confirming would hit that limit from the third account on; the limit
 stays, and the push plans first instead.
+
+Full qualification (`.release/batch12-20260928`, up to `1591ee1`): **2,746 / 2,746** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 532 s. The candidate's 1,172 source
+files equal `1591ee1`, apart from `release-manifest.json` (and npm's own run logs under `.runtime/`).
