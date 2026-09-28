@@ -46,7 +46,9 @@ const squadStep=(extra={},squad={})=>step('squad',{action:'snapchat_adsquad_crea
 const plan=(f,steps)=>f.call('amcp_campaign',{action:'create',name:'Snapchat clone',brief:'Synthetic regression plan',steps});
 async function runAll(f,id){
  for(let i=0;i<12;i++){const prepared=await f.call('amcp_campaign',{action:'prepare_next',id});assert.equal(prepared.success,true,JSON.stringify(prepared));
-  if(!prepared.data.review)return prepared.data;const call=prepared.data.next_call.arguments;const executed=await f.call('amcp_campaign',call);assert.equal(executed.success,true,JSON.stringify(executed));
+  if(!prepared.data.review)return prepared.data;
+  // The synthetic user approves each reviewed step, including any spending acknowledgement the review asks for.
+  const call={...prepared.data.next_call.arguments,...prepared.data.next_call.add_after_user_approval};const executed=await f.call('amcp_campaign',call);assert.equal(executed.success,true,JSON.stringify(executed));
   if(executed.data.state==='complete')return executed.data;}
  throw new Error('Plan did not settle');
 }

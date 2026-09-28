@@ -878,6 +878,15 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  fail('WRITE_CONTRACT_UNAVAILABLE','This operation lacks an implemented target-state read. It remains available as a local dry run.');
 }
 
+/** What execute will ask for, decided at prepare by the same authorizeExecution rules, so a client can ask the user
+ * once instead of discovering a missing flag from a refused execute. Advisory: execute re-checks everything. */
+export function executeRequirements(actor:Actor,plan:CompiledRequest,policy:ExecutionPolicy,reviewId:string,creativeEdit:boolean):JsonObject{
+ const reasons:JsonObject[]=[];let spend=false;
+ try{authorizeExecution(actor,plan,{dry_run:false,confirmed:true,idempotency_key:reviewId},policy,true);}
+ catch(e){if(!(e instanceof MirrorError)||e.code!=='SPEND_CONFIRMATION_REQUIRED')throw e;spend=true;reasons.push({flag:'spend_change_confirmed',reason:e.message,...(e.details.fields?{fields:e.details.fields}:{})});}
+ if(creativeEdit)reasons.push({flag:'creative_edit_confirmed',reason:'This review acknowledges a potentially disruptive creative edit; repeat creative_edit_confirmed=true at execute.'});
+ return {confirmed:true,idempotency_key:reviewId,spend_change_confirmed:spend,creative_edit_confirmed:creativeEdit,reasons,user_approval:spend||creativeEdit?'Show the user before_state, the impact and the reasons, and set these flags only after they approve.':'Execute after the user approves this review.'};
+}
 export class WriteReviewService {
  constructor(private registry:Registry,private compiler:Compiler,private store:Store,private transport:NativeTransport,private credentials:CredentialProvider,private options:CallOptions,private policy:ExecutionPolicy,private delegated=new DelegatedNativeCompiler()){}
  private authority(actor:Actor,reviewPlan:CompiledRequest,request:CompiledRequest,connection:Connection,auth:Credentials){
@@ -1165,6 +1174,9 @@ export class WriteReviewService {
    if(typeof input.gateway!=='string'||!input.arguments||typeof input.arguments!=='object'||Array.isArray(input.arguments))fail('INVALID_ARGUMENT','prepare requires gateway and arguments.');
    const isDelegated=this.registry.tools.get(input.gateway)?.mode==='delegated',nativeArgs=isDelegated?object(input.arguments.arguments):input.arguments;
    if(['aggregate_pages','paginate','allPages'].some(k=>input.arguments[k]||nativeArgs[k]))fail('MUTATION_PAGINATION_FORBIDDEN','A reviewed mutation executes exactly one request.');
+   // Enhanced-mode native_request lets the caller choose the action and the path independently, and several families
+   // classify by action; a reviewed mutation must come from a catalog action whose route the compiler derived.
+   if(input.arguments.native_request!==undefined||nativeArgs.native_request!==undefined)fail('WRITE_CONTRACT_UNAVAILABLE','Reviewed writes use catalog actions. native_request is a read-only extension; name the catalog action and its params instead.');
    const args=isDelegated?{...input.arguments}:{...input.arguments,dry_run:true};this.registry.validate(input.gateway,args,this.options);
    const unavailable=unsupportedProviderAlias(input.gateway,nativeArgs.action);if(input.action==='inspect'&&unavailable){const e=new MirrorError('PROVIDER_ACTION_UNSUPPORTED',unavailable.reason,unavailable),remedy=errorRemedy(e);return {executed:false,network_requests:0,review_contract_supported:false,request:null,error:{code:e.code,message:e.message,details:e.details,category:remedy.category,remedy},live_permissions_verified:false,next_step:unavailable.replacement};}
    const plan=applyExecutionRisk(isDelegated?this.delegated.compile(input.gateway,args):this.compiler.compile(input.gateway,args,this.options));
@@ -1194,10 +1206,10 @@ export class WriteReviewService {
    assertSnapCreativeReferences(plan,state,resource=>this.store.ownsResource(c,normalizeAccount(plan.gateway,plan.accountId!),resource));
    const override=input.creative_edit_confirmed===true?{creative_edit_confirmed:true}:{};
    const reviewId=randomUUID(),fingerprint=sha256(stable({tenant:actor.tenantId,user:actor.userId,connection:c.id,plan,...override})),expiresAt=Date.now()+300000;
-   const stateHash=reviewStateHash(state),spendPolicy=checkSpendPolicy(this.store,actor,plan,state);
+   const stateHash=reviewStateHash(state),spendPolicy=checkSpendPolicy(this.store,actor,plan,state),requirements=executeRequirements(actor,plan,this.policy,reviewId,input.creative_edit_confirmed===true);
    this.store.putDocument(actor.tenantId,'write_review',reviewId,{user_id:actor.userId,connection_id:c.id,plan,reads,state,state_hash:stateHash,fingerprint,expires_at:expiresAt,...override});
    this.store.appendAudit(actor.tenantId,reviewId,{event:'write_prepared',request:plan,fingerprint,expires_at:expiresAt});
-   return {success:true,executed:false,review_id:reviewId,idempotency_key:reviewId,expires_at:new Date(expiresAt).toISOString(),request:redact(plan.gateway==='google_business_native_action'?placeActionSafe(plan):plan),contract_evidence:executionEvidence(plan),before_state:redact(state),spend_policy:spendPolicy,state_hash:stateHash,state_reads:reads.map(r=>({method:r.method,path:r.path})),fingerprint,confirmation_required:true,...(creativeImpact?{creative_impact:creativeImpact}:{})};
+   return {success:true,executed:false,review_id:reviewId,idempotency_key:reviewId,expires_at:new Date(expiresAt).toISOString(),request:redact(plan.gateway==='google_business_native_action'?placeActionSafe(plan):plan),contract_evidence:executionEvidence(plan),before_state:redact(state),spend_policy:spendPolicy,state_hash:stateHash,state_reads:reads.map(r=>({method:r.method,path:r.path})),fingerprint,confirmation_required:true,expires_in_seconds:300,execute_requirements:requirements,...(creativeImpact?{creative_impact:creativeImpact}:{})};
   }
   if(input.action!=='execute'||typeof input.review_id!=='string')fail('INVALID_ARGUMENT','Use prepare or execute with a review_id.');
   if(input.arguments!==undefined)fail('INVALID_ARGUMENT','Execute takes only review_id, idempotency_key and confirmation flags; the request was frozen at prepare. Prepare a new review to change it.');
