@@ -418,3 +418,7 @@ stylesheets, written with lines averaging over 300 characters.
 | The six stylesheets formatted (125 → 5,817 lines) | Format-only. In Chromium, with every `var()` replaced by its value, the 7,987 declarations of the workspace stylesheets are identical in order, the root element's 406 computed properties and the tokens are equal, and the privacy page's 277 declarations are identical |
 | The 15 scripts formatted (1,121 → 4,221 lines; HTML template text is unchanged, so the longest lines are still templates). The vendored QR encoder stays byte for byte (`.prettierignore`), since its digest is recorded | Format-only. Syntax-tree equality with Prettier's own parser: 15 of 15 files identical; `node --check` on every script; the 117 tests that load or read the scripts pass |
 | `format` and `format:check` cover `web/**/*.{js,css}`; the website check's pattern for the one allowed synchronous `confirm()` tolerates line breaks | `npm run format:check`; `node tools/check-web.mjs` |
+
+Full qualification (`.release/batch21-20260928`, up to `f6d2f66`): **2,777 / 2,777** tests and **4 / 4** capture
+tests; `format:check` (now including `web/`), every generated-artifact check and the Railway check pass. 533 s. The
+candidate's 1,199 source files equal `f6d2f66`, apart from `release-manifest.json`.
