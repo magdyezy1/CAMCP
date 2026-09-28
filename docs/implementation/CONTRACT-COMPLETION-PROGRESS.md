@@ -8,6 +8,17 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## EW — TikTok ad comment blocked words (2026-09-27)
+
+TikTok ad comment blocked words can now be added, replaced, removed and exported through reviewed
+requests: the complete word list is read first, taken and unknown words are refused, and the list is
+read back. See [implementation](TIKTOK-BLOCKED-WORDS-2026-09-27.md),
+[qualification](TIKTOK-BLOCKED-WORDS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 739 (four TikTok rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## EV — DV360 custom bidding scripts and rules (2026-09-27)
 
 Uploaded DV360 custom bidding scripts and rules can now be registered for advertiser-owned algorithms
@@ -17,7 +28,7 @@ type and file reference are checked, and the new file is read back. See
 [qualification](DV360-CUSTOM-BIDDING-FILES-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 743 (two DV360 rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 743 (two DV360 rows reviewed). Committed as `1ecf2a8`; its exact-commit CI result
 and live acceptance are pending.
 
 ## EU — LinkedIn Audience Network publisher lists (2026-09-27)

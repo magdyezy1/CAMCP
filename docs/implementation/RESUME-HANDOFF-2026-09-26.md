@@ -1041,7 +1041,16 @@ Tests: `tests/linkedin-publisher-restrictions.test.mjs` (3), red on `00f480d` / 
 
 - New reviewed family `dv360_custom_bidding_files` (`src/dv360-custom-bidding-files.ts`) for registering uploaded custom bidding scripts and rules for advertiser-owned algorithms, two rows. The upload itself stays outside; the algorithm type, owner and file reference are checked.
 
-Tests: `tests/dv360-custom-bidding-files.test.mjs` (3), red on `607d20d` / green after.
+Tests: `tests/dv360-custom-bidding-files.test.mjs` (3), red on `607d20d` / green after. Committed as `1ecf2a8`.
+
+## Finished batch — TikTok ad comment blocked words (2026-09-27)
+
+[Implementation](TIKTOK-BLOCKED-WORDS-2026-09-27.md) and
+[qualification](TIKTOK-BLOCKED-WORDS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `tiktok_blocked_words` (`src/tiktok-blocked-words.ts`) for adding, replacing, removing and exporting ad comment blocked words, four rows. The complete list is read before and after; unknown deletions, which TikTok ignores silently, are refused.
+
+Tests: `tests/tiktok-blocked-words.test.mjs` (4), red on `1ecf2a8` / green after.
 
 ## CI and live evidence
 
@@ -1055,19 +1064,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 688 in reviewed write families. **743 remaining rows** are in
+3241 captured actions; 692 in reviewed write families. **739 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 628 |
+| blocked_write | 624 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 186, Meta 117, LinkedIn 94, Snapchat 66,
+Blocked writes by platform: TikTok 182, Meta 117, LinkedIn 94, Snapchat 66,
 Google Ads 57, X 43, DV360 30, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

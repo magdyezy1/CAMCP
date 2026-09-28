@@ -10,6 +10,7 @@ import {snapEventImpact} from './snapchat-event-details.js';
 import {snapPixelNameImpact} from './snapchat-pixel-names.js';
 import {linkedinPublisherImpact} from './linkedin-publisher-restrictions.js';
 import {dv360BiddingFileImpact} from './dv360-custom-bidding-files.js';
+import {tiktokBlockedWordImpact} from './tiktok-blocked-words.js';
 import {snapSegmentImpact} from './snapchat-segments.js';
 import {tiktokIdentityKind,tiktokIdentityImpact} from './tiktok-identities.js';
 import {metaCopyKind,metaCopyImpact} from './meta-copies.js';
@@ -140,6 +141,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  const snapPixelName=snapPixelNameImpact(plan,state);if(snapPixelName)return snapPixelName;
  const linkedinPublisher=linkedinPublisherImpact(plan,state);if(linkedinPublisher)return linkedinPublisher;
  const dv360BiddingFile=dv360BiddingFileImpact(plan,state);if(dv360BiddingFile)return dv360BiddingFile;
+ const tiktokBlockedWord=tiktokBlockedWordImpact(plan,state);if(tiktokBlockedWord)return tiktokBlockedWord;
  if(metaCopyKind(plan))return metaCopyImpact(plan,state);
  if(googlePreviewKind(plan))return googlePreviewImpact;
  if(googleDismissalKind(plan))return googleDismissalImpact(plan,state);

@@ -224,10 +224,10 @@
       "gateway": "tiktok_native_action",
       "actions": 561,
       "counts": {
-        "blocked_write": 186,
+        "blocked_write": 182,
         "media_workflow": 4,
         "native_read": 310,
-        "reviewed_write_family": 49,
+        "reviewed_write_family": 53,
         "unqualified_read": 12
       },
       "captured_catalog_complete": true,
@@ -54587,7 +54587,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54607,7 +54608,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54638,7 +54640,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54682,7 +54685,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54719,7 +54723,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54739,7 +54744,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54774,7 +54780,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54792,7 +54799,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54812,7 +54820,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54916,7 +54925,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54936,7 +54946,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54954,7 +54965,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54972,7 +54984,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55003,7 +55016,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55074,7 +55088,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55133,7 +55148,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55153,7 +55169,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55213,7 +55230,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55231,7 +55249,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55249,7 +55268,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55280,7 +55300,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55324,7 +55345,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55342,7 +55364,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55360,7 +55383,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55378,7 +55402,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55422,7 +55447,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55440,7 +55466,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55458,7 +55485,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55489,7 +55517,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55507,7 +55536,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55525,7 +55555,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55543,7 +55574,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55561,7 +55593,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55605,7 +55638,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55623,7 +55657,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55680,7 +55715,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55711,7 +55747,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55755,7 +55792,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55799,7 +55837,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55817,7 +55856,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55850,7 +55890,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55868,7 +55909,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55888,7 +55930,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55906,7 +55949,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55926,7 +55970,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55957,7 +56002,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55975,7 +56021,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56006,7 +56053,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56037,7 +56085,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56068,7 +56117,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56086,7 +56136,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56117,7 +56168,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56135,7 +56187,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56153,7 +56206,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56184,7 +56238,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56217,7 +56272,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56302,7 +56358,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56333,7 +56390,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56353,7 +56411,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56386,7 +56445,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56430,7 +56490,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56461,7 +56522,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56471,12 +56533,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v1.3/blockedword/create/",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/tiktok-blocked-words.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/tiktok-blocked-words.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "tiktok_blocked_words"
     },
     {
       "gateway": "tiktok_native_action",
@@ -56484,12 +56549,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v1.3/blockedword/delete/",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/tiktok-blocked-words.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/tiktok-blocked-words.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "tiktok_blocked_words"
     },
     {
       "gateway": "tiktok_native_action",
@@ -56505,7 +56573,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56523,7 +56592,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56533,12 +56603,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v1.3/blockedword/task/create/",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/tiktok-blocked-words.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/tiktok-blocked-words.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "tiktok_blocked_words"
     },
     {
       "gateway": "tiktok_native_action",
@@ -56554,7 +56627,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56564,12 +56638,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v1.3/blockedword/update/",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/tiktok-blocked-words.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/tiktok-blocked-words.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "tiktok_blocked_words"
     },
     {
       "gateway": "tiktok_native_action",
@@ -56585,7 +56662,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56668,7 +56746,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56699,7 +56778,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56717,7 +56797,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56735,7 +56816,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56753,7 +56835,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56771,7 +56854,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56802,7 +56886,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56834,6 +56919,7 @@
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
         "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -56852,7 +56938,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56870,7 +56957,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56888,7 +56976,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56906,7 +56995,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56924,7 +57014,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56968,7 +57059,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57025,7 +57117,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57043,7 +57136,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57061,7 +57155,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57079,7 +57174,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57110,7 +57206,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57207,6 +57304,7 @@
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
         "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -57251,7 +57349,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57283,6 +57382,7 @@
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
         "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -57302,6 +57402,7 @@
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
         "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -57333,7 +57434,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57364,7 +57466,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57382,7 +57485,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57413,7 +57517,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57444,7 +57549,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57494,7 +57600,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57525,7 +57632,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57569,7 +57677,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57587,7 +57696,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57631,7 +57741,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57651,7 +57762,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57669,7 +57781,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57689,7 +57802,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57709,7 +57823,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57765,7 +57880,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57835,7 +57951,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57892,7 +58009,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57910,7 +58028,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57954,7 +58073,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57972,7 +58092,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57990,7 +58111,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58008,7 +58130,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58026,7 +58149,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58046,7 +58170,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58064,7 +58189,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58082,7 +58208,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58126,7 +58253,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58146,7 +58274,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58164,7 +58293,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58235,6 +58365,7 @@
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
         "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -58256,6 +58387,7 @@
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
         "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -58275,6 +58407,7 @@
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
         "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -58358,7 +58491,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58376,7 +58510,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58394,7 +58529,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58412,7 +58548,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58430,7 +58567,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58461,7 +58599,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58492,7 +58631,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58523,7 +58663,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58554,7 +58695,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58585,7 +58727,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58655,7 +58798,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58673,7 +58817,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58691,7 +58836,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58751,7 +58897,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58769,7 +58916,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58787,7 +58935,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58844,7 +58993,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58882,7 +59032,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58902,7 +59053,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58922,7 +59074,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58941,6 +59094,7 @@
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
         "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -58988,7 +59142,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59006,7 +59161,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59037,7 +59193,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59055,7 +59212,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59073,7 +59231,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59104,7 +59263,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59122,7 +59282,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59140,7 +59301,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59158,7 +59320,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59176,7 +59339,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59194,7 +59358,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59212,7 +59377,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59230,7 +59396,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59261,7 +59428,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59318,7 +59486,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59336,7 +59505,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59422,7 +59592,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59482,7 +59653,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59526,7 +59698,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59544,7 +59717,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59590,7 +59764,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59621,7 +59796,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59678,7 +59854,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59696,7 +59873,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59742,7 +59920,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59760,7 +59939,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59778,7 +59958,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59822,7 +60003,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59866,7 +60048,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59898,6 +60081,7 @@
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
         "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -59916,7 +60100,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59934,7 +60119,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59952,7 +60138,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59970,7 +60157,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59988,7 +60176,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60006,7 +60195,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60053,7 +60243,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60071,7 +60262,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60091,7 +60283,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60109,7 +60302,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60128,6 +60322,7 @@
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
         "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -60146,7 +60341,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60164,7 +60360,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60182,7 +60379,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60202,7 +60400,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60222,7 +60421,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60242,7 +60442,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60292,7 +60493,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60310,7 +60512,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60328,7 +60531,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60346,7 +60550,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60377,7 +60582,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60395,7 +60601,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60491,7 +60698,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60561,7 +60769,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60579,7 +60788,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60597,7 +60807,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60615,7 +60826,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60659,7 +60871,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60677,7 +60890,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60721,7 +60935,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60752,7 +60967,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60770,7 +60986,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60801,7 +61018,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60819,7 +61037,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60853,7 +61072,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60886,7 +61106,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60930,7 +61151,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60948,7 +61170,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61018,7 +61241,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61049,7 +61273,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61069,7 +61294,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61087,7 +61313,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61144,7 +61371,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61188,7 +61416,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61206,7 +61435,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61245,6 +61475,7 @@
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
         "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs",
         "tests/tiktok-report-jobs.test.ts"
       ],
       "live_qualification": "unverified"
@@ -61284,6 +61515,7 @@
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
         "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs",
         "tests/tiktok-report-jobs.test.ts"
       ],
       "live_qualification": "unverified"
@@ -61302,7 +61534,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61322,7 +61555,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61357,6 +61591,7 @@
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
         "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs",
         "tests/tiktok-report-jobs.test.ts"
       ],
       "live_qualification": "unverified"
@@ -61392,6 +61627,7 @@
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
         "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs",
         "tests/tiktok-report-jobs.test.ts"
       ],
       "live_qualification": "unverified"
@@ -61410,7 +61646,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61428,7 +61665,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61446,7 +61684,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61464,7 +61703,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61527,7 +61767,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61545,7 +61786,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61579,7 +61821,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61610,7 +61853,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61628,7 +61872,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61646,7 +61891,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61685,7 +61931,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61775,7 +62022,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61849,7 +62097,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61905,7 +62154,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61925,7 +62175,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61973,7 +62224,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62020,7 +62272,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62103,7 +62356,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62153,7 +62407,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62200,7 +62455,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62250,7 +62506,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62268,7 +62525,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62286,7 +62544,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62319,7 +62578,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62376,7 +62636,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62407,7 +62668,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62425,7 +62687,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62443,7 +62706,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62487,7 +62751,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62518,7 +62783,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62536,7 +62802,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62567,7 +62834,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62585,7 +62853,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62619,7 +62888,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62637,7 +62907,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62656,6 +62927,7 @@
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
         "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -62674,7 +62946,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62692,7 +62965,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62710,7 +62984,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62728,7 +63003,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62746,7 +63022,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62764,7 +63041,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62782,7 +63060,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62800,7 +63079,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62818,7 +63098,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62836,7 +63117,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62854,7 +63136,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62872,7 +63155,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62890,7 +63174,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62908,7 +63193,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62926,7 +63212,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62944,7 +63231,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62962,7 +63250,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62980,7 +63269,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62998,7 +63288,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63016,7 +63307,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63034,7 +63326,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63052,7 +63345,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63070,7 +63364,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63088,7 +63383,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63106,7 +63402,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63124,7 +63421,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63142,7 +63440,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63173,7 +63472,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63191,7 +63491,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63222,7 +63523,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63240,7 +63542,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63297,7 +63600,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63315,7 +63619,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63333,7 +63638,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63377,7 +63683,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63408,7 +63715,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63439,7 +63747,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63470,7 +63779,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63501,7 +63811,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63519,7 +63830,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63537,7 +63849,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63555,7 +63868,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63573,7 +63887,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63591,7 +63906,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63609,7 +63925,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63627,7 +63944,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63658,7 +63976,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63678,7 +63997,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63698,7 +64018,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63718,7 +64039,8 @@
         "tests/write-platforms.test.ts",
         "tests/creative-chain-audit.test.ts",
         "tests/tiktok-negative-keywords.test.mjs",
-        "tests/tiktok-brand-safety.test.mjs"
+        "tests/tiktok-brand-safety.test.mjs",
+        "tests/tiktok-blocked-words.test.mjs"
       ],
       "live_qualification": "unverified"
     },

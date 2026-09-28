@@ -1521,6 +1521,20 @@
     {
       "gateway": "tiktok_native_action",
       "arguments": {
+        "action": "tiktok_blockedword_create",
+        "account_id": "123",
+        "payload": {
+          "advertiser_id": "123",
+          "blocked_words": [
+            "free money",
+            "scam"
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "tiktok_native_action",
+      "arguments": {
         "action": "tiktok_identity_create",
         "account_id": "123",
         "payload": {

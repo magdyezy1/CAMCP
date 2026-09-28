@@ -486,6 +486,31 @@ a campaign needs it on at least one of its ad groups. Discover keyword IDs with
 - Verification reads the list or settings again. `INVALID_TIKTOK_BRAND_SAFETY` means correct the
   named apps or settings.
 
+## TikTok ad comment blocked words
+
+Comments on an advertiser's ads that contain a blocked word are visible only to their authors; once
+the word is unblocked, "comments that contain this word will become public". An ad account holds up
+to 500 blocked words.
+
+- `tiktok_blockedword_create` with `payload: {advertiser_id, blocked_words: [...]}` blocks 1–500
+  words (1–30 characters each, no surrounding spaces, no word twice ignoring case).
+- `tiktok_blockedword_update` with `payload: {advertiser_id, old_word, new_word}` replaces one word.
+- `tiktok_blockedword_delete` with `payload: {advertiser_id, blocked_words: [...]}` unblocks words.
+- `tiktok_blockedword_task_create` with `payload: {advertiser_id, blocked_words?, lang?}` (`EN`, `JA`
+  or `ZH`) starts an export of the list; nothing changes.
+
+Replies carry no word IDs, so AMCP reads the complete list first (page by page): a word already
+blocked (ignoring case) is `CONFIGURATION_EXISTS`, and a word to replace or delete that is not listed
+is `STATE_NOT_FOUND`, because TikTok ignores such deletions silently; a list that would exceed 500
+words is refused. Nothing needs spending confirmation. A reply with a non-zero `code` is a failure
+never resubmitted. Verification reads the complete list again and compares it with the expected
+list; for an export it checks the task (`tiktok_blockedword_task_check`) until it is `SUCCEED`, so
+verify again while it is `RUNNING`. `INVALID_TIKTOK_BLOCKED_WORD` names the field to correct.
+
+Reference: TikTok API for Business v1.3 "Create blocked words", "Update a blocked word", "Delete
+blocked words", "Get blocked words" and the export task pages
+(https://business-api.tiktok.com/portal/docs?id=1739029218470913), checked 2026-09-27.
+
 ## TikTok lookalike audiences
 
 - `tiktok_dmp_custom_audience_lookalike_create` creates a lookalike from a seed audience the selected
