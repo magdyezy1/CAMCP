@@ -469,3 +469,7 @@ files equal `1acb866`, apart from `release-manifest.json`.
 | Change | Evidence |
 |---|---|
 | The verification plan (`verificationReads`, `entity`, and the comparison helpers `normalize`, `differing` and the Snapchat projections) moved verbatim from `write-verification.ts` (1,344 → 723 lines) into `verification-reads.ts` | A move, proven as in batch 23: all 10 top-level declarations have identical syntax trees, none missing or declared twice, and the imports are a subset of the original's. Full suite: 2,779 tests, 2,774 pass, 0 fail, 5 skipped |
+
+Full qualification (`.release/batch24-20260928`, up to `f5c7ce6`): **2,779 / 2,779** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 274 s. The candidate's 1,207 source
+files equal `f5c7ce6`, apart from `release-manifest.json`.
