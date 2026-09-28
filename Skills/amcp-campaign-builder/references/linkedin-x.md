@@ -131,6 +131,20 @@ The normal LinkedIn connection defaults remain advertising-only. After the app h
 
 DSC is **PUBLISHED content with no feed distribution**, not a paused post. Send `visibility: PUBLIC`, `lifecycleState: PUBLISHED`, `distribution: {feedDistribution: NONE, targetEntities: [], thirdPartyDistributionChannels: []}`, `isReshareDisabledByAuthor: true`, and `adContext: {dscAdAccount: urn:li:sponsoredAccount:<selected account>, dscStatus: ACTIVE}`. Use `content.media: {id: <ready media URN>, title: <approved title>}` and approved commentary. Optional `contentLandingPage` is an HTTPS URL; `contentCallToActionLabel` must be supported. Do not send read-only `isDsc`/`dscAdType`. Inspect, prepare and execute the exact review, then call `amcp_campaign verify` before creating a PAUSED creative referencing the returned post URN. The returned header permits only an internal verification read; it does not grant resource ownership by itself. An inconclusive read never permits a second post create.
 
+DSC edits and deletion: `linkedin_rest_posts_ugc_post_urn_post` with `path_params: {ugc_post_urn}`,
+`restli_method: "PARTIAL_UPDATE"` and `payload: {patch: {$set: {...}}}` changes `commentary`
+(1–3000 characters), `contentLandingPage` (HTTPS) and/or `contentCallToActionLabel` (a documented
+label, with a landing page) of a DSC post; `linkedin_rest_posts_post_urn_delete` (`path_params:
+{post_urn}`) or `linkedin_rest_posts_ugc_post_urn_delete` deletes one. Lifecycle state, distribution,
+media and adContext stay as created (`INVALID_LINKEDIN_DSC_EDIT`). Only posts that AMCP created and
+verified with the same connection and account change (`RESOURCE_SCOPE_REQUIRED` otherwise), with the
+organization binding and `w_organization_social` plus `r_organization_social` of their creation.
+AMCP reads the post and the account's creatives that sponsor it (creative search by
+`contentReferences`): an edit changes those ads, so it needs `spend_change_confirmed=true`; a post
+that a creative still sponsors (anything but REMOVED) is not deleted (`ASSET_IN_USE`). LinkedIn
+answers 204; anything else is a failure never resubmitted. Verification reads the post again: the
+changed fields, or the post gone.
+
 LinkedIn finder filters use REST.li syntax and restli_method: FINDER: creatives use q: criteria, while campaigns use q: search. Prefer native arrays/objects, e.g. `campaigns: ["urn:li:sponsoredCampaign:123"]` and `search: {status: {values: ["ACTIVE"]}}`. AMCP serializes structural List/record punctuation and encodes scalar leaves exactly once. Existing well-formed string expressions are accepted; literal commas/parentheses inside string leaves must be percent-encoded. `INVALID_RESTLI_QUERY` means a malformed/ambiguous expression: use typed arrays/objects. Never fall back to an unbounded unfiltered crawl. Exact-ID verification preserves the frozen `LinkedIn-Version`; the environment override applies when a new request is compiled, not halfway through a review.
 
 Use native `targetingCriteria`; do not force an irreversible migration of an existing legacy targeting object during an unrelated edit. For conversion optimization, discover the relevant conversion and verify its campaign association. The API's version header is a supported `YYYYMM` value, not a prose version nickname. Dated limits in the supplied manual are not permanent validation constants.

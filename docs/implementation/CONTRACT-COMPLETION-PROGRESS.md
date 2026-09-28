@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## FM — LinkedIn DSC post edits and deletion (2026-09-27)
+
+DSC posts that AMCP created can now be edited (text, landing page, call to action) and deleted through
+reviewed requests that read the post and the creatives that sponsor it, need spending confirmation
+for edits, refuse to delete a sponsored post and read the post back. See
+[implementation](LINKEDIN-DSC-EDITS-2026-09-27.md),
+[qualification](LINKEDIN-DSC-EDITS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 699 (three LinkedIn rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## FL — Meta split tests (2026-09-27)
 
 Meta split tests of the selected account's ad sets or campaigns can now be created on its business
@@ -17,7 +29,7 @@ studies it is in, need spending confirmation and read the study and its cells ba
 [qualification](META-SPLIT-TESTS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 702 (two Meta rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 702 (two Meta rows reviewed). Committed as `58cecd7`; its exact-commit CI result
 and live acceptance are pending.
 
 ## FK — TikTok change log download tasks (2026-09-27)

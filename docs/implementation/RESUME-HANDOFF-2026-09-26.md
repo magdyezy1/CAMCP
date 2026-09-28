@@ -1185,7 +1185,16 @@ Tests: `tests/tiktok-change-logs.test.mjs` (3), red on `39ee55b` / green after. 
 
 - New reviewed family `meta_split_tests` (`src/meta-split-tests.ts`) for SPLIT_TEST studies of ad sets or campaigns and their name, description and end changes, two rows, with business, object, study and cell reads and spending confirmation. Lift studies and creative tests stay unqualified.
 
-Tests: `tests/meta-split-tests.test.mjs` (3), red on `b271e1f` / green after.
+Tests: `tests/meta-split-tests.test.mjs` (3), red on `b271e1f` / green after. Committed as `58cecd7`.
+
+## Finished batch — LinkedIn DSC post edits and deletion (2026-09-27)
+
+[Implementation](LINKEDIN-DSC-EDITS-2026-09-27.md) and
+[qualification](LINKEDIN-DSC-EDITS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `linkedin_dsc_edits` (`src/linkedin-dsc-edits.ts`) for edits and deletion of DSC posts AMCP created, three rows, with post and sponsoring creative reads; edits need spending confirmation and sponsored posts are not deleted.
+
+Tests: `tests/linkedin-dsc-edits.test.mjs` (3), red on `58cecd7` / green after.
 
 ## CI and live evidence
 
@@ -1199,19 +1208,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 723 in reviewed write families. **702 remaining rows** are in
+3241 captured actions; 726 in reviewed write families. **699 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 593 |
+| blocked_write | 590 |
 | unmapped | 79 |
 | unqualified_read | 17 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 167, Meta 112, LinkedIn 91, Snapchat 66,
+Blocked writes by platform: TikTok 167, Meta 112, LinkedIn 88, Snapchat 66,
 Google Ads 57, X 35, DV360 30, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

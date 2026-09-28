@@ -50,6 +50,7 @@ import {authorizeMetaPixel} from './meta-pixels.js';
 import {authorizeLinkedInLeadFormState} from './linkedin-lead-form-states.js';
 import {authorizeLinkedInDelete} from './linkedin-entity-deletes.js';
 import {authorizeMetaSplitTest} from './meta-split-tests.js';
+import {authorizeLinkedInDscEdit} from './linkedin-dsc-edits.js';
 import {authorizeLinkedInMessage} from './linkedin-message-ads.js';
 import {authorizeLinkedInTemplate} from './linkedin-audience-templates.js';
 import {authorizeLinkedInRule} from './linkedin-conversion-rules.js';
@@ -156,6 +157,7 @@ export class ScopeGuard {
   if(authorizeLinkedInLeadFormState(plan,connection,id))return id;
   if(authorizeLinkedInDelete(plan,connection,id))return id;
   if(authorizeMetaSplitTest(plan,connection,id))return id;
+  if(authorizeLinkedInDscEdit(plan,connection,this.store,id))return id;
   if(authorizeLinkedInMessage(plan,connection,id))return id;
   if(authorizeLinkedInRule(plan,connection,id))return id;
   if(authorizeLinkedInLeadForm(plan,connection,this.store,id))return id;

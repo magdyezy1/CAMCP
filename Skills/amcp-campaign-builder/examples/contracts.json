@@ -1519,6 +1519,24 @@
       }
     },
     {
+      "gateway": "linkedin_native_action",
+      "arguments": {
+        "action": "linkedin_rest_posts_ugc_post_urn_post",
+        "account_id": "507",
+        "path_params": {
+          "ugc_post_urn": "urn:li:ugcPost:900"
+        },
+        "restli_method": "PARTIAL_UPDATE",
+        "payload": {
+          "patch": {
+            "$set": {
+              "commentary": "Autumn launch: now in stores"
+            }
+          }
+        }
+      }
+    },
+    {
       "gateway": "meta_native_action",
       "arguments": {
         "action": "meta_business_id_ad_studies_create",
