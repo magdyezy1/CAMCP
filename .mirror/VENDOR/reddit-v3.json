@@ -2,6 +2,7 @@
   "source": "https://ads-api.reddit.com/api/v3/openapi.json",
   "captured_at": "2026-09-05T21:40:44.959Z",
   "evidence": "VENDOR_DOCUMENTED_NOT_AMCP_OBSERVED",
+  "document_sha256": "9796b01ca7e7b5cfcbea156a7dc991b69e361aac53b7bd95af901028e17d40c7",
   "document": {
     "openapi": "3.1.0",
     "info": {

@@ -35,7 +35,8 @@ const registry=JSON.parse(fs.readFileSync('generated/registry.json','utf8'));
 const docs=new Map(Object.keys(sources).filter(n=>fs.existsSync('.mirror/VENDOR/'+n+'.json')).map(n=>[n,JSON.parse(fs.readFileSync('.mirror/VENDOR/'+n+'.json','utf8'))]));
 for(const [name,envelope] of docs){
  if(envelope.source!==sources[name])throw Error('Unexpected vendor source URL: '+name);
- if(envelope.document_sha256&&envelope.document_sha256!==hash(envelope.document))throw Error('Vendor snapshot integrity mismatch: '+name);
+ // Every pinned document is sealed; an unsealed or edited one fails here instead of feeding the route mapping.
+ if(envelope.document_sha256!==hash(envelope.document))throw Error('Vendor snapshot is unsealed or does not match its digest: '+name);
 }
 const methods=new Map();
 for(const [file,envelope] of docs){

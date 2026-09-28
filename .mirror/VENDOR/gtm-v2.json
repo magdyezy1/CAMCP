@@ -2,6 +2,7 @@
   "source": "https://www.googleapis.com/discovery/v1/apis/tagmanager/v2/rest",
   "captured_at": "2026-09-04T23:58:43.863Z",
   "evidence": "VENDOR_DOCUMENTED_NOT_AMCP_OBSERVED",
+  "document_sha256": "f790ffb1571c5cf975543aa727ca21aa85a5602e6dcac8e6d6ca0956ce729ac3",
   "document": {
     "icons": {
       "x16": "http://www.google.com/images/icons/product/search-16.gif",

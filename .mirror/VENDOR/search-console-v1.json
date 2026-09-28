@@ -2,6 +2,7 @@
   "source": "https://www.googleapis.com/discovery/v1/apis/searchconsole/v1/rest",
   "captured_at": "2026-09-04T23:58:43.369Z",
   "evidence": "VENDOR_DOCUMENTED_NOT_AMCP_OBSERVED",
+  "document_sha256": "f76bfc659834ddddf219cc2019c5c3bff5b404ea15310ab10c513165fa821f8a",
   "document": {
     "canonicalName": "Search Console",
     "batchPath": "batch",

@@ -2,6 +2,7 @@
   "source": "https://mybusinessnotifications.googleapis.com/$discovery/rest?version=v1",
   "captured_at": "2026-09-05T11:07:56.512Z",
   "evidence": "VENDOR_DOCUMENTED_NOT_AMCP_OBSERVED",
+  "document_sha256": "acc1cdec969aea9231a1be6fa41751fc0fca6fa13e462c052be657eb227434e4",
   "document": {
     "kind": "discovery#restDescription",
     "icons": {
