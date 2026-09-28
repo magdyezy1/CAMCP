@@ -270,6 +270,34 @@ compares `blocked`. `INVALID_LINKEDIN_INSIGHT_DOMAIN` names the field to correct
 Reference: [Conversion Tracking](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/conversion-tracking)
 (Insight Tag Domains), checked 2026-09-27.
 
+## Reviewed LinkedIn Audience Network publisher lists
+
+Offsite (Audience Network) delivery can be limited with CSV lists of domains and apps. Uploading a
+CSV happens outside AMCP (an upload URL from `adPublisherRestrictions?action=generateRestrictionsUploadUrl`,
+then a binary upload whose `location` header names the file); these two steps are reviewed:
+
+- `linkedin_rest_ad_publisher_restrictions_post` with `payload: {dataId: "urn:li:media:/...csv",
+  entity: "urn:li:sponsoredAccount:{selected}", fileName, type}` registers the uploaded file as a
+  `BLOCKLIST` (the default) or `ALLOWLIST` of the selected account. A file already registered for the
+  account is `CONFIGURATION_EXISTS`. Registering changes nothing until a campaign or the account
+  preferences name the list.
+- `linkedin_rest_ad_account_trust_preferences_account_id_put` with `path_params: {account_id}` and
+  `payload: {offsiteAccountPreferences: {publisherRestrictionFiles: {include: [...], exclude: [...]}}}`
+  replaces the account-level lists (an upsert; send both lists, empty when unused). `include` takes
+  ALLOWLIST files: only those domains and apps then serve the account's offsite ads. `exclude` takes
+  BLOCKLIST files: those never serve them.
+
+AMCP lists the account's publisher files (up to 1000) and reads its trust preferences (absent until
+first set). A file of another account is `STATE_NOT_FOUND`; a file of the wrong type, one still
+processing (status other than SUCCESS), a file in both lists and unchanged preferences are refused.
+The preferences review is marked as affecting serving; nothing needs spending confirmation.
+Campaign-level lists (`offsitePreferences.publisherRestrictionFiles` on campaigns) are unchanged.
+Verification lists the files again, or reads the preferences and compares both lists.
+`INVALID_LINKEDIN_PUBLISHER_RESTRICTION` names the field to correct.
+
+Reference: [Manage Audience Restrictions](https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/advertising-targeting/manage-audience-restrictions),
+checked 2026-09-27.
+
 ## Reviewed LinkedIn A/B tests
 
 - `linkedin_rest_ad_experiments_post` creates an experiment: `payload: {account, name, keyMetric,

@@ -1023,7 +1023,16 @@ Tests: `tests/snapchat-event-details.test.mjs` (4), red on `140396f` / green aft
 
 - New reviewed family `snapchat_pixel_names` (`src/snapchat-pixel-names.ts`) for renaming pixels of the selected account or its organization, three rows. Only names change; the organization must be the account's.
 
-Tests: `tests/snapchat-pixel-names.test.mjs` (3), red on `85f8ec8` / green after.
+Tests: `tests/snapchat-pixel-names.test.mjs` (3), red on `85f8ec8` / green after. Committed as `00f480d`.
+
+## Finished batch — LinkedIn Audience Network publisher lists (2026-09-27)
+
+[Implementation](LINKEDIN-PUBLISHER-RESTRICTIONS-2026-09-27.md) and
+[qualification](LINKEDIN-PUBLISHER-RESTRICTIONS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `linkedin_publisher_restrictions` (`src/linkedin-publisher-restrictions.ts`) for registering uploaded block and allow lists and replacing the account-level trust preferences, two rows. Files must be the account's, of the matching type and processed.
+
+Tests: `tests/linkedin-publisher-restrictions.test.mjs` (3), red on `00f480d` / green after.
 
 ## CI and live evidence
 
@@ -1037,19 +1046,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 684 in reviewed write families. **747 remaining rows** are in
+3241 captured actions; 686 in reviewed write families. **745 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 632 |
+| blocked_write | 630 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 186, Meta 117, LinkedIn 96, Snapchat 66,
+Blocked writes by platform: TikTok 186, Meta 117, LinkedIn 94, Snapchat 66,
 Google Ads 57, X 43, DV360 32, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

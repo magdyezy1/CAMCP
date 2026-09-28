@@ -1,0 +1,101 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "00f480d355985a066b67fa820adc896dc0c45ae5",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/linkedin-publisher-restrictions-20260927-a",
+    "files": 1026,
+    "source_tree_hash": "1c678820f019a1eb6a5e8862fb394baae5a0c5282f7a092de2d5d7fcb7d6cf91",
+    "index_code_test_guidance_files_compared": 777,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/linkedin-publisher-restrictions-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/linkedin-publisher-restrictions-20260927/install.log",
+      "sha256": "3f297ffae731871d8165981fa63d8ab903590393e8d20a27170174d3292ab9db"
+    },
+    {
+      "path": ".runtime/linkedin-publisher-restrictions-20260927/check.log",
+      "sha256": "d00d3d5c5556b66b435b6d9aaa4ceff6ec2b872741c890929eac63a645d5db37",
+      "started": "Mon Sep 28 00:11:48 UTC 2026",
+      "finished": "Mon Sep 28 03:27:44 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2572,
+          "pass": 2572,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/linkedin-publisher-restrictions-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/linkedin-publisher-restrictions-20260927/red-check.log",
+      "sha256": "01df20f75fdc67b491aa3382bc499b65419bbe6b3d6e4a1040c5eda0a51d2b97",
+      "meaning": "tests/linkedin-publisher-restrictions.test.mjs against a build of 00f480d: expected red, 3/3 fail (no reviewed family: WRITE_CONTRACT_UNAVAILABLE)"
+    },
+    {
+      "path": ".runtime/linkedin-publisher-restrictions-20260927/targeted.log",
+      "sha256": "4db2026be02877ccd865d6d46091708f762b18a0000b6ed1b2c2dc4448b89b16",
+      "meaning": "194 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1967/1967 pass, none skipped."
+    }
+  ],
+  "development_failures": [],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2572,
+    "main_pass": 2572,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "The CSV upload itself (signed URL and binary upload) is outside AMCP; AMCP cannot check the file's contents before it is registered.",
+    "Requiring both lists in the preferences PUT is AMCP's rule; the reference marks each list optional and does not say whether an omitted list is kept or cleared.",
+    "Limits of 100 files per list and a 255-character file name are AMCP's bounds; LinkedIn documents none.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

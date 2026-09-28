@@ -2495,6 +2495,19 @@
     {
       "gateway": "linkedin_native_action",
       "arguments": {
+        "action": "linkedin_rest_ad_publisher_restrictions_post",
+        "account_id": "507",
+        "payload": {
+          "dataId": "urn:li:media:/AAUQAQCwAAQAAQAAAAAAAADPAAAAJDIxYTllNzllLTQ0Y2EtNDgdfgfd4i05NTcyLTEwYWVmYTgxNWY4Yg.csv",
+          "entity": "urn:li:sponsoredAccount:507",
+          "fileName": "BlockList.csv",
+          "type": "BLOCKLIST"
+        }
+      }
+    },
+    {
+      "gateway": "linkedin_native_action",
+      "arguments": {
         "action": "linkedin_rest_insight_tag_domains_insight_tag_domain_id_post",
         "account_id": "507",
         "path_params": {

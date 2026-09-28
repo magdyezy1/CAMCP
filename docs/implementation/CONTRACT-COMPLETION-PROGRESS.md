@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## EU — LinkedIn Audience Network publisher lists (2026-09-27)
+
+Uploaded LinkedIn publisher lists can now be registered, and account-level allow and block lists
+replaced, through reviewed requests: the account's files and preferences are read first, list types
+and processing are checked, and the result is read back. See
+[implementation](LINKEDIN-PUBLISHER-RESTRICTIONS-2026-09-27.md),
+[qualification](LINKEDIN-PUBLISHER-RESTRICTIONS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 745 (two LinkedIn rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## ET — Snapchat pixel names (2026-09-27)
 
 Snapchat pixels can now be renamed at account and organization level through reviewed requests: the
@@ -16,7 +28,7 @@ account, its organization and the pixels are read first, and each name is read b
 [qualification](SNAPCHAT-PIXEL-NAMES-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 747 (three Snapchat rows reviewed). Pushes go only to CAMCP; its exact-commit CI
+Remaining rows: 747 (three Snapchat rows reviewed). Committed as `00f480d`; its exact-commit CI
 result and live acceptance are pending.
 
 ## ES — Snapchat event details (2026-09-27)

@@ -15,6 +15,7 @@ import {isLinkedInDomainRead} from './linkedin-insight-domains.js';
 import {isSnapTemplateRead} from './snapchat-dynamic-templates.js';
 import {isSnapEventRead} from './snapchat-event-details.js';
 import {isSnapPixelNameRead} from './snapchat-pixel-names.js';
+import {isLinkedInPublisherRead} from './linkedin-publisher-restrictions.js';
 import {isGoogleBrandGuidelinesRead} from './google-pmax-brand-guidelines.js';
 import {isGoogleCustomerTypeRead} from './google-user-list-customer-types.js';
 import {isGoogleDraftRead} from './google-campaign-drafts.js';
@@ -117,6 +118,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isSnapTemplateRead(read))return normalizeReviewState(data);
  if(isSnapEventRead(read))return normalizeReviewState(data);
  if(isSnapPixelNameRead(read))return normalizeReviewState(data);
+ if(isLinkedInPublisherRead(read))return normalizeReviewState(data);
  if(isGoogleBrandGuidelinesRead(read))return normalizeReviewState(data);
  if(isGoogleCustomerTypeRead(read))return normalizeReviewState(data);
  if(isGoogleDraftRead(read))return normalizeReviewState(data);
