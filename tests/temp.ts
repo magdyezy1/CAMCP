@@ -7,9 +7,15 @@ import path from 'node:path';
  * fs.rmSync's own backoff, and never fail an assertion that already passed because an
  * operating-system temporary directory outlived the test; the OS reclaims it either way.
  */
-export function removeTestDirectory(directory:string,prefix:string){
- const root=fs.realpathSync(os.tmpdir()),resolved=fs.realpathSync(directory);
- if(path.dirname(resolved)!==root||!path.basename(resolved).startsWith(prefix)||!prefix.startsWith('amcp-'))throw Error('Refusing to remove a path outside the named temporary test directory.');
- try{fs.rmSync(resolved,{recursive:true,force:true,maxRetries:20,retryDelay:100});}
- catch(e){if(fs.existsSync(resolved))process.emitWarning('Left temporary test directory '+resolved+' in place: '+(e as Error).message);}
+export function removeTestDirectory(directory: string, prefix: string) {
+  const root = fs.realpathSync(os.tmpdir()),
+    resolved = fs.realpathSync(directory);
+  if (path.dirname(resolved) !== root || !path.basename(resolved).startsWith(prefix) || !prefix.startsWith('amcp-'))
+    throw Error('Refusing to remove a path outside the named temporary test directory.');
+  try {
+    fs.rmSync(resolved, {recursive: true, force: true, maxRetries: 20, retryDelay: 100});
+  } catch (e) {
+    if (fs.existsSync(resolved))
+      process.emitWarning('Left temporary test directory ' + resolved + ' in place: ' + (e as Error).message);
+  }
 }

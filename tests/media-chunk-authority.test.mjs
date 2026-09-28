@@ -4,9 +4,116 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
-for(const lost of [false,true])for(const mode of ['login','drive'])test('Google '+mode+' change after a '+(lost?'lost':'confirmed')+' nonfinal chunk stops later HTTP',async()=>{
- const store=new Store(':memory:',Buffer.alloc(32,59).toString('base64')),actor={tenantId:'t',userId:'u',role:'admin'},c={id:'login',tenantId:'t',gateway:'google_ads_native_action',accounts:['123'],writeAccounts:['123'],enabled:true,label:'Synthetic',scopes:[]},bytes=Buffer.alloc(5*1024*1024);bytes.write('ftypisom',4);let chunks=0,queries=0;
- try{const drive={id:'drive',tenantId:actor.tenantId,gateway:'google_drive_native_action',accounts:['abcdefghijklmno'],enabled:true,label:'Synthetic private Drive',scopes:['https://www.googleapis.com/auth/drive.readonly']};store.putConnection(actor,c,{accessToken:'synthetic'});if(mode==='drive')store.putConnection(actor,drive,{accessToken:'synthetic-private-drive'});const transport=new NativeTransport(async(raw,init)=>{const u=new URL(String(raw)),h=new Headers(init.headers);if(u.pathname.endsWith('/googleAds:search'))return Response.json({results:[{customer:{id:'123',currencyCode:'USD'}}]});if(h.get('X-Goog-Upload-Command')==='start')return new Response(null,{headers:{'x-goog-upload-url':'https://googleads.googleapis.com/resumable/upload/v23/session?upload_id=synthetic-capability'}});if(h.get('X-Goog-Upload-Command')==='query'){queries++;return new Response(null,{headers:{'x-goog-upload-size-received':'4194304'}});}chunks++;if(chunks===1){if(mode==='login')store.putConnection(actor,c,{accessToken:'replacement'});else store.putConnection(actor,{...drive,enabled:false},{accessToken:'synthetic-private-drive'});if(lost)throw Error('Synthetic lost reply');return new Response(null);}return Response.json({resourceName:'customers/123/youTubeVideoUploads/456'});});
-  const service=new MirrorService(new Registry(),store,transport,undefined,{allowWrites:true,requireBeforeState:true,maxBudgetChange:0},async url=>mode==='drive'&&new URL(String(url)).searchParams.get('alt')!=='media'?Response.json({id:'abcdefghijklmno',size:String(bytes.length),mimeType:'video/mp4',capabilities:{canDownload:true}}):new Response(bytes));const p=await service.call('amcp_media',{action:'prepare',platform:'google_ads',account_id:'123',connection_id:'login',drive_url:'https://drive.google.com/file/d/abcdefghijklmno/view'},actor);assert.equal(p.success,true,JSON.stringify(p));const r=await service.call('amcp_media',{action:'execute',review_id:p.data.review_id,idempotency_key:p.data.review_id,confirmed:true},actor);assert.equal(chunks,1);assert.equal(queries,0);assert.equal(r.success,false);if(mode==='login')assert.equal(r.error.code,'REAUTHORIZATION_REQUIRED');assert.equal(store.uploadSession(actor.tenantId,p.data.review_id).finalization_started,undefined);assert.equal(store.db.prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?').get(actor.tenantId,p.data.review_id).state,'uncertain');assert.equal(store.stagedMedia(actor.tenantId,p.data.review_id).length,bytes.length);if(!lost)assert.equal(store.document(actor.tenantId,'media_review',p.data.review_id).progress.bytes_confirmed,4194304);
- }finally{store.close();}
-});
+for (const lost of [false, true])
+  for (const mode of ['login', 'drive'])
+    test(
+      'Google ' + mode + ' change after a ' + (lost ? 'lost' : 'confirmed') + ' nonfinal chunk stops later HTTP',
+      async () => {
+        const store = new Store(':memory:', Buffer.alloc(32, 59).toString('base64')),
+          actor = {tenantId: 't', userId: 'u', role: 'admin'},
+          c = {
+            id: 'login',
+            tenantId: 't',
+            gateway: 'google_ads_native_action',
+            accounts: ['123'],
+            writeAccounts: ['123'],
+            enabled: true,
+            label: 'Synthetic',
+            scopes: [],
+          },
+          bytes = Buffer.alloc(5 * 1024 * 1024);
+        bytes.write('ftypisom', 4);
+        let chunks = 0,
+          queries = 0;
+        try {
+          const drive = {
+            id: 'drive',
+            tenantId: actor.tenantId,
+            gateway: 'google_drive_native_action',
+            accounts: ['abcdefghijklmno'],
+            enabled: true,
+            label: 'Synthetic private Drive',
+            scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+          };
+          store.putConnection(actor, c, {accessToken: 'synthetic'});
+          if (mode === 'drive') store.putConnection(actor, drive, {accessToken: 'synthetic-private-drive'});
+          const transport = new NativeTransport(async (raw, init) => {
+            const u = new URL(String(raw)),
+              h = new Headers(init.headers);
+            if (u.pathname.endsWith('/googleAds:search'))
+              return Response.json({results: [{customer: {id: '123', currencyCode: 'USD'}}]});
+            if (h.get('X-Goog-Upload-Command') === 'start')
+              return new Response(null, {
+                headers: {
+                  'x-goog-upload-url':
+                    'https://googleads.googleapis.com/resumable/upload/v23/session?upload_id=synthetic-capability',
+                },
+              });
+            if (h.get('X-Goog-Upload-Command') === 'query') {
+              queries++;
+              return new Response(null, {headers: {'x-goog-upload-size-received': '4194304'}});
+            }
+            chunks++;
+            if (chunks === 1) {
+              if (mode === 'login') store.putConnection(actor, c, {accessToken: 'replacement'});
+              else store.putConnection(actor, {...drive, enabled: false}, {accessToken: 'synthetic-private-drive'});
+              if (lost) throw Error('Synthetic lost reply');
+              return new Response(null);
+            }
+            return Response.json({resourceName: 'customers/123/youTubeVideoUploads/456'});
+          });
+          const service = new MirrorService(
+            new Registry(),
+            store,
+            transport,
+            undefined,
+            {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0},
+            async url =>
+              mode === 'drive' && new URL(String(url)).searchParams.get('alt') !== 'media'
+                ? Response.json({
+                    id: 'abcdefghijklmno',
+                    size: String(bytes.length),
+                    mimeType: 'video/mp4',
+                    capabilities: {canDownload: true},
+                  })
+                : new Response(bytes),
+          );
+          const p = await service.call(
+            'amcp_media',
+            {
+              action: 'prepare',
+              platform: 'google_ads',
+              account_id: '123',
+              connection_id: 'login',
+              drive_url: 'https://drive.google.com/file/d/abcdefghijklmno/view',
+            },
+            actor,
+          );
+          assert.equal(p.success, true, JSON.stringify(p));
+          const r = await service.call(
+            'amcp_media',
+            {action: 'execute', review_id: p.data.review_id, idempotency_key: p.data.review_id, confirmed: true},
+            actor,
+          );
+          assert.equal(chunks, 1);
+          assert.equal(queries, 0);
+          assert.equal(r.success, false);
+          if (mode === 'login') assert.equal(r.error.code, 'REAUTHORIZATION_REQUIRED');
+          assert.equal(store.uploadSession(actor.tenantId, p.data.review_id).finalization_started, undefined);
+          assert.equal(
+            store.db
+              .prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?')
+              .get(actor.tenantId, p.data.review_id).state,
+            'uncertain',
+          );
+          assert.equal(store.stagedMedia(actor.tenantId, p.data.review_id).length, bytes.length);
+          if (!lost)
+            assert.equal(
+              store.document(actor.tenantId, 'media_review', p.data.review_id).progress.bytes_confirmed,
+              4194304,
+            );
+        } finally {
+          store.close();
+        }
+      },
+    );
