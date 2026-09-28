@@ -459,3 +459,7 @@ imports.
 | The stages moved verbatim into their own modules: `write-shape.ts` (request shapes, `assertWriteShape`), `write-snapshots.ts` (`snapshotPlans`), `write-state.ts` (`validateState`), `write-outcome.ts` (`writeOutcome`) and the helpers they share in `write-common.ts`; `write-review.ts` keeps the service (1,151 lines) | A move, proven: all 14 top-level declarations have identical syntax trees before and after (an added `export` on the shared helpers aside); none is missing or declared twice; every module imports only specifiers the original imported from the same module, or the new stage modules. `tsc` passes with `noUnusedLocals` |
 | Importers (5 modules, 11 tests) import from the stage that holds the function | full suite: 2,779 tests, 2,774 pass, 0 fail, 5 skipped |
 | `executeRequirements`' description had drifted above another declaration; it is back above its function | comment only |
+
+Full qualification (`.release/batch23-20260928`, up to `1acb866`): **2,779 / 2,779** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 280 s. The candidate's 1,206 source
+files equal `1acb866`, apart from `release-manifest.json`.
