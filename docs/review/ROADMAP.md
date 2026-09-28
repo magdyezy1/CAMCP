@@ -45,8 +45,10 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
    compile-time path rewriting.
 2. **Guarded reader helper** replacing the 15 hand-copied wrappers in `state()` (F-61).
 3. **Stage split** of `write-review.ts` / `write-verification.ts` along the lifecycle.
-4. **Formatting**: Prettier at 120 columns, `.editorconfig` with LF, module by module in format-only commits; each
-   proven neutral by comparing Prettier-normalised `dist/` before and after, plus the generated checks (F-62).
+4. **Formatting** — **done in batch 8**: Prettier at 120 columns, `.editorconfig` with LF, module by module in
+   format-only commits, each proven neutral by syntax-tree equality (a Prettier-normalised `dist/` comparison turned
+   out not to be a proof, because Prettier keeps some input line breaks); `format:check` runs first in
+   `npm run check` (F-62). `web/` remains.
 5. Adding-a-family guide showing the one-module, one-test, one-registration workflow. **Done:**
    `docs/ADDING-A-REVIEWED-FAMILY.md`.
 

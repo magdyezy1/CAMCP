@@ -179,3 +179,18 @@ Findings: F-18 in part, F-22, F-28.
 
 Line numbers in the findings table refer to the tree before batch 8.
 
+Full qualification of batches 7 and 8 (`.release/batch8-20260928`, up to `290d30f`): **2,717 / 2,717** tests and
+**4 / 4** capture tests; `format:check`, every generated-artifact check and the Railway check pass. 548 s. The
+candidate's 1,148 source files equal `290d30f`, apart from the `release-manifest.json` the release tool writes.
+
+## Batch 9 — tool guidance, report tables, compression, hardening summary
+
+Findings: F-30 in part, F-31, F-38 and F-43 in part (report table), F-45.
+
+| Change | Evidence |
+|---|---|
+| Each AMCP extension tool opens with a "Use this …" sentence naming the neighbouring tool; `amcp_write` stops asking for the optional `idempotency_key` and names `execute_requirements` (F-30, F-31) | `tests/tool-descriptions.test.mjs` fails before and passes after |
+| Report rows: `scope="col"` column headers and the campaign cell as row header, the report time zone beside the currency, period and summary dates in the viewer's locale, secondary text from 3.15:1 and 3.84:1 at 10 px to 5.32:1 at 12 px | new test in `tests/report-library-ui.test.mjs` fails before and passes after; `check:web` |
+| Text assets served with Brotli or gzip (308 KB → 82 KB with Brotli), per-encoding ETags, `Vary: Accept-Encoding`, 304 revalidation, no new dependency (F-45) | new test in `tests/website-assets.test.mjs` fails before and passes after; traversal and dotfile paths are not served |
+| `docs/HARDENING-REVIEW.md` summarises this review and links its records | — |
+
