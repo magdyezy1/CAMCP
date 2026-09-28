@@ -125,6 +125,16 @@ answers 204 or per-entity results; any error in them is a failure that is never
 resubmitted. Verification reads each entity again and expects it gone (a REMOVED
 creative, kept for reporting, counts as deleted).
 
+Account settings: `linkedin_rest_ad_accounts_ad_account_id_post` with `restli_method:
+"PARTIAL_UPDATE"` and `payload: {patch: {$set: {...}}}` renames the selected ad account (`name`,
+1–255 characters) and switches its Campaign Manager notifications (`notifiedOnCampaignOptimization`,
+`notifiedOnCreativeApproval`, `notifiedOnCreativeRejection`, `notifiedOnEndOfCampaign`,
+`notifiedOnNewFeaturesEnabled`: true or false). `status` (PENDING_DELETION deletes the account,
+CANCELED is permanent), `reference` and the immutable `currency`, `type` and `test` are refused with
+`INVALID_LINKEDIN_ACCOUNT_SETTING`, as are unchanged values and accounts that are CANCELED, pending
+deletion or REMOVED. AMCP reads the account first; nothing needs spending confirmation; LinkedIn
+answers 204 and verification reads the account again.
+
 POST /rest/posts now has a narrow reviewed DSC contract. Use `linkedin_rest_posts_post`, the selected account/connection, an exactly bound organization author, one AVAILABLE image/video owned by that author, and recorded `w_organization_social` plus `r_organization_social` for mandatory read-back. The media must have a provider-verified AMCP receipt in that connection/account or an exact administrator media binding. `LINKEDIN_ORGANIZATION_BINDING_REQUIRED` and `LINKEDIN_MEDIA_BINDING_REQUIRED` require those exact grants, not a broader path prefix. `LINKEDIN_MEDIA_NOT_READY` requires correcting the selected owner/asset or waiting for processing. AMCP currently qualifies matching owner/author only; it does not claim other provider combinations are impossible. Page role, app product access and live acceptance still require verification; a 403 alone does not identify a missing scope.
 
 The normal LinkedIn connection defaults remain advertising-only. After the app has the required provider products/permissions, an administrator can configure `AMCP_LINKEDIN_SCOPES=r_ads r_ads_reporting rw_ads w_organization_social r_organization_social` and reconnect the selected identity through Connections. An environment override replaces the scope list; changing it does not upgrade an existing token. Exact organization/media AMCP bindings are a separate administrator action. Do not request or alter live grants merely to make a code test pass.

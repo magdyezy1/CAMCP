@@ -33,6 +33,7 @@ import {isTiktokChangeLogRead} from './tiktok-change-logs.js';
 import {isMetaSplitTestRead} from './meta-split-tests.js';
 import {isLinkedInDscEditRead} from './linkedin-dsc-edits.js';
 import {isDV360AudienceEditRead} from './dv360-audience-edits.js';
+import {isLinkedInAccountSettingsRead} from './linkedin-account-settings.js';
 import {isGoogleBrandGuidelinesRead} from './google-pmax-brand-guidelines.js';
 import {isGoogleCustomerTypeRead} from './google-user-list-customer-types.js';
 import {isGoogleDraftRead} from './google-campaign-drafts.js';
@@ -153,6 +154,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isMetaSplitTestRead(read))return normalizeReviewState(data);
  if(isLinkedInDscEditRead(read))return normalizeReviewState(data);
  if(isDV360AudienceEditRead(read))return normalizeReviewState(data);
+ if(isLinkedInAccountSettingsRead(read))return normalizeReviewState(data);
  if(isGoogleBrandGuidelinesRead(read))return normalizeReviewState(data);
  if(isGoogleCustomerTypeRead(read))return normalizeReviewState(data);
  if(isGoogleDraftRead(read))return normalizeReviewState(data);

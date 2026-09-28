@@ -1203,7 +1203,16 @@ Tests: `tests/linkedin-dsc-edits.test.mjs` (3), red on `58cecd7` / green after. 
 
 - New reviewed family `dv360_audience_edits` (`src/dv360-audience-edits.ts`) for renaming and re-describing advertiser-owned customer match audiences, one row. Membership duration and members stay unqualified.
 
-Tests: `tests/dv360-audience-edits.test.mjs` (3), red on `7a4cda4` / green after.
+Tests: `tests/dv360-audience-edits.test.mjs` (3), red on `7a4cda4` / green after. Committed as `0f2ad86`.
+
+## Finished batch — LinkedIn ad account name and notifications (2026-09-27)
+
+[Implementation](LINKEDIN-ACCOUNT-SETTINGS-2026-09-27.md) and
+[qualification](LINKEDIN-ACCOUNT-SETTINGS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `linkedin_account_settings` (`src/linkedin-account-settings.ts`) for the ad account name and notification switches, one row. Status, reference and immutable fields stay unqualified.
+
+Tests: `tests/linkedin-account-settings.test.mjs` (3), red on `0f2ad86` / green after.
 
 ## CI and live evidence
 
@@ -1217,19 +1226,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 727 in reviewed write families. **698 remaining rows** are in
+3241 captured actions; 728 in reviewed write families. **697 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 589 |
+| blocked_write | 588 |
 | unmapped | 79 |
 | unqualified_read | 17 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 167, Meta 112, LinkedIn 88, Snapchat 66,
+Blocked writes by platform: TikTok 167, Meta 112, LinkedIn 87, Snapchat 66,
 Google Ads 57, X 35, DV360 29, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

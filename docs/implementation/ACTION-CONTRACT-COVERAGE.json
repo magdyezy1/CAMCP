@@ -162,9 +162,9 @@
       "gateway": "linkedin_native_action",
       "actions": 287,
       "counts": {
-        "blocked_write": 88,
+        "blocked_write": 87,
         "native_read": 146,
-        "reviewed_write_family": 53
+        "reviewed_write_family": 54
       },
       "captured_catalog_complete": true,
       "provider_api_coverage": "unknown",
@@ -24999,7 +24999,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25028,7 +25029,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25099,7 +25101,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25154,7 +25157,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25183,7 +25187,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25212,7 +25217,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25289,7 +25295,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25350,7 +25357,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25395,7 +25403,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25440,7 +25449,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25501,7 +25511,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25562,7 +25573,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25620,7 +25632,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25630,12 +25643,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/rest/adAccounts/{ad_account_id}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/linkedin-account-settings.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/linkedin-account-settings.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "linkedin_account_settings"
     },
     {
       "gateway": "linkedin_native_action",
@@ -25662,7 +25678,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25704,7 +25721,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25733,7 +25751,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25775,7 +25794,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25804,7 +25824,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25833,7 +25854,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25878,7 +25900,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -25955,7 +25978,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26000,7 +26024,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26042,7 +26067,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26084,7 +26110,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26126,7 +26153,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26194,7 +26222,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26262,7 +26291,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26304,7 +26334,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26349,7 +26380,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26404,7 +26436,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26433,7 +26466,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26475,7 +26509,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26520,7 +26555,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26581,7 +26617,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26626,7 +26663,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26655,7 +26693,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26700,7 +26739,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26774,7 +26814,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26816,7 +26857,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26845,7 +26887,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26906,7 +26949,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -26967,7 +27011,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27028,7 +27073,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27089,7 +27135,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27118,7 +27165,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27179,7 +27227,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27237,7 +27286,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27282,7 +27332,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27327,7 +27378,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27369,7 +27421,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27424,7 +27477,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27466,7 +27520,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27495,7 +27550,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27524,7 +27580,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27553,7 +27610,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27595,7 +27653,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27624,7 +27683,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27666,7 +27726,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27721,7 +27782,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27763,7 +27825,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27831,7 +27894,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27860,7 +27924,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27928,7 +27993,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27957,7 +28023,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -27999,7 +28066,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28054,7 +28122,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28083,7 +28152,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28138,7 +28208,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28193,7 +28264,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28222,7 +28294,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28264,7 +28337,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28319,7 +28393,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28361,7 +28436,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28390,7 +28466,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28445,7 +28522,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28474,7 +28552,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28503,7 +28582,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28564,7 +28644,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28593,7 +28674,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28654,7 +28736,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28683,7 +28766,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28728,7 +28812,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28786,7 +28871,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28815,7 +28901,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28844,7 +28931,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28873,7 +28961,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28947,7 +29036,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -28989,7 +29079,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29044,7 +29135,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29073,7 +29165,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29115,7 +29208,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29144,7 +29238,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29173,7 +29268,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29202,7 +29298,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29231,7 +29328,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29273,7 +29371,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29302,7 +29401,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29331,7 +29431,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29360,7 +29461,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29389,7 +29491,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29419,6 +29522,7 @@
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
         "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -29448,7 +29552,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29477,7 +29582,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29506,7 +29612,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29535,7 +29642,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29564,7 +29672,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29593,7 +29702,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29622,7 +29732,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29651,7 +29762,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29696,7 +29808,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29741,7 +29854,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29799,7 +29913,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29857,7 +29972,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29886,7 +30002,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29915,7 +30032,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -29970,7 +30088,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30012,7 +30131,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30106,7 +30226,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30148,7 +30269,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30190,7 +30312,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30232,7 +30355,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30261,7 +30385,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30303,7 +30428,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30345,7 +30471,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30387,7 +30514,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30416,7 +30544,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30445,7 +30574,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30474,7 +30604,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30529,7 +30660,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30590,7 +30722,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30632,7 +30765,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30661,7 +30795,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30690,7 +30825,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30732,7 +30868,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30813,7 +30950,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30881,7 +31019,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30923,7 +31062,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30952,7 +31092,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -30981,7 +31122,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31010,7 +31152,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31052,7 +31195,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31081,7 +31225,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31110,7 +31255,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31139,7 +31285,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31168,7 +31315,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31197,7 +31345,8 @@
         "tests/linkedin-publisher-restrictions.test.mjs",
         "tests/linkedin-lead-form-states.test.mjs",
         "tests/linkedin-entity-deletes.test.mjs",
-        "tests/linkedin-dsc-edits.test.mjs"
+        "tests/linkedin-dsc-edits.test.mjs",
+        "tests/linkedin-account-settings.test.mjs"
       ],
       "live_qualification": "unverified"
     },

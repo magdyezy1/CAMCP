@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## FO — LinkedIn ad account name and notifications (2026-09-27)
+
+LinkedIn ad accounts can now be renamed and their Campaign Manager notifications switched through
+reviewed partial updates that read the account, keep status, reference and immutable fields out and
+read the account back. See
+[implementation](LINKEDIN-ACCOUNT-SETTINGS-2026-09-27.md),
+[qualification](LINKEDIN-ACCOUNT-SETTINGS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 697 (one LinkedIn row reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## FN — DV360 customer match audience names (2026-09-27)
 
 Advertiser customer match audiences on DV360 can now be renamed and re-described through reviewed
@@ -17,7 +29,7 @@ the audience back. See
 [qualification](DV360-AUDIENCE-EDITS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 698 (one DV360 row reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 698 (one DV360 row reviewed). Committed as `0f2ad86`; its exact-commit CI result
 and live acceptance are pending.
 
 ## FM — LinkedIn DSC post edits and deletion (2026-09-27)

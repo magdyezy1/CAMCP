@@ -26,6 +26,7 @@ import {tiktokChangeLogKind} from './tiktok-change-logs.js';
 import {metaSplitTestKind} from './meta-split-tests.js';
 import {linkedinDscEditKind} from './linkedin-dsc-edits.js';
 import {dv360AudienceEditKind} from './dv360-audience-edits.js';
+import {linkedinAccountSettingsKind} from './linkedin-account-settings.js';
 import {xReportKind} from './x-report-jobs.js';
 import {googlePreviewKind} from './google-preview-writes.js';
 import {criteoCampaignKind} from './criteo-campaign-writes.js';
@@ -149,6 +150,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(metaSplitTestKind(p))return 'meta_split_tests';
  if(linkedinDscEditKind(p))return 'linkedin_dsc_edits';
  if(dv360AudienceEditKind(p))return 'dv360_audience_edits';
+ if(linkedinAccountSettingsKind(p))return 'linkedin_account_settings';
  if(googlePreviewKind(p))return 'google_shareable_previews';
  if(placeActionKind(p))return 'google_place_actions';
  if(businessNotificationKind(p))return 'google_business_notifications';

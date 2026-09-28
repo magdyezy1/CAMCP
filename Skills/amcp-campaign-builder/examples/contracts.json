@@ -1519,6 +1519,21 @@
       }
     },
     {
+      "gateway": "linkedin_native_action",
+      "arguments": {
+        "action": "linkedin_rest_ad_accounts_ad_account_id_post",
+        "account_id": "507",
+        "restli_method": "PARTIAL_UPDATE",
+        "payload": {
+          "patch": {
+            "$set": {
+              "name": "Brand account (EMEA)"
+            }
+          }
+        }
+      }
+    },
+    {
       "gateway": "dv360_native_action",
       "arguments": {
         "action": "DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_PATCH",
