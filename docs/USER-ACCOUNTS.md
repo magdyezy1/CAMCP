@@ -46,7 +46,7 @@ Sign in first, then link additional identities from Account settings. Matching e
 
 ## MFA, memberships and revocation
 
-Account settings provides authenticator-app TOTP and ten one-use recovery codes. Store recovery codes privately outside AMCP. Copy the authenticator secret into your app; QR scanning is not required. MFA applies to both password and social sign-in once enabled. Password reset does not remove MFA. Passkeys are not included.
+Account settings provides authenticator-app TOTP and ten one-use recovery codes. Store recovery codes privately outside AMCP. Scan the QR code with your authenticator app, open the link on the same device, or copy the setup key. The QR code is drawn from the vendored `qrcode-generator` (see `web/vendor/README.md`); nothing leaves the page to make it. MFA applies to both password and social sign-in once enabled. Password reset does not remove MFA. Passkeys are not included.
 
 | Role | Access |
 |---|---|

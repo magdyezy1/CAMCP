@@ -53,5 +53,4 @@ instead of raw ISO dates. The table's secondary text (IDs, currency, time zone a
 move to 12 px (4.81:1 on their tint).
 
 Remaining (see [FINDINGS.md](FINDINGS.md)): 60 low-contrast labels, mostly inside the landing-page illustration and
-a few workspace captions; small inline links (target size is a WCAG 2.2 criterion); a QR code for MFA setup (needs a
-vendored encoder, since the CSP allows only same-origin scripts); right-to-left layout (F-47).
+a few workspace captions; small inline links (target size is a WCAG 2.2 criterion); right-to-left layout (F-47).
