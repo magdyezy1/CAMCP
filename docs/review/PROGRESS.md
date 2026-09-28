@@ -265,3 +265,7 @@ Finding: F-76. The owner's request of 2026-09-28: a tool that gathers the platfo
 The Meta, Snapchat and LinkedIn preview responses are not pinned in AMCP's vendor evidence, and the review
 environment could not reach the official pages. So AMCP takes the platform-host links it finds rather than named
 fields, and `docs/AD-PREVIEWS.md` says so. X's preview route is not called, because its parameters are not pinned.
+
+Full qualification (`.release/batch13-20260928`, up to `85506b1`): **2,753 / 2,753** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 508 s. The candidate's 1,177 source
+files equal `85506b1`, apart from `release-manifest.json`.
