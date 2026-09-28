@@ -1,19 +1,104 @@
-import {effectiveProviderContract,providerContracts} from './provider-contracts.js';
-import type {CompiledRequest,JsonObject} from './types.js';
-export const providerMaintenance:Record<string,JsonObject>={
- criteo:{campaigns:'https://developers.criteo.com/retail-media/v2026.01/docs/campaigns-endpoints',changelog:'https://developers.criteo.com/retail-media/changelog/version-202601-release-notes',lifecycle:'https://developers.criteo.com/retail-media/docs/dsp-analytics-migration-guide',sandbox:'No AMCP live Criteo sandbox fixture is qualified.',traps:['Campaign PUT can clear omitted limits. The qualified family requires complete manual finite-limit fields, standard Criteo-budget balances and no budget overrides; campaign status is computed, not writable.','AMCP is pinned to 2026.01. The 2026.07 reporting redesign uses different endpoints, filters and row/date limits; it cannot be enabled by changing a version string.','Report submission is a reviewed one-attempt job creation. It does not change advertising spend, but consumes quota.','Version-specific OpenAPI uses timezone; older guide examples use timeZone. AMCP freezes the OpenAPI spelling and explicit timezone. Provider wire acceptance still needs live qualification.','Exact account/date/entity scope, successful completion, count, bytes and checksum must all hold before a downloaded report is complete. A complete file does not imply settled attribution.']},
- google:{changelog:'https://developers.google.com/google-ads/api/docs/release-notes',lifecycle:'https://developers.google.com/google-ads/api/docs/sunset-dates',sunset_month:'2027-02',sandbox:'Test accounts under a test manager; production hostname. Project access level and quota are separate.',traps:['v23 uses start_date_time/end_date_time in customer timezone, not start_date/end_date.','Discovery validates fields; review contracts still restrict mutation families and batch sizes.','Explorer access needs administrator/provider approval; do not infer a token sunset.']},
- microsoft:{changelog:'https://learn.microsoft.com/en-us/advertising/guides/release-notes?view=bingads-13',sandbox:'Separate Microsoft sandbox service hosts and credentials.',traps:['Six WSDLs document SOAP operation/type structure. JSON transport has independent contracts.','Search writes only; media import remains unsupported.']},
- meta:{changelog:'https://developers.facebook.com/documentation/ads-commerce/marketing-api/marketing-api-changelog',lifecycle:'https://developers.facebook.com/docs/graph-api/changelog/',sandbox:'Provider-provisioned sandbox ad accounts; no hostname-only safety guarantee.',traps:['Per-account AMCP write grants are separate from Meta token/Page permissions.','v25 rejects legacy AUTOMATED_SHOPPING_ADS/SMART_APP_PROMOTION. New campaigns cannot set existing_customer_budget_percentage; advantage state fields are read-only.','Changelog access can be rate-limited; do not impose unverified blanket creative field bans.']},
- tiktok:{changelog:'https://business-api.tiktok.com/portal/docs',sandbox:'Provider sandbox advertiser and token must be verified before any live fixture.',traps:['Native /ad/create/ uses one creatives[] record in each AMCP review. Smart+ differs.','Discover an authorized existing identity; identity provisioning remains unqualified.','Pixel, CTA and format prerequisites depend on the endpoint and objective. Keep large IDs as strings.']},
- snapchat:{changelog:'https://developers.snap.com/marketing-api/Ads-API/changelog',sandbox:'No general AMCP live sandbox fixture qualified.',traps:['Creative collection PUT and JSON Patch have separate native payloads. PATCH was not removed.','Shared creative edits can affect all attached ads and trigger provider re-review.']},
- linkedin:{changelog:'https://learn.microsoft.com/en-us/linkedin/marketing/integrations/recent-changes',sandbox:'No general AMCP live sandbox fixture qualified.',traps:['Monthly version is pinned across prepare, mutation and read-back.','Organization DSC requires exact binding, recorded read/write social scopes and matching AVAILABLE media. Provider products and Page roles remain separate.','PUBLISHED non-feed DSC is content; the later ad creative is created PAUSED.']},
- x:{changelog:'https://docs.x.com/x-ads-api/fundamentals/versioning',sandbox:'ads-api-sandbox.x.com; external media-upload endpoints are not covered by its campaign non-serving guarantee.',traps:['No fake PAUSED promoted Tweet. Promotion is activation.','Creative edits may disrupt existing promotions; retain the impact guard and explicit override.','Register the exact media_key without media_category; upload INIT still uses its category.']}
+import {effectiveProviderContract, providerContracts} from './provider-contracts.js';
+import type {CompiledRequest, JsonObject} from './types.js';
+export const providerMaintenance: Record<string, JsonObject> = {
+  criteo: {
+    campaigns: 'https://developers.criteo.com/retail-media/v2026.01/docs/campaigns-endpoints',
+    changelog: 'https://developers.criteo.com/retail-media/changelog/version-202601-release-notes',
+    lifecycle: 'https://developers.criteo.com/retail-media/docs/dsp-analytics-migration-guide',
+    sandbox: 'No AMCP live Criteo sandbox fixture is qualified.',
+    traps: [
+      'Campaign PUT can clear omitted limits. The qualified family requires complete manual finite-limit fields, standard Criteo-budget balances and no budget overrides; campaign status is computed, not writable.',
+      'AMCP is pinned to 2026.01. The 2026.07 reporting redesign uses different endpoints, filters and row/date limits; it cannot be enabled by changing a version string.',
+      'Report submission is a reviewed one-attempt job creation. It does not change advertising spend, but consumes quota.',
+      'Version-specific OpenAPI uses timezone; older guide examples use timeZone. AMCP freezes the OpenAPI spelling and explicit timezone. Provider wire acceptance still needs live qualification.',
+      'Exact account/date/entity scope, successful completion, count, bytes and checksum must all hold before a downloaded report is complete. A complete file does not imply settled attribution.',
+    ],
+  },
+  google: {
+    changelog: 'https://developers.google.com/google-ads/api/docs/release-notes',
+    lifecycle: 'https://developers.google.com/google-ads/api/docs/sunset-dates',
+    sunset_month: '2027-02',
+    sandbox: 'Test accounts under a test manager; production hostname. Project access level and quota are separate.',
+    traps: [
+      'v23 uses start_date_time/end_date_time in customer timezone, not start_date/end_date.',
+      'Discovery validates fields; review contracts still restrict mutation families and batch sizes.',
+      'Explorer access needs administrator/provider approval; do not infer a token sunset.',
+    ],
+  },
+  microsoft: {
+    changelog: 'https://learn.microsoft.com/en-us/advertising/guides/release-notes?view=bingads-13',
+    sandbox: 'Separate Microsoft sandbox service hosts and credentials.',
+    traps: [
+      'Six WSDLs document SOAP operation/type structure. JSON transport has independent contracts.',
+      'Search writes only; media import remains unsupported.',
+    ],
+  },
+  meta: {
+    changelog: 'https://developers.facebook.com/documentation/ads-commerce/marketing-api/marketing-api-changelog',
+    lifecycle: 'https://developers.facebook.com/docs/graph-api/changelog/',
+    sandbox: 'Provider-provisioned sandbox ad accounts; no hostname-only safety guarantee.',
+    traps: [
+      'Per-account AMCP write grants are separate from Meta token/Page permissions.',
+      'v25 rejects legacy AUTOMATED_SHOPPING_ADS/SMART_APP_PROMOTION. New campaigns cannot set existing_customer_budget_percentage; advantage state fields are read-only.',
+      'Changelog access can be rate-limited; do not impose unverified blanket creative field bans.',
+    ],
+  },
+  tiktok: {
+    changelog: 'https://business-api.tiktok.com/portal/docs',
+    sandbox: 'Provider sandbox advertiser and token must be verified before any live fixture.',
+    traps: [
+      'Native /ad/create/ uses one creatives[] record in each AMCP review. Smart+ differs.',
+      'Discover an authorized existing identity; identity provisioning remains unqualified.',
+      'Pixel, CTA and format prerequisites depend on the endpoint and objective. Keep large IDs as strings.',
+    ],
+  },
+  snapchat: {
+    changelog: 'https://developers.snap.com/marketing-api/Ads-API/changelog',
+    sandbox: 'No general AMCP live sandbox fixture qualified.',
+    traps: [
+      'Creative collection PUT and JSON Patch have separate native payloads. PATCH was not removed.',
+      'Shared creative edits can affect all attached ads and trigger provider re-review.',
+    ],
+  },
+  linkedin: {
+    changelog: 'https://learn.microsoft.com/en-us/linkedin/marketing/integrations/recent-changes',
+    sandbox: 'No general AMCP live sandbox fixture qualified.',
+    traps: [
+      'Monthly version is pinned across prepare, mutation and read-back.',
+      'Organization DSC requires exact binding, recorded read/write social scopes and matching AVAILABLE media. Provider products and Page roles remain separate.',
+      'PUBLISHED non-feed DSC is content; the later ad creative is created PAUSED.',
+    ],
+  },
+  x: {
+    changelog: 'https://docs.x.com/x-ads-api/fundamentals/versioning',
+    sandbox:
+      'ads-api-sandbox.x.com; external media-upload endpoints are not covered by its campaign non-serving guarantee.',
+    traps: [
+      'No fake PAUSED promoted Tweet. Promotion is activation.',
+      'Creative edits may disrupt existing promotions; retain the impact guard and explicit override.',
+      'Register the exact media_key without media_category; upload INIT still uses its category.',
+    ],
+  },
 };
-export function providerContractView(gateway?:string):JsonObject|undefined{
- const item=providerContracts.find(c=>c.gateway===gateway);if(!item)return undefined;
- return {...effectiveProviderContract(item.id),maintenance:providerMaintenance[item.id]??{sandbox:'unqualified',changelog:item.documentation},evidence_interpretation:'Catalog evidence is captured compatibility metadata. Vendor schemas, local reviewed contracts and live provider qualification are distinct. Use amcp_write inspect with the exact payload.'};
+export function providerContractView(gateway?: string): JsonObject | undefined {
+  const item = providerContracts.find(c => c.gateway === gateway);
+  if (!item) return undefined;
+  return {
+    ...effectiveProviderContract(item.id),
+    maintenance: providerMaintenance[item.id] ?? {sandbox: 'unqualified', changelog: item.documentation},
+    evidence_interpretation:
+      'Catalog evidence is captured compatibility metadata. Vendor schemas, local reviewed contracts and live provider qualification are distinct. Use amcp_write inspect with the exact payload.',
+  };
 }
-export function executionEvidence(plan:CompiledRequest):JsonObject{
- return {catalog_evidence:plan.evidence,...(plan.contractEvidence??{route_source:'AMCP_INDEPENDENT_CONTRACT_OR_CAPTURE',live_qualification:'unverified'}),provider:providerContractView(plan.gateway),review_authorization:'Existing deployment, actor, account, resource, review and spending gates remain mandatory; provenance never grants access.'};
+export function executionEvidence(plan: CompiledRequest): JsonObject {
+  return {
+    catalog_evidence: plan.evidence,
+    ...(plan.contractEvidence ?? {
+      route_source: 'AMCP_INDEPENDENT_CONTRACT_OR_CAPTURE',
+      live_qualification: 'unverified',
+    }),
+    provider: providerContractView(plan.gateway),
+    review_authorization:
+      'Existing deployment, actor, account, resource, review and spending gates remain mandatory; provenance never grants access.',
+  };
 }

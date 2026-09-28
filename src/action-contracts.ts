@@ -1,5 +1,5 @@
 import {Registry} from './catalog.js';
-import {connectionDiagnosticKind,businessQandaRetirement} from './connection-diagnostics.js';
+import {connectionDiagnosticKind, businessQandaRetirement} from './connection-diagnostics.js';
 import {connectionDisconnectKind} from './connection-disconnect.js';
 import {measurementConnectionSyncKind} from './measurement-connection-sync.js';
 import {businessConnectionSyncKind} from './google-business-sync.js';
@@ -23,132 +23,638 @@ import {providerContracts} from './provider-contracts.js';
 import {redditAudienceRoutes} from './reddit-extensions.js';
 import {MirrorError} from './errors.js';
 import {googleLegacyCoverage} from './google-legacy.js';
-import {retiredProviderAction,unsupportedProviderAlias} from './retired-provider-actions.js';
+import {retiredProviderAction, unsupportedProviderAlias} from './retired-provider-actions.js';
 import {gtmDiagnosticOperations} from './gtm-diagnostics.js';
-import legacy from './google-legacy-mapping.json' with {type:'json'};
-import type {Action,CompiledRequest,JsonObject} from './types.js';
+import legacy from './google-legacy-mapping.json' with {type: 'json'};
+import type {Action, CompiledRequest, JsonObject} from './types.js';
 import {reviewedFamilyFiles} from './reviewed-families.js';
 
-export type ContractStatus='native_read'|'reviewed_write_family'|'media_workflow'|'local_workflow'|'adapter_requires_input'|'blocked_write'|'unmapped'|'unqualified_read'|'provider_unsupported';
-export interface ActionContract {gateway:string;operation?:string;action:string;aliases:string[];method:string|null;path:string|null;origin?:string;status:ContractStatus;family?:string;implementation:string;reason:string;source:string;tests:string[];live_qualification:'unverified';}
-const familyFiles:Record<string,[string,string[]]>={
- x_targeting_batch:['src/x-targeting-batch.ts',['tests/x-targeting-batch.test.mjs']],
- snapchat_nested_updates:['src/snapchat-nested-updates.ts',['tests/snapchat-nested-updates.test.ts']],
- x_report_jobs:['src/x-report-jobs.ts / src/x-report-download.ts',['tests/x-report-jobs.test.ts']],
- tiktok_report_jobs:['src/tiktok-report-jobs.ts',['tests/tiktok-report-jobs.test.ts']],
- google_shareable_previews:['src/google-preview-writes.ts',['tests/google-preview-writes.test.ts']],
- criteo_campaigns:['src/criteo-campaign-writes.ts',['tests/criteo-campaign-writes.test.ts']],criteo_auction_line_items:['src/criteo-auction-line-items.ts',['tests/criteo-auction-line-items.test.mjs']],criteo_promoted_products:['src/criteo-promoted-products.ts',['tests/criteo-promoted-products.test.mjs']],criteo_keywords:['src/criteo-line-item-bidding.ts',['tests/criteo-line-item-bidding.test.mjs']],criteo_bid_multipliers:['src/criteo-line-item-bidding.ts',['tests/criteo-line-item-bidding.test.mjs']],
- criteo_report_jobs:['src/criteo-report-jobs.ts',['tests/criteo-report-jobs.test.ts']],
- google_user_access:['src/google-user-access.ts',['tests/google-user-access.test.ts']],
- google_business_access:['src/google-business-access.ts',['tests/google-business-access.test.ts']],
- google_recommendation_dismissal:['src/google-recommendation-dismissal.ts',['tests/google-recommendation-dismissal.test.ts']],
- google_business_notifications:['src/google-business-notifications.ts',['tests/google-business-notifications.test.ts']],
- google_place_actions:['src/google-place-action-links.ts',['tests/google-place-action-links.test.ts']],
- meta_insights_jobs:['src/meta-insights-jobs.ts',['tests/meta-insights-jobs.test.ts']],
- google_conversion_goals:['src/google-conversion-goals.ts',['tests/google-conversion-goals.test.ts']],
- google_conversion_actions:['src/google-conversion-actions.ts',['tests/google-conversion-actions.test.ts']],
- x_drafts:['src/x-draft-writes.ts',['tests/x-draft-writes.test.ts']],
- linkedin_conversion_rules:['src/linkedin-conversion-rules.ts',['tests/linkedin-conversion-rules.test.ts']],linkedin_lead_forms:['src/linkedin-lead-forms.ts',['tests/linkedin-lead-forms.test.mjs']],
- linkedin_audience_templates:['src/linkedin-audience-templates.ts',['tests/linkedin-audience-templates.test.mjs']],
- linkedin_conversion_links:['src/linkedin-conversion-links.ts',['tests/linkedin-conversion-links.test.ts']],
- google_bid_modifiers:['src/google-bid-modifiers.ts / src/google-campaign-bid-modifiers.ts',['tests/google-bid-modifiers.test.ts','tests/google-campaign-bid-modifiers.test.ts']],google_listing_groups:['src/google-listing-groups.ts',['tests/google-listing-groups.test.ts']],
- google_bidding_events:['src/google-bidding-events.ts',['tests/google-bidding-events.test.ts']],
- google_portfolio_strategies:['src/google-portfolio-strategies.ts',['tests/google-portfolio-strategies.test.ts']],
- meta_labels:['src/meta-label-writes.ts',['tests/meta-label-writes.test.ts']],
- criteo_targeting:['src/criteo-targeting-writes.ts',['tests/criteo-targeting-writes.test.ts']],
- reddit_creatives:['src/reddit-creative-writes.ts / src/reddit-post-creation.ts',['tests/reddit-creative-writes.test.ts','tests/reddit-post-creation.test.ts']],
- gtm_workspace:['src/gtm-workspace-writes.ts',['tests/gtm-workspace-writes.test.ts']],
- gtm_workflows:['src/gtm-workflow-writes.ts',['tests/gtm-workflow-writes.test.ts']],
- apple_entities:['src/apple-entity-writes.ts',['tests/apple-entity-writes.test.ts']],
- dv360_lists:['src/dv360-list-writes.ts',['tests/dv360-list-writes.test.ts']],
- dv360_line_item_targeting:['src/dv360-line-item-targeting.ts',['tests/dv360-line-item-targeting.test.ts']],dv360_ad_group_targeting:['src/dv360-line-item-targeting.ts',['tests/dv360-ad-group-targeting.test.mjs']],dv360_ad_assets:['src/dv360-ad-assets.ts',['tests/dv360-ad-assets.test.mjs']],dv360_demand_gen_ads:['src/dv360-demand-gen-ads.ts',['tests/dv360-demand-gen-ads.test.mjs']],snapchat_media_copy:['src/snapchat-media-copy.ts',['tests/snapchat-media-copy.test.mjs']],criteo_budget_overrides:['src/criteo-budget-overrides.ts',['tests/criteo-budget-overrides.test.mjs']],snapchat_offer_disclaimers:['src/snapchat-offer-disclaimers.ts',['tests/snapchat-offer-disclaimers.test.mjs']],criteo_catalog_requests:['src/criteo-catalog-requests.ts',['tests/criteo-catalog-requests.test.mjs']],snapchat_segment_deletions:['src/snapchat-segment-deletions.ts',['tests/snapchat-segment-deletions.test.mjs']],dv360_sdf_downloads:['src/dv360-sdf-downloads.ts',['tests/dv360-sdf-downloads.test.mjs']],snapchat_custom_conversions:['src/snapchat-custom-conversions.ts',['tests/snapchat-custom-conversions.test.mjs']],snapchat_product_sets:['src/snapchat-product-sets.ts',['tests/snapchat-product-sets.test.mjs']],snapchat_dynamic_templates:['src/snapchat-dynamic-templates.ts',['tests/snapchat-dynamic-templates.test.mjs']],snapchat_event_details:['src/snapchat-event-details.ts',['tests/snapchat-event-details.test.mjs']],snapchat_pixel_names:['src/snapchat-pixel-names.ts',['tests/snapchat-pixel-names.test.mjs']],
- dv360_advertiser_targeting:['src/dv360-line-item-targeting.ts',['tests/dv360-advertiser-targeting.test.ts']],
- google_configuration:['src/google-configuration-writes.ts',['tests/google-configuration-writes.test.ts','tests/google-custom-segments.test.ts','tests/google-audiences.test.mjs','tests/google-user-lists.test.mjs','tests/google-value-rules.test.mjs']],
- google_asset_links:['src/google-asset-links.ts',['tests/google-asset-links.test.ts']],google_targeting:['src/google-targeting-writes.ts',['tests/google-targeting-writes.test.ts']],google_entities:['src/write-review.ts',['tests/write-review.test.ts','tests/review-envelopes.test.ts']],
- meta_entities:['src/write-review.ts',['tests/meta-provision.test.ts']],meta_value_rules:['src/meta-value-rules.ts',['tests/meta-value-rules.test.mjs']],meta_brand_safety:['src/meta-brand-safety.ts',['tests/meta-brand-safety.test.mjs']],tiktok_entities:['src/write-review.ts',['tests/write-platforms.test.ts','tests/tiktok-verification.test.ts','tests/tiktok-adgroup-conversions.test.mjs','tests/tiktok-manual-ad-identities.test.mjs']],tiktok_identities:['src/tiktok-identities.ts',['tests/tiktok-identities.test.mjs']],tiktok_lookalikes:['src/tiktok-lookalikes.ts',['tests/tiktok-lookalikes.test.mjs']],tiktok_budgets:['src/tiktok-budgets.ts',['tests/tiktok-budgets.test.mjs']],tiktok_custom_conversions:['src/tiktok-custom-conversions.ts',['tests/tiktok-custom-conversions.test.mjs']],tiktok_saved_audiences:['src/tiktok-saved-audiences.ts',['tests/tiktok-saved-audiences.test.mjs']],tiktok_smart_plus_status:['src/tiktok-smart-plus-status.ts',['tests/tiktok-smart-plus-status.test.mjs']],tiktok_smart_plus_budgets:['src/tiktok-smart-plus-budgets.ts',['tests/tiktok-smart-plus-budgets.test.mjs']],tiktok_smart_plus_campaigns:['src/tiktok-smart-plus-campaigns.ts',['tests/tiktok-smart-plus-campaigns.test.mjs']],tiktok_smart_plus_adgroups:['src/tiktok-smart-plus-adgroups.ts',['tests/tiktok-smart-plus-adgroups.test.mjs','tests/tiktok-smart-plus-lead-adgroups.test.mjs']],tiktok_smart_plus_campaign_edits:['src/tiktok-smart-plus-campaign-updates.ts',['tests/tiktok-smart-plus-campaign-updates.test.mjs']],tiktok_cta_portfolios:['src/tiktok-cta-portfolios.ts',['tests/tiktok-cta-portfolios.test.mjs']],tiktok_smart_plus_ads:['src/tiktok-smart-plus-ads.ts',['tests/tiktok-smart-plus-ads.test.mjs','tests/tiktok-smart-plus-lead-ads.test.mjs']],tiktok_negative_keywords:['src/tiktok-negative-keywords.ts',['tests/tiktok-negative-keywords.test.mjs']],tiktok_brand_safety:['src/tiktok-brand-safety.ts',['tests/tiktok-brand-safety.test.mjs']],tiktok_smart_plus_ad_edits:['src/tiktok-smart-plus-ad-updates.ts',['tests/tiktok-smart-plus-ad-updates.test.mjs']],tiktok_smart_plus_adgroup_edits:['src/tiktok-smart-plus-adgroup-updates.ts',['tests/tiktok-smart-plus-adgroup-updates.test.mjs']],tiktok_smart_plus_material_status:['src/tiktok-smart-plus-material-status.ts',['tests/tiktok-smart-plus-material-status.test.mjs']],meta_copies:['src/meta-copies.ts',['tests/meta-copies.test.mjs']],meta_lookalikes:['src/meta-lookalikes.ts',['tests/meta-lookalikes.test.mjs']],snapchat_entities:['src/write-review.ts',['tests/snapchat-writes.test.ts','tests/snapchat-lead-forms.test.mjs','tests/snapchat-segments.test.mjs','tests/snapchat-creative-references.test.mjs']],
- linkedin_entities:['src/write-review.ts',['tests/write-platforms.test.ts']],linkedin_dsc:['src/linkedin-posts.ts',['tests/linkedin-posts.test.ts']],x_creatives:['src/x-creative-writes.ts',['tests/x-creative-writes.test.ts','tests/x-legacy-card-edits.test.mjs']],x_entities:['src/write-review.ts',['tests/x-targeting-writes.test.ts','tests/write-platforms.test.ts']],
- microsoft_asset_links:['src/microsoft-associations.ts',['tests/microsoft-associations.test.ts']],microsoft_search:['src/microsoft-native.ts',['tests/microsoft.test.ts']],reddit_classic:['src/reddit-writes.ts',['tests/reddit-writes.test.ts']],dv360_entities:['src/write-review.ts',['tests/write-platforms.test.ts']],apple_campaigns:['src/measurement-writes.ts',['tests/measurement-writes.test.ts']],ga4_export_jobs:['src/measurement-writes.ts',['tests/measurement-writes.test.ts']],gtm_entities:['src/measurement-writes.ts',['tests/measurement-writes.test.ts']],search_console_sites:['src/measurement-writes.ts',['tests/measurement-writes.test.ts']]
+export type ContractStatus =
+  | 'native_read'
+  | 'reviewed_write_family'
+  | 'media_workflow'
+  | 'local_workflow'
+  | 'adapter_requires_input'
+  | 'blocked_write'
+  | 'unmapped'
+  | 'unqualified_read'
+  | 'provider_unsupported';
+export interface ActionContract {
+  gateway: string;
+  operation?: string;
+  action: string;
+  aliases: string[];
+  method: string | null;
+  path: string | null;
+  origin?: string;
+  status: ContractStatus;
+  family?: string;
+  implementation: string;
+  reason: string;
+  source: string;
+  tests: string[];
+  live_qualification: 'unverified';
+}
+const familyFiles: Record<string, [string, string[]]> = {
+  x_targeting_batch: ['src/x-targeting-batch.ts', ['tests/x-targeting-batch.test.mjs']],
+  snapchat_nested_updates: ['src/snapchat-nested-updates.ts', ['tests/snapchat-nested-updates.test.ts']],
+  x_report_jobs: ['src/x-report-jobs.ts / src/x-report-download.ts', ['tests/x-report-jobs.test.ts']],
+  tiktok_report_jobs: ['src/tiktok-report-jobs.ts', ['tests/tiktok-report-jobs.test.ts']],
+  google_shareable_previews: ['src/google-preview-writes.ts', ['tests/google-preview-writes.test.ts']],
+  criteo_campaigns: ['src/criteo-campaign-writes.ts', ['tests/criteo-campaign-writes.test.ts']],
+  criteo_auction_line_items: ['src/criteo-auction-line-items.ts', ['tests/criteo-auction-line-items.test.mjs']],
+  criteo_promoted_products: ['src/criteo-promoted-products.ts', ['tests/criteo-promoted-products.test.mjs']],
+  criteo_keywords: ['src/criteo-line-item-bidding.ts', ['tests/criteo-line-item-bidding.test.mjs']],
+  criteo_bid_multipliers: ['src/criteo-line-item-bidding.ts', ['tests/criteo-line-item-bidding.test.mjs']],
+  criteo_report_jobs: ['src/criteo-report-jobs.ts', ['tests/criteo-report-jobs.test.ts']],
+  google_user_access: ['src/google-user-access.ts', ['tests/google-user-access.test.ts']],
+  google_business_access: ['src/google-business-access.ts', ['tests/google-business-access.test.ts']],
+  google_recommendation_dismissal: [
+    'src/google-recommendation-dismissal.ts',
+    ['tests/google-recommendation-dismissal.test.ts'],
+  ],
+  google_business_notifications: [
+    'src/google-business-notifications.ts',
+    ['tests/google-business-notifications.test.ts'],
+  ],
+  google_place_actions: ['src/google-place-action-links.ts', ['tests/google-place-action-links.test.ts']],
+  meta_insights_jobs: ['src/meta-insights-jobs.ts', ['tests/meta-insights-jobs.test.ts']],
+  google_conversion_goals: ['src/google-conversion-goals.ts', ['tests/google-conversion-goals.test.ts']],
+  google_conversion_actions: ['src/google-conversion-actions.ts', ['tests/google-conversion-actions.test.ts']],
+  x_drafts: ['src/x-draft-writes.ts', ['tests/x-draft-writes.test.ts']],
+  linkedin_conversion_rules: ['src/linkedin-conversion-rules.ts', ['tests/linkedin-conversion-rules.test.ts']],
+  linkedin_lead_forms: ['src/linkedin-lead-forms.ts', ['tests/linkedin-lead-forms.test.mjs']],
+  linkedin_audience_templates: ['src/linkedin-audience-templates.ts', ['tests/linkedin-audience-templates.test.mjs']],
+  linkedin_conversion_links: ['src/linkedin-conversion-links.ts', ['tests/linkedin-conversion-links.test.ts']],
+  google_bid_modifiers: [
+    'src/google-bid-modifiers.ts / src/google-campaign-bid-modifiers.ts',
+    ['tests/google-bid-modifiers.test.ts', 'tests/google-campaign-bid-modifiers.test.ts'],
+  ],
+  google_listing_groups: ['src/google-listing-groups.ts', ['tests/google-listing-groups.test.ts']],
+  google_bidding_events: ['src/google-bidding-events.ts', ['tests/google-bidding-events.test.ts']],
+  google_portfolio_strategies: ['src/google-portfolio-strategies.ts', ['tests/google-portfolio-strategies.test.ts']],
+  meta_labels: ['src/meta-label-writes.ts', ['tests/meta-label-writes.test.ts']],
+  criteo_targeting: ['src/criteo-targeting-writes.ts', ['tests/criteo-targeting-writes.test.ts']],
+  reddit_creatives: [
+    'src/reddit-creative-writes.ts / src/reddit-post-creation.ts',
+    ['tests/reddit-creative-writes.test.ts', 'tests/reddit-post-creation.test.ts'],
+  ],
+  gtm_workspace: ['src/gtm-workspace-writes.ts', ['tests/gtm-workspace-writes.test.ts']],
+  gtm_workflows: ['src/gtm-workflow-writes.ts', ['tests/gtm-workflow-writes.test.ts']],
+  apple_entities: ['src/apple-entity-writes.ts', ['tests/apple-entity-writes.test.ts']],
+  dv360_lists: ['src/dv360-list-writes.ts', ['tests/dv360-list-writes.test.ts']],
+  dv360_line_item_targeting: ['src/dv360-line-item-targeting.ts', ['tests/dv360-line-item-targeting.test.ts']],
+  dv360_ad_group_targeting: ['src/dv360-line-item-targeting.ts', ['tests/dv360-ad-group-targeting.test.mjs']],
+  dv360_ad_assets: ['src/dv360-ad-assets.ts', ['tests/dv360-ad-assets.test.mjs']],
+  dv360_demand_gen_ads: ['src/dv360-demand-gen-ads.ts', ['tests/dv360-demand-gen-ads.test.mjs']],
+  snapchat_media_copy: ['src/snapchat-media-copy.ts', ['tests/snapchat-media-copy.test.mjs']],
+  criteo_budget_overrides: ['src/criteo-budget-overrides.ts', ['tests/criteo-budget-overrides.test.mjs']],
+  snapchat_offer_disclaimers: ['src/snapchat-offer-disclaimers.ts', ['tests/snapchat-offer-disclaimers.test.mjs']],
+  criteo_catalog_requests: ['src/criteo-catalog-requests.ts', ['tests/criteo-catalog-requests.test.mjs']],
+  snapchat_segment_deletions: ['src/snapchat-segment-deletions.ts', ['tests/snapchat-segment-deletions.test.mjs']],
+  dv360_sdf_downloads: ['src/dv360-sdf-downloads.ts', ['tests/dv360-sdf-downloads.test.mjs']],
+  snapchat_custom_conversions: ['src/snapchat-custom-conversions.ts', ['tests/snapchat-custom-conversions.test.mjs']],
+  snapchat_product_sets: ['src/snapchat-product-sets.ts', ['tests/snapchat-product-sets.test.mjs']],
+  snapchat_dynamic_templates: ['src/snapchat-dynamic-templates.ts', ['tests/snapchat-dynamic-templates.test.mjs']],
+  snapchat_event_details: ['src/snapchat-event-details.ts', ['tests/snapchat-event-details.test.mjs']],
+  snapchat_pixel_names: ['src/snapchat-pixel-names.ts', ['tests/snapchat-pixel-names.test.mjs']],
+  dv360_advertiser_targeting: ['src/dv360-line-item-targeting.ts', ['tests/dv360-advertiser-targeting.test.ts']],
+  google_configuration: [
+    'src/google-configuration-writes.ts',
+    [
+      'tests/google-configuration-writes.test.ts',
+      'tests/google-custom-segments.test.ts',
+      'tests/google-audiences.test.mjs',
+      'tests/google-user-lists.test.mjs',
+      'tests/google-value-rules.test.mjs',
+    ],
+  ],
+  google_asset_links: ['src/google-asset-links.ts', ['tests/google-asset-links.test.ts']],
+  google_targeting: ['src/google-targeting-writes.ts', ['tests/google-targeting-writes.test.ts']],
+  google_entities: ['src/write-review.ts', ['tests/write-review.test.ts', 'tests/review-envelopes.test.ts']],
+  meta_entities: ['src/write-review.ts', ['tests/meta-provision.test.ts']],
+  meta_value_rules: ['src/meta-value-rules.ts', ['tests/meta-value-rules.test.mjs']],
+  meta_brand_safety: ['src/meta-brand-safety.ts', ['tests/meta-brand-safety.test.mjs']],
+  tiktok_entities: [
+    'src/write-review.ts',
+    [
+      'tests/write-platforms.test.ts',
+      'tests/tiktok-verification.test.ts',
+      'tests/tiktok-adgroup-conversions.test.mjs',
+      'tests/tiktok-manual-ad-identities.test.mjs',
+    ],
+  ],
+  tiktok_identities: ['src/tiktok-identities.ts', ['tests/tiktok-identities.test.mjs']],
+  tiktok_lookalikes: ['src/tiktok-lookalikes.ts', ['tests/tiktok-lookalikes.test.mjs']],
+  tiktok_budgets: ['src/tiktok-budgets.ts', ['tests/tiktok-budgets.test.mjs']],
+  tiktok_custom_conversions: ['src/tiktok-custom-conversions.ts', ['tests/tiktok-custom-conversions.test.mjs']],
+  tiktok_saved_audiences: ['src/tiktok-saved-audiences.ts', ['tests/tiktok-saved-audiences.test.mjs']],
+  tiktok_smart_plus_status: ['src/tiktok-smart-plus-status.ts', ['tests/tiktok-smart-plus-status.test.mjs']],
+  tiktok_smart_plus_budgets: ['src/tiktok-smart-plus-budgets.ts', ['tests/tiktok-smart-plus-budgets.test.mjs']],
+  tiktok_smart_plus_campaigns: ['src/tiktok-smart-plus-campaigns.ts', ['tests/tiktok-smart-plus-campaigns.test.mjs']],
+  tiktok_smart_plus_adgroups: [
+    'src/tiktok-smart-plus-adgroups.ts',
+    ['tests/tiktok-smart-plus-adgroups.test.mjs', 'tests/tiktok-smart-plus-lead-adgroups.test.mjs'],
+  ],
+  tiktok_smart_plus_campaign_edits: [
+    'src/tiktok-smart-plus-campaign-updates.ts',
+    ['tests/tiktok-smart-plus-campaign-updates.test.mjs'],
+  ],
+  tiktok_cta_portfolios: ['src/tiktok-cta-portfolios.ts', ['tests/tiktok-cta-portfolios.test.mjs']],
+  tiktok_smart_plus_ads: [
+    'src/tiktok-smart-plus-ads.ts',
+    ['tests/tiktok-smart-plus-ads.test.mjs', 'tests/tiktok-smart-plus-lead-ads.test.mjs'],
+  ],
+  tiktok_negative_keywords: ['src/tiktok-negative-keywords.ts', ['tests/tiktok-negative-keywords.test.mjs']],
+  tiktok_brand_safety: ['src/tiktok-brand-safety.ts', ['tests/tiktok-brand-safety.test.mjs']],
+  tiktok_smart_plus_ad_edits: ['src/tiktok-smart-plus-ad-updates.ts', ['tests/tiktok-smart-plus-ad-updates.test.mjs']],
+  tiktok_smart_plus_adgroup_edits: [
+    'src/tiktok-smart-plus-adgroup-updates.ts',
+    ['tests/tiktok-smart-plus-adgroup-updates.test.mjs'],
+  ],
+  tiktok_smart_plus_material_status: [
+    'src/tiktok-smart-plus-material-status.ts',
+    ['tests/tiktok-smart-plus-material-status.test.mjs'],
+  ],
+  meta_copies: ['src/meta-copies.ts', ['tests/meta-copies.test.mjs']],
+  meta_lookalikes: ['src/meta-lookalikes.ts', ['tests/meta-lookalikes.test.mjs']],
+  snapchat_entities: [
+    'src/write-review.ts',
+    [
+      'tests/snapchat-writes.test.ts',
+      'tests/snapchat-lead-forms.test.mjs',
+      'tests/snapchat-segments.test.mjs',
+      'tests/snapchat-creative-references.test.mjs',
+    ],
+  ],
+  linkedin_entities: ['src/write-review.ts', ['tests/write-platforms.test.ts']],
+  linkedin_dsc: ['src/linkedin-posts.ts', ['tests/linkedin-posts.test.ts']],
+  x_creatives: ['src/x-creative-writes.ts', ['tests/x-creative-writes.test.ts', 'tests/x-legacy-card-edits.test.mjs']],
+  x_entities: ['src/write-review.ts', ['tests/x-targeting-writes.test.ts', 'tests/write-platforms.test.ts']],
+  microsoft_asset_links: ['src/microsoft-associations.ts', ['tests/microsoft-associations.test.ts']],
+  microsoft_search: ['src/microsoft-native.ts', ['tests/microsoft.test.ts']],
+  reddit_classic: ['src/reddit-writes.ts', ['tests/reddit-writes.test.ts']],
+  dv360_entities: ['src/write-review.ts', ['tests/write-platforms.test.ts']],
+  apple_campaigns: ['src/measurement-writes.ts', ['tests/measurement-writes.test.ts']],
+  ga4_export_jobs: ['src/measurement-writes.ts', ['tests/measurement-writes.test.ts']],
+  gtm_entities: ['src/measurement-writes.ts', ['tests/measurement-writes.test.ts']],
+  search_console_sites: ['src/measurement-writes.ts', ['tests/measurement-writes.test.ts']],
 };
-const localReads=new Set(['get_workspace_context','list_accounts','list_workspace_assets','get_creative_generation_job','inspect_google_drive_media','search_ads_library']);
-const cache=new WeakMap<Registry,ActionContract[]>();
-function concrete(template:string,parameters:JsonObject={}):string{return template.replace(/\{\+?([^{}=]+)(?:=([^{}]+))?\}/g,(_m,key:string,pattern:string|undefined)=>{const shape=pattern??parameters[key]?.pattern;return shape&&shape!=='*'?shape.replace(/^\^|\$/g,'').replaceAll('[^/]+','123').replaceAll('[^/]*','123').replaceAll('**','123').replaceAll('*','123'):'123';});}
-function classify(gateway:string,action:string,method:string|null,path:string|null,readOnly:boolean|null,source:string,aliases:string[]=[],operation?:string,origin?:string,specialTransport?:string,parameters:JsonObject={},executionAction=action):ActionContract{
- const provider=providerContracts.find(c=>c.gateway===gateway),result:ActionContract={gateway,...(operation?{operation}:{}),action,aliases,method,path,...(origin?{origin}:{}),status:'unmapped',implementation:'',reason:'No provider request mapping exists. The advertised name is not executable.',source,tests:[],live_qualification:'unverified'};
- const unavailable=unsupportedProviderAlias(gateway,action);if(unavailable)return {...result,status:'provider_unsupported',implementation:'src/retired-provider-actions.ts',reason:unavailable.reason+' '+unavailable.replacement,source:unavailable.source,tests:['tests/provider-unavailable-actions.test.mjs']};
- if(!method||!path)return result;
- const absolute=path.startsWith('https://')?new URL(concrete(path,parameters)):undefined,relative=absolute?.pathname??concrete(path.split('?')[0]!,parameters);
- const p:CompiledRequest={gateway,action:operation?operation+(executionAction!==operation?'/'+executionAction:''):executionAction,method,path:relative,origin:origin??absolute?.origin,query:Object.fromEntries(new URLSearchParams((absolute?.search??path.split('?')[1]??'').replaceAll('{action}','initializeUpload'))),body:['GET','HEAD'].includes(method)?undefined:{},headers:{},readOnly:readOnly===true,destructive:method==='DELETE',requiresConfirmation:false,accountId:'123',evidence:source,warnings:[],specialTransport};
- result.origin=p.origin;
- const retired=retiredProviderAction(p);if(retired){return {...result,status:'provider_unsupported',implementation:'src/retired-provider-actions.ts',reason:'The provider documents this method as no longer supported. Retained in the denominator; no replacement API is invented.',source:retired.source,tests:['tests/retired-provider-actions.test.ts']};}
- if(independentlyReadOnly(p)){result.status='native_read';result.implementation='src/compiler.ts / src/delegated-native.ts / src/transport.ts';result.reason='A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.';result.tests=provider?.tests??[];if(qualifiedProviderRead(p)){result.implementation+=' / src/provider-read-contracts.ts';result.tests=[...result.tests,'tests/provider-read-contracts.test.ts'];result.reason+=' Documented fixed GET semantics override ambiguous resource names; Business/Catalog/member resources still require exact administrator bindings.';}if(dv360TargetingSearchRoute(p)){result.implementation+=' / src/dv360-targeting-search.ts';result.tests=[...result.tests,'tests/dv360-targeting-search.test.ts'];result.reason+=' Native advertiser-scoped POST search for geo regions, POIs and business chains; exact body variants, current scopes, bounded pagination and explicit completeness. It creates no targeting assignments.';}if(xAudienceEstimateRoute(p)){result.implementation+=' / src/x-audience-estimate.ts';result.tests=[...new Set([...result.tests,'tests/x-audience-estimate.test.mjs'])];result.reason+=' Native JSON potential-audience range, bounded criteria and private-reference reads, current account/login authority and explicit non-additive estimate semantics; no targeting or ad mutation.';}if(xReportRoute(p)==='status'){result.implementation+=' / src/x-report-jobs.ts / src/x-report-download.ts';result.tests=[...new Set([...result.tests,'tests/x-report-jobs.test.ts'])];result.reason+=' Original AMCP job/account/connection/app-user binding; fresh native status and bounded server-only gzip retrieval with encrypted result recovery, exact row identity and explicit incomplete output.';}if(tiktokReportRoute(p)){result.implementation+=' / src/tiktok-report-jobs.ts';result.tests=[...result.tests,'tests/tiktok-report-jobs.test.ts'];result.reason+=' Exact original task/advertiser/connection/token binding; bounded untranslated CSV_STRING retrieval with fresh status, row/date checks and explicit pending/failed/cancelled states.';}if(googleGenerationKind(p)){result.implementation+=' / src/google-generation.ts';result.tests=[...result.tests,'tests/google-generation.test.ts'];result.reason+=' Fixed draft-generation RPC: native required inputs and oneofs, selected Ads scope, one attempt and explicit no-output semantics. It does not save assets or apply recommendations. Text/image generation requires provider closed-beta access.';}return result;}
- const family=reviewedWriteFamily({...p,readOnly:false});
- if(family){result.status='reviewed_write_family';result.family=family;[result.implementation,result.tests]=familyFiles[family]??reviewedFamilyFiles(family)!;result.reason='Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.';return result;}
- const media=mediaRoute(p);
- if(media){result.status='media_workflow';result.implementation='src/media-upload.ts';result.tests=['tests/media-upload.test.ts'];result.reason='Use amcp_media or the native Drive import bridge. Raw native upload variants are not thereby enabled.';return result;}
- result.status=readOnly===true?'unqualified_read':'blocked_write';result.implementation='src/reviewed-routes.ts';
- result.reason=readOnly===true?'Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.':'Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.';
- return result;
+const localReads = new Set([
+  'get_workspace_context',
+  'list_accounts',
+  'list_workspace_assets',
+  'get_creative_generation_job',
+  'inspect_google_drive_media',
+  'search_ads_library',
+]);
+const cache = new WeakMap<Registry, ActionContract[]>();
+function concrete(template: string, parameters: JsonObject = {}): string {
+  return template.replace(/\{\+?([^{}=]+)(?:=([^{}]+))?\}/g, (_m, key: string, pattern: string | undefined) => {
+    const shape = pattern ?? parameters[key]?.pattern;
+    return shape && shape !== '*'
+      ? shape
+          .replace(/^\^|\$/g, '')
+          .replaceAll('[^/]+', '123')
+          .replaceAll('[^/]*', '123')
+          .replaceAll('**', '123')
+          .replaceAll('*', '123')
+      : '123';
+  });
+}
+function classify(
+  gateway: string,
+  action: string,
+  method: string | null,
+  path: string | null,
+  readOnly: boolean | null,
+  source: string,
+  aliases: string[] = [],
+  operation?: string,
+  origin?: string,
+  specialTransport?: string,
+  parameters: JsonObject = {},
+  executionAction = action,
+): ActionContract {
+  const provider = providerContracts.find(c => c.gateway === gateway),
+    result: ActionContract = {
+      gateway,
+      ...(operation ? {operation} : {}),
+      action,
+      aliases,
+      method,
+      path,
+      ...(origin ? {origin} : {}),
+      status: 'unmapped',
+      implementation: '',
+      reason: 'No provider request mapping exists. The advertised name is not executable.',
+      source,
+      tests: [],
+      live_qualification: 'unverified',
+    };
+  const unavailable = unsupportedProviderAlias(gateway, action);
+  if (unavailable)
+    return {
+      ...result,
+      status: 'provider_unsupported',
+      implementation: 'src/retired-provider-actions.ts',
+      reason: unavailable.reason + ' ' + unavailable.replacement,
+      source: unavailable.source,
+      tests: ['tests/provider-unavailable-actions.test.mjs'],
+    };
+  if (!method || !path) return result;
+  const absolute = path.startsWith('https://') ? new URL(concrete(path, parameters)) : undefined,
+    relative = absolute?.pathname ?? concrete(path.split('?')[0]!, parameters);
+  const p: CompiledRequest = {
+    gateway,
+    action: operation ? operation + (executionAction !== operation ? '/' + executionAction : '') : executionAction,
+    method,
+    path: relative,
+    origin: origin ?? absolute?.origin,
+    query: Object.fromEntries(
+      new URLSearchParams((absolute?.search ?? path.split('?')[1] ?? '').replaceAll('{action}', 'initializeUpload')),
+    ),
+    body: ['GET', 'HEAD'].includes(method) ? undefined : {},
+    headers: {},
+    readOnly: readOnly === true,
+    destructive: method === 'DELETE',
+    requiresConfirmation: false,
+    accountId: '123',
+    evidence: source,
+    warnings: [],
+    specialTransport,
+  };
+  result.origin = p.origin;
+  const retired = retiredProviderAction(p);
+  if (retired) {
+    return {
+      ...result,
+      status: 'provider_unsupported',
+      implementation: 'src/retired-provider-actions.ts',
+      reason:
+        'The provider documents this method as no longer supported. Retained in the denominator; no replacement API is invented.',
+      source: retired.source,
+      tests: ['tests/retired-provider-actions.test.ts'],
+    };
+  }
+  if (independentlyReadOnly(p)) {
+    result.status = 'native_read';
+    result.implementation = 'src/compiler.ts / src/delegated-native.ts / src/transport.ts';
+    result.reason =
+      'A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.';
+    result.tests = provider?.tests ?? [];
+    if (qualifiedProviderRead(p)) {
+      result.implementation += ' / src/provider-read-contracts.ts';
+      result.tests = [...result.tests, 'tests/provider-read-contracts.test.ts'];
+      result.reason +=
+        ' Documented fixed GET semantics override ambiguous resource names; Business/Catalog/member resources still require exact administrator bindings.';
+    }
+    if (dv360TargetingSearchRoute(p)) {
+      result.implementation += ' / src/dv360-targeting-search.ts';
+      result.tests = [...result.tests, 'tests/dv360-targeting-search.test.ts'];
+      result.reason +=
+        ' Native advertiser-scoped POST search for geo regions, POIs and business chains; exact body variants, current scopes, bounded pagination and explicit completeness. It creates no targeting assignments.';
+    }
+    if (xAudienceEstimateRoute(p)) {
+      result.implementation += ' / src/x-audience-estimate.ts';
+      result.tests = [...new Set([...result.tests, 'tests/x-audience-estimate.test.mjs'])];
+      result.reason +=
+        ' Native JSON potential-audience range, bounded criteria and private-reference reads, current account/login authority and explicit non-additive estimate semantics; no targeting or ad mutation.';
+    }
+    if (xReportRoute(p) === 'status') {
+      result.implementation += ' / src/x-report-jobs.ts / src/x-report-download.ts';
+      result.tests = [...new Set([...result.tests, 'tests/x-report-jobs.test.ts'])];
+      result.reason +=
+        ' Original AMCP job/account/connection/app-user binding; fresh native status and bounded server-only gzip retrieval with encrypted result recovery, exact row identity and explicit incomplete output.';
+    }
+    if (tiktokReportRoute(p)) {
+      result.implementation += ' / src/tiktok-report-jobs.ts';
+      result.tests = [...result.tests, 'tests/tiktok-report-jobs.test.ts'];
+      result.reason +=
+        ' Exact original task/advertiser/connection/token binding; bounded untranslated CSV_STRING retrieval with fresh status, row/date checks and explicit pending/failed/cancelled states.';
+    }
+    if (googleGenerationKind(p)) {
+      result.implementation += ' / src/google-generation.ts';
+      result.tests = [...result.tests, 'tests/google-generation.test.ts'];
+      result.reason +=
+        ' Fixed draft-generation RPC: native required inputs and oneofs, selected Ads scope, one attempt and explicit no-output semantics. It does not save assets or apply recommendations. Text/image generation requires provider closed-beta access.';
+    }
+    return result;
+  }
+  const family = reviewedWriteFamily({...p, readOnly: false});
+  if (family) {
+    result.status = 'reviewed_write_family';
+    result.family = family;
+    [result.implementation, result.tests] = familyFiles[family] ?? reviewedFamilyFiles(family)!;
+    result.reason =
+      'Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.';
+    return result;
+  }
+  const media = mediaRoute(p);
+  if (media) {
+    result.status = 'media_workflow';
+    result.implementation = 'src/media-upload.ts';
+    result.tests = ['tests/media-upload.test.ts'];
+    result.reason =
+      'Use amcp_media or the native Drive import bridge. Raw native upload variants are not thereby enabled.';
+    return result;
+  }
+  result.status = readOnly === true ? 'unqualified_read' : 'blocked_write';
+  result.implementation = 'src/reviewed-routes.ts';
+  result.reason =
+    readOnly === true
+      ? 'Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.'
+      : 'Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.';
+  return result;
 }
 /** Enumerates every captured action AND every delegated action enum. Unknown
  * provider denominators remain unknown. No catalog row grants permission. */
-export function actionContracts(registry:Registry):ActionContract[]{
- const saved=cache.get(registry);if(saved)return saved;
- const records=new Map<string,ActionContract>(),vendor=new DelegatedNativeCompiler(),vendorRoutes=[...vendor.data.routes,...redditAudienceRoutes],legacyCoverage=googleLegacyCoverage();
- const put=(row:ActionContract)=>records.set([row.gateway,row.operation??'',row.action].join('/'),row);
- const direct=(gateway:string,a:Action)=>{
-  let route=registry.action(gateway,a.name)??a,source=route.evidence;
-  if(!route.path)route=registry.data.supplemental.find(s=>s.gateway===gateway&&s.name===a.name)??route;
-  if(gateway==='google_ads_native_action'&&!route.path){
-   const entry=legacy.entries.find(e=>e.name===a.name) as JsonObject|undefined;
-   if(entry?.kind==='GAQL')route={...a,method:'POST',path:'/v23/customers/{customer_id}/googleAds:search',read_only:true};
-   else {
-    const hint=legacyCoverage.entries.find(e=>e.action===a.name)?.destination;
-    const mapped=hint?registry.catalogs.get(gateway)?.actions.find(a=>a.path&&(a.name===hint||a.raw.service+'.'+a.raw.rpc===hint)):undefined;
-    if(mapped)route=mapped;
-    else if(hint&&/^[a-z_]+$/.test(hint))route={...a,method:'POST',path:'/v23/customers/{customer_id}/googleAds:search',read_only:true};
-   }
-   source=entry?'src/google-legacy-mapping.json':source;
-  }
-  // The compiler executes canonical names; classify that same identity while
-  // retaining every advertised alias as its own denominator row.
-  // Google legacy adapters deliberately retain the legacy name for immutable
-  // operation restrictions even when they route to a general mutate RPC.
-  const executionAction=gateway==='google_ads_native_action'&&!a.path?a.name:route.canonical_name||route.name;
-  const row=classify(gateway,a.name,route.method,route.path,route.read_only,source,[...new Set([a.canonical_name,...a.aliases])].filter(n=>n!==a.name),undefined,undefined,route.raw.special_transport,{},executionAction);
-  if(gateway==='google_ads_native_action'&&!route.path&&legacyCoverage.entries.some(e=>e.action===a.name))Object.assign(row,{status:'adapter_requires_input',implementation:'src/google-legacy.ts',reason:'An explicit legacy adapter exists, but its route depends on the requested scope/type. Inspect the exact payload; each selected destination retains its own reviewed contract.',tests:['tests/google-legacy.test.ts']});
-  put(row);
- };
- for(const catalog of registry.catalogs.values())if(catalog.mode==='direct')for(const a of catalog.actions)direct(catalog.gateway,a);
- for(const a of registry.data.supplemental)if(registry.tools.get(a.gateway!)?.mode==='direct'&&!records.has(a.gateway+'//'+a.name))direct(a.gateway!,a);
- for(const a of appleActions)direct('apple_ads_native_action',a);
- for(const tool of registry.tools.values())if(tool.mode==='delegated')for(const op of tool.operations??[]){
-  const choices=op.argumentsSchema.properties?.action?.enum??[op.operation];
-  for(const action of choices){
-   const route=vendorRoutes.find(r=>r.gateway===tool.name&&r.operation===op.operation&&(r.action===action||!r.action&&action===op.operation));
-   let row=classify(tool.name,action,route?.method??null,route?.path??null,route?.readOnly??null,route?.source??tool.schema_evidence,[],op.operation,route?.origin,route?.unsupportedMedia?.length?'vendor_media':undefined,route?.parameters);
-   if(!route&&(tool.name==='amcp_platform_workspace'||tool.name==='amcp_native_action'&&(localReads.has(op.operation)||reportingOperations.has(op.operation)||businessWorkflowOperations.has(op.operation)||op.operation==='platform_media_upload'))){row={...row,status:'local_workflow',implementation:'src/service.ts / src/workflows.ts / src/reporting.ts',reason:'Implemented AMCP workflow; platform and payload support depend on its underlying contracts. This row never enables native writes.',tests:['tests/workflows.test.ts']};}
-   if(tool.name==='gtm_native_action'&&gtmDiagnosticOperations.has(op.operation))row={...row,status:'local_workflow',implementation:'src/gtm-diagnostics.ts',reason:'AMCP scoped read-only configuration audit or local reviewed-write verification job status. This workflow never publishes or resubmits a mutation.',tests:['tests/gtm-diagnostics.test.ts']};
-   const diagnostic=connectionDiagnosticKind(tool.name,op.operation,action);if(diagnostic)row={...row,status:'local_workflow',implementation:'src/connection-diagnostics.ts',reason:diagnostic==='qanda'?'Implemented local retirement-status diagnostic. Google discontinued Q&A on 2025-11-03; no Q&A provider request or replacement API is available.':'Read-only tenant-scoped connection metadata with explicit/default identity resolution; no credential access, provider request or implicit connection/grant changes. Recorded configuration is not live readiness.',...(diagnostic==='qanda'?{source:businessQandaRetirement.source}:{}),tests:['tests/connection-diagnostics.test.ts']};
-   if(measurementConnectionSyncKind(tool.name,op.operation,action))row={...row,status:'local_workflow',implementation:'src/measurement-connection-sync.ts / src/google-measurement-assets.ts',reason:'Administrator-scoped GA4 properties or Search Console sites discovery with dry-run default, bounded native GETs and atomic complete metadata persistence. Preserves selections/write grants; scopes, login, concurrent sync and current authority are fenced. No OAuth grant change or provider mutation.',tests:['tests/measurement-connection-sync.test.ts']};
-   if(businessConnectionSyncKind(tool.name,op.operation,action))row={...row,status:'local_workflow',implementation:'src/google-business-sync.ts / src/google-business-assets.ts',reason:'Administrator-scoped Business Profile account and optional location discovery. Bounded native GETs, required read mask, shared location parents, current authority and per-attempt login fencing; complete groups persist atomically without changing selections or grants. No website OAuth or provider mutation.',tests:['tests/google-business-sync.test.ts']};
-   if(tool.name==='adjust_native_action'&&adjustReportingKind(op.operation,action))row={...row,status:'local_workflow',implementation:'src/adjust-reporting.ts',reason:'Scoped Adjust app/event/filter discovery and bounded native JSON or app-indexed pivot reporting. Encrypted token transport, current grants, exact numeric strings, documented no-content, warning/completeness metadata and no provider writes. Local asset listing describes configured bindings only.',source:'https://dev.adjust.com/en/api/rs-api/',tests:['tests/adjust-reporting.test.ts']};
-   if(tool.name==='amcp_native_action'&&op.operation==='search_ads_library')row={...row,status:'local_workflow',implementation:'src/meta-ad-library.ts',reason:'Bounded public Meta Ad Library search through the sole/default connection. Media format is translated separately from provider ad category. Geographic API coverage and result limits are explicit; no performance inference or token-bearing URLs are returned.',source:'https://www.facebook.com/ads/library/api/',tests:['tests/meta-ad-library.test.ts']};
-   if(tool.name==='amcp_native_action'&&op.operation==='fetch_meta_existing_posts'&&metaPostActions.includes(action))row={...row,status:'local_workflow',implementation:'src/meta-existing-posts.ts',reason:'Account-scoped Page/Instagram identity discovery, ephemeral server-side Page token and owned content reads. Exact IDs or bounded canonical permalink lookup with encrypted, scoped continuations. No arbitrary URL fetching or automatic creative writes; native eligibility and approval remain unverified.',source:'https://github.com/facebook/facebook-python-business-sdk/tree/25.0.3/facebook_business/adobjects',tests:['tests/meta-existing-posts.test.ts']};
-   if(connectionDisconnectKind(tool.name,op.operation,action))row={...row,status:'local_workflow',implementation:'src/connection-disconnect.ts',reason:'Administrator-only explicit-UUID local disconnect, with dry-run default. Atomically removes the encrypted credential row, resource bindings and discovery metadata while retaining recovery history. No provider calls or grant revocation; default selection never chooses the identity.',tests:['tests/connection-disconnect.test.ts']};
-   if(row.status==='native_read'&&placeActionReadKind({gateway:tool.name,action:op.operation+'/'+action} as CompiledRequest))row={...row,implementation:'src/delegated-native.ts / src/google-place-action-discovery.ts / src/transport.ts',reason:'Native place-action metadata, complete bounded link lists or exact link read. Location filters bind the selected location grant; global/region metadata does not establish eligibility. Current scope checks, native envelopes, private URL redaction and explicit page continuation; no ownership or write grants are inferred.',tests:['tests/google-place-action-discovery.test.ts','tests/google-place-action-links.test.ts']};
-   put(row);
-  }
- }
- // Include independent delegated extensions and vendor mappings even when a
- // wrapper action enum is incomplete. They have their own provenance.
- for(const r of vendorRoutes)if(registry.tools.get(r.gateway)?.mode==='delegated'&&!records.has([r.gateway,r.operation,r.action||r.operation].join('/')))put(classify(r.gateway,r.action||r.operation,r.method,r.path,r.readOnly,r.source,[],r.operation,r.origin,r.unsupportedMedia?.length?'vendor_media':undefined,r.parameters));
- const rows=[...records.values()].sort((a,b)=>[a.gateway,a.operation??'',a.action].join('/').localeCompare([b.gateway,b.operation??'',b.action].join('/'),'en'));cache.set(registry,rows);return rows;
+export function actionContracts(registry: Registry): ActionContract[] {
+  const saved = cache.get(registry);
+  if (saved) return saved;
+  const records = new Map<string, ActionContract>(),
+    vendor = new DelegatedNativeCompiler(),
+    vendorRoutes = [...vendor.data.routes, ...redditAudienceRoutes],
+    legacyCoverage = googleLegacyCoverage();
+  const put = (row: ActionContract) => records.set([row.gateway, row.operation ?? '', row.action].join('/'), row);
+  const direct = (gateway: string, a: Action) => {
+    let route = registry.action(gateway, a.name) ?? a,
+      source = route.evidence;
+    if (!route.path) route = registry.data.supplemental.find(s => s.gateway === gateway && s.name === a.name) ?? route;
+    if (gateway === 'google_ads_native_action' && !route.path) {
+      const entry = legacy.entries.find(e => e.name === a.name) as JsonObject | undefined;
+      if (entry?.kind === 'GAQL')
+        route = {...a, method: 'POST', path: '/v23/customers/{customer_id}/googleAds:search', read_only: true};
+      else {
+        const hint = legacyCoverage.entries.find(e => e.action === a.name)?.destination;
+        const mapped = hint
+          ? registry.catalogs
+              .get(gateway)
+              ?.actions.find(a => a.path && (a.name === hint || a.raw.service + '.' + a.raw.rpc === hint))
+          : undefined;
+        if (mapped) route = mapped;
+        else if (hint && /^[a-z_]+$/.test(hint))
+          route = {...a, method: 'POST', path: '/v23/customers/{customer_id}/googleAds:search', read_only: true};
+      }
+      source = entry ? 'src/google-legacy-mapping.json' : source;
+    }
+    // The compiler executes canonical names; classify that same identity while
+    // retaining every advertised alias as its own denominator row.
+    // Google legacy adapters deliberately retain the legacy name for immutable
+    // operation restrictions even when they route to a general mutate RPC.
+    const executionAction =
+      gateway === 'google_ads_native_action' && !a.path ? a.name : route.canonical_name || route.name;
+    const row = classify(
+      gateway,
+      a.name,
+      route.method,
+      route.path,
+      route.read_only,
+      source,
+      [...new Set([a.canonical_name, ...a.aliases])].filter(n => n !== a.name),
+      undefined,
+      undefined,
+      route.raw.special_transport,
+      {},
+      executionAction,
+    );
+    if (gateway === 'google_ads_native_action' && !route.path && legacyCoverage.entries.some(e => e.action === a.name))
+      Object.assign(row, {
+        status: 'adapter_requires_input',
+        implementation: 'src/google-legacy.ts',
+        reason:
+          'An explicit legacy adapter exists, but its route depends on the requested scope/type. Inspect the exact payload; each selected destination retains its own reviewed contract.',
+        tests: ['tests/google-legacy.test.ts'],
+      });
+    put(row);
+  };
+  for (const catalog of registry.catalogs.values())
+    if (catalog.mode === 'direct') for (const a of catalog.actions) direct(catalog.gateway, a);
+  for (const a of registry.data.supplemental)
+    if (registry.tools.get(a.gateway!)?.mode === 'direct' && !records.has(a.gateway + '//' + a.name))
+      direct(a.gateway!, a);
+  for (const a of appleActions) direct('apple_ads_native_action', a);
+  for (const tool of registry.tools.values())
+    if (tool.mode === 'delegated')
+      for (const op of tool.operations ?? []) {
+        const choices = op.argumentsSchema.properties?.action?.enum ?? [op.operation];
+        for (const action of choices) {
+          const route = vendorRoutes.find(
+            r =>
+              r.gateway === tool.name &&
+              r.operation === op.operation &&
+              (r.action === action || (!r.action && action === op.operation)),
+          );
+          let row = classify(
+            tool.name,
+            action,
+            route?.method ?? null,
+            route?.path ?? null,
+            route?.readOnly ?? null,
+            route?.source ?? tool.schema_evidence,
+            [],
+            op.operation,
+            route?.origin,
+            route?.unsupportedMedia?.length ? 'vendor_media' : undefined,
+            route?.parameters,
+          );
+          if (
+            !route &&
+            (tool.name === 'amcp_platform_workspace' ||
+              (tool.name === 'amcp_native_action' &&
+                (localReads.has(op.operation) ||
+                  reportingOperations.has(op.operation) ||
+                  businessWorkflowOperations.has(op.operation) ||
+                  op.operation === 'platform_media_upload')))
+          ) {
+            row = {
+              ...row,
+              status: 'local_workflow',
+              implementation: 'src/service.ts / src/workflows.ts / src/reporting.ts',
+              reason:
+                'Implemented AMCP workflow; platform and payload support depend on its underlying contracts. This row never enables native writes.',
+              tests: ['tests/workflows.test.ts'],
+            };
+          }
+          if (tool.name === 'gtm_native_action' && gtmDiagnosticOperations.has(op.operation))
+            row = {
+              ...row,
+              status: 'local_workflow',
+              implementation: 'src/gtm-diagnostics.ts',
+              reason:
+                'AMCP scoped read-only configuration audit or local reviewed-write verification job status. This workflow never publishes or resubmits a mutation.',
+              tests: ['tests/gtm-diagnostics.test.ts'],
+            };
+          const diagnostic = connectionDiagnosticKind(tool.name, op.operation, action);
+          if (diagnostic)
+            row = {
+              ...row,
+              status: 'local_workflow',
+              implementation: 'src/connection-diagnostics.ts',
+              reason:
+                diagnostic === 'qanda'
+                  ? 'Implemented local retirement-status diagnostic. Google discontinued Q&A on 2025-11-03; no Q&A provider request or replacement API is available.'
+                  : 'Read-only tenant-scoped connection metadata with explicit/default identity resolution; no credential access, provider request or implicit connection/grant changes. Recorded configuration is not live readiness.',
+              ...(diagnostic === 'qanda' ? {source: businessQandaRetirement.source} : {}),
+              tests: ['tests/connection-diagnostics.test.ts'],
+            };
+          if (measurementConnectionSyncKind(tool.name, op.operation, action))
+            row = {
+              ...row,
+              status: 'local_workflow',
+              implementation: 'src/measurement-connection-sync.ts / src/google-measurement-assets.ts',
+              reason:
+                'Administrator-scoped GA4 properties or Search Console sites discovery with dry-run default, bounded native GETs and atomic complete metadata persistence. Preserves selections/write grants; scopes, login, concurrent sync and current authority are fenced. No OAuth grant change or provider mutation.',
+              tests: ['tests/measurement-connection-sync.test.ts'],
+            };
+          if (businessConnectionSyncKind(tool.name, op.operation, action))
+            row = {
+              ...row,
+              status: 'local_workflow',
+              implementation: 'src/google-business-sync.ts / src/google-business-assets.ts',
+              reason:
+                'Administrator-scoped Business Profile account and optional location discovery. Bounded native GETs, required read mask, shared location parents, current authority and per-attempt login fencing; complete groups persist atomically without changing selections or grants. No website OAuth or provider mutation.',
+              tests: ['tests/google-business-sync.test.ts'],
+            };
+          if (tool.name === 'adjust_native_action' && adjustReportingKind(op.operation, action))
+            row = {
+              ...row,
+              status: 'local_workflow',
+              implementation: 'src/adjust-reporting.ts',
+              reason:
+                'Scoped Adjust app/event/filter discovery and bounded native JSON or app-indexed pivot reporting. Encrypted token transport, current grants, exact numeric strings, documented no-content, warning/completeness metadata and no provider writes. Local asset listing describes configured bindings only.',
+              source: 'https://dev.adjust.com/en/api/rs-api/',
+              tests: ['tests/adjust-reporting.test.ts'],
+            };
+          if (tool.name === 'amcp_native_action' && op.operation === 'search_ads_library')
+            row = {
+              ...row,
+              status: 'local_workflow',
+              implementation: 'src/meta-ad-library.ts',
+              reason:
+                'Bounded public Meta Ad Library search through the sole/default connection. Media format is translated separately from provider ad category. Geographic API coverage and result limits are explicit; no performance inference or token-bearing URLs are returned.',
+              source: 'https://www.facebook.com/ads/library/api/',
+              tests: ['tests/meta-ad-library.test.ts'],
+            };
+          if (
+            tool.name === 'amcp_native_action' &&
+            op.operation === 'fetch_meta_existing_posts' &&
+            metaPostActions.includes(action)
+          )
+            row = {
+              ...row,
+              status: 'local_workflow',
+              implementation: 'src/meta-existing-posts.ts',
+              reason:
+                'Account-scoped Page/Instagram identity discovery, ephemeral server-side Page token and owned content reads. Exact IDs or bounded canonical permalink lookup with encrypted, scoped continuations. No arbitrary URL fetching or automatic creative writes; native eligibility and approval remain unverified.',
+              source:
+                'https://github.com/facebook/facebook-python-business-sdk/tree/25.0.3/facebook_business/adobjects',
+              tests: ['tests/meta-existing-posts.test.ts'],
+            };
+          if (connectionDisconnectKind(tool.name, op.operation, action))
+            row = {
+              ...row,
+              status: 'local_workflow',
+              implementation: 'src/connection-disconnect.ts',
+              reason:
+                'Administrator-only explicit-UUID local disconnect, with dry-run default. Atomically removes the encrypted credential row, resource bindings and discovery metadata while retaining recovery history. No provider calls or grant revocation; default selection never chooses the identity.',
+              tests: ['tests/connection-disconnect.test.ts'],
+            };
+          if (
+            row.status === 'native_read' &&
+            placeActionReadKind({gateway: tool.name, action: op.operation + '/' + action} as CompiledRequest)
+          )
+            row = {
+              ...row,
+              implementation: 'src/delegated-native.ts / src/google-place-action-discovery.ts / src/transport.ts',
+              reason:
+                'Native place-action metadata, complete bounded link lists or exact link read. Location filters bind the selected location grant; global/region metadata does not establish eligibility. Current scope checks, native envelopes, private URL redaction and explicit page continuation; no ownership or write grants are inferred.',
+              tests: ['tests/google-place-action-discovery.test.ts', 'tests/google-place-action-links.test.ts'],
+            };
+          put(row);
+        }
+      }
+  // Include independent delegated extensions and vendor mappings even when a
+  // wrapper action enum is incomplete. They have their own provenance.
+  for (const r of vendorRoutes)
+    if (
+      registry.tools.get(r.gateway)?.mode === 'delegated' &&
+      !records.has([r.gateway, r.operation, r.action || r.operation].join('/'))
+    )
+      put(
+        classify(
+          r.gateway,
+          r.action || r.operation,
+          r.method,
+          r.path,
+          r.readOnly,
+          r.source,
+          [],
+          r.operation,
+          r.origin,
+          r.unsupportedMedia?.length ? 'vendor_media' : undefined,
+          r.parameters,
+        ),
+      );
+  const rows = [...records.values()].sort((a, b) =>
+    [a.gateway, a.operation ?? '', a.action]
+      .join('/')
+      .localeCompare([b.gateway, b.operation ?? '', b.action].join('/'), 'en'),
+  );
+  cache.set(registry, rows);
+  return rows;
 }
-export function actionContractSummary(registry:Registry){const rows=actionContracts(registry);return [...new Set([...registry.catalogs.keys(),...rows.map(r=>r.gateway)])].sort().map(gateway=>({gateway,actions:rows.filter(r=>r.gateway===gateway).length,counts:Object.fromEntries([...new Set(rows.filter(r=>r.gateway===gateway).map(r=>r.status))].sort().map(status=>[status,rows.filter(r=>r.gateway===gateway&&r.status===status).length])),captured_catalog_complete:registry.catalogs.get(gateway)?.complete??false,provider_api_coverage:'unknown',live_qualification:'unverified'}));}
-export function actionContractPage(registry:Registry,input:JsonObject){
- const offset=input.offset??0,limit=input.limit??50;
- if(!Number.isSafeInteger(offset)||offset<0||!Number.isSafeInteger(limit)||limit<1||limit>100||input.search!==undefined&&(typeof input.search!=='string'||input.search.length>200))throw new MirrorError('INVALID_ARGUMENT','Contract inventory uses offset >= 0, limit 1–100 and search up to 200 characters.');
- if(input.gateway!==undefined&&!registry.tools.has(input.gateway))throw new MirrorError('UNKNOWN_GATEWAY','Choose a gateway returned in the contract summary.');
- const needle=String(input.search??'').toLowerCase(),rows=actionContracts(registry).filter(r=>(!input.gateway||r.gateway===input.gateway)&&(!needle||[r.action,r.operation,r.path,r.status,...r.aliases].join(' ').toLowerCase().includes(needle)));
- return {network_requests:0,summary:actionContractSummary(registry),total:rows.length,offset,limit,has_more:offset+limit<rows.length,actions:rows.slice(offset,offset+limit),meaning:'Complete local action/enum inventory, not complete vendor API coverage or live qualification. Route membership is conditional on exact-payload inspect, permissions, server-read review and provider validation.',next_step:'amcp_write inspect for a native mutation; amcp_media for uploads. Blocked entries require implementation, not additional user confirmation.'};
+export function actionContractSummary(registry: Registry) {
+  const rows = actionContracts(registry);
+  return [...new Set([...registry.catalogs.keys(), ...rows.map(r => r.gateway)])]
+    .sort()
+    .map(gateway => ({
+      gateway,
+      actions: rows.filter(r => r.gateway === gateway).length,
+      counts: Object.fromEntries(
+        [...new Set(rows.filter(r => r.gateway === gateway).map(r => r.status))]
+          .sort()
+          .map(status => [status, rows.filter(r => r.gateway === gateway && r.status === status).length]),
+      ),
+      captured_catalog_complete: registry.catalogs.get(gateway)?.complete ?? false,
+      provider_api_coverage: 'unknown',
+      live_qualification: 'unverified',
+    }));
+}
+export function actionContractPage(registry: Registry, input: JsonObject) {
+  const offset = input.offset ?? 0,
+    limit = input.limit ?? 50;
+  if (
+    !Number.isSafeInteger(offset) ||
+    offset < 0 ||
+    !Number.isSafeInteger(limit) ||
+    limit < 1 ||
+    limit > 100 ||
+    (input.search !== undefined && (typeof input.search !== 'string' || input.search.length > 200))
+  )
+    throw new MirrorError(
+      'INVALID_ARGUMENT',
+      'Contract inventory uses offset >= 0, limit 1–100 and search up to 200 characters.',
+    );
+  if (input.gateway !== undefined && !registry.tools.has(input.gateway))
+    throw new MirrorError('UNKNOWN_GATEWAY', 'Choose a gateway returned in the contract summary.');
+  const needle = String(input.search ?? '').toLowerCase(),
+    rows = actionContracts(registry).filter(
+      r =>
+        (!input.gateway || r.gateway === input.gateway) &&
+        (!needle || [r.action, r.operation, r.path, r.status, ...r.aliases].join(' ').toLowerCase().includes(needle)),
+    );
+  return {
+    network_requests: 0,
+    summary: actionContractSummary(registry),
+    total: rows.length,
+    offset,
+    limit,
+    has_more: offset + limit < rows.length,
+    actions: rows.slice(offset, offset + limit),
+    meaning:
+      'Complete local action/enum inventory, not complete vendor API coverage or live qualification. Route membership is conditional on exact-payload inspect, permissions, server-read review and provider validation.',
+    next_step:
+      'amcp_write inspect for a native mutation; amcp_media for uploads. Blocked entries require implementation, not additional user confirmation.',
+  };
 }
