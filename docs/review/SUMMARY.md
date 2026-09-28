@@ -54,7 +54,9 @@ account in turn, reporting each result. With *fit to each platform* on, anything
 down without cropping (4500 × 4500 → 1080 × 1080, 4500 × 8000 → 1080 × 1920), an image over a platform's size limit
 is re-encoded, and MOV becomes MP4 for X and LinkedIn. Phone photos keep their orientation. Every change is listed in
 the review. MCP clients get the same through `amcp_media` (`source_id`, `source_url`, `fit_to_platform`, `plan`).
-Links are fetched only from public internet addresses.
+Links are fetched only from public internet addresses. *Preview your ads* (and `amcp_ad_previews`) gathers each
+platform's own preview links for existing ads on Meta, TikTok, Snapchat, LinkedIn and Reddit, and names the reviewed
+call that creates a Google Ads shareable preview.
 
 **MCP workflow.** Each AMCP tool says when to use it rather than its neighbour. An opt-in flag
 (`MIRROR_FLAGS={"compactSchemas":true}`) removes the duplicated DV360 action names from every `tools/list`.

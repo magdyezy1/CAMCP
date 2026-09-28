@@ -249,3 +249,19 @@ stays, and the push plans first instead.
 Full qualification (`.release/batch12-20260928`, up to `1591ee1`): **2,746 / 2,746** tests and **4 / 4** capture
 tests; `format:check`, every generated-artifact check and the Railway check pass. 532 s. The candidate's 1,172 source
 files equal `1591ee1`, apart from `release-manifest.json` (and npm's own run logs under `.runtime/`).
+
+## Batch 13 — ad previews
+
+Finding: F-76. The owner's request of 2026-09-28: a tool that gathers the platforms' preview links.
+
+| Change | Evidence |
+|---|---|
+| `amcp_ad_previews`: for Meta (placement via `ad_format`), TikTok, Snapchat, LinkedIn and Reddit it lists the account's ads (Snapchat and LinkedIn: creatives), then reads each preview through the platform's own read route; Google Ads returns the reviewed `amcp_write` call that creates a shareable preview; X and platforms without a preview route say so | `tests/ad-previews.test.ts` (7 tests): each platform against a stand-in API, the request each read sends, named ads not in the account never read |
+| Only HTTPS links on the platform's own hosts are returned, including an iframe's `src`; markup and other hosts never are. Links are not stored: each read behind them is audited by size and hash | the link filter test (a phishing link and an `http:` link in the same markup are dropped); the audit rule of batch 7 applies to every read |
+| LinkedIn ad previews had no ownership rule, so the scope guard refused them: a creative is now previewable for five minutes after the account's creatives list returned it, and the refusal names that list | the LinkedIn test: refused before the list, allowed after, a creative the list did not return stays out |
+| *Preview your ads* on the Media library page: choose an account, optionally ad IDs and the Meta placement; each ad's links open in a new tab without a referrer, labelled with the ad's name | Chromium against the local server with simulated Meta and TikTok APIs: links for both platforms, the placement field only for Meta, no console errors |
+| Tool counts move from 25/27 to 26/28 in the five places that pin them (including the deployment smoke check) | the affected suites pass |
+
+The Meta, Snapchat and LinkedIn preview responses are not pinned in AMCP's vendor evidence, and the review
+environment could not reach the official pages. So AMCP takes the platform-host links it finds rather than named
+fields, and `docs/AD-PREVIEWS.md` says so. X's preview route is not called, because its parameters are not pinned.

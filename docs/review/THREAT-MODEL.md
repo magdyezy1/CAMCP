@@ -74,6 +74,7 @@ Rated by likelihood × impact for this deployment (one replica, one owner worksp
 | T18 | Availability: provider sunset | Google Ads v23 sunsets 2027-02; Microsoft SOAP 2027-01-31 | Pinned versions, drift tooling | No dated sunset registry or alarm (F-49…F-56) | Medium |
 | T19 | Denial of service: uploads fill disk or memory | Many or large uploads, or parts sent in parallel | Since batch 12: four waiting uploads per workspace and eight in all, each within the media limit; parts of at most 1 MiB read only after session, CSRF, ownership and exact length are checked; 16 parts in flight server-wide; 30-minute expiry; a link import holds the media byte admission | New surface; bounded | Low |
 | T20 | Tampering: hostile file to FFmpeg | A crafted upload aimed at the decoder | Type from magic bytes, fixed demuxer per type, local-file protocols only, no QuickTime external references, bounded allocation, time limits, 40 MP / 180 s, two processes at once | Existing controls, now also on uploaded files | Low |
+| T21 | Information disclosure: preview links | A preview link, which anyone holding it can open, is kept or shown to the wrong person | Links are returned, never stored; every read behind them is audited by size and hash; only HTTPS links on the platform's own hosts are returned; the website opens them with no referrer and says who can open them | New surface (batch 13) | Low |
 
 ## 5. Assumptions
 
