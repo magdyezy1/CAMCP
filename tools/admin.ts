@@ -1,7 +1,6 @@
 import {createEncryptedBackup, verifyEncryptedBackup, restoreEncryptedBackup} from '../src/backup.js';
 import fs from 'node:fs';
 import {randomBytes} from 'node:crypto';
-import {backup} from 'node:sqlite';
 import {Store} from '../src/store.js';
 import {Registry} from '../src/catalog.js';
 import {MirrorError} from '../src/errors.js';
@@ -9,7 +8,7 @@ import {guardInput} from '../src/security.js';
 import type {Actor, Connection, Credentials} from '../src/types.js';
 const [command, ...args] = process.argv.slice(2);
 const help =
-  'Usage: admin keygen | init <tenant> | create-key <tenant> <user> <reader|operator|admin> | revoke-key <file> | provision <json-file> | status <tenant> | audit-verify | backup <new-file> | backup-encrypted <new-file> | backup-verify <encrypted-file> | backup-restore <encrypted-file> <new-sqlite-file>';
+  'Usage: admin keygen | init <tenant> | create-key <tenant> <user> <reader|operator|admin> | revoke-key <file> | provision <json-file> | status <tenant> | audit-verify | backup <new-encrypted-file> | backup-encrypted <new-encrypted-file> | backup-verify <encrypted-file> | backup-restore <encrypted-file> <new-sqlite-file>';
 if (command === 'keygen') {
   process.stdout.write(randomBytes(32).toString('base64') + '\n');
 } else if (!command || command === 'help') {
@@ -97,17 +96,15 @@ if (command === 'keygen') {
         if (!store.verifyAudit()) throw new MirrorError('AUDIT_INTEGRITY_FAILURE', 'Audit hash chain does not verify.');
         process.stdout.write('Audit hash chain verified.\n');
         break;
+      // Backups are encrypted only (owner decision, review 2026-09-28): `backup` writes the same AES-256-GCM archive as
+      // `backup-encrypted`, so no command leaves a plaintext copy of report rows and lead data on disk.
+      case 'backup':
       case 'backup-encrypted':
-        if (!args[0]) throw Error(help);
+        if (!args[0] || fs.existsSync(args[0]))
+          throw new MirrorError('BACKUP_PATH_REQUIRED', 'Provide a new backup filename.');
         process.stdout.write(
           JSON.stringify(await createEncryptedBackup(store, args[0], process.env.MIRROR_MASTER_KEY), null, 2) + '\n',
         );
-        break;
-      case 'backup':
-        if (!args[0] || fs.existsSync(args[0]))
-          throw new MirrorError('BACKUP_PATH_REQUIRED', 'Provide a new backup filename.');
-        await backup(store.db, args[0]);
-        process.stdout.write('Consistent SQLite backup created. Store the master key separately.\n');
         break;
       default:
         throw Error(help);

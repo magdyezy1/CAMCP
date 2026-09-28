@@ -93,7 +93,13 @@ for (const [gateway, operation] of cases)
       const out = await f.call({action: 'disconnect', connection_id: id, dry_run: false});
       assert.equal(out.success, true, JSON.stringify(out));
       assert.equal(out.data.disconnected, true);
-      assert.deepEqual(out.data.local_changes, {connections: 1, resource_bindings: 1, discovery_documents: 2});
+      assert.deepEqual(out.data.local_changes, {
+        connections: 1,
+        resource_bindings: 1,
+        discovery_documents: 2,
+        report_snapshots: 0,
+        captured_reports: 0,
+      });
       assert.deepEqual(
         f.store.listConnections(actor.tenantId).map(c => c.id),
         [otherId],
@@ -384,6 +390,55 @@ test('untrusted labels cannot leak credential-shaped text in previews or durable
       false,
     );
     assert.deepEqual(f.counts(), {egress: 0, credentialReads: 0});
+  } finally {
+    f.restore();
+    f.store.close();
+  }
+});
+
+test('disconnect deletes the report data read through the connection and keeps definitions and history', async () => {
+  const f = fixture();
+  try {
+    const row = (connection: string) => ({
+      campaign_name: 'Synthetic',
+      platform: 'ga4',
+      account_id: '123',
+      connection_id: connection,
+    });
+    const snapshot = (connection: string, state = 'complete') => ({
+      state,
+      config: {name: 'Report', sources: [{platform: 'ga4', account_id: '123', connection_id: connection}]},
+      rows: [row(connection)],
+    });
+    f.store.putDocument(actor.tenantId, 'overview_report', 'mine', snapshot(id));
+    f.store.putDocument(actor.tenantId, 'overview_report', 'mixed', {
+      ...snapshot(otherId),
+      rows: [row(otherId), row(id)],
+    });
+    f.store.putDocument(actor.tenantId, 'overview_report', 'other', snapshot(otherId));
+    f.store.putDocument(actor.tenantId, 'overview_report', 'running', snapshot(id, 'running'));
+    f.store.putDocument(actor.tenantId, 'overview_view', 'definition', {config: snapshot(id).config});
+    f.store.putDocument(actor.tenantId, 'decision_report', 'captured', {connection_id: id, rows: [{spend: '1'}]});
+    f.store.putDocument(actor.tenantId, 'decision_report', 'kept', {connection_id: otherId, rows: []});
+    f.store.putDocument(actor.tenantId, 'microsoft_report', 'download', {connection_id: id, parsed: {rows: []}});
+    f.store.putDocument(actor.tenantId, 'write_review', 'submitted', {connection_id: id});
+    const out = await f.call({action: 'disconnect', connection_id: id, dry_run: false});
+    assert.equal(out.success, true, JSON.stringify(out.error));
+    assert.deepEqual(
+      {snapshots: out.data.local_changes.report_snapshots, captured: out.data.local_changes.captured_reports},
+      {snapshots: 2, captured: 2},
+    );
+    const kinds = (kind: string) =>
+      f.store
+        .documents(actor.tenantId, kind)
+        .map(d => d.id)
+        .sort();
+    assert.deepEqual(kinds('overview_report'), ['other', 'running']);
+    assert.deepEqual(kinds('decision_report'), ['kept']);
+    assert.deepEqual(kinds('microsoft_report'), []);
+    assert.deepEqual(kinds('overview_view'), ['definition'], 'the report definition can run again');
+    assert.deepEqual(kinds('write_review'), ['submitted'], 'write history stays for reconciliation');
+    assert.equal(f.store.verifyAudit(), true);
   } finally {
     f.restore();
     f.store.close();

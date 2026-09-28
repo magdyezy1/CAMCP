@@ -45,15 +45,37 @@ function impact(c: Connection): JsonObject {
     selected_account_count: c.accounts.length,
     write_account_count: c.writeAccounts?.length ?? 0,
     effect:
-      'Removes this AMCP connection, its encrypted credentials, saved discovery metadata and resource bindings. Other connections, provider accounts, advertising entities and provider OAuth grants are unchanged.',
+      'Removes this AMCP connection, its encrypted credentials, saved discovery metadata, resource bindings and the report data read through it (finished report snapshots, captured reports, parsed downloads). Saved report definitions, write reviews, receipts and the audit trail stay. Other connections, provider accounts, advertising entities and provider OAuth grants are unchanged.',
     pending_work:
       'Jobs bound to this connection will fail current-access checks. In-flight provider requests may already have completed; retain their reviews, audit history and idempotency claims for reconciliation. This does not cancel a submitted provider mutation.',
     provider_access:
       'Local disconnect only. Revoke the external application grant separately at the provider if that is intended.',
   });
 }
-/** One transaction removes the vault row and related configuration and records
- * its receipt/audit. Never decrypt credentials or delete mutation/recovery history. */
+/**
+ * Report content read through the connection goes with it (owner decision, review 2026-09-28, F-18): finished report
+ * snapshots holding its rows or sources, captured native reports and parsed Microsoft downloads. Saved report
+ * definitions stay and can run again; reviews, receipts, idempotency claims, jobs and the audit trail are kept for
+ * reconciliation. A report still running fails its current-access check instead of storing rows.
+ */
+function purgeReportContent(store: Store, tenant: string, id: string) {
+  const snapshots = store.db
+    .prepare(
+      `DELETE FROM documents WHERE tenant_id=? AND kind='overview_report'
+        AND json_extract(data,'$.state') IN ('complete','partial','failed','cancelled')
+        AND (EXISTS (SELECT 1 FROM json_each(data,'$.rows') WHERE json_extract(value,'$.connection_id')=?)
+          OR EXISTS (SELECT 1 FROM json_each(data,'$.config.sources') WHERE json_extract(value,'$.connection_id')=?))`,
+    )
+    .run(tenant, id, id).changes;
+  const captured = store.db
+    .prepare(
+      "DELETE FROM documents WHERE tenant_id=? AND kind IN ('decision_report','microsoft_report') AND json_extract(data,'$.connection_id')=?",
+    )
+    .run(tenant, id).changes;
+  return {report_snapshots: Number(snapshots), captured_reports: Number(captured)};
+}
+/** One transaction removes the vault row, related configuration and the report content read through the connection,
+ * and records its receipt/audit. Never decrypt credentials or delete mutation/recovery history. */
 export function disconnectLocalConnection(
   store: Store,
   actor: Actor,
@@ -76,13 +98,19 @@ export function disconnectLocalConnection(
     const documents = store.db
       .prepare("DELETE FROM documents WHERE tenant_id=? AND id=? AND kind IN ('website_assets','website_connection')")
       .run(actor.tenantId, id).changes;
+    const purged = purgeReportContent(store, actor.tenantId, id);
     store.db.prepare('DELETE FROM connections WHERE tenant_id=? AND id=?').run(actor.tenantId, id);
     const receipt = {
       success: true,
       executed: true,
       disconnected: true,
       ...details,
-      local_changes: {connections: 1, resource_bindings: Number(bindings), discovery_documents: Number(documents)},
+      local_changes: {
+        connections: 1,
+        resource_bindings: Number(bindings),
+        discovery_documents: Number(documents),
+        ...purged,
+      },
       network_requests: 0,
       provider_changes: 0,
       disconnected_at: Date.now(),

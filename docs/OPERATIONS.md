@@ -31,9 +31,11 @@ schemas match the captured gateway schemas exactly.
 
 ## Backup and recovery
 
-`npm run admin -- backup <new-file>` uses SQLite's consistent backup API. Protect database and backup files using host ACLs. Keep the master key separately and back it up in the secret manager; losing it makes encrypted tokens unrecoverable. Restore into a new path, point MIRROR_DB there, inject the same key, and run `npm run admin -- audit-verify`. Do not copy only the main SQLite file while WAL writes are active.
-
-For encrypted archives, use `npm run admin -- backup-encrypted <new-file>`.
+Backups are encrypted only. `npm run admin -- backup <new-file>` (and its older name `backup-encrypted`) takes a
+consistent SQLite snapshot and writes it as one AES-256-GCM archive under `MIRROR_MASTER_KEY`; no command leaves a
+plaintext database copy on disk. Keep the master key separately and back it up in the secret manager: losing it makes
+both the encrypted tokens and the backups unrecoverable. Do not copy only the main SQLite file while WAL writes are
+active.
 `npm run admin -- backup-verify <encrypted-file>` checks a disposable copy without
 opening or creating `MIRROR_DB`. To retain a verified offline restoration, use
 `npm run admin -- backup-restore <encrypted-file> <new-sqlite-file>` with the same

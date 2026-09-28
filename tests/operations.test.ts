@@ -37,9 +37,14 @@ test('administrator backup restores committed WAL data, encrypted credentials an
     store.appendAudit('t', 'test', {event: 'backup_test'});
     const env = {...process.env, MIRROR_DB: source, MIRROR_MASTER_KEY: key};
     const backed = await exec(process.execPath, [admin, 'backup', copy], {env});
-    assert.match(backed.stdout, /backup created/);
+    // Backups are encrypted only: the file is not a readable SQLite database, and it restores with the key.
+    assert.match(backed.stdout, /sha256/);
+    assert.notEqual(fs.readFileSync(copy).subarray(0, 15).toString('latin1'), 'SQLite format 3');
+    assert.ok(!fs.readFileSync(copy).includes('backup_test'), 'no plaintext audit rows in the archive');
     store.putDocument('t', 'test', 'document', {version: 'after'});
-    const restored = new Store(copy, key);
+    const database = copy + '.restored.sqlite';
+    await exec(process.execPath, [admin, 'backup-restore', copy, database], {env});
+    const restored = new Store(database, key);
     try {
       assert.equal(restored.document('t', 'test', 'document').version, 'before');
       assert.equal(restored.credentials('t', 'c').accessToken, 'synthetic-for-recovery');
@@ -47,7 +52,7 @@ test('administrator backup restores committed WAL data, encrypted credentials an
     } finally {
       restored.close();
     }
-    const checked = await exec(process.execPath, [admin, 'audit-verify'], {env: {...env, MIRROR_DB: copy}});
+    const checked = await exec(process.execPath, [admin, 'audit-verify'], {env: {...env, MIRROR_DB: database}});
     assert.match(checked.stdout, /verified/);
     await assert.rejects(exec(process.execPath, [admin, 'backup', copy], {env}), (error: any) =>
       error.stderr.includes('BACKUP_PATH_REQUIRED'),
