@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Meta ad account settings, Marketing API v25.0 "Ad Account" reference (Updating and Reading, checked 2026-09-27).
@@ -74,3 +75,22 @@ export function metaAccountSettingsVerification(p:CompiledRequest):{read:Compile
  return [{read:accountRead(p,{fields:Object.keys(body(p)).sort()}),expected:{...body(p)},id:'act_'+account(p.accountId)}];
 }
 export function metaAccountSettingsObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return data;}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const metaAccountSettingsFamily:ReviewedFamily={
+ name:'meta_account_settings',
+ files:['src/meta-account-settings.ts',['tests/meta-account-settings.test.mjs']],
+ kind:metaAccountSettingsKind,
+ assert:assertMetaAccountSettings,
+ scope:assertMetaAccountScope,
+ snapshots:metaAccountSettingsSnapshots,
+ isRead:isMetaAccountSettingsRead,
+ reader:readMetaAccountSettings,
+ validateState:validateMetaAccountSettingsState,
+ prerequisites:metaAccountSettingsPrerequisites,
+ impact:metaAccountSettingsImpact,
+ outcome:metaAccountSettingsOutcome,
+ verification:metaAccountSettingsVerification,
+ observed:metaAccountSettingsObserved,
+ exemptFromSpendTextMatch:true,
+};

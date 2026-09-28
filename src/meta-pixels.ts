@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Meta pixels of an ad account, Marketing API v25.0 ("Ad Account Adspixels" and "Ad Pixel" references, checked
@@ -107,3 +108,23 @@ export function metaPixelObserved(read:CompiledRequest,data:JsonObject):JsonObje
  const id=(read as Read).metaPixelState?.created,row=(Array.isArray(data.pixels)?data.pixels as JsonObject[]:[]).find(x=>x.id===id);
  return {pixel:row?{present:true,name:row.name,owner_business:row.owner_business}:{present:false}};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const metaPixelFamily:ReviewedFamily={
+ name:'meta_pixels',
+ files:['src/meta-pixels.ts',['tests/meta-pixels.test.mjs']],
+ kind:metaPixelKind,
+ assert:assertMetaPixel,
+ scope:assertMetaPixelScope,
+ authorize:authorizeMetaPixel,
+ snapshots:metaPixelSnapshots,
+ isRead:isMetaPixelRead,
+ reader:readMetaPixels,
+ validateState:validateMetaPixelState,
+ prerequisites:metaPixelPrerequisites,
+ impact:metaPixelImpact,
+ outcome:metaPixelOutcome,
+ verification:metaPixelVerification,
+ observed:metaPixelObserved,
+ exemptFromSpendTextMatch:true,
+};

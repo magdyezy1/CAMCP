@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Bulk status and EU political advertising updates of DV360 line items, per the pinned Display & Video 360 API v4 Discovery
@@ -100,3 +101,22 @@ export function dv360LineItemBulkVerification(p:CompiledRequest):{read:CompiledR
 export function dv360LineItemBulkObserved(_read:CompiledRequest,data:JsonObject):JsonObject{
  return {lineItems:Object.fromEntries(Object.entries(obj(data.lineItems)).map(([id,li])=>[id,{entityStatus:obj(li).entityStatus??null,containsEuPoliticalAds:obj(li).containsEuPoliticalAds??null}]))};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const dv360LineItemBulkFamily:ReviewedFamily={
+ name:'dv360_line_item_bulk_update',
+ files:['src/dv360-line-item-bulk-update.ts',['tests/dv360-line-item-bulk-update.test.mjs']],
+ kind:dv360LineItemBulkKind,
+ assert:assertDV360LineItemBulk,
+ snapshots:dv360LineItemBulkSnapshots,
+ isRead:isDV360LineItemBulkRead,
+ reader:readDV360LineItemBulk,
+ validateState:validateDV360LineItemBulkState,
+ prerequisites:dv360LineItemBulkPrerequisites,
+ impact:dv360LineItemBulkImpact,
+ outcome:dv360LineItemBulkOutcome,
+ verification:dv360LineItemBulkVerification,
+ observed:dv360LineItemBulkObserved,
+ spendConfirmation:{needed:dv360LineItemBulkNeedsConfirmation,message:'Active line items spend once their insertion order is active. Review the line items and provide spend_change_confirmed=true.'},
+ exemptFromSpendTextMatch:true,
+};

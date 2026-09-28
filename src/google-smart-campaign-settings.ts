@@ -1,7 +1,8 @@
 import {MirrorError} from './errors.js';
-import {googleJson} from './google-contracts.js';
+import {googleJson,assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Smart campaign settings, Google Ads API v23 (pinned Discovery document: SmartCampaignSettingService.
@@ -125,3 +126,22 @@ export function googleSmartObserved(read:CompiledRequest,data:JsonObject):JsonOb
  const found=object(data.settings)?data.settings:{},names=(read as Read).googleSmartState?.settings??[];
  return {settings:Object.fromEntries(names.map(n=>[n,object(found[n])?found[n]:{present:false}]))};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleSmartFamily:ReviewedFamily={
+ name:'google_smart_campaign_settings',
+ files:['src/google-smart-campaign-settings.ts',['tests/google-smart-campaign-settings.test.mjs']],
+ kind:googleSmartKind,
+ assert:assertGoogleSmart,
+ scope:assertGoogleAdsScope,
+ snapshots:googleSmartSnapshots,
+ isRead:isGoogleSmartRead,
+ reader:readGoogleSmart,
+ validateState:validateGoogleSmartState,
+ prerequisites:googleSmartPrerequisites,
+ impact:googleSmartImpact,
+ outcome:googleSmartOutcome,
+ verification:googleSmartVerification,
+ observed:googleSmartObserved,
+ exemptFromSpendTextMatch:true,
+};

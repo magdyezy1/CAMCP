@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * X poll, image conversation and video conversation cards, per X Ads API v12 Creatives reference ("Poll Cards", "Image
@@ -141,3 +142,21 @@ export function xConversationCardVerification(p:CompiledRequest,result:JsonObjec
  return [{read:read(p,'/cards/'+kind+'/'+id,{with_deleted:true},{kind,media:[],features:false,card:id}),expected:{card:expected},id}];
 }
 export function xConversationCardObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {card:object(data.card)?data.card:{present:false}};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const xConversationCardFamily:ReviewedFamily={
+ name:'x_conversation_cards',
+ files:['src/x-conversation-cards.ts',['tests/x-conversation-cards.test.mjs']],
+ kind:xConversationCardKind,
+ assert:assertXConversationCard,
+ snapshots:xConversationCardSnapshots,
+ isRead:isXConversationCardRead,
+ reader:readXConversationCards,
+ validateState:validateXConversationCardState,
+ prerequisites:xConversationCardPrerequisites,
+ impact:xConversationCardImpact,
+ outcome:xConversationCardOutcome,
+ verification:xConversationCardVerification,
+ observed:xConversationCardObserved,
+ exemptFromSpendTextMatch:true,
+};

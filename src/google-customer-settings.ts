@@ -1,7 +1,8 @@
 import {MirrorError} from './errors.js';
-import {googleJson} from './google-contracts.js';
+import {googleJson,assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Account settings of a Google Ads customer, API v23 (pinned Discovery document: CustomerService.MutateCustomer,
@@ -141,3 +142,24 @@ export function googleCustomerSettingsVerification(p:CompiledRequest):{read:Comp
  const w=writes(p);return [{read:{...read(p,settingsQuery),googleCustomerSettingsState:{}} as Read,expected:{settings:Object.fromEntries(Object.entries(w).map(([f,v])=>[f,f==='callReportingSetting.callConversionAction'&&v===''?null:v]))},id:'customers/'+account(p)}];
 }
 export function googleCustomerSettingsObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {settings:object(data.settings)?data.settings:null};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleCustomerSettingsFamily:ReviewedFamily={
+ name:'google_customer_settings',
+ files:['src/google-customer-settings.ts',['tests/google-customer-settings.test.mjs']],
+ kind:googleCustomerSettingsKind,
+ assert:assertGoogleCustomerSettings,
+ scope:assertGoogleAdsScope,
+ snapshots:googleCustomerSettingsSnapshots,
+ isRead:isGoogleCustomerSettingsRead,
+ reader:readGoogleCustomerSettings,
+ validateState:validateGoogleCustomerSettingsState,
+ prerequisites:googleCustomerSettingsPrerequisites,
+ impact:googleCustomerSettingsImpact,
+ outcome:googleCustomerSettingsOutcome,
+ verification:googleCustomerSettingsVerification,
+ observed:googleCustomerSettingsObserved,
+ spendConfirmation:{needed:googleCustomerSettingsNeedsConfirmation,message:'Video brand safety suitability decides which inventory video ads may use. Review the change and provide spend_change_confirmed=true.'},
+ exemptFromSpendTextMatch:true,
+ activates:googleCustomerSettingsWidens,
+};

@@ -1,7 +1,8 @@
 import {MirrorError} from './errors.js';
-import {googleJson} from './google-contracts.js';
+import {googleJson,assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Brand guidelines of existing Performance Max campaigns, Google Ads API v23 (pinned Discovery document:
@@ -166,3 +167,23 @@ export function googleBrandGuidelinesObserved(_read:CompiledRequest,data:JsonObj
  }
  return {campaigns,links:object(data.links)?data.links:{},autopopulated};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleBrandGuidelinesFamily:ReviewedFamily={
+ name:'google_pmax_brand_guidelines',
+ files:['src/google-pmax-brand-guidelines.ts',['tests/google-pmax-brand-guidelines.test.mjs']],
+ kind:googleBrandGuidelinesKind,
+ assert:assertGoogleBrandGuidelines,
+ scope:assertGoogleAdsScope,
+ snapshots:googleBrandGuidelinesSnapshots,
+ isRead:isGoogleBrandGuidelinesRead,
+ reader:readGoogleBrandGuidelines,
+ validateState:validateGoogleBrandGuidelinesState,
+ prerequisites:googleBrandGuidelinesPrerequisites,
+ impact:googleBrandGuidelinesImpact,
+ outcome:googleBrandGuidelinesOutcome,
+ verification:googleBrandGuidelinesVerification,
+ observed:googleBrandGuidelinesObserved,
+ spendConfirmation:{needed:googleBrandGuidelinesKind,message:'Brand guidelines change the brand assets of each campaign at once and cannot be turned off again. Review the campaigns and assets and provide spend_change_confirmed=true.'},
+ exemptFromSpendTextMatch:true,
+};

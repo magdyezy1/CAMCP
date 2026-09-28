@@ -1,7 +1,8 @@
 import {MirrorError} from './errors.js';
-import {googleJson} from './google-contracts.js';
+import {googleJson,assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Auto-apply recommendation subscriptions, Google Ads API v23 (pinned Discovery document:
@@ -117,3 +118,24 @@ export function googleSubscriptionObserved(read:CompiledRequest,data:JsonObject)
  const found=object(data.subscriptions)?data.subscriptions:{},types=(read as Read).googleSubscriptionState?.types??[];
  return {subscriptions:Object.fromEntries(types.map(t=>[t,object(found[t])?found[t]:{status:null}]))};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleSubscriptionFamily:ReviewedFamily={
+ name:'google_recommendation_subscriptions',
+ files:['src/google-recommendation-subscriptions.ts',['tests/google-recommendation-subscriptions.test.mjs']],
+ kind:googleSubscriptionKind,
+ assert:assertGoogleSubscriptions,
+ scope:assertGoogleAdsScope,
+ snapshots:googleSubscriptionSnapshots,
+ isRead:isGoogleSubscriptionRead,
+ reader:readGoogleSubscriptions,
+ validateState:validateGoogleSubscriptionState,
+ prerequisites:googleSubscriptionPrerequisites,
+ impact:googleSubscriptionImpact,
+ outcome:googleSubscriptionOutcome,
+ verification:googleSubscriptionVerification,
+ observed:googleSubscriptionObserved,
+ spendConfirmation:{needed:googleSubscriptionEnables,message:'An enabled recommendation subscription lets Google change budgets, bids, keywords or ads automatically. Review it and provide spend_change_confirmed=true.'},
+ exemptFromSpendTextMatch:true,
+ activates:googleSubscriptionEnables,
+};

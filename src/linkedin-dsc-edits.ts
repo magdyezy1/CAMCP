@@ -3,6 +3,7 @@ import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {Store} from './store.js';
 import type {TransportResult} from './transport.js';
 import {assertLinkedInOrganization} from './linkedin-posts.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Editing and deleting LinkedIn Direct Sponsored Content posts, per "Posts API" (li-lms-2026-09, checked 2026-09-28).
@@ -136,3 +137,23 @@ export function linkedinDscEditObserved(_read:CompiledRequest,data:JsonObject):J
  const post=object(data.post)?data.post:{};
  return {post:post.present===true?{present:true,commentary:post.commentary??null,contentLandingPage:post.contentLandingPage??null,contentCallToActionLabel:post.contentCallToActionLabel??null}:{present:false}};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const linkedinDscEditFamily:ReviewedFamily={
+ name:'linkedin_dsc_edits',
+ files:['src/linkedin-dsc-edits.ts',['tests/linkedin-dsc-edits.test.mjs']],
+ kind:linkedinDscEditKind,
+ assert:assertLinkedInDscEdit,
+ authorize:(plan,connection,id,store)=>authorizeLinkedInDscEdit(plan,connection,store,id),
+ snapshots:linkedinDscEditSnapshots,
+ isRead:isLinkedInDscEditRead,
+ reader:readLinkedInDscEdits,
+ validateState:validateLinkedInDscEditState,
+ prerequisites:linkedinDscEditPrerequisites,
+ impact:linkedinDscEditImpact,
+ outcome:linkedinDscEditOutcome,
+ verification:linkedinDscEditVerification,
+ observed:linkedinDscEditObserved,
+ spendConfirmation:{needed:linkedinDscEditNeedsConfirmation,message:'Editing a sponsored post changes the ads that sponsor it. Review them and provide spend_change_confirmed=true.'},
+ exemptFromSpendTextMatch:true,
+};

@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Business Profile location hours and contact details, per the pinned Business Information API v1 Discovery document
@@ -147,3 +148,22 @@ export function businessLocationEditVerification(p:CompiledRequest):{read:Compil
  return [{read:read(p),expected:{location:expectedOf(p)},id:locationOf(p)}];
 }
 export function businessLocationEditObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {location:obj(data.location)?data.location:null};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const businessLocationEditFamily:ReviewedFamily={
+ name:'google_business_location_edits',
+ files:['src/google-business-location-edits.ts',['tests/google-business-location-edits.test.mjs']],
+ kind:businessLocationEditKind,
+ assert:assertBusinessLocationEdit,
+ authorize:authorizeBusinessLocationEdit,
+ snapshots:businessLocationEditSnapshots,
+ isRead:isBusinessLocationEditRead,
+ reader:readBusinessLocationEdits,
+ validateState:validateBusinessLocationEditState,
+ prerequisites:businessLocationEditPrerequisites,
+ impact:businessLocationEditImpact,
+ outcome:businessLocationEditOutcome,
+ verification:businessLocationEditVerification,
+ observed:businessLocationEditObserved,
+ exemptFromSpendTextMatch:true,
+};

@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Deleting TikTok saved audiences and custom identities, per API for Business v1.3 "Delete Saved Audiences", "Get details
@@ -108,3 +109,21 @@ export function tiktokDeletionVerification(p:CompiledRequest):{read:CompiledRequ
  return [{read:stateRead(p,{kind:tiktokDeletionKind(p)!,ids,usage:false}),expected:{items:Object.fromEntries(ids.map(id=>['a'+id,{present:false}]))},id:ids.join(',')}];
 }
 export function tiktokDeletionObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {items:obj(data.items)?data.items:{}};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokDeletionFamily:ReviewedFamily={
+ name:'tiktok_deletions',
+ files:['src/tiktok-deletions.ts',['tests/tiktok-deletions.test.mjs']],
+ kind:tiktokDeletionKind,
+ assert:assertTiktokDeletion,
+ snapshots:tiktokDeletionSnapshots,
+ isRead:isTiktokDeletionRead,
+ reader:readTiktokDeletions,
+ validateState:validateTiktokDeletionState,
+ prerequisites:tiktokDeletionPrerequisites,
+ impact:tiktokDeletionImpact,
+ outcome:tiktokDeletionOutcome,
+ verification:tiktokDeletionVerification,
+ observed:tiktokDeletionObserved,
+ exemptFromSpendTextMatch:true,
+};

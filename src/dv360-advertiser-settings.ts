@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Settings of the selected DV360 advertiser, Display & Video 360 API v4 (pinned Discovery document: advertisers.patch,
@@ -110,3 +111,23 @@ export function dv360AdvertiserVerification(p:CompiledRequest):{read:CompiledReq
  return [{read:probe,expected:{settings:writes(p)},id:'advertisers/'+advertiserOf(p)}];
 }
 export function dv360AdvertiserObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {settings:object(data.settings)?data.settings:null};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const dv360AdvertiserFamily:ReviewedFamily={
+ name:'dv360_advertiser_settings',
+ files:['src/dv360-advertiser-settings.ts',['tests/dv360-advertiser-settings.test.mjs']],
+ kind:dv360AdvertiserKind,
+ assert:assertDV360Advertiser,
+ snapshots:dv360AdvertiserSnapshots,
+ isRead:isDV360AdvertiserRead,
+ reader:readDV360Advertiser,
+ validateState:validateDV360AdvertiserState,
+ prerequisites:dv360AdvertiserPrerequisites,
+ impact:dv360AdvertiserImpact,
+ outcome:dv360AdvertiserOutcome,
+ verification:dv360AdvertiserVerification,
+ observed:dv360AdvertiserObserved,
+ spendConfirmation:{needed:dv360AdvertiserActivates,message:'An active advertiser lets every insertion order and line item under it spend and bid again. Review it and provide spend_change_confirmed=true.'},
+ exemptFromSpendTextMatch:true,
+ activates:dv360AdvertiserActivates,
+};

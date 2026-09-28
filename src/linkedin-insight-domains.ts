@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import {parseLinkedInValue,linkedinQuery} from './linkedin-restli.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * LinkedIn Insight Tag domains, per "Conversion Tracking" of the Marketing API (li-lms-2025-10 to li-lms-2026-09, checked
@@ -165,3 +166,22 @@ export function linkedinDomainVerification(p:CompiledRequest):{read:CompiledRequ
  return [{read:stateRead(p,{domains:names,optional:true}),expected:{domains:Object.fromEntries(names.map(n=>['d:'+n,{present:true,blocked:want[n]}]))},id:names.join(',')}];
 }
 export function linkedinDomainObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {domains:object(data.domains)?data.domains:{}};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const linkedinDomainFamily:ReviewedFamily={
+ name:'linkedin_insight_tag_domains',
+ files:['src/linkedin-insight-domains.ts',['tests/linkedin-insight-domains.test.mjs']],
+ kind:linkedinDomainKind,
+ assert:assertLinkedInDomain,
+ authorize:authorizeLinkedInDomain,
+ snapshots:linkedinDomainSnapshots,
+ isRead:isLinkedInDomainRead,
+ reader:readLinkedInDomains,
+ validateState:validateLinkedInDomainState,
+ prerequisites:linkedinDomainPrerequisites,
+ impact:linkedinDomainImpact,
+ outcome:linkedinDomainOutcome,
+ verification:linkedinDomainVerification,
+ observed:linkedinDomainObserved,
+ exemptFromSpendTextMatch:true,
+};

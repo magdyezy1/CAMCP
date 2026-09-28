@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Batch writes of X campaigns and line items, per the X Ads API v12 Campaign Management reference (checked 2026-09-28).
@@ -261,3 +262,22 @@ export function xEntityBatchObserved(_read:CompiledRequest,data:JsonObject):Json
  for(const [k,e] of Object.entries(object(data.entities)?data.entities:{}))entities[k]=object(e)?Object.fromEntries(Object.entries(e).map(([f,v])=>[f,f==='present'?v:norm(f,v)])):{present:false};
  return {entities};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const xEntityBatchFamily:ReviewedFamily={
+ name:'x_entity_batches',
+ files:['src/x-entity-batches.ts',['tests/x-entity-batches.test.mjs']],
+ kind:xEntityBatchKind,
+ assert:assertXEntityBatch,
+ snapshots:xEntityBatchSnapshots,
+ isRead:isXEntityBatchRead,
+ reader:readXEntityBatches,
+ validateState:validateXEntityBatchState,
+ prerequisites:xEntityBatchPrerequisites,
+ impact:xEntityBatchImpact,
+ outcome:xEntityBatchOutcome,
+ verification:xEntityBatchVerification,
+ observed:xEntityBatchObserved,
+ destructive:xEntityBatchDeletes,
+ policyAmounts:xEntityBatchPolicyAmounts,
+};

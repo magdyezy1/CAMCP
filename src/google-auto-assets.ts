@@ -1,7 +1,8 @@
 import {MirrorError} from './errors.js';
-import {googleJson} from './google-contracts.js';
+import {googleJson,assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Removal of automatically created assets, Google Ads API v23 (pinned Discovery document:
@@ -135,3 +136,23 @@ export function googleAutoAssetObserved(read:CompiledRequest,data:JsonObject):Js
  const present=object(data.links)?data.links:{},check=(read as Read).googleAutoAssetState?.check??[];
  return {removed:Object.fromEntries(check.map(k=>[k,!Object.hasOwn(present,k)]))};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleAutoAssetFamily:ReviewedFamily={
+ name:'google_auto_assets',
+ files:['src/google-auto-assets.ts',['tests/google-auto-assets.test.mjs']],
+ kind:googleAutoAssetKind,
+ assert:assertGoogleAutoAssets,
+ scope:assertGoogleAdsScope,
+ snapshots:googleAutoAssetSnapshots,
+ isRead:isGoogleAutoAssetRead,
+ reader:readGoogleAutoAssets,
+ validateState:validateGoogleAutoAssetState,
+ prerequisites:googleAutoAssetPrerequisites,
+ impact:googleAutoAssetImpact,
+ outcome:googleAutoAssetOutcome,
+ verification:googleAutoAssetVerification,
+ observed:googleAutoAssetObserved,
+ exemptFromSpendTextMatch:true,
+ destructive:googleAutoAssetRemoves,
+};

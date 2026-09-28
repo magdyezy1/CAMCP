@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import {parseLinkedInValue,linkedinQuery} from './linkedin-restli.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * LinkedIn dynamic UTM tracking parameters, per "Dynamic UTM Tracking" of the Marketing API (li-lms-2026-09, checked
@@ -168,3 +169,23 @@ export function linkedinTrackingVerification(p:CompiledRequest):{read:CompiledRe
 export function linkedinTrackingObserved(_read:CompiledRequest,data:JsonObject):JsonObject{
  const s=object(data.parameters)?data.parameters:{};return {parameters:{dynamic:s.dynamic??{},custom:s.custom??{}}};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const linkedinTrackingFamily:ReviewedFamily={
+ name:'linkedin_tracking_parameters',
+ files:['src/linkedin-tracking-parameters.ts',['tests/linkedin-tracking-parameters.test.mjs']],
+ kind:linkedinTrackingKind,
+ assert:assertLinkedInTracking,
+ scope:assertLinkedInTrackingScope,
+ authorize:authorizeLinkedInTracking,
+ snapshots:linkedinTrackingSnapshots,
+ isRead:isLinkedInTrackingRead,
+ reader:readLinkedInTracking,
+ validateState:validateLinkedInTrackingState,
+ prerequisites:linkedinTrackingPrerequisites,
+ impact:linkedinTrackingImpact,
+ outcome:linkedinTrackingOutcome,
+ verification:linkedinTrackingVerification,
+ observed:linkedinTrackingObserved,
+ exemptFromSpendTextMatch:true,
+};

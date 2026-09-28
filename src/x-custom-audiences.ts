@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Custom audiences of an X Ads account, Ads API v12 (Audiences reference, "Custom Audiences"; docs.x.com copy read on
@@ -144,3 +145,21 @@ export function xAudienceObserved(_read:CompiledRequest,data:JsonObject):JsonObj
  const a=object(data.audience)?data.audience:null;
  return {audience:a&&a.present===true?{...a,description:a.description??''}:a};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const xAudienceFamily:ReviewedFamily={
+ name:'x_custom_audiences',
+ files:['src/x-custom-audiences.ts',['tests/x-custom-audiences.test.mjs']],
+ kind:xAudienceKind,
+ assert:assertXAudience,
+ snapshots:xAudienceSnapshots,
+ isRead:isXAudienceRead,
+ reader:readXAudience,
+ validateState:validateXAudienceState,
+ prerequisites:xAudiencePrerequisites,
+ impact:xAudienceImpact,
+ outcome:xAudienceOutcome,
+ verification:xAudienceVerification,
+ observed:xAudienceObserved,
+ exemptFromSpendTextMatch:true,
+};

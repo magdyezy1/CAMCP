@@ -35,12 +35,16 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
    policy amounts, spend declaration). The core iterates the registry. Equivalence proof: the action ledger,
    `CONTRACTS.md` and guidance coverage are unchanged, plus a disjointness test over every ledger route and a
    runtime guard that refuses a plan matched by two families. Migrate the 83 families of the nested reader chain
-   first, then the rest (F-59, F-60, F-63).
+   first, then the rest (F-59, F-60, F-63). **Pass 1 done:** 41 families registered; remaining: the other
+   reader-chain families (irregular hooks: Criteo catalog/overrides and DV360 SDF authorize before the qualified-read
+   check and record verified resources; Snapchat families assert after the method-override check), then the
+   families without readers, then the DV360 write-scope line and compile-time path rewriting.
 2. **Guarded reader helper** replacing the 15 hand-copied wrappers in `state()` (F-61).
 3. **Stage split** of `write-review.ts` / `write-verification.ts` along the lifecycle.
 4. **Formatting**: Prettier at 120 columns, `.editorconfig` with LF, module by module in format-only commits; each
    proven neutral by comparing Prettier-normalised `dist/` before and after, plus the generated checks (F-62).
-5. Adding-a-family guide showing the one-module, one-test, one-registration workflow.
+5. Adding-a-family guide showing the one-module, one-test, one-registration workflow. **Done:**
+   `docs/ADDING-A-REVIEWED-FAMILY.md`.
 
 ## P3 — website and MCP workflow
 

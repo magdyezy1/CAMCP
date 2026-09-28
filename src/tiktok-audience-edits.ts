@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * TikTok custom audience edits, per API for Business v1.3 "Update an audience", "Delete audiences", "Apply audiences to
@@ -210,3 +211,22 @@ export function tiktokAudienceEditObserved(read:CompiledRequest,data:JsonObject)
  }
  return out;
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokAudienceEditFamily:ReviewedFamily={
+ name:'tiktok_audience_edits',
+ files:['src/tiktok-audience-edits.ts',['tests/tiktok-audience-edits.test.mjs']],
+ kind:tiktokAudienceEditKind,
+ assert:assertTiktokAudienceEdit,
+ snapshots:tiktokAudienceEditSnapshots,
+ isRead:isTiktokAudienceEditRead,
+ reader:readTiktokAudienceEdits,
+ validateState:validateTiktokAudienceEditState,
+ prerequisites:tiktokAudienceEditPrerequisites,
+ impact:tiktokAudienceEditImpact,
+ outcome:tiktokAudienceEditOutcome,
+ verification:tiktokAudienceEditVerification,
+ observed:tiktokAudienceEditObserved,
+ spendConfirmation:{needed:tiktokAudienceNeedsConfirmation,message:'Applying or disconnecting an audience changes whom the ad groups reach while they deliver. Review the ad groups and provide spend_change_confirmed=true.'},
+ exemptFromSpendTextMatch:true,
+};

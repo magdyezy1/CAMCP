@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Creating custom conversions in a Meta ad account, Marketing API v25.0 ("Ad Account Customconversions" reference,
@@ -105,3 +106,22 @@ export function metaConversionObserved(read:CompiledRequest,data:JsonObject):Jso
  const id=(read as Read).metaConversionState?.id,c=object(data.conversions)&&id?data.conversions['c'+id]:undefined;
  return {conversion:object(c)?c:{present:false}};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const metaConversionFamily:ReviewedFamily={
+ name:'meta_custom_conversions',
+ files:['src/meta-custom-conversions.ts',['tests/meta-custom-conversions.test.mjs']],
+ kind:metaConversionKind,
+ assert:assertMetaConversion,
+ scope:assertMetaConversionScope,
+ snapshots:metaConversionSnapshots,
+ isRead:isMetaConversionRead,
+ reader:readMetaConversions,
+ validateState:validateMetaConversionState,
+ prerequisites:metaConversionPrerequisites,
+ impact:metaConversionImpact,
+ outcome:metaConversionOutcome,
+ verification:metaConversionVerification,
+ observed:metaConversionObserved,
+ exemptFromSpendTextMatch:true,
+};

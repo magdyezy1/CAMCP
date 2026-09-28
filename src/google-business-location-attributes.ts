@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Business Profile location attributes, per the pinned Business Information API v1 Discovery document
@@ -148,3 +149,22 @@ export function businessAttributeObserved(read:CompiledRequest,data:JsonObject):
  for(const name of s&&s.kind==='verify'?s.mask:[])if(!Object.hasOwn(attributes,key(name)))attributes[key(name)]={present:false};
  return {attributes};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const businessAttributeFamily:ReviewedFamily={
+ name:'google_business_location_attributes',
+ files:['src/google-business-location-attributes.ts',['tests/google-business-location-attributes.test.mjs']],
+ kind:businessAttributeKind,
+ assert:assertBusinessAttribute,
+ authorize:authorizeBusinessAttribute,
+ snapshots:businessAttributeSnapshots,
+ isRead:isBusinessAttributeRead,
+ reader:readBusinessAttributes,
+ validateState:validateBusinessAttributeState,
+ prerequisites:businessAttributePrerequisites,
+ impact:businessAttributeImpact,
+ outcome:businessAttributeOutcome,
+ verification:businessAttributeVerification,
+ observed:businessAttributeObserved,
+ exemptFromSpendTextMatch:true,
+};

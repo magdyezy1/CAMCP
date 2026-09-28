@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * TikTok audiences by rule, per API for Business v1.3 "Create an audience by rule", "Get audience details" and the
@@ -171,3 +172,21 @@ export function tiktokRuleAudienceVerification(p:CompiledRequest,result:JsonObje
 }
 /** The created audience as the fields verification compares. */
 export function tiktokRuleAudienceObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return obj(data.audience)?data.audience:{present:false};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokRuleAudienceFamily:ReviewedFamily={
+ name:'tiktok_rule_audiences',
+ files:['src/tiktok-rule-audiences.ts',['tests/tiktok-rule-audiences.test.mjs']],
+ kind:tiktokRuleAudienceKind,
+ assert:assertTiktokRuleAudience,
+ snapshots:tiktokRuleAudienceSnapshots,
+ isRead:isTiktokRuleAudienceRead,
+ reader:readTiktokRuleAudiences,
+ validateState:validateTiktokRuleAudienceState,
+ prerequisites:tiktokRuleAudiencePrerequisites,
+ impact:tiktokRuleAudienceImpact,
+ outcome:tiktokRuleAudienceOutcome,
+ verification:tiktokRuleAudienceVerification,
+ observed:tiktokRuleAudienceObserved,
+ exemptFromSpendTextMatch:true,
+};

@@ -10,21 +10,12 @@ import {criteoKeywordKind,criteoBidMultiplierKind,criteoKeywordsWiden} from './c
 import {dv360AdGroupKind,dv360AdGroupNeedsConfirmation} from './dv360-demand-gen-ad-groups.js';
 import {dv360AdAssetKind} from './dv360-ad-assets.js';
 import {dv360AdKind,dv360AdNeedsConfirmation} from './dv360-demand-gen-ads.js';
-import {dv360LineItemBulkKind,dv360LineItemBulkNeedsConfirmation} from './dv360-line-item-bulk-update.js';
 import {dv360LineItemDuplicateKind} from './dv360-line-item-duplicate.js';
 import {dv360InventoryGroupKind,dv360InventoryGroupServing} from './dv360-inventory-source-groups.js';
-import {dv360AdvertiserKind,dv360AdvertiserActivates} from './dv360-advertiser-settings.js';
 import {dv360BiddingKind} from './dv360-custom-bidding.js';
 import {dv360SdfKind} from './dv360-sdf-downloads.js';
 import {xTrackingTagKind} from './x-tracking-tags.js';
 import {xAssociationKind,xAssociationNeedsConfirmation} from './x-line-item-associations.js';
-import {googleDraftKind,googleDraftNeedsConfirmation} from './google-campaign-drafts.js';
-import {googleExperimentKind,googleExperimentNeedsConfirmation} from './google-experiments.js';
-import {googleCustomerSettingsKind,googleCustomerSettingsNeedsConfirmation} from './google-customer-settings.js';
-import {googleAutoAssetKind} from './google-auto-assets.js';
-import {googleUploadKind} from './google-youtube-uploads.js';
-import {googleSubscriptionKind,googleSubscriptionEnables} from './google-recommendation-subscriptions.js';
-import {googleSmartKind} from './google-smart-campaign-settings.js';
 import {googleApplyKind} from './google-recommendation-apply.js';
 import {xCuratedKind,xCuratedNeedsConfirmation} from './x-curated-categories.js';
 import {metaReportKind} from './meta-insights-jobs.js';
@@ -38,11 +29,7 @@ import {googleDismissalKind} from './google-recommendation-dismissal.js';
 import {googleAccessKind} from './google-user-access.js';
 import {keywordPlanKind} from './google-keyword-plan-writes.js';
 import {linkedinConversionKind} from './linkedin-conversion-links.js';
-import {googleBrandGuidelinesKind} from './google-pmax-brand-guidelines.js';
-import {linkedinTrackingKind} from './linkedin-tracking-parameters.js';
 import {linkedinThirdPartyKind} from './linkedin-third-party-tracking.js';
-import {linkedinInsightKind} from './linkedin-insight-tags.js';
-import {linkedinAbKind,linkedinAbNeedsConfirmation} from './linkedin-ab-tests.js';
 import {linkedinMessageKind} from './linkedin-message-ads.js';
 import {linkedinRuleServing} from './linkedin-conversion-rules.js';
 import {linkedinLeadFormKind} from './linkedin-lead-forms.js';
@@ -67,47 +54,22 @@ import {googleListingGroupKind} from './google-listing-groups.js';
 import {tiktokNegativeKeywordWidens} from './tiktok-negative-keywords.js';
 import {tiktokBrandSafetyWidens,tiktokBrandSafetyHubKind} from './tiktok-brand-safety.js';
 import {metaValueRuleServing} from './meta-value-rules.js';
-import {metaObjectKind} from './meta-object-edits.js';
-import {metaImageKind} from './meta-ad-images.js';
-import {metaConversionKind} from './meta-custom-conversions.js';
 import {snapDisclaimerKind} from './snapchat-offer-disclaimers.js';
 import {snapSegmentDeleteKind} from './snapchat-segment-deletions.js';
 import {snapConversionKind} from './snapchat-custom-conversions.js';
 import {snapProductSetKind} from './snapchat-product-sets.js';
-import {linkedinDomainKind} from './linkedin-insight-domains.js';
 import {snapTemplateKind} from './snapchat-dynamic-templates.js';
 import {snapEventKind} from './snapchat-event-details.js';
 import {snapPixelNameKind} from './snapchat-pixel-names.js';
-import {linkedinPublisherKind} from './linkedin-publisher-restrictions.js';
-import {dv360BiddingFileKind} from './dv360-custom-bidding-files.js';
 import {tiktokBlockedWordKind} from './tiktok-blocked-words.js';
-import {tiktokConversionEditKind} from './tiktok-conversion-edits.js';
-import {tiktokDeletionKind} from './tiktok-deletions.js';
-import {tiktokAudienceEditKind,tiktokAudienceNeedsConfirmation} from './tiktok-audience-edits.js';
-import {tiktokLibraryKind} from './tiktok-library-assets.js';
-import {tiktokRuleAudienceKind} from './tiktok-rule-audiences.js';
-import {xConversationCardKind} from './x-conversation-cards.js';
-import {metaPixelKind} from './meta-pixels.js';
-import {metaAccountSettingsKind} from './meta-account-settings.js';
-import {linkedinLeadFormStateKind,linkedinLeadFormStateNeedsConfirmation} from './linkedin-lead-form-states.js';
-import {tiktokImageEditKind} from './tiktok-image-edits.js';
-import {tiktokChangeLogKind} from './tiktok-change-logs.js';
-import {metaSplitTestKind,metaSplitTestNeedsConfirmation} from './meta-split-tests.js';
-import {linkedinDscEditKind,linkedinDscEditNeedsConfirmation} from './linkedin-dsc-edits.js';
-import {dv360AudienceEditKind} from './dv360-audience-edits.js';
-import {linkedinAccountSettingsKind} from './linkedin-account-settings.js';
-import {businessLocationEditKind} from './google-business-location-edits.js';
-import {businessAttributeKind} from './google-business-location-attributes.js';
-import {businessLodgingKind} from './google-business-lodging.js';
 import {xPrerollCtaKind} from './x-preroll-ctas.js';
-import {xMediaKind} from './x-media-library.js';
 import {xScheduledKind} from './x-scheduled-tweets.js';
-import {xAudienceKind} from './x-custom-audiences.js';
 import {metaAccountControlsKind} from './meta-brand-safety.js';
 import {microsoftAssociationWrite} from './microsoft-associations.js';
 import {xPromotion} from './x-creative-writes.js';
 import {tiktokSmartPlusAdgroupUpdateServing} from './tiktok-smart-plus-adgroup-updates.js';
 import {numericStatusPaths,deliveryEditFields} from './spend-effects.js';
+import {familyOf} from './reviewed-families.js';
 export interface ExecutionPolicy {allowWrites:boolean;maxBudgetChange:number;requireBeforeState:boolean}
 export const readOnlyPolicy:ExecutionPolicy={allowWrites:false,maxBudgetChange:0,requireBeforeState:true};
 export function authorizeExecution(actor:Actor,plan:CompiledRequest,input:JsonObject,policy:ExecutionPolicy,verifiedBeforeState=false):void{
@@ -125,17 +87,11 @@ export function authorizeExecution(actor:Actor,plan:CompiledRequest,input:JsonOb
  if(delivery?.fields.length&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','This edit changes fields that decide what an existing '+delivery.entity+' serves, bids or spends: '+delivery.fields.join(', ')+'. Review them against before_state and provide spend_change_confirmed=true.',{fields:delivery.fields});
  if(snapUpdateKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Snapchat entity updates can change current delivery, dates, bidding and spending. Review the exact effects and provide spend_change_confirmed=true.');
  if(xCuratedNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','A curated category decides next to which publishers the pre-roll line item runs. Review it and provide spend_change_confirmed=true.');
- if(googleSubscriptionEnables(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','An enabled recommendation subscription lets Google change budgets, bids, keywords or ads automatically. Review it and provide spend_change_confirmed=true.');
- if(googleCustomerSettingsNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Video brand safety suitability decides which inventory video ads may use. Review the change and provide spend_change_confirmed=true.');
- if(googleExperimentNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Scheduling, promoting or graduating an experiment starts or changes what its campaigns serve and spend. Review it and provide spend_change_confirmed=true.');
- if(googleDraftNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Promoting a campaign draft applies every change staged in the draft campaign to the base campaign, which may be serving. Review them and provide spend_change_confirmed=true.');
+ // Registered families (reviewed-families.ts) are consulted here; the lines around this one belong to families not yet registered.
+ const spend=familyOf(plan)?.spendConfirmation;
+ if(spend?.needed(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED',spend.message);
  if(xAssociationNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','A new promoted account or media creative is ACTIVE and serves at once under an active line item and campaign. Review them and provide spend_change_confirmed=true.');
  if(xPromotion(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','X promotion may serve immediately. Review the parent delivery state and provide spend_change_confirmed=true.');
- if(linkedinDscEditNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Editing a sponsored post changes the ads that sponsor it. Review them and provide spend_change_confirmed=true.');
- if(metaSplitTestNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','A split test divides the audience of its ad sets or campaigns until it ends. Review it and provide spend_change_confirmed=true.');
- if(linkedinLeadFormStateNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Publishing or archiving a lead form decides whether the creatives that use it serve. Review it and provide spend_change_confirmed=true.');
- if(tiktokAudienceNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Applying or disconnecting an audience changes whom the ad groups reach while they deliver. Review the ad groups and provide spend_change_confirmed=true.');
- if(googleBrandGuidelinesKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Brand guidelines change the brand assets of each campaign at once and cannot be turned off again. Review the campaigns and assets and provide spend_change_confirmed=true.');
  if(linkedinConversionKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Campaign conversion associations can affect optimization. Review the selected campaigns and conversion rules and confirm the spending impact.');
  if(linkedinRuleServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Conversion-rule enablement, attribution and matching can affect optimization. Review every associated campaign and confirm this impact.');
  if(criteoCampaignKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Criteo campaign creation and PUT can permit delivery. Review all limits, balances, dates and attribution and provide spend_change_confirmed=true.');
@@ -144,8 +100,6 @@ export function authorizeExecution(actor:Actor,plan:CompiledRequest,input:JsonOb
  if(criteoLineItemKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED',criteoLineItemKind(plan)==='create'?'The new line item carries budgets and bids that apply once products are added and it is activated. Review them and provide spend_change_confirmed=true.':'A complete line item PUT replaces its budgets, bids, dates and status and can start or change delivery. Review every field and provide spend_change_confirmed=true.');
  if(criteoPreferredKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED',criteoPreferredKind(plan)==='create'?'The new preferred line item carries a budget that it spends once it is activated. Review it and provide spend_change_confirmed=true.':'A complete preferred line item PUT replaces its budget, dates, placement and status and can start or change spending. Review it and provide spend_change_confirmed=true.');
  if(googleApplyKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Applying a recommendation adds keywords that serve at once or changes campaign budgets. Review the changes and provide spend_change_confirmed=true.');
- if(linkedinAbNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','An active A/B test splits the traffic of its campaigns, which serve and spend under it. Review it and provide spend_change_confirmed=true.');
- if(dv360LineItemBulkNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Active line items spend once their insertion order is active. Review the line items and provide spend_change_confirmed=true.');
  if(dv360AdNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','An active Demand Gen ad serves once its ad group and line item are active. Review the ad and provide spend_change_confirmed=true.');
  if(dv360AdGroupNeedsConfirmation(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','An active Demand Gen ad group bids once its line item and an ad are active, and a bid value changes what it pays. Review the ad group and provide spend_change_confirmed=true.');
  if((criteoKeywordsWiden(plan)||criteoKeywordKind(plan)==='bids'||criteoBidMultiplierKind(plan))&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Keywords that widen delivery, keyword bids and bid multipliers change where and at what price the line item bids. Review them and provide spend_change_confirmed=true.');
@@ -154,7 +108,6 @@ export function authorizeExecution(actor:Actor,plan:CompiledRequest,input:JsonOb
  if(appleEntityServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Apple shared budgets, exclusions, creative edits and serving settings can affect existing campaigns. Provide spend_change_confirmed=true.');
  if(dv360TargetingKind(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','DV360 targeting changes which impressions line items and ad groups can buy, at once for active ones. Review them and the changes and provide spend_change_confirmed=true.');
  if(dv360ListAffectsServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','DV360 shared-list membership can change serving eligibility. Provide spend_change_confirmed=true.');
- if(dv360AdvertiserActivates(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','An active advertiser lets every insertion order and line item under it spend and bid again. Review it and provide spend_change_confirmed=true.');
  if(dv360InventoryGroupServing(plan)&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Inventory source group membership decides which deals and auction packages line items targeting the group can buy. Review the change and provide spend_change_confirmed=true.');
  if((googleAssetLinkKind(plan)||microsoftAssociationWrite(plan))&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Asset associations change which creative can serve. Review the parent state and provide spend_change_confirmed=true.');
  if((googleTargetingKind(plan)||plan.gateway==='reddit_native_action')&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Targeting, serving and shared-list changes require spend_change_confirmed=true.');
@@ -174,5 +127,5 @@ export function authorizeExecution(actor:Actor,plan:CompiledRequest,input:JsonOb
  // Segment effects are decided by the contract above. Native ENABLED denotes
  // an available definition; a keyword containing "budget" is not a budget edit, and neither is a lead form
  // question, a custom conversion rule value or a saved audience name.
- if(!xReportKind(plan)&&!tiktokReportKind(plan)&&!criteoReportKind(plan)&&!dv360AdGroupKind(plan)&&!dv360AdAssetKind(plan)&&!dv360AdKind(plan)&&!dv360LineItemBulkKind(plan)&&!dv360LineItemDuplicateKind(plan)&&!dv360InventoryGroupKind(plan)&&!dv360AdvertiserKind(plan)&&!xTrackingTagKind(plan)&&!xAssociationKind(plan)&&!googleDraftKind(plan)&&!googleExperimentKind(plan)&&!googleCustomerSettingsKind(plan)&&!googleAutoAssetKind(plan)&&!googleUploadKind(plan)&&!googleSubscriptionKind(plan)&&!googleSmartKind(plan)&&!xCuratedKind(plan)&&!linkedinTrackingKind(plan)&&!linkedinThirdPartyKind(plan)&&!linkedinInsightKind(plan)&&!linkedinAbKind(plan)&&!linkedinMessageKind(plan)&&!googleBrandGuidelinesKind(plan)&&!criteoKeywordKind(plan)&&!criteoBidMultiplierKind(plan)&&!criteoPromotedProductsKind(plan)&&!criteoSegmentKind(plan)&&!metaObjectKind(plan)&&!snapDisclaimerKind(plan)&&!xPrerollCtaKind(plan)&&!xMediaKind(plan)&&!xScheduledKind(plan)&&!xAudienceKind(plan)&&!criteoCatalogKind(plan)&&!dv360BiddingKind(plan)&&!dv360SdfKind(plan)&&!metaImageKind(plan)&&!metaConversionKind(plan)&&!snapSegmentDeleteKind(plan)&&!snapConversionKind(plan)&&!snapProductSetKind(plan)&&!linkedinDomainKind(plan)&&!snapTemplateKind(plan)&&!snapEventKind(plan)&&!snapPixelNameKind(plan)&&!linkedinPublisherKind(plan)&&!dv360BiddingFileKind(plan)&&!tiktokBlockedWordKind(plan)&&!tiktokConversionEditKind(plan)&&!tiktokDeletionKind(plan)&&!tiktokAudienceEditKind(plan)&&!tiktokLibraryKind(plan)&&!tiktokRuleAudienceKind(plan)&&!xConversationCardKind(plan)&&!metaPixelKind(plan)&&!metaAccountSettingsKind(plan)&&!linkedinLeadFormStateKind(plan)&&!tiktokImageEditKind(plan)&&!tiktokChangeLogKind(plan)&&!metaSplitTestKind(plan)&&!linkedinDscEditKind(plan)&&!dv360AudienceEditKind(plan)&&!linkedinAccountSettingsKind(plan)&&!businessLocationEditKind(plan)&&!businessAttributeKind(plan)&&!businessLodgingKind(plan)&&!googlePortfolioKind(plan)&&!googleAccessKind(plan)&&!googleDismissalKind(plan)&&!businessAccessKind(plan)&&!businessNotificationKind(plan)&&!placeActionKind(plan)&&!metaReportKind(plan)&&!keywordPlanKind(plan)&&!googleSegmentKind(plan)&&!googleConversionGoalKind(plan)&&!googleConversionActionKind(plan)&&!xDraftKind(plan)&&!linkedinLeadFormKind(plan)&&!tiktokCustomConversionKind(plan)&&!tiktokSavedAudienceKind(plan)&&(statusPatch||/budget|bid|spend|"(?:status|intendedStatus|intended_status|entity_status|entityStatus|operation_status)"\s*:\s*"(?:ACTIVE|ENABLE|ENABLED|ENTITY_STATUS_ACTIVE)"/i.test(JSON.stringify({query:plan.query,body:plan.body})))&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Spend-affecting writes need spend_change_confirmed=true.');
+ if(!familyOf(plan)?.exemptFromSpendTextMatch&&!xReportKind(plan)&&!tiktokReportKind(plan)&&!criteoReportKind(plan)&&!dv360AdGroupKind(plan)&&!dv360AdAssetKind(plan)&&!dv360AdKind(plan)&&!dv360LineItemDuplicateKind(plan)&&!dv360InventoryGroupKind(plan)&&!xTrackingTagKind(plan)&&!xAssociationKind(plan)&&!xCuratedKind(plan)&&!linkedinThirdPartyKind(plan)&&!linkedinMessageKind(plan)&&!criteoKeywordKind(plan)&&!criteoBidMultiplierKind(plan)&&!criteoPromotedProductsKind(plan)&&!criteoSegmentKind(plan)&&!snapDisclaimerKind(plan)&&!xPrerollCtaKind(plan)&&!xScheduledKind(plan)&&!criteoCatalogKind(plan)&&!dv360BiddingKind(plan)&&!dv360SdfKind(plan)&&!snapSegmentDeleteKind(plan)&&!snapConversionKind(plan)&&!snapProductSetKind(plan)&&!snapTemplateKind(plan)&&!snapEventKind(plan)&&!snapPixelNameKind(plan)&&!tiktokBlockedWordKind(plan)&&!googlePortfolioKind(plan)&&!googleAccessKind(plan)&&!googleDismissalKind(plan)&&!businessAccessKind(plan)&&!businessNotificationKind(plan)&&!placeActionKind(plan)&&!metaReportKind(plan)&&!keywordPlanKind(plan)&&!googleSegmentKind(plan)&&!googleConversionGoalKind(plan)&&!googleConversionActionKind(plan)&&!xDraftKind(plan)&&!linkedinLeadFormKind(plan)&&!tiktokCustomConversionKind(plan)&&!tiktokSavedAudienceKind(plan)&&(statusPatch||/budget|bid|spend|"(?:status|intendedStatus|intended_status|entity_status|entityStatus|operation_status)"\s*:\s*"(?:ACTIVE|ENABLE|ENABLED|ENTITY_STATUS_ACTIVE)"/i.test(JSON.stringify({query:plan.query,body:plan.body})))&&input.spend_change_confirmed!==true)throw new MirrorError('SPEND_CONFIRMATION_REQUIRED','Spend-affecting writes need spend_change_confirmed=true.');
 }

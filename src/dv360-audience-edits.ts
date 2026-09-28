@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Renaming and re-describing advertiser-owned customer match audiences on Display & Video 360 API v4, per the pinned
@@ -87,3 +88,22 @@ export function dv360AudienceEditObserved(_read:CompiledRequest,data:JsonObject)
  const a=obj(data.audience)?data.audience:{};
  return {audience:a.present===true?{present:true,displayName:a.displayName??null,description:a.description??null}:{present:false}};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const dv360AudienceEditFamily:ReviewedFamily={
+ name:'dv360_audience_edits',
+ files:['src/dv360-audience-edits.ts',['tests/dv360-audience-edits.test.mjs']],
+ kind:dv360AudienceEditKind,
+ assert:assertDV360AudienceEdit,
+ authorize:authorizeDV360AudienceEdit,
+ snapshots:dv360AudienceEditSnapshots,
+ isRead:isDV360AudienceEditRead,
+ reader:readDV360AudienceEdits,
+ validateState:validateDV360AudienceEditState,
+ prerequisites:dv360AudienceEditPrerequisites,
+ impact:dv360AudienceEditImpact,
+ outcome:dv360AudienceEditOutcome,
+ verification:dv360AudienceEditVerification,
+ observed:dv360AudienceEditObserved,
+ exemptFromSpendTextMatch:true,
+};

@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Registering uploaded custom bidding scripts and rules on Display & Video 360 API v4, per the pinned Discovery document
@@ -112,3 +113,22 @@ export function dv360BiddingFileVerification(p:CompiledRequest,result:JsonObject
  return [{read:stateRead(p,{kind,algorithmId:algorithmOf(p)}),expected:{files:{['f'+created]:{id:created,resourceName:refOf(p)}}},id:(kind==='script'?'script ':'rules ')+created}];
 }
 export function dv360BiddingFileObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {files:obj(data.files)?data.files:{}};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const dv360BiddingFileFamily:ReviewedFamily={
+ name:'dv360_custom_bidding_files',
+ files:['src/dv360-custom-bidding-files.ts',['tests/dv360-custom-bidding-files.test.mjs']],
+ kind:dv360BiddingFileKind,
+ assert:assertDV360BiddingFile,
+ authorize:authorizeDV360BiddingFile,
+ snapshots:dv360BiddingFileSnapshots,
+ isRead:isDV360BiddingFileRead,
+ reader:readDV360BiddingFiles,
+ validateState:validateDV360BiddingFileState,
+ prerequisites:dv360BiddingFilePrerequisites,
+ impact:dv360BiddingFileImpact,
+ outcome:dv360BiddingFileOutcome,
+ verification:dv360BiddingFileVerification,
+ observed:dv360BiddingFileObserved,
+ exemptFromSpendTextMatch:true,
+};

@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Media library and account media of an X Ads account, Ads API v12 (Creatives reference, "Media Library" and "Account
@@ -150,3 +151,21 @@ export function xMediaVerification(p:CompiledRequest):{read:CompiledRequest;expe
 export function xMediaObserved(_read:CompiledRequest,data:JsonObject):JsonObject{
  return {...(object(data.media)?{media:data.media}:{}),...(object(data.accountMedia)?{accountMedia:data.accountMedia}:{})};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const xMediaFamily:ReviewedFamily={
+ name:'x_media_library',
+ files:['src/x-media-library.ts',['tests/x-media-library.test.mjs']],
+ kind:xMediaKind,
+ assert:assertXMedia,
+ snapshots:xMediaSnapshots,
+ isRead:isXMediaRead,
+ reader:readXMedia,
+ validateState:validateXMediaState,
+ prerequisites:xMediaPrerequisites,
+ impact:xMediaImpact,
+ outcome:xMediaOutcome,
+ verification:xMediaVerification,
+ observed:xMediaObserved,
+ exemptFromSpendTextMatch:true,
+};

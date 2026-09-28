@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Meta split tests, Marketing API v25.0 ("Ad Study" reference, updated 2026-03-24; "Split Testing" guide, updated
@@ -210,3 +211,24 @@ export function metaSplitTestObserved(_read:CompiledRequest,data:JsonObject):Jso
  if(st.present===false)return {study:{present:false}};
  return {study:{present:true,...st},business_matches:st.business!==null&&st.business===data.business};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const metaSplitTestFamily:ReviewedFamily={
+ name:'meta_split_tests',
+ files:['src/meta-split-tests.ts',['tests/meta-split-tests.test.mjs']],
+ kind:metaSplitTestKind,
+ assert:assertMetaSplitTest,
+ scope:assertMetaSplitTestScope,
+ authorize:authorizeMetaSplitTest,
+ snapshots:metaSplitTestSnapshots,
+ isRead:isMetaSplitTestRead,
+ reader:readMetaSplitTests,
+ validateState:validateMetaSplitTestState,
+ prerequisites:metaSplitTestPrerequisites,
+ impact:metaSplitTestImpact,
+ outcome:metaSplitTestOutcome,
+ verification:metaSplitTestVerification,
+ observed:metaSplitTestObserved,
+ spendConfirmation:{needed:metaSplitTestNeedsConfirmation,message:'A split test divides the audience of its ad sets or campaigns until it ends. Review it and provide spend_change_confirmed=true.'},
+ exemptFromSpendTextMatch:true,
+};

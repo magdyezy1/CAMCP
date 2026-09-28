@@ -1,7 +1,8 @@
 import {MirrorError} from './errors.js';
-import {googleJson} from './google-contracts.js';
+import {googleJson,assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Campaign drafts, Google Ads API v23 (pinned Discovery document: CampaignDraftService MutateCampaignDrafts and
@@ -210,3 +211,24 @@ export function googleDraftObserved(read:CompiledRequest,data:JsonObject):JsonOb
  for(const key of c?.drafts??[]){const k=key.startsWith('d')?key:draftKey(key),d=drafts[k];out[k]=object(d)?{present:true,name:d.name,baseCampaign:d.baseCampaign,status:d.status}:{present:false};}
  return {drafts:out};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleDraftFamily:ReviewedFamily={
+ name:'google_campaign_drafts',
+ files:['src/google-campaign-drafts.ts',['tests/google-campaign-drafts.test.mjs']],
+ kind:googleDraftKind,
+ assert:assertGoogleDrafts,
+ scope:assertGoogleAdsScope,
+ snapshots:googleDraftSnapshots,
+ isRead:isGoogleDraftRead,
+ reader:readGoogleDrafts,
+ validateState:validateGoogleDraftState,
+ prerequisites:googleDraftPrerequisites,
+ impact:googleDraftImpact,
+ outcome:googleDraftOutcome,
+ verification:googleDraftVerification,
+ observed:googleDraftObserved,
+ spendConfirmation:{needed:googleDraftNeedsConfirmation,message:'Promoting a campaign draft applies every change staged in the draft campaign to the base campaign, which may be serving. Review them and provide spend_change_confirmed=true.'},
+ exemptFromSpendTextMatch:true,
+ activates:googleDraftNeedsConfirmation,
+};

@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Publishing and archiving LinkedIn lead gen forms, per "Lead Syncing" (Updating Lead Forms, Updating Form Status;
@@ -83,3 +84,23 @@ export function linkedinLeadFormStateVerification(p:CompiledRequest):{read:Compi
  return [{read:read(p),expected:{state:target(p)},id:formOf(p)!}];
 }
 export function linkedinLeadFormStateObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return data;}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const linkedinLeadFormStateFamily:ReviewedFamily={
+ name:'linkedin_lead_form_states',
+ files:['src/linkedin-lead-form-states.ts',['tests/linkedin-lead-form-states.test.mjs']],
+ kind:linkedinLeadFormStateKind,
+ assert:assertLinkedInLeadFormState,
+ authorize:authorizeLinkedInLeadFormState,
+ snapshots:linkedinLeadFormStateSnapshots,
+ isRead:isLinkedInLeadFormStateRead,
+ reader:readLinkedInLeadFormStates,
+ validateState:validateLinkedInLeadFormStateRead,
+ prerequisites:linkedinLeadFormStatePrerequisites,
+ impact:linkedinLeadFormStateImpact,
+ outcome:linkedinLeadFormStateOutcome,
+ verification:linkedinLeadFormStateVerification,
+ observed:linkedinLeadFormStateObserved,
+ spendConfirmation:{needed:linkedinLeadFormStateNeedsConfirmation,message:'Publishing or archiving a lead form decides whether the creatives that use it serve. Review it and provide spend_change_confirmed=true.'},
+ exemptFromSpendTextMatch:true,
+};

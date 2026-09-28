@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * TikTok asset library edits, per API for Business v1.3 "Update the name of an image", "Update the name of a video",
@@ -160,3 +161,21 @@ export function tiktokLibraryObserved(read:CompiledRequest,data:JsonObject):Json
  const suffixed=name!==null&&name!==sent&&name.startsWith(sent)&&/^[ _-]?\d{13}$/.test(name.slice(sent.length));
  return {present:true,name:suffixed?sent:name,...(suffixed?{timestamp_suffix:name!.slice(sent.length)}:{})};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokLibraryFamily:ReviewedFamily={
+ name:'tiktok_library_assets',
+ files:['src/tiktok-library-assets.ts',['tests/tiktok-library-assets.test.mjs']],
+ kind:tiktokLibraryKind,
+ assert:assertTiktokLibraryAsset,
+ snapshots:tiktokLibrarySnapshots,
+ isRead:isTiktokLibraryRead,
+ reader:readTiktokLibraryAssets,
+ validateState:validateTiktokLibraryState,
+ prerequisites:tiktokLibraryPrerequisites,
+ impact:tiktokLibraryImpact,
+ outcome:tiktokLibraryOutcome,
+ verification:tiktokLibraryVerification,
+ observed:tiktokLibraryObserved,
+ exemptFromSpendTextMatch:true,
+};

@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Business Profile lodging facts, per the pinned Lodging API v1 Discovery document (business-lodging-v1, revision
@@ -254,3 +255,22 @@ export function businessLodgingObserved(read:CompiledRequest,data:JsonObject):Js
  for(const m of (read as Read).businessLodgingMask??[])out[m]=normal(resolve(m).type,at(lodging,m));
  return {lodging:out};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const businessLodgingFamily:ReviewedFamily={
+ name:'google_business_lodging',
+ files:['src/google-business-lodging.ts',['tests/google-business-lodging.test.mjs']],
+ kind:businessLodgingKind,
+ assert:assertBusinessLodging,
+ authorize:authorizeBusinessLodging,
+ snapshots:businessLodgingSnapshots,
+ isRead:isBusinessLodgingRead,
+ reader:readBusinessLodgings,
+ validateState:validateBusinessLodgingState,
+ prerequisites:businessLodgingPrerequisites,
+ impact:businessLodgingImpact,
+ outcome:businessLodgingOutcome,
+ verification:businessLodgingVerification,
+ observed:businessLodgingObserved,
+ exemptFromSpendTextMatch:true,
+};

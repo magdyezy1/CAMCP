@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Renaming and deleting Meta ad creatives and custom audiences, Marketing API v25.0 ("Ad Creative" and "Custom Audience"
@@ -92,3 +93,22 @@ export function metaObjectVerification(p:CompiledRequest):{read:CompiledRequest;
  return [{read:probe,expected:k.op==='delete'?{present:false}:{present:true,...(p.body as JsonObject)},id:targetOf(p)}];
 }
 export function metaObjectObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return data;}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const metaObjectFamily:ReviewedFamily={
+ name:'meta_object_edits',
+ files:['src/meta-object-edits.ts',['tests/meta-object-edits.test.mjs']],
+ kind:metaObjectKind,
+ assert:assertMetaObject,
+ scope:assertMetaObjectScope,
+ snapshots:metaObjectSnapshots,
+ isRead:isMetaObjectRead,
+ reader:readMetaObject,
+ validateState:validateMetaObjectState,
+ prerequisites:metaObjectPrerequisites,
+ impact:metaObjectImpact,
+ outcome:metaObjectOutcome,
+ verification:metaObjectVerification,
+ observed:metaObjectObserved,
+ exemptFromSpendTextMatch:true,
+};

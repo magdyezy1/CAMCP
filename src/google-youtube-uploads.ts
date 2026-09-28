@@ -1,7 +1,8 @@
 import {MirrorError} from './errors.js';
-import {googleJson} from './google-contracts.js';
+import {googleJson,assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * YouTube video uploads made through the Google Ads API, v23 (pinned Discovery document: YouTubeVideoUploadService
@@ -115,3 +116,23 @@ export function googleUploadObserved(read:CompiledRequest,data:JsonObject):JsonO
  const found=object(data.uploads)?data.uploads:{},names=(read as Read).googleUploadState?.uploads??[];
  return {uploads:Object.fromEntries(names.map(n=>{const u=found[n];return [n,object(u)?{gone:u.state==='UNAVAILABLE',videoPrivacy:u.videoPrivacy}:{gone:true}];}))};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleUploadFamily:ReviewedFamily={
+ name:'google_youtube_uploads',
+ files:['src/google-youtube-uploads.ts',['tests/google-youtube-uploads.test.mjs']],
+ kind:googleUploadKind,
+ assert:assertGoogleUploads,
+ scope:assertGoogleAdsScope,
+ snapshots:googleUploadSnapshots,
+ isRead:isGoogleUploadRead,
+ reader:readGoogleUploads,
+ validateState:validateGoogleUploadState,
+ prerequisites:googleUploadPrerequisites,
+ impact:googleUploadImpact,
+ outcome:googleUploadOutcome,
+ verification:googleUploadVerification,
+ observed:googleUploadObserved,
+ exemptFromSpendTextMatch:true,
+ destructive:googleUploadRemoves,
+};

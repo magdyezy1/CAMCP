@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * LinkedIn ad account name and notification settings, per "Create and Manage Ad Accounts" (li-lms-2026-09, checked
@@ -78,3 +79,22 @@ export function linkedinAccountSettingsVerification(p:CompiledRequest):{read:Com
  return [{read:read(p),expected:{account:setOf(p)},id:'ad account '+p.accountId}];
 }
 export function linkedinAccountSettingsObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {account:object(data.account)?data.account:null};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const linkedinAccountSettingsFamily:ReviewedFamily={
+ name:'linkedin_account_settings',
+ files:['src/linkedin-account-settings.ts',['tests/linkedin-account-settings.test.mjs']],
+ kind:linkedinAccountSettingsKind,
+ assert:assertLinkedInAccountSettings,
+ authorize:authorizeLinkedInAccountSettings,
+ snapshots:linkedinAccountSettingsSnapshots,
+ isRead:isLinkedInAccountSettingsRead,
+ reader:readLinkedInAccountSettings,
+ validateState:validateLinkedInAccountSettingsState,
+ prerequisites:linkedinAccountSettingsPrerequisites,
+ impact:linkedinAccountSettingsImpact,
+ outcome:linkedinAccountSettingsOutcome,
+ verification:linkedinAccountSettingsVerification,
+ observed:linkedinAccountSettingsObserved,
+ exemptFromSpendTextMatch:true,
+};

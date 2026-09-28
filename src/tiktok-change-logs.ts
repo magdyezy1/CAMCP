@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * TikTok change log download tasks, per API for Business v1.3 "Create a change log download task" and "Check the status of
@@ -112,3 +113,21 @@ export function tiktokChangeLogVerification(p:CompiledRequest,result:JsonObject)
  return [{read:read(p,'tiktok_changelog_task_check','/v1.3/changelog/task/check/',{advertiser_id:p.accountId,task_id:task},{kind:'task',taskId:task}),expected:{task:{task_id:task,status:'SUCCESS'}},id:'change log task '+task}];
 }
 export function tiktokChangeLogObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {task:obj(data.task)?data.task:null};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokChangeLogFamily:ReviewedFamily={
+ name:'tiktok_change_log_tasks',
+ files:['src/tiktok-change-logs.ts',['tests/tiktok-change-logs.test.mjs']],
+ kind:tiktokChangeLogKind,
+ assert:assertTiktokChangeLog,
+ snapshots:tiktokChangeLogSnapshots,
+ isRead:isTiktokChangeLogRead,
+ reader:readTiktokChangeLogs,
+ validateState:validateTiktokChangeLogState,
+ prerequisites:tiktokChangeLogPrerequisites,
+ impact:tiktokChangeLogImpact,
+ outcome:tiktokChangeLogOutcome,
+ verification:tiktokChangeLogVerification,
+ observed:tiktokChangeLogObserved,
+ exemptFromSpendTextMatch:true,
+};

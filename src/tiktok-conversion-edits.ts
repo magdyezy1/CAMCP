@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import {tiktokConversionNameProblem,tiktokConversionListPath,tiktokPixelListPath} from './tiktok-custom-conversions.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Renaming and deleting TikTok custom conversions of pixels, per API for Business v1.3 "Update a Custom Conversion",
@@ -108,3 +109,21 @@ export function tiktokConversionEditVerification(p:CompiledRequest):{read:Compil
  return [{read:stateRead(p,{kind,conversionId:conversionOf(p),usage:false}),expected:{conversion:expected},id:'custom conversion '+conversionOf(p)}];
 }
 export function tiktokConversionEditObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {conversion:obj(data.conversion)?data.conversion:{}};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokConversionEditFamily:ReviewedFamily={
+ name:'tiktok_custom_conversion_edits',
+ files:['src/tiktok-conversion-edits.ts',['tests/tiktok-conversion-edits.test.mjs']],
+ kind:tiktokConversionEditKind,
+ assert:assertTiktokConversionEdit,
+ snapshots:tiktokConversionEditSnapshots,
+ isRead:isTiktokConversionEditRead,
+ reader:readTiktokConversionEdits,
+ validateState:validateTiktokConversionEditState,
+ prerequisites:tiktokConversionEditPrerequisites,
+ impact:tiktokConversionEditImpact,
+ outcome:tiktokConversionEditOutcome,
+ verification:tiktokConversionEditVerification,
+ observed:tiktokConversionEditObserved,
+ exemptFromSpendTextMatch:true,
+};

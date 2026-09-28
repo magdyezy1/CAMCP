@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Editing TikTok library images, per API for Business v1.3 "Edit an image" (checked 2026-09-28). POST
@@ -84,3 +85,21 @@ export function tiktokImageEditObserved(read:CompiledRequest,data:JsonObject):Js
  const suffixed=sent!==undefined&&name!==null&&name!==sent&&name.startsWith(sent)&&/^[ _-]?\d{13}$/.test(name.slice(sent.length));
  return {image:{present:true,width:img.width,height:img.height,...(sent!==undefined?{name:suffixed?sent:name}:{})}};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokImageEditFamily:ReviewedFamily={
+ name:'tiktok_image_edits',
+ files:['src/tiktok-image-edits.ts',['tests/tiktok-image-edits.test.mjs']],
+ kind:tiktokImageEditKind,
+ assert:assertTiktokImageEdit,
+ snapshots:tiktokImageEditSnapshots,
+ isRead:isTiktokImageEditRead,
+ reader:readTiktokImageEdits,
+ validateState:validateTiktokImageEditState,
+ prerequisites:tiktokImageEditPrerequisites,
+ impact:tiktokImageEditImpact,
+ outcome:tiktokImageEditOutcome,
+ verification:tiktokImageEditVerification,
+ observed:tiktokImageEditObserved,
+ exemptFromSpendTextMatch:true,
+};

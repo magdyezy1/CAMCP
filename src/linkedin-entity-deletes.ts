@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Batch deletion of LinkedIn campaign groups and creatives, per "Create and Manage Campaign Groups" and "Create and Manage
@@ -177,3 +178,21 @@ export function linkedinDeleteObserved(_read:CompiledRequest,data:JsonObject):Js
  for(const [k,e] of Object.entries(object(data.entities)?data.entities:{}))entities[k]={present:object(e)&&e.present===true&&e.status!=='REMOVED'&&e.intendedStatus!=='REMOVED'};
  return {entities};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const linkedinDeleteFamily:ReviewedFamily={
+ name:'linkedin_entity_deletes',
+ files:['src/linkedin-entity-deletes.ts',['tests/linkedin-entity-deletes.test.mjs']],
+ kind:linkedinDeleteKind,
+ assert:assertLinkedInDelete,
+ authorize:authorizeLinkedInDelete,
+ snapshots:linkedinDeleteSnapshots,
+ isRead:isLinkedInDeleteRead,
+ reader:readLinkedInDeletes,
+ validateState:validateLinkedInDeleteState,
+ prerequisites:linkedinDeletePrerequisites,
+ impact:linkedinDeleteImpact,
+ outcome:linkedinDeleteOutcome,
+ verification:linkedinDeleteVerification,
+ observed:linkedinDeleteObserved,
+};

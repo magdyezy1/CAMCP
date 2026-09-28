@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Deleting ad images from a Meta ad account's library, Marketing API v25.0 ("Ad Image" reference, Deleting; checked
@@ -66,3 +67,22 @@ export function metaImageVerification(p:CompiledRequest):{read:CompiledRequest;e
  return [{read:read(p,hashOf(p),true),expected:{image:{gone:true}},id:'ad image '+hashOf(p)}];
 }
 export function metaImageObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {image:object(data.image)?data.image:null};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const metaImageFamily:ReviewedFamily={
+ name:'meta_ad_images',
+ files:['src/meta-ad-images.ts',['tests/meta-ad-images.test.mjs']],
+ kind:metaImageKind,
+ assert:assertMetaImage,
+ scope:assertMetaImageScope,
+ snapshots:metaImageSnapshots,
+ isRead:isMetaImageRead,
+ reader:readMetaImage,
+ validateState:validateMetaImageState,
+ prerequisites:metaImagePrerequisites,
+ impact:metaImageImpact,
+ outcome:metaImageOutcome,
+ verification:metaImageVerification,
+ observed:metaImageObserved,
+ exemptFromSpendTextMatch:true,
+};

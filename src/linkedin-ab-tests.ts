@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * LinkedIn A/B tests, per the "A/B Testing Management API" of the Marketing API (li-lms-2025-10 to li-lms-2026-09, checked
@@ -182,3 +183,25 @@ export function linkedinAbVerification(p:CompiledRequest,result:JsonObject):{rea
  return [{read:stateRead(p,{experimentId:id,campaigns:[],optional:true}),expected:{experiment:expected},id:'experiment '+id}];
 }
 export function linkedinAbObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {experiment:object(data.experiment)?data.experiment:null};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const linkedinAbFamily:ReviewedFamily={
+ name:'linkedin_ab_tests',
+ files:['src/linkedin-ab-tests.ts',['tests/linkedin-ab-tests.test.mjs']],
+ kind:linkedinAbKind,
+ assert:assertLinkedInAb,
+ scope:assertLinkedInAbScope,
+ authorize:authorizeLinkedInAb,
+ snapshots:linkedinAbSnapshots,
+ isRead:isLinkedInAbRead,
+ reader:readLinkedInAb,
+ validateState:validateLinkedInAbState,
+ prerequisites:linkedinAbPrerequisites,
+ impact:linkedinAbImpact,
+ outcome:linkedinAbOutcome,
+ verification:linkedinAbVerification,
+ observed:linkedinAbObserved,
+ spendConfirmation:{needed:linkedinAbNeedsConfirmation,message:'An active A/B test splits the traffic of its campaigns, which serve and spend under it. Review it and provide spend_change_confirmed=true.'},
+ exemptFromSpendTextMatch:true,
+ activates:linkedinAbNeedsConfirmation,
+};

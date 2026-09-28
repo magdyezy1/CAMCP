@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * LinkedIn Insight Tags, per "Conversion Tracking" of the Marketing API (li-lms-2025-10 to li-lms-2026-09, checked
@@ -112,3 +113,23 @@ export function linkedinInsightVerification(p:CompiledRequest,result:JsonObject)
  return [{read:stateRead(p,{}),expected:{accountTag:{id,accounts:[accountUrn(p)]}},id:'Insight Tag '+id}];
 }
 export function linkedinInsightObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {accountTag:object(data.accountTag)?data.accountTag:{present:false},...(object(data.tag)?{tag:data.tag}:{})};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const linkedinInsightFamily:ReviewedFamily={
+ name:'linkedin_insight_tags',
+ files:['src/linkedin-insight-tags.ts',['tests/linkedin-insight-tags.test.mjs']],
+ kind:linkedinInsightKind,
+ assert:assertLinkedInInsight,
+ scope:assertLinkedInInsightScope,
+ authorize:authorizeLinkedInInsight,
+ snapshots:linkedinInsightSnapshots,
+ isRead:isLinkedInInsightRead,
+ reader:readLinkedInInsight,
+ validateState:validateLinkedInInsightState,
+ prerequisites:linkedinInsightPrerequisites,
+ impact:linkedinInsightImpact,
+ outcome:linkedinInsightOutcome,
+ verification:linkedinInsightVerification,
+ observed:linkedinInsightObserved,
+ exemptFromSpendTextMatch:true,
+};

@@ -1,7 +1,8 @@
 import {MirrorError} from './errors.js';
-import {googleJson} from './google-contracts.js';
+import {googleJson,assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * System-managed experiments, Google Ads API v23 (pinned Discovery document: ExperimentService.MutateExperiments,
@@ -419,3 +420,24 @@ export function googleExperimentObserved(read:CompiledRequest,data:JsonObject):J
  return {experiments:view(experiments,(c?.experiments??[]).map(experimentKey)),arms:view(arms,(c?.arms??[]).map(armKey)),campaigns:view(campaigns,(c?.campaigns??[]).map(n=>'c'+n.split('/').at(-1)))};
 }
 
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleExperimentFamily:ReviewedFamily={
+ name:'google_experiments',
+ files:['src/google-experiments.ts',['tests/google-experiments.test.mjs','tests/google-experiment-lifecycle.test.mjs']],
+ kind:googleExperimentKind,
+ assert:assertGoogleExperiments,
+ scope:assertGoogleAdsScope,
+ snapshots:googleExperimentSnapshots,
+ isRead:isGoogleExperimentRead,
+ reader:readGoogleExperiments,
+ validateState:validateGoogleExperimentState,
+ prerequisites:googleExperimentPrerequisites,
+ impact:googleExperimentImpact,
+ outcome:googleExperimentOutcome,
+ verification:googleExperimentVerification,
+ observed:googleExperimentObserved,
+ spendConfirmation:{needed:googleExperimentNeedsConfirmation,message:'Scheduling, promoting or graduating an experiment starts or changes what its campaigns serve and spend. Review it and provide spend_change_confirmed=true.'},
+ exemptFromSpendTextMatch:true,
+ activates:googleExperimentNeedsConfirmation,
+};
