@@ -15,7 +15,10 @@ import {downloadDriveMedia, mediaType, driveDownloadUrl} from './drive-media.js'
 import {guardInput, sha256, stable} from './security.js';
 import type {ExecutionPolicy} from './preflight.js';
 import type {Actor, CompiledRequest, Connection, JsonObject} from './types.js';
-import {mediaPlatforms} from './media-routing.js';
+import {mediaImageLimit, mediaPlatformNames, mediaPlatforms, mp4OnlyPlatforms} from './media-routing.js';
+import {describeFit, fitMediaToPlatform, type FittedMedia, type MediaTransform} from './media-fit.js';
+import {downloadMediaLink, type LinkRequest} from './media-link.js';
+import {MediaSources} from './media-sources.js';
 import {assertAccountWrite} from './write-access.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {assertLinkedInOrganization} from './linkedin-posts.js';
@@ -35,7 +38,7 @@ const snapchatSimpleLimit = 32_000_000,
 export const mediaTool = {
   name: 'amcp_media',
   description:
-    'Use this to put a Google Drive image or video into an ad account as a reviewed upload. Import a public or selected private Google Drive file into a selected advertising account. prepare downloads and encrypts the exact file for a five-minute review; execute uploads those frozen bytes after explicit confirmation. Supports PNG/JPEG and MP4/MOV across Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360 (X/LinkedIn video: MP4). Google videos are uploaded as UNLISTED on the account Google-managed YouTube channel. Normal native media actions and platform_media_upload use this same server transfer; the MCP client never downloads bytes. status reads provider processing state; prepare_library reviews adding an X video to its account library once processing succeeds. Never publishes ads or posts. Uses operator role, account write grants and durable idempotency. Files up to the configured media limit (128 MiB by default) with lower platform image limits. Private files use a separate selected Google Drive connection. variant creates an encrypted, expiring preview with explicit contain/crop presets; prepare accepts variant_id. execute_async queues the frozen confirmed review; job_status shows durable progress. list returns account-scoped receipts. recovery exposes safe continuation; resume supports Google video offsets and LinkedIn confirmed-part boundaries within the original review, never an uncertain part or finalization. reuse requires a fresh provider availability check. DV360 uploads creative assets by default; dv360_target ad_asset uploads a PNG/JPEG image (up to 5120 KB) as a Demand Gen image ad asset, optionally labelled with synthetic_content, and returns its assetId. inspect_eligibility checks source dimensions, duration and codec against a placement preset before any provider upload; it does not certify provider policy approval.',
+    'Use this to put an image or video into an ad account as a reviewed upload: a file uploaded on the AMCP website (source_id; list returns them under sources), a public HTTPS link (source_url), or a public or selected private Google Drive file (drive_url). prepare fetches and encrypts the exact file for a five-minute review; fit_to_platform:true first scales media larger than 1080 on its short side or 1920 on its long side down to fit (never cropped), re-encodes an image above the platform limit and converts MOV to MP4 for X and LinkedIn, and request.transform says what changed; execute uploads those frozen bytes after explicit confirmation. Supports PNG/JPEG and MP4/MOV across Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360 (X/LinkedIn video: MP4). Google videos are uploaded as UNLISTED on the account Google-managed YouTube channel. Normal native media actions and platform_media_upload use this same server transfer; the MCP client never downloads bytes. status reads provider processing state; prepare_library reviews adding an X video to its account library once processing succeeds. Never publishes ads or posts. Uses operator role, account write grants and durable idempotency. Files up to the configured media limit (128 MiB by default) with lower platform image limits. Private files use a separate selected Google Drive connection. variant creates an encrypted, expiring preview with explicit contain/crop presets; prepare accepts variant_id. execute_async queues the frozen confirmed review; job_status shows durable progress. list returns account-scoped receipts. recovery exposes safe continuation; resume supports Google video offsets and LinkedIn confirmed-part boundaries within the original review, never an uncertain part or finalization. reuse requires a fresh provider availability check. DV360 uploads creative assets by default; dv360_target ad_asset uploads a PNG/JPEG image (up to 5120 KB) as a Demand Gen image ad asset, optionally labelled with synthetic_content, and returns its assetId. inspect_eligibility checks source dimensions, duration and codec against a placement preset before any provider upload; it does not certify provider policy approval.',
   inputSchema: {
     type: 'object',
     required: ['action'],
@@ -56,6 +59,7 @@ export const mediaTool = {
           'inspect_eligibility',
           'list',
           'reuse',
+          'plan',
         ],
       },
       platform: {type: 'string', enum: platforms},
@@ -64,6 +68,41 @@ export const mediaTool = {
       drive_url: {type: 'string'},
       drive_connection_id: {type: 'string'},
       variant_id: {type: 'string'},
+      source_id: {
+        type: 'string',
+        description:
+          'A file uploaded on the AMCP website or imported from a link; list returns them under sources. Usable for 30 minutes.',
+      },
+      source_url: {
+        type: 'string',
+        description: 'A public HTTPS link to one PNG, JPEG, MP4 or MOV file. AMCP downloads it on the server.',
+      },
+      destinations: {
+        type: 'array',
+        maxItems: 20,
+        description: 'plan: the accounts an upload (source_id) would go to.',
+        items: {
+          type: 'object',
+          required: ['platform', 'account_id'],
+          properties: {
+            platform: {type: 'string', enum: platforms},
+            account_id: {type: 'string'},
+            connection_id: {type: 'string'},
+            owner_urn: {type: 'string'},
+            dv360_target: {type: 'string', enum: ['creative_asset', 'ad_asset']},
+          },
+          additionalProperties: false,
+        },
+      },
+      expected_sha256: {
+        type: 'string',
+        description: 'prepare: refuse unless the file to upload has exactly this SHA-256, as plan returned it.',
+      },
+      fit_to_platform: {
+        type: 'boolean',
+        description:
+          'Fit the media to the platform before review: scale it down within 1080 × 1920 (never cropped or enlarged), re-encode an image above the platform limit, convert MOV to MP4 for X and LinkedIn.',
+      },
       preset: {type: 'string', enum: Object.keys(variantPresets)},
       fit: {type: 'string', enum: ['contain', 'crop']},
       reuse_existing: {type: 'boolean'},
@@ -114,7 +153,16 @@ interface UploadPlan {
   dv360_target?: 'ad_asset';
   synthetic_content?: string;
   library_media?: {id: string; key: string; source_review_id: string};
+  /** Where a file that did not come from Google Drive came from. */
+  origin?: {kind: 'upload'; source_id: string; filename: string} | {kind: 'link'; host: string};
+  /** How fit_to_platform changed the file, shown for review. */
+  transform?: ReviewedTransform;
 }
+/** A fit as its review shows it: the changes, and those changes in words for this platform. */
+type ReviewedTransform = MediaTransform & {reasons: string[]};
+/** The receipt's source label for how the file reached AMCP. */
+const receiptSource = (p: UploadPlan) =>
+  p.origin?.kind === 'upload' ? 'amcp_upload' : p.origin?.kind === 'link' ? 'link_import' : 'server_drive_import';
 interface UploadResult {
   media_id: string;
   media_key?: string;
@@ -133,7 +181,11 @@ export class MediaUploadService {
     private credentials: CredentialProvider,
     private policy: ExecutionPolicy,
     private fetcher: typeof fetch = fetch,
-  ) {}
+    private linkRequest?: LinkRequest,
+  ) {
+    this.sources = new MediaSources(store, policy.allowWrites, linkRequest);
+  }
+  readonly sources: MediaSources;
   private access(actor: Actor, platform: string, account: string, connectionId?: string): Connection {
     this.store.assertActorActive(actor);
     if (!this.policy.allowWrites)
@@ -237,11 +289,35 @@ export class MediaUploadService {
       );
     }
   }
+  /** The one file a call names: an upload (source_id), a public link (source_url), a variant or a Drive file. */
   private async source(input: JsonObject, actor: Actor, stageId: string) {
+    const named = ['source_id', 'source_url', 'drive_url', 'variant_id'].filter(k => input[k] !== undefined);
+    if (named.length !== 1 || (input.drive_connection_id !== undefined && named[0] !== 'drive_url'))
+      fail(
+        'INVALID_ARGUMENT',
+        'Name one file: source_id (an upload), source_url (a public HTTPS link), drive_url or variant_id.',
+        {files_named: named},
+      );
     const sink = this.store.mediaSink(actor.tenantId, stageId, () => this.store.assertActorActive(actor));
+    if (input.source_id !== undefined) {
+      const {bytes, mime, kind, extension, record} = this.sources.file(actor, input.source_id);
+      return {
+        bytes,
+        mime,
+        kind,
+        extension,
+        source_drive: undefined,
+        origin: {kind: 'upload' as const, source_id: record.id as string, filename: record.filename as string},
+      };
+    }
+    if (input.source_url !== undefined) {
+      const {bytes, mime, kind, extension, host} = await downloadMediaLink(input.source_url, {
+        request: this.linkRequest,
+        sink,
+      });
+      return {bytes, mime, kind, extension, source_drive: undefined, origin: {kind: 'link' as const, host}};
+    }
     if (input.variant_id) {
-      if (input.drive_url || input.drive_connection_id)
-        fail('INVALID_ARGUMENT', 'Choose a source URL or variant, not both.');
       const v = this.variant(actor, input.variant_id),
         bytes = this.store.stagedMedia(actor.tenantId, v.id);
       if (sha256(bytes) !== v.sha256) fail('MEDIA_CHANGED', 'Variant integrity check failed.');
@@ -279,6 +355,161 @@ export class MediaUploadService {
           source_drive: {connection_id: selected, url: input.drive_url},
         }
       : {...(await downloadDriveMedia(input.drive_url, this.fetcher, sink)), source_drive: undefined};
+  }
+  /**
+   * The file as one platform receives it: fitted when fit_to_platform asks (`fits` shares one conversion between
+   * platforms with the same limits), then refused for anything the platform does not take.
+   */
+  private async platformFile<F extends {bytes: Buffer; mime: string; kind: 'image' | 'video'; extension: string}>(
+    input: JsonObject,
+    source: F,
+    adAsset: boolean,
+    actor: Actor,
+    fits = new Map<string, Promise<FittedMedia>>(),
+  ): Promise<{file: F; transform?: ReviewedTransform; width?: number; height?: number}> {
+    const imageLimit = mediaImageLimit(input.platform, adAsset),
+      mp4Only = mp4OnlyPlatforms.includes(input.platform);
+    let file = source,
+      transform: ReviewedTransform | undefined,
+      size: {width?: number; height?: number} = {};
+    if (input.fit_to_platform === true) {
+      const key = imageLimit + ':' + mp4Only;
+      if (!fits.has(key)) fits.set(key, fitMediaToPlatform(source.bytes, {imageBytes: imageLimit, mp4Only}));
+      const fitted = await fits.get(key)!;
+      this.store.assertActorActive(actor);
+      size = {width: fitted.width, height: fitted.height};
+      if (fitted.transform) {
+        const {bytes, mime, kind, extension} = fitted;
+        file = {...source, bytes, mime, kind, extension};
+        transform = {
+          ...fitted.transform,
+          reasons: describeFit(fitted.transform.steps, mediaPlatformNames[input.platform]!),
+        };
+      }
+    }
+    if (input.preset) {
+      const eligibility = await inspectMediaPlacement(file.bytes, input.preset);
+      if (!eligibility.eligible_for_preset)
+        fail('MEDIA_PLACEMENT_MISMATCH', 'The source does not meet the selected placement preset.', eligibility);
+    }
+    if (
+      (input.media_type !== undefined && input.media_type !== file.kind) ||
+      (input.expected_mime !== undefined && input.expected_mime !== file.mime) ||
+      (input.expected_size !== undefined && input.expected_size !== file.bytes.length)
+    )
+      fail('MEDIA_TYPE_MISMATCH', 'The downloaded file does not match the declared type, MIME type or size.', {
+        actual_type: file.kind,
+        actual_mime: file.mime,
+        actual_size: file.bytes.length,
+      });
+    if (input.expected_sha256 !== undefined && input.expected_sha256 !== sha256(file.bytes))
+      fail('MEDIA_CHANGED', 'The file to upload is not the one planned (expected_sha256). Plan the push again.', {
+        expected_sha256: input.expected_sha256,
+        actual_sha256: sha256(file.bytes),
+      });
+    if (mp4Only && file.mime === 'video/quicktime')
+      fail('MEDIA_TYPE_UNSUPPORTED', 'Use MP4 video for X and LinkedIn, or add fit_to_platform:true to convert it.');
+    if (adAsset && file.kind !== 'image')
+      fail(
+        'MEDIA_TYPE_UNSUPPORTED',
+        'DV360 uploads only images as ad assets; YouTube video ad assets are created by video ID with DV360_ADVERTISERS_AD_ASSETS_CREATE.',
+      );
+    if (
+      input.platform === 'linkedin' &&
+      file.kind === 'video' &&
+      !/^urn:li:(?:organization|person):[A-Za-z0-9_-]+$/.test(input.owner_urn ?? '')
+    )
+      fail(
+        'LINKEDIN_VIDEO_OWNER_REQUIRED',
+        'Specify the organization/person owner and its administrator resource binding for this LinkedIn video.',
+      );
+    if (file.kind === 'image' && file.bytes.length > imageLimit)
+      fail(
+        'MEDIA_TOO_LARGE',
+        'Image exceeds the platform import limit.' +
+          (input.fit_to_platform === true ? '' : ' Add fit_to_platform:true to resize and re-encode it.'),
+        {maximum_bytes: imageLimit},
+      );
+    return {file, transform, ...size};
+  }
+  /**
+   * What pushing an upload to several accounts would do, without staging or calling any platform: for each
+   * destination, access and the exact file it would receive (SHA-256, size, dimensions, every change). Each ready
+   * destination is then prepared with that expected_sha256 and executed as its own review.
+   */
+  private async planPush(input: JsonObject, actor: Actor) {
+    const destinations = input.destinations;
+    if (!Array.isArray(destinations) || !destinations.length || destinations.length > 20)
+      fail('INVALID_ARGUMENT', 'plan takes 1 to 20 destinations, each {platform, account_id, connection_id?}.');
+    if (input.source_id === undefined || ['source_url', 'drive_url', 'variant_id'].some(k => input[k] !== undefined))
+      fail('INVALID_ARGUMENT', 'plan works on an upload: pass its source_id.');
+    if (input.fit_to_platform !== undefined && typeof input.fit_to_platform !== 'boolean')
+      fail('INVALID_ARGUMENT', 'fit_to_platform is true or false.');
+    const source = this.sources.file(actor, input.source_id),
+      fits = new Map<string, Promise<FittedMedia>>(),
+      planned: JsonObject[] = [];
+    for (const d of destinations as JsonObject[]) {
+      try {
+        if (
+          !d ||
+          typeof d !== 'object' ||
+          !platforms.includes(d.platform) ||
+          typeof d.account_id !== 'string' ||
+          Object.keys(d).some(
+            k => !['platform', 'account_id', 'connection_id', 'owner_urn', 'dv360_target'].includes(k),
+          )
+        )
+          fail(
+            'INVALID_ARGUMENT',
+            'A destination is {platform, account_id, connection_id?, owner_urn?, dv360_target?}.',
+          );
+        const account = normalizeAccount(d.platform + '_native_action', d.account_id),
+          c = this.access(actor, d.platform, account, d.connection_id);
+        if (
+          d.platform === 'linkedin' &&
+          typeof d.owner_urn === 'string' &&
+          d.owner_urn.startsWith('urn:li:organization:')
+        )
+          assertLinkedInOrganization(c, account, d.owner_urn);
+        const {file, transform, width, height} = await this.platformFile(
+          {...d, fit_to_platform: input.fit_to_platform},
+          source,
+          d.dv360_target === 'ad_asset',
+          actor,
+          fits,
+        );
+        planned.push({
+          platform: d.platform,
+          account_id: account,
+          connection_id: c.id,
+          ready: true,
+          file: {
+            sha256: sha256(file.bytes),
+            size: file.bytes.length,
+            mime: file.mime,
+            width: width ?? source.record.width ?? null,
+            height: height ?? source.record.height ?? null,
+          },
+          transform: transform ?? null,
+        });
+      } catch (e) {
+        if (!(e instanceof MirrorError)) throw e;
+        planned.push({
+          platform: d?.platform,
+          account_id: d?.account_id,
+          ready: false,
+          error: {code: e.code, message: e.message},
+        });
+      }
+    }
+    return {
+      source_id: input.source_id,
+      fit_to_platform: input.fit_to_platform === true,
+      destinations: planned,
+      executed: false,
+      next_step:
+        'For each ready destination: amcp_media prepare with this source_id, fit_to_platform and expected_sha256 set to its file.sha256, then execute that review.',
+    };
   }
   variant(actor: Actor, id: string) {
     this.store.assertActorActive(actor);
@@ -415,7 +646,7 @@ export class MediaUploadService {
   }
   async call(input: JsonObject, actor: Actor): Promise<JsonObject> {
     this.store.assertActorActive(actor);
-    if (!['prepare', 'variant', 'inspect_eligibility', 'execute', 'resume'].includes(input.action))
+    if (!['prepare', 'plan', 'variant', 'inspect_eligibility', 'execute', 'resume'].includes(input.action))
       return this.handle(input, actor);
     const lease = this.store.mediaAdmission(actor.tenantId),
       lock = 'media-execution:' + actor.tenantId + ':' + input.review_id,
@@ -526,6 +757,7 @@ export class MediaUploadService {
           })
           .map(({drive_url, ...v}) => v),
         presets: variantPresets,
+        sources: this.sources.list(actor),
       };
     }
     if (input.action === 'reuse') {
@@ -533,6 +765,7 @@ export class MediaUploadService {
       if (!asset) fail('MEDIA_NOT_READY', 'Select an upload receipt in an accessible account.');
       return this.reuse(actor, asset!);
     }
+    if (input.action === 'plan') return this.planPush(input, actor);
     if (input.action === 'inspect_eligibility') {
       if (actor.role === 'reader') fail('FORBIDDEN', 'An operator is required to stage media.');
       const id = randomUUID();
@@ -551,8 +784,8 @@ export class MediaUploadService {
     }
     if (input.action === 'variant') {
       if (actor.role === 'reader') fail('FORBIDDEN', 'An operator is required to stage media.');
-      if (typeof input.drive_url !== 'string' || input.variant_id)
-        fail('INVALID_ARGUMENT', 'Provide the original Drive file URL.');
+      if (input.variant_id !== undefined || !['source_id', 'source_url', 'drive_url'].some(k => input[k] !== undefined))
+        fail('INVALID_ARGUMENT', 'Name the original file: source_id, source_url or drive_url.');
       const id = randomUUID(),
         expires = Date.now() + 300000;
       this.store.reserveMedia(actor.tenantId, id, expires);
@@ -585,9 +818,14 @@ export class MediaUploadService {
       if (
         !platforms.includes(input.platform) ||
         typeof input.account_id !== 'string' ||
-        (typeof input.drive_url !== 'string' && typeof input.variant_id !== 'string')
+        !['source_id', 'source_url', 'drive_url', 'variant_id'].some(k => typeof input[k] === 'string')
       )
-        fail('INVALID_ARGUMENT', 'prepare requires platform, account_id and drive_url.');
+        fail(
+          'INVALID_ARGUMENT',
+          'prepare requires platform, account_id and one file: source_id, source_url, drive_url or variant_id.',
+        );
+      if (input.fit_to_platform !== undefined && typeof input.fit_to_platform !== 'boolean')
+        fail('INVALID_ARGUMENT', 'fit_to_platform is true or false.');
       if (input.review_id !== undefined || input.idempotency_key !== undefined || input.confirmed !== undefined)
         fail('INVALID_ARGUMENT', 'Preparation cannot execute an upload.');
       const account = normalizeAccount(input.platform + '_native_action', input.account_id);
@@ -652,52 +890,12 @@ export class MediaUploadService {
         );
       this.store.reserveMedia(actor.tenantId, reviewId, expires);
       try {
-        const file = await this.source(input, actor, reviewId);
-        if (input.preset) {
-          const eligibility = await inspectMediaPlacement(file.bytes, input.preset);
-          if (!eligibility.eligible_for_preset)
-            fail('MEDIA_PLACEMENT_MISMATCH', 'The source does not meet the selected placement preset.', eligibility);
-        }
-        if (
-          (input.media_type !== undefined && input.media_type !== file.kind) ||
-          (input.expected_mime !== undefined && input.expected_mime !== file.mime) ||
-          (input.expected_size !== undefined && input.expected_size !== file.bytes.length)
-        )
-          fail('MEDIA_TYPE_MISMATCH', 'The downloaded file does not match the declared type, MIME type or size.', {
-            actual_type: file.kind,
-            actual_mime: file.mime,
-            actual_size: file.bytes.length,
-          });
-        if (['x_ads', 'linkedin'].includes(input.platform) && file.mime === 'video/quicktime')
-          fail('MEDIA_TYPE_UNSUPPORTED', 'Use MP4 video for X and LinkedIn.');
-        if (adAsset && file.kind !== 'image')
-          fail(
-            'MEDIA_TYPE_UNSUPPORTED',
-            'DV360 uploads only images as ad assets; YouTube video ad assets are created by video ID with DV360_ADVERTISERS_AD_ASSETS_CREATE.',
-          );
-        if (
-          input.platform === 'linkedin' &&
-          file.kind === 'video' &&
-          !/^urn:li:(?:organization|person):[A-Za-z0-9_-]+$/.test(input.owner_urn ?? '')
-        )
-          fail(
-            'LINKEDIN_VIDEO_OWNER_REQUIRED',
-            'Specify the organization/person owner and its administrator resource binding for this LinkedIn video.',
-          );
-        const imageLimit =
-          input.platform === 'google_ads'
-            ? 5 * 1024 * 1024
-            : input.platform === 'meta'
-              ? 30 * 1024 * 1024
-              : input.platform === 'linkedin'
-                ? 20 * 1024 * 1024
-                : input.platform === 'dv360'
-                  ? adAsset
-                    ? 5120 * 1024
-                    : 10 * 1024 * 1024
-                  : 5 * 1024 * 1024;
-        if (file.kind === 'image' && file.bytes.length > imageLimit)
-          fail('MEDIA_TOO_LARGE', 'Image exceeds the platform import limit.', {maximum_bytes: imageLimit});
+        const {file, transform} = await this.platformFile(
+          input,
+          await this.source(input, actor, reviewId),
+          adAsset,
+          actor,
+        );
         const name = input.name?.trim() ?? 'AMCP media',
           p: UploadPlan = {
             platform: input.platform,
@@ -711,6 +909,8 @@ export class MediaUploadService {
             sha256: sha256(file.bytes),
             read: this.accountRead(input.platform, account),
             ...(file.source_drive ? {source_drive: file.source_drive} : {}),
+            ...('origin' in file && file.origin ? {origin: file.origin} : {}),
+            ...(transform ? {transform} : {}),
             ...(adAsset
               ? {
                   dv360_target: 'ad_asset' as const,
@@ -839,6 +1039,11 @@ export class MediaUploadService {
         'synthetic_content',
         'drive_connection_id',
         'variant_id',
+        'source_id',
+        'source_url',
+        'fit_to_platform',
+        'destinations',
+        'expected_sha256',
         'preset',
         'fit',
         'reuse_existing',
@@ -1028,7 +1233,7 @@ export class MediaUploadService {
           name: p.name,
           mime_type: p.mime,
           size_bytes: p.size,
-          source: 'server_drive_import',
+          source: receiptSource(p),
           upload_session_id: input.review_id,
         });
         this.store.removeStagedMedia(actor.tenantId, input.review_id);
@@ -1655,7 +1860,7 @@ export class MediaUploadService {
         media_type: p.kind,
         mime_type: p.mime,
         size_bytes: p.size,
-        source: 'server_drive_import',
+        source: receiptSource(p),
         upload_session_id: receipt.review_id,
       });
       if (failed)

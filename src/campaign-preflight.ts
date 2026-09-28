@@ -6,6 +6,7 @@ import {MirrorError} from './errors.js';
 import {assertWriteShape, snapshotPlans} from './write-review.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {driveDownloadUrl} from './drive-media.js';
+import {mediaLinkUrl} from './media-link.js';
 import {validateMetaCreative} from './creative-validation.js';
 import {normalizeAccount} from './scope.js';
 import {accountPlan, accountCurrency} from './workspace.js';
@@ -178,8 +179,12 @@ export async function campaignPreflight(
           continue;
         }
         if (step.arguments.drive_url) driveDownloadUrl(step.arguments.drive_url);
-        else if (!step.arguments.variant_id)
-          throw new MirrorError('MEDIA_SOURCE_REQUIRED', 'Provide a Google Drive file link or staged variant.');
+        else if (step.arguments.source_url) mediaLinkUrl(step.arguments.source_url);
+        else if (!step.arguments.variant_id && !step.arguments.source_id)
+          throw new MirrorError(
+            'MEDIA_SOURCE_REQUIRED',
+            'Provide a file: source_id (an upload), source_url (a public link), a Google Drive link or a staged variant.',
+          );
         const result = await service.call(
           'amcp_media',
           {...step.arguments, action: 'prepare', account_id: account, connection_id: c.id},

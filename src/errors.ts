@@ -68,6 +68,47 @@ export function errorRemedy(e: MirrorError) {
             : 'Inspect the exact targeting input, selected account, current private-reference eligibility and complete membership. Preserve the original review/key after submission; correct an uncertain result only after scoped read-back.',
       mutation_retry_safe: false,
     };
+  if (e.code === 'MEDIA_UPLOAD_INCOMPLETE')
+    return {
+      category: 'request',
+      owner: 'operator',
+      action:
+        'Send the parts the details name, then complete the upload again. Parts already received are kept for as long as the upload lasts (30 minutes).',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'MEDIA_PARTS_BUSY')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action: 'Send the same part again in a moment. Parts already received are kept.',
+      mutation_retry_safe: false,
+    };
+  if (['MEDIA_SOURCE_NOT_FOUND', 'MEDIA_UPLOAD_COMPLETE'].includes(e.code))
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        e.code === 'MEDIA_UPLOAD_COMPLETE'
+          ? 'The upload is already complete: use its source_id with amcp_media plan or prepare.'
+          : 'Uploads last 30 minutes. amcp_media list returns the current ones under sources; otherwise upload the file again on the AMCP website, or pass source_url.',
+      mutation_retry_safe: false,
+    };
+  if (['MEDIA_LINK_BLOCKED', 'MEDIA_LINK_UNAVAILABLE'].includes(e.code))
+    return {
+      category: 'request',
+      owner: 'operator',
+      action:
+        'AMCP fetches only a public HTTPS link that leads to the file itself and resolves to public internet addresses. Use such a link, or upload the file on the AMCP website.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'MEDIA_CHANGED')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'The file is not the one planned or reviewed. Plan or prepare again and review the file it now names; nothing was uploaded.',
+      mutation_retry_safe: false,
+    };
   if (['MEDIA_MEMORY_BUSY', 'MEDIA_UPLOAD_BUSY'].includes(e.code))
     return {
       category: 'state',

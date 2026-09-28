@@ -1,4 +1,5 @@
 import {compressedAssets} from './compressed-assets.js';
+import {mediaSourceRoutes} from './media-source-routes.js';
 import express, {type Request, type Response, type NextFunction} from 'express';
 import path from 'node:path';
 import {reportEvidence} from '../src/report-quality.js';
@@ -340,6 +341,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         res.json(result);
       }),
     );
+    router.use(mediaSourceRoutes(web, store, () => service.mediaSources()));
     router.get(
       '/api/media/variants/:id/preview',
       handler((req, res) => {

@@ -56,6 +56,7 @@ import {ReportingOverview, overviewTool} from './reporting-overview.js';
 import {WriteVerifier} from './write-verification.js';
 import {validateProviderRequest} from './provider-validation.js';
 import {MediaUploadService, mediaTool} from './media-upload.js';
+import type {LinkRequest} from './media-link.js';
 import {
   nativeMediaInput,
   workflowMediaInput,
@@ -131,6 +132,7 @@ export class MirrorService {
     readonly options: CallOptions = strictOptions,
     readonly policy: ExecutionPolicy = readOnlyPolicy,
     private mediaFetcher: typeof fetch = fetch,
+    private mediaLinkRequest?: LinkRequest,
   ) {
     this.compiler = new Compiler(registry);
     this.introspection = new Introspection(registry);
@@ -333,7 +335,12 @@ export class MirrorService {
       this.credentials,
       this.policy,
       this.mediaFetcher,
+      this.mediaLinkRequest,
     );
+  }
+  /** Files uploaded to AMCP or imported from a link, for the website's upload routes. */
+  mediaSources() {
+    return this.media().sources;
   }
   private connectionId(input: JsonObject, outer?: string) {
     const ids = [outer, input.connection_id, input.connectionId].filter(v => v !== undefined);

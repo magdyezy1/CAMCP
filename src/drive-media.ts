@@ -62,7 +62,10 @@ function allowedDownload(url: URL) {
       (/^[a-z0-9-]+-docs\.googleusercontent\.com$/.test(url.hostname) && url.pathname.startsWith('/docs/')))
   );
 }
-export function mediaType(bytes: Buffer): {mime: string; kind: 'image' | 'video'; extension: string} {
+export function mediaType(
+  bytes: Buffer,
+  notMedia = 'The download is not PNG, JPEG, MP4 or MOV. Private Drive links and download confirmation pages cannot be uploaded.',
+): {mime: string; kind: 'image' | 'video'; extension: string} {
   if (bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])))
     return {mime: 'image/png', kind: 'image', extension: 'png'};
   if (bytes.length >= 3 && bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255)
@@ -79,10 +82,7 @@ export function mediaType(bytes: Buffer): {mime: string; kind: 'image' | 'video'
       extension: brand === 'qt  ' ? 'mov' : 'mp4',
     };
   }
-  throw new MirrorError(
-    'MEDIA_TYPE_UNSUPPORTED',
-    'The download is not PNG, JPEG, MP4 or MOV. Private Drive links and download confirmation pages cannot be uploaded.',
-  );
+  throw new MirrorError('MEDIA_TYPE_UNSUPPORTED', notMedia);
 }
 export async function downloadDriveMedia(source: string, fetcher: typeof fetch = fetch, sink?: MediaSink) {
   let url = driveDownloadUrl(source);

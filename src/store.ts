@@ -337,16 +337,11 @@ export class Store {
   cleanupTransient() {
     const now = Date.now();
     this.transaction(() => {
-      this.db
-        .prepare(
-          'DELETE FROM media_chunks WHERE EXISTS(SELECT 1 FROM media_staging s WHERE s.tenant_id=media_chunks.tenant_id AND s.id=media_chunks.id AND s.expires_at<=?)',
-        )
-        .run(now);
-      this.db.prepare('DELETE FROM media_staging WHERE expires_at<=?').run(now);
+      this.cleanupStagedMedia(now);
       this.db.prepare('DELETE FROM media_admissions WHERE expires_at<=?').run(now);
       this.db
         .prepare(
-          "DELETE FROM documents WHERE kind IN ('upload_session','preview_receipt','tiktok_report_run','x_report_run','x_report_result') AND json_extract(data,'$.expires_at')<=?",
+          "DELETE FROM documents WHERE kind IN ('upload_session','preview_receipt','tiktok_report_run','x_report_run','x_report_result','media_source') AND json_extract(data,'$.expires_at')<=?",
         )
         .run(now);
       this.db.prepare('DELETE FROM provider_cooldowns WHERE until_at<=?').run(now);
@@ -358,20 +353,31 @@ export class Store {
     });
   }
 
+  private cleanupStagedMedia(now = Date.now()) {
+    this.db
+      .prepare(
+        'DELETE FROM media_chunks WHERE EXISTS(SELECT 1 FROM media_staging s WHERE s.tenant_id=media_chunks.tenant_id AND s.id=media_chunks.id AND s.expires_at<=?)',
+      )
+      .run(now);
+    this.db.prepare('DELETE FROM media_staging WHERE expires_at<=?').run(now);
+  }
+  /** Staged files of one kind: uploaded sources (ids starting `src-`) or everything else (reviews and variants). */
+  private stagedCount(sources: boolean, tenant?: string) {
+    const kind = sources ? "id LIKE 'src-%'" : "id NOT LIKE 'src-%'",
+      row = (
+        tenant === undefined
+          ? this.db.prepare('SELECT count(*) AS n FROM media_staging WHERE ' + kind).get()
+          : this.db.prepare('SELECT count(*) AS n FROM media_staging WHERE tenant_id=? AND ' + kind).get(tenant)
+      ) as {n: number};
+    return row.n;
+  }
   reserveMedia(tenant: string, id: string, expiresAt: number) {
     if (!this.box) throw new MirrorError('ENCRYPTION_REQUIRED', 'Media staging requires the configured master key.');
+    if (id.startsWith('src-')) throw new MirrorError('MEDIA_STAGING_INVALID', 'Invalid media staging id.');
     this.transaction(() => {
-      this.db
-        .prepare(
-          'DELETE FROM media_chunks WHERE EXISTS(SELECT 1 FROM media_staging s WHERE s.tenant_id=media_chunks.tenant_id AND s.id=media_chunks.id AND s.expires_at<=?)',
-        )
-        .run(Date.now());
-      this.db.prepare('DELETE FROM media_staging WHERE expires_at<=?').run(Date.now());
-      const local = this.db.prepare('SELECT count(*) AS n FROM media_staging WHERE tenant_id=?').get(tenant) as {
-        n: number;
-      };
-      const total = this.db.prepare('SELECT count(*) AS n FROM media_staging').get() as {n: number};
-      if (local.n >= 2 || total.n >= 8)
+      this.cleanupStagedMedia();
+      // Uploaded sources have their own quota (reserveMediaSource), so waiting uploads never take a review's place.
+      if (this.stagedCount(false, tenant) >= 2 || this.stagedCount(false) >= 8)
         throw new MirrorError(
           'MEDIA_STAGING_FULL',
           'Finish or cancel existing media reviews, or wait five minutes for them to expire.',
@@ -380,6 +386,138 @@ export class Store {
         );
       this.db.prepare('INSERT INTO media_staging VALUES(?,?,NULL,?)').run(tenant, id, expiresAt);
     });
+  }
+  /**
+   * Reserves encrypted staging for a file uploaded to AMCP or imported from a link (media-sources.ts): at most four
+   * per workspace and eight in all, apart from the reviews and variants each workspace may stage.
+   */
+  reserveMediaSource(tenant: string, id: string, expiresAt: number) {
+    if (!this.box) throw new MirrorError('ENCRYPTION_REQUIRED', 'Media staging requires the configured master key.');
+    if (!/^src-[0-9a-f-]{36}$/.test(id)) throw new MirrorError('MEDIA_STAGING_INVALID', 'Invalid media source id.');
+    this.transaction(() => {
+      this.cleanupStagedMedia();
+      if (this.stagedCount(true, tenant) >= 4)
+        throw new MirrorError(
+          'MEDIA_STAGING_FULL',
+          'Four uploaded files are already waiting in this workspace. Remove one, or wait for one to expire (30 minutes after upload).',
+          {retry_after_ms: 60000},
+          429,
+          true,
+        );
+      if (this.stagedCount(true) >= 8)
+        throw new MirrorError(
+          'MEDIA_STAGING_FULL',
+          'AMCP is holding as many uploaded files as it keeps at once. Try again in a few minutes.',
+          {retry_after_ms: 60000},
+          429,
+          true,
+        );
+      this.db.prepare('INSERT INTO media_staging VALUES(?,?,NULL,?)').run(tenant, id, expiresAt);
+    });
+  }
+  private receivingSource(tenant: string, id: string) {
+    const row = this.db
+      .prepare('SELECT secret FROM media_staging WHERE tenant_id=? AND id=? AND expires_at>?')
+      .get(tenant, id, Date.now()) as {secret: string | null} | undefined;
+    if (!row) throw new MirrorError('REVIEW_EXPIRED', 'The upload expired or was removed. Upload the file again.');
+    if (row.secret) throw new MirrorError('MEDIA_UPLOAD_COMPLETE', 'This upload is already complete.', {}, 409);
+  }
+  /**
+   * Stores chunk `index` of a file that is still being received, encrypted like every staged chunk. A chunk sent again
+   * replaces itself, so a client may retry one. `chunkBytes` is the upload's chunk size: no chunk is longer, and no
+   * chunk starts past the media limit, so one upload never holds more than the limit plus one chunk.
+   */
+  putMediaChunk(tenant: string, id: string, index: number, bytes: Buffer, chunkBytes: number) {
+    if (!this.box) throw new MirrorError('ENCRYPTION_REQUIRED', 'Encrypted staging is required.');
+    if (
+      !Number.isSafeInteger(chunkBytes) ||
+      chunkBytes < 1 ||
+      chunkBytes > 4 * 1024 * 1024 ||
+      !Number.isSafeInteger(index) ||
+      index < 0 ||
+      index * chunkBytes >= MAX_MEDIA_BYTES ||
+      !bytes.length ||
+      bytes.length > chunkBytes
+    )
+      throw new MirrorError('MEDIA_STAGING_INVALID', 'Invalid media chunk.');
+    this.transaction(() => {
+      this.receivingSource(tenant, id);
+      this.db
+        .prepare('INSERT OR REPLACE INTO media_chunks VALUES(?,?,?,?)')
+        .run(
+          tenant,
+          id,
+          index,
+          this.box!.seal({bytes: bytes.toString('base64')}, scopeKey(tenant, 'media-chunk', id, String(index))),
+        );
+    });
+  }
+  /**
+   * Completes a file received in chunks: chunks 0 to `chunks - 1` must all be present, each exactly `chunkBytes` long
+   * except the last, adding up to `size`. Writes the manifest `stagedMedia` reads and returns the file's SHA-256.
+   */
+  finalizeMediaChunks(tenant: string, id: string, expected: {chunks: number; size: number; chunkBytes: number}) {
+    if (!this.box) throw new MirrorError('ENCRYPTION_REQUIRED', 'Encrypted staging is required.');
+    const {chunks, size, chunkBytes} = expected;
+    if (!Number.isSafeInteger(size) || size < 1 || size > MAX_MEDIA_BYTES)
+      throw new MirrorError('MEDIA_STAGING_INVALID', 'Invalid media size.');
+    return this.transaction(() => {
+      this.receivingSource(tenant, id);
+      const hash = createHash('sha256');
+      let index = 0,
+        total = 0;
+      for (const c of this.db
+        .prepare('SELECT chunk_index,secret FROM media_chunks WHERE tenant_id=? AND id=? ORDER BY chunk_index')
+        .iterate(tenant, id) as Iterable<JsonObject>) {
+        if (c.chunk_index !== index)
+          throw new MirrorError('MEDIA_UPLOAD_INCOMPLETE', 'Part ' + (index + 1) + ' of the upload is missing.', {
+            missing_chunk: index,
+          });
+        const part = Buffer.from(
+          this.box!.open<{bytes: string}>(c.secret, scopeKey(tenant, 'media-chunk', id, String(index))).bytes,
+          'base64',
+        );
+        if (index < chunks - 1 && part.length !== chunkBytes)
+          throw new MirrorError('MEDIA_UPLOAD_INCOMPLETE', 'Part ' + (index + 1) + ' of the upload is incomplete.', {
+            incomplete_chunk: index,
+          });
+        hash.update(part);
+        total += part.length;
+        index++;
+      }
+      if (index !== chunks || total !== size)
+        throw new MirrorError('MEDIA_UPLOAD_INCOMPLETE', 'The upload has not received every part yet.', {
+          received_chunks: index,
+          expected_chunks: chunks,
+          received_bytes: total,
+          expected_bytes: size,
+        });
+      const digest = hash.digest('hex');
+      this.db
+        .prepare('UPDATE media_staging SET secret=? WHERE tenant_id=? AND id=?')
+        .run(this.box!.seal({chunks, size, sha256: digest}, scopeKey(tenant, 'media', id)), tenant, id);
+      return digest;
+    });
+  }
+  /** One decrypted chunk of a completed staged file, so a large file can be copied without holding it whole. */
+  stagedMediaChunk(tenant: string, id: string, index: number): Buffer {
+    this.stagedMediaManifest(tenant, id);
+    const row = this.db
+      .prepare('SELECT secret FROM media_chunks WHERE tenant_id=? AND id=? AND chunk_index=?')
+      .get(tenant, id, index) as {secret: string} | undefined;
+    if (!row) throw new MirrorError('MEDIA_STAGING_INVALID', 'Encrypted media chunks are incomplete.');
+    return Buffer.from(
+      this.box!.open<{bytes: string}>(row.secret, scopeKey(tenant, 'media-chunk', id, String(index))).bytes,
+      'base64',
+    );
+  }
+  /** The manifest of a completed staged file: its chunk count, size and SHA-256. */
+  stagedMediaManifest(tenant: string, id: string): {chunks: number; size: number; sha256: string; bytes?: string} {
+    const row = this.db
+      .prepare('SELECT secret FROM media_staging WHERE tenant_id=? AND id=? AND expires_at>?')
+      .get(tenant, id, Date.now()) as {secret: string | null} | undefined;
+    if (!this.box || !row?.secret) throw new MirrorError('REVIEW_EXPIRED', 'The staged media expired or was removed.');
+    return this.box.open(row.secret, scopeKey(tenant, 'media', id));
   }
   stageMedia(tenant: string, id: string, bytes: Buffer) {
     if (!this.box || bytes.length > MAX_MEDIA_BYTES)
@@ -409,11 +547,7 @@ export class Store {
     });
   }
   stagedMedia(tenant: string, id: string): Buffer {
-    const row = this.db
-      .prepare('SELECT secret FROM media_staging WHERE tenant_id=? AND id=? AND expires_at>?')
-      .get(tenant, id, Date.now()) as {secret: string} | undefined;
-    if (!this.box || !row?.secret) throw new MirrorError('REVIEW_EXPIRED', 'The staged media expired or was removed.');
-    const manifest = this.box.open<JsonObject>(row.secret, scopeKey(tenant, 'media', id));
+    const manifest = this.stagedMediaManifest(tenant, id);
     if (manifest.bytes) return Buffer.from(manifest.bytes, 'base64');
     if (!Number.isSafeInteger(manifest.size) || manifest.size < 0 || manifest.size > MAX_MEDIA_BYTES)
       throw new MirrorError('MEDIA_STAGING_INVALID', 'Invalid staged size.');
@@ -971,6 +1105,20 @@ export class Store {
         .run(tenantId, kind, id, JSON.stringify(data), revision);
       return {id, revision};
     });
+  }
+  deleteDocument(tenantId: string, kind: string, id: string) {
+    this.db.prepare('DELETE FROM documents WHERE tenant_id=? AND kind=? AND id=?').run(tenantId, kind, id);
+  }
+  /** Seals a value for a document field that only this tenant, purpose and id can open again. */
+  sealValue(tenant: string, purpose: string, id: string, value: JsonObject): string {
+    if (!this.box)
+      throw new MirrorError('ENCRYPTION_REQUIRED', 'Encrypted storage requires the configured master key.');
+    return this.box.seal(value, scopeKey(tenant, 'sealed-value', purpose, id));
+  }
+  openValue<T = JsonObject>(tenant: string, purpose: string, id: string, sealed: string): T {
+    if (!this.box)
+      throw new MirrorError('ENCRYPTION_REQUIRED', 'Encrypted storage requires the configured master key.');
+    return this.box.open<T>(sealed, scopeKey(tenant, 'sealed-value', purpose, id));
   }
   document(tenantId: string, kind: string, id: string): JsonObject {
     const row = this.db

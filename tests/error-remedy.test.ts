@@ -59,6 +59,11 @@ test('frequent refusals name their own next step instead of a generic "prepare a
     ['TOKEN_REFRESH_FAILED', 'provider', /Reconnect/],
     ['MEDIA_RESPONSE_INVALID', 'provider', /do not resubmit/],
     ['REPORT_SHAPE_CHANGED', 'provider', /do not resubmit/],
+    ['MEDIA_UPLOAD_INCOMPLETE', 'request', /parts the details name/],
+    ['MEDIA_PARTS_BUSY', 'state', /same part again/],
+    ['MEDIA_SOURCE_NOT_FOUND', 'state', /30 minutes/],
+    ['MEDIA_LINK_BLOCKED', 'request', /public HTTPS link/],
+    ['MEDIA_CHANGED', 'state', /nothing was uploaded/],
     ['INVALID_ARGUMENT', 'request', /argument the message names/],
     ['MISSING_PARAMETER', 'request', /argument the message names/],
   ];

@@ -1,19 +1,41 @@
 import {MirrorError} from './errors.js';
 import {driveDownloadUrl, downloadDriveMedia, MAX_MEDIA_BYTES} from './drive-media.js';
+import {mediaLinkUrl} from './media-link.js';
 import {createHash} from 'node:crypto';
 import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
 export const mediaPlatforms = ['meta', 'tiktok', 'snapchat', 'google_ads', 'linkedin', 'x_ads', 'dv360'];
+/** How each media platform is named to people. */
+export const mediaPlatformNames: Readonly<Record<string, string>> = Object.freeze({
+  meta: 'Meta',
+  tiktok: 'TikTok',
+  snapchat: 'Snapchat',
+  google_ads: 'Google Ads',
+  linkedin: 'LinkedIn',
+  x_ads: 'X',
+  dv360: 'Display & Video 360',
+});
+/** The largest image amcp_media uploads to each platform; a DV360 Demand Gen ad asset takes up to 5120 KB. */
+export function mediaImageLimit(platform: string, adAsset = false): number {
+  if (platform === 'google_ads') return 5 * 1024 * 1024;
+  if (platform === 'meta') return 30 * 1024 * 1024;
+  if (platform === 'linkedin') return 20 * 1024 * 1024;
+  if (platform === 'dv360') return adAsset ? 5120 * 1024 : 10 * 1024 * 1024;
+  return 5 * 1024 * 1024;
+}
+/** Platforms that take video only as MP4. */
+export const mp4OnlyPlatforms: readonly string[] = ['x_ads', 'linkedin'];
 export const mediaInstructions =
-  'AMCP server-side Drive imports: never download media in the MCP client. Put the Google Drive share link in payload.url on a native upload action, or use amcp_native_action platform_media_upload with action UPLOAD_FROM_URL. amcp_write prepare returns the frozen upload review; amcp_write execute accepts it. A native dry_run:false import prepares only; follow its returned next_call after review. Meta creative creation is supported. Returned image hashes, video IDs, URNs and asset resource names can be used in creative/ad payloads. Missing Page IDs, destinations and account write grants remain explicit prerequisites.';
+  'AMCP server-side media imports: never download media in the MCP client. Put a public HTTPS link or a Google Drive share link in payload.url on a native upload action (a file uploaded on the AMCP website goes through amcp_media with its source_id), or use amcp_native_action platform_media_upload with action UPLOAD_FROM_URL. amcp_write prepare returns the frozen upload review; amcp_write execute accepts it. A native dry_run:false import prepares only; follow its returned next_call after review. Meta creative creation is supported. Returned image hashes, video IDs, URNs and asset resource names can be used in creative/ad payloads. Missing Page IDs, destinations and account write grants remain explicit prerequisites.';
 export function mediaDiscovery(gateway?: string): JsonObject | undefined {
   if (!gateway) return;
   if (gateway !== 'amcp_native_action' && !mediaPlatforms.includes(gateway.replace(/_native_action$/, ''))) return;
   return {
     instructions: mediaInstructions,
     platforms: mediaPlatforms,
-    source: 'Public Drive URL or private file selected in a separate Drive connection',
+    source:
+      'A file uploaded on the AMCP website (source_id), a public HTTPS link, a public Drive URL, or a private file selected in a separate Drive connection',
     client_download_required: false,
     maximum_bytes: MAX_MEDIA_BYTES,
     review_tool: 'amcp_write',
@@ -76,6 +98,22 @@ export function mediaRoute(
     return {platform: p, media_type: 'image', dv360_target: 'ad_asset'};
 }
 const sourceKeys = ['drive_url', 'url', 'image_url', 'video_url', 'file_url', 'source'];
+/**
+ * The amcp_media file a native payload's link names: a Google Drive link, or any other public HTTPS link, each checked
+ * by its own rules before anything is fetched. (A file uploaded on the website goes through amcp_media source_id.)
+ */
+export function mediaFileInput(value: string): {drive_url: string} | {source_url: string} {
+  let host = '';
+  try {
+    host = new URL(value).hostname;
+  } catch {}
+  if (/(^|\.)(drive|docs)\.google\.com$/.test(host)) {
+    driveDownloadUrl(value);
+    return {drive_url: value};
+  }
+  mediaLinkUrl(value);
+  return {source_url: value};
+}
 /** Only explicit import inputs are consumed. Never silently drop native mutations. */
 export function nativeMediaInput(plan: CompiledRequest, connectionId?: string): JsonObject | undefined {
   const route = mediaRoute(plan);
@@ -88,7 +126,7 @@ export function nativeMediaInput(plan: CompiledRequest, connectionId?: string): 
   if (!sources.length)
     throw new MirrorError(
       'MEDIA_SOURCE_REQUIRED',
-      'Put the public Google Drive share link in payload.url. AMCP downloads and transfers it on the server; do not download it in the MCP client.',
+      'Put the file’s link in payload.url: a public HTTPS link or a Google Drive share link (a file uploaded on the AMCP website goes through amcp_media with its source_id). AMCP fetches and transfers it on the server; do not download it in the MCP client.',
       {
         example: {
           action: plan.action,
@@ -159,7 +197,7 @@ export function nativeMediaInput(plan: CompiledRequest, connectionId?: string): 
     action: 'prepare',
     platform: route.platform,
     account_id: plan.accountId,
-    drive_url: sources[0],
+    ...mediaFileInput(sources[0]),
     ...(connectionId ? {connection_id: connectionId} : {}),
     ...(names.length ? {name: names[0]} : {}),
     ...((route.media_type ?? declared) ? {media_type: route.media_type ?? declared} : {}),
@@ -215,7 +253,7 @@ export function workflowMediaInput(args: JsonObject, connectionId?: string): Jso
   if (!['UPLOAD_FROM_URL', 'UPLOAD_FROM_URL_VIA_SESSION', 'QUEUE_GOOGLE_DRIVE_IMPORT'].includes(args.action))
     throw new MirrorError(
       'MEDIA_ACTION_UNSUPPORTED',
-      'Use UPLOAD_FROM_URL with a public Drive file link, then execute the returned review with amcp_write. The MCP client does not need a local file or signed upload URL.',
+      'Use UPLOAD_FROM_URL with a public link or a Google Drive link, then execute the returned review with amcp_write. The MCP client does not need a local file or signed upload URL.',
     );
   let url = args.url;
   if (args.google_drive_file_id !== undefined) {
@@ -235,16 +273,16 @@ export function workflowMediaInput(args: JsonObject, connectionId?: string): Jso
   if (typeof url !== 'string')
     throw new MirrorError(
       'MEDIA_SOURCE_REQUIRED',
-      'Provide url with the public Google Drive share link. AMCP performs the transfer.',
+      'Provide url: a public HTTPS link or a Google Drive share link. AMCP performs the transfer.',
     );
-  driveDownloadUrl(url);
+  const file = mediaFileInput(url);
   if (args.owner_urn && target?.owner_urn && args.owner_urn !== target.owner_urn)
     throw new MirrorError('CONFLICTING_PARAMETER', 'Owner URNs must agree.');
   return {
     action: 'prepare',
     platform,
     account_id: account,
-    drive_url: url,
+    ...file,
     ...(connectionId ? {connection_id: connectionId} : {}),
     ...(args.file_name ? {name: args.file_name} : {}),
     ...(args.media_type ? {media_type: args.media_type} : {}),
@@ -254,13 +292,14 @@ export function workflowMediaInput(args: JsonObject, connectionId?: string): Jso
   };
 }
 export function mediaPreview(input: JsonObject): JsonObject {
-  driveDownloadUrl(input.drive_url);
+  mediaFileInput(input.drive_url ?? input.source_url);
   return {
     success: true,
     dry_run: true,
     executed: false,
     client_download_required: false,
-    transfer: 'AMCP server downloads the Drive file, freezes its bytes for review, and uses the platform upload API.',
+    transfer:
+      'AMCP server fetches the file (a public link or Google Drive), freezes its bytes for review, and uses the platform upload API.',
     request: input,
     next_call: {tool: 'amcp_media', arguments: input},
     confirmation_required: true,
