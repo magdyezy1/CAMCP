@@ -95,7 +95,13 @@ function fixture() {
       if (out[t]) {
         out[t].trackingUrl = 'https://tracking.example/' + id;
         if (out[t].logo) out[t].logo = {...out[t].logo, mimeType: 'image/png', fileSize: '2048'};
-        if (out[t].videos) out[t].videos = out[t].videos.map(v => ({...v, id: assets[v.videoAssetId]?.youtubeVideoId}));
+        // The availability note is output-only (Discovery revision 20260928); it must not count as a change.
+        if (out[t].videos)
+          out[t].videos = out[t].videos.map(v => ({
+            ...v,
+            id: assets[v.videoAssetId]?.youtubeVideoId,
+            unavailableReason: 'VIDEO_UNAVAILABLE_REASON_UNSPECIFIED',
+          }));
       }
     return out;
   };

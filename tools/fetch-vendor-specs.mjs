@@ -21,32 +21,37 @@ const sources = {
   'reddit-v3': 'https://ads-api.reddit.com/api/v3/openapi.json',
 };
 fs.mkdirSync('.mirror/VENDOR', {recursive: true});
+// `--refresh name…` fetches only the named documents again; `--refresh` alone fetches every one.
+const named = process.argv.slice(2).filter(a => !a.startsWith('--'));
+for (const name of named) if (!sources[name]) throw Error('Unknown vendor document: ' + name);
 const results = process.argv.includes('--generate-only')
   ? []
   : await Promise.allSettled(
-      Object.entries(sources).map(async ([name, url]) => {
-        const file = '.mirror/VENDOR/' + name + '.json';
-        if (fs.existsSync(file) && !process.argv.includes('--refresh')) return {name, cached: true};
-        const response = await fetch(url, {redirect: 'error', signal: AbortSignal.timeout(30000)});
-        if (!response.ok) throw Error(name + ' HTTP ' + response.status);
-        const document = await response.json();
-        if (!document.resources && !document.paths) throw Error(name + ' unexpected schema');
-        fs.writeFileSync(
-          file,
-          JSON.stringify(
-            {
-              source: url,
-              captured_at: new Date().toISOString(),
-              evidence: 'VENDOR_DOCUMENTED_NOT_AMCP_OBSERVED',
-              document_sha256: hash(document),
-              document,
-            },
-            null,
-            2,
-          ) + '\n',
-        );
-        return {name, version: document.version ?? document.info?.version};
-      }),
+      Object.entries(sources)
+        .filter(([name]) => !named.length || named.includes(name))
+        .map(async ([name, url]) => {
+          const file = '.mirror/VENDOR/' + name + '.json';
+          if (fs.existsSync(file) && !process.argv.includes('--refresh')) return {name, cached: true};
+          const response = await fetch(url, {redirect: 'error', signal: AbortSignal.timeout(30000)});
+          if (!response.ok) throw Error(name + ' HTTP ' + response.status);
+          const document = await response.json();
+          if (!document.resources && !document.paths) throw Error(name + ' unexpected schema');
+          fs.writeFileSync(
+            file,
+            JSON.stringify(
+              {
+                source: url,
+                captured_at: new Date().toISOString(),
+                evidence: 'VENDOR_DOCUMENTED_NOT_AMCP_OBSERVED',
+                document_sha256: hash(document),
+                document,
+              },
+              null,
+              2,
+            ) + '\n',
+          );
+          return {name, version: document.version ?? document.info?.version};
+        }),
     );
 for (const r of results) console.log(r.status === 'fulfilled' ? r.value : String(r.reason));
 if (results.some(r => r.status === 'rejected')) process.exitCode = 1;

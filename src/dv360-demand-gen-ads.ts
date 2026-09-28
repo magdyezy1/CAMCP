@@ -299,7 +299,8 @@ function body(r: TransportResult, what: string): JsonObject {
   if (r.status !== 200 || !obj(r.data) || r.data.error) unverified('DV360 did not return the ' + what + '.');
   return r.data;
 }
-/** Output-only fields dropped, following the pinned model, plus the video availability note. */
+/** Output-only fields dropped, following the pinned model (which marks the video availability note output-only since
+ * revision 20260928). */
 function clean(schema: JsonObject, value: unknown): unknown {
   const s = schema.$ref ? (models()[schema.$ref as string] ?? {}) : schema;
   if (Array.isArray(value)) return value.map(v => clean(obj(s.items) ? s.items : {}, v));
@@ -307,7 +308,7 @@ function clean(schema: JsonObject, value: unknown): unknown {
     const out: JsonObject = {};
     for (const [k, v] of Object.entries(value)) {
       const child = obj(s.properties) ? s.properties[k] : undefined;
-      if (!obj(child) || child.readOnly === true || k === 'unavailableReason') continue;
+      if (!obj(child) || child.readOnly === true) continue;
       out[k] = clean(child, v);
     }
     return out;

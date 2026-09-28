@@ -402,6 +402,20 @@ test('location and language targeting follows the line item setting', async () =
   }
 });
 
+test('the YouTube and partners bid multiplier, writable since DV360 v4 revision 20260928, needs a spend confirmation', async () => {
+  const f = fixture();
+  try {
+    const prepared = await f.lineCreate('556', 'TARGETING_TYPE_DEVICE_TYPE', {
+      deviceTypeDetails: {deviceType: 'DEVICE_TYPE_COMPUTER', youtubeAndPartnersBidMultiplier: 1.5},
+    });
+    assert.equal(prepared.success, true, JSON.stringify(prepared));
+    assert.equal(prepared.data.execute_requirements.spend_change_confirmed, true);
+    assert.equal(f.writes(), 0);
+  } finally {
+    f.store.close();
+  }
+});
+
 test('Demand Gen line items and ad groups take only their documented targeting types', async () => {
   const f = fixture();
   try {
