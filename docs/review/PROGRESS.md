@@ -313,3 +313,7 @@ machine-readable contract and its reference is blocked here. Every difference fo
 
 Meta's v26.0 changelog could not be read, so behaviour changes beyond the SDK's schema are not known; reviewed writes
 still read back and verify every change.
+
+Full qualification (`.release/batch15-20260928`, up to `9efd7b7`): **2,765 / 2,765** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 514 s. The candidate's 1,191 source
+files equal `9efd7b7`, apart from `release-manifest.json`.
