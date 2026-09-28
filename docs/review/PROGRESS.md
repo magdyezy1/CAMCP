@@ -343,3 +343,7 @@ scope guard authorizes the read), with small differences between copies.
 
 The generic state and verification loops still read through the nested family reader chains (F-60), which keep their
 own guard.
+
+Full qualification (`.release/batch17-20260928`, up to `f2a7c18`): **2,765 / 2,765** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 527 s. The candidate's 1,192 source
+files equal `f2a7c18`, apart from `release-manifest.json`.
