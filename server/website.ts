@@ -239,7 +239,9 @@ export function createWebsite(store:Store,options:WebsiteOptions,allowWrites=fal
   store.db.prepare('UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash=?').run(s.actor.tenantId,record.hash);store.putDocument(s.actor.tenantId,'website_mcp_token',record.id,{...record,revoked:true});store.appendAudit(s.actor.tenantId,randomUUID(),{event:'website_mcp_token_revoked',token_id:record.id});res.json({success:true});
  }));
  router.get('/api/activity',handler((req,res)=>{const s=web.requireSession(req);res.json({events:store.recentAudit(s.actor.tenantId,100).map((r:any)=>{const event=redact(JSON.parse(r.event));return {id:r.seq,at:r.created_at,event,diagnostics:activityReportErrors(event)};})});}));
- const directory=path.resolve(options.staticDirectory??'web');router.use('/assets',express.static(directory,{dotfiles:'deny',index:false,fallthrough:false,maxAge:0}));
+ const directory=path.resolve(options.staticDirectory??'web');// Public, versionless assets: revalidate with the ETag on every use (a 304 when unchanged) instead of no-store,
+ // which re-downloaded the whole bundle on every visit.
+ router.use('/assets',express.static(directory,{dotfiles:'deny',index:false,fallthrough:false,maxAge:0,setHeaders:res=>res.setHeader('Cache-Control','no-cache')}));
  router.get('/tiktok94H3oMGQTvC0GEzgKcmffbz8W0CAHhan.txt',(_req,res)=>res.type('text/plain').sendFile('tiktok94H3oMGQTvC0GEzgKcmffbz8W0CAHhan.txt',{root:directory}));
  // Reviewers and users must be able to read the entire policy without a session or JavaScript.
  router.get('/privacy',(_req,res)=>res.type('html').sendFile('privacy.html',{root:directory,maxAge:0}));
