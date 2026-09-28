@@ -127,3 +127,47 @@ test('a report names the native field behind each metric on each of its platform
   );
   assert.equal(f.run("renderMetricSources({config:{sources:[{platform:'adjust'}]}},['spend'],b)"), '');
 });
+
+test('report rows are announced by campaign, carry their time zone and show dates in the viewer locale', async () => {
+  const row = {
+    campaign_name: 'Spring sale',
+    campaign_id: 'c-1',
+    account_id: 'a-1',
+    currency: 'EUR',
+    timezone: 'Europe/Berlin',
+    platform: 'google',
+    objective_group: 'sales',
+    result_definition: 'Purchases',
+    attribution: 'Platform default',
+    native: {},
+    metrics: {spend: 12.5},
+    recommendation: {decision: 'keep', reason: 'Within target', evidence: []},
+    date_from: '2026-09-01',
+    date_to: '2026-09-07',
+  };
+  const f = browserFixture(async () => ({
+    success: true,
+    data: {
+      ...snapshot('weekly'),
+      rows: [row],
+      row_count: 1,
+      config: {...snapshot('weekly').config, grain: 'weekly', sources: []},
+    },
+  }));
+  f.run(
+    "overviewState.bootstrap={platforms:[{id:'google',name:'Google Ads',accounts:[]}],metrics:{spend:{label:'Spend',format:'currency'}}}",
+  );
+  await f.run("loadOverviewReport('weekly')");
+  const html = f.root.innerHTML;
+  assert.match(
+    html,
+    /<th scope="col">Campaign \/ resource<\/th><th scope="col">Platform · objective<\/th><th scope="col">Period<\/th><th scope="col">Spend<\/th>/,
+  );
+  assert.match(
+    html,
+    /<tr><th scope="row"><strong>Spring sale<\/strong><small>c-1<br>a-1 · EUR · Europe\/Berlin<\/small>/,
+  );
+  assert.match(html, /<\/details><\/th><td><span>Google Ads<\/span>/);
+  assert.match(html, /<td>1 Sept? 2026<br>7 Sept? 2026<\/td>/);
+  assert.ok(!html.includes('<td>2026-09-01'), 'no raw ISO period');
+});

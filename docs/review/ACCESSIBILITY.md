@@ -45,6 +45,13 @@ settings page: "Refresh health" keeps focus; pausing writes moves it to "Resume 
 steps, an open-in-authenticator link built from the server's `otpauth://` URI, a grouped, copyable key and copy or
 download of the recovery codes. Removing a workspace member is its own confirmed button instead of a role.
 
+Batch 9 (reporting): the results table's column headers have `scope="col"` and each campaign cell is the row header
+(`<th scope="row">`, styled as before), so a screen reader names the campaign and the metric for every value. The
+identity line shows the report's time zone beside the currency. Period and summary dates use the viewer's locale
+instead of raw ISO dates. The table's secondary text (IDs, currency, time zone and source details) moved from
+#9b8ba9 at 3.15:1 and #8f7aa2 at 3.84:1, both 10 px, to the muted ink at 5.32:1 and 12 px; the column headers also
+move to 12 px (4.81:1 on their tint).
+
 Remaining (see [FINDINGS.md](FINDINGS.md)): 60 low-contrast labels, mostly inside the landing-page illustration and
 a few workspace captions; small inline links (target size is a WCAG 2.2 criterion); a QR code for MFA setup (needs a
 vendored encoder, since the CSP allows only same-origin scripts); right-to-left layout (F-47).
