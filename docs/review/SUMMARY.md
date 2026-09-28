@@ -36,6 +36,8 @@ No protection was loosened. The changes that would loosen one are listed below f
 - Expired grants are pruned.
 - HSTS, COOP and CORP are set everywhere.
 - Reads are audited by size and hash rather than content.
+- The administrator and reviewer passwords set on the server use the account-password hashing, are checked without
+  blocking the server, and a new one signs out everything the old one opened, MCP access included.
 
 **Website and reporting.**
 - Every platform's metrics name the native field and rule behind them.
@@ -129,7 +131,6 @@ Each of these changes a level of protection, a deployment, a dependency or the p
   one more registry hook.
 - Architecture: splitting `write-review.ts` into stages.
 - Code: formatting `web/`.
-- Auth: legacy administrator password hashing (F-16).
 - Contracts and operations: drift digests for every provider and a sunset alarm (F-56); lazy loading of generated
   routes (F-64).
 - Website: one token file for the design (F-40); right-to-left layout (F-47); the remaining 60 low-contrast labels.

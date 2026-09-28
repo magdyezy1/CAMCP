@@ -28,7 +28,7 @@ Verify the sender domain using Resend's exact DNS records. Registration follows 
 
 Messages enter an encrypted SQLite outbox before delivery. Delivery starts at once, but the response does not wait for it, so the time a registration or reset takes does not show whether the address has an account. Transient failures retry with an idempotency key, bounded timeout and worker lease. Single-use links expire after 30 minutes; retries do not extend them. Sent/expired queue payloads are cleared. Keep a worker running and the database persistent. Existing password sign-in continues without email configuration; registration and recovery require it.
 
-Passwords use asynchronous scrypt (N=32768, r=8, p=3), bounded memory and at most four concurrent hashes. Existing supported hashes upgrade on successful login. Run `node dist/tools/password-benchmark.js` on the production-sized host. A local benchmark is not a capacity guarantee.
+Passwords use asynchronous scrypt (N=32768, r=8, p=3), bounded memory and at most four concurrent hashes. Existing supported hashes upgrade on successful login. The administrator and reviewer passwords configured on the server use the same parameters and the same limit; `npm run admin -- password-hash` prints a hash for `AMCP_ADMIN_PASSWORD_HASH` or `AMCP_TEST_PASSWORD_HASH`. Run `node dist/tools/password-benchmark.js` on the production-sized host. A local benchmark is not a capacity guarantee.
 
 ## Social sign-in
 

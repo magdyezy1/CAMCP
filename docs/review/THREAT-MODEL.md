@@ -13,7 +13,7 @@ Findings referenced as `F-nn` are in [FINDINGS.md](FINDINGS.md).
 | MCP bearer tokens and OAuth grants | `api_keys`, `amcp_mcp_grants` (sha256), `amcp_mcp_clients` (sealed secrets) | Operator tokens can prepare and execute reviewed writes |
 | Web sessions | `amcp_web_sessions` (sha256 of a 256-bit id) | Owner sessions change policies, grants and connectors |
 | Master key `MIRROR_MASTER_KEY` | Railway variable | Decrypts every stored secret and backup |
-| Account credentials | `amcp_users` (scrypt), `amcp_mfa` (sealed TOTP secret, hashed recovery codes) | Account takeover |
+| Account credentials | `amcp_users` (scrypt), `amcp_mfa` (sealed TOTP secret, hashed recovery codes); the administrator and reviewer passwords (environment, `amcp_web_doors` records the hash each was last opened with) | Account takeover |
 | Customer and report data | Provider responses in reviews, receipts, audit rows, report exports, Sheets | Client confidentiality; lead forms can hold PII |
 | Integrity of the audit trail | `audit` (per-tenant hash chain) | Evidence of who changed what |
 

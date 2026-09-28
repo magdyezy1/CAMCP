@@ -347,3 +347,21 @@ own guard.
 Full qualification (`.release/batch17-20260928`, up to `f2a7c18`): **2,765 / 2,765** tests and **4 / 4** capture
 tests; `format:check`, every generated-artifact check and the Railway check pass. 527 s. The candidate's 1,192 source
 files equal `f2a7c18`, apart from `release-manifest.json`.
+
+## Batch 18 — the administrator and reviewer passwords (F-16)
+
+Finding: F-16. The two passwords configured on the server, the deployment administrator's and the shared reviewer's,
+were hashed with Node's scrypt defaults (N=2¹⁴, p=1) and checked synchronously on the event loop. Changing one left
+every session it had opened, and the MCP access approved from those sessions, in force.
+
+| Change | Evidence |
+|---|---|
+| One password-hash module (`server/password-hashes.ts`) serves user accounts and the two passwords, with one limit of four concurrent derivations. New hashes for the two passwords are scrypt-v3 (N=2¹⁵, r=8, p=3), the account parameters; `scrypt$…` hashes from an older environment still work, and start-up warns about them | `tests/door-passwords.test.ts`, first test |
+| Sign-in with either password is asynchronous. The attempt is counted before the key is derived, so guesses sent in parallel cannot pass the limit of eight | the same test; the website and account suites |
+| `amcp_web_doors` records the hash each password was last opened with. A password from the environment is hashed with a salt derived from the master key, so every process computes the same hash. A process that starts with a new password ends that door's sessions, revokes the MCP access approved from them and records `administrator_password_changed` or `reviewer_password_changed`. The same password keeps them across restarts | second and fourth tests |
+| A door's sessions, codes, refreshes and access tokens are usable only while the process's password is the recorded one, checked in the same transaction as each insert. A server still running the old password therefore stops issuing either the moment one with the new password starts. A process without the password (the report worker) changes nothing | third and fourth tests |
+| `npm run admin -- password-hash` reads a password from standard input and prints a scrypt-v3 hash | fifth test |
+| The account page says the administrator password has no two-step verification and points to owner migration | `node tools/check-web.mjs` |
+
+Tests that sign in with either password now await the sign-in. One test fabricated a reviewer session for an
+arbitrary workspace; it now signs in with the reviewer password instead and keeps the same assertion.
