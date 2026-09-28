@@ -58,6 +58,16 @@ export const strictOptions:CallOptions={mode:'strict',flags:{}};
  * later is labelled by default rather than silently exempt.
  */
 const localOnlyTools=new Set(['amcp_tool_help']);
+/**
+ * The audit record of a completed read: its status, pages and headers, and the size, hash and row counts of what the
+ * provider returned, but not the content. Report rows, lead details and ad copy stay in the response and in the
+ * documents that deliberately keep them, not in the permanent audit trail (F-18).
+ */
+export function auditedRead(outcome:JsonObject):JsonObject{
+ const {data,generation,...rest}=outcome,text=stable(data)??'null';
+ const arrays=data&&typeof data==='object'&&!Array.isArray(data)?Object.entries(data).filter(([,v])=>Array.isArray(v)).map(([k,v])=>[k,(v as unknown[]).length]):[];
+ return {...rest,data_summary:{sha256:sha256(text),bytes:Buffer.byteLength(text),...(Array.isArray(data)?{rows:data.length}:{}),...(arrays.length?{arrays:Object.fromEntries(arrays)}:{}),content_retained:false},...(generation?{generation_retained:false}:{})};
+}
 export const carriesProviderContent=(tool:string)=>!localOnlyTools.has(tool);
 export class MirrorService {
  readonly compiler:Compiler;readonly introspection:Introspection;readonly credentials:CredentialProvider;
@@ -106,7 +116,8 @@ export class MirrorService {
 
  private wrap(data:unknown,requestId:string,start:number,tool?:string){
   const meta:JsonObject={requestId,latencyMs:Date.now()-start};
-  if(tool&&carriesProviderContent(tool))meta.untrusted_provider_content=untrustedProviderContent;
+  // Everything under data may be provider text; meta, and any error message, remedy or next step, are AMCP's own.
+  if(tool&&carriesProviderContent(tool)){meta.untrusted_provider_content=untrustedProviderContent;meta.untrusted_paths=['data'];}
   return {success:true,data,meta};
  }
  async verifyWrite(actor:Actor,id:string){return new WriteVerifier(this.store,this.registry,this.transport,this.credentials).verify(actor,id);}
@@ -168,7 +179,7 @@ export class MirrorService {
    if(nativeCsv){const rows=(projected.data as JsonObject).data;projected.data={data:rows,report:{...nativeCsv.report,source_complete:nativeCsv.report.complete,source_rows:nativeCsv.report.rows,returned_rows:rows.length,complete:!projected.truncated,projection:{fields:plan.responseControls?.fields??null,empty_values_omitted:plan.responseControls?.compact===true,rows_omitted:projected.truncated}}};}
    const generation=googleGenerationResult(plan,result.data);
    const outcome={success:true,action:plan.action,dry_run:false,...result,data:projected.data,...(generation?{generation}:{}),truncated:result.truncated||projected.truncated,...(projected.truncated?{response_truncated:true}:{})};
-   this.store.appendAudit(actor.tenantId,requestId,{event:'request_completed',request:plan,outcome:plan.reportDownload&&plan.xReportRead||plan.tiktokReportRead?.kind==='download'?{success:true,action:plan.action,report:(result.data as JsonObject).report,rows_omitted:true}:outcome});return outcome;
+   this.store.appendAudit(actor.tenantId,requestId,{event:'request_completed',request:plan,outcome:plan.reportDownload&&plan.xReportRead||plan.tiktokReportRead?.kind==='download'?{success:true,action:plan.action,report:(result.data as JsonObject).report,rows_omitted:true}:auditedRead(outcome)});return outcome;
   }catch(e){if(placeActionReadKind(plan))e=placeActionSafeError(e);this.store.appendAudit(actor.tenantId,requestId,{event:'request_failed',request:plan,error:e instanceof MirrorError?{code:e.code,message:e.message,details:e.details}:{code:'INTERNAL_ERROR'}});throw e;}
  }
  private async xDownload(plan:CompiledRequest,row:JsonObject,actor:Actor,connectionId:string,credentials:import('./types.js').Credentials){
