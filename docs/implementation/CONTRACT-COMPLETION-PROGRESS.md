@@ -8,6 +8,17 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## ET — Snapchat pixel names (2026-09-27)
+
+Snapchat pixels can now be renamed at account and organization level through reviewed requests: the
+account, its organization and the pixels are read first, and each name is read back. See
+[implementation](SNAPCHAT-PIXEL-NAMES-2026-09-27.md),
+[qualification](SNAPCHAT-PIXEL-NAMES-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 747 (three Snapchat rows reviewed). Pushes go only to CAMCP; its exact-commit CI
+result and live acceptance are pending.
+
 ## ES — Snapchat event details (2026-09-27)
 
 Event details for Snapchat Reminder creatives can now be created and deleted through reviewed
@@ -17,7 +28,7 @@ are protected, and the result is read back. See
 [qualification](SNAPCHAT-EVENT-DETAILS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 750 (two Snapchat rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 750 (two Snapchat rows reviewed). Committed as `85f8ec8`; its exact-commit CI result
 and live acceptance are pending.
 
 ## ER — Snapchat dynamic templates (2026-09-27)

@@ -1,0 +1,100 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "85f8ec8940881c8c8c19ce95e7e19777b6b028d7",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/snapchat-pixel-names-20260927-a",
+    "files": 1022,
+    "source_tree_hash": "0c36f5c8747be5ebef2e573dd55d359eec7c2b7f4b9730f7287728ef08e3f1fc",
+    "index_code_test_guidance_files_compared": 775,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/snapchat-pixel-names-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/snapchat-pixel-names-20260927/install.log",
+      "sha256": "fd1d9de07b2f08802677e9eb68653e02fcf4423e062c4d00c4a3afe0d39973f2"
+    },
+    {
+      "path": ".runtime/snapchat-pixel-names-20260927/check.log",
+      "sha256": "4b54c37220daed60ec3868ef1c69fb5863dd0f786ed3f7184c165e3336d02e22",
+      "started": "Sun Sep 27 23:49:44 UTC 2026",
+      "finished": "Mon Sep 28 03:06:45 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2569,
+          "pass": 2569,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/snapchat-pixel-names-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/snapchat-pixel-names-20260927/red-check.log",
+      "sha256": "6a9507653e56616b8fcaa15cea1e9c1b0026f531def856eb94c907a091451849",
+      "meaning": "tests/snapchat-pixel-names.test.mjs against a build of 85f8ec8: expected red, 3/3 fail (no reviewed family: WRITE_CONTRACT_UNAVAILABLE)"
+    },
+    {
+      "path": ".runtime/snapchat-pixel-names-20260927/targeted.log",
+      "sha256": "a0f0756f3751479b65aad50a20da30af620f229ccf8e3f82aa2cb94eae0b168d",
+      "meaning": "193 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1964/1964 pass, none skipped."
+    }
+  ],
+  "development_failures": [],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2569,
+    "main_pass": 2569,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Snapchat documents no name length for pixels; AMCP bounds names at 375 characters as for catalogs, and requests at 10 pixels.",
+    "Pixel lists are read as one page; a longer list is refused as incomplete rather than followed.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

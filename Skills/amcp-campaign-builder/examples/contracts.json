@@ -1009,6 +1009,25 @@
     {
       "gateway": "snapchat_native_action",
       "arguments": {
+        "action": "snapchat_adaccounts_ad_account_id_pixels_update",
+        "account_id": "123",
+        "params": {
+          "ad_account_id": "123"
+        },
+        "payload": {
+          "pixels": [
+            {
+              "id": "6eda10b7-a5fe-4ac6-80f4-417e68d748fb",
+              "name": "Checkout pixel",
+              "ad_account_id": "123"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "snapchat_native_action",
+      "arguments": {
         "action": "snapchat_event_details_event_details_id_delete",
         "account_id": "123",
         "params": {

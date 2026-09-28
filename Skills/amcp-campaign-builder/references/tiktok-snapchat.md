@@ -813,6 +813,28 @@ Reference: [Event Details](https://developers.snap.com/api/marketing-api/Ads-API
 [Creatives](https://developers.snap.com/api/marketing-api/Ads-API/creatives) (Reminder creatives),
 checked 2026-09-27.
 
+## Snapchat pixel names
+
+Pixels are created in Ads Manager; through the API only a pixel's `name` changes.
+
+- `snapchat_adaccounts_ad_account_id_pixels_update` (or `snapchat_pixel_update`) with
+  `params: {ad_account_id}` and `payload: {pixels: [{id, name, ad_account_id}]}` renames pixels of the
+  selected account.
+- `snapchat_organizations_organization_id_pixels_update` with `params: {organization_id}` and
+  `payload: {pixels: [{id, name, organization_id}]}` renames pixels of the organization of the
+  selected account.
+
+Each request renames 1–10 pixels to names of 1–375 characters and sends nothing else. AMCP reads the
+selected ad account (for its organization) and the account's or organization's pixels: a pixel that
+is not listed is `STATE_NOT_FOUND`, an organization other than the account's is
+`ACCOUNT_SCOPE_MISMATCH`, and an unchanged name is refused. Tracking, conversions and ad squads
+that use the pixel are unaffected, and nothing needs spending confirmation. A reply that is not
+SUCCESS for every pixel is a failure never resubmitted. Verification lists the pixels again and
+compares each name. `INVALID_SNAPCHAT_PIXEL_NAME` names the field to correct.
+
+Reference: [Snap Pixel](https://developers.snap.com/api/marketing-api/Ads-API/snap-pixel), checked
+2026-09-27.
+
 ## Snapchat nested updates
 
 Ad/ad-squad updates now use the documented native parent routes:
