@@ -717,6 +717,11 @@ const snake = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCas
 function fail(code: string, message: string, details: JsonObject = {}): never {
   throw new MirrorError(code, message, details);
 }
+/** A guarded-reader binding: the connection's whole login must stay the one the first read used. */
+const sameLogin = (message: string) => ({
+  value: (credentials: Credentials) => sha256(stable(credentials)),
+  changed: (): never => fail('REAUTHORIZATION_REQUIRED', message),
+});
 export function writeOutcome(result: TransportResult, plan?: CompiledRequest, before: unknown[] = []): JsonObject {
   const errors: JsonObject[] = [];
   const walk = (value: unknown, path = '$') => {
@@ -2269,162 +2274,119 @@ export class WriteReviewService {
     assertMeasurementScopes(plan, c);
     return c;
   }
+  /**
+   * The reader a family's state checks use. Each read must be read-only; the review's connection is checked (actor,
+   * grants, scopes) and the read authorized by the scope guard before the credentials are fetched, after, and after the
+   * response. With a binding, the login must also stay the one the first read used: the binding reduces credentials to
+   * a value (undefined when they are unusable), which the stored login must keep matching.
+   */
+  private guardedReader(
+    actor: Actor,
+    plan: CompiledRequest,
+    connectionId: string,
+    unsafe: string,
+    binding?: {value: (credentials: Credentials) => string | undefined; changed: () => never},
+  ) {
+    let bound: string | undefined;
+    const read = async (request: CompiledRequest): Promise<TransportResult> => {
+      if (!applyExecutionRisk(request).readOnly) fail('STATE_READ_UNSAFE', unsafe);
+      const access = () => {
+        const current = this.access(actor, plan, connectionId);
+        new ScopeGuard(this.registry, this.store).authorize(request, current);
+        if (binding) {
+          const value = binding.value(this.store.credentials(actor.tenantId, current.id));
+          if (value === undefined || (bound !== undefined && value !== bound)) binding.changed();
+        }
+        return current;
+      };
+      const c = access(),
+        auth = await this.credentials.get(c);
+      if (binding) {
+        const value = binding.value(auth);
+        if (value === undefined) binding.changed();
+        bound ??= value;
+      }
+      access();
+      const response = await this.request(actor, plan, request, c, auth);
+      access();
+      return response;
+    };
+    return {read, bound: () => bound!};
+  }
   private async state(
     actor: Actor,
     plan: CompiledRequest,
     connectionId: string,
     reads: CompiledRequest[],
   ): Promise<unknown[]> {
-    if (criteoCampaignKind(plan)) {
-      let credentialHash: string | undefined;
-      return readCriteoCampaignState(plan, async read => {
-        if (!applyExecutionRisk(read).readOnly)
-          fail('STATE_READ_UNSAFE', 'Campaign prerequisites must remain read-only.');
-        const access = () => {
-          const c = this.access(actor, plan, connectionId);
-          new ScopeGuard(this.registry, this.store).authorize(read, c);
-          if (credentialHash && sha256(stable(this.store.credentials(actor.tenantId, c.id))) !== credentialHash)
-            fail('REAUTHORIZATION_REQUIRED', 'The selected login changed during campaign preparation. Prepare again.');
-          return c;
-        };
-        const c = access(),
-          auth = await this.credentials.get(c);
-        credentialHash ??= sha256(stable(auth));
-        access();
-        const response = await this.request(actor, plan, read, c, auth);
-        access();
-        return response;
-      });
-    }
-    if (xReportKind(plan)) {
-      let identity: string | undefined;
-      return readXReportState(
+    if (criteoCampaignKind(plan))
+      return readCriteoCampaignState(
         plan,
-        async read => {
-          if (!applyExecutionRisk(read).readOnly)
-            fail('STATE_READ_UNSAFE', 'Report prerequisites must remain read-only.');
-          const access = () => {
-            const c = this.access(actor, plan, connectionId);
-            new ScopeGuard(this.registry, this.store).authorize(read, c);
-            if (identity && xReportIdentity(this.store.credentials(actor.tenantId, c.id)) !== identity)
-              fail('X_REPORT_LOGIN_CHANGED', 'The X login changed during preparation.');
-            return c;
-          };
-          const c = access(),
-            auth = await this.credentials.get(c);
-          identity ??= xReportIdentity(auth);
-          access();
-          const response = await this.request(actor, plan, read, c, auth);
-          access();
-          return response;
-        },
-        () => identity!,
+        this.guardedReader(
+          actor,
+          plan,
+          connectionId,
+          'Campaign prerequisites must remain read-only.',
+          sameLogin('The selected login changed during campaign preparation. Prepare again.'),
+        ).read,
       );
+    if (xReportKind(plan)) {
+      const reader = this.guardedReader(actor, plan, connectionId, 'Report prerequisites must remain read-only.', {
+        value: xReportIdentity,
+        changed: () => fail('X_REPORT_LOGIN_CHANGED', 'The X login changed during preparation.'),
+      });
+      return readXReportState(plan, reader.read, reader.bound);
     }
     if (tiktokReportKind(plan)) {
-      let tokenHash: string | undefined;
-      return readTiktokReportState(
+      const reader = this.guardedReader(actor, plan, connectionId, 'Report prerequisites must remain read-only.', {
+        value: c => (c.accessToken ? sha256(c.accessToken) : undefined),
+        changed: () =>
+          fail(
+            'TIKTOK_REPORT_TOKEN_CHANGED',
+            'The original task access token changed. Preserve the task; do not automatically regenerate it.',
+          ),
+      });
+      return readTiktokReportState(plan, reader.read, reader.bound);
+    }
+    if (criteoReportKind(plan))
+      return readCriteoReportState(
         plan,
-        async read => {
-          if (!applyExecutionRisk(read).readOnly)
-            fail('STATE_READ_UNSAFE', 'Report prerequisites must remain read-only.');
-          const access = () => {
-            const c = this.access(actor, plan, connectionId);
-            new ScopeGuard(this.registry, this.store).authorize(read, c);
-            const token = this.store.credentials(actor.tenantId, c.id).accessToken;
-            if (!token || (tokenHash && sha256(token) !== tokenHash))
-              fail(
-                'TIKTOK_REPORT_TOKEN_CHANGED',
-                'The original task access token changed. Preserve the task; do not automatically regenerate it.',
-              );
-            return c;
-          };
-          const c = access(),
-            auth = await this.credentials.get(c);
-          tokenHash ??= sha256(auth.accessToken ?? '');
-          access();
-          const response = await this.request(actor, plan, read, c, auth);
-          access();
-          return response;
-        },
-        () => tokenHash!,
+        this.guardedReader(
+          actor,
+          plan,
+          connectionId,
+          'Report prerequisites must remain read-only.',
+          sameLogin('The selected login changed during report preparation. Prepare again.'),
+        ).read,
       );
-    }
-    if (criteoReportKind(plan)) {
-      let credentialHash: string | undefined;
-      return readCriteoReportState(plan, async read => {
-        if (!applyExecutionRisk(read).readOnly)
-          fail('STATE_READ_UNSAFE', 'Report prerequisites must remain read-only.');
-        const access = () => {
-          const c = this.access(actor, plan, connectionId);
-          new ScopeGuard(this.registry, this.store).authorize(read, c);
-          if (credentialHash && sha256(stable(this.store.credentials(actor.tenantId, c.id))) !== credentialHash)
-            fail('REAUTHORIZATION_REQUIRED', 'The selected login changed during report preparation. Prepare again.');
-          return c;
-        };
-        const c = access(),
-          auth = await this.credentials.get(c);
-        credentialHash ??= sha256(stable(auth));
-        access();
-        const response = await this.request(actor, plan, read, c, auth);
-        access();
-        return response;
-      });
-    }
-    if (snapUpdateKind(plan)) {
-      let credentialHash: string | undefined;
-      return readSnapUpdateState(plan, async read => {
-        if (!applyExecutionRisk(read).readOnly)
-          fail('STATE_READ_UNSAFE', 'Snapchat prerequisites must remain read-only.');
-        const access = () => {
-          const current = this.access(actor, plan, connectionId);
-          new ScopeGuard(this.registry, this.store).authorize(read, current);
-          if (credentialHash && sha256(stable(this.store.credentials(actor.tenantId, current.id))) !== credentialHash)
-            fail(
-              'REAUTHORIZATION_REQUIRED',
-              'The selected login changed during Snapchat checks. Prepare again with the current login.',
-            );
-          return current;
-        };
-        const c = access(),
-          auth = await this.credentials.get(c);
-        credentialHash ??= sha256(stable(auth));
-        access();
-        const response = await this.request(actor, plan, read, c, auth);
-        access();
-        return response;
-      });
-    }
-    if (googlePreviewKind(plan) || googlePortfolioKind(plan) || googleConversionActionKind(plan)) {
-      let credentialHash: string | undefined;
+    if (snapUpdateKind(plan))
+      return readSnapUpdateState(
+        plan,
+        this.guardedReader(
+          actor,
+          plan,
+          connectionId,
+          'Snapchat prerequisites must remain read-only.',
+          sameLogin('The selected login changed during Snapchat checks. Prepare again with the current login.'),
+        ).read,
+      );
+    if (googlePreviewKind(plan) || googlePortfolioKind(plan) || googleConversionActionKind(plan))
       return (
         googlePreviewKind(plan)
           ? readGooglePreviewState
           : googleConversionActionKind(plan)
             ? readGoogleConversionActionState
             : readGooglePortfolioState
-      )(plan, async read => {
-        if (!applyExecutionRisk(read).readOnly)
-          fail('STATE_READ_UNSAFE', 'Portfolio prerequisites must remain read-only.');
-        const access = () => {
-          const current = this.access(actor, plan, connectionId);
-          new ScopeGuard(this.registry, this.store).authorize(read, current);
-          if (credentialHash && sha256(stable(this.store.credentials(actor.tenantId, current.id))) !== credentialHash)
-            fail(
-              'REAUTHORIZATION_REQUIRED',
-              'The selected login changed during portfolio checks. Prepare again with the current login.',
-            );
-          return current;
-        };
-        const c = access(),
-          auth = await this.credentials.get(c);
-        credentialHash ??= sha256(stable(auth));
-        access();
-        const response = await this.request(actor, plan, read, c, auth);
-        access();
-        return response;
-      });
-    }
+      )(
+        plan,
+        this.guardedReader(
+          actor,
+          plan,
+          connectionId,
+          'Portfolio prerequisites must remain read-only.',
+          sameLogin('The selected login changed during portfolio checks. Prepare again with the current login.'),
+        ).read,
+      );
     if (metaCreativeCreate(plan)) {
       const read = reads[0]!,
         access = () => this.access(actor, plan, connectionId),
@@ -2441,137 +2403,57 @@ export class WriteReviewService {
       ];
     }
     if (googleAccessKind(plan))
-      return readGoogleAccessState(plan, async read => {
-        if (!applyExecutionRisk(read).readOnly)
-          fail('STATE_READ_UNSAFE', 'Google access prerequisites must remain read-only.');
-        const access = () => {
-          const current = this.access(actor, plan, connectionId);
-          new ScopeGuard(this.registry, this.store).authorize(read, current);
-          return current;
-        };
-        const c = access(),
-          auth = await this.credentials.get(c);
-        access();
-        const result = await this.request(actor, plan, read, c, auth);
-        access();
-        return result;
-      });
+      return readGoogleAccessState(
+        plan,
+        this.guardedReader(actor, plan, connectionId, 'Google access prerequisites must remain read-only.').read,
+      );
     if (googleDismissalKind(plan))
-      return readGoogleDismissalState(plan, async read => {
-        if (!applyExecutionRisk(read).readOnly)
-          fail('STATE_READ_UNSAFE', 'Recommendation dismissal prerequisites must remain read-only.');
-        const access = () => {
-          const current = this.access(actor, plan, connectionId);
-          new ScopeGuard(this.registry, this.store).authorize(read, current);
-          return current;
-        };
-        const c = access(),
-          auth = await this.credentials.get(c);
-        access();
-        const result = await this.request(actor, plan, read, c, auth);
-        access();
-        return result;
-      });
+      return readGoogleDismissalState(
+        plan,
+        this.guardedReader(actor, plan, connectionId, 'Recommendation dismissal prerequisites must remain read-only.')
+          .read,
+      );
     if (businessAccessKind(plan))
-      return readBusinessAccessState(plan, async read => {
-        if (!applyExecutionRisk(read).readOnly)
-          fail('STATE_READ_UNSAFE', 'Business access prerequisites must remain read-only.');
-        const access = () => {
-          const current = this.access(actor, plan, connectionId);
-          new ScopeGuard(this.registry, this.store).authorize(read, current);
-          return current;
-        };
-        const c = access(),
-          auth = await this.credentials.get(c);
-        access();
-        const result = await this.request(actor, plan, read, c, auth);
-        access();
-        return result;
-      });
+      return readBusinessAccessState(
+        plan,
+        this.guardedReader(actor, plan, connectionId, 'Business access prerequisites must remain read-only.').read,
+      );
     if (placeActionKind(plan) || businessNotificationKind(plan))
-      return (placeActionKind(plan) ? readPlaceActionState : readBusinessNotificationState)(plan, async read => {
-        if (!applyExecutionRisk(read).readOnly)
-          fail('STATE_READ_UNSAFE', 'Place-action prerequisites must remain read-only.');
-        const access = () => {
-          const current = this.access(actor, plan, connectionId);
-          new ScopeGuard(this.registry, this.store).authorize(read, current);
-          return current;
-        };
-        const c = access(),
-          auth = await this.credentials.get(c);
-        access();
-        const result = await this.request(actor, plan, read, c, auth);
-        access();
-        return result;
-      });
+      return (placeActionKind(plan) ? readPlaceActionState : readBusinessNotificationState)(
+        plan,
+        this.guardedReader(actor, plan, connectionId, 'Place-action prerequisites must remain read-only.').read,
+      );
     if (metaReportKind(plan))
-      return readMetaReportState(plan, async read => {
-        if (!applyExecutionRisk(read).readOnly)
-          fail('STATE_READ_UNSAFE', 'Report prerequisites must remain read-only.');
-        const c = this.access(actor, plan, connectionId);
-        new ScopeGuard(this.registry, this.store).authorize(read, c);
-        const auth = await this.credentials.get(c);
-        this.access(actor, plan, connectionId);
-        new ScopeGuard(this.registry, this.store).authorize(
-          read,
-          this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id),
-        );
-        const result = await this.request(actor, plan, read, c, auth);
-        this.access(actor, plan, connectionId);
-        new ScopeGuard(this.registry, this.store).authorize(
-          read,
-          this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id),
-        );
-        return result;
-      });
+      return readMetaReportState(
+        plan,
+        this.guardedReader(actor, plan, connectionId, 'Report prerequisites must remain read-only.').read,
+      );
     if (googleBiddingEventKind(plan) || googleConversionGoalKind(plan))
       return (googleConversionGoalKind(plan) ? readGoogleConversionGoalState : readGoogleBiddingEventState)(
         plan,
-        async read => {
-          if (!applyExecutionRisk(read).readOnly)
-            fail('STATE_READ_UNSAFE', 'Google goal and bidding-event dependency checks must be read-only.');
-          const c = this.access(actor, plan, connectionId);
-          new ScopeGuard(this.registry, this.store).authorize(read, c);
-          const auth = await this.credentials.get(c);
-          this.access(actor, plan, connectionId);
-          const result = await this.request(actor, plan, read, c, auth);
-          this.access(actor, plan, connectionId);
-          return result;
-        },
+        this.guardedReader(
+          actor,
+          plan,
+          connectionId,
+          'Google goal and bidding-event dependency checks must be read-only.',
+        ).read,
       );
-    if (xTargetingBatchRoute(plan) || linkedinTemplateKind(plan)) {
-      let credentialHash: string | undefined;
-      return (linkedinTemplateKind(plan) ? readLinkedInTemplateState : readXTargetingBatchState)(plan, async read => {
-        if (!applyExecutionRisk(read).readOnly)
-          fail('STATE_READ_UNSAFE', 'Targeting dependencies must remain read-only.');
-        const access = () => {
-          const current = this.access(actor, plan, connectionId);
-          new ScopeGuard(this.registry, this.store).authorize(read, current);
-          if (credentialHash && sha256(stable(this.store.credentials(actor.tenantId, current.id))) !== credentialHash)
-            fail('REAUTHORIZATION_REQUIRED', 'The selected login changed during targeting checks.');
-          return current;
-        };
-        const current = access(),
-          auth = await this.credentials.get(current);
-        credentialHash ??= sha256(stable(auth));
-        access();
-        const result = await this.request(actor, plan, read, current, auth);
-        access();
-        return result;
-      });
-    }
+    if (xTargetingBatchRoute(plan) || linkedinTemplateKind(plan))
+      return (linkedinTemplateKind(plan) ? readLinkedInTemplateState : readXTargetingBatchState)(
+        plan,
+        this.guardedReader(
+          actor,
+          plan,
+          connectionId,
+          'Targeting dependencies must remain read-only.',
+          sameLogin('The selected login changed during targeting checks.'),
+        ).read,
+      );
     if (xCreativeKind(plan) || xDraftKind(plan))
-      return (xDraftKind(plan) ? readXDraftState : readXCreativeState)(plan, async read => {
-        if (!applyExecutionRisk(read).readOnly)
-          fail('STATE_READ_UNSAFE', 'Creative dependency checks must be read-only.');
-        const c = this.access(actor, plan, connectionId);
-        new ScopeGuard(this.registry, this.store).authorize(read, c);
-        const auth = await this.credentials.get(c);
-        this.access(actor, plan, connectionId);
-        const result = await this.request(actor, plan, read, c, auth);
-        this.access(actor, plan, connectionId);
-        return result;
-      });
+      return (xDraftKind(plan) ? readXDraftState : readXCreativeState)(
+        plan,
+        this.guardedReader(actor, plan, connectionId, 'Creative dependency checks must be read-only.').read,
+      );
     const values: unknown[] = [];
     for (const read of reads) {
       if (!applyExecutionRisk(read).readOnly)

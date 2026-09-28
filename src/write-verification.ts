@@ -195,7 +195,7 @@ import {
 } from './linkedin-conversion-rules.js';
 import {Store} from './store.js';
 import {Registry} from './catalog.js';
-import {NativeTransport} from './transport.js';
+import {NativeTransport, type TransportResult} from './transport.js';
 import {CredentialProvider} from './auth.js';
 import {ScopeGuard} from './scope.js';
 import {independentlyReadOnly} from './execution-risk.js';
@@ -322,6 +322,14 @@ import type {Actor, CompiledRequest, Connection, Credentials, JsonObject} from '
 import {nativeAuthority} from './native-authority.js';
 import {familyOf, familyOfRead, readThroughFamilies} from './reviewed-families.js';
 import {metaPrefix} from './meta-version.js';
+/** A guarded-reader binding: the connection's whole login must stay the one the first read used. */
+const sameLogin = (message: string) => ({
+  value: (credentials: Credentials) => sha256(stable(credentials)),
+  changed: (): never => bad(message, 'REAUTHORIZATION_REQUIRED'),
+});
+const redditAdsRead = (connection: Connection) => {
+  if (!connection.scopes.includes('adsread')) bad('Reddit post verification requires adsread.', 'INSUFFICIENT_SCOPE');
+};
 // Snapchat records whose read-back adds provider fields or renames sent ones are compared as projections.
 const snapProjections: Record<string, (row: unknown) => unknown> = {
   lead_generation_forms: snapLeadFormProjection,
@@ -727,6 +735,54 @@ export class WriteVerifier {
     access();
     return response;
   }
+  /**
+   * The reader a family's verification uses, the counterpart of the review's. Each read must be read-only. Before the
+   * credentials are fetched, after, and after the response, the actor must still be active, the `actor` check runs,
+   * the connection is resolved, `check` runs on it and the scope guard authorizes the read. A binding keeps the login
+   * the first read used; `after` sees the connection and response last checked and may return the response to use.
+   */
+  private guardedReader(
+    actor: Actor,
+    plan: CompiledRequest,
+    connectionId: string,
+    unsafe: string,
+    options: {
+      actor?: () => void;
+      check?: (connection: Connection) => void;
+      binding?: {value: (credentials: Credentials) => string; changed: () => never};
+      after?: (
+        read: CompiledRequest,
+        connection: Connection,
+        response: TransportResult,
+        auth: Credentials,
+      ) => TransportResult | void;
+    } = {},
+  ) {
+    let bound: string | undefined;
+    return async (read: CompiledRequest): Promise<TransportResult> => {
+      if (!independentlyReadOnly(read)) bad(unsafe, 'VERIFICATION_UNSUPPORTED');
+      const access = () => {
+        this.store.assertActorActive(actor);
+        options.actor?.();
+        const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, connectionId);
+        options.check?.(current);
+        new ScopeGuard(this.registry, this.store).authorize(read, current);
+        if (
+          options.binding &&
+          bound !== undefined &&
+          options.binding.value(this.store.credentials(actor.tenantId, current.id)) !== bound
+        )
+          options.binding.changed();
+        return current;
+      };
+      const current = access(),
+        auth = await this.credentials.get(current);
+      if (options.binding) bound ??= options.binding.value(auth);
+      access();
+      const response = await this.request(actor, read, current, auth);
+      return options.after?.(read, access(), response, auth) ?? response;
+    };
+  }
   async verify(actor: Actor, reviewId: string): Promise<JsonObject> {
     const review = read(this.store, actor, 'write_review', reviewId);
     if (review.user_id !== actor.userId && actor.role !== 'admin')
@@ -807,174 +863,85 @@ export class WriteVerifier {
     try {
       if (redditPostCreation(plan)) {
         const verified = await verifyRedditPostCreation(plan, result, reviewId, c, this.store, read =>
-          readRedditProfiles(read, async page => {
-            if (!independentlyReadOnly(page))
-              bad('Post verification must remain read-only.', 'VERIFICATION_UNSUPPORTED');
-            this.store.assertActorActive(actor);
-            let current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            if (!current.scopes.includes('adsread'))
-              bad('Reddit post verification requires adsread.', 'INSUFFICIENT_SCOPE');
-            new ScopeGuard(this.registry, this.store).authorize(page, current);
-            const auth = await this.credentials.get(current);
-            this.store.assertActorActive(actor);
-            current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            if (!current.scopes.includes('adsread'))
-              bad('Reddit post verification requires adsread.', 'INSUFFICIENT_SCOPE');
-            new ScopeGuard(this.registry, this.store).authorize(page, current);
-            const response = await this.request(actor, page, current, auth);
-            this.store.assertActorActive(actor);
-            current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            if (!current.scopes.includes('adsread'))
-              bad('Reddit post verification requires adsread.', 'INSUFFICIENT_SCOPE');
-            new ScopeGuard(this.registry, this.store).authorize(page, current);
-            return response;
-          }),
+          readRedditProfiles(
+            read,
+            this.guardedReader(actor, plan, c.id, 'Post verification must remain read-only.', {
+              check: redditAdsRead,
+            }),
+          ),
         );
         status = verified.status;
         checks = verified.checks;
         resources = verified.resources ?? [];
       } else if (snapUpdateKind(plan)) {
-        let credentialHash: string | undefined;
-        const verified = await verifySnapUpdate(plan, review.state, async read => {
-          if (!independentlyReadOnly(read))
-            bad('Snapchat verification must remain read-only.', 'VERIFICATION_UNSUPPORTED');
-          const access = () => {
-            this.store.assertActorActive(actor);
-            const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            new ScopeGuard(this.registry, this.store).authorize(read, current);
-            if (credentialHash && sha256(stable(this.store.credentials(actor.tenantId, current.id))) !== credentialHash)
-              bad('The selected login changed during Snapchat verification.', 'REAUTHORIZATION_REQUIRED');
-            return current;
-          };
-          const current = access(),
-            auth = await this.credentials.get(current);
-          credentialHash ??= sha256(stable(auth));
-          access();
-          const response = await this.request(actor, read, current, auth);
-          access();
-          return response;
-        });
+        const verified = await verifySnapUpdate(
+          plan,
+          review.state,
+          this.guardedReader(actor, plan, c.id, 'Snapchat verification must remain read-only.', {
+            binding: sameLogin('The selected login changed during Snapchat verification.'),
+          }),
+        );
         status = verified.status;
         checks = verified.checks;
       } else if (googlePreviewKind(plan)) {
-        let credentialHash: string | undefined;
         const verified = await verifyGooglePreview(
           plan,
           review.state,
           result,
           this.store.previewReceipt(actor.tenantId, reviewId),
-          async read => {
-            if (!independentlyReadOnly(read))
-              bad('Preview verification must remain read-only.', 'VERIFICATION_UNSUPPORTED');
-            const access = () => {
-              this.store.assertActorActive(actor);
-              const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-              assertGoogleAdsScope(current);
-              new ScopeGuard(this.registry, this.store).authorize(read, current);
-              if (
-                credentialHash &&
-                sha256(stable(this.store.credentials(actor.tenantId, current.id))) !== credentialHash
-              )
-                bad('The selected login changed during preview verification.', 'REAUTHORIZATION_REQUIRED');
-              return current;
-            };
-            const current = access(),
-              auth = await this.credentials.get(current);
-            credentialHash ??= sha256(stable(auth));
-            access();
-            const response = await this.request(actor, read, current, auth);
-            access();
-            return response;
-          },
+          this.guardedReader(actor, plan, c.id, 'Preview verification must remain read-only.', {
+            check: assertGoogleAdsScope,
+            binding: sameLogin('The selected login changed during preview verification.'),
+          }),
         );
         status = verified.status;
         checks = verified.checks;
       } else if (googlePortfolioKind(plan) || googleConversionActionKind(plan)) {
-        let credentialHash: string | undefined;
         const verified = await (
           googleConversionActionKind(plan) ? verifyGoogleConversionAction : verifyGooglePortfolio
-        )(plan, result, review.state, async read => {
-          if (!independentlyReadOnly(read))
-            bad('Portfolio verification must remain read-only.', 'VERIFICATION_UNSUPPORTED');
-          const access = () => {
-            this.store.assertActorActive(actor);
-            const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            assertGoogleAdsScope(current);
-            new ScopeGuard(this.registry, this.store).authorize(read, current);
-            if (credentialHash && sha256(stable(this.store.credentials(actor.tenantId, current.id))) !== credentialHash)
-              bad('The selected login changed during portfolio verification.', 'REAUTHORIZATION_REQUIRED');
-            return current;
-          };
-          const current = access(),
-            auth = await this.credentials.get(current);
-          credentialHash ??= sha256(stable(auth));
-          access();
-          const response = await this.request(actor, read, current, auth);
-          access();
-          return response;
-        });
+        )(
+          plan,
+          result,
+          review.state,
+          this.guardedReader(actor, plan, c.id, 'Portfolio verification must remain read-only.', {
+            check: assertGoogleAdsScope,
+            binding: sameLogin('The selected login changed during portfolio verification.'),
+          }),
+        );
         status = verified.status;
         checks = verified.checks;
       } else if (googleAccessKind(plan)) {
-        const verified = await verifyGoogleAccess(plan, result, review.state, async read => {
-          if (!independentlyReadOnly(read))
-            bad('Google access verification must remain read-only.', 'VERIFICATION_UNSUPPORTED');
-          const access = () => {
-            this.store.assertActorActive(actor);
-            assertGoogleAccessActor(plan, actor);
-            const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            assertGoogleAdsScope(current);
-            new ScopeGuard(this.registry, this.store).authorize(read, current);
-            return current;
-          };
-          const current = access(),
-            auth = await this.credentials.get(current);
-          access();
-          const response = await this.request(actor, read, current, auth);
-          access();
-          return response;
-        });
+        const verified = await verifyGoogleAccess(
+          plan,
+          result,
+          review.state,
+          this.guardedReader(actor, plan, c.id, 'Google access verification must remain read-only.', {
+            actor: () => assertGoogleAccessActor(plan, actor),
+            check: assertGoogleAdsScope,
+          }),
+        );
         status = verified.status;
         checks = verified.checks;
       } else if (googleDismissalKind(plan)) {
-        const verified = await verifyGoogleDismissal(plan, review.state, async read => {
-          if (!independentlyReadOnly(read))
-            bad('Dismissal verification must remain read-only.', 'VERIFICATION_UNSUPPORTED');
-          const access = () => {
-            this.store.assertActorActive(actor);
-            const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            assertGoogleAdsScope(current);
-            new ScopeGuard(this.registry, this.store).authorize(read, current);
-            return current;
-          };
-          const current = access(),
-            auth = await this.credentials.get(current);
-          access();
-          const response = await this.request(actor, read, current, auth);
-          access();
-          return response;
-        });
+        const verified = await verifyGoogleDismissal(
+          plan,
+          review.state,
+          this.guardedReader(actor, plan, c.id, 'Dismissal verification must remain read-only.', {
+            check: assertGoogleAdsScope,
+          }),
+        );
         status = verified.status;
         checks = verified.checks;
       } else if (businessAccessKind(plan)) {
-        const verified = await verifyBusinessAccess(plan, result, review.state, async read => {
-          if (!independentlyReadOnly(read))
-            bad('Business access verification must remain read-only.', 'VERIFICATION_UNSUPPORTED');
-          const access = () => {
-            this.store.assertActorActive(actor);
-            assertBusinessAccessActor(plan, actor);
-            const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            assertBusinessAccessScope(current);
-            new ScopeGuard(this.registry, this.store).authorize(read, current);
-            return current;
-          };
-          const current = access(),
-            auth = await this.credentials.get(current);
-          access();
-          const response = await this.request(actor, read, current, auth);
-          access();
-          return response;
-        });
+        const verified = await verifyBusinessAccess(
+          plan,
+          result,
+          review.state,
+          this.guardedReader(actor, plan, c.id, 'Business access verification must remain read-only.', {
+            actor: () => assertBusinessAccessActor(plan, actor),
+            check: assertBusinessAccessScope,
+          }),
+        );
         status = verified.status;
         checks = verified.checks;
         resources = verified.resources;
@@ -983,50 +950,24 @@ export class WriteVerifier {
           plan,
           result,
           review.state,
-          async read => {
-            if (!independentlyReadOnly(read))
-              bad('Place-action verification must remain read-only.', 'VERIFICATION_UNSUPPORTED');
-            const access = () => {
-              this.store.assertActorActive(actor);
-              assertBusinessNotificationActor(plan, actor);
-              const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-              assertPlaceActionScope(current);
-              new ScopeGuard(this.registry, this.store).authorize(read, current);
-              return current;
-            };
-            const current = access(),
-              auth = await this.credentials.get(current);
-            access();
-            const response = await this.request(actor, read, current, auth);
-            access();
-            return response;
-          },
+          this.guardedReader(actor, plan, c.id, 'Place-action verification must remain read-only.', {
+            actor: () => assertBusinessNotificationActor(plan, actor),
+            check: assertPlaceActionScope,
+          }),
         );
         status = verified.status;
         checks = verified.checks;
         resources = verified.resources;
       } else if (criteoCampaignKind(plan)) {
-        let credentialHash: string | undefined;
-        const verified = await verifyCriteoCampaign(plan, result, review.state, async read => {
-          if (!independentlyReadOnly(read))
-            bad('Campaign verification must remain read-only.', 'VERIFICATION_UNSUPPORTED');
-          const access = () => {
-            this.store.assertActorActive(actor);
-            const active = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            assertCriteoCampaignScopes(active);
-            new ScopeGuard(this.registry, this.store).authorize(read, active);
-            if (credentialHash && sha256(stable(this.store.credentials(actor.tenantId, active.id))) !== credentialHash)
-              bad('The selected login changed during campaign verification.', 'REAUTHORIZATION_REQUIRED');
-            return active;
-          };
-          const current = access(),
-            auth = await this.credentials.get(current);
-          credentialHash ??= sha256(stable(auth));
-          access();
-          const response = await this.request(actor, read, current, auth);
-          access();
-          return response;
-        });
+        const verified = await verifyCriteoCampaign(
+          plan,
+          result,
+          review.state,
+          this.guardedReader(actor, plan, c.id, 'Campaign verification must remain read-only.', {
+            check: active => assertCriteoCampaignScopes(active),
+            binding: sameLogin('The selected login changed during campaign verification.'),
+          }),
+        );
         status = verified.status;
         checks = verified.checks;
         resources = verified.resources;
@@ -1042,94 +983,61 @@ export class WriteVerifier {
             resource.read_result.arguments.arguments.connection_id = c.id;
           }
       } else if (xReportKind(plan)) {
-        const verified = await verifyXReport(plan, result, async read => {
-          if (!independentlyReadOnly(read))
-            bad('Report verification must remain read-only.', 'VERIFICATION_UNSUPPORTED');
-          const access = () => {
-            this.store.assertActorActive(actor);
-            const active = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            new ScopeGuard(this.registry, this.store).authorize(read, active);
-            return active;
-          };
-          const current = access(),
-            auth = await this.credentials.get(current);
-          access();
-          const response = await this.request(actor, read, current, auth),
-            active = access();
-          observeXReport(read, active, this.store, xReportStatus(read, response));
-          return response;
-        });
+        const verified = await verifyXReport(
+          plan,
+          result,
+          this.guardedReader(actor, plan, c.id, 'Report verification must remain read-only.', {
+            after: (read, active, response) => {
+              observeXReport(read, active, this.store, xReportStatus(read, response));
+            },
+          }),
+        );
         status = verified.status;
         checks = verified.checks;
         resources = verified.resources;
         for (const resource of resources) resource.read_result.arguments.connection_id = c.id;
       } else if (tiktokReportKind(plan)) {
-        const verified = await verifyTiktokReport(plan, result, async read => {
-          if (!independentlyReadOnly(read))
-            bad('Report verification must remain read-only.', 'VERIFICATION_UNSUPPORTED');
-          const access = () => {
-            this.store.assertActorActive(actor);
-            const active = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            new ScopeGuard(this.registry, this.store).authorize(read, active);
-            return active;
-          };
-          const current = access(),
-            auth = await this.credentials.get(current);
-          access();
-          const response = await this.request(actor, read, current, auth);
-          access();
-          return response;
-        });
+        const verified = await verifyTiktokReport(
+          plan,
+          result,
+          this.guardedReader(actor, plan, c.id, 'Report verification must remain read-only.'),
+        );
         status = verified.status;
         checks = verified.checks;
         resources = verified.resources;
         for (const resource of resources) resource.read_result.arguments.connection_id = c.id;
       } else if (criteoReportKind(plan)) {
-        const verified = await verifyCriteoReport(plan, result, reviewId, async read => {
-          if (!independentlyReadOnly(read))
-            bad('Report verification must remain read-only.', 'VERIFICATION_UNSUPPORTED');
-          const access = () => {
-            this.store.assertActorActive(actor);
-            const active = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            assertCriteoReportScopes(active);
-            new ScopeGuard(this.registry, this.store).authorize(read, active);
-            return active;
-          };
-          const current = access(),
-            auth = await this.credentials.get(current);
-          access();
-          const response = await this.request(actor, read, current, auth),
-            active = access();
-          if (stable(this.store.credentials(actor.tenantId, active.id)) !== stable(auth))
-            bad('The login changed while checking this report.', 'REAUTHORIZATION_REQUIRED');
-          const data = criteoReportReadResult(read, response)!;
-          observeCriteoReportRead(read, active, this.store, data);
-          return response;
-        });
+        const verified = await verifyCriteoReport(
+          plan,
+          result,
+          reviewId,
+          this.guardedReader(actor, plan, c.id, 'Report verification must remain read-only.', {
+            check: assertCriteoReportScopes,
+            after: (read, active, response, auth) => {
+              if (stable(this.store.credentials(actor.tenantId, active.id)) !== stable(auth))
+                bad('The login changed while checking this report.', 'REAUTHORIZATION_REQUIRED');
+              observeCriteoReportRead(read, active, this.store, criteoReportReadResult(read, response)!);
+            },
+          }),
+        );
         status = verified.status;
         checks = verified.checks;
         resources = verified.resources;
         for (const resource of resources) resource.read_result.arguments.arguments.connection_id = c.id;
       } else if (metaReportKind(plan)) {
-        const verified = await verifyMetaReport(plan, result, reviewId, async read => {
-          if (!independentlyReadOnly(read))
-            bad('Report verification must remain read-only.', 'VERIFICATION_UNSUPPORTED');
-          const access = () => {
-            this.store.assertActorActive(actor);
-            const active = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            assertMetaReportScope(active);
-            new ScopeGuard(this.registry, this.store).authorize(read, active);
-            return active;
-          };
-          const current = access(),
-            auth = await this.credentials.get(current);
-          access();
-          const response = await this.request(actor, read, current, auth),
-            active = access(),
-            data = metaReportReadResult(read, response)!;
-          observeMetaReportRead(read, active, this.store, data);
-          return {...response, data};
-        });
+        const verified = await verifyMetaReport(
+          plan,
+          result,
+          reviewId,
+          this.guardedReader(actor, plan, c.id, 'Report verification must remain read-only.', {
+            check: assertMetaReportScope,
+            after: (read, active, response) => {
+              const data = metaReportReadResult(read, response)!;
+              observeMetaReportRead(read, active, this.store, data);
+              return {...response, data};
+            },
+          }),
+        );
         status = verified.status;
         checks = verified.checks;
         resources = verified.resources ?? [];
@@ -1139,96 +1047,40 @@ export class WriteVerifier {
           plan,
           result,
           review.state,
-          async read => {
-            if (!independentlyReadOnly(read))
-              bad('Google goal and bidding-event verification must remain read-only.', 'VERIFICATION_UNSUPPORTED');
-            this.store.assertActorActive(actor);
-            let current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            assertGoogleAdsScope(current);
-            new ScopeGuard(this.registry, this.store).authorize(read, current);
-            const auth = await this.credentials.get(current);
-            this.store.assertActorActive(actor);
-            current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            assertGoogleAdsScope(current);
-            new ScopeGuard(this.registry, this.store).authorize(read, current);
-            const response = await this.request(actor, read, current, auth);
-            this.store.assertActorActive(actor);
-            current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            assertGoogleAdsScope(current);
-            new ScopeGuard(this.registry, this.store).authorize(read, current);
-            return response;
-          },
+          this.guardedReader(actor, plan, c.id, 'Google goal and bidding-event verification must remain read-only.', {
+            check: assertGoogleAdsScope,
+          }),
         );
         status = verified.status;
         checks = verified.checks;
       } else if (xTargetingBatchRoute(plan) || linkedinTemplateKind(plan)) {
-        let credentialHash: string | undefined;
         const verified = await (linkedinTemplateKind(plan) ? verifyLinkedInTemplate : verifyXTargetingBatch)(
           plan,
           result,
           review.state,
-          async read => {
-            if (!independentlyReadOnly(read))
-              bad('Targeting verification must remain read-only.', 'VERIFICATION_UNSUPPORTED');
-            const access = () => {
-              this.store.assertActorActive(actor);
-              const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-              new ScopeGuard(this.registry, this.store).authorize(read, current);
-              if (
-                credentialHash &&
-                sha256(stable(this.store.credentials(actor.tenantId, current.id))) !== credentialHash
-              )
-                bad('The selected login changed during targeting verification.', 'REAUTHORIZATION_REQUIRED');
-              return current;
-            };
-            const current = access(),
-              auth = await this.credentials.get(current);
-            credentialHash ??= sha256(stable(auth));
-            access();
-            const response = await this.request(actor, read, current, auth);
-            access();
-            return response;
-          },
+          this.guardedReader(actor, plan, c.id, 'Targeting verification must remain read-only.', {
+            binding: sameLogin('The selected login changed during targeting verification.'),
+          }),
         );
         status = verified.status;
         checks = verified.checks;
       } else if (xDraftKind(plan)) {
-        const verified = await verifyXDraft(plan, result, review.state, async read => {
-          if (!independentlyReadOnly(read))
-            bad('Draft verification must remain read-only.', 'VERIFICATION_UNSUPPORTED');
-          this.store.assertActorActive(actor);
-          let current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-          new ScopeGuard(this.registry, this.store).authorize(read, current);
-          const auth = await this.credentials.get(current);
-          this.store.assertActorActive(actor);
-          current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-          new ScopeGuard(this.registry, this.store).authorize(read, current);
-          const response = await this.request(actor, read, current, auth);
-          this.store.assertActorActive(actor);
-          new ScopeGuard(this.registry, this.store).authorize(
-            read,
-            this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id),
-          );
-          return response;
-        });
+        const verified = await verifyXDraft(
+          plan,
+          result,
+          review.state,
+          this.guardedReader(actor, plan, c.id, 'Draft verification must remain read-only.'),
+        );
         status = verified.status;
         checks = verified.checks;
       } else if (xCreativeKind(plan)) {
         for (let attempt = 0; attempt < 3; attempt++) {
           if (attempt) await delay(attempt * 250);
-          const verified = await verifyXCreative(plan, result, async read => {
-            if (!independentlyReadOnly(read)) bad('X verification must remain read-only.', 'VERIFICATION_UNSUPPORTED');
-            this.store.assertActorActive(actor);
-            const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            new ScopeGuard(this.registry, this.store).authorize(read, current);
-            const auth = await this.credentials.get(current);
-            this.store.assertActorActive(actor);
-            this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            const response = await this.request(actor, read, current, auth);
-            this.store.assertActorActive(actor);
-            this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            return response;
-          });
+          const verified = await verifyXCreative(
+            plan,
+            result,
+            this.guardedReader(actor, plan, c.id, 'X verification must remain read-only.'),
+          );
           status = verified.status;
           checks = verified.checks;
           if (!xPromotion(plan) || status !== 'pending') break;
