@@ -68,6 +68,23 @@ function mismatch(field:string):never{throw new MirrorError('ACCOUNT_SCOPE_MISMA
 
 /** This guard runs on every final page, before token refresh or authenticated egress. */
 /** The global Snapchat entity that scopes a path (campaigns/<id>, adsquads/<id>, …), as held in resource ownership. */
+/**
+ * The account collection reads whose results establish ownership of a standalone resource (observe() below), as
+ * ready-to-send calls. Meta object IDs do not reveal their type, so Meta gets one call per collection.
+ */
+export function ownershipReads(gateway:string,path:string,account:string,connectionId:string):{tool:string;arguments:JsonObject}[]{
+ const call=(action:string,extra:JsonObject={})=>({tool:gateway,arguments:{action,account_id:account,connection_id:connectionId,...extra}});
+ if(gateway==='meta_native_action'&&/^\/v[^/]+\/\d+(?:\/|$)/.test(path))return ['meta_campaign_list','meta_adset_list','meta_ad_list','meta_creative_list','meta_custom_audience_list'].map(a=>call(a,{query:{fields:'id'}}));
+ if(gateway==='snapchat_native_action'){
+  const kind=snapchatScopedResource(path)?.split('/')[0],action=kind&&({campaigns:'snapchat_campaign_list',adsquads:'snapchat_adsquad_list',ads:'snapchat_ad_list',creatives:'snapchat_creative_list',media:'snapchat_media_list',pixels:'snapchat_pixel_list',lead_generation_forms:'snapchat_lead_generation_forms_list',segments:'snapchat_audience_list'} as Record<string,string>)[kind];
+  return action?[call(action)]:[];
+ }
+ if(gateway==='reddit_native_action'){
+  const kind=/^\/api\/v3\/(campaigns|ad_groups|ads)\//.exec(path)?.[1],action=kind&&({campaigns:'LIST_CAMPAIGNS',ad_groups:'LIST_AD_GROUPS',ads:'LIST_ADS'} as Record<string,string>)[kind];
+  return action?[{tool:gateway,arguments:{operation:'reddit_campaign_ops',arguments:{action,account_id:account,connection_id:connectionId}}}]:[];
+ }
+ return [];
+}
 export function snapchatScopedResource(path:string):string|undefined{
  let decoded:string;try{decoded=decodeURIComponent(path);}catch{return undefined;}
  return /^\/v1\/(campaigns|adsquads|ads|creatives|media|pixels|lead_generation_forms|segments)\/([^/]+)/.exec(decoded)?.slice(1).join('/');
@@ -218,7 +235,8 @@ export class ScopeGuard {
    if(normalizeAccount(plan.gateway,binding.accountId)!==id)continue;
    if((decoded===binding.pathPrefix||decoded.startsWith(binding.pathPrefix+'/')||decoded.startsWith(binding.pathPrefix+':'))&&Object.entries(binding.query??{}).every(([k,v])=>stable(plan.query[k])===stable(v)))return id;
   }
-  throw new MirrorError('RESOURCE_SCOPE_REQUIRED','Resource ownership is not established. Read its account-scoped collection first, or have an administrator provision an exact resource binding.',{gateway:plan.gateway,path:plan.path,account_id:id},403);
+  const reads=ownershipReads(plan.gateway,decoded,id,connection.id);
+  throw new MirrorError('RESOURCE_SCOPE_REQUIRED','Resource ownership is not established. '+(reads.length?'List it through '+(reads.length===1?'its account collection':'the account collection of its type')+' with this connection (details.ownership_reads); the IDs that read returns are usable for five minutes. Page through the collection if the ID is not on the first page.':'Read its account-scoped collection first, or have an administrator provision an exact resource binding.'),{gateway:plan.gateway,path:plan.path,account_id:id,...(reads.length?{ownership_reads:reads,...(reads.length===1?{next_call:reads[0]}:{})}:{})},403);
  }
  observe(plan:CompiledRequest,connection:Connection,data:unknown):void{
   if(!plan.readOnly)return;
