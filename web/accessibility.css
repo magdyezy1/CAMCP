@@ -38,3 +38,7 @@ code{overflow-wrap:anywhere}
 .evidence-tags span{color:#697285;font-size:12px}
 .how-steps li>span{color:#7c6b8f}
 .platform-google{color:#916225}.platform-meta{color:#386ca6}.platform-snapchat{color:#826a2c}.platform-microsoft{color:#8f5731}
+
+/* Text people and platforms write, such as campaign names and ad copy, keeps its own direction: Arabic or Hebrew reads
+   right to left inside the English interface, English left to right, and numbers follow the page (F-47). */
+input:not([type]),input[type=text],input[type=search],textarea,td,tbody th{unicode-bidi:plaintext}
