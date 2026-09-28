@@ -205,3 +205,7 @@ source files equal `0eddae1`, apart from `release-manifest.json`. Pushed as `0ed
 | `ExecutionPolicy.maxBudgetChange` is optional and documented as unenforced, naming the owner spending policy as the control (F-23) | type-only; the 215 call sites compile unchanged |
 | [SUMMARY.md](SUMMARY.md): what changed, measurements, the decisions that are the owner's, what is still open | — |
 
+
+Full qualification (`.release/batch10-20260928`, up to `3340f25`): **2,720 / 2,720** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 514 s. The candidate's source
+files equal `3340f25`, apart from `release-manifest.json`.
