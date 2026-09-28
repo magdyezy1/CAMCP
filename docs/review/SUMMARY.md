@@ -141,7 +141,6 @@ Each of these changes a level of protection, a deployment, a dependency or the p
 - Registry: the Snapchat families, Criteo catalog and overrides, DV360 SDF and TikTok negative keywords, each needing
   one more registry hook.
 - Architecture: splitting `write-review.ts` into stages.
-- Code: formatting `web/`.
 - Contracts and operations: the end dates this environment could not read (Google Ads v25, Meta, LinkedIn and the
   others recorded as unknown); lazy loading of generated routes (F-64).
 - Website: target sizes of small inline links (a WCAG 2.2 criterion); folding the one-off tints into tokens.

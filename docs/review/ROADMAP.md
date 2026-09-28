@@ -49,7 +49,7 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
 4. **Formatting** — **done in batch 8**: Prettier at 120 columns, `.editorconfig` with LF, module by module in
    format-only commits, each proven neutral by syntax-tree equality (a Prettier-normalised `dist/` comparison turned
    out not to be a proof, because Prettier keeps some input line breaks); `format:check` runs first in
-   `npm run check` (F-62). `web/` remains.
+   `npm run check` (F-62). `web/` followed in batch 21.
 5. Adding-a-family guide showing the one-module, one-test, one-registration workflow. **Done:**
    `docs/ADDING-A-REVIEWED-FAMILY.md`.
 

@@ -403,3 +403,14 @@ Criteo, Reddit and the six Microsoft documents could not be fetched from this en
 unchecked here. The only recorded end dates are Criteo 2026-01's (the 12-month policy, January 2027; the alarm starts
 on 2026-10-03) and Microsoft's SOAP retirement (2027-01-31, which does not affect AMCP's JSON transport). The others
 could not be read from here and stay unknown.
+
+## Batch 21 — the website code formatted
+
+Finding: F-62 (its remainder). `web/` was the part of the code base Prettier did not cover: 16 scripts and 6
+stylesheets, written with lines averaging over 300 characters.
+
+| Change | Evidence |
+|---|---|
+| The six stylesheets formatted (125 → 5,817 lines) | Format-only. In Chromium, with every `var()` replaced by its value, the 7,987 declarations of the workspace stylesheets are identical in order, the root element's 406 computed properties and the tokens are equal, and the privacy page's 277 declarations are identical |
+| The 15 scripts formatted (1,121 → 4,221 lines; HTML template text is unchanged, so the longest lines are still templates). The vendored QR encoder stays byte for byte (`.prettierignore`), since its digest is recorded | Format-only. Syntax-tree equality with Prettier's own parser: 15 of 15 files identical; `node --check` on every script; the 117 tests that load or read the scripts pass |
+| `format` and `format:check` cover `web/**/*.{js,css}`; the website check's pattern for the one allowed synchronous `confirm()` tolerates line breaks | `npm run format:check`; `node tools/check-web.mjs` |
