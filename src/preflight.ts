@@ -57,7 +57,11 @@ import {numericStatusPaths, deliveryEditFields} from './spend-effects.js';
 import {familyOf} from './reviewed-families.js';
 export interface ExecutionPolicy {
   allowWrites: boolean;
-  maxBudgetChange: number;
+  /**
+   * Not enforced, and never was: budget changes are limited by the owner spending policy (spend-policy.ts) and
+   * confirmed through spend_change_confirmed. Accepted only so existing configurations keep compiling (F-23).
+   */
+  maxBudgetChange?: number;
   requireBeforeState: boolean;
 }
 export const readOnlyPolicy: ExecutionPolicy = {allowWrites: false, maxBudgetChange: 0, requireBeforeState: true};
