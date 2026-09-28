@@ -128,3 +128,9 @@ Findings: F-54, F-69, F-72, part of F-70 and F-28 (the ownership stumper in
 | Every pinned vendor document sealed with `document_sha256`; the vendor tools require the seal | `tests/vendor-integrity.test.mjs` fails without the seals | passes; vendor routes unchanged, the ledger records the new file digests |
 | `CONTRACTS.md` states Reddit's lead-form withdrawal instead of offering it | — (text) | regenerated; every generated check passes |
 | 32 unused declarations removed (4 dead helpers, none a missing check); `noUnusedLocals` on | `tsc --noUnusedLocals`: 32 errors | 0 |
+
+Full qualification (`.release/batch5-20260928`, up to `9bd24e4`): **2,708 / 2,708** tests and **4 / 4** capture
+tests. The first run stopped at `report --check`, because a public release does not ship the status report files;
+`9bd24e4` compares only files present, and the remaining checks (`report --check`, `check:web`, provider drift and
+lifecycle, contracts, action ledger) then passed in the same candidate with the fixed tool. Railway check passes.
+479 s. The candidate's files equal `9bd24e4` for all 125 files changed since `2360a9c`.
