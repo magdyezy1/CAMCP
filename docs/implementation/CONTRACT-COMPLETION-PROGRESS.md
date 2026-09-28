@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## FH — LinkedIn lead form publishing and archiving (2026-09-27)
+
+LinkedIn lead gen forms can now be published and archived through reviewed requests that read the
+form, require spending confirmation (the status decides whether its creatives serve) and read the
+new state back; content edits stay outside. See
+[implementation](LINKEDIN-LEAD-FORM-STATES-2026-09-27.md),
+[qualification](LINKEDIN-LEAD-FORM-STATES-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 708 (one LinkedIn row reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## FG — Meta ad account name, EU payor and beneficiary (2026-09-27)
 
 A Meta ad account's name, default EU (Digital Services Act) payor and beneficiary and notification
@@ -17,7 +29,7 @@ spending caps and permanent account fields stay outside. See
 [qualification](META-ACCOUNT-SETTINGS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 709 (one Meta row reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 709 (one Meta row reviewed). Committed as `3a3a46d`; its exact-commit CI result
 and live acceptance are pending.
 
 ## FF — Meta pixels (2026-09-27)

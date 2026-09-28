@@ -66,12 +66,14 @@ function fixture({scopes=['rw_ads'],drift}={}){
  return {store,forms,accountRow,requests,writes,call,args,prepare,execute,verify,get,list,mode:v=>{mode=v;},receipt:v=>{receiptId=v;},restart:()=>{service=start();}};
 }
 
-test('lead form creation is a reviewed LinkedIn family; edits stay blocked',async()=>{
+test('lead form creation is a reviewed LinkedIn family; status changes are reviewed by their own family and content edits stay blocked',async()=>{
  const f=fixture();try{
   const inspected=await f.call('amcp_write',{action:'inspect',gateway,connection_id:LI,arguments:f.args(form())});
   assert.equal(inspected.data.review_contract_supported,true,JSON.stringify(inspected));
   const edit=await f.call('amcp_write',{action:'inspect',gateway,connection_id:LI,arguments:{action:'linkedin_rest_lead_forms_lead_form_id_post',account_id:account,path_params:{lead_form_id:'5001'},restli_method:'PARTIAL_UPDATE',payload:{patch:{$set:{state:'ARCHIVED'}}}}});
-  assert.notEqual(edit.data?.review_contract_supported,true,JSON.stringify(edit));assert.equal(f.requests.length,0);
+  assert.equal(edit.data?.review_contract_supported,true,JSON.stringify(edit));
+  const content=await f.call('amcp_write',{action:'inspect',gateway,connection_id:LI,arguments:{action:'linkedin_rest_lead_forms_lead_form_id_post',account_id:account,path_params:{lead_form_id:'5001'},restli_method:'PARTIAL_UPDATE',payload:{patch:{$set:{name:'Renamed'}}}}});
+  assert.notEqual(content.data?.review_contract_supported,true,JSON.stringify(content));assert.equal(f.requests.length,0);
  }finally{f.store.close();}
 });
 

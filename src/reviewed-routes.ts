@@ -19,6 +19,7 @@ import {tiktokRuleAudienceKind} from './tiktok-rule-audiences.js';
 import {xConversationCardKind} from './x-conversation-cards.js';
 import {metaPixelKind} from './meta-pixels.js';
 import {metaAccountSettingsKind} from './meta-account-settings.js';
+import {linkedinLeadFormStateKind} from './linkedin-lead-form-states.js';
 import {xReportKind} from './x-report-jobs.js';
 import {googlePreviewKind} from './google-preview-writes.js';
 import {criteoCampaignKind} from './criteo-campaign-writes.js';
@@ -135,6 +136,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(xConversationCardKind(p))return 'x_conversation_cards';
  if(metaPixelKind(p))return 'meta_pixels';
  if(metaAccountSettingsKind(p))return 'meta_account_settings';
+ if(linkedinLeadFormStateKind(p))return 'linkedin_lead_form_states';
  if(googlePreviewKind(p))return 'google_shareable_previews';
  if(placeActionKind(p))return 'google_place_actions';
  if(businessNotificationKind(p))return 'google_business_notifications';

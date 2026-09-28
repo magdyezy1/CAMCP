@@ -486,9 +486,19 @@ Reads: `linkedin_rest_lead_forms_get` with `query: {q: "owner", owner:
 lists the selected account's forms and establishes ownership of the forms it
 returns. `linkedin_rest_lead_forms_lead_form_id_get` reads an owned form: one listed
 or created in the last five minutes. Other owners, other finders and batch `ids`
-reads need an exact administrator resource binding. Publishing, edits, archiving,
-lead responses (`leadFormResponses`) and lead notifications stay unqualified; lead
-responses are personal data.
+reads need an exact administrator resource binding. Content edits, lead responses
+(`leadFormResponses`) and lead notifications stay unqualified; lead responses are
+personal data.
+
+Publishing and archiving: `linkedin_rest_lead_forms_lead_form_id_post` with
+`path_params: {lead_form_id}`, `restli_method: "PARTIAL_UPDATE"` and
+`payload: {patch: {$set: {state}}}` publishes a DRAFT form (`PUBLISHED`) or archives a
+published one (`ARCHIVED`); nothing else goes in the patch
+(`INVALID_LINKEDIN_LEAD_FORM_STATE`). AMCP reads the form first: it must be owned by
+the selected sponsored account (`RESOURCE_SCOPE_REQUIRED` otherwise) and be in the
+state the change starts from. The status decides whether the creatives that use the
+form serve, so execution needs `spend_change_confirmed=true`. LinkedIn answers 204;
+verification reads the form again and expects the new state.
 
 Sources: [Lead Syncing](https://learn.microsoft.com/en-us/linkedin/marketing/lead-sync/leadsync?view=li-lms-2026-09)
 and [Lead Syncing Schema](https://learn.microsoft.com/en-us/linkedin/marketing/lead-sync/lead-sync-schema?view=li-lms-2026-09),

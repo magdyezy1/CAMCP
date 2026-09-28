@@ -19,6 +19,7 @@ import {tiktokRuleAudienceImpact} from './tiktok-rule-audiences.js';
 import {xConversationCardImpact} from './x-conversation-cards.js';
 import {metaPixelImpact} from './meta-pixels.js';
 import {metaAccountSettingsImpact} from './meta-account-settings.js';
+import {linkedinLeadFormStateImpact} from './linkedin-lead-form-states.js';
 import {snapSegmentImpact} from './snapchat-segments.js';
 import {tiktokIdentityKind,tiktokIdentityImpact} from './tiktok-identities.js';
 import {metaCopyKind,metaCopyImpact} from './meta-copies.js';
@@ -158,6 +159,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  const xConversationCard=xConversationCardImpact(plan,state);if(xConversationCard)return xConversationCard;
  const metaPixel=metaPixelImpact(plan,state);if(metaPixel)return metaPixel;
  const metaAccountSettings=metaAccountSettingsImpact(plan,state);if(metaAccountSettings)return metaAccountSettings;
+ const linkedinLeadFormState=linkedinLeadFormStateImpact(plan,state);if(linkedinLeadFormState)return linkedinLeadFormState;
  if(metaCopyKind(plan))return metaCopyImpact(plan,state);
  if(googlePreviewKind(plan))return googlePreviewImpact;
  if(googleDismissalKind(plan))return googleDismissalImpact(plan,state);

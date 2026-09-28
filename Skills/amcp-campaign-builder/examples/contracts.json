@@ -1519,6 +1519,24 @@
       }
     },
     {
+      "gateway": "linkedin_native_action",
+      "arguments": {
+        "action": "linkedin_rest_lead_forms_lead_form_id_post",
+        "account_id": "507",
+        "path_params": {
+          "lead_form_id": "701"
+        },
+        "restli_method": "PARTIAL_UPDATE",
+        "payload": {
+          "patch": {
+            "$set": {
+              "state": "PUBLISHED"
+            }
+          }
+        }
+      }
+    },
+    {
       "gateway": "meta_native_action",
       "arguments": {
         "action": "meta_ad_account_id_create",
