@@ -89,7 +89,7 @@ the generic budget scan cannot find them, so budget limits apply.
    `npm run report` (`npm run check` fails while any of them is stale). Name any
    new refusal code in a guide (`Skills/amcp-campaign-builder/references/`, listed in `src/guidance.ts`), or
    declare it in `tools/guidance-coverage.ts` with a reason.
-7. `npm run test:related`, then the full qualification in a release candidate (`docs/review/PROGRESS.md` shows the
+7. `npm run format`, `npm run test:related`, then the full qualification in a release candidate (`docs/review/PROGRESS.md` shows the
    commands).
 
 ## What the registry guarantees

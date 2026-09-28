@@ -39,6 +39,9 @@ npm run check
 npm run start:http
 ```
 
+`npm run check` starts with `npm run format:check`; run `npm run format` to apply the repository's Prettier style to
+`src`, `server`, `tools`, `tests`, `codegen` and `deploy` before committing.
+
 The default local URL is http://127.0.0.1:4317. Configure the variables in [.env.example](.env.example) in your process environment; the server does not automatically load that file. Set an administrator password and encryption key before signing in or connecting providers. For stdio MCP, use `npm start`.
 
 ## MCP compatibility and verification
