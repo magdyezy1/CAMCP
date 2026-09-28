@@ -194,3 +194,14 @@ Findings: F-30 in part, F-31, F-38 and F-43 in part (report table), F-45.
 | Text assets served with Brotli or gzip (308 KB → 82 KB with Brotli), per-encoding ETags, `Vary: Accept-Encoding`, 304 revalidation, no new dependency (F-45) | new test in `tests/website-assets.test.mjs` fails before and passes after; traversal and dotfile paths are not served |
 | `docs/HARDENING-REVIEW.md` summarises this review and links its records | — |
 
+Full qualification (`.release/batch9-20260928`, up to `0eddae1`): **2,720 / 2,720** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 511 s. The candidate's 1,150
+source files equal `0eddae1`, apart from `release-manifest.json`. Pushed as `0eddae1`.
+
+## Batch 10 — owner summary
+
+| Change | Evidence |
+|---|---|
+| `ExecutionPolicy.maxBudgetChange` is optional and documented as unenforced, naming the owner spending policy as the control (F-23) | type-only; the 215 call sites compile unchanged |
+| [SUMMARY.md](SUMMARY.md): what changed, measurements, the decisions that are the owner's, what is still open | — |
+
