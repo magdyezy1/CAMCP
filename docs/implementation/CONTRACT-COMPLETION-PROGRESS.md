@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## FC — TikTok audiences by rule (2026-09-27)
+
+TikTok retargeting audiences of website visitors, ad engagers and lead form users can now be
+created through reviewed requests that check each rule against TikTok's documented values, read
+the pixels or ad groups first and read the new audience back. See
+[implementation](TIKTOK-RULE-AUDIENCES-2026-09-27.md),
+[qualification](TIKTOK-RULE-AUDIENCES-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 720 (one TikTok row reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## FB — TikTok asset library edits (2026-09-27)
 
 TikTok library images and videos can now be renamed, and ones no ad or Upgraded Smart+ ad uses
@@ -16,7 +28,7 @@ change back. See [implementation](TIKTOK-LIBRARY-ASSETS-2026-09-27.md),
 [qualification](TIKTOK-LIBRARY-ASSETS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 721 (five TikTok rows reviewed). Pushes go only to CAMCP; its exact-commit CI
+Remaining rows: 721 (five TikTok rows reviewed). Committed as `54e8dd1`; its exact-commit CI
 result and live acceptance are pending.
 
 ## FA — TikTok custom audience edits (2026-09-27)

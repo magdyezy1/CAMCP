@@ -1095,7 +1095,16 @@ Tests: `tests/tiktok-audience-edits.test.mjs` (5), red on `5119489` / green afte
 
 - New reviewed family `tiktok_library_assets` (`src/tiktok-library-assets.ts`) for renaming library images and videos and deleting ones no ad or Upgraded Smart+ ad uses, five rows. Verification accepts TikTok's timestamp on a taken name; a deletion reply with failed IDs is a failure.
 
-Tests: `tests/tiktok-library-assets.test.mjs` (4), red on `d397f7c` / green after.
+Tests: `tests/tiktok-library-assets.test.mjs` (4), red on `d397f7c` / green after. Committed as `54e8dd1`.
+
+## Finished batch — TikTok audiences by rule (2026-09-27)
+
+[Implementation](TIKTOK-RULE-AUDIENCES-2026-09-27.md) and
+[qualification](TIKTOK-RULE-AUDIENCES-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `tiktok_rule_audiences` (`src/tiktok-rule-audiences.ts`) for website traffic, ad engagement and lead generation audiences by rule, one row. Filter values follow the Enumerations appendix, not the reference's example value.
+
+Tests: `tests/tiktok-rule-audiences.test.mjs` (4), red on `54e8dd1` / green after.
 
 ## CI and live evidence
 
@@ -1109,19 +1118,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 704 in reviewed write families. **721 remaining rows** are in
+3241 captured actions; 705 in reviewed write families. **720 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 612 |
+| blocked_write | 611 |
 | unmapped | 79 |
 | unqualified_read | 17 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 170, Meta 117, LinkedIn 94, Snapchat 66,
+Blocked writes by platform: TikTok 169, Meta 117, LinkedIn 94, Snapchat 66,
 Google Ads 57, X 43, DV360 30, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

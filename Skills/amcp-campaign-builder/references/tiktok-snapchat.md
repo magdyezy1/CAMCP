@@ -666,6 +666,42 @@ Reference: TikTok API for Business v1.3 "Update the name of an image", "Update t
 video" and "Delete creative assets"
 (https://business-api.tiktok.com/portal/docs/delete-creative-assets/v1.3), checked 2026-09-27.
 
+## TikTok audiences by rule
+
+`tiktok_dmp_custom_audience_rule_create` creates a retargeting audience from past activity:
+
+- `audience_type`: `PIXEL` (website visitors; each rule names pixels in `event_source_ids`),
+  `ENGAGEMENT` (people who engaged with ads; optional ad group IDs, all ad groups otherwise) or
+  `LEAD_GENERATION` (no event sources). App, shop, business account, offline and organic or live
+  engagement audiences are refused.
+- `custom_audience_name` (1–128 characters); optional `audience_sub_type` (`NORMAL` or
+  `REACH_FREQUENCY`), `retention_in_days` (1–365; without it the audience expires 365 days after it
+  was last applied to an active ad group or changed) and `is_auto_refresh` (default true).
+- `rule_spec.inclusion_rule_set` and optionally `exclusion_rule_set`: `{operator: "OR", rules}`
+  with 1–10 rules. Each rule has `retention_days` (7, 14, 30, 60, 90 or 180) and
+  `filter_set: {operator: "OR", filters: [{field: "EVENT", operator: "EQ", value}]}`, exactly one
+  filter. Values come from TikTok's enumeration for the type, for example `PAGE BROWSE`,
+  `PIXEL ADD TO CART` or `COMPLETE PAYMENT` for websites, `CLICK`, `PLAY 6S` or `PLAY OVER` for
+  engagement, and `LEAD GENERATION FORM SUBMISSION` or `FORM VIEW` for lead forms. TikTok's own
+  example shows `PIXEL COMPLETE PAYMENT`, which the enumeration does not list; it is refused.
+- Website filters may add `parameter_filters`: at most one `URL` filter (`CONTAINS`,
+  `DOES_NOT_CONTAIN`, `EQ`, `NOT_EQUAL`) and ten on `CONTENT_TYPE`, `PRICE`, `VALUE`, `CONTENT_ID`
+  or `CONTENT_CATEGORY` (also the four comparisons, with numbers), each with 1–10 `values` of up to
+  100 characters.
+
+AMCP reads the advertiser's pixels (paged) or the named ad groups (or the advertiser when a rule
+names neither); a pixel or ad group of another advertiser is `STATE_NOT_FOUND`. The audience
+reaches no one until an ad group includes or excludes it, so no spending confirmation is needed.
+A non-zero `code`, or a reply without `custom_audience_id`, is a failure never resubmitted.
+Verification reads the new audience and compares its name, type, sub type, ownership and refresh
+setting; TikTok returns the rule in its own format, so the rule is not compared. TikTok takes up
+to 48 hours to process a new audience. `INVALID_TIKTOK_RULE_AUDIENCE` names the field to correct.
+
+Reference: TikTok API for Business v1.3 "Create an audience by rule" and Enumerations ("Filter
+Value", "Lookback window")
+(https://business-api.tiktok.com/portal/docs/create-an-audience-by-rule/v1.3), checked
+2026-09-27.
+
 ## Snapchat planning reads
 
 Two planning requests use POST but only estimate, so AMCP runs them as reads (a reader can run

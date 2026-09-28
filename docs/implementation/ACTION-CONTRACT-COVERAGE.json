@@ -224,10 +224,10 @@
       "gateway": "tiktok_native_action",
       "actions": 561,
       "counts": {
-        "blocked_write": 170,
+        "blocked_write": 169,
         "media_workflow": 4,
         "native_read": 316,
-        "reviewed_write_family": 65,
+        "reviewed_write_family": 66,
         "unqualified_read": 6
       },
       "captured_catalog_complete": true,
@@ -54593,7 +54593,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54619,7 +54620,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54656,7 +54658,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54706,7 +54709,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54749,7 +54753,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54775,7 +54780,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54801,7 +54807,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54827,7 +54834,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54851,7 +54859,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54877,7 +54886,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -54987,7 +54997,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55013,7 +55024,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55037,7 +55049,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55061,7 +55074,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55098,7 +55112,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55175,7 +55190,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55240,7 +55256,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55266,7 +55283,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55332,7 +55350,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55356,7 +55375,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55380,7 +55400,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55417,7 +55438,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55467,7 +55489,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55491,7 +55514,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55515,7 +55539,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55539,7 +55564,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55589,7 +55615,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55613,7 +55640,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55637,7 +55665,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55674,7 +55703,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55698,7 +55728,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55722,7 +55753,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55746,7 +55778,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55770,7 +55803,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55820,7 +55854,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55844,7 +55879,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55907,7 +55943,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55944,7 +55981,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -55994,7 +56032,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56044,7 +56083,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56068,7 +56108,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56107,7 +56148,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56131,7 +56173,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56157,7 +56200,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56181,7 +56225,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56207,7 +56252,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56244,7 +56290,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56268,7 +56315,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56305,7 +56353,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56342,7 +56391,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56379,7 +56429,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56403,7 +56454,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56440,7 +56492,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56464,7 +56517,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56488,7 +56542,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56525,7 +56580,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56564,7 +56620,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56655,7 +56712,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56692,7 +56750,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56718,7 +56777,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56757,7 +56817,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56807,7 +56868,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56844,7 +56906,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56900,7 +56963,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56924,7 +56988,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -56964,7 +57029,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57004,7 +57070,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57093,7 +57160,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57130,7 +57198,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57154,7 +57223,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57178,7 +57248,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57202,7 +57273,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57226,7 +57298,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57263,7 +57336,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57301,6 +57375,7 @@
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
         "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -57325,7 +57400,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57349,7 +57425,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57373,7 +57450,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57397,7 +57475,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57421,7 +57500,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57471,7 +57551,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57534,7 +57615,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57558,7 +57640,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57582,7 +57665,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57606,7 +57690,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57643,7 +57728,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57746,6 +57832,7 @@
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
         "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -57796,7 +57883,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57834,6 +57922,7 @@
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
         "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -57859,6 +57948,7 @@
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
         "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -57896,7 +57986,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57933,7 +58024,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57957,7 +58049,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -57994,7 +58087,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58031,7 +58125,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58087,7 +58182,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58124,7 +58220,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58174,7 +58271,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58198,7 +58296,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58248,7 +58347,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58274,7 +58374,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58298,7 +58399,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58324,7 +58426,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58350,7 +58453,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58412,7 +58516,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58488,7 +58593,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58551,7 +58657,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58575,7 +58682,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58625,7 +58733,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58649,7 +58758,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58673,7 +58783,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58697,7 +58808,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58721,7 +58833,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58747,7 +58860,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58771,7 +58885,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58795,7 +58910,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58845,7 +58961,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58871,7 +58988,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58895,7 +59013,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -58972,6 +59091,7 @@
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
         "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -58999,6 +59119,7 @@
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
         "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -59024,6 +59145,7 @@
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
         "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -59113,7 +59235,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59137,7 +59260,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59161,7 +59285,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59185,7 +59310,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59209,7 +59335,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59246,7 +59373,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59283,7 +59411,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59320,7 +59449,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59357,7 +59487,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59394,7 +59525,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59418,7 +59550,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59484,7 +59617,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59508,7 +59642,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59532,7 +59667,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59598,7 +59734,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59622,7 +59759,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59646,7 +59784,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59683,7 +59822,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59720,7 +59860,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59764,7 +59905,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59790,7 +59932,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59816,7 +59959,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59841,6 +59985,7 @@
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
         "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -59897,7 +60042,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59921,7 +60067,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59961,7 +60108,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -59985,7 +60133,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60009,7 +60158,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60046,7 +60196,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60070,7 +60221,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60094,7 +60246,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60118,7 +60271,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60142,7 +60296,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60166,7 +60321,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60190,7 +60346,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60214,7 +60371,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60254,7 +60412,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60320,7 +60479,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60344,7 +60504,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60383,12 +60544,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v1.3/dmp/custom_audience/rule/create/",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/tiktok-rule-audiences.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/tiktok-rule-audiences.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "tiktok_rule_audiences"
     },
     {
       "gateway": "tiktok_native_action",
@@ -60436,7 +60600,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60508,7 +60673,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60558,7 +60724,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60582,7 +60749,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60637,7 +60805,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60674,7 +60843,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60737,7 +60907,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60761,7 +60932,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60816,7 +60988,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60840,7 +61013,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60864,7 +61038,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60914,7 +61089,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -60964,7 +61140,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61002,6 +61179,7 @@
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
         "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -61026,7 +61204,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61050,7 +61229,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61074,7 +61254,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61098,7 +61279,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61122,7 +61304,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61146,7 +61329,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61202,7 +61386,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61226,7 +61411,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61252,7 +61438,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61276,7 +61463,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61301,6 +61489,7 @@
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
         "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -61325,7 +61514,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61349,7 +61539,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61373,7 +61564,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61399,7 +61591,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61425,7 +61618,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61451,7 +61645,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61510,7 +61705,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61534,7 +61730,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61558,7 +61755,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61582,7 +61780,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61619,7 +61818,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61643,7 +61843,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61745,7 +61946,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61821,7 +62023,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61845,7 +62048,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61869,7 +62073,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61893,7 +62098,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61943,7 +62149,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -61967,7 +62174,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62017,7 +62225,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62054,7 +62263,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62078,7 +62288,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62115,7 +62326,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62139,7 +62351,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62179,7 +62392,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62218,7 +62432,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62268,7 +62483,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62292,7 +62508,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62368,7 +62585,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62405,7 +62623,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62431,7 +62650,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62455,7 +62675,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62518,7 +62739,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62568,7 +62790,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62592,7 +62815,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62637,6 +62861,7 @@
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
         "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs",
         "tests/tiktok-report-jobs.test.ts"
       ],
       "live_qualification": "unverified"
@@ -62682,6 +62907,7 @@
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
         "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs",
         "tests/tiktok-report-jobs.test.ts"
       ],
       "live_qualification": "unverified"
@@ -62706,7 +62932,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62732,7 +62959,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62773,6 +63001,7 @@
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
         "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs",
         "tests/tiktok-report-jobs.test.ts"
       ],
       "live_qualification": "unverified"
@@ -62814,6 +63043,7 @@
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
         "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs",
         "tests/tiktok-report-jobs.test.ts"
       ],
       "live_qualification": "unverified"
@@ -62838,7 +63068,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62862,7 +63093,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62886,7 +63118,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62910,7 +63143,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -62979,7 +63213,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63003,7 +63238,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63043,7 +63279,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63080,7 +63317,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63104,7 +63342,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63128,7 +63367,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63173,7 +63413,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63199,7 +63440,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63280,7 +63522,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63360,7 +63603,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63422,7 +63666,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63448,7 +63693,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63502,7 +63748,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63542,7 +63789,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63566,7 +63814,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63655,7 +63904,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63711,7 +63961,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63764,7 +64015,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63820,7 +64072,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63844,7 +64097,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63868,7 +64122,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63894,7 +64149,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63918,7 +64174,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -63981,7 +64238,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64018,7 +64276,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64042,7 +64301,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64066,7 +64326,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64116,7 +64377,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64153,7 +64415,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64177,7 +64440,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64214,7 +64478,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64238,7 +64503,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64278,7 +64544,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64302,7 +64569,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64327,6 +64595,7 @@
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
         "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -64351,7 +64620,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64375,7 +64645,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64399,7 +64670,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64423,7 +64695,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64447,7 +64720,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64471,7 +64745,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64495,7 +64770,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64519,7 +64795,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64543,7 +64820,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64567,7 +64845,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64591,7 +64870,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64615,7 +64895,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64639,7 +64920,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64663,7 +64945,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64687,7 +64970,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64711,7 +64995,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64735,7 +65020,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64759,7 +65045,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64783,7 +65070,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64807,7 +65095,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64831,7 +65120,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64855,7 +65145,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64879,7 +65170,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64903,7 +65195,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64927,7 +65220,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64951,7 +65245,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -64975,7 +65270,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65012,7 +65308,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65036,7 +65333,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65073,7 +65371,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65097,7 +65396,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65160,7 +65460,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65184,7 +65485,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65208,7 +65510,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65258,7 +65561,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65295,7 +65599,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65332,7 +65637,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65369,7 +65675,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65406,7 +65713,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65430,7 +65738,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65454,7 +65763,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65478,7 +65788,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65502,7 +65813,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65526,7 +65838,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65550,7 +65863,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65574,7 +65888,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65611,7 +65926,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65637,7 +65953,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65663,7 +65980,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -65689,7 +66007,8 @@
         "tests/tiktok-deletions.test.mjs",
         "tests/tiktok-preview-reads.test.mjs",
         "tests/tiktok-audience-edits.test.mjs",
-        "tests/tiktok-library-assets.test.mjs"
+        "tests/tiktok-library-assets.test.mjs",
+        "tests/tiktok-rule-audiences.test.mjs"
       ],
       "live_qualification": "unverified"
     },

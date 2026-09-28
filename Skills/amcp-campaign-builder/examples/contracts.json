@@ -1521,6 +1521,41 @@
     {
       "gateway": "tiktok_native_action",
       "arguments": {
+        "action": "tiktok_dmp_custom_audience_rule_create",
+        "account_id": "123",
+        "payload": {
+          "advertiser_id": "123",
+          "custom_audience_name": "Cart adders 30d",
+          "audience_type": "PIXEL",
+          "rule_spec": {
+            "inclusion_rule_set": {
+              "operator": "OR",
+              "rules": [
+                {
+                  "event_source_ids": [
+                    "7001"
+                  ],
+                  "retention_days": 30,
+                  "filter_set": {
+                    "operator": "OR",
+                    "filters": [
+                      {
+                        "field": "EVENT",
+                        "operator": "EQ",
+                        "value": "PIXEL ADD TO CART"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "gateway": "tiktok_native_action",
+      "arguments": {
         "action": "tiktok_file_video_ad_update",
         "account_id": "123",
         "payload": {
