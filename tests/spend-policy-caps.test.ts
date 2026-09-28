@@ -58,9 +58,9 @@ const clearing: [string, string, JsonObject | JsonObject[]][] = [
 test('every numeric owner policy rejects unquantified budget clearing', () => {
   for (const [label, gateway, body] of clearing)
     for (const policy of [
-      {max_budget_native: 200000000},
-      {max_budget_increase_percent: 10},
-      {max_daily_increase_native: 10000000},
+      {enforcement: 'block', max_budget_native: 200000000},
+      {enforcement: 'block', max_budget_increase_percent: 10},
+      {enforcement: 'block', max_daily_increase_native: 10000000},
     ]) {
       const s = setup(policy);
       try {
@@ -73,7 +73,12 @@ test('every numeric owner policy rejects unquantified budget clearing', () => {
     }
 });
 test('Snapchat lifetime spend caps enforce native microcurrency maxima, percentages and cumulative amounts', () => {
-  const s = setup({max_budget_native: 200000000, max_budget_increase_percent: 10, max_daily_increase_native: 10000000});
+  const s = setup({
+    enforcement: 'block',
+    max_budget_native: 200000000,
+    max_budget_increase_percent: 10,
+    max_daily_increase_native: 10000000,
+  });
   try {
     const change = (value: string) => native(snapchat, [{op: 'replace', path: '/lifetime_spend_cap_micro', value}]);
     assert.throws(() => checkSpendPolicy(s, actor, change('999000000'), baseline), {code: 'POLICY_BUDGET_LIMIT'});
@@ -90,7 +95,12 @@ test('Snapchat lifetime spend caps enforce native microcurrency maxima, percenta
   }
 });
 test('JSON Patch tests are assertions, not spending changes, even next to a real mutation', () => {
-  const s = setup({max_budget_native: 200000000, max_budget_increase_percent: 10, max_daily_increase_native: 10000000});
+  const s = setup({
+    enforcement: 'block',
+    max_budget_native: 200000000,
+    max_budget_increase_percent: 10,
+    max_daily_increase_native: 10000000,
+  });
   try {
     const assertion = {op: 'test', path: '/daily_budget_micro', value: '900000000'};
     assert.equal(checkSpendPolicy(s, actor, native(snapchat, [assertion]), baseline).requested_increase_decimal, '0');
@@ -108,7 +118,7 @@ test('JSON Patch tests are assertions, not spending changes, even next to a real
   }
 });
 test('nonmonetary edits and policies without numeric limits retain their existing behavior', () => {
-  const s = setup({max_budget_native: 200000000});
+  const s = setup({enforcement: 'block', max_budget_native: 200000000});
   try {
     for (const body of [
       {patch: {$delete: ['name']}},
@@ -136,7 +146,7 @@ test('nonmonetary edits and policies without numeric limits retain their existin
   }
 });
 test('Snapchat POST and collection PUT use the same lifetime cap unit mapping', () => {
-  const s = setup({max_budget_native: 200000000, max_budget_increase_percent: 10});
+  const s = setup({enforcement: 'block', max_budget_native: 200000000, max_budget_increase_percent: 10});
   try {
     const create: CompiledRequest = {
       ...native(snapchat, {}),
@@ -269,7 +279,10 @@ function fixture(gateway: string, policy?: JsonObject) {
 test('reviewed prepare and execution both enforce cap-removal policy with no mutation egress', async () => {
   for (const gateway of [linkedin, snapchat])
     for (const phase of ['prepare', 'execute']) {
-      const f = fixture(gateway, phase === 'prepare' ? {max_budget_native: 200000000} : undefined);
+      const f = fixture(
+        gateway,
+        phase === 'prepare' ? {enforcement: 'block', max_budget_native: 200000000} : undefined,
+      );
       try {
         const r = await f.prepare(
           gateway === linkedin
@@ -282,7 +295,7 @@ test('reviewed prepare and execution both enforce cap-removal policy with no mut
           saveSpendPolicy(f.store, actor, {
             scope: 'workspace',
             confirmed: true,
-            policy: {max_daily_increase_native: 10000000},
+            policy: {enforcement: 'block', max_daily_increase_native: 10000000},
           });
           const out = await f.execute(r);
           assert.equal(out.error?.code, 'POLICY_AMOUNT_UNSUPPORTED', JSON.stringify(out));
@@ -295,6 +308,7 @@ test('reviewed prepare and execution both enforce cap-removal policy with no mut
 });
 test('reviewed Snapchat finite lifetime cap updates succeed with native baseline units', async () => {
   const f = fixture(snapchat, {
+    enforcement: 'block',
     max_budget_native: 200000000,
     max_budget_increase_percent: 10,
     max_daily_increase_native: 10000000,
@@ -311,7 +325,7 @@ test('reviewed Snapchat finite lifetime cap updates succeed with native baseline
   }
 });
 test('a real Snapchat lifetime-cap change still invalidates the immutable review', async () => {
-  const f = fixture(snapchat, {max_budget_native: 200000000, max_budget_increase_percent: 10});
+  const f = fixture(snapchat, {enforcement: 'block', max_budget_native: 200000000, max_budget_increase_percent: 10});
   try {
     const r = await f.prepare([{op: 'replace', path: '/lifetime_spend_cap_micro', value: '110000000'}]);
     assert.equal(r.success, true, JSON.stringify(r));

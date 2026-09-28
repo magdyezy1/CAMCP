@@ -183,6 +183,7 @@ export function errorRemedy(e: MirrorError) {
     };
   // Execute-time acknowledgements: the frozen review is still valid, so preparing again would only discard it.
   const acknowledgements: Record<string, string> = {
+    CAP_CONFIRMATION_REQUIRED: 'cap_override_confirmed',
     SPEND_CONFIRMATION_REQUIRED: 'spend_change_confirmed',
     CREATIVE_EDIT_CONFIRMATION_REQUIRED: 'creative_edit_confirmed',
     CONFIRMATION_REQUIRED: 'confirmed',

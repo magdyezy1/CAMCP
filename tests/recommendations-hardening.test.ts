@@ -77,6 +77,7 @@ test('owner budgets enforce percentage, cumulative daily limits and activation w
       account_id: '123',
       confirmed: true,
       policy: {
+        enforcement: 'block',
         allow_activation: false,
         allow_deletion: false,
         max_budget_native: 200,
@@ -620,7 +621,7 @@ test('spending policy interprets JSON Patch budgets and rejects unknown budget u
       gateway: policyPlan.gateway,
       account_id: '123',
       confirmed: true,
-      policy: {max_budget_native: 200, max_budget_increase_percent: 25},
+      policy: {enforcement: 'block', max_budget_native: 200, max_budget_increase_percent: 25},
     });
     assert.equal(
       checkSpendPolicy(store, actor, {...policyPlan, body: [{op: 'replace', path: '/daily_budget', value: 120}]}, [
@@ -654,7 +655,7 @@ test('a resource-scoped REST.li POST is a budget update, not a create, and stays
       gateway: 'linkedin_native_action',
       account_id: '123',
       confirmed: true,
-      policy: {max_budget_increase_percent: 25},
+      policy: {enforcement: 'block', max_budget_increase_percent: 25},
     });
     const update: CompiledRequest = {
       gateway: 'linkedin_native_action',

@@ -236,7 +236,11 @@ test('goal-based increase is explained, and ad groups without their own budget o
 test('each ad group is compared with its own current budget under the owner spending policy', async () => {
   const f = fixture();
   try {
-    saveSpendPolicy(f.store, owner, {scope: 'workspace', confirmed: true, policy: {max_budget_increase_percent: 50}});
+    saveSpendPolicy(f.store, owner, {
+      scope: 'workspace',
+      confirmed: true,
+      policy: {enforcement: 'block', max_budget_increase_percent: 50},
+    });
     const raised = await f.prepare({
       budget: [
         {adgroup_id: '401', budget: 1500},

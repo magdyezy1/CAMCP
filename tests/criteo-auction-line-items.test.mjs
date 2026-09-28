@@ -535,7 +535,7 @@ test('owner policies: activation, budget maximums, uncapped limits and increases
       gateway,
       account_id: '123',
       confirmed: true,
-      policy: {allow_activation: true, max_budget_native: 500},
+      policy: {enforcement: 'block', allow_activation: true, max_budget_native: 500},
     });
     assert.equal((await f.create(draft())).error?.code, 'POLICY_BUDGET_LIMIT');
     assert.equal(
@@ -547,7 +547,7 @@ test('owner policies: activation, budget maximums, uncapped limits and increases
       gateway,
       account_id: '123',
       confirmed: true,
-      policy: {allow_activation: true, max_budget_increase_percent: 10},
+      policy: {enforcement: 'block', allow_activation: true, max_budget_increase_percent: 10},
     });
     assert.equal((await f.update('789', current({budget: 250}))).error?.code, 'POLICY_INCREASE_LIMIT');
     ok(await f.update('789', current({budget: 210})));

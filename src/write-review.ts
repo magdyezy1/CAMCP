@@ -539,7 +539,7 @@ import {
   validateGoogleConfigurationState,
   googleConfigurationOutcome,
 } from './google-configuration-writes.js';
-import {checkSpendPolicy} from './spend-policy.js';
+import {checkSpendPolicy, describeExceeded, exceededCaps} from './spend-policy.js';
 import {randomUUID} from 'node:crypto';
 import {MirrorError, errorRemedy} from './errors.js';
 import {validateMetaCampaign} from './meta-contracts.js';
@@ -683,6 +683,11 @@ export const writeTool = {
       },
       confirmed: {type: 'boolean'},
       spend_change_confirmed: {type: 'boolean'},
+      cap_override_confirmed: {
+        type: 'boolean',
+        description:
+          'The user approved going beyond a spending cap the owner set. Needed at execute only when prepare lists it in execute_requirements.',
+      },
       creative_edit_confirmed: {
         type: 'boolean',
         description:
@@ -2112,6 +2117,7 @@ export function executeRequirements(
   policy: ExecutionPolicy,
   reviewId: string,
   creativeEdit: boolean,
+  exceeded: JsonObject[] = [],
 ): JsonObject {
   const reasons: JsonObject[] = [];
   let spend = false;
@@ -2126,6 +2132,15 @@ export function executeRequirements(
       ...(e.details.fields ? {fields: e.details.fields} : {}),
     });
   }
+  if (exceeded.length)
+    reasons.push({
+      flag: 'cap_override_confirmed',
+      reason:
+        'This change goes beyond a spending cap the owner set: ' +
+        describeExceeded(exceeded) +
+        '. It is not refused; the user decides.',
+      exceeded,
+    });
   if (creativeEdit)
     reasons.push({
       flag: 'creative_edit_confirmed',
@@ -2136,10 +2151,11 @@ export function executeRequirements(
     confirmed: true,
     idempotency_key: reviewId,
     spend_change_confirmed: spend,
+    cap_override_confirmed: exceeded.length > 0,
     creative_edit_confirmed: creativeEdit,
     reasons,
     user_approval:
-      spend || creativeEdit
+      spend || creativeEdit || exceeded.length
         ? 'Show the user before_state, the impact and the reasons, and set these flags only after they approve.'
         : 'Execute after the user approves this review.',
   };
@@ -2875,7 +2891,14 @@ export class WriteReviewService {
         expiresAt = Date.now() + 300000;
       const stateHash = reviewStateHash(state),
         spendPolicy = checkSpendPolicy(this.store, actor, plan, state),
-        requirements = executeRequirements(actor, plan, this.policy, reviewId, input.creative_edit_confirmed === true);
+        requirements = executeRequirements(
+          actor,
+          plan,
+          this.policy,
+          reviewId,
+          input.creative_edit_confirmed === true,
+          exceededCaps(spendPolicy),
+        );
       this.store.putDocument(actor.tenantId, 'write_review', reviewId, {
         user_id: actor.userId,
         connection_id: c.id,
@@ -3033,7 +3056,7 @@ export class WriteReviewService {
     const submittedAt = Date.now(),
       actorBinding = this.store.bindJobActor(actor, input.review_id);
     const claim = this.store.transaction(() => {
-      checkSpendPolicy(this.store, actor, plan, current, input.review_id);
+      checkSpendPolicy(this.store, actor, plan, current, input.review_id, input.cap_override_confirmed === true);
       const claim = this.store.claim(actor.tenantId, input.idempotency_key, fingerprint);
       if (claim.fresh) {
         admitTiktokReport(plan, this.store, auth);

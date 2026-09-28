@@ -53,6 +53,7 @@ export const campaignTool = tool(
     idempotency_key: field.id,
     confirmed: field.bool,
     spend_change_confirmed: field.bool,
+    cap_override_confirmed: field.bool,
     expected_revision: field.integer,
     query: field.id,
     lookup_kind: {type: 'string', enum: ['country', 'language']},
@@ -603,8 +604,18 @@ export class CampaignRunner {
             idempotency_key: review.idempotency_key,
             confirmed: true,
           },
-          ...(review.execute_requirements?.spend_change_confirmed === true
-            ? {add_after_user_approval: {spend_change_confirmed: true}}
+          ...(review.execute_requirements?.spend_change_confirmed === true ||
+          review.execute_requirements?.cap_override_confirmed === true
+            ? {
+                add_after_user_approval: {
+                  ...(review.execute_requirements.spend_change_confirmed === true
+                    ? {spend_change_confirmed: true}
+                    : {}),
+                  ...(review.execute_requirements.cap_override_confirmed === true
+                    ? {cap_override_confirmed: true}
+                    : {}),
+                },
+              }
             : {}),
         },
       };
@@ -629,7 +640,9 @@ export class CampaignRunner {
         review_id: step.review_id,
         idempotency_key: step.review_id,
         confirmed: true,
-        ...(step.kind === 'write' ? {spend_change_confirmed: input.spend_change_confirmed} : {}),
+        ...(step.kind === 'write'
+          ? {spend_change_confirmed: input.spend_change_confirmed, cap_override_confirmed: input.cap_override_confirmed}
+          : {}),
       },
       actor,
     );
@@ -640,7 +653,7 @@ export class CampaignRunner {
         result.error?.code,
       )
         ? 'uncertain'
-        : ['SPEND_CONFIRMATION_REQUIRED', 'WRITES_PAUSED'].includes(result.error?.code)
+        : ['SPEND_CONFIRMATION_REQUIRED', 'CAP_CONFIRMATION_REQUIRED', 'WRITES_PAUSED'].includes(result.error?.code)
           ? 'review_ready'
           : result.error?.code === 'REVIEW_EXPIRED'
             ? 'pending'

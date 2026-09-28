@@ -441,6 +441,7 @@ test('every shared account policy constrains amount, percentage and cumulative n
         gateway,
         account_id: id,
         policy: {
+          enforcement: 'block',
           allow_activation: true,
           allow_deletion: false,
           max_budget_native: id === '88' ? 105 : 500,
@@ -457,6 +458,7 @@ test('every shared account policy constrains amount, percentage and cumulative n
       gateway,
       account_id: '88',
       policy: {
+        enforcement: 'block',
         allow_activation: true,
         allow_deletion: false,
         max_budget_native: 500,
@@ -491,7 +493,7 @@ test('budget policy reservations are atomic across all shared accounts', async (
         confirmed: true,
         gateway,
         account_id: id,
-        policy: {allow_activation: true, max_daily_increase_native: 500},
+        policy: {enforcement: 'block', allow_activation: true, max_daily_increase_native: 500},
       });
     const p = await f.prepare();
     assert.equal(p.success, true);
@@ -499,7 +501,7 @@ test('budget policy reservations are atomic across all shared accounts', async (
       confirmed: true,
       gateway,
       account_id: '88',
-      policy: {allow_activation: true, max_daily_increase_native: 50},
+      policy: {enforcement: 'block', allow_activation: true, max_daily_increase_native: 50},
     });
     assert.equal((await f.execute(p)).error.code, 'POLICY_DAILY_INCREASE_LIMIT');
     assert.equal(f.store.db.prepare("SELECT count(*) AS n FROM documents WHERE kind='spend_reservation'").get()!.n, 0);

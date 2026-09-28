@@ -405,7 +405,12 @@ test('undiscovered targets, unchanged overrides and monetary owner policies are 
     );
     saveSpendPolicy(f.store, owner, {gateway, account_id: '123', confirmed: true, policy: {allow_activation: false}});
     ok(await f.put('campaign', '456', campaignOverrides()));
-    saveSpendPolicy(f.store, owner, {gateway, account_id: '123', confirmed: true, policy: {max_budget_native: 10000}});
+    saveSpendPolicy(f.store, owner, {
+      gateway,
+      account_id: '123',
+      confirmed: true,
+      policy: {enforcement: 'block', max_budget_native: 10000},
+    });
     assert.equal((await f.put('campaign', '456', campaignOverrides())).error?.code, 'POLICY_AMOUNT_UNSUPPORTED');
     assert.equal(f.writes(), 0);
   } finally {

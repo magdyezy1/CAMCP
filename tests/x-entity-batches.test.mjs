@@ -401,7 +401,7 @@ test('malformed batches are refused before any request; missing, unfunded, delet
       gateway,
       account_id: account,
       confirmed: true,
-      policy: {max_budget_increase_percent: 10},
+      policy: {enforcement: 'block', max_budget_increase_percent: 10},
     });
     assert.equal(
       (

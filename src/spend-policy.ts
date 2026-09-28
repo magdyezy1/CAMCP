@@ -51,6 +51,7 @@ import {sha256} from './security.js';
 import {normalizeAccount} from './scope.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {familyOf} from './reviewed-families.js';
+import {budgetUnits, nativeAmount} from './budget-units.js';
 export const spendPolicyKey = (gateway: string, account: string) =>
   sha256(gateway + ':' + normalizeAccount(gateway, account));
 /**
@@ -90,31 +91,93 @@ export function ownerAccess(store: Store, actor: Actor) {
  * of its own, which makes the safeguard the standing case rather than an opt-in one.
  */
 export const workspaceDefaultPolicyId = 'workspace_default';
-const policyKeys = [
-  'allow_activation',
-  'allow_deletion',
-  'max_budget_increase_percent',
-  'max_budget_native',
-  'max_daily_increase_native',
-];
+/** Native money limits. Each platform counts them in its own unit, so a workspace default states them per platform. */
+const nativeMoneyKeys = ['max_budget_native', 'max_daily_increase_native', 'max_bid_native'];
+/** The same limits stated in account currency; budget-units.ts converts them where the platform's unit is documented. */
+const currencyMoneyKeys: Record<string, string> = {
+  max_budget_currency: 'max_budget_native',
+  max_daily_increase_currency: 'max_daily_increase_native',
+  max_bid_currency: 'max_bid_native',
+};
 const moneyUnits =
   'native API budget units for this account; daily cap is cumulative requested positive budget increases, not billed spend; the daily window is the UTC calendar day, so it resets at 00:00 UTC rather than in the account timezone';
-function validatePolicy(p: JsonObject) {
-  if (
-    Object.keys(p).some(k => !policyKeys.includes(k)) ||
-    policyKeys.slice(0, 2).some(k => p[k] !== undefined && typeof p[k] !== 'boolean') ||
-    policyKeys
-      .slice(2)
-      .some(
-        k =>
-          p[k] !== undefined &&
-          (typeof p[k] !== 'number' || !Number.isFinite(p[k]) || p[k] < 0 || p[k] > Number.MAX_SAFE_INTEGER),
-      )
-  )
-    throw new MirrorError(
-      'INVALID_POLICY',
-      'Use explicit activation/deletion permissions and non-negative numeric limits.',
-    );
+const invalidPolicy = (message = 'Use explicit activation/deletion permissions and non-negative numeric limits.') =>
+  new MirrorError('INVALID_POLICY', message);
+const validLimit = (v: unknown) =>
+  typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= Number.MAX_SAFE_INTEGER;
+/** Money limits of one platform: native ones as given, currency ones converted to native and kept for display. */
+function moneyLimits(input: JsonObject, gateway: string): JsonObject {
+  const out: JsonObject = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (!validLimit(value)) throw invalidPolicy();
+    if (nativeMoneyKeys.includes(key)) out[key] = value;
+    else if (currencyMoneyKeys[key]) {
+      const native = nativeAmount(gateway, value as number);
+      if (native === undefined)
+        throw invalidPolicy(
+          gateway +
+            ' has no documented budget unit in AMCP, so state ' +
+            key +
+            ' in native API units as ' +
+            currencyMoneyKeys[key] +
+            '.',
+        );
+      out[currencyMoneyKeys[key]] = native;
+      out[key] = value;
+    } else throw invalidPolicy();
+  }
+  return out;
+}
+/**
+ * Checks and normalises a policy. `enforcement` is `confirm` (the default: a request over a cap asks the user, owner
+ * decision of 2026-09-28) or `block` (the cap refuses it). A workspace default can state money limits per platform
+ * under `per_gateway`, because one number means micros on one platform and currency units on another (F-04); a native
+ * amount at its top level still applies to every platform without its own entry, with a warning.
+ */
+function validatePolicy(p: JsonObject, scope: {workspace: true} | {workspace: false; gateway: string}): JsonObject {
+  const out: JsonObject = {};
+  const money: JsonObject = {};
+  for (const [key, value] of Object.entries(p)) {
+    if (key === 'allow_activation' || key === 'allow_deletion') {
+      if (typeof value !== 'boolean') throw invalidPolicy();
+      out[key] = value;
+    } else if (key === 'enforcement') {
+      if (value !== 'confirm' && value !== 'block')
+        throw invalidPolicy('enforcement is confirm (ask the user before exceeding a cap) or block (refuse).');
+      out[key] = value;
+    } else if (key === 'max_budget_increase_percent') {
+      if (!validLimit(value)) throw invalidPolicy();
+      out[key] = value;
+    } else if (nativeMoneyKeys.includes(key) || currencyMoneyKeys[key]) money[key] = value;
+    else if (key === 'per_gateway' && scope.workspace) {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) throw invalidPolicy();
+      const perGateway: JsonObject = {};
+      for (const [gateway, limits] of Object.entries(value as JsonObject)) {
+        if (!Object.hasOwn(activationFields, gateway) || !limits || typeof limits !== 'object' || Array.isArray(limits))
+          throw invalidPolicy('per_gateway maps an advertising gateway to its money limits.');
+        perGateway[gateway] = moneyLimits(limits as JsonObject, gateway);
+      }
+      out.per_gateway = perGateway;
+    } else throw invalidPolicy();
+  }
+  if (Object.keys(money).length) {
+    if (!scope.workspace) Object.assign(out, moneyLimits(money, scope.gateway));
+    else if (Object.keys(money).some(k => currencyMoneyKeys[k]))
+      throw invalidPolicy(
+        'A workspace default states caps in account currency per platform under per_gateway, because each platform counts money in its own unit.',
+      );
+    // One native amount for every platform is kept for existing configurations; policyWarnings explains its units.
+    else
+      for (const [key, value] of Object.entries(money))
+        if (validLimit(value)) out[key] = value;
+        else throw invalidPolicy();
+  }
+  return out;
+}
+/** The limits that apply to one gateway: a workspace default's per-platform money limits over its shared settings. */
+function effectivePolicy(policy: JsonObject, gateway: string): JsonObject {
+  const {per_gateway: perGateway, ...shared} = policy;
+  return {...shared, ...((perGateway as JsonObject | undefined)?.[gateway] ?? {})};
 }
 export function saveSpendPolicy(store: Store, actor: Actor, input: JsonObject) {
   ownerAccess(store, actor);
@@ -126,8 +189,7 @@ export function saveSpendPolicy(store: Store, actor: Actor, input: JsonObject) {
         'INVALID_POLICY',
         'A workspace default applies to every account; omit gateway and account_id.',
       );
-    const p = input.policy as JsonObject;
-    validatePolicy(p);
+    const p = validatePolicy(input.policy as JsonObject, {workspace: true});
     const data = {
       ...p,
       scope: 'workspace',
@@ -141,7 +203,8 @@ export function saveSpendPolicy(store: Store, actor: Actor, input: JsonObject) {
       event: 'spend_policy_saved',
       policy: data,
     });
-    return {id: workspaceDefaultPolicyId, ...data};
+    const warnings = policyWarnings(store, actor.tenantId);
+    return {id: workspaceDefaultPolicyId, ...data, ...(warnings.length ? {warnings} : {})};
   }
   if (
     input.confirmed !== true ||
@@ -151,8 +214,7 @@ export function saveSpendPolicy(store: Store, actor: Actor, input: JsonObject) {
     typeof input.policy !== 'object'
   )
     throw new MirrorError('INVALID_POLICY', 'Confirm an account-specific spending policy.');
-  const p = input.policy;
-  validatePolicy(p as JsonObject);
+  const p = validatePolicy(input.policy as JsonObject, {workspace: false, gateway: input.gateway});
   store.resolveConnection(actor, input.gateway, input.account_id, input.connection_id);
   const id = spendPolicyKey(input.gateway, input.account_id),
     data = {
@@ -162,10 +224,29 @@ export function saveSpendPolicy(store: Store, actor: Actor, input: JsonObject) {
       updated_at: Date.now(),
       updated_by: actor.userId,
       money_units: moneyUnits,
+      ...(budgetUnits[input.gateway] ? {native_unit: budgetUnits[input.gateway]} : {}),
     };
   store.putDocument(actor.tenantId, 'spend_policy', id, data);
   store.appendAudit(actor.tenantId, 'policy/' + id, {event: 'spend_policy_saved', policy: data});
   return {id, ...data};
+}
+/**
+ * Stored policies that need the owner's attention: a workspace default saved before per-platform limits, whose single
+ * native amount means different money on each platform (F-04). It still applies until it is saved again.
+ */
+export function policyWarnings(store: Store, tenant: string): JsonObject[] {
+  const row = store.documents(tenant, 'spend_policy').find(p => p.id === workspaceDefaultPolicyId);
+  const legacy = nativeMoneyKeys.filter(k => row?.[k] !== undefined && row[k] !== 0);
+  return legacy.length
+    ? [
+        {
+          policy_id: workspaceDefaultPolicyId,
+          fields: legacy,
+          message:
+            'The workspace default applies one native amount to every platform without its own per_gateway entry, although Google counts micros and LinkedIn currency units. State caps per platform under per_gateway.',
+        },
+      ]
+    : [];
 }
 /**
  * Accounts with no policy of their own and no workspace default are financially unprotected.
@@ -296,6 +377,48 @@ function budgets(v: unknown, path = '', out: Amount[] = [], strict = false, dept
   return out;
 }
 /**
+ * Bid amounts the owner's bid cap compares, in native units: fields named as a bid amount (Google cpcBidMicros and
+ * targetCpaMicros, Meta and X bid amounts, TikTok bid_price, Snapchat bid_micro, Reddit bid_value, DV360
+ * bidAmountMicros) and the `amount` of a money object under a bid (LinkedIn unitCost, Microsoft CpcBid and Bid, Apple
+ * bidAmount). Ratios such as a ROAS target are not money and are left out.
+ */
+const bidField =
+  /^(?:bid|bid_amount|bid_price|bid_value|bid_micro|bid_micros|bid_amount_micros|bid_amount_local_micro|cpc_bid_micros|cpm_bid_micros|cpv_bid_micros|percent_cpc_bid_micros|target_cpa_micros|target_cpm_micros|conversion_bid_price|deep_cpa_bid|max_average_cpm_bid_amount_micros)$/;
+const bidMoneyParent = /(?:^|_)(?:unit_cost|cpc_bid|cpm_bid|bid_amount|bid)$/;
+const numeric = (x: unknown) => typeof x === 'number' || (typeof x === 'string' && /^\d+(\.\d+)?$/.test(x));
+function bidAmounts(v: unknown, path = '', parent = '', out: Amount[] = [], depth = 0): Amount[] {
+  if (depth > maxPayloadDepth)
+    throw new MirrorError(
+      'POLICY_PAYLOAD_TOO_DEEP',
+      'This request nests more deeply than the spending policy can inspect, so its bids cannot be verified.',
+      {limit: maxPayloadDepth},
+      400,
+    );
+  if (Array.isArray(v)) {
+    v.forEach((x, i) => bidAmounts(x, path + '/' + i, parent, out, depth + 1));
+    return out;
+  }
+  if (!v || typeof v !== 'object') return out;
+  const op = patchOperation(v as JsonObject);
+  if (op && (v as JsonObject).op !== 'test' && (v as JsonObject).op !== 'remove')
+    return bidAmounts(
+      {[policyField(op.path.split('/').at(-1)!)]: op.value},
+      path + policyField(op.path),
+      parent,
+      out,
+      depth + 1,
+    );
+  for (const [k, x] of Object.entries(v as JsonObject)) {
+    const name = policyField(k),
+      next = path + '/' + name;
+    if ((bidField.test(name) || (name === 'amount' && bidMoneyParent.test(parent))) && numeric(x)) {
+      const exact = policyDecimal(x as string | number);
+      out.push({path: next, key: name, amount: Number(decimalText(exact)), decimal: decimalText(exact)});
+    } else bidAmounts(x, next, name, out, depth + 1);
+  }
+  return out;
+}
+/**
  * Activation is a per-provider fact, so it is declared per gateway and matched against the
  * payload structure. Matching a serialized string cannot see a field name the pattern was not
  * written for (Reddit names it configured_status) and depends on JSON key order (a Snapchat
@@ -380,6 +503,7 @@ export function checkSpendPolicy(
   plan: CompiledRequest,
   before: unknown,
   reserveId?: string,
+  capOverrideConfirmed = false,
 ): JsonObject {
   const accounts = appleSharedAccounts(plan);
   if (accounts.length)
@@ -393,11 +517,51 @@ export function checkSpendPolicy(
           {...plan, accountId: account},
           before,
           reserveId ? reserveId + ':' + account : undefined,
+          capOverrideConfirmed,
         ),
       })),
       allocation: 'Each account reserves the complete positive increase; no allocation among campaigns is inferred.',
     }));
-  return checkAccountSpendPolicy(store, actor, plan, before, reserveId);
+  return checkAccountSpendPolicy(store, actor, plan, before, reserveId, capOverrideConfirmed);
+}
+/** Owner limits on amounts. Under `enforcement: 'confirm'` a request beyond one asks the user; under `block` it is refused. */
+const capRules = new Set([
+  'POLICY_BUDGET_LIMIT',
+  'POLICY_INCREASE_LIMIT',
+  'POLICY_DAILY_INCREASE_LIMIT',
+  'POLICY_BID_LIMIT',
+  'POLICY_BASELINE_REQUIRED',
+  'POLICY_AMOUNT_UNSUPPORTED',
+]);
+/** One sentence per exceeded cap, for the confirmation the user sees. */
+export function describeExceeded(exceeded: JsonObject[]): string {
+  return exceeded
+    .map(x =>
+      x.rule === 'POLICY_BUDGET_LIMIT'
+        ? 'the budget ' + (x.requested_decimal ?? x.requested) + ' is above the cap of ' + x.limit + ' (native units)'
+        : x.rule === 'POLICY_BID_LIMIT'
+          ? 'the bid ' +
+            (x.requested_decimal ?? x.requested) +
+            ' is above the bid cap of ' +
+            x.limit +
+            ' (native units)'
+          : x.rule === 'POLICY_INCREASE_LIMIT'
+            ? 'raising ' +
+              (x.before_decimal ?? x.before) +
+              ' to ' +
+              (x.after_decimal ?? x.after) +
+              ' is more than the ' +
+              x.maximum_percent +
+              '% increase cap'
+            : x.rule === 'POLICY_DAILY_INCREASE_LIMIT'
+              ? "today's budget increases would reach " +
+                (x.total_decimal ?? x.requested_increase_decimal) +
+                ', above the daily cap of ' +
+                x.limit +
+                ' (native units, UTC day)'
+              : String(x.message),
+    )
+    .join('; ');
 }
 function checkAccountSpendPolicy(
   store: Store,
@@ -405,6 +569,7 @@ function checkAccountSpendPolicy(
   plan: CompiledRequest,
   before: unknown,
   reserveId?: string,
+  capOverrideConfirmed = false,
 ): JsonObject {
   return store.transaction(() => {
     store.assertActorActive(actor);
@@ -427,7 +592,14 @@ function checkAccountSpendPolicy(
         advice:
           'No spending policy protects this account. An owner can set one for this account, or a workspace default that covers every account, with amcp_workspace save_spend_policy.',
       };
-    const policy = JSON.parse(row.data);
+    const policy = effectivePolicy(JSON.parse(row.data), plan.gateway),
+      enforcement = policy.enforcement === 'block' ? 'block' : 'confirm',
+      exceeded: JsonObject[] = [];
+    /** Refuses under `block`; under `confirm` records the exceeded cap for the user to acknowledge. */
+    const breach = (e: MirrorError) => {
+      if (enforcement === 'block' || !capRules.has(e.code)) throw e;
+      exceeded.push({rule: e.code, message: e.message, ...e.details});
+    };
     if (policy.allow_deletion === false && applyExecutionRisk(plan).destructive)
       throw new MirrorError(
         'POLICY_DELETION_FORBIDDEN',
@@ -492,7 +664,8 @@ function checkAccountSpendPolicy(
           403,
         );
     }
-    const campaignAmounts =
+    let campaignAmounts: ReturnType<typeof familyAmounts>, amounts: Amount[], old: Amount[];
+    const familyAmounts = () =>
       snapUpdateAmounts(plan, before) ??
       criteoCampaignPolicyAmounts(plan, before) ??
       metaCopyPolicyAmounts(plan, before) ??
@@ -503,17 +676,27 @@ function checkAccountSpendPolicy(
       criteoLineItemPolicyAmounts(plan, before, policy) ??
       criteoOverridePolicyAmounts(plan, before, policy) ??
       redditPolicyAmounts(plan, before, policy);
-    const amounts: Amount[] =
-      campaignAmounts?.amounts ??
-      budgets(
-        {body: plan.body, query: plan.query},
-        /budget/i.test(plan.path) ? '/budget' : '',
-        [],
-        ['max_budget_native', 'max_budget_increase_percent', 'max_daily_increase_native'].some(
-          k => policy[k] !== undefined,
-        ),
-      );
-    const old: Amount[] = campaignAmounts?.old ?? budgets(appleBudgetState(plan, before));
+    try {
+      campaignAmounts = familyAmounts();
+      amounts =
+        campaignAmounts?.amounts ??
+        budgets(
+          {body: plan.body, query: plan.query},
+          /budget/i.test(plan.path) ? '/budget' : '',
+          [],
+          ['max_budget_native', 'max_budget_increase_percent', 'max_daily_increase_native'].some(
+            k => policy[k] !== undefined,
+          ),
+        );
+      old = campaignAmounts?.old ?? budgets(appleBudgetState(plan, before));
+    } catch (e) {
+      // An amount the policy cannot measure (a removed cap, an unmapped field) cannot be shown to fit the caps.
+      if (!(e instanceof MirrorError) || !capRules.has(e.code)) throw e;
+      breach(e);
+      campaignAmounts = undefined;
+      amounts = [];
+      old = [];
+    }
     const exact = (amount: Amount) => policyDecimal(amount.decimal ?? amount.amount);
     let increase = decimalZero;
     const restli = (plan.headers['X-RestLi-Method'] ?? '').toUpperCase();
@@ -526,39 +709,46 @@ function checkAccountSpendPolicy(
         policy.max_budget_native !== undefined &&
         compareDecimal(requested, policyDecimal(policy.max_budget_native)) > 0
       )
-        throw new MirrorError(
-          'POLICY_BUDGET_LIMIT',
-          'Requested budget exceeds the account policy.',
-          {
-            field: b.path,
-            requested: b.amount,
-            requested_decimal: decimalText(requested),
-            limit: policy.max_budget_native,
-            units: 'native',
-          },
-          403,
+        breach(
+          new MirrorError(
+            'POLICY_BUDGET_LIMIT',
+            'Requested budget exceeds the account policy.',
+            {
+              field: b.path,
+              requested: b.amount,
+              requested_decimal: decimalText(requested),
+              limit: policy.max_budget_native,
+              units: 'native',
+            },
+            403,
+          ),
         );
       const creating =
         campaignAmounts?.creating ??
         (!updatesExisting && (/\/create\//.test(b.path) || /create|_post$|^Add/.test(plan.action)));
       const candidates = [...new Set(old.filter(o => o.key === b.key).map(o => decimalText(exact(o))))];
-      if (
+      const baselineMissing =
         !creating &&
         candidates.length !== 1 &&
-        (policy.max_budget_increase_percent !== undefined || policy.max_daily_increase_native !== undefined)
-      )
-        throw new MirrorError(
-          'POLICY_BASELINE_REQUIRED',
-          'This budget policy requires one unambiguous current budget. Narrow the mutation to one resource.',
-          {field: b.path},
-          409,
+        (policy.max_budget_increase_percent !== undefined || policy.max_daily_increase_native !== undefined);
+      if (baselineMissing)
+        breach(
+          new MirrorError(
+            'POLICY_BASELINE_REQUIRED',
+            'This budget policy requires one unambiguous current budget. Narrow the mutation to one resource.',
+            {field: b.path},
+            409,
+          ),
         );
-      const prior = creating ? decimalZero : candidates.length ? policyDecimal(candidates[0]) : requested;
+      // Without one current budget, a request confirmed over the caps reserves its whole amount against the daily cap.
+      const prior =
+        creating || baselineMissing ? decimalZero : candidates.length ? policyDecimal(candidates[0]) : requested;
       const delta = positiveDecimalIncrease(requested, prior);
       // Cross multiplication avoids both rounded division and an epsilon that could
       // authorize an amount genuinely above the owner's exact percentage ceiling.
       if (
         !creating &&
+        !baselineMissing &&
         delta.units > 0n &&
         policy.max_budget_increase_percent !== undefined &&
         (prior.units === 0n ||
@@ -567,21 +757,40 @@ function checkAccountSpendPolicy(
             multiplyDecimal(prior, policyDecimal(policy.max_budget_increase_percent)),
           ) > 0)
       )
-        throw new MirrorError(
-          'POLICY_INCREASE_LIMIT',
-          'The budget increase exceeds the owner’s percentage limit.',
-          {
-            field: b.path,
-            before: Number(decimalText(prior)),
-            before_decimal: decimalText(prior),
-            after: b.amount,
-            after_decimal: decimalText(requested),
-            maximum_percent: policy.max_budget_increase_percent,
-          },
-          403,
+        breach(
+          new MirrorError(
+            'POLICY_INCREASE_LIMIT',
+            'The budget increase exceeds the owner’s percentage limit.',
+            {
+              field: b.path,
+              before: Number(decimalText(prior)),
+              before_decimal: decimalText(prior),
+              after: b.amount,
+              after_decimal: decimalText(requested),
+              maximum_percent: policy.max_budget_increase_percent,
+            },
+            403,
+          ),
         );
       increase = addDecimal(increase, delta);
     }
+    if (policy.max_bid_native !== undefined)
+      for (const b of bidAmounts({body: plan.body, query: plan.query}))
+        if (compareDecimal(policyDecimal(b.decimal ?? b.amount), policyDecimal(policy.max_bid_native)) > 0)
+          breach(
+            new MirrorError(
+              'POLICY_BID_LIMIT',
+              'The requested bid exceeds the owner’s bid cap.',
+              {
+                field: b.path,
+                requested: b.amount,
+                requested_decimal: b.decimal,
+                limit: policy.max_bid_native,
+                units: 'native',
+              },
+              403,
+            ),
+          );
     // Keep tenant/account/day filtering in SQLite and stream only matching amounts.
     // SQL SUM on REAL values rounds just like JS addition; lifetime history must not
     // be loaded into JS to fix it. The surrounding IMMEDIATE transaction is unchanged.
@@ -618,20 +827,38 @@ function checkAccountSpendPolicy(
       policy.max_daily_increase_native !== undefined &&
       compareDecimal(addDecimal(used, increase), policyDecimal(policy.max_daily_increase_native)) > 0
     )
-      throw new MirrorError(
-        'POLICY_DAILY_INCREASE_LIMIT',
-        'Cumulative budget increases would exceed the owner’s daily policy.',
-        {
-          day,
-          already_reserved: usedNumber,
-          already_reserved_decimal: usedDecimal,
-          requested_increase: requestedNumber,
-          requested_increase_decimal: requestedDecimal,
-          limit: policy.max_daily_increase_native,
-          units: 'native',
-        },
-        403,
+      breach(
+        new MirrorError(
+          'POLICY_DAILY_INCREASE_LIMIT',
+          'Cumulative budget increases would exceed the owner’s daily policy.',
+          {
+            day,
+            already_reserved: usedNumber,
+            already_reserved_decimal: usedDecimal,
+            requested_increase: requestedNumber,
+            requested_increase_decimal: requestedDecimal,
+            total_decimal: decimalText(addDecimal(used, increase)),
+            limit: policy.max_daily_increase_native,
+            units: 'native',
+          },
+          403,
+        ),
       );
+    // Execute (reserveId set) goes ahead over a cap only with the user's acknowledgement, which the audit records.
+    if (exceeded.length && reserveId && !capOverrideConfirmed)
+      throw new MirrorError(
+        'CAP_CONFIRMATION_REQUIRED',
+        'This change goes beyond a spending cap the owner set: ' +
+          describeExceeded(exceeded) +
+          '. Show the user and, once they approve, execute again with cap_override_confirmed=true.',
+        {policy_id: id, exceeded},
+      );
+    if (exceeded.length && reserveId)
+      store.appendAudit(actor.tenantId, reserveId, {
+        event: 'spend_cap_exceeded_with_confirmation',
+        policy_id: id,
+        exceeded,
+      });
     if (reserveId)
       store.putDocument(actor.tenantId, 'spend_reservation', reserveId, {
         policy_id: accountKey,
@@ -650,6 +877,16 @@ function checkAccountSpendPolicy(
       reserved_today_native: usedNumber,
       reserved_today_decimal: usedDecimal,
       units: 'native',
+      enforcement,
+      ...(exceeded.length ? {exceeded, cap_override_required: true, exceeded_summary: describeExceeded(exceeded)} : {}),
     };
   });
+}
+/** Every cap the checked request exceeds, across the accounts of an Apple shared budget as well. */
+export function exceededCaps(result: JsonObject): JsonObject[] {
+  return Array.isArray(result.affected_accounts)
+    ? result.affected_accounts.flatMap((a: JsonObject) => exceededCaps(a))
+    : Array.isArray(result.exceeded)
+      ? result.exceeded
+      : [];
 }

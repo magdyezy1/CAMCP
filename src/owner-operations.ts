@@ -2,7 +2,8 @@ import {operationsHealth} from './operations-health.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {Store} from './store.js';
 import {MirrorError} from './errors.js';
-import {unprotectedAccounts} from './spend-policy.js';
+import {policyWarnings, unprotectedAccounts} from './spend-policy.js';
+import {budgetUnits} from './budget-units.js';
 import {mediaLimitProblem} from './drive-media.js';
 import type {Actor, JsonObject} from './types.js';
 import {ownerAccess, saveSpendPolicy} from './spend-policy.js';
@@ -68,6 +69,8 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
         : [],
       policies: store.documents(tenant, 'spend_policy'),
       unprotected_accounts: unprotectedAccounts(store, actor),
+      policy_warnings: policyWarnings(store, tenant),
+      budget_units: budgetUnits,
       configuration_problems: [mediaLimitProblem].filter(Boolean),
       retention: store.documents(tenant, 'retention_policy')[0] ?? null,
       write_pause: writePause(store, tenant) ?? null,

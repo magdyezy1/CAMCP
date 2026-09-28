@@ -445,6 +445,7 @@ test('Snapchat exact target budget policy excludes parent caps and enforces perc
       scope: 'workspace',
       confirmed: true,
       policy: {
+        enforcement: 'block',
         max_budget_increase_percent: 10,
         max_budget_native: 110000000,
         max_daily_increase_native: 15000000,
@@ -464,7 +465,12 @@ test('Snapchat exact target budget policy excludes parent caps and enforces perc
     saveSpendPolicy(f.store, owner, {
       scope: 'workspace',
       confirmed: true,
-      policy: {max_budget_increase_percent: 10, max_budget_native: 200000000, max_daily_increase_native: 15000000},
+      policy: {
+        enforcement: 'block',
+        max_budget_increase_percent: 10,
+        max_budget_native: 200000000,
+        max_daily_increase_native: 15000000,
+      },
     });
     assert.equal((await f.prepare(budget(121000001))).error.code, 'POLICY_INCREASE_LIMIT');
     assert.equal((await f.prepare(budget(116000000))).error.code, 'POLICY_DAILY_INCREASE_LIMIT');
@@ -482,7 +488,7 @@ test('Snapchat full PUT preserves both budget caps and compares each child indep
     saveSpendPolicy(f.store, owner, {
       scope: 'workspace',
       confirmed: true,
-      policy: {max_budget_increase_percent: 10, max_daily_increase_native: 30000000},
+      policy: {enforcement: 'block', max_budget_increase_percent: 10, max_daily_increase_native: 30000000},
     });
     const p = await f.prepare(
       f.args('snapchat_adsquad_replace', {
@@ -508,7 +514,7 @@ test('Snapchat naming does not consume budget but activation and absent spending
     saveSpendPolicy(f.store, owner, {
       scope: 'workspace',
       confirmed: true,
-      policy: {allow_activation: false, max_budget_native: 0, max_daily_increase_native: 0},
+      policy: {enforcement: 'block', allow_activation: false, max_budget_native: 0, max_daily_increase_native: 0},
     });
     const p = await f.prepare();
     assert.equal(p.success, true, JSON.stringify(p));
@@ -852,7 +858,7 @@ test('Snapchat review expiry, request integrity and changed owner policies are e
         saveSpendPolicy(f.store, owner, {
           scope: 'workspace',
           confirmed: true,
-          policy: {max_budget_increase_percent: 1},
+          policy: {enforcement: 'block', max_budget_increase_percent: 1},
         });
       else {
         const doc = f.store.document(actor.tenantId, 'write_review', p.data.review_id);

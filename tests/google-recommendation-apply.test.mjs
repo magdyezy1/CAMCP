@@ -242,7 +242,7 @@ test('a budget recommendation sets the recommended or a chosen amount and verifi
       gateway,
       account_id: '123',
       confirmed: true,
-      policy: {max_budget_native: 60000000},
+      policy: {enforcement: 'block', max_budget_native: 60000000},
     });
     assert.equal((await g.apply([{resourceName: rec('b1')}])).error?.code, 'POLICY_BUDGET_LIMIT');
     const q = ok(await g.apply([{resourceName: rec('b1'), campaignBudget: {newBudgetAmountMicros: '55000000'}}]));

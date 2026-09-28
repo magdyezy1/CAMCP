@@ -201,7 +201,11 @@ test('a rename needs no spending confirmation, changes once and verifies', async
 test('a campaign budget edit needs confirmation and is compared with the current budget under the owner policy', async () => {
   const f = fixture();
   try {
-    saveSpendPolicy(f.store, owner, {scope: 'workspace', confirmed: true, policy: {max_budget_increase_percent: 50}});
+    saveSpendPolicy(f.store, owner, {
+      scope: 'workspace',
+      confirmed: true,
+      policy: {enforcement: 'block', max_budget_increase_percent: 50},
+    });
     assert.equal((await f.prepare({campaign_id: '80', budget: 800})).error?.code, 'POLICY_INCREASE_LIMIT');
     const p = await f.prepare({campaign_id: '80', budget: 700});
     assert.equal(p.success, true, JSON.stringify(p));

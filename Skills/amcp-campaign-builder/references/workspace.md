@@ -144,12 +144,24 @@ The Overview page shows all eight capabilities and timestamped provider evidence
 
 An owner can attach a spending policy to a (gateway, account) pair through `amcp_workspace`
 `save_spend_policy`. When one exists, every reviewed write is checked against it twice — at
-`prepare` and again at `execute` — and a refusal is a deliberate owner decision, not a provider
-error. Do not retry a `POLICY_*` refusal, reshape the request to evade it, or split one change
-into smaller writes to fit under a limit. Report it to the user and ask them to change the
-policy if the spend is genuinely intended.
+`prepare` and again at `execute`.
 
-The policy supports five independent settings, all optional:
+**Caps ask; they do not refuse (default).** With `enforcement: 'confirm'`, the default, a change
+beyond a money cap is still prepared. `prepare` returns `spend_policy.exceeded` with one entry per
+exceeded cap, `spend_policy.exceeded_summary` in plain words, and `execute_requirements` sets
+`cap_override_confirmed: true` with the reason. Show the user exactly which cap the change goes
+beyond and by how much, and execute with `cap_override_confirmed=true` only after they approve.
+Without it, execute refuses with `CAP_CONFIRMATION_REQUIRED` and nothing is sent; the review stays
+valid until it expires. The audit records every confirmed override. Never set the flag on the
+user's behalf, and never split a change into smaller writes to stay under a cap.
+
+With `enforcement: 'block'` a cap refuses instead, as below. A refusal is a deliberate owner
+decision, not a provider error: do not retry a `POLICY_*` refusal, reshape the request to evade it,
+or split one change into smaller writes to fit under a limit. Report it to the user and ask them
+to change the policy if the spend is genuinely intended. Activation and deletion bans
+(`allow_activation`, `allow_deletion`) always refuse; they are not caps.
+
+The policy supports these settings, all optional:
 
 - `allow_activation: false` — refuses any write that would set a serving entity to its active
   state, in that provider's own vocabulary (`ACTIVE`, `ENABLED`, `ENABLE`,
@@ -164,6 +176,17 @@ The policy supports five independent settings, all optional:
 - `max_daily_increase_native` — caps the **cumulative** requested increase per day. Raises
   `POLICY_DAILY_INCREASE_LIMIT`. The window is the **UTC** calendar day, not the account
   timezone, and it counts requested increases rather than billed spend.
+- `max_bid_native` — a ceiling on bid amounts: fields named as bids (Google `cpcBidMicros` and
+  `targetCpaMicros`, Meta and X bid amounts, TikTok `bid_price`, Snapchat `bid_micro`, Reddit
+  `bid_value`, DV360 `bidAmountMicros`) and the `amount` of a money object under a bid (LinkedIn
+  `unitCost`, Microsoft `CpcBid`, Apple `bidAmount`). Raises `POLICY_BID_LIMIT`. ROAS targets are
+  ratios, not money, and are not compared.
+- `enforcement` — `confirm` (default) or `block`, as above.
+- Caps in account currency: `max_budget_currency`, `max_daily_increase_currency` and
+  `max_bid_currency` are converted to native units where AMCP documents the platform's unit
+  (Google Ads, DV360, Reddit, Snapchat and X in micros; Microsoft, LinkedIn and Apple in currency
+  units). The saved policy keeps both and names the unit in `native_unit`. Meta, TikTok and Criteo
+  caps are stated in native units, because their unit is not documented in AMCP.
 
 Budget comparisons and cumulative reservations use exact decimal arithmetic in
 the native unit; `33.10 + 33.20` fits a `66.30` ceiling. Native decimal strings
@@ -200,7 +223,11 @@ A policy can be attached to one account, or set once for the whole workspace wit
 exists; otherwise the workspace default applies, so an account nobody configured individually is
 still covered. Each account keeps its own daily allowance under a shared default — one busy
 account does not consume another's headroom. `prepare` reports which applied, as
-`spend_policy.scope: 'account' | 'workspace_default'`.
+`spend_policy.scope: 'account' | 'workspace_default'`. A workspace default states money caps per
+platform under `per_gateway` (for example `{google_ads_native_action: {max_budget_currency: 500}}`),
+because Google counts micros and LinkedIn currency units. A native amount at the default's top
+level still applies to every platform without its own entry; `save_spend_policy` and
+`amcp_workspace health` return a warning for it (`policy_warnings`).
 
 `prepare` returns a `spend_policy` object on every reviewed write. `configured:false` with
 `unprotected:true` means **no policy protects that account at all**. Say so plainly when

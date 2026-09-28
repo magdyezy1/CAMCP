@@ -84,7 +84,11 @@ const group = {
 test('a Reddit ad group spend goal above the owner budget cap is refused before any write', async () => {
   const f = fixture({});
   try {
-    saveSpendPolicy(f.store, owner, {scope: 'workspace', confirmed: true, policy: {max_budget_native: 200000000}});
+    saveSpendPolicy(f.store, owner, {
+      scope: 'workspace',
+      confirmed: true,
+      policy: {enforcement: 'block', max_budget_native: 200000000},
+    });
     const high = await f.prepare('CREATE_AD_GROUP', {...group, goal_type: 'DAILY_SPEND', goal_value: 1000000000000});
     assert.equal(high.success, false, JSON.stringify(high));
     assert.equal(high.error.code, 'POLICY_BUDGET_LIMIT');
@@ -103,7 +107,11 @@ test('a Reddit ad group spend goal above the owner budget cap is refused before 
 test('a Reddit ad group budget raise is measured against the reviewed goal, including an inherited goal type', async () => {
   const f = fixture({goal_type: 'DAILY_SPEND', goal_value: 100000000});
   try {
-    saveSpendPolicy(f.store, owner, {scope: 'workspace', confirmed: true, policy: {max_budget_increase_percent: 20}});
+    saveSpendPolicy(f.store, owner, {
+      scope: 'workspace',
+      confirmed: true,
+      policy: {enforcement: 'block', max_budget_increase_percent: 20},
+    });
     // The update names only goal_value; the ad group's current DAILY_SPEND goal makes it a budget.
     const raise = await f.prepare('UPDATE_AD_GROUP', {goal_value: 150000000}, {ad_group_id: '200'});
     assert.equal(raise.success, false, JSON.stringify(raise));

@@ -141,7 +141,7 @@ test('the daily spend cap holds when many processes reserve against it at once',
       gateway: 'meta_native_action',
       account_id: '123',
       confirmed: true,
-      policy: {max_daily_increase_native: 100},
+      policy: {enforcement: 'block', max_daily_increase_native: 100},
     });
     store.close();
 

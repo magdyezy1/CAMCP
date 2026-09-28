@@ -260,7 +260,7 @@ test('a lead campaign without a campaign budget verifies, and the owner budget c
     saveSpendPolicy(g.store, owner, {
       scope: 'workspace',
       confirmed: true,
-      policy: {max_budget_native: 200, allow_activation: false},
+      policy: {enforcement: 'block', max_budget_native: 200, allow_activation: false},
     });
     assert.equal((await g.prepare(campaign())).error?.code, 'POLICY_BUDGET_LIMIT');
     const p = await g.prepare(campaign({budget: 150}));

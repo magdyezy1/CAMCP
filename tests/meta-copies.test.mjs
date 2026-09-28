@@ -405,7 +405,11 @@ test('copied budgets are new budgets under the owner spending policy', async () 
   const f = fixture();
   f.own('100');
   try {
-    saveSpendPolicy(f.store, owner, {scope: 'workspace', confirmed: true, policy: {max_budget_native: 4000}});
+    saveSpendPolicy(f.store, owner, {
+      scope: 'workspace',
+      confirmed: true,
+      policy: {enforcement: 'block', max_budget_native: 4000},
+    });
     const r = await campaignCopy(f);
     assert.equal(r.error?.code, 'POLICY_BUDGET_LIMIT', JSON.stringify(r));
     assert.equal(f.writes.length, 0);
@@ -546,7 +550,11 @@ test('deep campaign copies above the limit, or whose ad set budget exceeds the o
     const large = await campaignCopy(f, {status_option: 'PAUSED', deep_copy: true});
     assert.equal(large.error.code, 'META_COPY_TOO_LARGE', JSON.stringify(large));
     assert.deepEqual(large.error.details, {children: 4, limit: 3});
-    saveSpendPolicy(f.store, owner, {scope: 'workspace', confirmed: true, policy: {max_budget_native: 4000}});
+    saveSpendPolicy(f.store, owner, {
+      scope: 'workspace',
+      confirmed: true,
+      policy: {enforcement: 'block', max_budget_native: 4000},
+    });
     const capped = await f.prepare(
       'meta_campaign_id_copies_copy',
       {campaign_id: '102'},

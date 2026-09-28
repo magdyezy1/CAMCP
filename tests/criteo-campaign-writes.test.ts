@@ -671,7 +671,7 @@ test('all three native monetary limits obey absolute, percentage and cumulative 
       saveSpendPolicy(f.store, owner, {
         scope: 'workspace',
         confirmed: true,
-        policy: {max_budget_native: 1000, max_budget_increase_percent: 10},
+        policy: {enforcement: 'block', max_budget_native: 1000, max_budget_increase_percent: 10},
       });
       const a = attributes();
       a[field] *= 1.5;
@@ -691,13 +691,23 @@ test('all three native monetary limits obey absolute, percentage and cumulative 
     saveSpendPolicy(f.store, owner, {
       scope: 'workspace',
       confirmed: true,
-      policy: {max_budget_native: 1000, max_budget_increase_percent: 0, max_daily_increase_native: 1524},
+      policy: {
+        enforcement: 'block',
+        max_budget_native: 1000,
+        max_budget_increase_percent: 0,
+        max_daily_increase_native: 1524,
+      },
     });
     assert.equal((await f.prepare()).error?.code, 'POLICY_DAILY_INCREASE_LIMIT');
     saveSpendPolicy(f.store, owner, {
       scope: 'workspace',
       confirmed: true,
-      policy: {max_budget_native: 1000, max_budget_increase_percent: 0, max_daily_increase_native: 1525},
+      policy: {
+        enforcement: 'block',
+        max_budget_native: 1000,
+        max_budget_increase_percent: 0,
+        max_daily_increase_native: 1525,
+      },
     });
     const p = await f.prepare();
     assert.equal(p.success, true, JSON.stringify(p));
@@ -715,7 +725,7 @@ test('PUT uses the campaign baseline, never a child budget, and does not net dec
     saveSpendPolicy(f.store, owner, {
       scope: 'workspace',
       confirmed: true,
-      policy: {max_budget_increase_percent: 10, max_daily_increase_native: 3},
+      policy: {enforcement: 'block', max_budget_increase_percent: 10, max_daily_increase_native: 3},
     });
     const a = attributes();
     a.dailyPacing = 27;
@@ -833,7 +843,11 @@ test('parallel execution of one review makes one mutation and two reviews cannot
   const g = fixture();
   try {
     await g.discover();
-    saveSpendPolicy(g.store, owner, {scope: 'workspace', confirmed: true, policy: {max_daily_increase_native: 3}});
+    saveSpendPolicy(g.store, owner, {
+      scope: 'workspace',
+      confirmed: true,
+      policy: {enforcement: 'block', max_daily_increase_native: 3},
+    });
     const a = attributes();
     a.dailyPacing = 27;
     const p = await g.prepare('update', a),

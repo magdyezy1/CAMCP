@@ -197,7 +197,7 @@ test('reservations are summed for the current day only and do not accumulate for
       gateway: 'meta_native_action',
       account_id: '123',
       confirmed: true,
-      policy: {max_daily_increase_native: 100},
+      policy: {enforcement: 'block', max_daily_increase_native: 100},
     });
     const budget = (amount: number) =>
       plan('meta_native_action', {daily_budget: amount}, {action: 'meta_adset_update', path: '/v25.0/456'});
@@ -254,7 +254,7 @@ test('a workspace default protects accounts nobody configured individually', () 
     saveSpendPolicy(store, actor, {
       scope: 'workspace',
       confirmed: true,
-      policy: {max_budget_native: 200, allow_activation: false},
+      policy: {enforcement: 'block', max_budget_native: 200, allow_activation: false},
     });
 
     // The same unconfigured account is now covered by the default.
@@ -270,7 +270,7 @@ test('a workspace default protects accounts nobody configured individually', () 
       gateway: 'meta_native_action',
       account_id: '123',
       confirmed: true,
-      policy: {max_budget_native: 1000},
+      policy: {enforcement: 'block', max_budget_native: 1000},
     });
     const specific = checkSpendPolicy(store, actor, budget(500), [{daily_budget: 100}]);
     assert.equal(specific.scope, 'account');
@@ -296,7 +296,11 @@ test('a workspace default gives each account its own daily allowance', () => {
       },
       {accessToken: 'fixture'},
     );
-    saveSpendPolicy(store, actor, {scope: 'workspace', confirmed: true, policy: {max_daily_increase_native: 50}});
+    saveSpendPolicy(store, actor, {
+      scope: 'workspace',
+      confirmed: true,
+      policy: {enforcement: 'block', max_daily_increase_native: 50},
+    });
     const budget = (account: string, amount: number) => ({
       ...plan('meta_native_action', {daily_budget: amount}, {action: 'meta_adset_update', path: '/v25.0/456'}),
       accountId: account,
@@ -338,14 +342,18 @@ test('health names the accounts no policy protects', () => {
       gateway: 'meta_native_action',
       account_id: '123',
       confirmed: true,
-      policy: {max_budget_native: 10},
+      policy: {enforcement: 'block', max_budget_native: 10},
     });
     assert.deepEqual(
       unprotectedAccounts(store, actor).map(r => r.account_id),
       ['456'],
     );
     // A workspace default covers everything, so nothing is left unprotected.
-    saveSpendPolicy(store, actor, {scope: 'workspace', confirmed: true, policy: {max_budget_native: 10}});
+    saveSpendPolicy(store, actor, {
+      scope: 'workspace',
+      confirmed: true,
+      policy: {enforcement: 'block', max_budget_native: 10},
+    });
     assert.deepEqual(unprotectedAccounts(store, actor), []);
   } finally {
     store.close();
@@ -362,7 +370,7 @@ test('a workspace default rejects an account-scoped payload', () => {
         gateway: 'meta_native_action',
         account_id: '123',
         confirmed: true,
-        policy: {max_budget_native: 10},
+        policy: {enforcement: 'block', max_budget_native: 10},
       }),
     );
     assert.equal(e.code, 'INVALID_POLICY');
@@ -409,7 +417,7 @@ test('a payload nested past the inspection limit is refused, not skipped and not
       gateway: 'meta_native_action',
       account_id: '123',
       confirmed: true,
-      policy: {allow_activation: false, max_budget_native: 500},
+      policy: {enforcement: 'block', allow_activation: false, max_budget_native: 500},
     });
     let deep: JsonObject = {status: 'ACTIVE'};
     for (let i = 0; i < 200; i++) deep = {n: deep};

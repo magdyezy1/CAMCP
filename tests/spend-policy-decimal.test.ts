@@ -53,7 +53,7 @@ function request(amount: string | number, update = false): CompiledRequest {
 }
 
 test('two native decimal creations exactly at a daily cap both succeed', () => {
-  const store = setup({max_daily_increase_native: 66.3});
+  const store = setup({enforcement: 'block', max_daily_increase_native: 66.3});
   try {
     checkSpendPolicy(store, actor, request('33.1'), [], 'one');
     assert.equal(checkSpendPolicy(store, actor, request('33.2'), [], 'two').requested_increase_native, 33.2);
@@ -66,7 +66,7 @@ test('two native decimal creations exactly at a daily cap both succeed', () => {
 });
 
 test('a native REST.li decimal increase exactly at ten percent succeeds', () => {
-  const store = setup({max_budget_increase_percent: 10});
+  const store = setup({enforcement: 'block', max_budget_increase_percent: 10});
   try {
     assert.equal(
       checkSpendPolicy(store, actor, request('110.11', true), [budget('100.10')]).requested_increase_native,
@@ -81,7 +81,7 @@ test('a native REST.li decimal increase exactly at ten percent succeeds', () => 
 });
 
 test('native string amounts above a limit are not rounded down to the limit', () => {
-  const store = setup({max_budget_native: 100.1});
+  const store = setup({enforcement: 'block', max_budget_native: 100.1});
   try {
     assert.throws(() => checkSpendPolicy(store, actor, request('100.10000000000000001'), []), {
       code: 'POLICY_BUDGET_LIMIT',
@@ -93,7 +93,7 @@ test('native string amounts above a limit are not rounded down to the limit', ()
 });
 
 test('many cent-valued changes agree with an integer-cents oracle at the exact cap', () => {
-  const store = setup({max_daily_increase_native: 66.3});
+  const store = setup({enforcement: 'block', max_daily_increase_native: 66.3});
   try {
     let cents = 0;
     for (let i = 0; i < 102; i++) {
@@ -113,7 +113,7 @@ test('many cent-valued changes agree with an integer-cents oracle at the exact c
 });
 
 test('equivalent decimal baselines agree while distinct values never collapse into one', () => {
-  const store = setup({max_budget_increase_percent: 10});
+  const store = setup({enforcement: 'block', max_budget_increase_percent: 10});
   try {
     assert.equal(
       checkSpendPolicy(store, actor, request('110.11', true), [budget('100.1'), budget('100.1000'), budget('1.001e2')])
@@ -134,7 +134,7 @@ test('equivalent decimal baselines agree while distinct values never collapse in
 });
 
 test('percentages have no tolerance and decreases cannot offset another positive increase', () => {
-  const store = setup({max_budget_increase_percent: 10, max_daily_increase_native: 10.01});
+  const store = setup({enforcement: 'block', max_budget_increase_percent: 10, max_daily_increase_native: 10.01});
   try {
     assert.throws(() => checkSpendPolicy(store, actor, request('110.11000000000000001', true), [budget('100.1')]), {
       code: 'POLICY_INCREASE_LIMIT',
@@ -164,7 +164,7 @@ test('percentages have no tolerance and decreases cannot offset another positive
 test('new exact reservations survive SQLite restart and the same reservation is not double counted', () => {
   const dir = mkdtempSync(join(tmpdir(), 'amcp-policy-restart-')),
     filename = join(dir, 'fixture.sqlite');
-  let store = setup({max_daily_increase_native: 66.3}, filename);
+  let store = setup({enforcement: 'block', max_daily_increase_native: 66.3}, filename);
   try {
     checkSpendPolicy(store, actor, request('33.10000000000000001'), [], 'one');
     assert.equal(store.document(actor.tenantId, 'spend_reservation', 'one').increase_decimal, '33.10000000000000001');
@@ -187,7 +187,7 @@ test('new exact reservations survive SQLite restart and the same reservation is 
 });
 
 test('legacy numeric reservations remain authoritative and inconsistent exact metadata refuses writes', () => {
-  const store = setup({max_daily_increase_native: 66.3}),
+  const store = setup({enforcement: 'block', max_daily_increase_native: 66.3}),
     day = new Date().toISOString().slice(0, 10),
     policyId = spendPolicyKey(gateway, '123');
   try {
@@ -214,7 +214,7 @@ test('legacy numeric reservations remain authoritative and inconsistent exact me
 });
 
 test('daily reservations are streamed only for the current tenant, account and day', () => {
-  const store = setup({max_daily_increase_native: 66.3}),
+  const store = setup({enforcement: 'block', max_daily_increase_native: 66.3}),
     day = new Date().toISOString().slice(0, 10),
     policyId = spendPolicyKey(gateway, '123');
   try {
@@ -267,7 +267,11 @@ test('daily reservations are streamed only for the current tenant, account and d
 });
 
 test('native integer micros keep their range and unit without currency scaling', () => {
-  const store = setup({max_budget_native: Number.MAX_SAFE_INTEGER, max_budget_increase_percent: 10});
+  const store = setup({
+    enforcement: 'block',
+    max_budget_native: Number.MAX_SAFE_INTEGER,
+    max_budget_increase_percent: 10,
+  });
   try {
     const plan: CompiledRequest = {
       ...request(0),
@@ -296,7 +300,7 @@ test('native integer micros keep their range and unit without currency scaling',
 });
 
 test('a valid multi-operation reservation can exceed the safe per-field integer range without a SQLite read crash', () => {
-  const s = setup({max_budget_native: Number.MAX_SAFE_INTEGER});
+  const s = setup({enforcement: 'block', max_budget_native: Number.MAX_SAFE_INTEGER});
   try {
     const p: CompiledRequest = {
       ...request(0),
@@ -326,7 +330,7 @@ test('a valid multi-operation reservation can exceed the safe per-field integer 
 });
 
 test('bounded decimal inputs reject overflow, underflow and alternate syntax before reserving', () => {
-  const store = setup({max_budget_native: 100});
+  const store = setup({enforcement: 'block', max_budget_native: 100});
   try {
     for (const input of ['1e309', '1e-1000', '1e-324', '0x10', ' 1', '-1', 'NaN', 'Infinity', '9'.repeat(513)])
       assert.throws(
@@ -349,7 +353,7 @@ test('bounded decimal inputs reject overflow, underflow and alternate syntax bef
 test('independent SQLite workers cannot overbook the decimal daily cap', {timeout: 30000}, async () => {
   const dir = mkdtempSync(join(tmpdir(), 'amcp-policy-workers-')),
     filename = join(dir, 'fixture.sqlite');
-  const initial = setup({max_daily_increase_native: 66.3}, filename);
+  const initial = setup({enforcement: 'block', max_daily_increase_native: 66.3}, filename);
   initial.close();
   const code = `import {parentPort,workerData} from 'node:worker_threads';
  const {Store}=await import(workerData.storeUrl),{checkSpendPolicy}=await import(workerData.policyUrl);
