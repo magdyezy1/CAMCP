@@ -49,7 +49,7 @@ test('rule-based conversions follow the campaign objective',()=>{
 
 test('X metric sources match the X report mapping',()=>{
  const src=fs.readFileSync('src/x-campaign-report.ts','utf8');
- const mapped=Object.fromEntries([...src.matchAll(/(\w+):n\(r\.native_metrics\.(\w+)(,1e6)?\)/g)].map(m=>[m[1],m[2]+(m[3]?' ÷ 1,000,000':'')]));
+ const mapped=Object.fromEntries([...src.matchAll(/(\w+):\s*n\(r\.native_metrics\.(\w+)(,\s*1e6)?\)/g)].map(m=>[m[1],m[2]+(m[3]?' ÷ 1,000,000':'')]));
  assert.deepEqual(Object.fromEntries(Object.entries(metricSources.x).map(([k,s])=>[k,s.from])),mapped);
 });
 

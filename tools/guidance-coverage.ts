@@ -80,7 +80,7 @@ export function writePathModules(root='src'){
   const full=path.join(root,file);
   if(!fs.existsSync(full))return;
   seen.add(file);
-  for(const m of fs.readFileSync(full,'utf8').matchAll(/from '\.\/([A-Za-z0-9._-]+)\.js'/g))visit(m[1]!+'.ts');
+  for(const m of fs.readFileSync(full,'utf8').matchAll(/from\s+'\.\/([A-Za-z0-9._-]+)\.js'/g))visit(m[1]!+'.ts');
  };
  for(const entry of writePathRoots)visit(entry);
  return [...seen].sort();
@@ -91,7 +91,7 @@ export function guidanceCoverage(root='src'){
  const modules=writePathModules(root);
  const codes=new Set<string>();
  for(const file of modules)
-  for(const m of fs.readFileSync(path.join(root,file),'utf8').matchAll(/(?:new MirrorError\(|fail\()'([A-Z][A-Z0-9_]{3,})'/g))codes.add(m[1]!);
+  for(const m of fs.readFileSync(path.join(root,file),'utf8').matchAll(/(?:new MirrorError\(|fail\()\s*'([A-Z][A-Z0-9_]{3,})'/g))codes.add(m[1]!);
  const family=(c:string)=>undocumentedFamilies.find(([pattern])=>pattern.test(c));
  const documented=[...codes].filter(c=>guides.includes(c));
  const undeclared=[...codes].filter(c=>!guides.includes(c)&&!undocumentedCodes.has(c)&&!family(c)).sort();

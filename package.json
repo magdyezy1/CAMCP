@@ -9,6 +9,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "format": "prettier --write \"src/**/*.ts\" \"server/**/*.ts\" \"tools/**/*.{ts,mjs}\" \"tests/**/*.{ts,mjs}\" \"codegen/**/*.mjs\" \"deploy/**/*.mjs\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"server/**/*.ts\" \"tools/**/*.{ts,mjs}\" \"tests/**/*.{ts,mjs}\" \"codegen/**/*.mjs\" \"deploy/**/*.mjs\"",
     "start": "node dist/server/stdio.js",
     "start:http": "node dist/server/http.js",
     "worker": "node dist/server/worker.js",
@@ -47,6 +49,7 @@
   "devDependencies": {
     "@types/express": "5.0.6",
     "@types/node": "24.13.3",
+    "prettier": "3.9.9",
     "typescript": "7.0.2"
   }
 }

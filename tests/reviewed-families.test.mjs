@@ -30,11 +30,11 @@ test('every registered family is complete and owns routes in the action ledger',
 });
 
 test('no ledger route is claimed by two families, registered or still wired in reviewed-routes.ts',async()=>{
- // Families not yet registered are recognised by reviewed-routes.ts, one `if(kind(p))return 'name'` line each.
+ // Families not yet registered are recognised by reviewed-routes.ts, one `if(kind(p))return 'name'` statement each.
  const src=fs.readFileSync('src/reviewed-routes.ts','utf8'),imports=new Map();
- for(const m of src.matchAll(/import \{([^}]*)\} from '\.\/([^']+)'/g))for(const n of m[1].split(','))imports.set(n.trim(),m[2]);
+ for(const m of src.matchAll(/import\s*\{([^}]*)\}\s*from\s*'\.\/([^']+)'/g))for(const n of m[1].split(',').map(n=>n.trim()).filter(Boolean))imports.set(n,m[2]);
  const wired=[];
- for(const m of src.matchAll(/if\((\w+)\(p\)\)return '(\w+)'/g)){const mod=await import('../dist/src/'+imports.get(m[1]));wired.push({name:m[2],kind:mod[m[1]]});}
+ for(const m of src.matchAll(/if\s*\((\w+)\(p\)\)\s*return\s*'(\w+)'/g)){const mod=await import('../dist/src/'+imports.get(m[1]));wired.push({name:m[2],kind:mod[m[1]]});}
  assert.ok(wired.length>50);
  const all=[...families,...wired];let claimed=0;
  for(const r of routes){

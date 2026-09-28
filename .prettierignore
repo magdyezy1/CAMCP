@@ -1,0 +1,9 @@
+# Written by generators whose --check compares exact text.
+src/google-asset-set-fields.ts
+generated/
+.mirror/
+# Build output, release candidates and local runtime state.
+dist/
+.release/
+.runtime/
+node_modules/

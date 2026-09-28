@@ -6,7 +6,7 @@ import {fileURLToPath} from 'node:url';
 
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 const directories=['src/','server/','tests/','tools/','codegen/','generated/','web/','deploy/','docs/','Skills/amcp-campaign-builder/','.github/','.mirror/CATALOG/','.mirror/RAW/','.mirror/VENDOR/'];
-const single=new Set(['README.md','LICENSE','Dockerfile','railway.toml','railway.json','package.json','package-lock.json','tsconfig.json','.npmrc','.gitignore','.dockerignore','.env.example','.mirror/TOOLS.json','.mirror/REPORTS/evidence-hashes.json']);
+const single=new Set(['README.md','LICENSE','Dockerfile','railway.toml','railway.json','package.json','package-lock.json','tsconfig.json','.prettierrc.json','.prettierignore','.editorconfig','.npmrc','.gitignore','.dockerignore','.env.example','.mirror/TOOLS.json','.mirror/REPORTS/evidence-hashes.json']);
 export function releasePathAllowed(file){return !/(?:^|\/)(?:node_modules|dist|\.git|\.runtime|\.release|PRIVATE|REVIEW_SNAPSHOT|secrets)(?:\/|$)/i.test(file)&&!/(?:^|\/)(?:auth|tokens)\.json$|\.(?:sqlite(?:-wal|-shm)?|db|key|token|pem|log|jsonl)$/i.test(file)&&(!(file.split('/').at(-1)??'').startsWith('.env')||file==='.env.example')&&(single.has(file)||directories.some(d=>file.startsWith(d)));}
 export function assembleRelease(root,output){
  root=fs.realpathSync(root);const releaseRoot=path.join(root,'.release');output=path.resolve(root,output);
