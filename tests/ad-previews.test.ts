@@ -1,0 +1,259 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {Store} from '../src/store.js';
+import {Registry} from '../src/catalog.js';
+import {MirrorService} from '../src/service.js';
+import {NativeTransport} from '../src/transport.js';
+import {previewLinks} from '../src/ad-previews.js';
+import type {Actor, JsonObject} from '../src/types.js';
+
+const key = Buffer.alloc(32, 57).toString('base64'),
+  reader: Actor = {tenantId: 't', userId: 'u', role: 'reader'},
+  registry = new Registry();
+
+/** One platform connection and a stand-in API answering by path; every request is kept. */
+function fixture(gateway: string, account: string, respond: (url: URL, init?: RequestInit) => Response | undefined) {
+  const store = new Store(':memory:', key),
+    calls: {method: string; path: string; query: string; body: unknown}[] = [];
+  store.putConnection(
+    {tenantId: 't', userId: 'admin', role: 'admin'},
+    {
+      id: 'c',
+      tenantId: 't',
+      gateway,
+      accounts: [account],
+      writeAccounts: [],
+      label: 'Synthetic',
+      enabled: true,
+      scopes: ['r_ads', 'ads_read'],
+      ...(gateway === 'reddit_native_action' ? {userAgent: 'server:amcp-tests:0.1.0 (local mock)'} : {}),
+    },
+    {accessToken: 'synthetic'},
+  );
+  const transport = new NativeTransport((async (input, init) => {
+    const url = new URL(String(input));
+    calls.push({
+      method: init?.method ?? 'GET',
+      path: url.pathname,
+      query: url.search,
+      body: init?.body ? JSON.parse(String(init.body)) : undefined,
+    });
+    const r = respond(url, init);
+    if (!r) throw Error('Unexpected request ' + (init?.method ?? 'GET') + ' ' + url.pathname);
+    return r;
+  }) as typeof fetch);
+  const service = new MirrorService(registry, store, transport, undefined, {
+    allowWrites: false,
+    requireBeforeState: true,
+    maxBudgetChange: 0,
+  });
+  return {
+    store,
+    calls,
+    previews: (input: JsonObject) => service.call('amcp_ad_previews', {account_id: account, ...input}, reader),
+  };
+}
+
+test('only HTTPS links on the platform’s own hosts count as preview links', () => {
+  const html =
+    '<iframe src="https://www.facebook.com/ads/api/preview_iframe.php?d=AQ1&amp;t=AQ2" width="274"></iframe>' +
+    '<a href="https://evil.example/phish">x</a><img src="http://www.facebook.com/insecure.png">';
+  assert.deepEqual(
+    previewLinks('meta', {data: [{body: html}], note: 'https://www.facebook.com/x', other: 'https://example.com/y'}),
+    ['https://www.facebook.com/ads/api/preview_iframe.php?d=AQ1&t=AQ2', 'https://www.facebook.com/x'],
+  );
+  assert.deepEqual(previewLinks('linkedin', {elements: [{preview: 'https://user:pw@www.linkedin.com/a'}]}), []);
+  assert.deepEqual(previewLinks('tiktok', 'https://ads.tiktok.com/preview/abc'), [
+    'https://ads.tiktok.com/preview/abc',
+  ]);
+});
+
+test('Meta: lists the account’s ads, then reads each preview for the placement asked', async () => {
+  const f = fixture('meta_native_action', '111', url => {
+    if (url.pathname === '/v25.0/act_111/ads')
+      return Response.json({
+        data: [
+          {id: '901', name: 'Spring'},
+          {id: '902', name: 'Summer'},
+        ],
+      });
+    if (/^\/v25\.0\/90[12]\/previews$/.test(url.pathname))
+      return Response.json({
+        data: [
+          {
+            body: `<iframe src="https://www.facebook.com/ads/api/preview_iframe.php?d=${url.pathname.slice(7, 10)}&amp;t=x"></iframe>`,
+          },
+        ],
+      });
+  });
+  try {
+    const r = await f.previews({platform: 'meta', ad_format: 'INSTAGRAM_STORY', limit: 1});
+    assert.equal(r.success, true, JSON.stringify(r));
+    assert.deepEqual(r.data.previews, [
+      {
+        ad_id: '901',
+        name: 'Spring',
+        ad_format: 'INSTAGRAM_STORY',
+        links: ['https://www.facebook.com/ads/api/preview_iframe.php?d=901&t=x'],
+      },
+    ]);
+    // Ad names are provider content, and the result says so.
+    assert.match(r.meta.untrusted_provider_content, /third-party text/);
+    assert.match(f.calls[1]!.query, /ad_format=INSTAGRAM_STORY/);
+    // An ad not in the account's list is never read.
+    const other = await f.previews({platform: 'meta', ad_ids: ['902', '999']});
+    assert.deepEqual(
+      other.data.previews.map((p: JsonObject) => p.ad_id),
+      ['902'],
+    );
+    assert.deepEqual(other.data.not_found, ['999']);
+    assert.equal(f.calls.filter(c => c.path === '/v25.0/999/previews').length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('TikTok: previews each ad by advertiser and returns the preview link', async () => {
+  const f = fixture('tiktok_native_action', '777', url => {
+    if (url.pathname === '/open_api/v1.3/ad/get/')
+      return Response.json({code: 0, message: 'OK', data: {list: [{ad_id: '5001', ad_name: 'Launch'}], page_info: {}}});
+    if (url.pathname === '/open_api/v1.3/creative/ads_preview/create/')
+      return Response.json({
+        code: 0,
+        message: 'OK',
+        data: {preview_link: 'https://ads.tiktok.com/preview/5001', iframe: '<iframe></iframe>', tips: []},
+      });
+  });
+  try {
+    const r = await f.previews({platform: 'tiktok'});
+    assert.equal(r.success, true, JSON.stringify(r));
+    assert.deepEqual(r.data.previews[0].links, ['https://ads.tiktok.com/preview/5001']);
+    assert.equal(r.data.previews[0].name, 'Launch');
+    const preview = f.calls.find(c => c.path.endsWith('/ads_preview/create/'))!;
+    assert.deepEqual(preview.body, {advertiser_id: '777', preview_type: 'AD', ad_id: '5001'});
+  } finally {
+    f.store.close();
+  }
+});
+
+test('Snapchat: previews the account’s creatives', async () => {
+  const f = fixture('snapchat_native_action', 'acct1', url => {
+    if (url.pathname === '/v1/adaccounts/acct1/creatives')
+      return Response.json({
+        request_status: 'SUCCESS',
+        creatives: [{sub_request_status: 'SUCCESS', creative: {id: 'cr1', name: 'Snap one', ad_account_id: 'acct1'}}],
+      });
+    if (url.pathname === '/v1/creatives/cr1/creative_preview')
+      return Response.json({
+        request_status: 'SUCCESS',
+        snapcode_link: 'https://app.snapchat.com/web/deeplink/snapcode?x=1',
+      });
+  });
+  try {
+    const r = await f.previews({platform: 'snapchat'});
+    assert.equal(r.success, true, JSON.stringify(r));
+    assert.deepEqual(r.data.previews, [
+      {ad_id: 'cr1', name: 'Snap one', links: ['https://app.snapchat.com/web/deeplink/snapcode?x=1']},
+    ]);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('LinkedIn: a creative preview needs the account’s creatives list first, then works', async () => {
+  const f = fixture('linkedin_native_action', '505', url => {
+    if (url.pathname === '/rest/adAccounts/505/creatives')
+      return Response.json({elements: [{id: 'urn:li:sponsoredCreative:42', name: 'Carousel'}]});
+    if (url.pathname === '/rest/adPreviews')
+      return Response.json({
+        elements: [{preview: '<iframe src="https://www.linkedin.com/ads/preview?creative=42"></iframe>'}],
+      });
+  });
+  try {
+    const service = new MirrorService(
+      registry,
+      f.store,
+      new NativeTransport((async () => Response.json({})) as typeof fetch),
+    );
+    const direct = await service.call(
+      'linkedin_native_action',
+      {
+        action: 'linkedin_rest_ad_previews_get',
+        account_id: '505',
+        query: {q: 'creative', creative: 'urn:li:sponsoredCreative:42'},
+      },
+      reader,
+    );
+    assert.equal(direct.error.code, 'RESOURCE_SCOPE_REQUIRED');
+    assert.equal(
+      direct.error.details.next_call.arguments.action,
+      'linkedin_rest_ad_accounts_ad_account_id_creatives_get',
+    );
+    const r = await f.previews({platform: 'linkedin', ad_ids: ['42']});
+    assert.equal(r.success, true, JSON.stringify(r));
+    assert.deepEqual(r.data.previews, [
+      {
+        ad_id: 'urn:li:sponsoredCreative:42',
+        name: 'Carousel',
+        links: ['https://www.linkedin.com/ads/preview?creative=42'],
+      },
+    ]);
+    const finder = f.calls.find(c => c.path === '/rest/adAccounts/505/creatives')!;
+    assert.match(finder.query, /q=criteria/);
+    // A creative the list did not return stays out of scope.
+    const unknown = await f.previews({platform: 'linkedin', ad_ids: ['43']});
+    assert.deepEqual(unknown.data.not_found, ['urn:li:sponsoredCreative:43']);
+    assert.equal(f.calls.filter(c => c.path === '/rest/adPreviews').length, 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('Reddit: the ad itself carries its preview link while preview_expiry is ahead', async () => {
+  const later = new Date(Date.now() + 86400000).toISOString(),
+    earlier = new Date(Date.now() - 86400000).toISOString();
+  const f = fixture('reddit_native_action', 'a2_111', url => {
+    if (url.pathname === '/api/v3/ad_accounts/a2_111/ads')
+      return Response.json({
+        data: [
+          {id: '71', name: 'Live', preview_url: 'https://www.reddit.com/?ad=abc', preview_expiry: later},
+          {id: '72', name: 'Expired', preview_url: 'https://www.reddit.com/?ad=def', preview_expiry: earlier},
+        ],
+        pagination: {next_url: null},
+      });
+  });
+  try {
+    const r = await f.previews({platform: 'reddit'});
+    assert.equal(r.success, true, JSON.stringify(r));
+    const [live, expired] = r.data.previews;
+    assert.deepEqual(live.links, ['https://www.reddit.com/?ad=abc']);
+    assert.equal(live.expires_at, later);
+    assert.deepEqual(expired.links, []);
+    assert.match(expired.note, /reviewed ad change/);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('Google Ads names the reviewed write that creates a shareable preview; X and platforms without a preview say so', async () => {
+  const f = fixture('google_ads_native_action', '1234567890', () => undefined);
+  try {
+    const google = await f.previews({
+      platform: 'google_ads',
+      ad_ids: ['987654321', 'customers/1234567890/adGroupAds/11~22'],
+    });
+    assert.equal(google.success, true, JSON.stringify(google));
+    assert.deepEqual(google.data.next_call.arguments.arguments.payload.shareablePreviews, [
+      {assetGroupIdentifier: {assetGroupId: '987654321'}},
+      {adGroupAd: 'customers/1234567890/adGroupAds/11~22', previewType: 'YOUTUBE_LIVE_PREVIEW'},
+    ]);
+    assert.equal(google.data.next_call.tool, 'amcp_write');
+    assert.equal((await f.previews({platform: 'x_ads'})).data.preview_route, 'not_qualified');
+    assert.equal((await f.previews({platform: 'dv360'})).data.preview_route, 'none');
+    assert.equal(f.calls.length, 0);
+    const bad = await f.previews({platform: 'meta', ad_format: 'BILLBOARD'});
+    assert.equal(bad.error.code, 'INVALID_ARGUMENT');
+  } finally {
+    f.store.close();
+  }
+});

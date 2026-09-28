@@ -328,6 +328,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
             overview: 'amcp_reporting_overview',
             media: 'amcp_media',
             write: 'amcp_write',
+            previews: 'amcp_ad_previews',
           };
         const tool = tools[String(req.params.tool)];
         if (!tool) throw new MirrorError('NOT_FOUND', 'Unknown workspace operation.', {}, 404);

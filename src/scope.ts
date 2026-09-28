@@ -39,6 +39,7 @@ import {authorizeSnapPixelName} from './snapchat-pixel-names.js';
 import {authorizeLinkedInTemplate} from './linkedin-audience-templates.js';
 import {authorizeLinkedInRule} from './linkedin-conversion-rules.js';
 import {authorizeLinkedInLeadForm, observeLinkedInLeadForms} from './linkedin-lead-forms.js';
+import {authorizeLinkedInAdPreview, observeLinkedInCreatives} from './linkedin-ad-previews.js';
 import {metaAdLibraryRead} from './meta-ad-library.js';
 import {assertGoogleBidScope} from './google-bid-modifiers.js';
 import {assertGoogleAdsScope} from './google-contracts.js';
@@ -117,6 +118,13 @@ export function ownershipReads(
         )[kind];
     return action ? [call(action)] : [];
   }
+  if (gateway === 'linkedin_native_action' && path === '/rest/adPreviews')
+    return [
+      call('linkedin_rest_ad_accounts_ad_account_id_creatives_get', {
+        restli_method: 'FINDER',
+        query: {q: 'criteria', pageSize: 100},
+      }),
+    ];
   if (gateway === 'reddit_native_action') {
     const kind = /^\/api\/v3\/(campaigns|ad_groups|ads)\//.exec(path)?.[1],
       action =
@@ -266,6 +274,7 @@ export class ScopeGuard {
     if (authorizeSnapPixelName(plan, connection, id)) return id;
     if (authorizeLinkedInRule(plan, connection, id)) return id;
     if (authorizeLinkedInLeadForm(plan, connection, this.store, id)) return id;
+    if (authorizeLinkedInAdPreview(plan, connection, this.store, id)) return id;
     if (authorizeCriteoInternalRead(plan, connection, id)) return id;
     if (
       plan.gateway === 'google_ads_native_action' &&
@@ -468,6 +477,7 @@ export class ScopeGuard {
       d = data as JsonObject;
     observeCriteoReportTargets(plan, connection, this.store, data);
     observeLinkedInLeadForms(plan, connection, this.store, id, data);
+    observeLinkedInCreatives(plan, connection, this.store, id, data);
     if (
       plan.gateway === microsoftGateway &&
       plan.action === 'SubmitGenerateReport' &&

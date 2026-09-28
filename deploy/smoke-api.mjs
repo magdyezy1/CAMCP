@@ -160,8 +160,9 @@ export async function checkApplication({base, origin, password, writes, restart}
     return body.result;
   };
   const tools = await mcp('tools/list');
-  assert.equal(tools.tools.length, writes ? 27 : 25);
+  assert.equal(tools.tools.length, writes ? 28 : 26);
   assert.ok(tools.tools.some(t => t.name === 'amcp_reporting_overview'));
+  assert.ok(tools.tools.some(t => t.name === 'amcp_ad_previews'));
   const guides = await mcp('resources/list');
   assert.equal(guides.resources.length, 13);
   assert.ok(guides.resources.some(resource => resource.uri === 'amcp://guides/adjust'));

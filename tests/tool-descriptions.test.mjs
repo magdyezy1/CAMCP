@@ -20,6 +20,7 @@ test('every AMCP extension tool says when to use it rather than its neighbour', 
       amcp_reporting_overview: /amcp_reporting\b/,
       amcp_workspace: /write contracts/,
       amcp_media: /Google Drive/,
+      amcp_ad_previews: /amcp_media/,
     };
     for (const [name, neighbour] of Object.entries(neighbours)) {
       assert.match(tools[name], /^Use this /, name);

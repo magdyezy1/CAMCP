@@ -53,6 +53,7 @@ import {WorkspaceService, workspaceTool} from './workspace.js';
 import {CampaignRunner, campaignTool} from './campaign-runner.js';
 import {DecisionReporting, decisionTool} from './decision-reporting.js';
 import {ReportingOverview, overviewTool} from './reporting-overview.js';
+import {AdPreviews, previewTool} from './ad-previews.js';
 import {WriteVerifier} from './write-verification.js';
 import {validateProviderRequest} from './provider-validation.js';
 import {MediaUploadService, mediaTool} from './media-upload.js';
@@ -122,6 +123,7 @@ export class MirrorService {
       campaignTool,
       decisionTool,
       overviewTool,
+      previewTool,
       ...(this.policy.allowWrites ? [writeTool, mediaTool] : []),
     ];
   }
@@ -151,6 +153,8 @@ export class MirrorService {
           tool,
         );
       const call = (t: string, a: JsonObject, u: Actor) => this.call(t, a, u);
+      if (tool === previewTool.name)
+        return this.wrap(await new AdPreviews(call).handle(input, actor), requestId, start, tool);
       if (tool === workspaceTool.name)
         return this.wrap(
           await new WorkspaceService(
