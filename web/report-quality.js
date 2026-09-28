@@ -1,19 +1,58 @@
-function reportTargetContext(objective,context={}){
- const flag=(key,label)=>`<label>${label}<select data-target-context="${objective}:${key}">${[['','Not supplied'],['true','Yes'],['false','No']].map(([value,text])=>`<option value="${value}" ${String(context[key]??'')===value?'selected':''}>${text}</option>`).join('')}</select></label>`;
- return `<details><summary>Business context and constraints</summary><div class="target-fields"><label>Context note<textarea maxlength="1000" data-target-context="${objective}:note">${esc(context.note??'')}</textarea></label><label>Seasonal event or promotion<input maxlength="1000" data-target-context="${objective}:seasonal_event" value="${esc(context.seasonal_event??'')}"></label>${flag('recent_change','Recent campaign or business change?')}${flag('tracking_verified','Tracking verified?')}${flag('capacity_available','Capacity available for growth?')}${flag('budget_available','Budget available for growth?')}<label>Current daily budget<input type="number" min="0" step="any" data-target-context="${objective}:current_daily_budget" value="${context.current_daily_budget??''}"></label><label>Maximum daily budget<input type="number" min="0" step="any" data-target-context="${objective}:maximum_daily_budget" value="${context.maximum_daily_budget??''}"></label><label>Secondary KPI<select data-target-secondary="${objective}:kpi"><option value="">None supplied</option>${['roas','cpa','ctr','conversion_rate','cpc'].map(k=>`<option value="${k}" ${context.secondary_kpi?.kpi===k?'selected':''}>${k.toUpperCase()}</option>`).join('')}</select></label><label>Secondary target<input type="number" min="0.000001" step="any" data-target-secondary="${objective}:target" value="${context.secondary_kpi?.target??''}"></label><label>Secondary direction<select data-target-secondary="${objective}:direction"><option value="higher" ${context.secondary_kpi?.direction==='higher'?'selected':''}>Higher is better</option><option value="lower" ${context.secondary_kpi?.direction==='lower'?'selected':''}>Lower is better</option></select></label></div><p class="form-note">Context is supplied by you. AMCP does not infer seasonal effects or causal impact.</p></details>`;
+function reportTargetContext(objective, context = {}) {
+  const flag = (key, label) =>
+    `<label>${label}<select data-target-context="${objective}:${key}">${[
+      ['', 'Not supplied'],
+      ['true', 'Yes'],
+      ['false', 'No'],
+    ]
+      .map(
+        ([value, text]) =>
+          `<option value="${value}" ${String(context[key] ?? '') === value ? 'selected' : ''}>${text}</option>`,
+      )
+      .join('')}</select></label>`;
+  return `<details><summary>Business context and constraints</summary><div class="target-fields"><label>Context note<textarea maxlength="1000" data-target-context="${objective}:note">${esc(context.note ?? '')}</textarea></label><label>Seasonal event or promotion<input maxlength="1000" data-target-context="${objective}:seasonal_event" value="${esc(context.seasonal_event ?? '')}"></label>${flag('recent_change', 'Recent campaign or business change?')}${flag('tracking_verified', 'Tracking verified?')}${flag('capacity_available', 'Capacity available for growth?')}${flag('budget_available', 'Budget available for growth?')}<label>Current daily budget<input type="number" min="0" step="any" data-target-context="${objective}:current_daily_budget" value="${context.current_daily_budget ?? ''}"></label><label>Maximum daily budget<input type="number" min="0" step="any" data-target-context="${objective}:maximum_daily_budget" value="${context.maximum_daily_budget ?? ''}"></label><label>Secondary KPI<select data-target-secondary="${objective}:kpi"><option value="">None supplied</option>${['roas', 'cpa', 'ctr', 'conversion_rate', 'cpc'].map(k => `<option value="${k}" ${context.secondary_kpi?.kpi === k ? 'selected' : ''}>${k.toUpperCase()}</option>`).join('')}</select></label><label>Secondary target<input type="number" min="0.000001" step="any" data-target-secondary="${objective}:target" value="${context.secondary_kpi?.target ?? ''}"></label><label>Secondary direction<select data-target-secondary="${objective}:direction"><option value="higher" ${context.secondary_kpi?.direction === 'higher' ? 'selected' : ''}>Higher is better</option><option value="lower" ${context.secondary_kpi?.direction === 'lower' ? 'selected' : ''}>Lower is better</option></select></label></div><p class="form-note">Context is supplied by you. AMCP does not infer seasonal effects or causal impact.</p></details>`;
 }
-function readTargetContext(objective){
- const out={};for(const el of document.querySelectorAll('[data-target-context]')){const [id,key]=el.dataset.targetContext.split(':');if(id!==objective||el.value==='')continue;out[key]=['current_daily_budget','maximum_daily_budget'].includes(key)?Number(el.value):['recent_change','tracking_verified','capacity_available','budget_available'].includes(key)?el.value==='true':el.value;}
- const s={};for(const el of document.querySelectorAll('[data-target-secondary]')){const [id,key]=el.dataset.targetSecondary.split(':');if(id===objective)s[key]=key==='target'?Number(el.value):el.value;}if(s.kpi)out.secondary_kpi=s;return out;
+function readTargetContext(objective) {
+  const out = {};
+  for (const el of document.querySelectorAll('[data-target-context]')) {
+    const [id, key] = el.dataset.targetContext.split(':');
+    if (id !== objective || el.value === '') continue;
+    out[key] = ['current_daily_budget', 'maximum_daily_budget'].includes(key)
+      ? Number(el.value)
+      : ['recent_change', 'tracking_verified', 'capacity_available', 'budget_available'].includes(key)
+        ? el.value === 'true'
+        : el.value;
+  }
+  const s = {};
+  for (const el of document.querySelectorAll('[data-target-secondary]')) {
+    const [id, key] = el.dataset.targetSecondary.split(':');
+    if (id === objective) s[key] = key === 'target' ? Number(el.value) : el.value;
+  }
+  if (s.kpi) out.secondary_kpi = s;
+  return out;
 }
-function reportQualityDetails(source){
- const q=source.quality;if(!q)return '<p class="form-note">Legacy snapshot: measurement-quality metadata was not recorded.</p>';
- const labels=[q.sampled?'Sampled':'',q.thresholded?'Thresholded':'',q.data_loss?'Aggregation loss':'',q.truncated?'Truncated by GA4':'',q.restricted_metrics?.length?'Restricted: '+q.restricted_metrics.join(', '):''].filter(Boolean);
- return `<p class="form-note">${esc(labels.join(' · ')||'No additional source-quality flags recorded.')}</p><details><summary>Quality and source evidence</summary><pre>${esc(JSON.stringify({quality:q,lineage:source.lineage,query_fingerprint:source.query_fingerprint},null,2))}</pre></details>`;
+function reportQualityDetails(source) {
+  const q = source.quality;
+  if (!q) return '<p class="form-note">Legacy snapshot: measurement-quality metadata was not recorded.</p>';
+  const labels = [
+    q.sampled ? 'Sampled' : '',
+    q.thresholded ? 'Thresholded' : '',
+    q.data_loss ? 'Aggregation loss' : '',
+    q.truncated ? 'Truncated by GA4' : '',
+    q.restricted_metrics?.length ? 'Restricted: ' + q.restricted_metrics.join(', ') : '',
+  ].filter(Boolean);
+  return `<p class="form-note">${esc(labels.join(' · ') || 'No additional source-quality flags recorded.')}</p><details><summary>Quality and source evidence</summary><pre>${esc(JSON.stringify({quality: q, lineage: source.lineage, query_fingerprint: source.query_fingerprint}, null, 2))}</pre></details>`;
 }
-function refreshRecentReports(report){
- overviewState.history=[{...report,rows:undefined},...overviewState.history.filter(r=>r.id!==report.id)].slice(0,50);
- const section=document.querySelector('.report-history');if(!section)return;
- section.innerHTML=renderOverviewHistory(overviewState.history,typeof session!=='undefined'&&session.workspaceRole==='viewer');
- bindOverviewHistory();
+function refreshRecentReports(report) {
+  overviewState.history = [
+    {...report, rows: undefined},
+    ...overviewState.history.filter(r => r.id !== report.id),
+  ].slice(0, 50);
+  const section = document.querySelector('.report-history');
+  if (!section) return;
+  section.innerHTML = renderOverviewHistory(
+    overviewState.history,
+    typeof session !== 'undefined' && session.workspaceRole === 'viewer',
+  );
+  bindOverviewHistory();
 }

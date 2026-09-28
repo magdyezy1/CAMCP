@@ -101,7 +101,11 @@ function previewResults(r) {
             .map(
               (url, i) =>
                 `<a class="button small" href="${esc(url)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(
-                  'Open preview ' + (p.links.length > 1 ? i + 1 + ' ' : '') + 'of ' + (p.name ?? p.ad_id) + ' in a new tab',
+                  'Open preview ' +
+                    (p.links.length > 1 ? i + 1 + ' ' : '') +
+                    'of ' +
+                    (p.name ?? p.ad_id) +
+                    ' in a new tab',
                 )}">Open preview${p.links.length > 1 ? ' ' + (i + 1) : ''} ↗</a>`,
             )
             .join(' ')

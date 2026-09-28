@@ -1,44 +1,266 @@
 'use strict';
-let loginMfaTicket=null;
-const baseAccountPage=renderAccountPage;
-formField=function(label,name,type='text',extra=''){return `<label>${esc(label)}<span class="password-field"><input name="${esc(name)}" type="${type}" ${extra} required>${type==='password'?'<button type="button" class="password-toggle" aria-label="Show password">Show</button>':''}</span></label>`;};
-document.addEventListener('click',e=>{const button=e.target.closest('.password-toggle');if(!button)return;const input=button.parentElement.querySelector('input');input.type=input.type==='password'?'text':'password';button.textContent=input.type==='password'?'Show':'Hide';button.setAttribute('aria-label',button.textContent+' password');});
-socialButtons=function(){const providers=(authOptions?.providers??[]).filter(p=>p.configured);return providers.length?`<div class="social-buttons">${providers.map(p=>`<button class="social-button" data-social="${esc(p.id)}"><span class="social-icon ${esc(p.id)}">${p.id==='google'?'G':p.id==='apple'?'●':'f'}</span>Continue with ${esc(p.name)}</button>`).join('')}</div><div class="auth-divider"><span>or continue with email</span></div>`:'';};
-const signInComplete=async()=>{loginMfaTicket=null;session=await api('/api/session');platforms=(await api('/api/platforms')).platforms;afterSignIn();};
-renderAuthPage=async function(){
- authOptions=await api('/api/account/options');const mode=location.pathname.slice(1),signup=mode==='signup',forgot=mode==='forgot-password',verify=['verify-email','reset-password'].includes(mode),hash=new URLSearchParams(location.hash.slice(1));
- if(hash.get('mfa')){loginMfaTicket=hash.get('mfa');history.replaceState({},'',location.pathname);}if(verify&&hash.get('token')){verificationLink={token:hash.get('token'),kind:hash.get('kind')??(mode==='reset-password'?'reset':'register')};history.replaceState({},'',location.pathname);}
- const mfa=!!loginMfaTicket,heading=mfa?'One more step.':signup?'Make yourself at home.':forgot?'A fresh start.':verify?'You’re almost in.':'Good to have you back.',kind=verificationLink?.kind;
- const password=formField('Choose a password','password','password','minlength="15" maxlength="128" autocomplete="new-password"')+'<p class="form-note">At least 15 characters. A memorable phrase works well.</p>';
- let form=mfa?`<form id="mfa-login" class="auth-form">${formField('Authenticator or recovery code','code','text','autocomplete="one-time-code" maxlength="32"')}<button class="button primary full">Verify and sign in ↗</button></form>`:verify?`<form id="email-finish" class="auth-form">${kind==='owner'?'<p>Set the email password for your existing workspace. Your connected accounts and campaign history stay here.</p>':''}${kind==='invite'&&session.authenticated?'<p>Accept this invitation with your signed-in account.</p>':kind==='email'?'<p>Confirm your new recovery email.</p>':(kind==='invite'?formField('Your name','name','text','maxlength="80" autocomplete="name"'):'')+password}<button class="button primary full" ${verificationLink?.token?'':'disabled'}>Complete verification ↗</button></form><p class="form-note">${kind==='invite'?'Already have an account? Sign in in another tab, then reopen this email link. ':''}If this link has expired, request a new one from <a href="${kind==='reset'?'/forgot-password':kind==='owner'?'/account':'/signup'}">${kind==='reset'?'password recovery':kind==='owner'?'Account settings':'registration'}</a>.</p>`:forgot?`<form id="forgot-form" class="auth-form">${formField('Email address','email','email','autocomplete="email" maxlength="254"')}<button class="button primary full" ${authOptions.emailEnabled?'':'disabled'}>Send reset link ↗</button></form>`:`<form id="member-form" class="auth-form">${signup?formField('Your name','name','text','autocomplete="name" maxlength="80"'):''}${formField('Email address','email','email','autocomplete="username" maxlength="254"')}${signup?'<p class="form-note">First verify your email. Then choose your password.</p>':formField('Password','password','password','autocomplete="current-password" maxlength="128"')+'<a class="forgot-link" href="/forgot-password">Forgot password?</a>'}<button class="button primary full" ${signup&&(!authOptions.signupEnabled||!authOptions.emailEnabled)?'disabled':''}>${signup?'Send verification email':'Sign in to your workspace'} ↗</button></form>`;
- content.innerHTML=`<div class="auth-page"><div class="auth-brand">${brandLink}<a href="/" class="text-link">Back to home ↗</a></div><section class="auth-story"><span class="eyebrow">YOUR SPACE TO MAKE MOVES</span><h2>Connected accounts.<br>Considered decisions.<br><em>All yours.</em></h2><div class="auth-art" aria-hidden="true"><div class="auth-arch"></div><div class="auth-disc"></div><span>✳</span></div><p>Campaigns, creative and reporting. One workspace, with access you control.</p></section><section class="auth-form-side"><div class="auth-form-card"><span class="eyebrow">${mfa?'TWO-STEP VERIFICATION':'WELCOME TO AMCP'}</span><h1>${heading}</h1><p class="auth-subtitle">${mfa?'Enter a code from your authenticator, or use a recovery code.':signup?'A workspace for your accounts, ideas and next moves.':forgot?'We’ll send a secure link to your verified email.':verify?'Confirm your email and secure your account.':'Pick up where you left off.'}</p>${!mfa&&!verify&&!forgot?socialButtons():''}<p id="auth-error" class="error" role="alert">${esc(authErrors[new URLSearchParams(location.search).get('error')]??'')}</p><div id="auth-result" role="status"></div>${form}${!authOptions.emailEnabled&&(signup||forgot)?'<p class="form-note">Email registration and recovery are temporarily unavailable. Contact the workspace owner or use an available sign-in method.</p>':''}<p class="auth-switch">${signup?'<a href="/login">Already have an account? Sign in</a>':verify||forgot||mfa?'<a href="/login" id="back-to-login">Back to sign in</a>':'New here? <a href="/signup">Create an account</a>'}</p>${authOptions.administratorEnabled&&!mfa?'<section class="owner-entry"><span class="eyebrow">OWNER SETUP</span><h2>Administrator access</h2><p>Claim this deployment with its administrator password, then approve who else gets in.</p><button class="button primary large full" data-open-admin>Open owner setup ↗</button></section>':''}${authOptions.testEnabled&&!mfa?'<section class="owner-entry test-entry"><span class="eyebrow">TEST ACCESS</span><h2>Reviewer sign-in</h2><p>Connect your own platforms in the test workspace. Everyone using the shared test password can access its selected accounts; use a personal account for private connections. The deployment owner’s connections stay separate.</p><button class="button primary large full" data-open-test>Open test workspace ↗</button></section>':''}<p class="auth-legal">By continuing, you agree to AMCP’s <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p></div></section></div>`;
- authBind('[data-social]',async b=>{const r=await api('/api/signin/'+b.dataset.social+'/start',{method:'POST',body:'{}'});location.assign(r.url);});
- authBind('#member-form',async f=>{const data=Object.fromEntries(new FormData(f)),r=await api('/api/account/'+(signup?'register':'login'),{method:'POST',body:JSON.stringify(data)});if(signup){f.hidden=true;$('#auth-result').innerHTML=`<div class="auth-success"><div><strong>Check your inbox</strong><p>${esc(r.message)}</p><p>Check spam too. The link expires in 30 minutes.</p><button id="resend-email" class="button">Resend verification email</button><span id="resend-status" role="status"></span></div></div>`;authBind('#resend-email',async()=>{const response=await api('/api/account/resend-verification',{method:'POST',body:JSON.stringify(data)});$('#resend-status').textContent=response.message;});}else if(r.mfaRequired){loginMfaTicket=r.ticket;await renderAuthPage();}else await signInComplete();});
- authBind('#forgot-form',async f=>{const r=await api('/api/account/forgot-password',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(f)))});$('#auth-result').textContent=r.message;});
- authBind('#email-finish',async f=>{const r=await api('/api/account/verify-email',{method:'POST',body:JSON.stringify({...verificationLink,...Object.fromEntries(new FormData(f))})});verificationLink=null;f.hidden=true;$('#auth-result').innerHTML=`<div class="auth-success"><div><strong>You’re all set.</strong><p>${esc(r.message)}</p><a class="button primary" href="${session.authenticated&&kind==='invite'?'/account':'/login'}">Continue ↗</a></div></div>`;});
- authBind('#mfa-login',async f=>{await api('/api/account/mfa/login',{method:'POST',body:JSON.stringify({ticket:loginMfaTicket,code:new FormData(f).get('code')})});await signInComplete();});$('#back-to-login')?.addEventListener('click',()=>{loginMfaTicket=null;});
+let loginMfaTicket = null;
+const baseAccountPage = renderAccountPage;
+formField = function (label, name, type = 'text', extra = '') {
+  return `<label>${esc(label)}<span class="password-field"><input name="${esc(name)}" type="${type}" ${extra} required>${type === 'password' ? '<button type="button" class="password-toggle" aria-label="Show password">Show</button>' : ''}</span></label>`;
 };
-renderAccountPage=async function(){await baseAccountPage();if(!session.authenticated)return;const account=await api('/api/account'),options=await api('/api/account/options');
- if(account.administrator){content.insertAdjacentHTML('beforeend',`<section class="panel account-security-panel"><span class="eyebrow">KEEP YOUR EXISTING WORKSPACE</span><h2>Set up your owner account</h2><p>Verify your email and set a password for this workspace. Your platform connections, reports, campaigns and permissions remain in place.</p><form id="owner-setup" class="auth-form">${formField('Your name','name','text','maxlength="80" autocomplete="name"')}${formField('Email address','email','email','maxlength="254" autocomplete="email"')}${formField('Current administrator password','administratorPassword','password','autocomplete="current-password"')}<button class="button primary" ${options.emailEnabled?'':'disabled'}>Send owner verification email ↗</button></form>${options.emailEnabled?'':'<p class="notice">Configure a verified email sender in Settings before owner setup.</p>'}</section>`);authBind('#owner-setup',async f=>{const r=await api('/api/account/owner-setup',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(f)))});toast(r.message);f.reset();});}
- else{content.insertAdjacentHTML('beforeend',`<section class="panel account-security-panel"><div class="panel-header"><div><span class="eyebrow">ANOTHER LAYER OF SECURITY</span><h2>Two-step authentication</h2></div><span class="status ${account.mfaEnabled?'online':''}">${account.mfaEnabled?'Enabled':'Available'}</span></div><p>Use an authenticator app and keep recovery codes somewhere safe. Enabling or disabling this protection revokes existing sessions and MCP access.</p><div id="mfa-setup">${account.mfaEnabled?`<form id="mfa-disable" class="auth-form">${formField('Authenticator or recovery code','code','text','maxlength="32" autocomplete="one-time-code"')}<button class="button">Disable two-step authentication</button></form>`:'<button id="mfa-start" class="button primary">Set up authenticator</button>'}</div></section>`);
- authBind('#mfa-start',async()=>{const r=await api('/api/account/mfa/start',{method:'POST',body:'{}'});$('#mfa-setup').innerHTML=`<ol class="mfa-steps"><li><strong>Add AMCP to your authenticator app.</strong> Scan this code with it:${mfaQr(r.uri)}On this phone or tablet: <a class="button small" href="${esc(r.uri)}">Open in authenticator app</a>. Or enter this setup key (time-based, 6 digits):<code class="recovery-key" id="mfa-key">${esc(r.secret.match(/.{1,4}/g).join(' '))}</code><button type="button" class="button small" id="mfa-copy-key">Copy setup key</button></li><li><strong>Enter the code the app shows</strong> to confirm it works.<form id="mfa-enable" class="auth-form">${formField('6-digit authenticator code','code','text','inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code"')}<button class="button primary">Verify and enable</button></form></li></ol>`;$('#mfa-copy-key').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(r.secret);toast('Setup key copied.');}catch{toast('Select the key and copy it.');}});authBind('#mfa-enable',async f=>{const result=await api('/api/account/mfa/enable',{method:'POST',body:JSON.stringify({ticket:r.ticket,code:new FormData(f).get('code')})});session=await api('/api/session');const codes=result.recoveryCodes.join('\n');$('#mfa-setup').innerHTML=`<div class="notice" role="alert"><strong>Save these recovery codes now.</strong> Each code works once, if you lose your authenticator. They will not be shown again.</div><pre class="recovery-key">${result.recoveryCodes.map(esc).join('\n')}</pre><div class="report-actions"><button type="button" class="button" id="mfa-copy-codes">Copy codes</button><button type="button" class="button" id="mfa-download-codes">Download as a text file</button><a class="button primary" href="/account">I’ve saved my codes</a></div>`;$('#mfa-copy-codes').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(codes);toast('Recovery codes copied.');}catch{toast('Select the codes and copy them.');}});$('#mfa-download-codes').addEventListener('click',()=>{const link=document.createElement('a');link.href=URL.createObjectURL(new Blob(['AMCP recovery codes. Each works once.\n\n'+codes+'\n'],{type:'text/plain'}));link.download='AMCP-recovery-codes.txt';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);});});});authBind('#mfa-disable',async f=>{await api('/api/account/mfa/disable',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(f)))});session=await api('/api/session');await renderAccountPage();});
- const w=await api('/api/workspaces');content.insertAdjacentHTML('beforeend',`<section class="panel"><h2>Your workspaces</h2><p>One sign-in can belong to several workspaces. Each workspace controls its own accounts and permissions.</p>${w.workspaces.map(x=>`<div class="identity-row"><div><strong>${esc(x.name)}</strong><small>${esc(x.role)}</small></div><button class="button small" data-switch-workspace="${esc(x.id)}" ${x.id===account.workspaceId?'disabled':''}>${x.id===account.workspaceId?'Current workspace':'Switch workspace'}</button></div>`).join('')}</section>`);authBind('[data-switch-workspace]',async b=>{await api('/api/workspaces/switch',{method:'POST',body:JSON.stringify({workspaceId:b.dataset.switchWorkspace})});session=await api('/api/session');platforms=(await api('/api/platforms')).platforms;await render();});}
- if(['owner','admin'].includes(account.workspaceRole)){const team=await api('/api/workspaces/members');content.insertAdjacentHTML('beforeend',`<section class="panel"><span class="eyebrow">PEOPLE & ACCESS</span><h2>Workspace members</h2><div class="team-list">${team.members.map(m=>`<div class="identity-row"><div><strong>${esc(m.name)}</strong><small>${esc(m.email??'Social account')}</small></div>${account.workspaceRole==='owner'&&m.role!=='owner'?`<select aria-label="Role for ${esc(m.name)}" data-member-role="${esc(m.id)}"><option value="viewer" ${m.role==='viewer'?'selected':''}>Viewer</option><option value="operator" ${m.role==='operator'?'selected':''}>Operator</option><option value="admin" ${m.role==='admin'?'selected':''}>Admin</option></select><button class="button small" data-member-save="${esc(m.id)}">Save role</button><button class="button small danger" data-member-remove="${esc(m.id)}" data-member-name="${esc(m.name)}">Remove</button>`:`<span class="status">${esc(m.role)}</span>`}</div>`).join('')}</div><form id="invite-member" class="workspace-form">${formField('Email address','email','email','maxlength="254"')}<label>Role<select name="role"><option value="viewer">Viewer · reports and reads</option><option value="operator">Operator · reviewed campaign changes</option>${account.workspaceRole==='owner'?'<option value="admin">Admin · connections and invitations</option>':''}</select></label><button class="button primary" ${options.emailEnabled?'':'disabled'}>Send invitation</button></form><p class="form-note">Invitations expire in 30 minutes. Send another invitation if a link expires.</p></section>`);authBind('#invite-member',async f=>{const r=await api('/api/workspaces/invite',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(f)))});toast(r.message);f.reset();});authBind('[data-member-save]',async b=>{const role=document.querySelector('[data-member-role="'+CSS.escape(b.dataset.memberSave)+'"]').value;await api('/api/workspaces/member',{method:'POST',body:JSON.stringify({userId:b.dataset.memberSave,role})});toast('Role saved.');await renderAccountPage();});
- // Removal is its own action, confirmed, rather than a role in the list.
- authBind('[data-member-remove]',async b=>{if(!await confirmAction({title:'Remove '+b.dataset.memberName+' from this workspace?',consequence:'Their browser sessions and connector access to this workspace end immediately. Their sign-in and other workspaces are not affected.',confirmLabel:'Remove from workspace'}))return;await api('/api/workspaces/member',{method:'POST',body:JSON.stringify({userId:b.dataset.memberRemove,role:'remove'})});toast('Member removed.');await renderAccountPage();});}
+document.addEventListener('click', e => {
+  const button = e.target.closest('.password-toggle');
+  if (!button) return;
+  const input = button.parentElement.querySelector('input');
+  input.type = input.type === 'password' ? 'text' : 'password';
+  button.textContent = input.type === 'password' ? 'Show' : 'Hide';
+  button.setAttribute('aria-label', button.textContent + ' password');
+});
+socialButtons = function () {
+  const providers = (authOptions?.providers ?? []).filter(p => p.configured);
+  return providers.length
+    ? `<div class="social-buttons">${providers.map(p => `<button class="social-button" data-social="${esc(p.id)}"><span class="social-icon ${esc(p.id)}">${p.id === 'google' ? 'G' : p.id === 'apple' ? '●' : 'f'}</span>Continue with ${esc(p.name)}</button>`).join('')}</div><div class="auth-divider"><span>or continue with email</span></div>`
+    : '';
+};
+const signInComplete = async () => {
+  loginMfaTicket = null;
+  session = await api('/api/session');
+  platforms = (await api('/api/platforms')).platforms;
+  afterSignIn();
+};
+renderAuthPage = async function () {
+  authOptions = await api('/api/account/options');
+  const mode = location.pathname.slice(1),
+    signup = mode === 'signup',
+    forgot = mode === 'forgot-password',
+    verify = ['verify-email', 'reset-password'].includes(mode),
+    hash = new URLSearchParams(location.hash.slice(1));
+  if (hash.get('mfa')) {
+    loginMfaTicket = hash.get('mfa');
+    history.replaceState({}, '', location.pathname);
+  }
+  if (verify && hash.get('token')) {
+    verificationLink = {
+      token: hash.get('token'),
+      kind: hash.get('kind') ?? (mode === 'reset-password' ? 'reset' : 'register'),
+    };
+    history.replaceState({}, '', location.pathname);
+  }
+  const mfa = !!loginMfaTicket,
+    heading = mfa
+      ? 'One more step.'
+      : signup
+        ? 'Make yourself at home.'
+        : forgot
+          ? 'A fresh start.'
+          : verify
+            ? 'You’re almost in.'
+            : 'Good to have you back.',
+    kind = verificationLink?.kind;
+  const password =
+    formField(
+      'Choose a password',
+      'password',
+      'password',
+      'minlength="15" maxlength="128" autocomplete="new-password"',
+    ) + '<p class="form-note">At least 15 characters. A memorable phrase works well.</p>';
+  let form = mfa
+    ? `<form id="mfa-login" class="auth-form">${formField('Authenticator or recovery code', 'code', 'text', 'autocomplete="one-time-code" maxlength="32"')}<button class="button primary full">Verify and sign in ↗</button></form>`
+    : verify
+      ? `<form id="email-finish" class="auth-form">${kind === 'owner' ? '<p>Set the email password for your existing workspace. Your connected accounts and campaign history stay here.</p>' : ''}${kind === 'invite' && session.authenticated ? '<p>Accept this invitation with your signed-in account.</p>' : kind === 'email' ? '<p>Confirm your new recovery email.</p>' : (kind === 'invite' ? formField('Your name', 'name', 'text', 'maxlength="80" autocomplete="name"') : '') + password}<button class="button primary full" ${verificationLink?.token ? '' : 'disabled'}>Complete verification ↗</button></form><p class="form-note">${kind === 'invite' ? 'Already have an account? Sign in in another tab, then reopen this email link. ' : ''}If this link has expired, request a new one from <a href="${kind === 'reset' ? '/forgot-password' : kind === 'owner' ? '/account' : '/signup'}">${kind === 'reset' ? 'password recovery' : kind === 'owner' ? 'Account settings' : 'registration'}</a>.</p>`
+      : forgot
+        ? `<form id="forgot-form" class="auth-form">${formField('Email address', 'email', 'email', 'autocomplete="email" maxlength="254"')}<button class="button primary full" ${authOptions.emailEnabled ? '' : 'disabled'}>Send reset link ↗</button></form>`
+        : `<form id="member-form" class="auth-form">${signup ? formField('Your name', 'name', 'text', 'autocomplete="name" maxlength="80"') : ''}${formField('Email address', 'email', 'email', 'autocomplete="username" maxlength="254"')}${signup ? '<p class="form-note">First verify your email. Then choose your password.</p>' : formField('Password', 'password', 'password', 'autocomplete="current-password" maxlength="128"') + '<a class="forgot-link" href="/forgot-password">Forgot password?</a>'}<button class="button primary full" ${signup && (!authOptions.signupEnabled || !authOptions.emailEnabled) ? 'disabled' : ''}>${signup ? 'Send verification email' : 'Sign in to your workspace'} ↗</button></form>`;
+  content.innerHTML = `<div class="auth-page"><div class="auth-brand">${brandLink}<a href="/" class="text-link">Back to home ↗</a></div><section class="auth-story"><span class="eyebrow">YOUR SPACE TO MAKE MOVES</span><h2>Connected accounts.<br>Considered decisions.<br><em>All yours.</em></h2><div class="auth-art" aria-hidden="true"><div class="auth-arch"></div><div class="auth-disc"></div><span>✳</span></div><p>Campaigns, creative and reporting. One workspace, with access you control.</p></section><section class="auth-form-side"><div class="auth-form-card"><span class="eyebrow">${mfa ? 'TWO-STEP VERIFICATION' : 'WELCOME TO AMCP'}</span><h1>${heading}</h1><p class="auth-subtitle">${mfa ? 'Enter a code from your authenticator, or use a recovery code.' : signup ? 'A workspace for your accounts, ideas and next moves.' : forgot ? 'We’ll send a secure link to your verified email.' : verify ? 'Confirm your email and secure your account.' : 'Pick up where you left off.'}</p>${!mfa && !verify && !forgot ? socialButtons() : ''}<p id="auth-error" class="error" role="alert">${esc(authErrors[new URLSearchParams(location.search).get('error')] ?? '')}</p><div id="auth-result" role="status"></div>${form}${!authOptions.emailEnabled && (signup || forgot) ? '<p class="form-note">Email registration and recovery are temporarily unavailable. Contact the workspace owner or use an available sign-in method.</p>' : ''}<p class="auth-switch">${signup ? '<a href="/login">Already have an account? Sign in</a>' : verify || forgot || mfa ? '<a href="/login" id="back-to-login">Back to sign in</a>' : 'New here? <a href="/signup">Create an account</a>'}</p>${authOptions.administratorEnabled && !mfa ? '<section class="owner-entry"><span class="eyebrow">OWNER SETUP</span><h2>Administrator access</h2><p>Claim this deployment with its administrator password, then approve who else gets in.</p><button class="button primary large full" data-open-admin>Open owner setup ↗</button></section>' : ''}${authOptions.testEnabled && !mfa ? '<section class="owner-entry test-entry"><span class="eyebrow">TEST ACCESS</span><h2>Reviewer sign-in</h2><p>Connect your own platforms in the test workspace. Everyone using the shared test password can access its selected accounts; use a personal account for private connections. The deployment owner’s connections stay separate.</p><button class="button primary large full" data-open-test>Open test workspace ↗</button></section>' : ''}<p class="auth-legal">By continuing, you agree to AMCP’s <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p></div></section></div>`;
+  authBind('[data-social]', async b => {
+    const r = await api('/api/signin/' + b.dataset.social + '/start', {method: 'POST', body: '{}'});
+    location.assign(r.url);
+  });
+  authBind('#member-form', async f => {
+    const data = Object.fromEntries(new FormData(f)),
+      r = await api('/api/account/' + (signup ? 'register' : 'login'), {method: 'POST', body: JSON.stringify(data)});
+    if (signup) {
+      f.hidden = true;
+      $('#auth-result').innerHTML =
+        `<div class="auth-success"><div><strong>Check your inbox</strong><p>${esc(r.message)}</p><p>Check spam too. The link expires in 30 minutes.</p><button id="resend-email" class="button">Resend verification email</button><span id="resend-status" role="status"></span></div></div>`;
+      authBind('#resend-email', async () => {
+        const response = await api('/api/account/resend-verification', {method: 'POST', body: JSON.stringify(data)});
+        $('#resend-status').textContent = response.message;
+      });
+    } else if (r.mfaRequired) {
+      loginMfaTicket = r.ticket;
+      await renderAuthPage();
+    } else await signInComplete();
+  });
+  authBind('#forgot-form', async f => {
+    const r = await api('/api/account/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify(Object.fromEntries(new FormData(f))),
+    });
+    $('#auth-result').textContent = r.message;
+  });
+  authBind('#email-finish', async f => {
+    const r = await api('/api/account/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({...verificationLink, ...Object.fromEntries(new FormData(f))}),
+    });
+    verificationLink = null;
+    f.hidden = true;
+    $('#auth-result').innerHTML =
+      `<div class="auth-success"><div><strong>You’re all set.</strong><p>${esc(r.message)}</p><a class="button primary" href="${session.authenticated && kind === 'invite' ? '/account' : '/login'}">Continue ↗</a></div></div>`;
+  });
+  authBind('#mfa-login', async f => {
+    await api('/api/account/mfa/login', {
+      method: 'POST',
+      body: JSON.stringify({ticket: loginMfaTicket, code: new FormData(f).get('code')}),
+    });
+    await signInComplete();
+  });
+  $('#back-to-login')?.addEventListener('click', () => {
+    loginMfaTicket = null;
+  });
+};
+renderAccountPage = async function () {
+  await baseAccountPage();
+  if (!session.authenticated) return;
+  const account = await api('/api/account'),
+    options = await api('/api/account/options');
+  if (account.administrator) {
+    content.insertAdjacentHTML(
+      'beforeend',
+      `<section class="panel account-security-panel"><span class="eyebrow">KEEP YOUR EXISTING WORKSPACE</span><h2>Set up your owner account</h2><p>Verify your email and set a password for this workspace. Your platform connections, reports, campaigns and permissions remain in place.</p><form id="owner-setup" class="auth-form">${formField('Your name', 'name', 'text', 'maxlength="80" autocomplete="name"')}${formField('Email address', 'email', 'email', 'maxlength="254" autocomplete="email"')}${formField('Current administrator password', 'administratorPassword', 'password', 'autocomplete="current-password"')}<button class="button primary" ${options.emailEnabled ? '' : 'disabled'}>Send owner verification email ↗</button></form>${options.emailEnabled ? '' : '<p class="notice">Configure a verified email sender in Settings before owner setup.</p>'}</section>`,
+    );
+    authBind('#owner-setup', async f => {
+      const r = await api('/api/account/owner-setup', {
+        method: 'POST',
+        body: JSON.stringify(Object.fromEntries(new FormData(f))),
+      });
+      toast(r.message);
+      f.reset();
+    });
+  } else {
+    content.insertAdjacentHTML(
+      'beforeend',
+      `<section class="panel account-security-panel"><div class="panel-header"><div><span class="eyebrow">ANOTHER LAYER OF SECURITY</span><h2>Two-step authentication</h2></div><span class="status ${account.mfaEnabled ? 'online' : ''}">${account.mfaEnabled ? 'Enabled' : 'Available'}</span></div><p>Use an authenticator app and keep recovery codes somewhere safe. Enabling or disabling this protection revokes existing sessions and MCP access.</p><div id="mfa-setup">${account.mfaEnabled ? `<form id="mfa-disable" class="auth-form">${formField('Authenticator or recovery code', 'code', 'text', 'maxlength="32" autocomplete="one-time-code"')}<button class="button">Disable two-step authentication</button></form>` : '<button id="mfa-start" class="button primary">Set up authenticator</button>'}</div></section>`,
+    );
+    authBind('#mfa-start', async () => {
+      const r = await api('/api/account/mfa/start', {method: 'POST', body: '{}'});
+      $('#mfa-setup').innerHTML =
+        `<ol class="mfa-steps"><li><strong>Add AMCP to your authenticator app.</strong> Scan this code with it:${mfaQr(r.uri)}On this phone or tablet: <a class="button small" href="${esc(r.uri)}">Open in authenticator app</a>. Or enter this setup key (time-based, 6 digits):<code class="recovery-key" id="mfa-key">${esc(r.secret.match(/.{1,4}/g).join(' '))}</code><button type="button" class="button small" id="mfa-copy-key">Copy setup key</button></li><li><strong>Enter the code the app shows</strong> to confirm it works.<form id="mfa-enable" class="auth-form">${formField('6-digit authenticator code', 'code', 'text', 'inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code"')}<button class="button primary">Verify and enable</button></form></li></ol>`;
+      $('#mfa-copy-key').addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(r.secret);
+          toast('Setup key copied.');
+        } catch {
+          toast('Select the key and copy it.');
+        }
+      });
+      authBind('#mfa-enable', async f => {
+        const result = await api('/api/account/mfa/enable', {
+          method: 'POST',
+          body: JSON.stringify({ticket: r.ticket, code: new FormData(f).get('code')}),
+        });
+        session = await api('/api/session');
+        const codes = result.recoveryCodes.join('\n');
+        $('#mfa-setup').innerHTML =
+          `<div class="notice" role="alert"><strong>Save these recovery codes now.</strong> Each code works once, if you lose your authenticator. They will not be shown again.</div><pre class="recovery-key">${result.recoveryCodes.map(esc).join('\n')}</pre><div class="report-actions"><button type="button" class="button" id="mfa-copy-codes">Copy codes</button><button type="button" class="button" id="mfa-download-codes">Download as a text file</button><a class="button primary" href="/account">I’ve saved my codes</a></div>`;
+        $('#mfa-copy-codes').addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(codes);
+            toast('Recovery codes copied.');
+          } catch {
+            toast('Select the codes and copy them.');
+          }
+        });
+        $('#mfa-download-codes').addEventListener('click', () => {
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(
+            new Blob(['AMCP recovery codes. Each works once.\n\n' + codes + '\n'], {type: 'text/plain'}),
+          );
+          link.download = 'AMCP-recovery-codes.txt';
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+        });
+      });
+    });
+    authBind('#mfa-disable', async f => {
+      await api('/api/account/mfa/disable', {
+        method: 'POST',
+        body: JSON.stringify(Object.fromEntries(new FormData(f))),
+      });
+      session = await api('/api/session');
+      await renderAccountPage();
+    });
+    const w = await api('/api/workspaces');
+    content.insertAdjacentHTML(
+      'beforeend',
+      `<section class="panel"><h2>Your workspaces</h2><p>One sign-in can belong to several workspaces. Each workspace controls its own accounts and permissions.</p>${w.workspaces.map(x => `<div class="identity-row"><div><strong>${esc(x.name)}</strong><small>${esc(x.role)}</small></div><button class="button small" data-switch-workspace="${esc(x.id)}" ${x.id === account.workspaceId ? 'disabled' : ''}>${x.id === account.workspaceId ? 'Current workspace' : 'Switch workspace'}</button></div>`).join('')}</section>`,
+    );
+    authBind('[data-switch-workspace]', async b => {
+      await api('/api/workspaces/switch', {
+        method: 'POST',
+        body: JSON.stringify({workspaceId: b.dataset.switchWorkspace}),
+      });
+      session = await api('/api/session');
+      platforms = (await api('/api/platforms')).platforms;
+      await render();
+    });
+  }
+  if (['owner', 'admin'].includes(account.workspaceRole)) {
+    const team = await api('/api/workspaces/members');
+    content.insertAdjacentHTML(
+      'beforeend',
+      `<section class="panel"><span class="eyebrow">PEOPLE & ACCESS</span><h2>Workspace members</h2><div class="team-list">${team.members.map(m => `<div class="identity-row"><div><strong>${esc(m.name)}</strong><small>${esc(m.email ?? 'Social account')}</small></div>${account.workspaceRole === 'owner' && m.role !== 'owner' ? `<select aria-label="Role for ${esc(m.name)}" data-member-role="${esc(m.id)}"><option value="viewer" ${m.role === 'viewer' ? 'selected' : ''}>Viewer</option><option value="operator" ${m.role === 'operator' ? 'selected' : ''}>Operator</option><option value="admin" ${m.role === 'admin' ? 'selected' : ''}>Admin</option></select><button class="button small" data-member-save="${esc(m.id)}">Save role</button><button class="button small danger" data-member-remove="${esc(m.id)}" data-member-name="${esc(m.name)}">Remove</button>` : `<span class="status">${esc(m.role)}</span>`}</div>`).join('')}</div><form id="invite-member" class="workspace-form">${formField('Email address', 'email', 'email', 'maxlength="254"')}<label>Role<select name="role"><option value="viewer">Viewer · reports and reads</option><option value="operator">Operator · reviewed campaign changes</option>${account.workspaceRole === 'owner' ? '<option value="admin">Admin · connections and invitations</option>' : ''}</select></label><button class="button primary" ${options.emailEnabled ? '' : 'disabled'}>Send invitation</button></form><p class="form-note">Invitations expire in 30 minutes. Send another invitation if a link expires.</p></section>`,
+    );
+    authBind('#invite-member', async f => {
+      const r = await api('/api/workspaces/invite', {
+        method: 'POST',
+        body: JSON.stringify(Object.fromEntries(new FormData(f))),
+      });
+      toast(r.message);
+      f.reset();
+    });
+    authBind('[data-member-save]', async b => {
+      const role = document.querySelector('[data-member-role="' + CSS.escape(b.dataset.memberSave) + '"]').value;
+      await api('/api/workspaces/member', {method: 'POST', body: JSON.stringify({userId: b.dataset.memberSave, role})});
+      toast('Role saved.');
+      await renderAccountPage();
+    });
+    // Removal is its own action, confirmed, rather than a role in the list.
+    authBind('[data-member-remove]', async b => {
+      if (
+        !(await confirmAction({
+          title: 'Remove ' + b.dataset.memberName + ' from this workspace?',
+          consequence:
+            'Their browser sessions and connector access to this workspace end immediately. Their sign-in and other workspaces are not affected.',
+          confirmLabel: 'Remove from workspace',
+        }))
+      )
+        return;
+      await api('/api/workspaces/member', {
+        method: 'POST',
+        body: JSON.stringify({userId: b.dataset.memberRemove, role: 'remove'}),
+      });
+      toast('Member removed.');
+      await renderAccountPage();
+    });
+  }
 };
 // Reviewer sign-in. Same shape as the administrator door, a different destination.
-document.addEventListener('click',event=>{
- if(!event.target.closest('[data-open-test]'))return;
- $('#test-dialog').showModal();$('#test-password').focus();
+document.addEventListener('click', event => {
+  if (!event.target.closest('[data-open-test]')) return;
+  $('#test-dialog').showModal();
+  $('#test-password').focus();
 });
-$('#test-form')?.addEventListener('submit',async event=>{
- event.preventDefault();
- const button=event.submitter;button.disabled=true;$('#test-error').textContent='';
- try{
-  await api('/api/session/test',{method:'POST',body:JSON.stringify({password:$('#test-password').value})});
-  $('#test-password').value='';$('#test-dialog').close();
-  await signInComplete();
- }catch(e){$('#test-error').textContent=e.message;}
- finally{button.disabled=false;}
+$('#test-form')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const button = event.submitter;
+  button.disabled = true;
+  $('#test-error').textContent = '';
+  try {
+    await api('/api/session/test', {method: 'POST', body: JSON.stringify({password: $('#test-password').value})});
+    $('#test-password').value = '';
+    $('#test-dialog').close();
+    await signInComplete();
+  } catch (e) {
+    $('#test-error').textContent = e.message;
+  } finally {
+    button.disabled = false;
+  }
 });

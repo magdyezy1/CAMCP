@@ -49,7 +49,7 @@ for (const file of files) {
   const natives =
     [...text.matchAll(/(^|[^\w.])confirm\(/g)].length -
     (file === 'report-library.js' &&
-    /function overviewMayLeave\(\)\{return !overviewState\.dirty\|\|confirm\(/.test(text)
+    /function overviewMayLeave\(\)\s*\{\s*return !overviewState\.dirty\s*\|\|\s*confirm\(/.test(text)
       ? 1
       : 0);
   if (natives > 0) problems.push(file + ': native confirm() (' + natives + '); use confirmAction()');

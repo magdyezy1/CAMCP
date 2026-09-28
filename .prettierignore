@@ -2,6 +2,8 @@
 src/google-asset-set-fields.ts
 generated/
 .mirror/
+# Vendored third-party code, kept byte for byte (its digest is recorded in web/vendor/README.md).
+web/vendor/
 # Build output, release candidates and local runtime state.
 dist/
 .release/

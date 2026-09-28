@@ -71,10 +71,7 @@ ${
 <form id="push-review" class="push-step" hidden><h3>2. Where it goes</h3>
 <fieldset class="push-targets"><legend>Advertising accounts</legend>${
     targets
-      .map(
-        (t, i) =>
-          `<label><input type="checkbox" name="target" value="${i}"> ${esc(t.label)}</label>`,
-      )
+      .map((t, i) => `<label><input type="checkbox" name="target" value="${i}"> ${esc(t.label)}</label>`)
       .join('') || '<p class="form-note">Connect an advertising account and select it first.</p>'
   }</fieldset>
 <label id="push-owner" hidden>LinkedIn video owner: the organization URN of the page that posts it<input name="owner_urn" placeholder="urn:li:organization:123"></label>
@@ -105,7 +102,11 @@ function bindCreativePush(targets) {
     }<div><strong>${esc(s.filename)}</strong><p class="form-note">${esc(pushFacts(s))} · kept until ${date(s.expires_at)}</p><button class="button small" type="button" id="push-remove">Remove this file</button></div></div>`;
     const form = $('#push-review');
     form.hidden = false;
-    form.elements.name.value = s.filename.replace(/\.[A-Za-z0-9]{1,5}$/, '').replace(/[\\/\x00-\x1f]/g, ' ').slice(0, 80) || 'AMCP media';
+    form.elements.name.value =
+      s.filename
+        .replace(/\.[A-Za-z0-9]{1,5}$/, '')
+        .replace(/[\\/\x00-\x1f]/g, ' ')
+        .slice(0, 80) || 'AMCP media';
     ownerField();
     workspaceBind('#push-remove', async () => {
       await api(pushSourceUrl(s.source_id), {method: 'DELETE'});
@@ -186,12 +187,15 @@ function bindCreativePush(targets) {
     }));
     drawRows();
     const ready = rows.filter(r => r.state === 'ready').length;
-    status(ready + ' of ' + rows.length + (rows.length === 1 ? ' account is' : ' accounts are') + ' ready for your review.');
+    status(
+      ready + ' of ' + rows.length + (rows.length === 1 ? ' account is' : ' accounts are') + ' ready for your review.',
+    );
     $('#push-reviews-title')?.focus();
   });
   const drawRows = () => {
     const ready = rows.filter(r => r.state === 'ready');
-    $('#push-reviews').innerHTML = `<div class="push-step"><h3 id="push-reviews-title" tabindex="-1">3. Review and push</h3>
+    $('#push-reviews').innerHTML =
+      `<div class="push-step"><h3 id="push-reviews-title" tabindex="-1">3. Review and push</h3>
 <div class="push-table-wrap" tabindex="0" role="region" aria-labelledby="push-reviews-title"><table class="push-table" aria-labelledby="push-reviews-title">
 <thead><tr><th scope="col">Account</th><th scope="col">File it receives</th><th scope="col">What AMCP changes</th><th scope="col">Status</th></tr></thead>
 <tbody>${rows.map(pushRow).join('')}</tbody></table></div>

@@ -9,8 +9,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "format": "prettier --write \"src/**/*.ts\" \"server/**/*.ts\" \"tools/**/*.{ts,mjs}\" \"tests/**/*.{ts,mjs}\" \"codegen/**/*.mjs\" \"deploy/**/*.mjs\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"server/**/*.ts\" \"tools/**/*.{ts,mjs}\" \"tests/**/*.{ts,mjs}\" \"codegen/**/*.mjs\" \"deploy/**/*.mjs\"",
+    "format": "prettier --write \"src/**/*.ts\" \"server/**/*.ts\" \"tools/**/*.{ts,mjs}\" \"tests/**/*.{ts,mjs}\" \"codegen/**/*.mjs\" \"deploy/**/*.mjs\" \"web/**/*.{js,css}\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"server/**/*.ts\" \"tools/**/*.{ts,mjs}\" \"tests/**/*.{ts,mjs}\" \"codegen/**/*.mjs\" \"deploy/**/*.mjs\" \"web/**/*.{js,css}\"",
     "start": "node dist/server/stdio.js",
     "start:http": "node dist/server/http.js",
     "worker": "node dist/server/worker.js",
