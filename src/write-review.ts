@@ -170,7 +170,7 @@ import {microsoftGateway,microsoftScope,assertMicrosoftWrite,microsoftSnapshots,
 import {validateMicrosoftAssociationState} from './microsoft-associations.js';
 import {measurementWriteGateways,assertMeasurementWrite,assertMeasurementScopes,measurementSnapshots,optionalMissingState,validateMeasurementState,measurementOutcome} from './measurement-writes.js';
 
-export const writeTool={name:'amcp_write',description:'Inspect, prepare and execute a reviewed native advertising or measurement mutation. inspect checks local write-contract support without credentials or network calls. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request. Execution requires its review_id, idempotency_key and explicit confirmation. Operator role and administrator account write grants are required. This is an AMCP extension, not a captured AMCP tool.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['inspect','prepare','execute']},gateway:{type:'string'},arguments:{type:'object'},connection_id:{type:'string'},review_id:{type:'string'},idempotency_key:{type:'string'},confirmed:{type:'boolean'},spend_change_confirmed:{type:'boolean'},creative_edit_confirmed:{type:'boolean',description:'Explicitly acknowledge a reviewed X card edit/deletion or Tweet rename that may disrupt promoted ads. Freeze this choice during prepare and repeat it during execute.'}},additionalProperties:false}};
+export const writeTool={name:'amcp_write',description:'Inspect, prepare and execute a reviewed native advertising or measurement mutation. inspect checks local write-contract support without credentials or network calls. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request. Execution requires its review_id, idempotency_key and explicit confirmation. Operator role and administrator account write grants are required. This is an AMCP extension, not a captured AMCP tool.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['inspect','prepare','execute']},gateway:{type:'string'},arguments:{type:'object'},connection_id:{type:'string'},review_id:{type:'string'},idempotency_key:{type:'string',description:'Optional at execute: defaults to the review_id. When given it must equal the review_id returned by prepare.'},confirmed:{type:'boolean'},spend_change_confirmed:{type:'boolean'},creative_edit_confirmed:{type:'boolean',description:'Explicitly acknowledge a reviewed X card edit/deletion or Tweet rename that may disrupt promoted ads. Freeze this choice during prepare and repeat it during execute.'}},additionalProperties:false}};
 export const writeContractGateways=new Set(['meta_native_action','tiktok_native_action','snapchat_native_action','google_ads_native_action','google_business_native_action','linkedin_native_action','x_ads_native_action','dv360_native_action','reddit_native_action','criteo_native_action',microsoftGateway,...measurementWriteGateways]);
 const object=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?v as JsonObject:{};
 const snake=(s:string)=>s.replace(/([a-z0-9])([A-Z])/g,'$1_$2').toLowerCase();
@@ -880,6 +880,8 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
 
 /** What execute will ask for, decided at prepare by the same authorizeExecution rules, so a client can ask the user
  * once instead of discovering a missing flag from a refused execute. Advisory: execute re-checks everything. */
+/** The call that prepares an expired review's original request again (reviews prepared before this field existed have none). */
+const expiredNext=(review:JsonObject):JsonObject=>review.prepare_input?{next_call:{tool:'amcp_write',arguments:{action:'prepare',...review.prepare_input}}}:{};
 export function executeRequirements(actor:Actor,plan:CompiledRequest,policy:ExecutionPolicy,reviewId:string,creativeEdit:boolean):JsonObject{
  const reasons:JsonObject[]=[];let spend=false;
  try{authorizeExecution(actor,plan,{dry_run:false,confirmed:true,idempotency_key:reviewId},policy,true);}
@@ -1207,11 +1209,13 @@ export class WriteReviewService {
    const override=input.creative_edit_confirmed===true?{creative_edit_confirmed:true}:{};
    const reviewId=randomUUID(),fingerprint=sha256(stable({tenant:actor.tenantId,user:actor.userId,connection:c.id,plan,...override})),expiresAt=Date.now()+300000;
    const stateHash=reviewStateHash(state),spendPolicy=checkSpendPolicy(this.store,actor,plan,state),requirements=executeRequirements(actor,plan,this.policy,reviewId,input.creative_edit_confirmed===true);
-   this.store.putDocument(actor.tenantId,'write_review',reviewId,{user_id:actor.userId,connection_id:c.id,plan,reads,state,state_hash:stateHash,fingerprint,expires_at:expiresAt,...override});
+   this.store.putDocument(actor.tenantId,'write_review',reviewId,{user_id:actor.userId,connection_id:c.id,plan,reads,state,state_hash:stateHash,fingerprint,expires_at:expiresAt,...override,prepare_input:{gateway:input.gateway,arguments:input.arguments,...(input.connection_id!==undefined?{connection_id:input.connection_id}:{}),...(input.creative_edit_confirmed===true?{creative_edit_confirmed:true}:{})}});
    this.store.appendAudit(actor.tenantId,reviewId,{event:'write_prepared',request:plan,fingerprint,expires_at:expiresAt});
    return {success:true,executed:false,review_id:reviewId,idempotency_key:reviewId,expires_at:new Date(expiresAt).toISOString(),request:redact(plan.gateway==='google_business_native_action'?placeActionSafe(plan):plan),contract_evidence:executionEvidence(plan),before_state:redact(state),spend_policy:spendPolicy,state_hash:stateHash,state_reads:reads.map(r=>({method:r.method,path:r.path})),fingerprint,confirmation_required:true,expires_in_seconds:300,execute_requirements:requirements,...(creativeImpact?{creative_impact:creativeImpact}:{})};
   }
   if(input.action!=='execute'||typeof input.review_id!=='string')fail('INVALID_ARGUMENT','Use prepare or execute with a review_id.');
+  // The idempotency key is the review id; asking the client to repeat it protected nothing. A supplied key must still match.
+  if(input.idempotency_key===undefined)input={...input,idempotency_key:input.review_id};
   if(input.arguments!==undefined)fail('INVALID_ARGUMENT','Execute takes only review_id, idempotency_key and confirmation flags; the request was frozen at prepare. Prepare a new review to change it.');
   const review=this.store.document(actor.tenantId,'write_review',input.review_id);
   if(review.user_id!==actor.userId)throw new MirrorError('FORBIDDEN','The review belongs to a different actor.',{},403);
@@ -1227,7 +1231,7 @@ export class WriteReviewService {
   const previous=this.store.db.prepare('SELECT state,result,fingerprint FROM idempotency WHERE tenant_id=? AND key=?').get(actor.tenantId,input.idempotency_key) as JsonObject|undefined;
   if(previous){if(previous.fingerprint!==fingerprint)fail('IDEMPOTENCY_CONFLICT','The key is bound to another request.');if(previous.state==='complete'){const saved={...JSON.parse(previous.result),replayed:true};return googlePreviewKind(plan)?googlePreviewDelivery(plan,saved,this.store.previewReceipt(actor.tenantId,input.review_id)):saved;}fail('WRITE_OUTCOME_UNCERTAIN','This review was already submitted. Inspect provider state; do not retry with a new key.');}
   assertRedditCreativeAvailable(plan);
-  if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Prepare and review a fresh request.');
+  if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Nothing was submitted. Prepare the same request again and review it.',expiredNext(review));
   // Reproject saved envelopes as well: a still-valid review prepared before an
   // upgrade must not conflict solely because its stored envelope was wider.
   // X creative discovery already returns its own validated resource projection.
@@ -1239,7 +1243,7 @@ export class WriteReviewService {
   assertGoogleAccessPrerequisites(plan,current);
   const c=this.access(actor,plan,review.connection_id),auth=await this.credentials.get(c);this.access(actor,plan,review.connection_id);
   assertSnapCreativeReferences(plan,current,resource=>this.store.ownsResource(c,normalizeAccount(plan.gateway,plan.accountId!),resource));
-  if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Review expired during state verification.');
+  if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','The review expired during state verification. Nothing was submitted; prepare it again.',expiredNext(review));
   assertRedditCreativeAvailable(plan);
   if(xReportKind(plan)&&xReportIdentity(auth)!==(current[0] as JsonObject).login_fingerprint)fail('X_REPORT_LOGIN_CHANGED','The X login changed after preparation.');
   if(tiktokReportKind(plan)&&sha256(auth.accessToken??'')!==(current[0] as JsonObject).token_fingerprint)fail('TIKTOK_REPORT_TOKEN_CHANGED','TikTok credentials changed after the prerequisite read. Preserve the review and task.');

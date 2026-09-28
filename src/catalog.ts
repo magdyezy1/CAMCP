@@ -49,6 +49,12 @@ export class Registry {
    if(!nested||!nested(input.arguments??{}))throw new MirrorError('INVALID_ARGUMENT','Arguments do not satisfy the captured operation schema.',{errors:nested?.errors});
   }
  }
+ /** True when the tool's input schema (or, for a delegated tool, the operation's arguments schema) accepts this key. */
+ acceptsArgument(tool:string,key:string,operation?:string):boolean{
+  const t=this.tools.get(tool);if(!t)return false;
+  const schema=t.mode==='delegated'?t.operations?.find(o=>o.operation===operation)?.argumentsSchema:t.inputSchema;
+  return !!schema&&(Object.hasOwn(schema.properties??{},key)||(schema.additionalProperties!==false&&schema.additionalProperties!==undefined));
+ }
  listTools(options:CallOptions){return [...this.tools.values()].map(t=>({name:t.name,description:t.description,inputSchema:this.schema(t,options)}));}
  schema(tool:ToolDefinition,options:CallOptions):JsonObject{
   const schema=structuredClone(tool.inputSchema);

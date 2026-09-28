@@ -71,7 +71,7 @@ export class MirrorService {
    if(tool===overviewTool.name)return this.wrap(await new ReportingOverview(this,this.mediaFetcher).handle(input,actor),requestId,start,tool);
    const call=(t:string,a:JsonObject,u:Actor)=>this.call(t,a,u);
    if(tool===workspaceTool.name)return this.wrap(await new WorkspaceService(this.store,this.registry,this.transport,this.credentials,call,this.policy.allowWrites).handle(input,actor),requestId,start,tool);
-   if(tool===campaignTool.name)return this.wrap(await new CampaignRunner(this.store,call,(a,id)=>this.verifyWrite(a,id), (a,i)=>validateProviderRequest(this,a,i),(a,steps)=>campaignPreflight(this,a,steps)).handle(input,actor),requestId,start,tool);
+   if(tool===campaignTool.name)return this.wrap(await new CampaignRunner(this.store,call,(a,id)=>this.verifyWrite(a,id), (a,i)=>validateProviderRequest(this,a,i),(a,steps)=>campaignPreflight(this,a,steps),(g,op)=>this.registry.acceptsArgument(g,'account_id',op)).handle(input,actor),requestId,start,tool);
    if(tool===decisionTool.name)return this.wrap(await new DecisionReporting(this.store,async(t,a,u)=>{
     this.registry.validate(t,a,this.options);const p=this.registry.tools.get(t)?.mode==='delegated'?this.delegatedCompiler.compile(t,a):this.compiler.compile(t,a,this.options);
     if(!applyExecutionRisk(p).readOnly)throw new MirrorError('REPORT_READ_REQUIRED','Reporting accepts independently qualified native reads only.');
