@@ -20,6 +20,7 @@ import {assertAccountWrite} from './write-access.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {assertLinkedInOrganization} from './linkedin-posts.js';
 import {linkedInTransfer,linkedInPartId,linkedInResumeReason,assertLinkedInResume,assertLinkedInWaiting} from './linkedin-media-resume.js';
+import {assertWritesNotPaused} from './owner-operations.js';
 
 const platforms=mediaPlatforms;
 /** Snapchat simple uploads take up to 32 MB; larger files are sent in parts well under the 32 MB part limit (either unit). */
@@ -211,6 +212,7 @@ export class MediaUploadService {
   const expectedState=normalizeSnapshot(p.read,review.state),current=await this.state(actor,p),actual=reviewStateHash(current),expected=reviewStateHash(expectedState);
   if(actual!==expected)fail('STATE_CHANGED','Provider configuration changed. Prepare a new media review.',{expected_state_hash:expected,actual_state_hash:actual,changed_fields:changedStateFields(expectedState,current)});
   if(review.expires_at<=Date.now())fail('REVIEW_EXPIRED','Media review expired during verification.');
+  assertWritesNotPaused(this.store,actor.tenantId);
   const claim=resuming?{fresh:true}:this.store.claim(actor.tenantId,input.review_id,fingerprint);if(!claim.fresh)return {...(claim.result as JsonObject),replayed:true};
   let allocated:JsonObject=resuming?{...review.progress}:{};
   const record=(data:JsonObject)=>{if(data.session){this.store.saveUploadSession(actor.tenantId,input.review_id,data.session,review.expires_at);delete data.session;}if(data.finalization_started){const session=this.store.uploadSession(actor.tenantId,input.review_id);if(session)this.store.saveUploadSession(actor.tenantId,input.review_id,{...session,finalization_started:true},review.expires_at);}allocated={...allocated,...data};const current=this.store.document(actor.tenantId,'media_review',input.review_id);this.store.putDocument(actor.tenantId,'media_review',input.review_id,{...current,progress:{...allocated,updated_at:Date.now()}});this.store.journal(actor.tenantId,input.review_id,data.bytes_confirmed!==undefined?'transferring':'allocated',allocated);this.store.appendAudit(actor.tenantId,input.review_id,{event:'media_allocated',...allocated});};

@@ -131,6 +131,7 @@ import {microsoftGateway,microsoftScope,assertMicrosoftWrite,microsoftSnapshots,
 import {validateMicrosoftAssociationState} from './microsoft-associations.js';
 import {measurementWriteGateways,assertMeasurementWrite,assertMeasurementScopes,measurementSnapshots,optionalMissingState,validateMeasurementState,measurementOutcome} from './measurement-writes.js';
 import {familyOf,familyOfRead,readThroughFamilies} from './reviewed-families.js';
+import {assertWritesNotPaused} from './owner-operations.js';
 
 export const writeTool={name:'amcp_write',description:'Inspect, prepare and execute a reviewed native advertising or measurement mutation. inspect checks local write-contract support without credentials or network calls. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request. Execution requires its review_id, idempotency_key and explicit confirmation. Operator role and administrator account write grants are required. This is an AMCP extension, not a captured AMCP tool.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['inspect','prepare','execute']},gateway:{type:'string'},arguments:{type:'object'},connection_id:{type:'string'},review_id:{type:'string'},idempotency_key:{type:'string',description:'Optional at execute: defaults to the review_id. When given it must equal the review_id returned by prepare.'},confirmed:{type:'boolean'},spend_change_confirmed:{type:'boolean'},creative_edit_confirmed:{type:'boolean',description:'Explicitly acknowledge a reviewed X card edit/deletion or Tweet rename that may disrupt promoted ads. Freeze this choice during prepare and repeat it during execute.'}},additionalProperties:false}};
 export const writeContractGateways=new Set(['meta_native_action','tiktok_native_action','snapchat_native_action','google_ads_native_action','google_business_native_action','linkedin_native_action','x_ads_native_action','dv360_native_action','reddit_native_action','criteo_native_action',microsoftGateway,...measurementWriteGateways]);
@@ -978,6 +979,7 @@ export class WriteReviewService {
   this.access(actor,plan,review.connection_id);
   if(input.idempotency_key!==input.review_id)fail('IDEMPOTENCY_REQUIRED','Use the exact idempotency_key returned by prepare.');
   authorizeExecution(actor,plan,{...input,dry_run:false},this.policy,true);
+  assertWritesNotPaused(this.store,actor.tenantId);
   if(review.creative_edit_confirmed===true&&input.creative_edit_confirmed!==true)fail('CREATIVE_EDIT_CONFIRMATION_REQUIRED','This review permits a potentially destructive creative edit. Also provide creative_edit_confirmed=true to execute.');
   if(input.creative_edit_confirmed===true&&review.creative_edit_confirmed!==true)fail('REVIEW_CHANGED','Prepare a new review to acknowledge creative-edit risk. Execute cannot add an override.');
   const fingerprint=sha256(stable({tenant:actor.tenantId,user:actor.userId,connection:review.connection_id,plan,...(review.creative_edit_confirmed===true?{creative_edit_confirmed:true}:{})}));if(fingerprint!==review.fingerprint)fail('REVIEW_CHANGED','The stored reviewed request failed its integrity check.');

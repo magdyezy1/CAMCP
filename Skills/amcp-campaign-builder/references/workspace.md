@@ -220,6 +220,10 @@ blindly, reshape a request to slip past one, or split a change into smaller piec
 - `DRY_RUN_REQUIRED` — the deployment allows only local previews for this route.
 - `LIVE_WRITES_DISABLED` — reviewed writes are switched off for this deployment entirely. This
   is a deployment setting, not something to work around.
+- `WRITES_PAUSED` — an owner paused every reviewed write of this workspace (`amcp_workspace`
+  `pause_writes`, with a reason the message repeats). Nothing was submitted and the review stays
+  valid until it expires. Tell the user; only an owner can `resume_writes`. Reads, `prepare` and
+  verification continue while writes are paused.
 - `MUTATION_REQUIRED` — a read was sent to the write path. Use the native gateway instead.
 - `ACCOUNT_REQUIRED` / `CONNECTION_REQUIRED` / `AMBIGUOUS_CONNECTION` — the account or connection
   could not be resolved, or more than one matched. Ask the user which account they mean rather
