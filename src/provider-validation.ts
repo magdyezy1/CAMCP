@@ -2,7 +2,7 @@ import {nativeAuthority} from './native-authority.js';
 import {MirrorService} from './service.js';
 import {MirrorError} from './errors.js';
 import {ScopeGuard} from './scope.js';
-import {assertWriteShape} from './write-review.js';
+import {assertWriteShape} from './write-shape.js';
 import {audit, fingerprint, validate, writer} from './workspace-core.js';
 import type {Actor, JsonObject} from './types.js';
 // Native validate_only is a distinct provider operation. It does not create a review or permit execute.

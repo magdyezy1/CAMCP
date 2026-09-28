@@ -4,7 +4,7 @@ import {Registry} from '../src/catalog.js';
 import {Store} from '../src/store.js';
 import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
-import {writeOutcome} from '../src/write-review.js';
+import {writeOutcome} from '../src/write-outcome.js';
 import type {Actor, JsonObject, CompiledRequest} from '../src/types.js';
 const registry = new Registry(),
   key = Buffer.alloc(32, 24).toString('base64'),

@@ -4,7 +4,7 @@ import {Registry} from '../src/catalog.js';
 import {Store} from '../src/store.js';
 import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
-import {assertWriteShape} from '../src/write-review.js';
+import {assertWriteShape} from '../src/write-shape.js';
 import {saveSpendPolicy, checkSpendPolicy} from '../src/spend-policy.js';
 import type {Actor, CompiledRequest, JsonObject} from '../src/types.js';
 

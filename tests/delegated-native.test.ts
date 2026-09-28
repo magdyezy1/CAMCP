@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import {DelegatedNativeCompiler} from '../src/delegated-native.js';
 import {MirrorError} from '../src/errors.js';
 import {applyExecutionRisk} from '../src/execution-risk.js';
-import {assertWriteShape} from '../src/write-review.js';
+import {assertWriteShape} from '../src/write-shape.js';
 const compiler = new DelegatedNativeCompiler();
 const compile = (gateway: string, operation: string, args: Record<string, unknown>) =>
   compiler.compile(gateway, {operation, arguments: args});

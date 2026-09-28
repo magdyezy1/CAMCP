@@ -5,7 +5,7 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
-import {writeContractGateways} from '../dist/src/write-review.js';
+import {writeContractGateways} from '../dist/src/write-shape.js';
 import {reviewedWriteFamily} from '../dist/src/reviewed-routes.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
 import {campaignRecipe, campaignRecipes} from '../dist/src/campaign-recipes.js';

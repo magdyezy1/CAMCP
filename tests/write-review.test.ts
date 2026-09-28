@@ -8,7 +8,8 @@ import {Compiler} from '../src/compiler.js';
 import {Store} from '../src/store.js';
 import {NativeTransport} from '../src/transport.js';
 import {MirrorService} from '../src/service.js';
-import {validateState, writeOutcome} from '../src/write-review.js';
+import {writeOutcome} from '../src/write-outcome.js';
+import {validateState} from '../src/write-state.js';
 import {removeTestDirectory} from './temp.js';
 import type {Actor, JsonObject} from '../src/types.js';
 const registry = new Registry(),

@@ -8,7 +8,8 @@ import {ReportWorker} from '../src/worker.js';
 import {PlatformOAuth} from '../server/platform-oauth.js';
 import {WebStore} from '../server/web-store.js';
 import {gtmWriteActions, gtmWriteScopes} from '../src/measurement-writes.js';
-import {validateState, writeOutcome} from '../src/write-review.js';
+import {writeOutcome} from '../src/write-outcome.js';
+import {validateState} from '../src/write-state.js';
 import type {Actor, JsonObject, CompiledRequest} from '../src/types.js';
 const registry = new Registry(),
   key = Buffer.alloc(32, 117).toString('base64'),

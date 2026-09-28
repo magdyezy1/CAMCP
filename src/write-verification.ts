@@ -310,7 +310,8 @@ import {
   gtmWorkspaceObserved,
   readGtmWorkspace,
 } from './gtm-workspace-writes.js';
-import {validateState, snapshotPlans} from './write-review.js';
+import {snapshotPlans} from './write-snapshots.js';
+import {validateState} from './write-state.js';
 import {compileMicrosoft, microsoftGateway, microsoftContracts} from './microsoft-native.js';
 import {
   microsoftAssociationWrite,

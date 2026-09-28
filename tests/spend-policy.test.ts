@@ -9,7 +9,7 @@ import {
   activationFields,
 } from '../src/spend-policy.js';
 import {MirrorError} from '../src/errors.js';
-import {writeContractGateways} from '../src/write-review.js';
+import {writeContractGateways} from '../src/write-shape.js';
 import type {Actor, CompiledRequest, JsonObject} from '../src/types.js';
 
 const key = Buffer.alloc(32, 19).toString('base64');

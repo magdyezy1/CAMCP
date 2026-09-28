@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {assertWriteShape, snapshotPlans} from '../src/write-review.js';
+import {assertWriteShape} from '../src/write-shape.js';
+import {snapshotPlans} from '../src/write-snapshots.js';
 import {Registry} from '../src/catalog.js';
 import {MirrorError} from '../src/errors.js';
 import {Store} from '../src/store.js';

@@ -5,7 +5,8 @@ import {Store} from '../src/store.js';
 import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import {normalizeSnapshot, reviewStateHash, changedStateFields} from '../src/review-state.js';
-import {validateState, writeContractGateways} from '../src/write-review.js';
+import {writeContractGateways} from '../src/write-shape.js';
+import {validateState} from '../src/write-state.js';
 import type {CompiledRequest, JsonObject} from '../src/types.js';
 
 const registry = new Registry(),

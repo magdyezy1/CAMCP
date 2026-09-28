@@ -10,7 +10,7 @@ import {Registry} from './catalog.js';
 import {CredentialProvider} from './auth.js';
 import {NativeTransport} from './transport.js';
 import {ScopeGuard} from './scope.js';
-import {validateState} from './write-review.js';
+import {validateState} from './write-state.js';
 import {microsoftGateway, compileMicrosoft} from './microsoft-native.js';
 import {
   audit,

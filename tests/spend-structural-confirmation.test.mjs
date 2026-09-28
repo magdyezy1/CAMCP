@@ -4,7 +4,7 @@ import {Registry} from '../dist/src/catalog.js';
 import {Compiler} from '../dist/src/compiler.js';
 import {applyExecutionRisk} from '../dist/src/execution-risk.js';
 import {authorizeExecution} from '../dist/src/preflight.js';
-import {assertWriteShape} from '../dist/src/write-review.js';
+import {assertWriteShape} from '../dist/src/write-shape.js';
 import {activatesEntity, activationFields} from '../dist/src/spend-policy.js';
 
 // Edits of existing entities that change bids, bid targets, pacing, schedules, targeting or optimization need

@@ -9,7 +9,7 @@ import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import {DelegatedNativeCompiler} from '../src/delegated-native.js';
 import {ScopeGuard} from '../src/scope.js';
-import {writeOutcome} from '../src/write-review.js';
+import {writeOutcome} from '../src/write-outcome.js';
 import {saveSpendPolicy} from '../src/spend-policy.js';
 import {actionContracts} from '../src/action-contracts.js';
 import {
