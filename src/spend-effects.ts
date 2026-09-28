@@ -4,8 +4,8 @@ import {reviewedWriteFamily} from './reviewed-routes.js';
 /**
  * Structural spending and delivery effects of reviewed edits, decided from the request shape rather than its text.
  *
- * The generic check in preflight.ts matches field names containing "budget", "bid" or "spend" and string ACTIVE
- * statuses in the serialized request. Bid targets (Google Ads targetCpaMicros and targetRoas, LinkedIn unitCost),
+ * The generic check in preflight.ts (namesSpendField) matches field names containing "budget", "bid" or "spend" and
+ * active string statuses. Bid targets (Google Ads targetCpaMicros and targetRoas, LinkedIn unitCost),
  * pacing (DV360 pacing.dailyMaxMicros), schedules (end dates), targeting and optimization goals change what an existing
  * entity buys and spends without matching that text. ProtoJSON also lets the Google Ads API accept an enum number,
  * so `status: 2` (ENABLED) never read as activation.
@@ -53,6 +53,79 @@ export function numericStatusPaths(plan: CompiledRequest): string[] {
   };
   walk({query: plan.query, body: plan.body}, '', 0);
   return out;
+}
+
+/** Keys whose string values are field paths rather than content: JSON Patch, update masks, REST.li deletes. */
+const fieldPathKeys = new Set([
+  'path',
+  'from',
+  'updatemask',
+  'update_mask',
+  'fieldmask',
+  'field_mask',
+  'mask',
+  'paths',
+  '$delete',
+]);
+const spendWords = /budget|bid|spend/i;
+const activeStatusKeys = new Set([
+  'status',
+  'intendedstatus',
+  'intended_status',
+  'entity_status',
+  'entitystatus',
+  'operation_status',
+]);
+const activeValues = new Set(['ACTIVE', 'ENABLE', 'ENABLED', 'ENTITY_STATUS_ACTIVE']);
+
+/**
+ * The names a request uses for what it changes: every key of its query and body, the field paths carried as values
+ * (JSON Patch `path` and `from`, update masks, REST.li `$delete`), and the resource type of a Google Ads resource name
+ * such as `customers/1/adGroupBidModifiers/2~3`, since a remove operation names its target only that way. Content such
+ * as a campaign name, ad copy or a report's metric list is not a name.
+ */
+export function changedFieldNames(plan: CompiledRequest): string[] {
+  const out: string[] = [];
+  const text = (v: unknown) => {
+    if (typeof v !== 'string') return;
+    const type = /^customers\/\d+\/([A-Za-z]+)\//.exec(v)?.[1];
+    if (type) out.push(type);
+  };
+  const walk = (v: unknown, depth: number): void => {
+    if (depth > maxDepth) return;
+    if (Array.isArray(v)) {
+      for (const x of v) walk(x, depth + 1);
+      return;
+    }
+    if (!object(v)) return text(v);
+    for (const [k, x] of Object.entries(v)) {
+      out.push(k);
+      if (fieldPathKeys.has(k.toLowerCase()))
+        for (const s of Array.isArray(x) ? x : [x]) if (typeof s === 'string') out.push(s);
+      walk(x, depth + 1);
+    }
+  };
+  walk({query: plan.query, body: plan.body}, 0);
+  return out;
+}
+
+/**
+ * True when a field of the request is named for budgets, bids or spend, or a status field is set to an active value.
+ * The generic confirmation rule of preflight.ts; it reads names, never content (owner decision, review 2026-09-28).
+ */
+export function namesSpendField(plan: CompiledRequest): boolean {
+  if (changedFieldNames(plan).some(name => spendWords.test(name))) return true;
+  const active = (v: unknown, depth: number): boolean => {
+    if (depth > maxDepth) return false;
+    if (Array.isArray(v)) return v.some(x => active(x, depth + 1));
+    if (!object(v)) return false;
+    return Object.entries(v).some(
+      ([k, x]) =>
+        (activeStatusKeys.has(k.toLowerCase()) && typeof x === 'string' && activeValues.has(x.toUpperCase())) ||
+        active(x, depth + 1),
+    );
+  };
+  return active({query: plan.query, body: plan.body}, 0);
 }
 
 /**

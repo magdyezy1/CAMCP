@@ -53,7 +53,7 @@ import {metaAccountControlsKind} from './meta-brand-safety.js';
 import {microsoftAssociationWrite} from './microsoft-associations.js';
 import {xPromotion} from './x-creative-writes.js';
 import {tiktokSmartPlusAdgroupUpdateServing} from './tiktok-smart-plus-adgroup-updates.js';
-import {numericStatusPaths, deliveryEditFields} from './spend-effects.js';
+import {numericStatusPaths, deliveryEditFields, namesSpendField} from './spend-effects.js';
 import {familyOf} from './reviewed-families.js';
 export interface ExecutionPolicy {
   allowWrites: boolean;
@@ -268,8 +268,8 @@ export function authorizeExecution(
         ['ACTIVE', 'ENABLE', 'ENABLED'].includes(op.value),
     );
   // Segment effects are decided by the contract above. Native ENABLED denotes
-  // an available definition; a keyword containing "budget" is not a budget edit, and neither is a lead form
-  // question, a custom conversion rule value or a saved audience name.
+  // an available definition. The rule reads field names, not content, so a keyword, lead form question, campaign name
+  // or report metric containing "budget" is not a budget edit.
   if (
     !familyOf(plan)?.exemptFromSpendTextMatch &&
     !xReportKind(plan) &&
@@ -304,10 +304,7 @@ export function authorizeExecution(
     !linkedinLeadFormKind(plan) &&
     !tiktokCustomConversionKind(plan) &&
     !tiktokSavedAudienceKind(plan) &&
-    (statusPatch ||
-      /budget|bid|spend|"(?:status|intendedStatus|intended_status|entity_status|entityStatus|operation_status)"\s*:\s*"(?:ACTIVE|ENABLE|ENABLED|ENTITY_STATUS_ACTIVE)"/i.test(
-        JSON.stringify({query: plan.query, body: plan.body}),
-      )) &&
+    (statusPatch || namesSpendField(plan)) &&
     input.spend_change_confirmed !== true
   )
     throw new MirrorError('SPEND_CONFIRMATION_REQUIRED', 'Spend-affecting writes need spend_change_confirmed=true.');
