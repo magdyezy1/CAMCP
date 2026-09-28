@@ -5,26 +5,423 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
-import {createCipheriv,createHash,randomBytes} from 'node:crypto';
-import {DatabaseSync,backup} from 'node:sqlite';
+import {createCipheriv, createHash, randomBytes} from 'node:crypto';
+import {DatabaseSync, backup} from 'node:sqlite';
 import * as backups from '../dist/src/backup.js';
 import {Store} from '../dist/src/store.js';
 import {removeTestDirectory} from '../dist/tests/temp.js';
 
-const key=Buffer.alloc(32,67).toString('base64'),actor={tenantId:'backup',userId:'operator',role:'admin'},cli=path.resolve('dist/tools/admin.js');
-async function fixture(){const dir=fs.mkdtempSync(path.join(os.tmpdir(),'amcp-backup-recovery-')),source=path.join(dir,'source.amcp'),store=new Store(':memory:',key);store.ensureTenant(actor.tenantId);store.putConnection(actor,{id:'selected',tenantId:actor.tenantId,gateway:'x_ads_native_action',accounts:['abc'],scopes:[],enabled:true,label:'Synthetic'}, {accessToken:'synthetic-private-token'});store.putDocument(actor.tenantId,'fixture','original',{value:'committed-source'});store.appendAudit(actor.tenantId,'fixture',{event:'synthetic_checkpoint'});await backups.createEncryptedBackup(store,source,key);return {dir,source,store,target:path.join(dir,'restored.sqlite'),close(){store.close();removeTestDirectory(dir,'amcp-backup-recovery-');}};}
-test('Backup verification CLI never opens or creates MIRROR_DB',async()=>{const f=await fixture();try{const unrelated=path.join(f.dir,'must-not-exist.sqlite'),run=spawnSync(process.execPath,[cli,'backup-verify',f.source],{encoding:'utf8',env:{...process.env,MIRROR_DB:unrelated,MIRROR_MASTER_KEY:key},timeout:15000});assert.equal(run.status,0,run.stderr);assert.equal(JSON.parse(run.stdout).status,'verified');assert.equal(fs.existsSync(unrelated),false,'A verification-only command created the configured database');}finally{f.close();}});
-test('Encrypted backup restores a verified new SQLite file without changing the source',async()=>{const f=await fixture();try{assert.equal(typeof backups.restoreEncryptedBackup,'function');const before=fs.readFileSync(f.source),receipt=await backups.restoreEncryptedBackup(f.source,f.target,key);assert.equal(receipt.status,'restored');assert.equal(receipt.destination,path.resolve(f.target));assert.equal(receipt.requires_reconciliation,true);assert.deepEqual(fs.readFileSync(f.source),before);const restored=new Store(f.target,key);try{assert.equal(restored.verifyAudit(),true);assert.equal(restored.credentials(actor.tenantId,'selected').accessToken,'synthetic-private-token');assert.equal(restored.document(actor.tenantId,'fixture','original').value,'committed-source');}finally{restored.close();}assert.equal(f.store.document(actor.tenantId,'fixture','original').value,'committed-source');assert.equal(JSON.stringify(receipt).includes('synthetic-private-token'),false);}finally{f.close();}});
-test('Backup restore CLI remains offline even with a corrupt configured database',async()=>{const f=await fixture();try{const unrelated=path.join(f.dir,'corrupt-current.sqlite'),sentinel=Buffer.from('This file must not be opened as SQLite.');fs.writeFileSync(unrelated,sentinel);const run=spawnSync(process.execPath,[cli,'backup-restore',f.source,f.target],{encoding:'utf8',env:{...process.env,MIRROR_DB:unrelated,MIRROR_MASTER_KEY:key},timeout:15000});assert.equal(run.status,0,run.stderr);const receipt=JSON.parse(run.stdout);assert.equal(receipt.status,'restored');assert.equal(receipt.requires_reconciliation,true);assert.equal(receipt.application_started,false);assert.deepEqual(fs.readFileSync(unrelated),sentinel);assert.equal(fs.existsSync(unrelated+'-wal'),false);assert.equal(receipt.sha256,createHash('sha256').update(fs.readFileSync(f.source)).digest('hex'));assert.equal(receipt.snapshot_sha256,createHash('sha256').update(fs.readFileSync(f.target)).digest('hex'));assert.equal(receipt.durability.file_synced,true);assert.equal(fs.readdirSync(f.dir).some(x=>x.startsWith('amcp-backup-')),false);}finally{f.close();}});
-test('Backup restore refuses existing files, directories, hard links, sources and orphaned SQLite sidecars',async()=>{for(const mode of ['file','directory','hardlink','source','wal','shm','journal']){const f=await fixture();try{const sentinel=Buffer.from('existing contents'),target=mode==='source'?f.source:f.target;let preserved=target;if(mode==='directory')fs.mkdirSync(target);else if(mode==='hardlink')fs.linkSync(f.source,target);else if(mode==='file')fs.writeFileSync(target,sentinel);else if(mode!=='source'){preserved=target+'-'+mode;fs.writeFileSync(preserved,sentinel);}const before=mode==='directory'?undefined:fs.readFileSync(preserved);await assert.rejects(()=>backups.restoreEncryptedBackup(f.source,target,key),{code:'BACKUP_DESTINATION_EXISTS'});if(before)assert.deepEqual(fs.readFileSync(preserved),before);assert.equal(fs.readdirSync(f.dir).some(x=>x.startsWith('amcp-backup-')),false);}finally{f.close();}}});
-test('Concurrent backup restores publish exactly one verified file and never replace the winner',async()=>{const f=await fixture();try{const results=await Promise.allSettled([backups.restoreEncryptedBackup(f.source,f.target,key),backups.restoreEncryptedBackup(f.source,f.target,key)]);assert.equal(results.filter(r=>r.status==='fulfilled').length,1);const rejected=results.find(r=>r.status==='rejected');assert.equal(rejected.reason.code,'BACKUP_DESTINATION_EXISTS');const good=results.find(r=>r.status==='fulfilled').value;assert.equal(createHash('sha256').update(fs.readFileSync(f.target)).digest('hex'),good.snapshot_sha256);assert.equal(fs.readdirSync(f.dir).some(x=>x.startsWith('amcp-backup-')),false);}finally{f.close();}});
-test('Backup publication refuses a late competing file and unsupported hard links without partial output',async t=>{for(const mode of ['race','unsupported']){const f=await fixture(),original=fs.linkSync;try{t.mock.method(fs,'linkSync',(source,target)=>{if(mode==='race'){fs.writeFileSync(target,'competing writer');return original(source,target);}const error=new Error('Synthetic unsupported links');error.code='ENOTSUP';throw error;});await assert.rejects(()=>backups.restoreEncryptedBackup(f.source,f.target,key),{code:mode==='race'?'BACKUP_DESTINATION_EXISTS':'BACKUP_RESTORE_FAILED'});if(mode==='race')assert.equal(fs.readFileSync(f.target,'utf8'),'competing writer');else assert.equal(fs.existsSync(f.target),false);assert.equal(fs.readdirSync(f.dir).some(x=>x.startsWith('amcp-backup-')),false);}finally{t.mock.restoreAll();f.close();}}});
-test('Wrong keys and truncated/tampered encrypted backups never publish plaintext and clean staging',async()=>{for(const mode of ['key','magic','header','tag','ciphertext','truncated']){const f=await fixture();try{const bytes=fs.readFileSync(f.source);if(mode==='magic')bytes[0]^=1;if(mode==='header')bytes[18]^=1;if(mode==='tag')bytes[bytes.length-1]^=1;if(mode==='ciphertext')bytes[100]^=1;if(mode!=='key')fs.writeFileSync(f.source,mode==='truncated'?bytes.subarray(0,20):bytes);await assert.rejects(()=>backups.restoreEncryptedBackup(f.source,f.target,mode==='key'?Buffer.alloc(32,68).toString('base64'):key));assert.equal(fs.existsSync(f.target),false);assert.equal(fs.readdirSync(f.dir).some(x=>x.startsWith('amcp-backup-')),false);assert.equal(f.store.verifyAudit(),true);}finally{f.close();}}});
-function encrypted(file,bytes){const magic=Buffer.from('AMCP-BACKUP-1\n'),nonce=randomBytes(12),cipher=createCipheriv('aes-256-gcm',Buffer.from(key,'base64'),nonce);cipher.setAAD(magic);fs.writeFileSync(file,Buffer.concat([magic,nonce,cipher.update(bytes),cipher.final(),cipher.getAuthTag()]));}
-test('Authenticated non-AMCP, corrupted SQLite, future schema and broken audit backups fail verification',async()=>{for(const mode of ['empty_schema','not_sqlite','future','audit']){const f=await fixture();try{const plain=path.join(f.dir,'synthetic.sqlite');if(mode==='not_sqlite')fs.writeFileSync(plain,'not a SQLite file');else{if(mode!=='empty_schema')await backup(f.store.db,plain);const db=new DatabaseSync(plain);try{if(mode==='empty_schema')db.exec('CREATE TABLE unrelated(value TEXT)');if(mode==='future')db.exec('UPDATE schema_version SET version=999');if(mode==='audit')db.exec("DROP TRIGGER audit_no_update; UPDATE audit SET event='{}'");}finally{db.close();}}encrypted(f.source,fs.readFileSync(plain));await assert.rejects(()=>backups.restoreEncryptedBackup(f.source,f.target,key),{code:({empty_schema:'BACKUP_SCHEMA_INVALID',not_sqlite:'BACKUP_INTEGRITY_FAILED',future:'SCHEMA_VERSION_MISMATCH',audit:'BACKUP_AUDIT_FAILED'})[mode]});assert.equal(fs.existsSync(f.target),false);assert.equal(fs.readdirSync(f.dir).some(x=>x.startsWith('amcp-backup-')),false);}finally{f.close();}}});
-test('Backup source replacement cannot change the authenticated bytes or their receipt hash',async t=>{const f=await fixture(),original=fs.createReadStream;try{const before=fs.readFileSync(f.source),expectedHash=createHash('sha256').update(before).digest('hex'),other=path.join(f.dir,'newer.amcp');f.store.putDocument(actor.tenantId,'fixture','original',{value:'newer-copy'});await backups.createEncryptedBackup(f.store,other,key);let swapped=false;t.mock.method(fs,'createReadStream',(file,options)=>{if(!swapped&&file===f.source&&options?.fd!==undefined){swapped=true;fs.renameSync(f.source,path.join(f.dir,'held-original.amcp'));fs.copyFileSync(other,f.source);}return original(file,options);});const out=await backups.restoreEncryptedBackup(f.source,f.target,key);assert.equal(swapped,true);assert.equal(out.sha256,expectedHash);assert.notEqual(out.sha256,createHash('sha256').update(fs.readFileSync(f.source)).digest('hex'));const restored=new Store(f.target,key);try{assert.equal(restored.document(actor.tenantId,'fixture','original').value,'committed-source');}finally{restored.close();}}finally{t.mock.restoreAll();f.close();}});
-test('Backup encryption and restoration handle short filesystem writes without truncating data',async t=>{const f=await fixture(),original=fs.writeSync;let shortWrites=0;try{t.mock.method(fs,'writeSync',(fd,buffer,offset,length)=>{const bounded=Math.min(length,4096);if(bounded<length)shortWrites++;return original(fd,buffer,offset,bounded);});const archive=path.join(f.dir,'short-writes.amcp');await backups.createEncryptedBackup(f.store,archive,key);const out=await backups.restoreEncryptedBackup(archive,f.target,key);assert.equal(out.status,'restored');assert.ok(shortWrites>0);const db=new Store(f.target,key);try{assert.equal(db.verifyAudit(),true);assert.equal(db.document(actor.tenantId,'fixture','original').value,'committed-source');}finally{db.close();}}finally{t.mock.restoreAll();f.close();}});
-test('Invalid recovery CLI arguments never create or inspect a configured database',async()=>{const f=await fixture();try{const unrelated=path.join(f.dir,'must-not-exist.sqlite');for(const args of [['backup-verify'],['backup-verify',f.source,'extra'],['backup-restore',f.source],['backup-restore',f.source,f.target,'extra']]){const run=spawnSync(process.execPath,[cli,...args],{encoding:'utf8',env:{...process.env,MIRROR_DB:unrelated,MIRROR_MASTER_KEY:key},timeout:15000});assert.equal(run.status,1);assert.match(run.stderr,/BACKUP_PATH_REQUIRED/);assert.equal(fs.existsSync(unrelated),false);assert.equal(fs.existsSync(f.target),false);}}finally{f.close();}});
-test('Restoration preserves unresolved jobs and idempotency history without starting or completing them',async()=>{const f=await fixture();try{f.store.claim(actor.tenantId,'uncertain-write','frozen');f.store.uncertain(actor.tenantId,'uncertain-write');const job=f.store.enqueue(actor.tenantId,'media_upload',{review_id:'synthetic-review'});f.store.putDocument(actor.tenantId,'report_delivery_schedule','synthetic-schedule',{enabled:true,spreadsheet_id:'synthetic'});const archive=path.join(f.dir,'pending.amcp');await backups.createEncryptedBackup(f.store,archive,key);const receipt=await backups.restoreEncryptedBackup(archive,f.target,key);assert.equal(receipt.application_started,false);assert.equal(receipt.requires_reconciliation,true);const restored=new Store(f.target,key);try{assert.equal(restored.job(actor.tenantId,job).state,'queued');assert.equal(restored.db.prepare('SELECT state FROM idempotency WHERE key=?').get('uncertain-write').state,'uncertain');assert.equal(restored.document(actor.tenantId,'report_delivery_schedule','synthetic-schedule').enabled,true);assert.equal(restored.verifyAudit(),true);}finally{restored.close();}}finally{f.close();}});
-test('Restore refuses a snapshot with connection secrets encrypted under a different master key',async()=>{const f=await fixture();try{const plain=path.join(f.dir,'mixed.sqlite');await backup(f.store.db,plain);const db=new DatabaseSync(plain);try{db.prepare('UPDATE connections SET secret=?').run('not-a-valid-ciphertext');}finally{db.close();}encrypted(f.source,fs.readFileSync(plain));await assert.rejects(()=>backups.restoreEncryptedBackup(f.source,f.target,key));assert.equal(fs.existsSync(f.target),false);assert.equal(fs.readdirSync(f.dir).some(x=>x.startsWith('amcp-backup-')),false);}finally{f.close();}});
-test('A process interruption before atomic publication leaves no destination or changed source',async()=>{const f=await fixture();try{const hook=path.join(f.dir,'interrupt.mjs');fs.writeFileSync(hook,"import fs from 'node:fs'; fs.linkSync=()=>process.exit(73);\n");const before=fs.readFileSync(f.source),unrelated=path.join(f.dir,'must-not-exist.sqlite'),run=spawnSync(process.execPath,['--import',pathToFileURL(hook).href,cli,'backup-restore',f.source,f.target],{encoding:'utf8',env:{...process.env,MIRROR_DB:unrelated,MIRROR_MASTER_KEY:key},timeout:15000});assert.equal(run.status,73,run.stderr);assert.equal(fs.existsSync(f.target),false);assert.equal(fs.existsSync(unrelated),false);assert.deepEqual(fs.readFileSync(f.source),before);const staged=fs.readdirSync(f.dir).filter(n=>n.startsWith('amcp-backup-'));assert.equal(staged.length,1);const stat=fs.statSync(path.join(f.dir,staged[0],'snapshot.sqlite'));if(process.platform!=='win32')assert.equal(stat.mode&0o777,0o600);assert.equal((await backups.verifyEncryptedBackup(f.source,key)).status,'verified');}finally{f.close();}});
+const key = Buffer.alloc(32, 67).toString('base64'),
+  actor = {tenantId: 'backup', userId: 'operator', role: 'admin'},
+  cli = path.resolve('dist/tools/admin.js');
+async function fixture() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-backup-recovery-')),
+    source = path.join(dir, 'source.amcp'),
+    store = new Store(':memory:', key);
+  store.ensureTenant(actor.tenantId);
+  store.putConnection(
+    actor,
+    {
+      id: 'selected',
+      tenantId: actor.tenantId,
+      gateway: 'x_ads_native_action',
+      accounts: ['abc'],
+      scopes: [],
+      enabled: true,
+      label: 'Synthetic',
+    },
+    {accessToken: 'synthetic-private-token'},
+  );
+  store.putDocument(actor.tenantId, 'fixture', 'original', {value: 'committed-source'});
+  store.appendAudit(actor.tenantId, 'fixture', {event: 'synthetic_checkpoint'});
+  await backups.createEncryptedBackup(store, source, key);
+  return {
+    dir,
+    source,
+    store,
+    target: path.join(dir, 'restored.sqlite'),
+    close() {
+      store.close();
+      removeTestDirectory(dir, 'amcp-backup-recovery-');
+    },
+  };
+}
+test('Backup verification CLI never opens or creates MIRROR_DB', async () => {
+  const f = await fixture();
+  try {
+    const unrelated = path.join(f.dir, 'must-not-exist.sqlite'),
+      run = spawnSync(process.execPath, [cli, 'backup-verify', f.source], {
+        encoding: 'utf8',
+        env: {...process.env, MIRROR_DB: unrelated, MIRROR_MASTER_KEY: key},
+        timeout: 15000,
+      });
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(JSON.parse(run.stdout).status, 'verified');
+    assert.equal(fs.existsSync(unrelated), false, 'A verification-only command created the configured database');
+  } finally {
+    f.close();
+  }
+});
+test('Encrypted backup restores a verified new SQLite file without changing the source', async () => {
+  const f = await fixture();
+  try {
+    assert.equal(typeof backups.restoreEncryptedBackup, 'function');
+    const before = fs.readFileSync(f.source),
+      receipt = await backups.restoreEncryptedBackup(f.source, f.target, key);
+    assert.equal(receipt.status, 'restored');
+    assert.equal(receipt.destination, path.resolve(f.target));
+    assert.equal(receipt.requires_reconciliation, true);
+    assert.deepEqual(fs.readFileSync(f.source), before);
+    const restored = new Store(f.target, key);
+    try {
+      assert.equal(restored.verifyAudit(), true);
+      assert.equal(restored.credentials(actor.tenantId, 'selected').accessToken, 'synthetic-private-token');
+      assert.equal(restored.document(actor.tenantId, 'fixture', 'original').value, 'committed-source');
+    } finally {
+      restored.close();
+    }
+    assert.equal(f.store.document(actor.tenantId, 'fixture', 'original').value, 'committed-source');
+    assert.equal(JSON.stringify(receipt).includes('synthetic-private-token'), false);
+  } finally {
+    f.close();
+  }
+});
+test('Backup restore CLI remains offline even with a corrupt configured database', async () => {
+  const f = await fixture();
+  try {
+    const unrelated = path.join(f.dir, 'corrupt-current.sqlite'),
+      sentinel = Buffer.from('This file must not be opened as SQLite.');
+    fs.writeFileSync(unrelated, sentinel);
+    const run = spawnSync(process.execPath, [cli, 'backup-restore', f.source, f.target], {
+      encoding: 'utf8',
+      env: {...process.env, MIRROR_DB: unrelated, MIRROR_MASTER_KEY: key},
+      timeout: 15000,
+    });
+    assert.equal(run.status, 0, run.stderr);
+    const receipt = JSON.parse(run.stdout);
+    assert.equal(receipt.status, 'restored');
+    assert.equal(receipt.requires_reconciliation, true);
+    assert.equal(receipt.application_started, false);
+    assert.deepEqual(fs.readFileSync(unrelated), sentinel);
+    assert.equal(fs.existsSync(unrelated + '-wal'), false);
+    assert.equal(receipt.sha256, createHash('sha256').update(fs.readFileSync(f.source)).digest('hex'));
+    assert.equal(receipt.snapshot_sha256, createHash('sha256').update(fs.readFileSync(f.target)).digest('hex'));
+    assert.equal(receipt.durability.file_synced, true);
+    assert.equal(
+      fs.readdirSync(f.dir).some(x => x.startsWith('amcp-backup-')),
+      false,
+    );
+  } finally {
+    f.close();
+  }
+});
+test('Backup restore refuses existing files, directories, hard links, sources and orphaned SQLite sidecars', async () => {
+  for (const mode of ['file', 'directory', 'hardlink', 'source', 'wal', 'shm', 'journal']) {
+    const f = await fixture();
+    try {
+      const sentinel = Buffer.from('existing contents'),
+        target = mode === 'source' ? f.source : f.target;
+      let preserved = target;
+      if (mode === 'directory') fs.mkdirSync(target);
+      else if (mode === 'hardlink') fs.linkSync(f.source, target);
+      else if (mode === 'file') fs.writeFileSync(target, sentinel);
+      else if (mode !== 'source') {
+        preserved = target + '-' + mode;
+        fs.writeFileSync(preserved, sentinel);
+      }
+      const before = mode === 'directory' ? undefined : fs.readFileSync(preserved);
+      await assert.rejects(() => backups.restoreEncryptedBackup(f.source, target, key), {
+        code: 'BACKUP_DESTINATION_EXISTS',
+      });
+      if (before) assert.deepEqual(fs.readFileSync(preserved), before);
+      assert.equal(
+        fs.readdirSync(f.dir).some(x => x.startsWith('amcp-backup-')),
+        false,
+      );
+    } finally {
+      f.close();
+    }
+  }
+});
+test('Concurrent backup restores publish exactly one verified file and never replace the winner', async () => {
+  const f = await fixture();
+  try {
+    const results = await Promise.allSettled([
+      backups.restoreEncryptedBackup(f.source, f.target, key),
+      backups.restoreEncryptedBackup(f.source, f.target, key),
+    ]);
+    assert.equal(results.filter(r => r.status === 'fulfilled').length, 1);
+    const rejected = results.find(r => r.status === 'rejected');
+    assert.equal(rejected.reason.code, 'BACKUP_DESTINATION_EXISTS');
+    const good = results.find(r => r.status === 'fulfilled').value;
+    assert.equal(createHash('sha256').update(fs.readFileSync(f.target)).digest('hex'), good.snapshot_sha256);
+    assert.equal(
+      fs.readdirSync(f.dir).some(x => x.startsWith('amcp-backup-')),
+      false,
+    );
+  } finally {
+    f.close();
+  }
+});
+test('Backup publication refuses a late competing file and unsupported hard links without partial output', async t => {
+  for (const mode of ['race', 'unsupported']) {
+    const f = await fixture(),
+      original = fs.linkSync;
+    try {
+      t.mock.method(fs, 'linkSync', (source, target) => {
+        if (mode === 'race') {
+          fs.writeFileSync(target, 'competing writer');
+          return original(source, target);
+        }
+        const error = new Error('Synthetic unsupported links');
+        error.code = 'ENOTSUP';
+        throw error;
+      });
+      await assert.rejects(() => backups.restoreEncryptedBackup(f.source, f.target, key), {
+        code: mode === 'race' ? 'BACKUP_DESTINATION_EXISTS' : 'BACKUP_RESTORE_FAILED',
+      });
+      if (mode === 'race') assert.equal(fs.readFileSync(f.target, 'utf8'), 'competing writer');
+      else assert.equal(fs.existsSync(f.target), false);
+      assert.equal(
+        fs.readdirSync(f.dir).some(x => x.startsWith('amcp-backup-')),
+        false,
+      );
+    } finally {
+      t.mock.restoreAll();
+      f.close();
+    }
+  }
+});
+test('Wrong keys and truncated/tampered encrypted backups never publish plaintext and clean staging', async () => {
+  for (const mode of ['key', 'magic', 'header', 'tag', 'ciphertext', 'truncated']) {
+    const f = await fixture();
+    try {
+      const bytes = fs.readFileSync(f.source);
+      if (mode === 'magic') bytes[0] ^= 1;
+      if (mode === 'header') bytes[18] ^= 1;
+      if (mode === 'tag') bytes[bytes.length - 1] ^= 1;
+      if (mode === 'ciphertext') bytes[100] ^= 1;
+      if (mode !== 'key') fs.writeFileSync(f.source, mode === 'truncated' ? bytes.subarray(0, 20) : bytes);
+      await assert.rejects(() =>
+        backups.restoreEncryptedBackup(
+          f.source,
+          f.target,
+          mode === 'key' ? Buffer.alloc(32, 68).toString('base64') : key,
+        ),
+      );
+      assert.equal(fs.existsSync(f.target), false);
+      assert.equal(
+        fs.readdirSync(f.dir).some(x => x.startsWith('amcp-backup-')),
+        false,
+      );
+      assert.equal(f.store.verifyAudit(), true);
+    } finally {
+      f.close();
+    }
+  }
+});
+function encrypted(file, bytes) {
+  const magic = Buffer.from('AMCP-BACKUP-1\n'),
+    nonce = randomBytes(12),
+    cipher = createCipheriv('aes-256-gcm', Buffer.from(key, 'base64'), nonce);
+  cipher.setAAD(magic);
+  fs.writeFileSync(file, Buffer.concat([magic, nonce, cipher.update(bytes), cipher.final(), cipher.getAuthTag()]));
+}
+test('Authenticated non-AMCP, corrupted SQLite, future schema and broken audit backups fail verification', async () => {
+  for (const mode of ['empty_schema', 'not_sqlite', 'future', 'audit']) {
+    const f = await fixture();
+    try {
+      const plain = path.join(f.dir, 'synthetic.sqlite');
+      if (mode === 'not_sqlite') fs.writeFileSync(plain, 'not a SQLite file');
+      else {
+        if (mode !== 'empty_schema') await backup(f.store.db, plain);
+        const db = new DatabaseSync(plain);
+        try {
+          if (mode === 'empty_schema') db.exec('CREATE TABLE unrelated(value TEXT)');
+          if (mode === 'future') db.exec('UPDATE schema_version SET version=999');
+          if (mode === 'audit') db.exec("DROP TRIGGER audit_no_update; UPDATE audit SET event='{}'");
+        } finally {
+          db.close();
+        }
+      }
+      encrypted(f.source, fs.readFileSync(plain));
+      await assert.rejects(() => backups.restoreEncryptedBackup(f.source, f.target, key), {
+        code: {
+          empty_schema: 'BACKUP_SCHEMA_INVALID',
+          not_sqlite: 'BACKUP_INTEGRITY_FAILED',
+          future: 'SCHEMA_VERSION_MISMATCH',
+          audit: 'BACKUP_AUDIT_FAILED',
+        }[mode],
+      });
+      assert.equal(fs.existsSync(f.target), false);
+      assert.equal(
+        fs.readdirSync(f.dir).some(x => x.startsWith('amcp-backup-')),
+        false,
+      );
+    } finally {
+      f.close();
+    }
+  }
+});
+test('Backup source replacement cannot change the authenticated bytes or their receipt hash', async t => {
+  const f = await fixture(),
+    original = fs.createReadStream;
+  try {
+    const before = fs.readFileSync(f.source),
+      expectedHash = createHash('sha256').update(before).digest('hex'),
+      other = path.join(f.dir, 'newer.amcp');
+    f.store.putDocument(actor.tenantId, 'fixture', 'original', {value: 'newer-copy'});
+    await backups.createEncryptedBackup(f.store, other, key);
+    let swapped = false;
+    t.mock.method(fs, 'createReadStream', (file, options) => {
+      if (!swapped && file === f.source && options?.fd !== undefined) {
+        swapped = true;
+        fs.renameSync(f.source, path.join(f.dir, 'held-original.amcp'));
+        fs.copyFileSync(other, f.source);
+      }
+      return original(file, options);
+    });
+    const out = await backups.restoreEncryptedBackup(f.source, f.target, key);
+    assert.equal(swapped, true);
+    assert.equal(out.sha256, expectedHash);
+    assert.notEqual(out.sha256, createHash('sha256').update(fs.readFileSync(f.source)).digest('hex'));
+    const restored = new Store(f.target, key);
+    try {
+      assert.equal(restored.document(actor.tenantId, 'fixture', 'original').value, 'committed-source');
+    } finally {
+      restored.close();
+    }
+  } finally {
+    t.mock.restoreAll();
+    f.close();
+  }
+});
+test('Backup encryption and restoration handle short filesystem writes without truncating data', async t => {
+  const f = await fixture(),
+    original = fs.writeSync;
+  let shortWrites = 0;
+  try {
+    t.mock.method(fs, 'writeSync', (fd, buffer, offset, length) => {
+      const bounded = Math.min(length, 4096);
+      if (bounded < length) shortWrites++;
+      return original(fd, buffer, offset, bounded);
+    });
+    const archive = path.join(f.dir, 'short-writes.amcp');
+    await backups.createEncryptedBackup(f.store, archive, key);
+    const out = await backups.restoreEncryptedBackup(archive, f.target, key);
+    assert.equal(out.status, 'restored');
+    assert.ok(shortWrites > 0);
+    const db = new Store(f.target, key);
+    try {
+      assert.equal(db.verifyAudit(), true);
+      assert.equal(db.document(actor.tenantId, 'fixture', 'original').value, 'committed-source');
+    } finally {
+      db.close();
+    }
+  } finally {
+    t.mock.restoreAll();
+    f.close();
+  }
+});
+test('Invalid recovery CLI arguments never create or inspect a configured database', async () => {
+  const f = await fixture();
+  try {
+    const unrelated = path.join(f.dir, 'must-not-exist.sqlite');
+    for (const args of [
+      ['backup-verify'],
+      ['backup-verify', f.source, 'extra'],
+      ['backup-restore', f.source],
+      ['backup-restore', f.source, f.target, 'extra'],
+    ]) {
+      const run = spawnSync(process.execPath, [cli, ...args], {
+        encoding: 'utf8',
+        env: {...process.env, MIRROR_DB: unrelated, MIRROR_MASTER_KEY: key},
+        timeout: 15000,
+      });
+      assert.equal(run.status, 1);
+      assert.match(run.stderr, /BACKUP_PATH_REQUIRED/);
+      assert.equal(fs.existsSync(unrelated), false);
+      assert.equal(fs.existsSync(f.target), false);
+    }
+  } finally {
+    f.close();
+  }
+});
+test('Restoration preserves unresolved jobs and idempotency history without starting or completing them', async () => {
+  const f = await fixture();
+  try {
+    f.store.claim(actor.tenantId, 'uncertain-write', 'frozen');
+    f.store.uncertain(actor.tenantId, 'uncertain-write');
+    const job = f.store.enqueue(actor.tenantId, 'media_upload', {review_id: 'synthetic-review'});
+    f.store.putDocument(actor.tenantId, 'report_delivery_schedule', 'synthetic-schedule', {
+      enabled: true,
+      spreadsheet_id: 'synthetic',
+    });
+    const archive = path.join(f.dir, 'pending.amcp');
+    await backups.createEncryptedBackup(f.store, archive, key);
+    const receipt = await backups.restoreEncryptedBackup(archive, f.target, key);
+    assert.equal(receipt.application_started, false);
+    assert.equal(receipt.requires_reconciliation, true);
+    const restored = new Store(f.target, key);
+    try {
+      assert.equal(restored.job(actor.tenantId, job).state, 'queued');
+      assert.equal(
+        restored.db.prepare('SELECT state FROM idempotency WHERE key=?').get('uncertain-write').state,
+        'uncertain',
+      );
+      assert.equal(restored.document(actor.tenantId, 'report_delivery_schedule', 'synthetic-schedule').enabled, true);
+      assert.equal(restored.verifyAudit(), true);
+    } finally {
+      restored.close();
+    }
+  } finally {
+    f.close();
+  }
+});
+test('Restore refuses a snapshot with connection secrets encrypted under a different master key', async () => {
+  const f = await fixture();
+  try {
+    const plain = path.join(f.dir, 'mixed.sqlite');
+    await backup(f.store.db, plain);
+    const db = new DatabaseSync(plain);
+    try {
+      db.prepare('UPDATE connections SET secret=?').run('not-a-valid-ciphertext');
+    } finally {
+      db.close();
+    }
+    encrypted(f.source, fs.readFileSync(plain));
+    await assert.rejects(() => backups.restoreEncryptedBackup(f.source, f.target, key));
+    assert.equal(fs.existsSync(f.target), false);
+    assert.equal(
+      fs.readdirSync(f.dir).some(x => x.startsWith('amcp-backup-')),
+      false,
+    );
+  } finally {
+    f.close();
+  }
+});
+test('A process interruption before atomic publication leaves no destination or changed source', async () => {
+  const f = await fixture();
+  try {
+    const hook = path.join(f.dir, 'interrupt.mjs');
+    fs.writeFileSync(hook, "import fs from 'node:fs'; fs.linkSync=()=>process.exit(73);\n");
+    const before = fs.readFileSync(f.source),
+      unrelated = path.join(f.dir, 'must-not-exist.sqlite'),
+      run = spawnSync(
+        process.execPath,
+        ['--import', pathToFileURL(hook).href, cli, 'backup-restore', f.source, f.target],
+        {encoding: 'utf8', env: {...process.env, MIRROR_DB: unrelated, MIRROR_MASTER_KEY: key}, timeout: 15000},
+      );
+    assert.equal(run.status, 73, run.stderr);
+    assert.equal(fs.existsSync(f.target), false);
+    assert.equal(fs.existsSync(unrelated), false);
+    assert.deepEqual(fs.readFileSync(f.source), before);
+    const staged = fs.readdirSync(f.dir).filter(n => n.startsWith('amcp-backup-'));
+    assert.equal(staged.length, 1);
+    const stat = fs.statSync(path.join(f.dir, staged[0], 'snapshot.sqlite'));
+    if (process.platform !== 'win32') assert.equal(stat.mode & 0o777, 0o600);
+    assert.equal((await backups.verifyEncryptedBackup(f.source, key)).status, 'verified');
+  } finally {
+    f.close();
+  }
+});

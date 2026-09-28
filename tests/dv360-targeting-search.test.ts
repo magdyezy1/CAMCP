@@ -6,38 +6,500 @@ import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import {actionContracts} from '../src/action-contracts.js';
 import {independentlyReadOnly} from '../src/execution-risk.js';
-import {validateDV360TargetingSearch,dv360TargetingSearchPlan,dv360TargetingSearchResult,runDV360TargetingSearch,authorizeDV360TargetingSearch,dv360TargetingSearchRoute} from '../src/dv360-targeting-search.js';
-import type {CompiledRequest,Connection,JsonObject} from '../src/types.js';
-const variants=[['GEO_REGION','geoRegionSearchTerms',{geoRegionQuery:'Cairo'},'geoRegionDetails',{displayName:'Cairo, Egypt',geoRegionType:'GEO_REGION_TYPE_CITY'}],['POI','poiSearchTerms',{poiQuery:'Cairo airport'},'poiDetails',{displayName:'Airport',latitude:0,longitude:0}],['BUSINESS_CHAIN','businessChainSearchTerms',{businessChainQuery:'Example business',regionQuery:'Cairo'},'businessChainDetails',{businessChain:'Example business',geoRegion:'Cairo, Egypt',geoRegionType:'GEO_REGION_TYPE_CITY'}]] as const;
-const plan=(index=0,body:JsonObject={}):CompiledRequest=>({gateway:'dv360_native_action',action:'DV360_TARGETING_TYPES_TARGETING_OPTIONS_SEARCH',origin:'https://displayvideo.googleapis.com',method:'POST',path:'/v4/targetingTypes/TARGETING_TYPE_'+variants[index]![0]+'/targetingOptions:search',query:{},headers:{},body:{advertiserId:'123',[variants[index]![1]]:structuredClone(variants[index]![2]),...body},accountId:'123',readOnly:false,requiresConfirmation:true,destructive:false,evidence:'synthetic',warnings:[]});
-const row=(id='100',index=0):JsonObject=>({name:'targetingTypes/TARGETING_TYPE_'+variants[index]![0]+'/targetingOptions/'+id,targetingType:'TARGETING_TYPE_'+variants[index]![0],targetingOptionId:id,[variants[index]![3]]:structuredClone(variants[index]![4])});
-for(let index=0;index<variants.length;index++)test('DV360 native '+variants[index]![0]+' search and empty results are read-only',async()=>{const p=dv360TargetingSearchPlan(plan(index));assert.equal(p.readOnly,true);assert.equal(p.requiresConfirmation,false);assert.equal(p.destructive,false);assert.match(p.warnings.join(' '),/untrusted/);const result=await runDV360TargetingSearch(p,async()=>({targetingOptions:[row('100',index)]}));assert.equal(result.search.complete,true);assert.deepEqual(result.data.targetingOptions,[row('100',index)]);const empty=await runDV360TargetingSearch(p,async()=>({}));assert.equal(empty.search.complete,true);assert.deepEqual(empty.data.targetingOptions,[]);assert.equal(empty.search.row_count,0);});
-test('DV360 search requires exact type, body union, scope and page bounds',()=>{for(const change of [
- {advertiserId:'999'},{advertiserId:123},{advertiserId:'0'},{pageSize:0},{pageSize:201},{pageSize:1.5},{pageToken:3},{pageToken:'x'.repeat(4097)},{geoRegionSearchTerms:{}},{geoRegionSearchTerms:{geoRegionQuery:''}},{geoRegionSearchTerms:{geoRegionQuery:'x',invented:true}},{geoRegionSearchTerms:{geoRegionQuery:'x'.repeat(1025)}},{poiSearchTerms:{poiQuery:'City'}},{method:'DELETE'}
- ])assert.throws(()=>validateDV360TargetingSearch(plan(0,change)),JSON.stringify(change));assert.throws(()=>validateDV360TargetingSearch({...plan(),path:'/v4/targetingTypes/TARGETING_TYPE_KEYWORD/targetingOptions:search'}),{code:'INVALID_DV360_SEARCH'});assert.throws(()=>validateDV360TargetingSearch({...plan(),query:{method:'DELETE'}}));assert.throws(()=>validateDV360TargetingSearch({...plan(),headers:{'X-HTTP-Method-Override':'DELETE'}}));assert.doesNotThrow(()=>validateDV360TargetingSearch(plan(2,{businessChainSearchTerms:{regionQuery:'Egypt'}})));assert.doesNotThrow(()=>validateDV360TargetingSearch(plan(0,{pageSize:200,pageToken:''})));});
-test('DV360 search classification never grants alternate routes, methods or origins',()=>{for(const p of [{...plan(),method:'DELETE'},{...plan(),method:'GET'},{...plan(),origin:'https://attacker.invalid'},{...plan(),path:plan().path+'/mutate'},{...plan(),path:plan().path+'?method=DELETE'},{...plan(),specialTransport:'upload'}])assert.equal(dv360TargetingSearchRoute(p),false);});
-test('DV360 search requires the selected advertiser and explicit provider scope',()=>{const c:Connection={id:'selected',tenantId:'test',gateway:'dv360_native_action',accounts:['123'],enabled:true,label:'Synthetic',scopes:['https://www.googleapis.com/auth/display-video']};assert.equal(authorizeDV360TargetingSearch(plan(),c,'123'),true);assert.throws(()=>authorizeDV360TargetingSearch(plan(),{...c,scopes:[]},'123'),{code:'INSUFFICIENT_SCOPE'});assert.throws(()=>authorizeDV360TargetingSearch(plan(),c,'999'),{code:'ACCOUNT_SCOPE_MISMATCH'});});
-test('DV360 search aggregates complete native pages and removes stale tokens',async()=>{const calls:CompiledRequest[]=[],out=await runDV360TargetingSearch(plan(),async p=>{calls.push(p);return calls.length===1?{targetingOptions:[row('1')],nextPageToken:'page2'}:{targetingOptions:[row('2')]};},true);assert.equal(out.pages,2);assert.equal(out.search.complete,true);assert.equal(out.truncated,false);assert.equal(out.data.nextPageToken,undefined);assert.deepEqual(out.data.targetingOptions.map(r=>r.targetingOptionId),['1','2']);assert.deepEqual(calls[1]!.body,{...plan().body as JsonObject,pageToken:'page2'});assert.equal(calls[1]!.path,calls[0]!.path);});
-test('DV360 continuation and truncated pages expose precise completeness and recovery',async()=>{const p=plan(),first=await runDV360TargetingSearch(p,async()=>({targetingOptions:[row()],nextPageToken:'next'}));assert.equal(first.truncated,true);assert.equal(first.search.complete,false);assert.equal(first.search.complete_from_requested_page,false);assert.equal((first.search.next_page as JsonObject).advertiserId,'123');const continuation=await runDV360TargetingSearch(plan(0,{pageToken:'next'}),async()=>({targetingOptions:[row('2')]}),true);assert.equal(continuation.search.complete,false);assert.equal(continuation.search.complete_from_requested_page,true);assert.equal(continuation.search.includes_prior_pages,false);assert.equal(continuation.truncated,false);const capped=await runDV360TargetingSearch(p,async()=>({targetingOptions:[row()],nextPageToken:'next'}),true,1);assert.equal(capped.truncated,true);assert.equal(capped.pages,1);});
-test('DV360 malformed, wrong-type, duplicate and partial responses cannot become empty success',()=>{for(const value of [null,[],{errors:[]},{error:{code:403}},{targetingOptions:{}},{nextPageToken:'next'}, {targetingOptions:[row(),row()]},{targetingOptions:[{...row(),name:'targetingTypes/TARGETING_TYPE_POI/targetingOptions/100'}]},{targetingOptions:[{...row(),targetingType:'TARGETING_TYPE_POI'}]},{targetingOptions:[{...row(),geoRegionDetails:undefined}]},{targetingOptions:[{...row(),poiDetails:{displayName:'Other'}}]},{targetingOptions:[{...row(),targetingOptionId:'100/other'}]},{targetingOptions:[{...row(),geoRegionDetails:{displayName:'City',geoRegionType:'INVENTED'}}]}])assert.throws(()=>dv360TargetingSearchResult(plan(),value),{code:'DV360_SEARCH_RESPONSE_INVALID'});assert.throws(()=>dv360TargetingSearchResult(plan(1),{targetingOptions:[{...row('100',1),poiDetails:{displayName:'Unknown',latitude:91}}]}),{code:'DV360_SEARCH_RESPONSE_INVALID'});});
-test('DV360 repeated cursors and IDs cannot silently duplicate search results',async()=>{for(const duplicate of [false,true]){let n=0;await assert.rejects(()=>runDV360TargetingSearch(plan(),async()=>({targetingOptions:[row(duplicate?'1':String(++n))],nextPageToken:duplicate?'page'+(++n):'same'}),true),{code:duplicate?'DV360_SEARCH_RESPONSE_INVALID':'PAGINATION_LOOP'});}});
-test('DV360 search page size, maximum pages, response bytes and deadline are bounded',async t=>{assert.throws(()=>dv360TargetingSearchResult(plan(0,{pageSize:1}),{targetingOptions:[row('1'),row('2')]}),{code:'DV360_SEARCH_RESPONSE_INVALID'});await assert.rejects(()=>runDV360TargetingSearch(plan(),async()=>({}),true,26),{code:'INVALID_DV360_SEARCH'});await assert.rejects(()=>runDV360TargetingSearch(plan(),async()=>({targetingOptions:[],extra:'x'.repeat(4*1024*1024)})),{code:'DV360_SEARCH_LIMIT'});let elapsed=0;t.mock.method(performance,'now',()=>elapsed);try{await assert.rejects(()=>runDV360TargetingSearch(plan(),async()=>{elapsed=60001;return {}; }),{code:'DV360_SEARCH_LIMIT'});}finally{t.mock.restoreAll();}});
+import {
+  validateDV360TargetingSearch,
+  dv360TargetingSearchPlan,
+  dv360TargetingSearchResult,
+  runDV360TargetingSearch,
+  authorizeDV360TargetingSearch,
+  dv360TargetingSearchRoute,
+} from '../src/dv360-targeting-search.js';
+import type {CompiledRequest, Connection, JsonObject} from '../src/types.js';
+const variants = [
+  [
+    'GEO_REGION',
+    'geoRegionSearchTerms',
+    {geoRegionQuery: 'Cairo'},
+    'geoRegionDetails',
+    {displayName: 'Cairo, Egypt', geoRegionType: 'GEO_REGION_TYPE_CITY'},
+  ],
+  [
+    'POI',
+    'poiSearchTerms',
+    {poiQuery: 'Cairo airport'},
+    'poiDetails',
+    {displayName: 'Airport', latitude: 0, longitude: 0},
+  ],
+  [
+    'BUSINESS_CHAIN',
+    'businessChainSearchTerms',
+    {businessChainQuery: 'Example business', regionQuery: 'Cairo'},
+    'businessChainDetails',
+    {businessChain: 'Example business', geoRegion: 'Cairo, Egypt', geoRegionType: 'GEO_REGION_TYPE_CITY'},
+  ],
+] as const;
+const plan = (index = 0, body: JsonObject = {}): CompiledRequest => ({
+  gateway: 'dv360_native_action',
+  action: 'DV360_TARGETING_TYPES_TARGETING_OPTIONS_SEARCH',
+  origin: 'https://displayvideo.googleapis.com',
+  method: 'POST',
+  path: '/v4/targetingTypes/TARGETING_TYPE_' + variants[index]![0] + '/targetingOptions:search',
+  query: {},
+  headers: {},
+  body: {advertiserId: '123', [variants[index]![1]]: structuredClone(variants[index]![2]), ...body},
+  accountId: '123',
+  readOnly: false,
+  requiresConfirmation: true,
+  destructive: false,
+  evidence: 'synthetic',
+  warnings: [],
+});
+const row = (id = '100', index = 0): JsonObject => ({
+  name: 'targetingTypes/TARGETING_TYPE_' + variants[index]![0] + '/targetingOptions/' + id,
+  targetingType: 'TARGETING_TYPE_' + variants[index]![0],
+  targetingOptionId: id,
+  [variants[index]![3]]: structuredClone(variants[index]![4]),
+});
+for (let index = 0; index < variants.length; index++)
+  test('DV360 native ' + variants[index]![0] + ' search and empty results are read-only', async () => {
+    const p = dv360TargetingSearchPlan(plan(index));
+    assert.equal(p.readOnly, true);
+    assert.equal(p.requiresConfirmation, false);
+    assert.equal(p.destructive, false);
+    assert.match(p.warnings.join(' '), /untrusted/);
+    const result = await runDV360TargetingSearch(p, async () => ({targetingOptions: [row('100', index)]}));
+    assert.equal(result.search.complete, true);
+    assert.deepEqual(result.data.targetingOptions, [row('100', index)]);
+    const empty = await runDV360TargetingSearch(p, async () => ({}));
+    assert.equal(empty.search.complete, true);
+    assert.deepEqual(empty.data.targetingOptions, []);
+    assert.equal(empty.search.row_count, 0);
+  });
+test('DV360 search requires exact type, body union, scope and page bounds', () => {
+  for (const change of [
+    {advertiserId: '999'},
+    {advertiserId: 123},
+    {advertiserId: '0'},
+    {pageSize: 0},
+    {pageSize: 201},
+    {pageSize: 1.5},
+    {pageToken: 3},
+    {pageToken: 'x'.repeat(4097)},
+    {geoRegionSearchTerms: {}},
+    {geoRegionSearchTerms: {geoRegionQuery: ''}},
+    {geoRegionSearchTerms: {geoRegionQuery: 'x', invented: true}},
+    {geoRegionSearchTerms: {geoRegionQuery: 'x'.repeat(1025)}},
+    {poiSearchTerms: {poiQuery: 'City'}},
+    {method: 'DELETE'},
+  ])
+    assert.throws(() => validateDV360TargetingSearch(plan(0, change)), JSON.stringify(change));
+  assert.throws(
+    () =>
+      validateDV360TargetingSearch({
+        ...plan(),
+        path: '/v4/targetingTypes/TARGETING_TYPE_KEYWORD/targetingOptions:search',
+      }),
+    {code: 'INVALID_DV360_SEARCH'},
+  );
+  assert.throws(() => validateDV360TargetingSearch({...plan(), query: {method: 'DELETE'}}));
+  assert.throws(() => validateDV360TargetingSearch({...plan(), headers: {'X-HTTP-Method-Override': 'DELETE'}}));
+  assert.doesNotThrow(() => validateDV360TargetingSearch(plan(2, {businessChainSearchTerms: {regionQuery: 'Egypt'}})));
+  assert.doesNotThrow(() => validateDV360TargetingSearch(plan(0, {pageSize: 200, pageToken: ''})));
+});
+test('DV360 search classification never grants alternate routes, methods or origins', () => {
+  for (const p of [
+    {...plan(), method: 'DELETE'},
+    {...plan(), method: 'GET'},
+    {...plan(), origin: 'https://attacker.invalid'},
+    {...plan(), path: plan().path + '/mutate'},
+    {...plan(), path: plan().path + '?method=DELETE'},
+    {...plan(), specialTransport: 'upload'},
+  ])
+    assert.equal(dv360TargetingSearchRoute(p), false);
+});
+test('DV360 search requires the selected advertiser and explicit provider scope', () => {
+  const c: Connection = {
+    id: 'selected',
+    tenantId: 'test',
+    gateway: 'dv360_native_action',
+    accounts: ['123'],
+    enabled: true,
+    label: 'Synthetic',
+    scopes: ['https://www.googleapis.com/auth/display-video'],
+  };
+  assert.equal(authorizeDV360TargetingSearch(plan(), c, '123'), true);
+  assert.throws(() => authorizeDV360TargetingSearch(plan(), {...c, scopes: []}, '123'), {code: 'INSUFFICIENT_SCOPE'});
+  assert.throws(() => authorizeDV360TargetingSearch(plan(), c, '999'), {code: 'ACCOUNT_SCOPE_MISMATCH'});
+});
+test('DV360 search aggregates complete native pages and removes stale tokens', async () => {
+  const calls: CompiledRequest[] = [],
+    out = await runDV360TargetingSearch(
+      plan(),
+      async p => {
+        calls.push(p);
+        return calls.length === 1
+          ? {targetingOptions: [row('1')], nextPageToken: 'page2'}
+          : {targetingOptions: [row('2')]};
+      },
+      true,
+    );
+  assert.equal(out.pages, 2);
+  assert.equal(out.search.complete, true);
+  assert.equal(out.truncated, false);
+  assert.equal(out.data.nextPageToken, undefined);
+  assert.deepEqual(
+    out.data.targetingOptions.map(r => r.targetingOptionId),
+    ['1', '2'],
+  );
+  assert.deepEqual(calls[1]!.body, {...(plan().body as JsonObject), pageToken: 'page2'});
+  assert.equal(calls[1]!.path, calls[0]!.path);
+});
+test('DV360 continuation and truncated pages expose precise completeness and recovery', async () => {
+  const p = plan(),
+    first = await runDV360TargetingSearch(p, async () => ({targetingOptions: [row()], nextPageToken: 'next'}));
+  assert.equal(first.truncated, true);
+  assert.equal(first.search.complete, false);
+  assert.equal(first.search.complete_from_requested_page, false);
+  assert.equal((first.search.next_page as JsonObject).advertiserId, '123');
+  const continuation = await runDV360TargetingSearch(
+    plan(0, {pageToken: 'next'}),
+    async () => ({targetingOptions: [row('2')]}),
+    true,
+  );
+  assert.equal(continuation.search.complete, false);
+  assert.equal(continuation.search.complete_from_requested_page, true);
+  assert.equal(continuation.search.includes_prior_pages, false);
+  assert.equal(continuation.truncated, false);
+  const capped = await runDV360TargetingSearch(
+    p,
+    async () => ({targetingOptions: [row()], nextPageToken: 'next'}),
+    true,
+    1,
+  );
+  assert.equal(capped.truncated, true);
+  assert.equal(capped.pages, 1);
+});
+test('DV360 malformed, wrong-type, duplicate and partial responses cannot become empty success', () => {
+  for (const value of [
+    null,
+    [],
+    {errors: []},
+    {error: {code: 403}},
+    {targetingOptions: {}},
+    {nextPageToken: 'next'},
+    {targetingOptions: [row(), row()]},
+    {targetingOptions: [{...row(), name: 'targetingTypes/TARGETING_TYPE_POI/targetingOptions/100'}]},
+    {targetingOptions: [{...row(), targetingType: 'TARGETING_TYPE_POI'}]},
+    {targetingOptions: [{...row(), geoRegionDetails: undefined}]},
+    {targetingOptions: [{...row(), poiDetails: {displayName: 'Other'}}]},
+    {targetingOptions: [{...row(), targetingOptionId: '100/other'}]},
+    {targetingOptions: [{...row(), geoRegionDetails: {displayName: 'City', geoRegionType: 'INVENTED'}}]},
+  ])
+    assert.throws(() => dv360TargetingSearchResult(plan(), value), {code: 'DV360_SEARCH_RESPONSE_INVALID'});
+  assert.throws(
+    () =>
+      dv360TargetingSearchResult(plan(1), {
+        targetingOptions: [{...row('100', 1), poiDetails: {displayName: 'Unknown', latitude: 91}}],
+      }),
+    {code: 'DV360_SEARCH_RESPONSE_INVALID'},
+  );
+});
+test('DV360 repeated cursors and IDs cannot silently duplicate search results', async () => {
+  for (const duplicate of [false, true]) {
+    let n = 0;
+    await assert.rejects(
+      () =>
+        runDV360TargetingSearch(
+          plan(),
+          async () => ({
+            targetingOptions: [row(duplicate ? '1' : String(++n))],
+            nextPageToken: duplicate ? 'page' + ++n : 'same',
+          }),
+          true,
+        ),
+      {code: duplicate ? 'DV360_SEARCH_RESPONSE_INVALID' : 'PAGINATION_LOOP'},
+    );
+  }
+});
+test('DV360 search page size, maximum pages, response bytes and deadline are bounded', async t => {
+  assert.throws(() => dv360TargetingSearchResult(plan(0, {pageSize: 1}), {targetingOptions: [row('1'), row('2')]}), {
+    code: 'DV360_SEARCH_RESPONSE_INVALID',
+  });
+  await assert.rejects(() => runDV360TargetingSearch(plan(), async () => ({}), true, 26), {
+    code: 'INVALID_DV360_SEARCH',
+  });
+  await assert.rejects(
+    () => runDV360TargetingSearch(plan(), async () => ({targetingOptions: [], extra: 'x'.repeat(4 * 1024 * 1024)})),
+    {code: 'DV360_SEARCH_LIMIT'},
+  );
+  let elapsed = 0;
+  t.mock.method(performance, 'now', () => elapsed);
+  try {
+    await assert.rejects(
+      () =>
+        runDV360TargetingSearch(plan(), async () => {
+          elapsed = 60001;
+          return {};
+        }),
+      {code: 'DV360_SEARCH_LIMIT'},
+    );
+  } finally {
+    t.mock.restoreAll();
+  }
+});
 
-const gateway='dv360_native_action',actor={tenantId:'search',userId:'reader',role:'reader' as const},owner={...actor,role:'admin' as const},registry=new Registry();
-function fixture(index=0){
- const store=new Store(':memory:',Buffer.alloc(32,48).toString('base64')),calls:JsonObject[]=[],c:Connection={id:'11111111-1111-4111-8111-111111111111',tenantId:actor.tenantId,gateway,accounts:['123'],writeAccounts:[],label:'Selected DV360',enabled:true,scopes:['https://www.googleapis.com/auth/display-video']};store.putConnection(owner,c,{accessToken:'synthetic'});let mode='success';
- const transport=new NativeTransport(async(url,init)=>{const body=JSON.parse(String(init?.body));calls.push({url:String(url),method:init!.method,body});assert.equal(init!.method,'POST');assert.equal(new URL(String(url)).origin,'https://displayvideo.googleapis.com');if(mode==='scope_revoke'||mode==='grant_revoke')store.putConnection(owner,{...c,...(mode==='scope_revoke'?{scopes:[]}:{accounts:['999']})},{accessToken:'synthetic'});if(mode==='error')return Response.json({error:{code:403,message:'Synthetic access denial'}},{status:403});if(mode==='partial')return Response.json({targetingOptions:[row('100',index)],partialFailure:true});if(mode==='empty')return Response.json({});if(mode==='retry'&&calls.length===1)return Response.json({error:{code:503}},{status:503});return Response.json({targetingOptions:[row(body.pageToken?'101':'100',index)],...(!body.pageToken&&mode==='pages'?{nextPageToken:'next'}:{})});},async()=>{},30000,8*1024*1024,10000);
- const service=new MirrorService(registry,store,transport,undefined,{allowWrites:false,requireBeforeState:true,maxBudgetChange:0});const args:JsonObject={action:'DV360_TARGETING_TYPES_TARGETING_OPTIONS_SEARCH',connection_id:c.id,params:{targetingType:'TARGETING_TYPE_'+variants[index]![0]},payload:plan(index).body,dry_run:false};
- return {store,c,calls,service,args,call:(extra:JsonObject={},who=actor)=>service.call(gateway,{...args,...extra},who),mode:(v:string)=>{mode=v;}};
+const gateway = 'dv360_native_action',
+  actor = {tenantId: 'search', userId: 'reader', role: 'reader' as const},
+  owner = {...actor, role: 'admin' as const},
+  registry = new Registry();
+function fixture(index = 0) {
+  const store = new Store(':memory:', Buffer.alloc(32, 48).toString('base64')),
+    calls: JsonObject[] = [],
+    c: Connection = {
+      id: '11111111-1111-4111-8111-111111111111',
+      tenantId: actor.tenantId,
+      gateway,
+      accounts: ['123'],
+      writeAccounts: [],
+      label: 'Selected DV360',
+      enabled: true,
+      scopes: ['https://www.googleapis.com/auth/display-video'],
+    };
+  store.putConnection(owner, c, {accessToken: 'synthetic'});
+  let mode = 'success';
+  const transport = new NativeTransport(
+    async (url, init) => {
+      const body = JSON.parse(String(init?.body));
+      calls.push({url: String(url), method: init!.method, body});
+      assert.equal(init!.method, 'POST');
+      assert.equal(new URL(String(url)).origin, 'https://displayvideo.googleapis.com');
+      if (mode === 'scope_revoke' || mode === 'grant_revoke')
+        store.putConnection(
+          owner,
+          {...c, ...(mode === 'scope_revoke' ? {scopes: []} : {accounts: ['999']})},
+          {accessToken: 'synthetic'},
+        );
+      if (mode === 'error')
+        return Response.json({error: {code: 403, message: 'Synthetic access denial'}}, {status: 403});
+      if (mode === 'partial') return Response.json({targetingOptions: [row('100', index)], partialFailure: true});
+      if (mode === 'empty') return Response.json({});
+      if (mode === 'retry' && calls.length === 1) return Response.json({error: {code: 503}}, {status: 503});
+      return Response.json({
+        targetingOptions: [row(body.pageToken ? '101' : '100', index)],
+        ...(!body.pageToken && mode === 'pages' ? {nextPageToken: 'next'} : {}),
+      });
+    },
+    async () => {},
+    30000,
+    8 * 1024 * 1024,
+    10000,
+  );
+  const service = new MirrorService(registry, store, transport, undefined, {
+    allowWrites: false,
+    requireBeforeState: true,
+    maxBudgetChange: 0,
+  });
+  const args: JsonObject = {
+    action: 'DV360_TARGETING_TYPES_TARGETING_OPTIONS_SEARCH',
+    connection_id: c.id,
+    params: {targetingType: 'TARGETING_TYPE_' + variants[index]![0]},
+    payload: plan(index).body,
+    dry_run: false,
+  };
+  return {
+    store,
+    c,
+    calls,
+    service,
+    args,
+    call: (extra: JsonObject = {}, who = actor) => service.call(gateway, {...args, ...extra}, who),
+    mode: (v: string) => {
+      mode = v;
+    },
+  };
 }
-for(let index=0;index<variants.length;index++)test('DV360 '+variants[index]![0]+' search executes through the read-only deployment as a reader',async()=>{const f=fixture(index);try{const p=f.service.compiler.compile(gateway,f.args,{mode:'strict',flags:{}});assert.equal(independentlyReadOnly(p),true);const result=await f.call();assert.equal(result.success,true,JSON.stringify(result));assert.equal(result.data.success,true);assert.equal(result.data.search.complete,true);assert.equal(f.calls.length,1);assert.equal(f.store.db.prepare('SELECT count(*) AS n FROM idempotency').get()!.n,0);assert.equal(f.store.db.prepare('SELECT count(*) AS n FROM resource_ownership').get()!.n,0);}finally{f.store.close();}});
-test('DV360 gateway search preserves the selected advertiser and terms during complete pagination',async()=>{const f=fixture();try{f.mode('pages');const result=await f.call({paginate:true});assert.equal(result.success,true,JSON.stringify(result));assert.equal(result.data.search.complete,true);assert.equal(result.data.pages,2);assert.equal(result.data.truncated,false);assert.equal(result.data.data.nextPageToken,undefined);assert.deepEqual(f.calls.map(c=>c.body.advertiserId),['123','123']);assert.deepEqual(f.calls[1]!.body.geoRegionSearchTerms,{geoRegionQuery:'Cairo'});}finally{f.store.close();}});
-test('DV360 scope, selected connection and tenant must remain valid before and after every search page',async()=>{for(const mode of ['scope','grant','scope_revoke','grant_revoke','other_connection','tenant']){const f=fixture();try{if(mode==='scope')f.store.putConnection(owner,{...f.c,scopes:[]},{accessToken:'synthetic'});if(mode==='grant')f.store.putConnection(owner,{...f.c,accounts:['999']},{accessToken:'synthetic'});if(mode==='other_connection'){f.store.putConnection(owner,{...f.c,id:'22222222-2222-4222-8222-222222222222'},{accessToken:'other'});f.store.putConnection(owner,{...f.c,enabled:false},{accessToken:'synthetic'});}if(mode.endsWith('_revoke'))f.mode(mode);const result=await f.call({},mode==='tenant'?{...actor,tenantId:'foreign'}:actor);assert.equal(result.success,false,JSON.stringify(result));assert.equal(f.calls.length,mode.endsWith('_revoke')?1:0);}finally{f.store.close();}}});
-test('DV360 gateway search has truthful empty/error/partial results and safe read-only retry',async()=>{for(const mode of ['empty','error','partial','retry']){const f=fixture();try{f.mode(mode);const result=await f.call();assert.equal(result.success,['empty','retry'].includes(mode),JSON.stringify(result));if(mode==='empty'){assert.equal(result.data.search.complete,true);assert.deepEqual(result.data.data.targetingOptions,[]);}if(mode==='error')assert.equal(result.error.code,'PROVIDER_ACCESS_DENIED');if(mode==='partial')assert.equal(result.error.code,'DV360_SEARCH_RESPONSE_INVALID');assert.equal(f.calls.length,mode==='retry'?2:1);}finally{f.store.close();}}});
-test('DV360 search preview validates locally without requiring a credential or recording a mutation',async()=>{const f=fixture();try{const result=await f.call({dry_run:true});assert.equal(result.success,true,JSON.stringify(result));assert.equal(result.data.executed,false);assert.equal(result.data.request.readOnly,true);assert.equal(f.calls.length,0);const invalid=await f.call({params:{...f.args.params,advertiserId:'123'},payload:{...f.args.payload,advertiserId:'999'}});assert.equal(invalid.error.code,'ACCOUNT_SCOPE_MISMATCH');assert.equal(f.calls.length,0);}finally{f.store.close();}});
-test('DV360 search cannot disguise targeting assignment, upload, task creation or method overrides as reads',()=>{const p=dv360TargetingSearchPlan(plan());for(const altered of [{...p,path:'/v4/advertisers/123/targetingTypes/TARGETING_TYPE_GEO_REGION/assignedTargetingOptions'},{...p,path:'/v4/sdfdownloadtasks'},{...p,path:'/v4/advertisers/123/assets'},{...p,headers:{'X-HTTP-Method-Override':'DELETE'}},{...p,query:{method:'DELETE'}}])assert.equal(independentlyReadOnly(altered),false);});
-test('DV360 search ledger retains the captured action but classifies its real native read semantics',()=>{const rows=actionContracts(registry).filter(r=>r.gateway===gateway&&r.action==='DV360_TARGETING_TYPES_TARGETING_OPTIONS_SEARCH');assert.equal(rows.length,1);assert.equal(rows[0]!.status,'native_read');assert.match(rows[0]!.implementation,/dv360-targeting-search/);});
+for (let index = 0; index < variants.length; index++)
+  test('DV360 ' + variants[index]![0] + ' search executes through the read-only deployment as a reader', async () => {
+    const f = fixture(index);
+    try {
+      const p = f.service.compiler.compile(gateway, f.args, {mode: 'strict', flags: {}});
+      assert.equal(independentlyReadOnly(p), true);
+      const result = await f.call();
+      assert.equal(result.success, true, JSON.stringify(result));
+      assert.equal(result.data.success, true);
+      assert.equal(result.data.search.complete, true);
+      assert.equal(f.calls.length, 1);
+      assert.equal(f.store.db.prepare('SELECT count(*) AS n FROM idempotency').get()!.n, 0);
+      assert.equal(f.store.db.prepare('SELECT count(*) AS n FROM resource_ownership').get()!.n, 0);
+    } finally {
+      f.store.close();
+    }
+  });
+test('DV360 gateway search preserves the selected advertiser and terms during complete pagination', async () => {
+  const f = fixture();
+  try {
+    f.mode('pages');
+    const result = await f.call({paginate: true});
+    assert.equal(result.success, true, JSON.stringify(result));
+    assert.equal(result.data.search.complete, true);
+    assert.equal(result.data.pages, 2);
+    assert.equal(result.data.truncated, false);
+    assert.equal(result.data.data.nextPageToken, undefined);
+    assert.deepEqual(
+      f.calls.map(c => c.body.advertiserId),
+      ['123', '123'],
+    );
+    assert.deepEqual(f.calls[1]!.body.geoRegionSearchTerms, {geoRegionQuery: 'Cairo'});
+  } finally {
+    f.store.close();
+  }
+});
+test('DV360 scope, selected connection and tenant must remain valid before and after every search page', async () => {
+  for (const mode of ['scope', 'grant', 'scope_revoke', 'grant_revoke', 'other_connection', 'tenant']) {
+    const f = fixture();
+    try {
+      if (mode === 'scope') f.store.putConnection(owner, {...f.c, scopes: []}, {accessToken: 'synthetic'});
+      if (mode === 'grant') f.store.putConnection(owner, {...f.c, accounts: ['999']}, {accessToken: 'synthetic'});
+      if (mode === 'other_connection') {
+        f.store.putConnection(owner, {...f.c, id: '22222222-2222-4222-8222-222222222222'}, {accessToken: 'other'});
+        f.store.putConnection(owner, {...f.c, enabled: false}, {accessToken: 'synthetic'});
+      }
+      if (mode.endsWith('_revoke')) f.mode(mode);
+      const result = await f.call({}, mode === 'tenant' ? {...actor, tenantId: 'foreign'} : actor);
+      assert.equal(result.success, false, JSON.stringify(result));
+      assert.equal(f.calls.length, mode.endsWith('_revoke') ? 1 : 0);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+test('DV360 gateway search has truthful empty/error/partial results and safe read-only retry', async () => {
+  for (const mode of ['empty', 'error', 'partial', 'retry']) {
+    const f = fixture();
+    try {
+      f.mode(mode);
+      const result = await f.call();
+      assert.equal(result.success, ['empty', 'retry'].includes(mode), JSON.stringify(result));
+      if (mode === 'empty') {
+        assert.equal(result.data.search.complete, true);
+        assert.deepEqual(result.data.data.targetingOptions, []);
+      }
+      if (mode === 'error') assert.equal(result.error.code, 'PROVIDER_ACCESS_DENIED');
+      if (mode === 'partial') assert.equal(result.error.code, 'DV360_SEARCH_RESPONSE_INVALID');
+      assert.equal(f.calls.length, mode === 'retry' ? 2 : 1);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+test('DV360 search preview validates locally without requiring a credential or recording a mutation', async () => {
+  const f = fixture();
+  try {
+    const result = await f.call({dry_run: true});
+    assert.equal(result.success, true, JSON.stringify(result));
+    assert.equal(result.data.executed, false);
+    assert.equal(result.data.request.readOnly, true);
+    assert.equal(f.calls.length, 0);
+    const invalid = await f.call({
+      params: {...f.args.params, advertiserId: '123'},
+      payload: {...f.args.payload, advertiserId: '999'},
+    });
+    assert.equal(invalid.error.code, 'ACCOUNT_SCOPE_MISMATCH');
+    assert.equal(f.calls.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+test('DV360 search cannot disguise targeting assignment, upload, task creation or method overrides as reads', () => {
+  const p = dv360TargetingSearchPlan(plan());
+  for (const altered of [
+    {...p, path: '/v4/advertisers/123/targetingTypes/TARGETING_TYPE_GEO_REGION/assignedTargetingOptions'},
+    {...p, path: '/v4/sdfdownloadtasks'},
+    {...p, path: '/v4/advertisers/123/assets'},
+    {...p, headers: {'X-HTTP-Method-Override': 'DELETE'}},
+    {...p, query: {method: 'DELETE'}},
+  ])
+    assert.equal(independentlyReadOnly(altered), false);
+});
+test('DV360 search ledger retains the captured action but classifies its real native read semantics', () => {
+  const rows = actionContracts(registry).filter(
+    r => r.gateway === gateway && r.action === 'DV360_TARGETING_TYPES_TARGETING_OPTIONS_SEARCH',
+  );
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]!.status, 'native_read');
+  assert.match(rows[0]!.implementation, /dv360-targeting-search/);
+});
 
-test('DV360 explicit identity wins over another default connection for the same advertiser',async()=>{const f=fixture();try{f.store.putConnection(owner,{...f.c,id:'22222222-2222-4222-8222-222222222222',isDefault:true,scopes:[]},{accessToken:'other'});const chosen=await f.call();assert.equal(chosen.success,true,JSON.stringify(chosen));assert.equal(f.calls.length,1);const defaulted=await f.call({connection_id:undefined});assert.equal(defaulted.success,false);assert.equal(defaulted.error.code,'INSUFFICIENT_SCOPE');assert.equal(f.calls.length,1);assert.equal(f.calls[0]!.body.connection_id,undefined);}finally{f.store.close();}});
-test('DV360 resource/method alias uses the same search validation and does not change captured schemas',async()=>{const f=fixture();try{const raw=registry.data.tools.find(t=>t.name===gateway)!,original=structuredClone(raw);assert.equal(raw.inputSchema.properties.connection_id,undefined);const exposed=registry.listTools({mode:'strict',flags:{}}).find(t=>t.name===gateway)!;assert.equal(exposed.inputSchema.properties.connection_id.format,'uuid');const out=await f.call({action:undefined,resource:'targetingTypes.targetingOptions',method:'search',dry_run:true});assert.equal(out.success,true,JSON.stringify(out));assert.equal(out.data.request.readOnly,true);assert.deepEqual(raw,original);const malformed=await f.call({connection_id:'not-a-uuid'});assert.equal(malformed.success,false);assert.equal(malformed.error.code,'INVALID_ARGUMENT');assert.equal(f.calls.length,0);}finally{f.store.close();}});
-test('DV360 search preview is available without any stored provider connection',async()=>{const store=new Store(':memory:'),service=new MirrorService(registry,store,new NativeTransport(async()=>{throw Error('Unexpected egress');}));try{const out=await service.call(gateway,{action:'DV360_TARGETING_TYPES_TARGETING_OPTIONS_SEARCH',params:{targetingType:'TARGETING_TYPE_GEO_REGION'},body:plan().body,dry_run:true},actor);assert.equal(out.success,true,JSON.stringify(out));assert.equal(out.data.executed,false);assert.equal(out.data.request.readOnly,true);assert.equal(store.listConnections(actor.tenantId).length,0);}finally{store.close();}});
+test('DV360 explicit identity wins over another default connection for the same advertiser', async () => {
+  const f = fixture();
+  try {
+    f.store.putConnection(
+      owner,
+      {...f.c, id: '22222222-2222-4222-8222-222222222222', isDefault: true, scopes: []},
+      {accessToken: 'other'},
+    );
+    const chosen = await f.call();
+    assert.equal(chosen.success, true, JSON.stringify(chosen));
+    assert.equal(f.calls.length, 1);
+    const defaulted = await f.call({connection_id: undefined});
+    assert.equal(defaulted.success, false);
+    assert.equal(defaulted.error.code, 'INSUFFICIENT_SCOPE');
+    assert.equal(f.calls.length, 1);
+    assert.equal(f.calls[0]!.body.connection_id, undefined);
+  } finally {
+    f.store.close();
+  }
+});
+test('DV360 resource/method alias uses the same search validation and does not change captured schemas', async () => {
+  const f = fixture();
+  try {
+    const raw = registry.data.tools.find(t => t.name === gateway)!,
+      original = structuredClone(raw);
+    assert.equal(raw.inputSchema.properties.connection_id, undefined);
+    const exposed = registry.listTools({mode: 'strict', flags: {}}).find(t => t.name === gateway)!;
+    assert.equal(exposed.inputSchema.properties.connection_id.format, 'uuid');
+    const out = await f.call({
+      action: undefined,
+      resource: 'targetingTypes.targetingOptions',
+      method: 'search',
+      dry_run: true,
+    });
+    assert.equal(out.success, true, JSON.stringify(out));
+    assert.equal(out.data.request.readOnly, true);
+    assert.deepEqual(raw, original);
+    const malformed = await f.call({connection_id: 'not-a-uuid'});
+    assert.equal(malformed.success, false);
+    assert.equal(malformed.error.code, 'INVALID_ARGUMENT');
+    assert.equal(f.calls.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+test('DV360 search preview is available without any stored provider connection', async () => {
+  const store = new Store(':memory:'),
+    service = new MirrorService(
+      registry,
+      store,
+      new NativeTransport(async () => {
+        throw Error('Unexpected egress');
+      }),
+    );
+  try {
+    const out = await service.call(
+      gateway,
+      {
+        action: 'DV360_TARGETING_TYPES_TARGETING_OPTIONS_SEARCH',
+        params: {targetingType: 'TARGETING_TYPE_GEO_REGION'},
+        body: plan().body,
+        dry_run: true,
+      },
+      actor,
+    );
+    assert.equal(out.success, true, JSON.stringify(out));
+    assert.equal(out.data.executed, false);
+    assert.equal(out.data.request.readOnly, true);
+    assert.equal(store.listConnections(actor.tenantId).length, 0);
+  } finally {
+    store.close();
+  }
+});

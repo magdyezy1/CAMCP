@@ -9,101 +9,672 @@ import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import {saveSpendPolicy} from '../src/spend-policy.js';
 import {parseLinkedInValue} from '../src/linkedin-restli.js';
-import {linkedinConversionSnapshots,readLinkedInConversions,linkedinConversionPrerequisites} from '../src/linkedin-conversion-links.js';
+import {
+  linkedinConversionSnapshots,
+  readLinkedInConversions,
+  linkedinConversionPrerequisites,
+} from '../src/linkedin-conversion-links.js';
 import {ScopeGuard} from '../src/scope.js';
 import {actionContracts} from '../src/action-contracts.js';
 import {removeTestDirectory} from './temp.js';
-import type {Connection,JsonObject} from '../src/types.js';
+import type {Connection, JsonObject} from '../src/types.js';
 
-const gateway='linkedin_native_action',registry=new Registry(),actor={tenantId:'li-links',userId:'operator',role:'operator' as const},owner={...actor,role:'admin' as const},key=Buffer.alloc(32,49).toString('base64');
-const campaign=(id='456')=>'urn:li:sponsoredCampaign:'+id,conversion=(id='789')=>'urn:lla:llaPartnerConversion:'+id;
-const pair=(c='456',v='789')=>({campaign:campaign(c),conversion:conversion(v)}),pairKey=(p:JsonObject)=>'(campaign:'+p.campaign+',conversion:'+p.conversion+')';
-const singlePut='linkedin_rest_campaign_conversions_campaign_conversion_id_put',singleDelete='linkedin_rest_campaign_conversions_campaign_conversion_id_delete',batchPut='linkedin_rest_campaign_conversions_put',batchDelete='linkedin_rest_campaign_conversions_delete',aliasPut='linkedin_rest_campaign_conversions_campaign_campaign_urn_conversion_conversion_urn_put';
-function args(action=singlePut,pairs=[pair()]):JsonObject{const batch=action===batchPut||action===batchDelete,put=action.endsWith('_put');return {action,account_id:'123',...(batch?{query:{ids:pairs},restli_method:put?'BATCH_UPDATE':'BATCH_DELETE'}:{path_params:{[action===aliasPut?'campaign_campaign_urn_conversion_conversion_urn':'campaign_conversion_id']:pairKey(pairs[0]!)}}),...(put?{payload:batch?{entities:Object.fromEntries(pairs.map(p=>[pairKey(p),p]))}:pairs[0]}:{})};}
-function fixture(file=':memory:'){
- const store=new Store(file,key),calls:JsonObject[]=[],members:JsonObject[]=[pair('456','790')],campaigns:JsonObject={'456':{id:456,account:'urn:li:sponsoredAccount:123',name:'Selected campaign',status:'ACTIVE',dailyBudget:{amount:'100',currencyCode:'USD'}},'457':{id:457,account:'urn:li:sponsoredAccount:123',name:'Second campaign',status:'PAUSED'}},conversions:JsonObject={'789':{id:789,account:'urn:li:sponsoredAccount:123',name:'Purchase',type:'PURCHASE',enabled:true,attributionType:'LAST_TOUCH_BY_CAMPAIGN'},'790':{id:790,account:'urn:li:sponsoredAccount:123',name:'Lead',type:'LEAD',enabled:true,attributionType:'LAST_TOUCH_BY_CONVERSION'}};
- const c:Connection={id:'c',tenantId:actor.tenantId,gateway,accounts:['123'],writeAccounts:['123'],enabled:true,label:'Synthetic',scopes:['rw_ads']};if(!store.listConnections(actor.tenantId).length)store.putConnection(owner,c,{accessToken:'synthetic'});
- let mode='success',pageSize=100,reads=0;let readHook:(u:URL,data:JsonObject)=>JsonObject=(_u,data)=>data;
- const transport=new NativeTransport(async(url,init)=>{
-  const u=new URL(String(url)),method=init!.method!;calls.push({url:u.href,method,body:init!.body?.toString()});
-  if(method==='GET'){
-   reads++;let data:JsonObject;
-   if(mode==='revoked')store.putConnection(owner,{...c,writeAccounts:[]},{accessToken:'synthetic'});
-   if(mode==='scope_revoked')store.putConnection(owner,{...c,scopes:[]},{accessToken:'synthetic'});
-   if(u.pathname==='/rest/adAccounts/123')data={id:123,currency:'USD',status:'ACTIVE',name:'Account'};
-   else if(u.pathname.startsWith('/rest/adAccounts/123/adCampaigns/'))data=structuredClone(campaigns[u.pathname.split('/').at(-1)!]??{});
-   else if(u.pathname.startsWith('/rest/conversions/')){assert.equal(u.searchParams.get('account'),'urn:li:sponsoredAccount:123');data=structuredClone(conversions[u.pathname.split('/').at(-1)!]??{});}
-   else if(u.pathname==='/rest/campaignConversions'){
-    assert.equal(u.searchParams.get('q'),'campaigns');const ids=parseLinkedInValue(u.searchParams.get('campaigns')!) as string[];assert.ok(ids.every(id=>Object.hasOwn(campaigns,id.split(':').at(-1)!)));
-    const start=Number(u.searchParams.get('start')),values=members.filter(m=>ids.includes(m.campaign)).slice().reverse(),selected=values.slice(start,start+pageSize);
-    data={elements:selected.map(v=>({...v,associatedAt:reads})),paging:{start,count:pageSize,total:values.length,links:[]}};
-   }else throw Error('Unexpected read '+u.href);
-   if(mode==='state_error')return Response.json({message:'denied',serviceErrorCode:100,status:403});
-   return Response.json(readHook(u,{...data,...(data.elements?{}:{lastModified:reads})}));
-  }
-  assert.match(u.pathname,/^\/rest\/campaignConversions/);const batch=u.pathname==='/rest/campaignConversions',ids=batch?parseLinkedInValue(u.searchParams.get('ids')!) as JsonObject[]:[parseLinkedInValue(decodeURIComponent(u.pathname.slice('/rest/campaignConversions/'.length))) as JsonObject];
-  if(method==='PUT'){const body=JSON.parse(String(init!.body));if(batch)assert.deepEqual(Object.values(body.entities),ids.map(p=>({...p})));else assert.deepEqual(body,{...ids[0]});}
-  if(mode!=='ignored')for(const [i,p]of ids.entries()){if(mode==='partial'&&i>0)continue;const index=members.findIndex(m=>pairKey(m)===pairKey(p));if(method==='PUT'&&index<0)members.push(p);if(method==='DELETE'&&index>=0)members.splice(index,1);}
-  if(mode==='lost')throw Error('Synthetic response lost after mutation');
-  if(mode==='empty')return Response.json({});
-  if(mode==='partial')return Response.json({results:{[pairKey(ids[0]!)]:{status:204}},errors:{[pairKey(ids.at(-1)!)]:{status:403}}});
-  if(mode==='foreign')return Response.json({results:{[pairKey(pair('999','789'))]:{status:204}},errors:{}});
-  if(mode==='batch_receipt')return Response.json({results:Object.fromEntries(ids.map(p=>[pairKey(p),{status:204}])),errors:{}});
-  return new Response(null,{status:204});
- },async()=>{},30000,8*1024*1024,100);
- const service=new MirrorService(registry,store,transport,undefined,{allowWrites:true,maxBudgetChange:0,requireBeforeState:true});
- const prepare=(a=args())=>service.call('amcp_write',{action:'prepare',gateway,arguments:a},actor);
- const execute=(r:JsonObject,extra:JsonObject={})=>service.call('amcp_write',{action:'execute',review_id:r.data.review_id,idempotency_key:r.data.idempotency_key,confirmed:true,spend_change_confirmed:true,...extra},actor);
- const verify=(r:JsonObject)=>service.call('amcp_campaign',{action:'verify',review_id:r.data.review_id},actor);
- return {store,service,c,calls,members,campaigns,conversions,prepare,execute,verify,setMode:(v:string)=>mode=v,setPageSize:(v:number)=>pageSize=v,setHook:(fn:typeof readHook)=>readHook=fn,writes:()=>calls.filter(c=>c.method!=='GET').length};
+const gateway = 'linkedin_native_action',
+  registry = new Registry(),
+  actor = {tenantId: 'li-links', userId: 'operator', role: 'operator' as const},
+  owner = {...actor, role: 'admin' as const},
+  key = Buffer.alloc(32, 49).toString('base64');
+const campaign = (id = '456') => 'urn:li:sponsoredCampaign:' + id,
+  conversion = (id = '789') => 'urn:lla:llaPartnerConversion:' + id;
+const pair = (c = '456', v = '789') => ({campaign: campaign(c), conversion: conversion(v)}),
+  pairKey = (p: JsonObject) => '(campaign:' + p.campaign + ',conversion:' + p.conversion + ')';
+const singlePut = 'linkedin_rest_campaign_conversions_campaign_conversion_id_put',
+  singleDelete = 'linkedin_rest_campaign_conversions_campaign_conversion_id_delete',
+  batchPut = 'linkedin_rest_campaign_conversions_put',
+  batchDelete = 'linkedin_rest_campaign_conversions_delete',
+  aliasPut = 'linkedin_rest_campaign_conversions_campaign_campaign_urn_conversion_conversion_urn_put';
+function args(action = singlePut, pairs = [pair()]): JsonObject {
+  const batch = action === batchPut || action === batchDelete,
+    put = action.endsWith('_put');
+  return {
+    action,
+    account_id: '123',
+    ...(batch
+      ? {query: {ids: pairs}, restli_method: put ? 'BATCH_UPDATE' : 'BATCH_DELETE'}
+      : {
+          path_params: {
+            [action === aliasPut ? 'campaign_campaign_urn_conversion_conversion_urn' : 'campaign_conversion_id']:
+              pairKey(pairs[0]!),
+          },
+        }),
+    ...(put ? {payload: batch ? {entities: Object.fromEntries(pairs.map(p => [pairKey(p), p]))} : pairs[0]} : {}),
+  };
 }
-for(const action of [singlePut,aliasPut,singleDelete,batchPut,batchDelete])test('LinkedIn conversion links '+action+' reviews, executes once and verifies complete membership',async()=>{
- const f=fixture();try{const pairs=action===batchPut||action===batchDelete?[pair(),pair('457','790')]:[pair()];if(action.endsWith('_delete'))f.members.push(...pairs);
-  const r=await f.prepare(args(action,pairs));assert.equal(r.success,true,JSON.stringify(r));const result=await f.execute(r);assert.equal(result.success,true,JSON.stringify(result));assert.equal(result.data.success,true);assert.equal(f.writes(),1);const verified=await f.verify(r);assert.equal(verified.data.status,'verified',JSON.stringify(verified));const replay=await f.execute(r);assert.equal(replay.success,true);assert.equal(f.writes(),1);
-  const wire=f.calls.find(c=>c.method!=='GET')!.url;assert.ok(!wire.includes('%253A'),'URN scalar encoding must not double-escape');if(!action.endsWith('conversions_put')&&!action.endsWith('conversions_delete'))assert.match(wire,/\(campaign:urn%3Ali%3AsponsoredCampaign%3A456,conversion:urn%3Alla%3AllaPartnerConversion%3A789\)/);
- }finally{f.store.close();}
+function fixture(file = ':memory:') {
+  const store = new Store(file, key),
+    calls: JsonObject[] = [],
+    members: JsonObject[] = [pair('456', '790')],
+    campaigns: JsonObject = {
+      '456': {
+        id: 456,
+        account: 'urn:li:sponsoredAccount:123',
+        name: 'Selected campaign',
+        status: 'ACTIVE',
+        dailyBudget: {amount: '100', currencyCode: 'USD'},
+      },
+      '457': {id: 457, account: 'urn:li:sponsoredAccount:123', name: 'Second campaign', status: 'PAUSED'},
+    },
+    conversions: JsonObject = {
+      '789': {
+        id: 789,
+        account: 'urn:li:sponsoredAccount:123',
+        name: 'Purchase',
+        type: 'PURCHASE',
+        enabled: true,
+        attributionType: 'LAST_TOUCH_BY_CAMPAIGN',
+      },
+      '790': {
+        id: 790,
+        account: 'urn:li:sponsoredAccount:123',
+        name: 'Lead',
+        type: 'LEAD',
+        enabled: true,
+        attributionType: 'LAST_TOUCH_BY_CONVERSION',
+      },
+    };
+  const c: Connection = {
+    id: 'c',
+    tenantId: actor.tenantId,
+    gateway,
+    accounts: ['123'],
+    writeAccounts: ['123'],
+    enabled: true,
+    label: 'Synthetic',
+    scopes: ['rw_ads'],
+  };
+  if (!store.listConnections(actor.tenantId).length) store.putConnection(owner, c, {accessToken: 'synthetic'});
+  let mode = 'success',
+    pageSize = 100,
+    reads = 0;
+  let readHook: (u: URL, data: JsonObject) => JsonObject = (_u, data) => data;
+  const transport = new NativeTransport(
+    async (url, init) => {
+      const u = new URL(String(url)),
+        method = init!.method!;
+      calls.push({url: u.href, method, body: init!.body?.toString()});
+      if (method === 'GET') {
+        reads++;
+        let data: JsonObject;
+        if (mode === 'revoked') store.putConnection(owner, {...c, writeAccounts: []}, {accessToken: 'synthetic'});
+        if (mode === 'scope_revoked') store.putConnection(owner, {...c, scopes: []}, {accessToken: 'synthetic'});
+        if (u.pathname === '/rest/adAccounts/123') data = {id: 123, currency: 'USD', status: 'ACTIVE', name: 'Account'};
+        else if (u.pathname.startsWith('/rest/adAccounts/123/adCampaigns/'))
+          data = structuredClone(campaigns[u.pathname.split('/').at(-1)!] ?? {});
+        else if (u.pathname.startsWith('/rest/conversions/')) {
+          assert.equal(u.searchParams.get('account'), 'urn:li:sponsoredAccount:123');
+          data = structuredClone(conversions[u.pathname.split('/').at(-1)!] ?? {});
+        } else if (u.pathname === '/rest/campaignConversions') {
+          assert.equal(u.searchParams.get('q'), 'campaigns');
+          const ids = parseLinkedInValue(u.searchParams.get('campaigns')!) as string[];
+          assert.ok(ids.every(id => Object.hasOwn(campaigns, id.split(':').at(-1)!)));
+          const start = Number(u.searchParams.get('start')),
+            values = members
+              .filter(m => ids.includes(m.campaign))
+              .slice()
+              .reverse(),
+            selected = values.slice(start, start + pageSize);
+          data = {
+            elements: selected.map(v => ({...v, associatedAt: reads})),
+            paging: {start, count: pageSize, total: values.length, links: []},
+          };
+        } else throw Error('Unexpected read ' + u.href);
+        if (mode === 'state_error') return Response.json({message: 'denied', serviceErrorCode: 100, status: 403});
+        return Response.json(readHook(u, {...data, ...(data.elements ? {} : {lastModified: reads})}));
+      }
+      assert.match(u.pathname, /^\/rest\/campaignConversions/);
+      const batch = u.pathname === '/rest/campaignConversions',
+        ids = batch
+          ? (parseLinkedInValue(u.searchParams.get('ids')!) as JsonObject[])
+          : [
+              parseLinkedInValue(
+                decodeURIComponent(u.pathname.slice('/rest/campaignConversions/'.length)),
+              ) as JsonObject,
+            ];
+      if (method === 'PUT') {
+        const body = JSON.parse(String(init!.body));
+        if (batch)
+          assert.deepEqual(
+            Object.values(body.entities),
+            ids.map(p => ({...p})),
+          );
+        else assert.deepEqual(body, {...ids[0]});
+      }
+      if (mode !== 'ignored')
+        for (const [i, p] of ids.entries()) {
+          if (mode === 'partial' && i > 0) continue;
+          const index = members.findIndex(m => pairKey(m) === pairKey(p));
+          if (method === 'PUT' && index < 0) members.push(p);
+          if (method === 'DELETE' && index >= 0) members.splice(index, 1);
+        }
+      if (mode === 'lost') throw Error('Synthetic response lost after mutation');
+      if (mode === 'empty') return Response.json({});
+      if (mode === 'partial')
+        return Response.json({
+          results: {[pairKey(ids[0]!)]: {status: 204}},
+          errors: {[pairKey(ids.at(-1)!)]: {status: 403}},
+        });
+      if (mode === 'foreign')
+        return Response.json({results: {[pairKey(pair('999', '789'))]: {status: 204}}, errors: {}});
+      if (mode === 'batch_receipt')
+        return Response.json({results: Object.fromEntries(ids.map(p => [pairKey(p), {status: 204}])), errors: {}});
+      return new Response(null, {status: 204});
+    },
+    async () => {},
+    30000,
+    8 * 1024 * 1024,
+    100,
+  );
+  const service = new MirrorService(registry, store, transport, undefined, {
+    allowWrites: true,
+    maxBudgetChange: 0,
+    requireBeforeState: true,
+  });
+  const prepare = (a = args()) => service.call('amcp_write', {action: 'prepare', gateway, arguments: a}, actor);
+  const execute = (r: JsonObject, extra: JsonObject = {}) =>
+    service.call(
+      'amcp_write',
+      {
+        action: 'execute',
+        review_id: r.data.review_id,
+        idempotency_key: r.data.idempotency_key,
+        confirmed: true,
+        spend_change_confirmed: true,
+        ...extra,
+      },
+      actor,
+    );
+  const verify = (r: JsonObject) =>
+    service.call('amcp_campaign', {action: 'verify', review_id: r.data.review_id}, actor);
+  return {
+    store,
+    service,
+    c,
+    calls,
+    members,
+    campaigns,
+    conversions,
+    prepare,
+    execute,
+    verify,
+    setMode: (v: string) => (mode = v),
+    setPageSize: (v: number) => (pageSize = v),
+    setHook: (fn: typeof readHook) => (readHook = fn),
+    writes: () => calls.filter(c => c.method !== 'GET').length,
+  };
+}
+for (const action of [singlePut, aliasPut, singleDelete, batchPut, batchDelete])
+  test('LinkedIn conversion links ' + action + ' reviews, executes once and verifies complete membership', async () => {
+    const f = fixture();
+    try {
+      const pairs = action === batchPut || action === batchDelete ? [pair(), pair('457', '790')] : [pair()];
+      if (action.endsWith('_delete')) f.members.push(...pairs);
+      const r = await f.prepare(args(action, pairs));
+      assert.equal(r.success, true, JSON.stringify(r));
+      const result = await f.execute(r);
+      assert.equal(result.success, true, JSON.stringify(result));
+      assert.equal(result.data.success, true);
+      assert.equal(f.writes(), 1);
+      const verified = await f.verify(r);
+      assert.equal(verified.data.status, 'verified', JSON.stringify(verified));
+      const replay = await f.execute(r);
+      assert.equal(replay.success, true);
+      assert.equal(f.writes(), 1);
+      const wire = f.calls.find(c => c.method !== 'GET')!.url;
+      assert.ok(!wire.includes('%253A'), 'URN scalar encoding must not double-escape');
+      if (!action.endsWith('conversions_put') && !action.endsWith('conversions_delete'))
+        assert.match(
+          wire,
+          /\(campaign:urn%3Ali%3AsponsoredCampaign%3A456,conversion:urn%3Alla%3AllaPartnerConversion%3A789\)/,
+        );
+    } finally {
+      f.store.close();
+    }
+  });
+test('LinkedIn conversion batches recognize exact REST.li per-key receipts', async () => {
+  const f = fixture();
+  try {
+    f.setMode('batch_receipt');
+    const r = await f.prepare(args(batchPut, [pair(), pair('457', '790')]));
+    assert.equal(r.success, true);
+    assert.equal((await f.execute(r)).data.success, true);
+    assert.equal((await f.verify(r)).data.status, 'verified');
+  } finally {
+    f.store.close();
+  }
 });
-test('LinkedIn conversion batches recognize exact REST.li per-key receipts',async()=>{const f=fixture();try{f.setMode('batch_receipt');const r=await f.prepare(args(batchPut,[pair(),pair('457','790')]));assert.equal(r.success,true);assert.equal((await f.execute(r)).data.success,true);assert.equal((await f.verify(r)).data.status,'verified');}finally{f.store.close();}});
-test('LinkedIn conversion state pages completely and detects actual config changes',async()=>{for(const change of ['none','budget','conversion','sibling']){const f=fixture();try{f.setPageSize(1);f.members.push(pair('456','791'));const r=await f.prepare();assert.equal(r.success,true,JSON.stringify(r));if(change==='budget')f.campaigns['456'].dailyBudget.amount='200';if(change==='conversion')f.conversions['789'].attributionType='LAST_TOUCH_BY_CONVERSION';if(change==='sibling')f.members.push(pair('456','792'));const result=await f.execute(r);if(change==='none')assert.equal(result.data.success,true);else{assert.equal(result.error.code,'STATE_CHANGED');assert.match(JSON.stringify(result.error.details.changed_fields),/dailyBudget|attributionType|memberships/);assert.equal(f.writes(),0);}}finally{f.store.close();}}});
-test('LinkedIn conversion links reject malformed pairs, query actions, mismatched bodies and method overrides before egress',async()=>{const f=fixture();try{const bad=[{...args(),payload:pair('999')},{...args(),query:{action:'deleteAll'}},{...args(),http_method_override:'PUT'},{...args(),restli_method:'BATCH_UPDATE'},{...args(),payload:{...pair(),associatedAt:1}},{...args(),path_params:{campaign_conversion_id:'(campaign:urn:li:sponsoredCampaign:456,conversion:urn:lla:llaPartnerConversion:789,owner:999)'}},args(batchPut,[pair(),pair()]),{...args(batchPut),payload:{entities:{[pairKey(pair())]:pair('457')}}},{...args(singleDelete),payload:{campaign:campaign()}}];for(const a of bad){const r=await f.prepare(a);assert.equal(r.success,false,JSON.stringify(a));}assert.equal(f.calls.length,0);}finally{f.store.close();}});
-test('LinkedIn conversion state rejects foreign or incomplete parents and failed, partial or repeated collections',async()=>{
- for(const mode of ['foreign_campaign','foreign_conversion','missing_campaign','missing_conversion','bad_envelope','duplicate','foreign_member','partial','wrong_count','state_error']){const f=fixture();try{
-  if(mode==='foreign_campaign')f.campaigns['456'].account='urn:li:sponsoredAccount:999';if(mode==='foreign_conversion')f.conversions['789'].account='urn:li:sponsoredAccount:999';if(mode==='missing_campaign')delete f.campaigns['456'];if(mode==='missing_conversion')delete f.conversions['789'];if(mode==='state_error')f.setMode(mode);
-  if(mode==='duplicate')f.members.push(pair('456','790'));if(mode==='foreign_member')f.setHook((u,d)=>u.pathname==='/rest/campaignConversions'?{...d,elements:[pair('999')]}:d);
-  if(mode==='bad_envelope')f.setHook((u,d)=>u.pathname==='/rest/campaignConversions'?{...d,errors:{}}:d);
-  if(mode==='partial')f.setHook((u,d)=>u.pathname==='/rest/campaignConversions'?{...d,elements:[],paging:{...d.paging,total:2}}:d);
-  if(mode==='wrong_count')f.setHook((u,d)=>u.pathname==='/rest/campaignConversions'?{...d,paging:{...d.paging,total:0}}:d);
-  const r=await f.prepare();assert.equal(r.success,false,mode);assert.equal(f.writes(),0);
- }finally{f.store.close();}}
+test('LinkedIn conversion state pages completely and detects actual config changes', async () => {
+  for (const change of ['none', 'budget', 'conversion', 'sibling']) {
+    const f = fixture();
+    try {
+      f.setPageSize(1);
+      f.members.push(pair('456', '791'));
+      const r = await f.prepare();
+      assert.equal(r.success, true, JSON.stringify(r));
+      if (change === 'budget') f.campaigns['456'].dailyBudget.amount = '200';
+      if (change === 'conversion') f.conversions['789'].attributionType = 'LAST_TOUCH_BY_CONVERSION';
+      if (change === 'sibling') f.members.push(pair('456', '792'));
+      const result = await f.execute(r);
+      if (change === 'none') assert.equal(result.data.success, true);
+      else {
+        assert.equal(result.error.code, 'STATE_CHANGED');
+        assert.match(JSON.stringify(result.error.details.changed_fields), /dailyBudget|attributionType|memberships/);
+        assert.equal(f.writes(), 0);
+      }
+    } finally {
+      f.store.close();
+    }
+  }
 });
-test('LinkedIn conversion writes retain current scopes, grants, policy and confirmation checks',async()=>{
- for(const mode of ['scope','grant','activation','deletion','confirmation','revoked','scope_revoked']){const f=fixture();try{const r=await f.prepare(args(mode==='deletion'?singleDelete:singlePut));assert.equal(r.success,true);if(mode==='scope')f.store.putConnection(owner,{...f.c,scopes:['r_ads']},{accessToken:'synthetic'});if(mode==='grant')f.store.putConnection(owner,{...f.c,writeAccounts:[]},{accessToken:'synthetic'});if(mode==='activation'||mode==='deletion')saveSpendPolicy(f.store,owner,{gateway,account_id:'123',policy:{[mode==='activation'?'allow_activation':'allow_deletion']:false},confirmed:true});if(mode==='revoked'||mode==='scope_revoked')f.setMode(mode);const result=await f.execute(r,mode==='confirmation'?{spend_change_confirmed:false}:{});assert.equal(result.success,false,mode);assert.equal(f.writes(),0,mode);}finally{f.store.close();}}
+test('LinkedIn conversion links reject malformed pairs, query actions, mismatched bodies and method overrides before egress', async () => {
+  const f = fixture();
+  try {
+    const bad = [
+      {...args(), payload: pair('999')},
+      {...args(), query: {action: 'deleteAll'}},
+      {...args(), http_method_override: 'PUT'},
+      {...args(), restli_method: 'BATCH_UPDATE'},
+      {...args(), payload: {...pair(), associatedAt: 1}},
+      {
+        ...args(),
+        path_params: {
+          campaign_conversion_id:
+            '(campaign:urn:li:sponsoredCampaign:456,conversion:urn:lla:llaPartnerConversion:789,owner:999)',
+        },
+      },
+      args(batchPut, [pair(), pair()]),
+      {...args(batchPut), payload: {entities: {[pairKey(pair())]: pair('457')}}},
+      {...args(singleDelete), payload: {campaign: campaign()}},
+    ];
+    for (const a of bad) {
+      const r = await f.prepare(a);
+      assert.equal(r.success, false, JSON.stringify(a));
+    }
+    assert.equal(f.calls.length, 0);
+  } finally {
+    f.store.close();
+  }
 });
-test('LinkedIn conversion no-op, partial, foreign, lost and empty receipts cannot be replayed as success',async()=>{
- for(const mode of ['ignored','partial','foreign','lost','empty']){const f=fixture();try{const r=await f.prepare(args(batchPut,[pair(),pair('457','790')]));assert.equal(r.success,true);f.setMode(mode);const result=await f.execute(r);if(mode==='ignored'){assert.equal(result.data.success,true);assert.equal((await f.verify(r)).data.status,'inconclusive');}else{assert.ok(result.success===false||result.data.success===false,JSON.stringify(result));assert.notEqual((await f.verify(r)).data?.status,'verified');}await f.execute(r);assert.equal(f.writes(),1,mode);}finally{f.store.close();}}
+test('LinkedIn conversion state rejects foreign or incomplete parents and failed, partial or repeated collections', async () => {
+  for (const mode of [
+    'foreign_campaign',
+    'foreign_conversion',
+    'missing_campaign',
+    'missing_conversion',
+    'bad_envelope',
+    'duplicate',
+    'foreign_member',
+    'partial',
+    'wrong_count',
+    'state_error',
+  ]) {
+    const f = fixture();
+    try {
+      if (mode === 'foreign_campaign') f.campaigns['456'].account = 'urn:li:sponsoredAccount:999';
+      if (mode === 'foreign_conversion') f.conversions['789'].account = 'urn:li:sponsoredAccount:999';
+      if (mode === 'missing_campaign') delete f.campaigns['456'];
+      if (mode === 'missing_conversion') delete f.conversions['789'];
+      if (mode === 'state_error') f.setMode(mode);
+      if (mode === 'duplicate') f.members.push(pair('456', '790'));
+      if (mode === 'foreign_member')
+        f.setHook((u, d) => (u.pathname === '/rest/campaignConversions' ? {...d, elements: [pair('999')]} : d));
+      if (mode === 'bad_envelope')
+        f.setHook((u, d) => (u.pathname === '/rest/campaignConversions' ? {...d, errors: {}} : d));
+      if (mode === 'partial')
+        f.setHook((u, d) =>
+          u.pathname === '/rest/campaignConversions' ? {...d, elements: [], paging: {...d.paging, total: 2}} : d,
+        );
+      if (mode === 'wrong_count')
+        f.setHook((u, d) => (u.pathname === '/rest/campaignConversions' ? {...d, paging: {...d.paging, total: 0}} : d));
+      const r = await f.prepare();
+      assert.equal(r.success, false, mode);
+      assert.equal(f.writes(), 0);
+    } finally {
+      f.store.close();
+    }
+  }
 });
-test('LinkedIn conversion links remain once-only under concurrent execution and SQLite reopen',async()=>{
- for(const lost of [false,true]){const dir=mkdtempSync(join(tmpdir(),'amcp-li-links-'));let f=fixture(join(dir,'store.sqlite'));try{const r=await f.prepare();assert.equal(r.success,true);if(lost)f.setMode('lost');await Promise.all([f.execute(r),f.execute(r)]);assert.equal(f.writes(),1);f.store.close();f=fixture(join(dir,'store.sqlite'));const result=await f.execute(r);assert.equal(f.writes(),0);if(lost)assert.equal(result.error.code,'WRITE_OUTCOME_UNCERTAIN');else assert.equal(result.success,true);}finally{f.store.close();removeTestDirectory(dir,'amcp-li-links-');}}
+test('LinkedIn conversion writes retain current scopes, grants, policy and confirmation checks', async () => {
+  for (const mode of ['scope', 'grant', 'activation', 'deletion', 'confirmation', 'revoked', 'scope_revoked']) {
+    const f = fixture();
+    try {
+      const r = await f.prepare(args(mode === 'deletion' ? singleDelete : singlePut));
+      assert.equal(r.success, true);
+      if (mode === 'scope') f.store.putConnection(owner, {...f.c, scopes: ['r_ads']}, {accessToken: 'synthetic'});
+      if (mode === 'grant') f.store.putConnection(owner, {...f.c, writeAccounts: []}, {accessToken: 'synthetic'});
+      if (mode === 'activation' || mode === 'deletion')
+        saveSpendPolicy(f.store, owner, {
+          gateway,
+          account_id: '123',
+          policy: {[mode === 'activation' ? 'allow_activation' : 'allow_deletion']: false},
+          confirmed: true,
+        });
+      if (mode === 'revoked' || mode === 'scope_revoked') f.setMode(mode);
+      const result = await f.execute(r, mode === 'confirmation' ? {spend_change_confirmed: false} : {});
+      assert.equal(result.success, false, mode);
+      assert.equal(f.writes(), 0, mode);
+    } finally {
+      f.store.close();
+    }
+  }
 });
-test('LinkedIn conversion verification checks scope before its cache and native gateway cannot bypass review',async()=>{const f=fixture();try{const r=await f.prepare();assert.equal(r.success,true);await f.execute(r);assert.equal((await f.verify(r)).data.status,'verified');f.store.putConnection(owner,{...f.c,scopes:[]},{accessToken:'synthetic'});assert.equal((await f.verify(r)).error.code,'INSUFFICIENT_SCOPE');f.store.putConnection(owner,f.c,{accessToken:'synthetic'});const n=await f.service.call(gateway,{...args(),dry_run:false,confirmed:true,idempotency_key:'12345678-1234-4234-9234-123456789abc'},actor);assert.equal(n.error.code,'WRITE_REVIEW_REQUIRED');assert.equal(f.writes(),1);}finally{f.store.close();}});
-test('LinkedIn native compound pair reads gain no ownership or caller-controlled internal scope',async()=>{const f=fixture();try{const p=registry.action(gateway,singlePut)!;assert.ok(p);const read={gateway,action:'AMCP_LINKEDIN_CONVERSION_READ',method:'GET',path:'/rest/campaignConversions',query:{q:'campaigns',campaigns:[campaign()]},headers:{},readOnly:true,destructive:false,requiresConfirmation:false,accountId:'123',evidence:'test',warnings:[]};assert.throws(()=>new ScopeGuard(registry,f.store).authorize(read,f.c),/ownership/i);const other={...f.c,accounts:['999']};assert.throws(()=>new ScopeGuard(registry,f.store).authorize({...read,path:'/rest/adAccounts/123'},other),/account/i);}finally{f.store.close();}});
-test('LinkedIn all five captured conversion association writes have their own reviewed family',()=>{const rows=actionContracts(registry).filter(r=>r.gateway===gateway&&[singlePut,aliasPut,singleDelete,batchPut,batchDelete].includes(r.action));assert.equal(rows.length,5);assert.ok(rows.every(r=>r.status==='reviewed_write_family'&&r.family==='linkedin_conversion_links'));});
+test('LinkedIn conversion no-op, partial, foreign, lost and empty receipts cannot be replayed as success', async () => {
+  for (const mode of ['ignored', 'partial', 'foreign', 'lost', 'empty']) {
+    const f = fixture();
+    try {
+      const r = await f.prepare(args(batchPut, [pair(), pair('457', '790')]));
+      assert.equal(r.success, true);
+      f.setMode(mode);
+      const result = await f.execute(r);
+      if (mode === 'ignored') {
+        assert.equal(result.data.success, true);
+        assert.equal((await f.verify(r)).data.status, 'inconclusive');
+      } else {
+        assert.ok(result.success === false || result.data.success === false, JSON.stringify(result));
+        assert.notEqual((await f.verify(r)).data?.status, 'verified');
+      }
+      await f.execute(r);
+      assert.equal(f.writes(), 1, mode);
+    } finally {
+      f.store.close();
+    }
+  }
+});
+test('LinkedIn conversion links remain once-only under concurrent execution and SQLite reopen', async () => {
+  for (const lost of [false, true]) {
+    const dir = mkdtempSync(join(tmpdir(), 'amcp-li-links-'));
+    let f = fixture(join(dir, 'store.sqlite'));
+    try {
+      const r = await f.prepare();
+      assert.equal(r.success, true);
+      if (lost) f.setMode('lost');
+      await Promise.all([f.execute(r), f.execute(r)]);
+      assert.equal(f.writes(), 1);
+      f.store.close();
+      f = fixture(join(dir, 'store.sqlite'));
+      const result = await f.execute(r);
+      assert.equal(f.writes(), 0);
+      if (lost) assert.equal(result.error.code, 'WRITE_OUTCOME_UNCERTAIN');
+      else assert.equal(result.success, true);
+    } finally {
+      f.store.close();
+      removeTestDirectory(dir, 'amcp-li-links-');
+    }
+  }
+});
+test('LinkedIn conversion verification checks scope before its cache and native gateway cannot bypass review', async () => {
+  const f = fixture();
+  try {
+    const r = await f.prepare();
+    assert.equal(r.success, true);
+    await f.execute(r);
+    assert.equal((await f.verify(r)).data.status, 'verified');
+    f.store.putConnection(owner, {...f.c, scopes: []}, {accessToken: 'synthetic'});
+    assert.equal((await f.verify(r)).error.code, 'INSUFFICIENT_SCOPE');
+    f.store.putConnection(owner, f.c, {accessToken: 'synthetic'});
+    const n = await f.service.call(
+      gateway,
+      {...args(), dry_run: false, confirmed: true, idempotency_key: '12345678-1234-4234-9234-123456789abc'},
+      actor,
+    );
+    assert.equal(n.error.code, 'WRITE_REVIEW_REQUIRED');
+    assert.equal(f.writes(), 1);
+  } finally {
+    f.store.close();
+  }
+});
+test('LinkedIn native compound pair reads gain no ownership or caller-controlled internal scope', async () => {
+  const f = fixture();
+  try {
+    const p = registry.action(gateway, singlePut)!;
+    assert.ok(p);
+    const read = {
+      gateway,
+      action: 'AMCP_LINKEDIN_CONVERSION_READ',
+      method: 'GET',
+      path: '/rest/campaignConversions',
+      query: {q: 'campaigns', campaigns: [campaign()]},
+      headers: {},
+      readOnly: true,
+      destructive: false,
+      requiresConfirmation: false,
+      accountId: '123',
+      evidence: 'test',
+      warnings: [],
+    };
+    assert.throws(() => new ScopeGuard(registry, f.store).authorize(read, f.c), /ownership/i);
+    const other = {...f.c, accounts: ['999']};
+    assert.throws(
+      () => new ScopeGuard(registry, f.store).authorize({...read, path: '/rest/adAccounts/123'}, other),
+      /account/i,
+    );
+  } finally {
+    f.store.close();
+  }
+});
+test('LinkedIn all five captured conversion association writes have their own reviewed family', () => {
+  const rows = actionContracts(registry).filter(
+    r => r.gateway === gateway && [singlePut, aliasPut, singleDelete, batchPut, batchDelete].includes(r.action),
+  );
+  assert.equal(rows.length, 5);
+  assert.ok(rows.every(r => r.status === 'reviewed_write_family' && r.family === 'linkedin_conversion_links'));
+});
 
-test('LinkedIn membership can finish an exact full final page without a next link or total count',async()=>{const f=fixture();try{f.setPageSize(1);f.setHook((u,d)=>{if(u.pathname==='/rest/campaignConversions')delete d.paging.total;return d;});const r=await f.prepare();assert.equal(r.success,true,JSON.stringify(r));assert.ok(f.calls.filter(c=>c.url.includes('/campaignConversions?')).length===2);assert.equal((await f.execute(r)).data.success,true);assert.equal((await f.verify(r)).data.status,'verified');}finally{f.store.close();}});
-test('LinkedIn conversion campaign sets ignore ordering while new configuration remains protected',async()=>{const f=fixture();try{f.conversions['789'].campaigns=[campaign(),campaign('457')];const r=await f.prepare();assert.equal(r.success,true);f.conversions['789'].campaigns.reverse();assert.equal((await f.execute(r)).data.success,true);const another=await f.prepare();assert.equal(another.success,true);f.conversions['789'].futureOptimizationMode='DIFFERENT';const result=await f.execute(another);assert.equal(result.error.code,'STATE_CHANGED');assert.match(JSON.stringify(result.error.details.changed_fields),/futureOptimizationMode/);}finally{f.store.close();}});
-test('LinkedIn association limits cover every page and the complete creation batch',async()=>{
- const f=fixture();try{f.members.splice(0,f.members.length,...Array.from({length:1000},(_,i)=>pair('456',String(10000+i))));const existing=await f.prepare(args(singlePut,[pair('456','10000')]));assert.equal(existing.success,false,'Missing exact conversion still fails despite membership');f.conversions['10000']={...f.conversions['789'],id:10000};assert.equal((await f.prepare(args(singlePut,[pair('456','10000')]))).success,true);assert.equal((await f.prepare()).error.code,'INVALID_CONVERSION_LINK');f.members.push(pair('456','12000'));assert.equal((await f.prepare()).error.code,'CONVERSION_LINK_STATE_UNVERIFIED');}finally{f.store.close();}
- const g=fixture();try{g.setPageSize(1);g.members.splice(0,g.members.length,...Array.from({length:26},(_,i)=>pair('456',String(10000+i))));assert.equal((await g.prepare()).error.code,'CONVERSION_LINK_STATE_UNVERIFIED');assert.equal(g.calls.filter(c=>c.url.includes('/campaignConversions?')).length,25);assert.equal(g.writes(),0);}finally{g.store.close();}
+test('LinkedIn membership can finish an exact full final page without a next link or total count', async () => {
+  const f = fixture();
+  try {
+    f.setPageSize(1);
+    f.setHook((u, d) => {
+      if (u.pathname === '/rest/campaignConversions') delete d.paging.total;
+      return d;
+    });
+    const r = await f.prepare();
+    assert.equal(r.success, true, JSON.stringify(r));
+    assert.ok(f.calls.filter(c => c.url.includes('/campaignConversions?')).length === 2);
+    assert.equal((await f.execute(r)).data.success, true);
+    assert.equal((await f.verify(r)).data.status, 'verified');
+  } finally {
+    f.store.close();
+  }
 });
-test('LinkedIn byte bounds, malformed paging and per-entry errors fail closed',async()=>{
- for(const mode of ['large','page_partial','page_error','entry_error','metadata','empty_next','unsafe_id']){const f=fixture();try{if(mode==='unsafe_id'){f.campaigns['9007199254740992']={...f.campaigns['456'],id:9007199254740992};}f.setHook((u,d)=>{if(mode==='large'&&u.pathname.includes('/adCampaigns/'))d.extra='x'.repeat(4*1024*1024);if(u.pathname==='/rest/campaignConversions'){if(mode==='page_partial')d.paging.partial=true;if(mode==='page_error')d.errors=[];if(mode==='entry_error')d.elements[0].errors=[];if(mode==='metadata')d.metadata={truncated:true};if(mode==='empty_next'){d.elements=[];d.paging={start:0,count:100,links:[{rel:'next',href:'https://example.com/private?access_token=synthetic'}]};}}return d;});const result=await f.prepare(mode==='unsafe_id'?args(singlePut,[pair('9007199254740992')]):args());assert.equal(result.success,false,mode);assert.equal(f.writes(),0);assert.ok(f.calls.every(c=>c.url.startsWith('https://api.linkedin.com/')));}finally{f.store.close();}}
+test('LinkedIn conversion campaign sets ignore ordering while new configuration remains protected', async () => {
+  const f = fixture();
+  try {
+    f.conversions['789'].campaigns = [campaign(), campaign('457')];
+    const r = await f.prepare();
+    assert.equal(r.success, true);
+    f.conversions['789'].campaigns.reverse();
+    assert.equal((await f.execute(r)).data.success, true);
+    const another = await f.prepare();
+    assert.equal(another.success, true);
+    f.conversions['789'].futureOptimizationMode = 'DIFFERENT';
+    const result = await f.execute(another);
+    assert.equal(result.error.code, 'STATE_CHANGED');
+    assert.match(JSON.stringify(result.error.details.changed_fields), /futureOptimizationMode/);
+  } finally {
+    f.store.close();
+  }
 });
-test('LinkedIn internal review enforces a monotonic deadline and all-batch capacity',async(t)=>{
- const plan={gateway,action:singlePut,method:'PUT',path:'/rest/campaignConversions/'+pairKey(pair()),query:{},body:pair(),headers:{'LinkedIn-Version':'202605','X-Restli-Protocol-Version':'2.0.0'},readOnly:false,destructive:false,requiresConfirmation:true,accountId:'123',evidence:'test',warnings:[]};
- let tick=0;t.mock.method(performance,'now',()=>tick);await assert.rejects(()=>readLinkedInConversions(linkedinConversionSnapshots(plan)[0]!,async()=>{tick=60001;return {status:200,headers:{},data:{id:123,currency:'USD',status:'ACTIVE'}};}),/time bound/);
- const batch={...plan,path:'/rest/campaignConversions',query:{ids:[pair(),pair('456','790')]},body:{entities:{[pairKey(pair())]:pair(),[pairKey(pair('456','790'))]:pair('456','790')}}},memberships=Object.fromEntries(Array.from({length:999},(_,i)=>[pairKey(pair('456',String(10000+i))),pair('456',String(10000+i))]));assert.throws(()=>linkedinConversionPrerequisites(batch,[{memberships}]),/capacity/);
+test('LinkedIn association limits cover every page and the complete creation batch', async () => {
+  const f = fixture();
+  try {
+    f.members.splice(0, f.members.length, ...Array.from({length: 1000}, (_, i) => pair('456', String(10000 + i))));
+    const existing = await f.prepare(args(singlePut, [pair('456', '10000')]));
+    assert.equal(existing.success, false, 'Missing exact conversion still fails despite membership');
+    f.conversions['10000'] = {...f.conversions['789'], id: 10000};
+    assert.equal((await f.prepare(args(singlePut, [pair('456', '10000')]))).success, true);
+    assert.equal((await f.prepare()).error.code, 'INVALID_CONVERSION_LINK');
+    f.members.push(pair('456', '12000'));
+    assert.equal((await f.prepare()).error.code, 'CONVERSION_LINK_STATE_UNVERIFIED');
+  } finally {
+    f.store.close();
+  }
+  const g = fixture();
+  try {
+    g.setPageSize(1);
+    g.members.splice(0, g.members.length, ...Array.from({length: 26}, (_, i) => pair('456', String(10000 + i))));
+    assert.equal((await g.prepare()).error.code, 'CONVERSION_LINK_STATE_UNVERIFIED');
+    assert.equal(g.calls.filter(c => c.url.includes('/campaignConversions?')).length, 25);
+    assert.equal(g.writes(), 0);
+  } finally {
+    g.store.close();
+  }
 });
-test('LinkedIn identical numeric IDs on another connection never reuse account proof or review',async()=>{const f=fixture();try{const r=await f.prepare();assert.equal(r.success,true);const c2={...f.c,id:'c2',accounts:['999'],writeAccounts:['999']};f.store.putConnection(owner,c2,{accessToken:'second-synthetic'});const switched=await f.service.call('amcp_write',{action:'execute',review_id:r.data.review_id,idempotency_key:r.data.idempotency_key,connection_id:'c2',confirmed:true,spend_change_confirmed:true},actor);assert.equal(switched.error.code,'INVALID_ARGUMENT');assert.equal(f.writes(),0);const cross=await f.service.call('amcp_campaign',{action:'verify',review_id:r.data.review_id},{...actor,tenantId:'other'});assert.equal(cross.success,false);}finally{f.store.close();}});
+test('LinkedIn byte bounds, malformed paging and per-entry errors fail closed', async () => {
+  for (const mode of ['large', 'page_partial', 'page_error', 'entry_error', 'metadata', 'empty_next', 'unsafe_id']) {
+    const f = fixture();
+    try {
+      if (mode === 'unsafe_id') {
+        f.campaigns['9007199254740992'] = {...f.campaigns['456'], id: 9007199254740992};
+      }
+      f.setHook((u, d) => {
+        if (mode === 'large' && u.pathname.includes('/adCampaigns/')) d.extra = 'x'.repeat(4 * 1024 * 1024);
+        if (u.pathname === '/rest/campaignConversions') {
+          if (mode === 'page_partial') d.paging.partial = true;
+          if (mode === 'page_error') d.errors = [];
+          if (mode === 'entry_error') d.elements[0].errors = [];
+          if (mode === 'metadata') d.metadata = {truncated: true};
+          if (mode === 'empty_next') {
+            d.elements = [];
+            d.paging = {
+              start: 0,
+              count: 100,
+              links: [{rel: 'next', href: 'https://example.com/private?access_token=synthetic'}],
+            };
+          }
+        }
+        return d;
+      });
+      const result = await f.prepare(mode === 'unsafe_id' ? args(singlePut, [pair('9007199254740992')]) : args());
+      assert.equal(result.success, false, mode);
+      assert.equal(f.writes(), 0);
+      assert.ok(f.calls.every(c => c.url.startsWith('https://api.linkedin.com/')));
+    } finally {
+      f.store.close();
+    }
+  }
+});
+test('LinkedIn internal review enforces a monotonic deadline and all-batch capacity', async t => {
+  const plan = {
+    gateway,
+    action: singlePut,
+    method: 'PUT',
+    path: '/rest/campaignConversions/' + pairKey(pair()),
+    query: {},
+    body: pair(),
+    headers: {'LinkedIn-Version': '202605', 'X-Restli-Protocol-Version': '2.0.0'},
+    readOnly: false,
+    destructive: false,
+    requiresConfirmation: true,
+    accountId: '123',
+    evidence: 'test',
+    warnings: [],
+  };
+  let tick = 0;
+  t.mock.method(performance, 'now', () => tick);
+  await assert.rejects(
+    () =>
+      readLinkedInConversions(linkedinConversionSnapshots(plan)[0]!, async () => {
+        tick = 60001;
+        return {status: 200, headers: {}, data: {id: 123, currency: 'USD', status: 'ACTIVE'}};
+      }),
+    /time bound/,
+  );
+  const batch = {
+      ...plan,
+      path: '/rest/campaignConversions',
+      query: {ids: [pair(), pair('456', '790')]},
+      body: {entities: {[pairKey(pair())]: pair(), [pairKey(pair('456', '790'))]: pair('456', '790')}},
+    },
+    memberships = Object.fromEntries(
+      Array.from({length: 999}, (_, i) => [pairKey(pair('456', String(10000 + i))), pair('456', String(10000 + i))]),
+    );
+  assert.throws(() => linkedinConversionPrerequisites(batch, [{memberships}]), /capacity/);
+});
+test('LinkedIn identical numeric IDs on another connection never reuse account proof or review', async () => {
+  const f = fixture();
+  try {
+    const r = await f.prepare();
+    assert.equal(r.success, true);
+    const c2 = {...f.c, id: 'c2', accounts: ['999'], writeAccounts: ['999']};
+    f.store.putConnection(owner, c2, {accessToken: 'second-synthetic'});
+    const switched = await f.service.call(
+      'amcp_write',
+      {
+        action: 'execute',
+        review_id: r.data.review_id,
+        idempotency_key: r.data.idempotency_key,
+        connection_id: 'c2',
+        confirmed: true,
+        spend_change_confirmed: true,
+      },
+      actor,
+    );
+    assert.equal(switched.error.code, 'INVALID_ARGUMENT');
+    assert.equal(f.writes(), 0);
+    const cross = await f.service.call(
+      'amcp_campaign',
+      {action: 'verify', review_id: r.data.review_id},
+      {...actor, tenantId: 'other'},
+    );
+    assert.equal(cross.success, false);
+  } finally {
+    f.store.close();
+  }
+});
 
-test('LinkedIn native associatedCampaigns records and callback telemetry preserve semantic reviews',async()=>{const f=fixture();try{const v=f.conversions['789'];v.campaigns=[campaign(),campaign('457')];v.associatedCampaigns=[{...pair(),associatedAt:1},{...pair('457'),associatedAt:2}];v.lastCallbackAt=100;v.latestFirstPartyCallbackAt=101;const r=await f.prepare();assert.equal(r.success,true,JSON.stringify(r));v.campaigns.reverse();v.associatedCampaigns.reverse();v.associatedCampaigns[0].associatedAt=999;v.lastCallbackAt=200;v.latestFirstPartyCallbackAt=201;assert.equal((await f.execute(r)).data.success,true);const again=await f.prepare();assert.equal(again.success,true);v.associatedCampaigns[0].futureConfiguration='changed';assert.equal((await f.execute(again)).error.code,'STATE_CHANGED');}finally{f.store.close();}});
-test('LinkedIn native conversion membership refuses foreign pairs, duplicate campaigns and inconsistent views',async()=>{for(const mode of ['foreign','duplicate','inconsistent','strings','error']){const f=fixture();try{const v=f.conversions['789'];v.campaigns=[campaign()];v.associatedCampaigns=[{...pair(),associatedAt:1}];if(mode==='foreign')v.associatedCampaigns[0].conversion=conversion('999');if(mode==='duplicate')v.associatedCampaigns.push({...pair()});if(mode==='inconsistent')v.campaigns=[];if(mode==='strings')v.associatedCampaigns=[campaign()];if(mode==='error')v.associatedCampaigns[0].errors={};assert.equal((await f.prepare()).success,false,mode);assert.equal(f.writes(),0);}finally{f.store.close();}}});
+test('LinkedIn native associatedCampaigns records and callback telemetry preserve semantic reviews', async () => {
+  const f = fixture();
+  try {
+    const v = f.conversions['789'];
+    v.campaigns = [campaign(), campaign('457')];
+    v.associatedCampaigns = [
+      {...pair(), associatedAt: 1},
+      {...pair('457'), associatedAt: 2},
+    ];
+    v.lastCallbackAt = 100;
+    v.latestFirstPartyCallbackAt = 101;
+    const r = await f.prepare();
+    assert.equal(r.success, true, JSON.stringify(r));
+    v.campaigns.reverse();
+    v.associatedCampaigns.reverse();
+    v.associatedCampaigns[0].associatedAt = 999;
+    v.lastCallbackAt = 200;
+    v.latestFirstPartyCallbackAt = 201;
+    assert.equal((await f.execute(r)).data.success, true);
+    const again = await f.prepare();
+    assert.equal(again.success, true);
+    v.associatedCampaigns[0].futureConfiguration = 'changed';
+    assert.equal((await f.execute(again)).error.code, 'STATE_CHANGED');
+  } finally {
+    f.store.close();
+  }
+});
+test('LinkedIn native conversion membership refuses foreign pairs, duplicate campaigns and inconsistent views', async () => {
+  for (const mode of ['foreign', 'duplicate', 'inconsistent', 'strings', 'error']) {
+    const f = fixture();
+    try {
+      const v = f.conversions['789'];
+      v.campaigns = [campaign()];
+      v.associatedCampaigns = [{...pair(), associatedAt: 1}];
+      if (mode === 'foreign') v.associatedCampaigns[0].conversion = conversion('999');
+      if (mode === 'duplicate') v.associatedCampaigns.push({...pair()});
+      if (mode === 'inconsistent') v.campaigns = [];
+      if (mode === 'strings') v.associatedCampaigns = [campaign()];
+      if (mode === 'error') v.associatedCampaigns[0].errors = {};
+      assert.equal((await f.prepare()).success, false, mode);
+      assert.equal(f.writes(), 0);
+    } finally {
+      f.store.close();
+    }
+  }
+});
