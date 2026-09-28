@@ -16,17 +16,17 @@ the roadmap), **decision** (changes the level of protection; needs the owner's y
 |---|---|---|---|
 | Bearer token + reader/operator scope | Hashed, expiring, revocable; rechecked per call | Right | — |
 | Selected-account boundary (`ScopeGuard`) | Every read authorized against the selected accounts / properties / sites | Right | — |
-| Standalone resource ownership (`RESOURCE_SCOPE_REQUIRED`) | A Meta/Snapchat/… object id must first appear in an account-scoped collection read | **Right protection, stumper UX**: the error does not say which read establishes ownership, so a simple "raise this ad set's budget" costs a list call the model has to guess | **next**: the error names the collection action and gives a `next_call`; **decision**: let AMCP run that read itself when the provider's own record states the owning account |
+| Standalone resource ownership (`RESOURCE_SCOPE_REQUIRED`) | A Meta/Snapchat/… object id must first appear in an account-scoped collection read | **Right protection, stumper UX**: the error does not say which read establishes ownership, so a simple "raise this ad set's budget" costs a list call the model has to guess | **done** (batch 5): the error lists the account collection reads (`details.ownership_reads`) and, when one read fits, gives it as `next_call` (Meta IDs do not reveal their type, so Meta gets one read per collection); **decision**: let AMCP run that read itself when the provider's own record states the owning account |
 | Independent read classification | 17 unqualified reads stay blocked | Right (fail closed) | — |
 | Pagination / size limits | 8 MB responses, bounded pages | Right | — |
-| `inspect_google_drive_media` | Any role, buffers up to 128 MiB, no concurrency limit | **Too loose** (resource exhaustion) | **next**: semaphore and streaming hash (F-21) |
+| `inspect_google_drive_media` | Any role, buffers up to 128 MiB, no concurrency limit | **Too loose** (resource exhaustion) | **done**: hashed while streaming (the file is never held), one inspection per workspace and four per process (F-21) |
 | Untrusted provider content | One response-wide label | Too coarse | **next**: label paths that carry provider text (F-22) |
 
 ## 2. Write path
 
 | Control | Today | Verdict | Change |
 |---|---|---|---|
-| Deployment kill switch | `MIRROR_ALLOW_WRITES`, read at start-up | Right, but no emergency stop without redeploy | **next**: owner "pause all writes" switch checked on every execute (F-24) |
+| Deployment kill switch | `MIRROR_ALLOW_WRITES`, read at start-up | Right, but no emergency stop without redeploy | **done**: owner `pause_writes` with a reason, checked at every execute and media upload; reviews, reads and verification continue; plan steps stay ready (F-24) |
 | Role + account write grant | Operator/admin plus per-account grant | Right | — |
 | inspect → prepare → execute, 5-minute review, state hash, fingerprint | Frozen request, re-read before execute | Right; expiry is the one sharp edge | **next**: `REVIEW_EXPIRED` returns a ready re-prepare call; `amcp_campaign` re-prepares instead of failing the step (F-27) |
 | `confirmed: true` | Always required at execute | Cheap, deliberate act; keep | — |

@@ -78,3 +78,53 @@ workspace captions; F-40 (one token set) covers them. Focus restoration after pa
 
 Full qualification (`.release/batch3-20260928`): **2,687 / 2,687** tests and **4 / 4** capture tests; every
 generated check passes; `check:web` passes on 12 scripts and 2 pages; Railway check passes. 537 s.
+
+## Batch 4 — family registry (pass 1), metric sources, write pause, Drive inspection, platform report
+
+Findings: F-21, F-24, F-71, and F-59, F-60, F-63 in part, plus the owner's requests for per-platform reporting and
+a platform-by-platform review ([PLATFORMS.md](PLATFORMS.md)).
+
+| Change | Evidence |
+|---|---|
+| `ReviewedFamily` (`src/reviewed-family.ts`) declared by 41 family modules and listed in `src/reviewed-families.ts`; the ten lifecycle modules consult the registry once per stage and lose 734 lines of wiring (45 added, including pointer comments); reader chains 83 → 42 and 80 → 39 levels | the unchanged 2,687 tests pass on the migrated build; action ledger and `CONTRACTS.md` unchanged (`--check`); differential replay below |
+| `familyOf` / `familyOfRead` refuse a request or read two registered families claim (`REVIEWED_FAMILY_CONFLICT`, before anything is sent) | `tests/reviewed-families.test.mjs` (5 tests): completeness, no ledger route claimed twice among registered and still-wired families, the conflict refusal, reader pass-through, no lifecycle module naming a registered family |
+| Drive inspection hashes while streaming and keeps 64 bytes; one inspection per workspace, four per process (`src/media-routing.ts`, F-21) | `tests/drive-inspection.test.mjs`: the concurrency test fails on `2360a9c`; the digest-equivalence test passes before and after |
+| Owner `pause_writes` / `resume_writes` (`src/owner-operations.ts`), refused at every execute and media upload with `WRITES_PAUSED`, shown in the dashboard, readiness check and owner page; plan steps stay `review_ready` (F-24) | `tests/write-pause.test.mjs`: 3 of 4 fail on `2360a9c` (the cross-workspace control passes on both) |
+| `metricSources` (`src/report-metrics.ts`): the native field or rule behind every shared metric on every report platform, shown in the reporting view and the evidence download | `tests/report-metric-sources.test.mjs` (5 tests) derives each value from the declared field through `normalizeNativeRow`; `tests/report-library-ui.test.mjs` renders the panel; both fail to load on `2360a9c` |
+
+Registry cost: `reviewedWriteFamily` over the 3,071 ledger routes takes 8.4 µs per call instead of 6.2 µs, because
+every registered `kind` is evaluated to detect conflicts.
+
+Equivalence: the move keeps each chain's remaining lines in order and consults the registry at the position of the
+first line it replaced, so a registered family only moves past other families' own predicates (all disjoint over
+the ledger routes). To test the claim beyond the assertions of the suite, the pre-refactor build (`2360a9c`) was
+instrumented to record the inputs and outputs of nine lifecycle functions (`reviewedWriteFamily`,
+`assertWriteShape`, `snapshotPlans`, `validateState`, `normalizeSnapshot`, `writeImpact`, `writeOutcome`,
+`applyExecutionRisk`, `authorizeExecution`) while it ran the whole suite; every distinct call was then replayed
+against the new build.
+
+Result: **40,624 distinct calls, 0 differences** — the same return values and the same refusals (code, message and
+status), including 1,867 `assertWriteShape`, 1,021 `authorizeExecution`, 97 `validateState` and 49 `writeImpact`
+refusals. Distinct calls per function: `applyExecutionRisk` 8,834, `authorizeExecution` 5,432, `assertWriteShape`
+4,985, `reviewedWriteFamily` 4,665, `normalizeSnapshot` 4,487, `validateState` 4,347, `writeOutcome` 3,202,
+`writeImpact` 2,559, `snapshotPlans` 2,113. A sensitivity run with one family's route name and one family's
+assertion deliberately altered reported all 31 affected calls. Verification reads, `ScopeGuard` and the reader
+composition are not exported pure functions; for them the evidence is the unchanged suite. (Two stdio tests fail
+only in the instrumented run, because their child process starts without the recorder.)
+
+Full qualification (`.release/batch4-20260928`, commits up to `42bd81e`): **2,704 / 2,704** tests and **4 / 4**
+capture tests; every generated check passes; `check:web` passes; guidance covers 356 refusals across 219 modules;
+Railway check passes. 495 s.
+
+## Batch 5 — ownership hints, checked report, sealed vendor documents, contract text, unused code
+
+Findings: F-54, F-69, F-72, part of F-70 and F-28 (the ownership stumper in
+[MCP-SECURITY-CALIBRATION.md](MCP-SECURITY-CALIBRATION.md)), and the lint half of F-62.
+
+| Change | Red on `2360a9c` | Green |
+|---|---|---|
+| `RESOURCE_SCOPE_REQUIRED` lists the collection reads that establish ownership (`details.ownership_reads`, and `next_call` when one fits) | `tests/ownership-reads.test.mjs`: 3 / 3 fail | 3 / 3, each hint followed end to end |
+| `npm run check` runs `report --check`; the stale `.mirror/PARITY.md` and `implementation-status.json` are regenerated | `report --check` names both files | passes; two runs are byte-identical |
+| Every pinned vendor document sealed with `document_sha256`; the vendor tools require the seal | `tests/vendor-integrity.test.mjs` fails without the seals | passes; vendor routes unchanged, the ledger records the new file digests |
+| `CONTRACTS.md` states Reddit's lead-form withdrawal instead of offering it | — (text) | regenerated; every generated check passes |
+| 32 unused declarations removed (4 dead helpers, none a missing check); `noUnusedLocals` on | `tsc --noUnusedLocals`: 32 errors | 0 |
