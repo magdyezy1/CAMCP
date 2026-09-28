@@ -1521,6 +1521,18 @@
     {
       "gateway": "tiktok_native_action",
       "arguments": {
+        "action": "tiktok_custom_conversion_update",
+        "account_id": "123",
+        "payload": {
+          "advertiser_id": "123",
+          "custom_conversion_id": "9001",
+          "name": "Checkout over 50"
+        }
+      }
+    },
+    {
+      "gateway": "tiktok_native_action",
+      "arguments": {
         "action": "tiktok_blockedword_create",
         "account_id": "123",
         "payload": {

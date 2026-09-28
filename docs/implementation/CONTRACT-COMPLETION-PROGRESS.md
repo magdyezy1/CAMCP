@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## EX — TikTok custom conversion edits (2026-09-27)
+
+TikTok custom conversions can now be renamed and deleted through reviewed requests: the conversion is
+found among the advertiser's pixels, names stay unique, conversions that ad groups optimize for are
+protected, and the result is read back. See
+[implementation](TIKTOK-CONVERSION-EDITS-2026-09-27.md),
+[qualification](TIKTOK-CONVERSION-EDITS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 737 (two TikTok rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## EW — TikTok ad comment blocked words (2026-09-27)
 
 TikTok ad comment blocked words can now be added, replaced, removed and exported through reviewed
@@ -16,7 +28,7 @@ read back. See [implementation](TIKTOK-BLOCKED-WORDS-2026-09-27.md),
 [qualification](TIKTOK-BLOCKED-WORDS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 739 (four TikTok rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 739 (four TikTok rows reviewed). Committed as `aef9f72`; its exact-commit CI result
 and live acceptance are pending.
 
 ## EV — DV360 custom bidding scripts and rules (2026-09-27)

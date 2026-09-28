@@ -50,12 +50,12 @@ function fixture({readDrift}={}){
  return {store,pixels,conversions,requests,writes,call,args,prepare,execute,verify,mode:v=>{mode=v;},restart:()=>{service=start();}};
 }
 
-test('custom conversion creation is a reviewed TikTok family; updates and deletion stay blocked',async()=>{
+test('custom conversion creation is a reviewed TikTok family; updates and deletion are reviewed by the edits family',async()=>{
  const f=fixture();try{
   const inspected=await f.call('amcp_write',{action:'inspect',gateway,connection_id:TIKTOK,arguments:f.args(conversion())});
   assert.equal(inspected.data.review_contract_supported,true,JSON.stringify(inspected));
   for(const [action,payload] of [['tiktok_custom_conversion_update',{custom_conversion_id:'8000001',name:'Renamed'}],['tiktok_custom_conversion_delete',{custom_conversion_id:'8000001'}]]){
-   const r=await f.call('amcp_write',{action:'inspect',gateway,connection_id:TIKTOK,arguments:f.args(payload,action)});assert.notEqual(r.data?.review_contract_supported,true,action+' '+JSON.stringify(r));
+   const r=await f.call('amcp_write',{action:'inspect',gateway,connection_id:TIKTOK,arguments:f.args(payload,action)});assert.equal(r.data?.review_contract_supported,true,action+' '+JSON.stringify(r));
   }
   assert.equal(f.requests.length,0);
  }finally{f.store.close();}

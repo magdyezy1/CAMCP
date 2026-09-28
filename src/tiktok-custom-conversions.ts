@@ -25,6 +25,12 @@ const obj=(v:unknown):v is JsonObject=>!!v&&typeof v==='object'&&!Array.isArray(
 const emoji=/\p{Extended_Pictographic}/u;
 const squash=(s:string)=>s.toLowerCase().replace(/[\s_-]+/g,'');
 const standardNames=new Set(Object.entries(pixelEvents).flatMap(([value,name])=>[squash(value),squash(name)]));
+/** Why TikTok would refuse a custom conversion name, or undefined when it is acceptable. */
+export function tiktokConversionNameProblem(name:unknown):string|undefined{
+ if(typeof name!=='string'||!/^\p{L}[\p{L}\p{N} _-]*$/u.test(name)||[...name].length>50)return 'name must start with a letter, use only letters, numbers, spaces, underscores or hyphens, and have at most 50 characters.';
+ if(standardNames.has(squash(name)))return 'name must not be the name of a standard event.';
+ return;
+}
 
 export const tiktokCustomConversionKind=(p:CompiledRequest)=>p.gateway==='tiktok_native_action'&&p.method==='POST'&&p.path===tiktokCustomConversionPath;
 

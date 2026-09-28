@@ -175,7 +175,28 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
   another pixel, with another event, or whose status is not `ACTIVE` or `NO_RECENT_ACTIVITY` (a new
   conversion starts as `WAITING_FOR_ACTIVITY` until the pixel reports matching events), with
   `INVALID_TIKTOK_CUSTOM_CONVERSION`. `/adgroup/update/` does not accept `custom_conversion_id`, and
-  app-source conversions are not qualified. Custom conversion updates and deletion are not qualified.
+  app-source conversions are not qualified. Renames and deletion are covered below.
+
+## TikTok custom conversion edits
+
+- `tiktok_custom_conversion_update` with `payload: {advertiser_id, custom_conversion_id, name?,
+  description?}` changes only the name (same rule as creation: a leading letter, at most 50
+  characters, no standard event name, unique in the ad account) and the description (at most 500
+  characters, no emoji). Rules, event and pixel stay as they are; create a new conversion for those.
+- `tiktok_custom_conversion_delete` with `payload: {advertiser_id, custom_conversion_id}` deletes one.
+
+Both requests name only the conversion, so AMCP lists the advertiser's pixels (20 per page) and their
+custom conversions to find it: a conversion of no pixel of the advertiser is `STATE_NOT_FOUND`, a
+name another conversion of the account uses is `CONFIGURATION_EXISTS`, and an unchanged name and
+description are refused. Before a deletion AMCP reads the advertiser's ad groups; a conversion that
+an ad group optimizes for (`custom_conversion_id`) is refused with `CUSTOM_CONVERSION_IN_USE`.
+Nothing needs spending confirmation; deletions count under owner deletion policies. A non-zero
+`code` is a failure never resubmitted. Verification lists the conversions again and compares the
+name and description, or expects the deleted one gone. `INVALID_TIKTOK_CUSTOM_CONVERSION_EDIT` names
+the field to correct.
+
+Reference: TikTok API for Business v1.3 "Update a Custom Conversion" and "Delete a Custom
+Conversion" (https://business-api.tiktok.com/portal/docs?id=1842225247176705), checked 2026-09-27.
 
 ## TikTok saved audiences
 
