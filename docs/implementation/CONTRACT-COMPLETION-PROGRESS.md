@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## FK — TikTok change log download tasks (2026-09-27)
+
+TikTok change log download tasks can now be started through reviewed requests that bound the window
+to 30 days, read the advertiser and every object a filter names, and check the task until it
+succeeds. See
+[implementation](TIKTOK-CHANGE-LOGS-2026-09-27.md),
+[qualification](TIKTOK-CHANGE-LOGS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 704 (one TikTok row reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## FJ — TikTok library image edits (2026-09-27)
 
 TikTok library images can now be edited into resized copies through reviewed requests that read the
@@ -16,7 +28,7 @@ source image, refuse an edit to its current size and read the new image back. Se
 [qualification](TIKTOK-IMAGE-EDITS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 705 (one TikTok row reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 705 (one TikTok row reviewed). Committed as `39ee55b`; its exact-commit CI result
 and live acceptance are pending.
 
 ## FI — LinkedIn campaign group and creative batch deletion (2026-09-27)

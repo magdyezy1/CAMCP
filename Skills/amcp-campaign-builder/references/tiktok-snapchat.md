@@ -674,6 +674,21 @@ never resubmitted. Verification searches the new image and compares its size and
 name may end with TikTok's millisecond timestamp). `INVALID_TIKTOK_IMAGE_EDIT` names the field to
 correct.
 
+Change log downloads: `tiktok_changelog_task_create` with `payload: {advertiser_id, start_time,
+end_time, timezone, module, object_type, object_ids, operation_types}` starts a download task of
+the advertiser's change log. `start_time` and `end_time` are required as `YYYY-MM-DD HH:MM:SS`, at
+most 30 days apart; `module` is BIDDING_AND_OPTIMIZATION, BUDGET, STATUS or TARGETING;
+`object_type` is AD, ADGROUP, ADVERTISER, CAMPAIGN or INSTANT_FORM; `object_ids` (1–100, with
+`object_type`) name campaigns, ad groups, ads or the advertiser itself, not instant forms;
+`operation_types` lists CREATE, AUDIT, STATUS, UPDATE, DELETE, DOWNLOAD_LEADS, SUBSCRIBE_FORM or
+UNSUBSCRIBE_FORM. `order_fields` is refused: its values are not documented. AMCP reads the
+advertiser (name, time zone, status) and the named objects; one the advertiser does not have is
+`STATE_NOT_FOUND`. Nothing in the account changes, so nothing needs spending confirmation. A
+non-zero `code` is a failure never resubmitted. Verification checks the task
+(`/changelog/task/check/`) and passes once it reports SUCCESS; verify again while it is PROCESSING.
+Then download the file with `tiktok_changelog_task_download`. `INVALID_TIKTOK_CHANGE_LOG_TASK`
+names the field to correct.
+
 Reference: TikTok API for Business v1.3 "Update the name of an image", "Update the name of a
 video" and "Delete creative assets"
 (https://business-api.tiktok.com/portal/docs/delete-creative-assets/v1.3), checked 2026-09-27.

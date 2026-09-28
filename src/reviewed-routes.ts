@@ -22,6 +22,7 @@ import {metaAccountSettingsKind} from './meta-account-settings.js';
 import {linkedinLeadFormStateKind} from './linkedin-lead-form-states.js';
 import {linkedinDeleteKind} from './linkedin-entity-deletes.js';
 import {tiktokImageEditKind} from './tiktok-image-edits.js';
+import {tiktokChangeLogKind} from './tiktok-change-logs.js';
 import {xReportKind} from './x-report-jobs.js';
 import {googlePreviewKind} from './google-preview-writes.js';
 import {criteoCampaignKind} from './criteo-campaign-writes.js';
@@ -141,6 +142,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(linkedinLeadFormStateKind(p))return 'linkedin_lead_form_states';
  if(linkedinDeleteKind(p))return 'linkedin_entity_deletes';
  if(tiktokImageEditKind(p))return 'tiktok_image_edits';
+ if(tiktokChangeLogKind(p))return 'tiktok_change_log_tasks';
  if(googlePreviewKind(p))return 'google_shareable_previews';
  if(placeActionKind(p))return 'google_place_actions';
  if(businessNotificationKind(p))return 'google_business_notifications';

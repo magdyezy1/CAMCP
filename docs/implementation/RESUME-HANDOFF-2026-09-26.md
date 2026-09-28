@@ -1167,7 +1167,16 @@ Tests: `tests/linkedin-entity-deletes.test.mjs` (3), red on `2e16202` / green af
 
 - New reviewed family `tiktok_image_edits` (`src/tiktok-image-edits.ts`) for resized copies of library images (crop or Gaussian blur padding), one row, with the source image read first and the new image read back.
 
-Tests: `tests/tiktok-image-edits.test.mjs` (3), red on `0319a4c` / green after.
+Tests: `tests/tiktok-image-edits.test.mjs` (3), red on `0319a4c` / green after. Committed as `39ee55b`.
+
+## Finished batch — TikTok change log download tasks (2026-09-27)
+
+[Implementation](TIKTOK-CHANGE-LOGS-2026-09-27.md) and
+[qualification](TIKTOK-CHANGE-LOGS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `tiktok_change_log_tasks` (`src/tiktok-change-logs.ts`) for starting change log download tasks, one row, with advertiser and filtered object reads and the task checked until SUCCESS.
+
+Tests: `tests/tiktok-change-logs.test.mjs` (3), red on `39ee55b` / green after.
 
 ## CI and live evidence
 
@@ -1181,19 +1190,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 720 in reviewed write families. **705 remaining rows** are in
+3241 captured actions; 721 in reviewed write families. **704 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 596 |
+| blocked_write | 595 |
 | unmapped | 79 |
 | unqualified_read | 17 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 168, Meta 114, LinkedIn 91, Snapchat 66,
+Blocked writes by platform: TikTok 167, Meta 114, LinkedIn 91, Snapchat 66,
 Google Ads 57, X 35, DV360 30, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

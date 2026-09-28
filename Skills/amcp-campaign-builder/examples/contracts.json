@@ -1521,6 +1521,22 @@
     {
       "gateway": "tiktok_native_action",
       "arguments": {
+        "action": "tiktok_changelog_task_create",
+        "account_id": "123",
+        "payload": {
+          "advertiser_id": "123",
+          "start_time": "2026-09-01 00:00:00",
+          "end_time": "2026-09-08 00:00:00",
+          "module": "BUDGET",
+          "operation_types": [
+            "UPDATE"
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "tiktok_native_action",
+      "arguments": {
         "action": "tiktok_creative_image_edit_get",
         "account_id": "123",
         "payload": {
