@@ -1,5 +1,5 @@
-import type { CompiledRequest, JsonObject } from './types.js';
-import { reviewedWriteFamily } from './reviewed-routes.js';
+import type {CompiledRequest, JsonObject} from './types.js';
+import {reviewedWriteFamily} from './reviewed-routes.js';
 
 /**
  * Structural spending and delivery effects of reviewed edits, decided from the request shape rather than its text.
@@ -51,7 +51,7 @@ export function numericStatusPaths(plan: CompiledRequest): string[] {
       else walk(x, path + '/' + k, depth + 1);
     }
   };
-  walk({ query: plan.query, body: plan.body }, '', 0);
+  walk({query: plan.query, body: plan.body}, '', 0);
   return out;
 }
 
@@ -70,13 +70,11 @@ interface GenericFamily {
 const keysOf = (v: unknown): Json => (object(v) ? v : {});
 /** Top-level field of each comma-separated update-mask path, in snake_case. */
 const maskFields = (mask: unknown): string[] =>
-  typeof mask === 'string' && mask
-    ? mask.split(',').map((m) => snake(m.trim().split('.')[0] ?? ''))
-    : [];
+  typeof mask === 'string' && mask ? mask.split(',').map(m => snake(m.trim().split('.')[0] ?? '')) : [];
 /** A record with each masked field present, so a masked field without a value still counts as changed. */
 const withMask = (record: Json, mask: unknown): Json => {
-  const out: Json = { ...record };
-  for (const field of maskFields(mask)) if (!Object.keys(out).some((k) => snake(k) === field)) out[field] = undefined;
+  const out: Json = {...record};
+  for (const field of maskFields(mask)) if (!Object.keys(out).some(k => snake(k) === field)) out[field] = undefined;
   return out;
 };
 
@@ -85,21 +83,21 @@ const genericFamilies: Record<string, GenericFamily> = {
   // PAUSED, REMOVED (pinned google-ads-v23 Discovery).
   google_entities: {
     entity: 'Google Ads campaign, ad group or budget',
-    neutral: { resource_name: true, name: true, status: ['PAUSED', 'REMOVED'] },
-    edits: (p) => {
+    neutral: {resource_name: true, name: true, status: ['PAUSED', 'REMOVED']},
+    edits: p => {
       const operations = keysOf(p.body).operations;
       if (!/\/(campaigns|adGroups|campaignBudgets):mutate$/.test(p.path) || !Array.isArray(operations)) return;
       const updates = operations
-        .filter((op) => object(op) && op.update !== undefined)
-        .map((op) => withMask(keysOf(op.update), op.updateMask ?? op.update_mask));
+        .filter(op => object(op) && op.update !== undefined)
+        .map(op => withMask(keysOf(op.update), op.updateMask ?? op.update_mask));
       return updates.length ? updates : undefined;
     },
   },
   // Graph API POST /{campaign_id|ad_set_id} updates the fields it names. Status: ACTIVE, PAUSED, DELETED, ARCHIVED.
   meta_entities: {
     entity: 'Meta campaign or ad set',
-    neutral: { name: true, status: ['PAUSED', 'ARCHIVED', 'DELETED'] },
-    edits: (p) => (/^meta_(campaign_id|ad_set_id)_update$/.test(p.action) ? [keysOf(p.body)] : undefined),
+    neutral: {name: true, status: ['PAUSED', 'ARCHIVED', 'DELETED']},
+    edits: p => (/^meta_(campaign_id|ad_set_id)_update$/.test(p.action) ? [keysOf(p.body)] : undefined),
   },
   // TikTok v1.3 /campaign|adgroup/update/ carry the identifiers and the fields to change. Status changes use
   // /status/update/ with operation_status, which the generic check already reads.
@@ -112,14 +110,14 @@ const genericFamilies: Record<string, GenericFamily> = {
       campaign_name: true,
       adgroup_name: true,
     },
-    edits: (p) => (/^\/v1\.3\/(campaign|adgroup)\/update\/$/.test(p.path) ? [keysOf(p.body)] : undefined),
+    edits: p => (/^\/v1\.3\/(campaign|adgroup)\/update\/$/.test(p.path) ? [keysOf(p.body)] : undefined),
   },
   // LinkedIn REST.li: PARTIAL_UPDATE POSTs a {patch:{$set, $delete}}; PUT and PATCH replace or patch the entity.
   // Campaign and campaign group status: ACTIVE, PAUSED, ARCHIVED, COMPLETED, CANCELED, DRAFT, ….
   linkedin_entities: {
     entity: 'LinkedIn campaign or campaign group',
-    neutral: { name: true, status: ['PAUSED', 'ARCHIVED', 'DRAFT', 'CANCELED'] },
-    edits: (p) => {
+    neutral: {name: true, status: ['PAUSED', 'ARCHIVED', 'DRAFT', 'CANCELED']},
+    edits: p => {
       if (!/^\/rest\/adAccounts\/[^/]+\/(adCampaigns|adCampaignGroups)\/[^/]+$/.test(p.path)) return;
       if (!['POST', 'PUT', 'PATCH'].includes(p.method)) return;
       const body = keysOf(p.body);
@@ -139,8 +137,8 @@ const genericFamilies: Record<string, GenericFamily> = {
   // X Ads v12 PUT /accounts/{id}/campaigns|line_items/{id} update the body fields. entity_status: ACTIVE, DRAFT, PAUSED.
   x_entities: {
     entity: 'X campaign or line item',
-    neutral: { name: true, entity_status: ['PAUSED', 'DRAFT'] },
-    edits: (p) =>
+    neutral: {name: true, entity_status: ['PAUSED', 'DRAFT']},
+    edits: p =>
       p.method === 'PUT' && /^\/12\/accounts\/[^/]+\/(campaigns|line_items)\/[^/]+$/.test(p.path)
         ? [keysOf(p.body)]
         : undefined,
@@ -152,7 +150,7 @@ const genericFamilies: Record<string, GenericFamily> = {
       display_name: true,
       entity_status: ['ENTITY_STATUS_PAUSED', 'ENTITY_STATUS_ARCHIVED', 'ENTITY_STATUS_DRAFT'],
     },
-    edits: (p) =>
+    edits: p =>
       p.method === 'PATCH' && /\/(campaigns|insertionOrders|lineItems)\/[^/]+$/.test(p.path)
         ? [withMask(keysOf(p.body), p.query.updateMask)]
         : undefined,
@@ -161,13 +159,13 @@ const genericFamilies: Record<string, GenericFamily> = {
   // The nested /campaigns/{id}/adsquads and /adsquads/{id}/ads updates always need confirmation (preflight.ts).
   snapchat_entities: {
     entity: 'Snapchat campaign or ad squad',
-    neutral: { id: true, ad_account_id: true, name: true, status: ['PAUSED'] },
-    edits: (p) => {
+    neutral: {id: true, ad_account_id: true, name: true, status: ['PAUSED']},
+    edits: p => {
       if (!/^\/v1\/adaccounts\/[^/]+\/(campaigns|adsquads)(?:\/[^/]+)?$/.test(p.path)) return;
       if (p.method === 'PATCH' && Array.isArray(p.body))
         return p.body.map((op: unknown) => {
           const o = keysOf(op);
-          return o.op === 'test' || typeof o.path !== 'string' ? {} : { [o.path.split('/').at(-1)!]: o.value };
+          return o.op === 'test' || typeof o.path !== 'string' ? {} : {[o.path.split('/').at(-1)!]: o.value};
         });
       if (p.method !== 'PUT') return;
       const kind = p.path.split('/').at(-1)!,
@@ -181,7 +179,7 @@ const genericFamilies: Record<string, GenericFamily> = {
  * Fields of a generic entity update that may change what an existing entity serves, bids or spends, in snake_case.
  * Empty when every changed field is on the family's neutral list; undefined when the request is not such an update.
  */
-export function deliveryEditFields(plan: CompiledRequest): { entity: string; fields: string[] } | undefined {
+export function deliveryEditFields(plan: CompiledRequest): {entity: string; fields: string[]} | undefined {
   if (plan.readOnly) return;
   const family = genericFamilies[reviewedWriteFamily(plan) ?? ''];
   const edits = family?.edits(plan);
@@ -195,5 +193,5 @@ export function deliveryEditFields(plan: CompiledRequest): { entity: string; fie
       if (Array.isArray(neutral) && typeof value === 'string' && neutral.includes(value)) continue;
       fields.add(field);
     }
-  return { entity: family.entity, fields: [...fields].sort() };
+  return {entity: family.entity, fields: [...fields].sort()};
 }

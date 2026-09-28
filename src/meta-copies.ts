@@ -1,5 +1,5 @@
 import {MirrorError} from './errors.js';
-import type {CompiledRequest,JsonObject} from './types.js';
+import type {CompiledRequest, JsonObject} from './types.js';
 
 /**
  * Meta native copies, per the Marketing API reference for Ad Campaign Group, Ad Campaign and Adgroup /copies
@@ -8,132 +8,320 @@ import type {CompiledRequest,JsonObject} from './types.js';
  * Parameter and creative overrides and asynchronous batch copies stay outside this contract. Budgets a copy
  * duplicates are checked against the owner spending policy as new budgets.
  */
-export type MetaCopyKind='campaign'|'adset'|'ad';
-const kinds:Record<string,MetaCopyKind>={meta_campaign_id_copies_copy:'campaign',meta_ad_set_id_copies_copy:'adset',meta_ad_id_copies_copy:'ad'};
-const allowed:Record<MetaCopyKind,string[]>={campaign:['deep_copy','status_option','rename_options','start_time','end_time'],adset:['campaign_id','deep_copy','status_option','rename_options','start_time','end_time'],ad:['adset_id','status_option','rename_options']};
+export type MetaCopyKind = 'campaign' | 'adset' | 'ad';
+const kinds: Record<string, MetaCopyKind> = {
+  meta_campaign_id_copies_copy: 'campaign',
+  meta_ad_set_id_copies_copy: 'adset',
+  meta_ad_id_copies_copy: 'ad',
+};
+const allowed: Record<MetaCopyKind, string[]> = {
+  campaign: ['deep_copy', 'status_option', 'rename_options', 'start_time', 'end_time'],
+  adset: ['campaign_id', 'deep_copy', 'status_option', 'rename_options', 'start_time', 'end_time'],
+  ad: ['adset_id', 'status_option', 'rename_options'],
+};
 // Fields that exist only on the node type the action names, so a mismatched source ID fails the read at Meta.
-const sourceFields:Record<MetaCopyKind,string>={campaign:'id,account_id,name,status,objective,daily_budget,lifetime_budget',adset:'id,account_id,campaign_id,name,status,optimization_goal,daily_budget,lifetime_budget',ad:'id,account_id,campaign_id,adset_id,name,status'};
-const targetFields:Record<string,string>={adset:'id,account_id,name,status,objective',ad:'id,account_id,campaign_id,name,status,optimization_goal'};
-export const metaCopyChildLimit=3;
-const numeric=(v:unknown)=>typeof v==='string'&&/^\d{1,32}$/.test(v);
-const obj=(v:unknown):v is JsonObject=>!!v&&typeof v==='object'&&!Array.isArray(v);
-const version=(p:CompiledRequest)=>p.path.split('/')[1]!;
-const sourceId=(p:CompiledRequest)=>p.path.split('/')[2]!;
-const account=(v:unknown)=>String(v).replace(/^act_/,'');
+const sourceFields: Record<MetaCopyKind, string> = {
+  campaign: 'id,account_id,name,status,objective,daily_budget,lifetime_budget',
+  adset: 'id,account_id,campaign_id,name,status,optimization_goal,daily_budget,lifetime_budget',
+  ad: 'id,account_id,campaign_id,adset_id,name,status',
+};
+const targetFields: Record<string, string> = {
+  adset: 'id,account_id,name,status,objective',
+  ad: 'id,account_id,campaign_id,name,status,optimization_goal',
+};
+export const metaCopyChildLimit = 3;
+const numeric = (v: unknown) => typeof v === 'string' && /^\d{1,32}$/.test(v);
+const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
+const version = (p: CompiledRequest) => p.path.split('/')[1]!;
+const sourceId = (p: CompiledRequest) => p.path.split('/')[2]!;
+const account = (v: unknown) => String(v).replace(/^act_/, '');
 
-export const metaCopyKind=(p:CompiledRequest):MetaCopyKind|undefined=>p.gateway==='meta_native_action'&&p.method==='POST'&&/^\/v[^/]+\/\d+\/copies$/.test(p.path)?kinds[p.action]:undefined;
+export const metaCopyKind = (p: CompiledRequest): MetaCopyKind | undefined =>
+  p.gateway === 'meta_native_action' && p.method === 'POST' && /^\/v[^/]+\/\d+\/copies$/.test(p.path)
+    ? kinds[p.action]
+    : undefined;
 
-function invalid(field:string,message:string):never{
- throw new MirrorError('INVALID_META_COPY',message,{field});
+function invalid(field: string, message: string): never {
+  throw new MirrorError('INVALID_META_COPY', message, {field});
 }
 
 /** Validates the request before review; nothing here reads or contacts Meta. */
-export function assertMetaCopy(plan:CompiledRequest,body:JsonObject):void{
- const kind=metaCopyKind(plan)!;
- const extra=Object.keys(body).find(k=>!allowed[kind].includes(k));
- if(extra)invalid(extra,'"'+extra+'" is outside the qualified '+kind+' copy contract.');
- if(body.status_option!=='PAUSED')invalid('status_option','Copies must be created with status_option PAUSED.');
- if(body.deep_copy!==undefined&&typeof body.deep_copy!=='boolean')invalid('deep_copy','deep_copy must be true or false.');
- if(kind==='campaign'&&body.deep_copy!==true)for(const field of ['start_time','end_time'])if(body[field]!==undefined)invalid(field,field+' applies to the ad sets of a deep campaign copy; set deep_copy true or omit it.');
- const target=kind==='adset'?'campaign_id':kind==='ad'?'adset_id':undefined;
- if(target&&body[target]!==undefined&&!numeric(body[target]))invalid(target,target+' must be a numeric Meta ID.');
- for(const field of ['start_time','end_time'])if(body[field]!==undefined&&(!Number.isSafeInteger(body[field])||body[field]<0))invalid(field,field+' must be a UTC UNIX timestamp in seconds.');
- if(body.end_time>0&&body.start_time!==undefined&&body.end_time<=body.start_time)invalid('end_time','end_time must be after start_time (or 0 for no end).');
- const rename=body.rename_options;
- if(rename!==undefined){
-  if(!obj(rename))invalid('rename_options','rename_options must be an object.');
-  const bad=Object.keys(rename).find(k=>!['rename_strategy','rename_prefix','rename_suffix'].includes(k));
-  if(bad)invalid('rename_options/'+bad,'"rename_options/'+bad+'" is outside the documented rename options.');
-  if(rename.rename_strategy!==undefined&&!['DEEP_RENAME','ONLY_TOP_LEVEL_RENAME','NO_RENAME'].includes(rename.rename_strategy))invalid('rename_options/rename_strategy','rename_strategy must be DEEP_RENAME, ONLY_TOP_LEVEL_RENAME or NO_RENAME.');
-  for(const k of ['rename_prefix','rename_suffix'])if(rename[k]!==undefined&&(typeof rename[k]!=='string'||[...rename[k]].length>100))invalid('rename_options/'+k,k+' must be text of at most 100 characters.');
- }
+export function assertMetaCopy(plan: CompiledRequest, body: JsonObject): void {
+  const kind = metaCopyKind(plan)!;
+  const extra = Object.keys(body).find(k => !allowed[kind].includes(k));
+  if (extra) invalid(extra, '"' + extra + '" is outside the qualified ' + kind + ' copy contract.');
+  if (body.status_option !== 'PAUSED') invalid('status_option', 'Copies must be created with status_option PAUSED.');
+  if (body.deep_copy !== undefined && typeof body.deep_copy !== 'boolean')
+    invalid('deep_copy', 'deep_copy must be true or false.');
+  if (kind === 'campaign' && body.deep_copy !== true)
+    for (const field of ['start_time', 'end_time'])
+      if (body[field] !== undefined)
+        invalid(field, field + ' applies to the ad sets of a deep campaign copy; set deep_copy true or omit it.');
+  const target = kind === 'adset' ? 'campaign_id' : kind === 'ad' ? 'adset_id' : undefined;
+  if (target && body[target] !== undefined && !numeric(body[target]))
+    invalid(target, target + ' must be a numeric Meta ID.');
+  for (const field of ['start_time', 'end_time'])
+    if (body[field] !== undefined && (!Number.isSafeInteger(body[field]) || body[field] < 0))
+      invalid(field, field + ' must be a UTC UNIX timestamp in seconds.');
+  if (body.end_time > 0 && body.start_time !== undefined && body.end_time <= body.start_time)
+    invalid('end_time', 'end_time must be after start_time (or 0 for no end).');
+  const rename = body.rename_options;
+  if (rename !== undefined) {
+    if (!obj(rename)) invalid('rename_options', 'rename_options must be an object.');
+    const bad = Object.keys(rename).find(k => !['rename_strategy', 'rename_prefix', 'rename_suffix'].includes(k));
+    if (bad) invalid('rename_options/' + bad, '"rename_options/' + bad + '" is outside the documented rename options.');
+    if (
+      rename.rename_strategy !== undefined &&
+      !['DEEP_RENAME', 'ONLY_TOP_LEVEL_RENAME', 'NO_RENAME'].includes(rename.rename_strategy)
+    )
+      invalid(
+        'rename_options/rename_strategy',
+        'rename_strategy must be DEEP_RENAME, ONLY_TOP_LEVEL_RENAME or NO_RENAME.',
+      );
+    for (const k of ['rename_prefix', 'rename_suffix'])
+      if (rename[k] !== undefined && (typeof rename[k] !== 'string' || [...rename[k]].length > 100))
+        invalid('rename_options/' + k, k + ' must be text of at most 100 characters.');
+  }
 }
 
-const childSetFields='id,campaign_id,daily_budget,lifetime_budget',childAdFields='id,adset_id,campaign_id';
+const childSetFields = 'id,campaign_id,daily_budget,lifetime_budget',
+  childAdFields = 'id,adset_id,campaign_id';
 /**
  * Reads in a fixed order: source, then the target parent, then for a deep copy the source's children (a campaign's
  * ad sets and ads, or an ad set's ads).
  */
-export function metaCopySnapshots(plan:CompiledRequest):{path:string;query:JsonObject}[]{
- const kind=metaCopyKind(plan)!,body=plan.body as JsonObject,v='/'+version(plan)+'/',reads:{path:string;query:JsonObject}[]=[{path:v+sourceId(plan),query:{fields:sourceFields[kind]}}];
- const target=kind==='adset'?body.campaign_id:kind==='ad'?body.adset_id:undefined;
- if(typeof target==='string')reads.push({path:v+target,query:{fields:targetFields[kind]!}});
- if(kind==='campaign'&&body.deep_copy===true)reads.push({path:v+sourceId(plan)+'/adsets',query:{fields:childSetFields,limit:100}},{path:v+sourceId(plan)+'/ads',query:{fields:childAdFields,limit:100}});
- if(kind==='adset'&&body.deep_copy===true)reads.push({path:v+sourceId(plan)+'/ads',query:{fields:childAdFields,limit:100}});
- return reads;
+export function metaCopySnapshots(plan: CompiledRequest): {path: string; query: JsonObject}[] {
+  const kind = metaCopyKind(plan)!,
+    body = plan.body as JsonObject,
+    v = '/' + version(plan) + '/',
+    reads: {path: string; query: JsonObject}[] = [{path: v + sourceId(plan), query: {fields: sourceFields[kind]}}];
+  const target = kind === 'adset' ? body.campaign_id : kind === 'ad' ? body.adset_id : undefined;
+  if (typeof target === 'string') reads.push({path: v + target, query: {fields: targetFields[kind]!}});
+  if (kind === 'campaign' && body.deep_copy === true)
+    reads.push(
+      {path: v + sourceId(plan) + '/adsets', query: {fields: childSetFields, limit: 100}},
+      {path: v + sourceId(plan) + '/ads', query: {fields: childAdFields, limit: 100}},
+    );
+  if (kind === 'adset' && body.deep_copy === true)
+    reads.push({path: v + sourceId(plan) + '/ads', query: {fields: childAdFields, limit: 100}});
+  return reads;
 }
 /** A deep copy's children lists; each must be one complete page of exact rows. */
-export const metaCopyChildrenRead=(read:CompiledRequest)=>read.gateway==='meta_native_action'&&(/^\/v[^/]+\/\d+\/ads$/.test(read.path)&&read.query.fields===childAdFields||/^\/v[^/]+\/\d+\/adsets$/.test(read.path)&&read.query.fields===childSetFields);
+export const metaCopyChildrenRead = (read: CompiledRequest) =>
+  read.gateway === 'meta_native_action' &&
+  ((/^\/v[^/]+\/\d+\/ads$/.test(read.path) && read.query.fields === childAdFields) ||
+    (/^\/v[^/]+\/\d+\/adsets$/.test(read.path) && read.query.fields === childSetFields));
 
-function layout(plan:CompiledRequest,state:unknown[]){
- const kind=metaCopyKind(plan)!,body=plan.body as JsonObject,hasTarget=typeof (kind==='adset'?body.campaign_id:kind==='ad'?body.adset_id:undefined)==='string',deep=body.deep_copy===true;
- const at=(i:number)=>obj(state[i])?state[i] as JsonObject:undefined,rows=(i:number)=>at(i)?.data as JsonObject[]|undefined;
- const sets=kind==='campaign'&&deep?rows(1)??[]:[],ads=kind==='campaign'&&deep?rows(2)??[]:kind==='adset'&&deep?rows(hasTarget?2:1)??[]:[];
- return {kind,deep,source:at(0),target:hasTarget?at(1):undefined,sets,ads};
+function layout(plan: CompiledRequest, state: unknown[]) {
+  const kind = metaCopyKind(plan)!,
+    body = plan.body as JsonObject,
+    hasTarget = typeof (kind === 'adset' ? body.campaign_id : kind === 'ad' ? body.adset_id : undefined) === 'string',
+    deep = body.deep_copy === true;
+  const at = (i: number) => (obj(state[i]) ? (state[i] as JsonObject) : undefined),
+    rows = (i: number) => at(i)?.data as JsonObject[] | undefined;
+  const sets = kind === 'campaign' && deep ? (rows(1) ?? []) : [],
+    ads =
+      kind === 'campaign' && deep ? (rows(2) ?? []) : kind === 'adset' && deep ? (rows(hasTarget ? 2 : 1) ?? []) : [];
+  return {kind, deep, source: at(0), target: hasTarget ? at(1) : undefined, sets, ads};
 }
-const budgetFields=['daily_budget','lifetime_budget'];
-const budgetAmounts=(row:JsonObject|undefined,path:string)=>budgetFields.filter(k=>row?.[k]!==undefined&&row[k]!==null&&String(row[k])!=='0').map(k=>{
- const text=String(row![k]);if(!/^\d{1,18}$/.test(text))throw new MirrorError('POLICY_BASELINE_REQUIRED','The source budget is not a finite native amount.',{field:path+'/'+k},409);
- return {path:path+'/'+k,key:k,amount:Number(text),decimal:text};
-});
+const budgetFields = ['daily_budget', 'lifetime_budget'];
+const budgetAmounts = (row: JsonObject | undefined, path: string) =>
+  budgetFields
+    .filter(k => row?.[k] !== undefined && row[k] !== null && String(row[k]) !== '0')
+    .map(k => {
+      const text = String(row![k]);
+      if (!/^\d{1,18}$/.test(text))
+        throw new MirrorError(
+          'POLICY_BASELINE_REQUIRED',
+          'The source budget is not a finite native amount.',
+          {field: path + '/' + k},
+          409,
+        );
+      return {path: path + '/' + k, key: k, amount: Number(text), decimal: text};
+    });
 
 /** Owner spending policy sees every budget the copy duplicates (the source's and a deep copy's ad sets') as new. */
-export function metaCopyPolicyAmounts(plan:CompiledRequest,before:unknown){
- if(!metaCopyKind(plan))return;
- const {kind,source,sets}=layout(plan,Array.isArray(before)?before:[]);
- return {creating:true,amounts:kind==='ad'?[]:[...budgetAmounts(source,'/copied_'+kind+'/'+sourceId(plan)),...sets.flatMap(set=>budgetAmounts(set,'/copied_adset/'+set.id))],old:[]};
+export function metaCopyPolicyAmounts(plan: CompiledRequest, before: unknown) {
+  if (!metaCopyKind(plan)) return;
+  const {kind, source, sets} = layout(plan, Array.isArray(before) ? before : []);
+  return {
+    creating: true,
+    amounts:
+      kind === 'ad'
+        ? []
+        : [
+            ...budgetAmounts(source, '/copied_' + kind + '/' + sourceId(plan)),
+            ...sets.flatMap(set => budgetAmounts(set, '/copied_adset/' + set.id)),
+          ],
+    old: [],
+  };
 }
 
 /** Account, type and size checks against the fresh reads, at review and again at execution. */
-export function metaCopyImpact(plan:CompiledRequest,state:unknown[]):JsonObject{
- const {kind,deep,source,target,sets,ads}=layout(plan,state),selected=account(plan.accountId),id=sourceId(plan);
- if(!source||String(source.id)!==id||account(source.account_id)!==selected)throw new MirrorError('STATE_TARGET_MISMATCH','The copy source must belong to the selected ad account.',{source_id:id});
- if(target&&account(target.account_id)!==selected)throw new MirrorError('STATE_TARGET_MISMATCH','The copy target must belong to the selected ad account.',{target_id:target.id});
- const setIds=new Set(sets.map(set=>String(set?.id)));
- if(sets.some(set=>!numeric(set?.id)||String(set.campaign_id)!==id))throw new MirrorError('STATE_TARGET_MISMATCH','The source ad set list must contain only ad sets of the copied campaign.',{source_id:id});
- if(ads.some(ad=>!numeric(ad?.id)||(kind==='campaign'?String(ad.campaign_id)!==id||!setIds.has(String(ad.adset_id)):String(ad.adset_id)!==id)))throw new MirrorError('STATE_TARGET_MISMATCH','The source ad list must contain only ads under the copied '+(kind==='campaign'?'campaign and its listed ad sets':'ad set')+'.',{source_id:id});
- const children=sets.length+ads.length;
- if(children>metaCopyChildLimit)throw new MirrorError('META_COPY_TOO_LARGE','Meta copies at most '+metaCopyChildLimit+' children synchronously; this '+(kind==='adset'?'ad set':kind)+' has '+children+'. Copy it without children, then copy the children.',{children,limit:metaCopyChildLimit});
- const parent=kind==='adset'?{campaign_id:target?String(target.id):String(source.campaign_id)}:kind==='ad'?{adset_id:target?String(target.id):String(source.adset_id)}:{};
- const described=[sets.length?sets.length+' ad sets':'',ads.length?ads.length+' ads':''].filter(Boolean).join(' and ');
- return {provider:'meta',effect:'Creates a paused copy of an existing '+(kind==='adset'?'ad set':kind)+(deep&&described?' with its '+described:'')+'. Nothing is delivered until the copies are activated separately.',source:{id,name:source.name??null,type:kind},...parent,copies_expected:1+children,budgets_copied:[...budgetAmounts(source,''),...sets.flatMap(set=>budgetAmounts(set,'/'+set.id))].map(b=>({field:b.path.replace(/^\//,''),amount:b.decimal})),may_activate:false,source_docs:'https://developers.facebook.com/docs/marketing-api/reference/'+(kind==='campaign'?'ad-campaign-group':kind==='adset'?'ad-campaign':'adgroup')+'/copies/'};
+export function metaCopyImpact(plan: CompiledRequest, state: unknown[]): JsonObject {
+  const {kind, deep, source, target, sets, ads} = layout(plan, state),
+    selected = account(plan.accountId),
+    id = sourceId(plan);
+  if (!source || String(source.id) !== id || account(source.account_id) !== selected)
+    throw new MirrorError('STATE_TARGET_MISMATCH', 'The copy source must belong to the selected ad account.', {
+      source_id: id,
+    });
+  if (target && account(target.account_id) !== selected)
+    throw new MirrorError('STATE_TARGET_MISMATCH', 'The copy target must belong to the selected ad account.', {
+      target_id: target.id,
+    });
+  const setIds = new Set(sets.map(set => String(set?.id)));
+  if (sets.some(set => !numeric(set?.id) || String(set.campaign_id) !== id))
+    throw new MirrorError(
+      'STATE_TARGET_MISMATCH',
+      'The source ad set list must contain only ad sets of the copied campaign.',
+      {source_id: id},
+    );
+  if (
+    ads.some(
+      ad =>
+        !numeric(ad?.id) ||
+        (kind === 'campaign'
+          ? String(ad.campaign_id) !== id || !setIds.has(String(ad.adset_id))
+          : String(ad.adset_id) !== id),
+    )
+  )
+    throw new MirrorError(
+      'STATE_TARGET_MISMATCH',
+      'The source ad list must contain only ads under the copied ' +
+        (kind === 'campaign' ? 'campaign and its listed ad sets' : 'ad set') +
+        '.',
+      {source_id: id},
+    );
+  const children = sets.length + ads.length;
+  if (children > metaCopyChildLimit)
+    throw new MirrorError(
+      'META_COPY_TOO_LARGE',
+      'Meta copies at most ' +
+        metaCopyChildLimit +
+        ' children synchronously; this ' +
+        (kind === 'adset' ? 'ad set' : kind) +
+        ' has ' +
+        children +
+        '. Copy it without children, then copy the children.',
+      {children, limit: metaCopyChildLimit},
+    );
+  const parent =
+    kind === 'adset'
+      ? {campaign_id: target ? String(target.id) : String(source.campaign_id)}
+      : kind === 'ad'
+        ? {adset_id: target ? String(target.id) : String(source.adset_id)}
+        : {};
+  const described = [sets.length ? sets.length + ' ad sets' : '', ads.length ? ads.length + ' ads' : '']
+    .filter(Boolean)
+    .join(' and ');
+  return {
+    provider: 'meta',
+    effect:
+      'Creates a paused copy of an existing ' +
+      (kind === 'adset' ? 'ad set' : kind) +
+      (deep && described ? ' with its ' + described : '') +
+      '. Nothing is delivered until the copies are activated separately.',
+    source: {id, name: source.name ?? null, type: kind},
+    ...parent,
+    copies_expected: 1 + children,
+    budgets_copied: [...budgetAmounts(source, ''), ...sets.flatMap(set => budgetAmounts(set, '/' + set.id))].map(b => ({
+      field: b.path.replace(/^\//, ''),
+      amount: b.decimal,
+    })),
+    may_activate: false,
+    source_docs:
+      'https://developers.facebook.com/docs/marketing-api/reference/' +
+      (kind === 'campaign' ? 'ad-campaign-group' : kind === 'adset' ? 'ad-campaign' : 'adgroup') +
+      '/copies/',
+  };
 }
 
 /** Every returned ID is numeric; the top-level key names the copied type. */
-export function metaCopyOutcome(plan:CompiledRequest,d:JsonObject):boolean{
- const kind=metaCopyKind(plan)!;
- if(!numeric(d['copied_'+kind+'_id']))return false;
- if(d.ad_object_ids===undefined)return kind==='ad';
- return Array.isArray(d.ad_object_ids)&&d.ad_object_ids.every((o:JsonObject)=>obj(o)&&typeof o.ad_object_type==='string'&&numeric(o.source_id)&&numeric(o.copied_id));
+export function metaCopyOutcome(plan: CompiledRequest, d: JsonObject): boolean {
+  const kind = metaCopyKind(plan)!;
+  if (!numeric(d['copied_' + kind + '_id'])) return false;
+  if (d.ad_object_ids === undefined) return kind === 'ad';
+  return (
+    Array.isArray(d.ad_object_ids) &&
+    d.ad_object_ids.every(
+      (o: JsonObject) => obj(o) && typeof o.ad_object_type === 'string' && numeric(o.source_id) && numeric(o.copied_id),
+    )
+  );
 }
 
 /** Copied delivery objects this login may read and verify: the top-level copy and any copied ads. */
-export function metaCopiedIds(plan:CompiledRequest,d:JsonObject):string[]{
- const kind=metaCopyKind(plan);if(!kind||!metaCopyOutcome(plan,d))return [];
- const ids=[String(d['copied_'+kind+'_id'])];
- for(const o of Array.isArray(d.ad_object_ids)?d.ad_object_ids:[])if(['campaign','ad_set','ad'].includes(o.ad_object_type))ids.push(String(o.copied_id));
- return [...new Set(ids)];
+export function metaCopiedIds(plan: CompiledRequest, d: JsonObject): string[] {
+  const kind = metaCopyKind(plan);
+  if (!kind || !metaCopyOutcome(plan, d)) return [];
+  const ids = [String(d['copied_' + kind + '_id'])];
+  for (const o of Array.isArray(d.ad_object_ids) ? d.ad_object_ids : [])
+    if (['campaign', 'ad_set', 'ad'].includes(o.ad_object_type)) ids.push(String(o.copied_id));
+  return [...new Set(ids)];
 }
 
 /**
  * Reads every copied delivery object and expects the selected account, PAUSED and the right parent. An ad set
  * copy that returns fewer copied ads than the source had is incomplete, not verified.
  */
-export function metaCopyVerification(plan:CompiledRequest,result:JsonObject,before:unknown[]):{path:string;query:JsonObject;expected:JsonObject;id:string}[]{
- const kind=metaCopyKind(plan)!,d=obj(result.data)?result.data:{},v='/'+version(plan)+'/';
- if(!metaCopyOutcome(plan,d))return [];
- const {deep,source,target,sets,ads}=layout(plan,before),top=String(d['copied_'+kind+'_id']),selected=account(plan.accountId);
- const parent:JsonObject=kind==='adset'?{campaign_id:target?String(target.id):String(source?.campaign_id)}:kind==='ad'?{adset_id:target?String(target.id):String(source?.adset_id)}:{};
- const items:{path:string;query:JsonObject;expected:JsonObject;id:string}[]=[{path:v+top,query:{fields:['id','account_id','status',...Object.keys(parent)].join(',')},expected:{id:top,account_id:selected,status:'PAUSED',...parent},id:top}];
- if(!deep)return items;
- // Each source child maps to its copy through ad_object_ids; a child without a copy makes the copy incomplete.
- const copies=(Array.isArray(d.ad_object_ids)?d.ad_object_ids:[]) as JsonObject[],copyOf=(type:string,id:unknown)=>copies.find(o=>o.ad_object_type===type&&String(o.source_id)===String(id));
- const missing=[...sets.filter(set=>!copyOf('ad_set',set.id)),...ads.filter(ad=>!copyOf('ad',ad.id))].map(row=>String(row.id));
- if(missing.length)throw new MirrorError('META_COPY_INCOMPLETE','Meta returned no copy for '+missing.length+' of the source children.',{missing_source_ids:missing});
- for(const set of sets){const copy=String(copyOf('ad_set',set.id)!.copied_id);items.push({path:v+copy,query:{fields:'id,account_id,status,campaign_id'},expected:{id:copy,account_id:selected,status:'PAUSED',campaign_id:top},id:copy});}
- for(const ad of ads){
-  const copy=String(copyOf('ad',ad.id)!.copied_id),adset=kind==='adset'?top:String(copyOf('ad_set',ad.adset_id)!.copied_id);
-  items.push({path:v+copy,query:{fields:'id,account_id,status,adset_id'},expected:{id:copy,account_id:selected,status:'PAUSED',adset_id:adset},id:copy});
- }
- return items;
+export function metaCopyVerification(
+  plan: CompiledRequest,
+  result: JsonObject,
+  before: unknown[],
+): {path: string; query: JsonObject; expected: JsonObject; id: string}[] {
+  const kind = metaCopyKind(plan)!,
+    d = obj(result.data) ? result.data : {},
+    v = '/' + version(plan) + '/';
+  if (!metaCopyOutcome(plan, d)) return [];
+  const {deep, source, target, sets, ads} = layout(plan, before),
+    top = String(d['copied_' + kind + '_id']),
+    selected = account(plan.accountId);
+  const parent: JsonObject =
+    kind === 'adset'
+      ? {campaign_id: target ? String(target.id) : String(source?.campaign_id)}
+      : kind === 'ad'
+        ? {adset_id: target ? String(target.id) : String(source?.adset_id)}
+        : {};
+  const items: {path: string; query: JsonObject; expected: JsonObject; id: string}[] = [
+    {
+      path: v + top,
+      query: {fields: ['id', 'account_id', 'status', ...Object.keys(parent)].join(',')},
+      expected: {id: top, account_id: selected, status: 'PAUSED', ...parent},
+      id: top,
+    },
+  ];
+  if (!deep) return items;
+  // Each source child maps to its copy through ad_object_ids; a child without a copy makes the copy incomplete.
+  const copies = (Array.isArray(d.ad_object_ids) ? d.ad_object_ids : []) as JsonObject[],
+    copyOf = (type: string, id: unknown) =>
+      copies.find(o => o.ad_object_type === type && String(o.source_id) === String(id));
+  const missing = [...sets.filter(set => !copyOf('ad_set', set.id)), ...ads.filter(ad => !copyOf('ad', ad.id))].map(
+    row => String(row.id),
+  );
+  if (missing.length)
+    throw new MirrorError(
+      'META_COPY_INCOMPLETE',
+      'Meta returned no copy for ' + missing.length + ' of the source children.',
+      {missing_source_ids: missing},
+    );
+  for (const set of sets) {
+    const copy = String(copyOf('ad_set', set.id)!.copied_id);
+    items.push({
+      path: v + copy,
+      query: {fields: 'id,account_id,status,campaign_id'},
+      expected: {id: copy, account_id: selected, status: 'PAUSED', campaign_id: top},
+      id: copy,
+    });
+  }
+  for (const ad of ads) {
+    const copy = String(copyOf('ad', ad.id)!.copied_id),
+      adset = kind === 'adset' ? top : String(copyOf('ad_set', ad.adset_id)!.copied_id);
+    items.push({
+      path: v + copy,
+      query: {fields: 'id,account_id,status,adset_id'},
+      expected: {id: copy, account_id: selected, status: 'PAUSED', adset_id: adset},
+      id: copy,
+    });
+  }
+  return items;
 }

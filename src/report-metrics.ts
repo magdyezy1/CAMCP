@@ -3,68 +3,491 @@ import {zonedMidnight} from './workflows.js';
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 
-export const reportPlatforms:Record<string,{name:string;gateway:string;kind:string}>={
- google:{name:'Google Ads',gateway:'google_ads_native_action',kind:'paid'},meta:{name:'Meta',gateway:'meta_native_action',kind:'paid'},tiktok:{name:'TikTok',gateway:'tiktok_native_action',kind:'paid'},snapchat:{name:'Snapchat',gateway:'snapchat_native_action',kind:'paid'},linkedin:{name:'LinkedIn',gateway:'linkedin_native_action',kind:'paid'},x:{name:'X Ads',gateway:'x_ads_native_action',kind:'paid'},microsoft:{name:'Microsoft Ads',gateway:'microsoft_ads_native_action',kind:'paid'},apple:{name:'Apple Ads',gateway:'apple_ads_native_action',kind:'paid'},reddit:{name:'Reddit Ads',gateway:'reddit_native_action',kind:'paid'},ga4:{name:'Google Analytics 4',gateway:'ga4_native_action',kind:'measurement'},gsc:{name:'Search Console',gateway:'google_search_console_native_action',kind:'organic'}
+export const reportPlatforms: Record<string, {name: string; gateway: string; kind: string}> = {
+  google: {name: 'Google Ads', gateway: 'google_ads_native_action', kind: 'paid'},
+  meta: {name: 'Meta', gateway: 'meta_native_action', kind: 'paid'},
+  tiktok: {name: 'TikTok', gateway: 'tiktok_native_action', kind: 'paid'},
+  snapchat: {name: 'Snapchat', gateway: 'snapchat_native_action', kind: 'paid'},
+  linkedin: {name: 'LinkedIn', gateway: 'linkedin_native_action', kind: 'paid'},
+  x: {name: 'X Ads', gateway: 'x_ads_native_action', kind: 'paid'},
+  microsoft: {name: 'Microsoft Ads', gateway: 'microsoft_ads_native_action', kind: 'paid'},
+  apple: {name: 'Apple Ads', gateway: 'apple_ads_native_action', kind: 'paid'},
+  reddit: {name: 'Reddit Ads', gateway: 'reddit_native_action', kind: 'paid'},
+  ga4: {name: 'Google Analytics 4', gateway: 'ga4_native_action', kind: 'measurement'},
+  gsc: {name: 'Search Console', gateway: 'google_search_console_native_action', kind: 'organic'},
 };
-export const metricDefinitions:Record<string,JsonObject>={
- spend:{label:'Spend',format:'currency',aggregation:'sum'},impressions:{label:'Impressions',format:'number',aggregation:'sum'},clicks:{label:'Clicks / taps / swipes',format:'number',aggregation:'sum'},conversions:{label:'Primary conversions',format:'number',aggregation:'sum'},conversion_value:{label:'Conversion value',format:'currency',aggregation:'sum'},reach:{label:'Reach',format:'number',aggregation:'non_additive'},frequency:{label:'Frequency',format:'decimal',aggregation:'non_additive'},video_views:{label:'Video views',format:'number',aggregation:'sum'},video_completions:{label:'Video completions',format:'number',aggregation:'sum'},engagements:{label:'Engagements',format:'number',aggregation:'sum'},leads:{label:'Leads',format:'number',aggregation:'sum'},purchases:{label:'Purchases',format:'number',aggregation:'sum'},installs:{label:'Installs',format:'number',aggregation:'sum'},sessions:{label:'Sessions',format:'number',aggregation:'sum'},users:{label:'Users',format:'number',aggregation:'non_additive'},position:{label:'Average search position',format:'decimal',aggregation:'non_additive'},ctr:{label:'Click-through rate',format:'percent',formula:'clicks / impressions * 100'},cpc:{label:'Cost per click',format:'currency',formula:'spend / clicks'},cpm:{label:'Cost per 1,000 impressions',format:'currency',formula:'spend / impressions * 1000'},cpa:{label:'Cost per conversion',format:'currency',formula:'spend / conversions'},cpl:{label:'Cost per lead',format:'currency',formula:'spend / leads'},cpi:{label:'Cost per install',format:'currency',formula:'spend / installs'},cpv:{label:'Cost per video view',format:'currency',formula:'spend / video_views'},roas:{label:'Return on ad spend',format:'decimal',formula:'conversion_value / spend'},conversion_rate:{label:'Conversion rate',format:'percent',formula:'conversions / clicks * 100'},video_completion_rate:{label:'Video completion rate',format:'percent',formula:'video_completions / video_views * 100'}
+export const metricDefinitions: Record<string, JsonObject> = {
+  spend: {label: 'Spend', format: 'currency', aggregation: 'sum'},
+  impressions: {label: 'Impressions', format: 'number', aggregation: 'sum'},
+  clicks: {label: 'Clicks / taps / swipes', format: 'number', aggregation: 'sum'},
+  conversions: {label: 'Primary conversions', format: 'number', aggregation: 'sum'},
+  conversion_value: {label: 'Conversion value', format: 'currency', aggregation: 'sum'},
+  reach: {label: 'Reach', format: 'number', aggregation: 'non_additive'},
+  frequency: {label: 'Frequency', format: 'decimal', aggregation: 'non_additive'},
+  video_views: {label: 'Video views', format: 'number', aggregation: 'sum'},
+  video_completions: {label: 'Video completions', format: 'number', aggregation: 'sum'},
+  engagements: {label: 'Engagements', format: 'number', aggregation: 'sum'},
+  leads: {label: 'Leads', format: 'number', aggregation: 'sum'},
+  purchases: {label: 'Purchases', format: 'number', aggregation: 'sum'},
+  installs: {label: 'Installs', format: 'number', aggregation: 'sum'},
+  sessions: {label: 'Sessions', format: 'number', aggregation: 'sum'},
+  users: {label: 'Users', format: 'number', aggregation: 'non_additive'},
+  position: {label: 'Average search position', format: 'decimal', aggregation: 'non_additive'},
+  ctr: {label: 'Click-through rate', format: 'percent', formula: 'clicks / impressions * 100'},
+  cpc: {label: 'Cost per click', format: 'currency', formula: 'spend / clicks'},
+  cpm: {label: 'Cost per 1,000 impressions', format: 'currency', formula: 'spend / impressions * 1000'},
+  cpa: {label: 'Cost per conversion', format: 'currency', formula: 'spend / conversions'},
+  cpl: {label: 'Cost per lead', format: 'currency', formula: 'spend / leads'},
+  cpi: {label: 'Cost per install', format: 'currency', formula: 'spend / installs'},
+  cpv: {label: 'Cost per video view', format: 'currency', formula: 'spend / video_views'},
+  roas: {label: 'Return on ad spend', format: 'decimal', formula: 'conversion_value / spend'},
+  conversion_rate: {label: 'Conversion rate', format: 'percent', formula: 'conversions / clicks * 100'},
+  video_completion_rate: {
+    label: 'Video completion rate',
+    format: 'percent',
+    formula: 'video_completions / video_views * 100',
+  },
 };
 /** One platform's source of a shared metric: a native field (`path` locates it in the provider row) or a rule. */
-export interface MetricSource {from:string;path?:string;divisor?:number;note?:string}
-const sourceField=(from:string,path=from,divisor?:number,note?:string):MetricSource=>({from,path,...(divisor?{divisor}:{}),...(note?{note}:{})});
-const sourceRule=(from:string,note?:string):MetricSource=>({from,...(note?{note}:{})});
-const metaActionSource=(types:string,field='actions')=>sourceRule(field+': the first reported of '+types);
+export interface MetricSource {
+  from: string;
+  path?: string;
+  divisor?: number;
+  note?: string;
+}
+const sourceField = (from: string, path = from, divisor?: number, note?: string): MetricSource => ({
+  from,
+  path,
+  ...(divisor ? {divisor} : {}),
+  ...(note ? {note} : {}),
+});
+const sourceRule = (from: string, note?: string): MetricSource => ({from, ...(note ? {note} : {})});
+const metaActionSource = (types: string, field = 'actions') => sourceRule(field + ': the first reported of ' + types);
 /**
  * Where each platform's value of a shared metric comes from, exactly as normalizeNativeRow (report-native.ts) and, for
  * X, xCampaignReport compute it. "Conversions" is a different native measure on every platform, so the reporting view
  * shows this next to the numbers. A metric a platform does not list stays empty for it.
  * tests/report-metric-sources.test.mjs keeps this table true.
  */
-export const metricSources:Record<string,Record<string,MetricSource>>={
- google:{spend:sourceField('metrics.cost_micros','metrics.costMicros',1e6),impressions:sourceField('metrics.impressions'),clicks:sourceField('metrics.clicks'),conversions:sourceField('metrics.conversions',undefined,undefined,'conversion actions included in Conversions'),conversion_value:sourceField('metrics.conversions_value','metrics.conversionsValue'),video_views:sourceField('metrics.video_views','metrics.videoViews'),engagements:sourceField('metrics.engagements')},
- meta:{spend:sourceField('spend'),impressions:sourceField('impressions'),clicks:sourceField('clicks'),reach:sourceField('reach'),frequency:sourceField('frequency'),leads:metaActionSource('lead, onsite_conversion.lead_grouped, offsite_conversion.fb_pixel_lead'),purchases:metaActionSource('purchase, omni_purchase, offsite_conversion.fb_pixel_purchase'),installs:metaActionSource('mobile_app_install, app_install'),conversions:sourceRule('leads, installs or purchases, by the campaign objective','empty for awareness, traffic, engagement and video objectives'),conversion_value:metaActionSource('purchase, omni_purchase, offsite_conversion.fb_pixel_purchase','action_values'),video_views:metaActionSource('video_view'),engagements:metaActionSource('post_engagement')},
- tiktok:{spend:sourceField('spend','metrics.spend'),impressions:sourceField('impressions','metrics.impressions'),clicks:sourceField('clicks','metrics.clicks'),conversions:sourceField('conversion','metrics.conversion',undefined,'the optimization event of each ad group'),reach:sourceField('reach','metrics.reach'),frequency:sourceField('frequency','metrics.frequency'),video_views:sourceField('video_play_actions','metrics.video_play_actions'),video_completions:sourceField('video_views_p100','metrics.video_views_p100'),purchases:sourceField('total_purchase','metrics.total_purchase'),conversion_value:sourceField('total_purchase_value','metrics.total_purchase_value')},
- snapchat:{spend:sourceField('spend','stats.spend',1e6),impressions:sourceField('impressions','stats.impressions'),clicks:sourceField('swipes','stats.swipes'),purchases:sourceField('conversion_purchases','stats.conversion_purchases'),conversion_value:sourceField('conversion_purchases_value','stats.conversion_purchases_value',1e6),leads:sourceField('conversion_sign_ups','stats.conversion_sign_ups'),installs:sourceField('total_installs','stats.total_installs'),video_views:sourceField('video_views','stats.video_views'),video_completions:sourceField('view_completion','stats.view_completion'),conversions:sourceRule('installs, leads or purchases, by the campaign objective','empty for other objectives')},
- linkedin:{spend:sourceField('costInLocalCurrency'),impressions:sourceField('impressions'),clicks:sourceField('clicks'),conversions:sourceField('externalWebsiteConversions'),conversion_value:sourceField('conversionValueInLocalCurrency'),leads:sourceField('oneClickLeads'),video_views:sourceField('videoViews'),video_completions:sourceField('videoCompletions')},
- x:{spend:sourceRule('billed_charge_local_micro ÷ 1,000,000'),impressions:sourceRule('impressions'),clicks:sourceRule('clicks'),engagements:sourceRule('engagements'),video_views:sourceRule('video_total_views')},
- microsoft:{spend:sourceField('Spend'),impressions:sourceField('Impressions'),clicks:sourceField('Clicks'),conversions:sourceField('Conversions'),conversion_value:sourceField('Revenue')},
- apple:{spend:sourceField('localSpend.amount','totalMetrics.localSpend.amount'),impressions:sourceField('impressions','totalMetrics.impressions'),clicks:sourceField('taps','totalMetrics.taps'),installs:sourceField('totalInstalls','totalMetrics.totalInstalls'),conversions:sourceField('totalInstalls','totalMetrics.totalInstalls',undefined,'installs')},
- reddit:{spend:sourceField('spend','spend',1e6),impressions:sourceField('impressions'),clicks:sourceField('clicks'),purchases:sourceField('conversion_purchase_total_items'),conversion_value:sourceField('conversion_purchase_total_value','conversion_purchase_total_value',100)},
- ga4:{sessions:sourceField('sessions'),users:sourceField('totalUsers'),conversions:sourceField('keyEvents',undefined,undefined,'key events'),conversion_value:sourceField('totalRevenue'),purchases:sourceField('ecommercePurchases')},
- gsc:{clicks:sourceField('clicks'),impressions:sourceField('impressions'),position:sourceField('position')},
+export const metricSources: Record<string, Record<string, MetricSource>> = {
+  google: {
+    spend: sourceField('metrics.cost_micros', 'metrics.costMicros', 1e6),
+    impressions: sourceField('metrics.impressions'),
+    clicks: sourceField('metrics.clicks'),
+    conversions: sourceField('metrics.conversions', undefined, undefined, 'conversion actions included in Conversions'),
+    conversion_value: sourceField('metrics.conversions_value', 'metrics.conversionsValue'),
+    video_views: sourceField('metrics.video_views', 'metrics.videoViews'),
+    engagements: sourceField('metrics.engagements'),
+  },
+  meta: {
+    spend: sourceField('spend'),
+    impressions: sourceField('impressions'),
+    clicks: sourceField('clicks'),
+    reach: sourceField('reach'),
+    frequency: sourceField('frequency'),
+    leads: metaActionSource('lead, onsite_conversion.lead_grouped, offsite_conversion.fb_pixel_lead'),
+    purchases: metaActionSource('purchase, omni_purchase, offsite_conversion.fb_pixel_purchase'),
+    installs: metaActionSource('mobile_app_install, app_install'),
+    conversions: sourceRule(
+      'leads, installs or purchases, by the campaign objective',
+      'empty for awareness, traffic, engagement and video objectives',
+    ),
+    conversion_value: metaActionSource(
+      'purchase, omni_purchase, offsite_conversion.fb_pixel_purchase',
+      'action_values',
+    ),
+    video_views: metaActionSource('video_view'),
+    engagements: metaActionSource('post_engagement'),
+  },
+  tiktok: {
+    spend: sourceField('spend', 'metrics.spend'),
+    impressions: sourceField('impressions', 'metrics.impressions'),
+    clicks: sourceField('clicks', 'metrics.clicks'),
+    conversions: sourceField('conversion', 'metrics.conversion', undefined, 'the optimization event of each ad group'),
+    reach: sourceField('reach', 'metrics.reach'),
+    frequency: sourceField('frequency', 'metrics.frequency'),
+    video_views: sourceField('video_play_actions', 'metrics.video_play_actions'),
+    video_completions: sourceField('video_views_p100', 'metrics.video_views_p100'),
+    purchases: sourceField('total_purchase', 'metrics.total_purchase'),
+    conversion_value: sourceField('total_purchase_value', 'metrics.total_purchase_value'),
+  },
+  snapchat: {
+    spend: sourceField('spend', 'stats.spend', 1e6),
+    impressions: sourceField('impressions', 'stats.impressions'),
+    clicks: sourceField('swipes', 'stats.swipes'),
+    purchases: sourceField('conversion_purchases', 'stats.conversion_purchases'),
+    conversion_value: sourceField('conversion_purchases_value', 'stats.conversion_purchases_value', 1e6),
+    leads: sourceField('conversion_sign_ups', 'stats.conversion_sign_ups'),
+    installs: sourceField('total_installs', 'stats.total_installs'),
+    video_views: sourceField('video_views', 'stats.video_views'),
+    video_completions: sourceField('view_completion', 'stats.view_completion'),
+    conversions: sourceRule('installs, leads or purchases, by the campaign objective', 'empty for other objectives'),
+  },
+  linkedin: {
+    spend: sourceField('costInLocalCurrency'),
+    impressions: sourceField('impressions'),
+    clicks: sourceField('clicks'),
+    conversions: sourceField('externalWebsiteConversions'),
+    conversion_value: sourceField('conversionValueInLocalCurrency'),
+    leads: sourceField('oneClickLeads'),
+    video_views: sourceField('videoViews'),
+    video_completions: sourceField('videoCompletions'),
+  },
+  x: {
+    spend: sourceRule('billed_charge_local_micro ÷ 1,000,000'),
+    impressions: sourceRule('impressions'),
+    clicks: sourceRule('clicks'),
+    engagements: sourceRule('engagements'),
+    video_views: sourceRule('video_total_views'),
+  },
+  microsoft: {
+    spend: sourceField('Spend'),
+    impressions: sourceField('Impressions'),
+    clicks: sourceField('Clicks'),
+    conversions: sourceField('Conversions'),
+    conversion_value: sourceField('Revenue'),
+  },
+  apple: {
+    spend: sourceField('localSpend.amount', 'totalMetrics.localSpend.amount'),
+    impressions: sourceField('impressions', 'totalMetrics.impressions'),
+    clicks: sourceField('taps', 'totalMetrics.taps'),
+    installs: sourceField('totalInstalls', 'totalMetrics.totalInstalls'),
+    conversions: sourceField('totalInstalls', 'totalMetrics.totalInstalls', undefined, 'installs'),
+  },
+  reddit: {
+    spend: sourceField('spend', 'spend', 1e6),
+    impressions: sourceField('impressions'),
+    clicks: sourceField('clicks'),
+    purchases: sourceField('conversion_purchase_total_items'),
+    conversion_value: sourceField('conversion_purchase_total_value', 'conversion_purchase_total_value', 100),
+  },
+  ga4: {
+    sessions: sourceField('sessions'),
+    users: sourceField('totalUsers'),
+    conversions: sourceField('keyEvents', undefined, undefined, 'key events'),
+    conversion_value: sourceField('totalRevenue'),
+    purchases: sourceField('ecommercePurchases'),
+  },
+  gsc: {clicks: sourceField('clicks'), impressions: sourceField('impressions'), position: sourceField('position')},
 };
-type Node={kind:'value';value:number}|{kind:'field';name:string}|{kind:'unary';value:Node}|{kind:'binary';op:string;left:Node;right:Node};
-export function parseMetricFormula(source:unknown,known?:Set<string>):{tree:Node;dependencies:string[]}{
- if(typeof source!=='string'||source.length<1||source.length>500)throw new MirrorError('INVALID_FORMULA','Use a formula of 1–500 characters.');const tokens=source.match(/(?:\d+(?:\.\d+)?|[A-Za-z_][A-Za-z0-9_]*|[()+\-*/])/g)??[];if(tokens.join('')!==source.replace(/\s/g,'')||tokens.length>120)throw new MirrorError('INVALID_FORMULA','Use metric names, numbers, parentheses and + − * /. Functions and code are not accepted.');let pos=0;const dependencies=new Set<string>();
- const atom=(depth:number):Node=>{if(depth>20)throw new MirrorError('INVALID_FORMULA','Formula nesting is too deep.');const token=tokens[pos++];if(token==='-')return {kind:'unary',value:atom(depth+1)};if(token==='+')return atom(depth+1);if(token==='('){const n=expression(0,depth+1);if(tokens[pos++]!==')')throw new MirrorError('INVALID_FORMULA','Close each parenthesis.');return n;}if(token&&/^\d/.test(token)){const value=Number(token);if(!Number.isFinite(value)||Math.abs(value)>Number.MAX_SAFE_INTEGER)throw new MirrorError('INVALID_FORMULA','Numeric constant is out of range.');return {kind:'value',value};}if(token&&/^[A-Za-z_]/.test(token)&&!['constructor','prototype','__proto__','Infinity','NaN'].includes(token)){if(known&&!known.has(token))throw new MirrorError('UNKNOWN_METRIC','Unknown metric: '+token,{metric:token});dependencies.add(token);return {kind:'field',name:token};}throw new MirrorError('INVALID_FORMULA','Expected a metric, number or parenthesis.');};
- const expression=(precedence:number,depth:number):Node=>{let left=atom(depth);while(pos<tokens.length){const op=tokens[pos]!,rank=op==='+'||op==='-'?1:op==='*'||op==='/'?2:0;if(rank<=precedence)break;pos++;left={kind:'binary',op,left,right:expression(rank,depth+1)};}return left;};
- const tree=expression(0,0);if(pos!==tokens.length)throw new MirrorError('INVALID_FORMULA','Unexpected formula token.');return {tree,dependencies:[...dependencies]};
+type Node =
+  | {kind: 'value'; value: number}
+  | {kind: 'field'; name: string}
+  | {kind: 'unary'; value: Node}
+  | {kind: 'binary'; op: string; left: Node; right: Node};
+export function parseMetricFormula(source: unknown, known?: Set<string>): {tree: Node; dependencies: string[]} {
+  if (typeof source !== 'string' || source.length < 1 || source.length > 500)
+    throw new MirrorError('INVALID_FORMULA', 'Use a formula of 1–500 characters.');
+  const tokens = source.match(/(?:\d+(?:\.\d+)?|[A-Za-z_][A-Za-z0-9_]*|[()+\-*/])/g) ?? [];
+  if (tokens.join('') !== source.replace(/\s/g, '') || tokens.length > 120)
+    throw new MirrorError(
+      'INVALID_FORMULA',
+      'Use metric names, numbers, parentheses and + − * /. Functions and code are not accepted.',
+    );
+  let pos = 0;
+  const dependencies = new Set<string>();
+  const atom = (depth: number): Node => {
+    if (depth > 20) throw new MirrorError('INVALID_FORMULA', 'Formula nesting is too deep.');
+    const token = tokens[pos++];
+    if (token === '-') return {kind: 'unary', value: atom(depth + 1)};
+    if (token === '+') return atom(depth + 1);
+    if (token === '(') {
+      const n = expression(0, depth + 1);
+      if (tokens[pos++] !== ')') throw new MirrorError('INVALID_FORMULA', 'Close each parenthesis.');
+      return n;
+    }
+    if (token && /^\d/.test(token)) {
+      const value = Number(token);
+      if (!Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER)
+        throw new MirrorError('INVALID_FORMULA', 'Numeric constant is out of range.');
+      return {kind: 'value', value};
+    }
+    if (
+      token &&
+      /^[A-Za-z_]/.test(token) &&
+      !['constructor', 'prototype', '__proto__', 'Infinity', 'NaN'].includes(token)
+    ) {
+      if (known && !known.has(token))
+        throw new MirrorError('UNKNOWN_METRIC', 'Unknown metric: ' + token, {metric: token});
+      dependencies.add(token);
+      return {kind: 'field', name: token};
+    }
+    throw new MirrorError('INVALID_FORMULA', 'Expected a metric, number or parenthesis.');
+  };
+  const expression = (precedence: number, depth: number): Node => {
+    let left = atom(depth);
+    while (pos < tokens.length) {
+      const op = tokens[pos]!,
+        rank = op === '+' || op === '-' ? 1 : op === '*' || op === '/' ? 2 : 0;
+      if (rank <= precedence) break;
+      pos++;
+      left = {kind: 'binary', op, left, right: expression(rank, depth + 1)};
+    }
+    return left;
+  };
+  const tree = expression(0, 0);
+  if (pos !== tokens.length) throw new MirrorError('INVALID_FORMULA', 'Unexpected formula token.');
+  return {tree, dependencies: [...dependencies]};
 }
-export function evaluateMetric(tree:Node,values:JsonObject):number|null{if(tree.kind==='value')return tree.value;if(tree.kind==='field')return metricNumber(values[tree.name]);if(tree.kind==='unary'){const n=evaluateMetric(tree.value,values);return n===null?null:-n;}const a=evaluateMetric(tree.left,values),b=evaluateMetric(tree.right,values);if(a===null||b===null||tree.op==='/'&&b===0)return null;const n=tree.op==='+'?a+b:tree.op==='-'?a-b:tree.op==='*'?a*b:a/b;return Number.isFinite(n)&&Math.abs(n)<=Number.MAX_SAFE_INTEGER?n:null;}
-export function metricNumber(value:unknown):number|null{if(value===null||value===undefined||value==='')return null;if(typeof value!=='number'&&typeof value!=='string')return null;const text=String(value);if(!/^-?\d+(?:\.\d+)?(?:e[+-]?\d+)?$/i.test(text))return null;const n=Number(value);if(!Number.isFinite(n)||Math.abs(n)>Number.MAX_SAFE_INTEGER)throw new MirrorError('METRIC_PRECISION_LOSS','A metric exceeds supported numeric precision. Use the retained native source.');return n;}
-export function validateCustomMetrics(input:unknown,native:string[]=[]):JsonObject[]{if(input===undefined)return [];if(!Array.isArray(input)||input.length>30)throw new MirrorError('INVALID_CUSTOM_METRICS','Use at most 30 custom metrics.');const ids=new Set<string>();for(const m of input){if(!m||typeof m!=='object'||!/^[a-z][a-z0-9_]{0,47}$/.test(m.id)||['constructor','prototype','__proto__'].includes(m.id)||ids.has(m.id)||Object.hasOwn(metricDefinitions,m.id)||m.id.startsWith('native_')||typeof m.label!=='string'||!m.label.trim()||m.label.length>80||!['number','decimal','percent','currency'].includes(m.format??'decimal'))throw new MirrorError('INVALID_CUSTOM_METRICS','Custom metrics need a unique identifier, label, formula and valid format.');ids.add(m.id);}const known=new Set([...Object.keys(metricDefinitions),...native,...ids]),byId=new Map(input.map(m=>[m.id,m])),visiting=new Set<string>(),done=new Set<string>(),ordered:JsonObject[]=[];const visit=(id:string)=>{if(done.has(id))return;if(visiting.has(id))throw new MirrorError('METRIC_CYCLE','Custom metric formulas contain a cycle.');visiting.add(id);const m=byId.get(id)!,parsed=parseMetricFormula(m.formula,known);for(const d of parsed.dependencies)if(byId.has(d))visit(d);visiting.delete(id);done.add(id);ordered.push({id:m.id,label:m.label.trim(),formula:m.formula,format:m.format??'decimal',dependencies:parsed.dependencies});};for(const id of ids)visit(id);return ordered;}
-export function calculateMetrics(metrics:JsonObject,custom:JsonObject[]=[]){const values={...metrics};for(const [id,m]of Object.entries(metricDefinitions))if(m.formula)values[id]=evaluateMetric(parseMetricFormula(m.formula).tree,values);for(const m of custom)values[m.id]=evaluateMetric(parseMetricFormula(m.formula).tree,values);return values;}
-export const objectiveGroups=['awareness','traffic','engagement','video_views','leads','sales','app_installs','unknown'];
-export function objectiveGroup(value:unknown):string{const s=String(value??'').toUpperCase();if(/LEAD/.test(s))return 'leads';if(/APP_INSTALL|APP_PROMOTION|APP_DOWNLOAD|MOBILE_APP/.test(s))return 'app_installs';if(/SALE|PURCHASE|CONVERSION|CATALOG|WEBSITE_CONVERSIONS/.test(s))return 'sales';if(/VIDEO/.test(s))return 'video_views';if(/TRAFFIC|CLICK|WEBSITE_VISIT/.test(s))return 'traffic';if(/ENGAGEMENT|INTERACTION|FOLLOWER/.test(s))return 'engagement';if(/AWARENESS|REACH|IMPRESSION|BRAND/.test(s))return 'awareness';return 'unknown';}
-export function campaignRecommendation(row:JsonObject,policy:JsonObject={},now=Date.now()):JsonObject{
- const result=(decision:string,reason:string,evidence:JsonObject={})=>({decision,reason,evidence,confidence:['scale','maintain','pull_back'].includes(decision)?'moderate':'limited',limitations:['Observational evidence does not establish causality or adjust for seasonality.'],objective:row.objective_group,automatic_execution:false,requires_review:true});
- if(row.source_kind!=='paid')return result('observe','Measurement and organic reports provide context; they do not establish an advertising budget action.');
- if(!row.complete||!row.currency||!row.timezone||now-row.captured_at>48*3600000)return result('needs_review','Refresh complete data with verified currency and timezone before recommending a change.');
- if(row.objective_group==='unknown')return result('needs_review','Confirm this campaign’s objective and primary result metric.');
- const p=policy[row.campaign_key]??policy[row.objective_group]??{},metric=p.kpi??({awareness:'cpm',traffic:'cpc',engagement:'cost_per_engagement',video_views:'cpv',leads:'cpl',sales:'cpa',app_installs:'cpi'} as JsonObject)[row.objective_group];
- const context= recommendationContext(row,p);if(context)return result(context.decision,context.reason,context.evidence);
- const m=row.metrics,actual=metric==='cost_per_engagement'?(m.spend!=null&&m.engagements>0?m.spend/m.engagements:null):m[metric],target=metricNumber(p.target);
- if(target===null||target<=0)return result('needs_target','Set a '+metric.toUpperCase()+' target in '+row.currency+' for this objective or campaign.',{kpi:metric});
- if(p.currency!==row.currency)return result('needs_review','The target currency must match the campaign account currency.',{target_currency:p.currency??null,currency:row.currency});
- const resultField=p.result_metric??({awareness:'impressions',traffic:'clicks',engagement:'engagements',video_views:'video_views',leads:'leads',sales:'conversions',app_installs:'installs'} as JsonObject)[row.objective_group],n=m[resultField],minimum=p.minimum_results??(row.objective_group==='awareness'?1000:['sales','leads','app_installs'].includes(row.objective_group)?10:30),lag=p.conversion_lag_days??3;
- if(['sales','leads','app_installs'].includes(row.objective_group)&&(row.attribution==='unknown'||row.result_definition==='unknown'))return result('needs_review','Confirm attribution and the primary conversion definition before making budget recommendations.');
- let end:number;try{end=zonedMidnight(new Date(Date.parse(row.date_to)+86400000).toISOString().slice(0,10),row.timezone,true);}catch{return result('needs_review','The reporting window needs an unambiguous account timezone boundary.');}if(['sales','leads','app_installs'].includes(row.objective_group)&&now-end<lag*86400000)return result('wait','The reporting window is still inside the configured conversion-lag period.',{conversion_lag_days:lag});
- if(n===0&&m.spend>=target*3&&['cpa','cpl','cpi'].includes(metric))return result('reconsider_pause','Spend exceeded three target acquisition costs with no reported results. Check tracking and conversion lag, then consider pausing.',{spend:m.spend,target,results:n});
- if(n==null||n<minimum||actual==null)return result('insufficient_data','Wait for enough results to distinguish a signal from a small sample.',{results:n??null,minimum_results:minimum,kpi:metric});
- const higher=p.direction?p.direction==='higher':metric==='roas',relative=higher?target/actual:actual/target,evidence={kpi:metric,actual,target,currency:row.currency,results:n,maximum_budget_change_percent:Math.min(20,p.maximum_change_percent??10)};
- if(relative<=0.85){const c=p.context??{};if(c.capacity_available===false||c.budget_available===false)return result('maintain','Performance supports growth, but a confirmed capacity or budget constraint prevents increasing delivery.',{...evidence,business_context:c});if(c.current_daily_budget!==undefined&&c.maximum_daily_budget!==undefined){const headroom=c.current_daily_budget>0?(c.maximum_daily_budget/c.current_daily_budget-1)*100:0;if(headroom<=0)return result('maintain','The supplied daily budget limit leaves no room for an increase.',{...evidence,business_context:c});evidence.maximum_budget_change_percent=Math.min(evidence.maximum_budget_change_percent,headroom);}}
- if(relative<=0.85)return result('scale','Performance is comfortably above target. Consider a bounded budget increase after checking capacity and recent changes.',evidence);
- if(relative>=1.5)return result('reconsider_pause','Performance is materially below target. Review tracking, targeting and creative before deciding whether to pause.',evidence);
- if(relative>=1.15)return result('pull_back','Performance is below target. Consider a bounded budget reduction and diagnose the cause.',evidence);
- return result('maintain','Performance is close to the configured target. Maintain delivery and monitor.',evidence);
+export function evaluateMetric(tree: Node, values: JsonObject): number | null {
+  if (tree.kind === 'value') return tree.value;
+  if (tree.kind === 'field') return metricNumber(values[tree.name]);
+  if (tree.kind === 'unary') {
+    const n = evaluateMetric(tree.value, values);
+    return n === null ? null : -n;
+  }
+  const a = evaluateMetric(tree.left, values),
+    b = evaluateMetric(tree.right, values);
+  if (a === null || b === null || (tree.op === '/' && b === 0)) return null;
+  const n = tree.op === '+' ? a + b : tree.op === '-' ? a - b : tree.op === '*' ? a * b : a / b;
+  return Number.isFinite(n) && Math.abs(n) <= Number.MAX_SAFE_INTEGER ? n : null;
+}
+export function metricNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value !== 'number' && typeof value !== 'string') return null;
+  const text = String(value);
+  if (!/^-?\d+(?:\.\d+)?(?:e[+-]?\d+)?$/i.test(text)) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || Math.abs(n) > Number.MAX_SAFE_INTEGER)
+    throw new MirrorError(
+      'METRIC_PRECISION_LOSS',
+      'A metric exceeds supported numeric precision. Use the retained native source.',
+    );
+  return n;
+}
+export function validateCustomMetrics(input: unknown, native: string[] = []): JsonObject[] {
+  if (input === undefined) return [];
+  if (!Array.isArray(input) || input.length > 30)
+    throw new MirrorError('INVALID_CUSTOM_METRICS', 'Use at most 30 custom metrics.');
+  const ids = new Set<string>();
+  for (const m of input) {
+    if (
+      !m ||
+      typeof m !== 'object' ||
+      !/^[a-z][a-z0-9_]{0,47}$/.test(m.id) ||
+      ['constructor', 'prototype', '__proto__'].includes(m.id) ||
+      ids.has(m.id) ||
+      Object.hasOwn(metricDefinitions, m.id) ||
+      m.id.startsWith('native_') ||
+      typeof m.label !== 'string' ||
+      !m.label.trim() ||
+      m.label.length > 80 ||
+      !['number', 'decimal', 'percent', 'currency'].includes(m.format ?? 'decimal')
+    )
+      throw new MirrorError(
+        'INVALID_CUSTOM_METRICS',
+        'Custom metrics need a unique identifier, label, formula and valid format.',
+      );
+    ids.add(m.id);
+  }
+  const known = new Set([...Object.keys(metricDefinitions), ...native, ...ids]),
+    byId = new Map(input.map(m => [m.id, m])),
+    visiting = new Set<string>(),
+    done = new Set<string>(),
+    ordered: JsonObject[] = [];
+  const visit = (id: string) => {
+    if (done.has(id)) return;
+    if (visiting.has(id)) throw new MirrorError('METRIC_CYCLE', 'Custom metric formulas contain a cycle.');
+    visiting.add(id);
+    const m = byId.get(id)!,
+      parsed = parseMetricFormula(m.formula, known);
+    for (const d of parsed.dependencies) if (byId.has(d)) visit(d);
+    visiting.delete(id);
+    done.add(id);
+    ordered.push({
+      id: m.id,
+      label: m.label.trim(),
+      formula: m.formula,
+      format: m.format ?? 'decimal',
+      dependencies: parsed.dependencies,
+    });
+  };
+  for (const id of ids) visit(id);
+  return ordered;
+}
+export function calculateMetrics(metrics: JsonObject, custom: JsonObject[] = []) {
+  const values = {...metrics};
+  for (const [id, m] of Object.entries(metricDefinitions))
+    if (m.formula) values[id] = evaluateMetric(parseMetricFormula(m.formula).tree, values);
+  for (const m of custom) values[m.id] = evaluateMetric(parseMetricFormula(m.formula).tree, values);
+  return values;
+}
+export const objectiveGroups = [
+  'awareness',
+  'traffic',
+  'engagement',
+  'video_views',
+  'leads',
+  'sales',
+  'app_installs',
+  'unknown',
+];
+export function objectiveGroup(value: unknown): string {
+  const s = String(value ?? '').toUpperCase();
+  if (/LEAD/.test(s)) return 'leads';
+  if (/APP_INSTALL|APP_PROMOTION|APP_DOWNLOAD|MOBILE_APP/.test(s)) return 'app_installs';
+  if (/SALE|PURCHASE|CONVERSION|CATALOG|WEBSITE_CONVERSIONS/.test(s)) return 'sales';
+  if (/VIDEO/.test(s)) return 'video_views';
+  if (/TRAFFIC|CLICK|WEBSITE_VISIT/.test(s)) return 'traffic';
+  if (/ENGAGEMENT|INTERACTION|FOLLOWER/.test(s)) return 'engagement';
+  if (/AWARENESS|REACH|IMPRESSION|BRAND/.test(s)) return 'awareness';
+  return 'unknown';
+}
+export function campaignRecommendation(row: JsonObject, policy: JsonObject = {}, now = Date.now()): JsonObject {
+  const result = (decision: string, reason: string, evidence: JsonObject = {}) => ({
+    decision,
+    reason,
+    evidence,
+    confidence: ['scale', 'maintain', 'pull_back'].includes(decision) ? 'moderate' : 'limited',
+    limitations: ['Observational evidence does not establish causality or adjust for seasonality.'],
+    objective: row.objective_group,
+    automatic_execution: false,
+    requires_review: true,
+  });
+  if (row.source_kind !== 'paid')
+    return result(
+      'observe',
+      'Measurement and organic reports provide context; they do not establish an advertising budget action.',
+    );
+  if (!row.complete || !row.currency || !row.timezone || now - row.captured_at > 48 * 3600000)
+    return result(
+      'needs_review',
+      'Refresh complete data with verified currency and timezone before recommending a change.',
+    );
+  if (row.objective_group === 'unknown')
+    return result('needs_review', 'Confirm this campaign’s objective and primary result metric.');
+  const p = policy[row.campaign_key] ?? policy[row.objective_group] ?? {},
+    metric =
+      p.kpi ??
+      (
+        {
+          awareness: 'cpm',
+          traffic: 'cpc',
+          engagement: 'cost_per_engagement',
+          video_views: 'cpv',
+          leads: 'cpl',
+          sales: 'cpa',
+          app_installs: 'cpi',
+        } as JsonObject
+      )[row.objective_group];
+  const context = recommendationContext(row, p);
+  if (context) return result(context.decision, context.reason, context.evidence);
+  const m = row.metrics,
+    actual =
+      metric === 'cost_per_engagement'
+        ? m.spend != null && m.engagements > 0
+          ? m.spend / m.engagements
+          : null
+        : m[metric],
+    target = metricNumber(p.target);
+  if (target === null || target <= 0)
+    return result(
+      'needs_target',
+      'Set a ' + metric.toUpperCase() + ' target in ' + row.currency + ' for this objective or campaign.',
+      {kpi: metric},
+    );
+  if (p.currency !== row.currency)
+    return result('needs_review', 'The target currency must match the campaign account currency.', {
+      target_currency: p.currency ?? null,
+      currency: row.currency,
+    });
+  const resultField =
+      p.result_metric ??
+      (
+        {
+          awareness: 'impressions',
+          traffic: 'clicks',
+          engagement: 'engagements',
+          video_views: 'video_views',
+          leads: 'leads',
+          sales: 'conversions',
+          app_installs: 'installs',
+        } as JsonObject
+      )[row.objective_group],
+    n = m[resultField],
+    minimum =
+      p.minimum_results ??
+      (row.objective_group === 'awareness'
+        ? 1000
+        : ['sales', 'leads', 'app_installs'].includes(row.objective_group)
+          ? 10
+          : 30),
+    lag = p.conversion_lag_days ?? 3;
+  if (
+    ['sales', 'leads', 'app_installs'].includes(row.objective_group) &&
+    (row.attribution === 'unknown' || row.result_definition === 'unknown')
+  )
+    return result(
+      'needs_review',
+      'Confirm attribution and the primary conversion definition before making budget recommendations.',
+    );
+  let end: number;
+  try {
+    end = zonedMidnight(new Date(Date.parse(row.date_to) + 86400000).toISOString().slice(0, 10), row.timezone, true);
+  } catch {
+    return result('needs_review', 'The reporting window needs an unambiguous account timezone boundary.');
+  }
+  if (['sales', 'leads', 'app_installs'].includes(row.objective_group) && now - end < lag * 86400000)
+    return result('wait', 'The reporting window is still inside the configured conversion-lag period.', {
+      conversion_lag_days: lag,
+    });
+  if (n === 0 && m.spend >= target * 3 && ['cpa', 'cpl', 'cpi'].includes(metric))
+    return result(
+      'reconsider_pause',
+      'Spend exceeded three target acquisition costs with no reported results. Check tracking and conversion lag, then consider pausing.',
+      {spend: m.spend, target, results: n},
+    );
+  if (n == null || n < minimum || actual == null)
+    return result('insufficient_data', 'Wait for enough results to distinguish a signal from a small sample.', {
+      results: n ?? null,
+      minimum_results: minimum,
+      kpi: metric,
+    });
+  const higher = p.direction ? p.direction === 'higher' : metric === 'roas',
+    relative = higher ? target / actual : actual / target,
+    evidence = {
+      kpi: metric,
+      actual,
+      target,
+      currency: row.currency,
+      results: n,
+      maximum_budget_change_percent: Math.min(20, p.maximum_change_percent ?? 10),
+    };
+  if (relative <= 0.85) {
+    const c = p.context ?? {};
+    if (c.capacity_available === false || c.budget_available === false)
+      return result(
+        'maintain',
+        'Performance supports growth, but a confirmed capacity or budget constraint prevents increasing delivery.',
+        {...evidence, business_context: c},
+      );
+    if (c.current_daily_budget !== undefined && c.maximum_daily_budget !== undefined) {
+      const headroom = c.current_daily_budget > 0 ? (c.maximum_daily_budget / c.current_daily_budget - 1) * 100 : 0;
+      if (headroom <= 0)
+        return result('maintain', 'The supplied daily budget limit leaves no room for an increase.', {
+          ...evidence,
+          business_context: c,
+        });
+      evidence.maximum_budget_change_percent = Math.min(evidence.maximum_budget_change_percent, headroom);
+    }
+  }
+  if (relative <= 0.85)
+    return result(
+      'scale',
+      'Performance is comfortably above target. Consider a bounded budget increase after checking capacity and recent changes.',
+      evidence,
+    );
+  if (relative >= 1.5)
+    return result(
+      'reconsider_pause',
+      'Performance is materially below target. Review tracking, targeting and creative before deciding whether to pause.',
+      evidence,
+    );
+  if (relative >= 1.15)
+    return result(
+      'pull_back',
+      'Performance is below target. Consider a bounded budget reduction and diagnose the cause.',
+      evidence,
+    );
+  return result('maintain', 'Performance is close to the configured target. Maintain delivery and monitor.', evidence);
 }

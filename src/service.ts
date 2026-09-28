@@ -1,260 +1,968 @@
-import {metaReportReadResult,observeMetaReportRead,runMetaReportRead} from './meta-insights-jobs.js';
-import {xReportRoute,xReportStatus,xReportStatusData,observeXReport,xReportIdentity} from './x-report-jobs.js';
-import {downloadXReport,xReportPage} from './x-report-download.js';
-import {tiktokReportRoute,tiktokReportReadResult,runTiktokReportRead} from './tiktok-report-jobs.js';
-import {criteoReportReadResult,observeCriteoReportRead,runCriteoReportRead} from './criteo-report-jobs.js';
-import {connectionDiagnosticKind,connectionDiagnostics,redactConnectionInput} from './connection-diagnostics.js';
-import {connectionDisconnectKind,connectionDisconnect} from './connection-disconnect.js';
-import {measurementConnectionSyncKind,syncMeasurementConnection} from './measurement-connection-sync.js';
-import {businessConnectionSyncKind,syncBusinessConnection} from './google-business-sync.js';
-import {adjustReportingKind,adjustReporting} from './adjust-reporting.js';
+import {metaReportReadResult, observeMetaReportRead, runMetaReportRead} from './meta-insights-jobs.js';
+import {xReportRoute, xReportStatus, xReportStatusData, observeXReport, xReportIdentity} from './x-report-jobs.js';
+import {downloadXReport, xReportPage} from './x-report-download.js';
+import {tiktokReportRoute, tiktokReportReadResult, runTiktokReportRead} from './tiktok-report-jobs.js';
+import {criteoReportReadResult, observeCriteoReportRead, runCriteoReportRead} from './criteo-report-jobs.js';
+import {connectionDiagnosticKind, connectionDiagnostics, redactConnectionInput} from './connection-diagnostics.js';
+import {connectionDisconnectKind, connectionDisconnect} from './connection-disconnect.js';
+import {measurementConnectionSyncKind, syncMeasurementConnection} from './measurement-connection-sync.js';
+import {businessConnectionSyncKind, syncBusinessConnection} from './google-business-sync.js';
+import {adjustReportingKind, adjustReporting} from './adjust-reporting.js';
 import {nativeAuthority} from './native-authority.js';
-import {placeActionReadKind,validatePlaceActionRead,placeActionReadResult,runPlaceActionDiscovery} from './google-place-action-discovery.js';
+import {
+  placeActionReadKind,
+  validatePlaceActionRead,
+  placeActionReadResult,
+  runPlaceActionDiscovery,
+} from './google-place-action-discovery.js';
 import {campaignPreflight} from './campaign-preflight.js';
 import {searchMetaAdLibrary} from './meta-ad-library.js';
-import {fetchMetaExistingPosts,redactMetaPostInput} from './meta-existing-posts.js';
+import {fetchMetaExistingPosts, redactMetaPostInput} from './meta-existing-posts.js';
 import {assertProviderActionAvailable} from './retired-provider-actions.js';
-import {gtmDiagnosticOperations,gtmDiagnostics} from './gtm-diagnostics.js';
+import {gtmDiagnosticOperations, gtmDiagnostics} from './gtm-diagnostics.js';
 import {randomUUID} from 'node:crypto';
-import type {Actor,CallOptions,CompiledRequest,JsonObject} from './types.js';
+import type {Actor, CallOptions, CompiledRequest, JsonObject} from './types.js';
 import {Registry} from './catalog.js';
 import {Compiler} from './compiler.js';
 import {Introspection} from './introspection.js';
 import {Store} from './store.js';
 import {CredentialProvider} from './auth.js';
 import {NativeTransport} from './transport.js';
-import {authorizeExecution,readOnlyPolicy,type ExecutionPolicy} from './preflight.js';
-import {redactPlaceActionInput,placeActionSafeError} from './google-place-action-links.js';
-import {errorResult,MirrorError,untrustedProviderContent} from './errors.js';
-import {redact,sha256,stable} from './security.js';
+import {authorizeExecution, readOnlyPolicy, type ExecutionPolicy} from './preflight.js';
+import {redactPlaceActionInput, placeActionSafeError} from './google-place-action-links.js';
+import {errorResult, MirrorError, untrustedProviderContent} from './errors.js';
+import {redact, sha256, stable} from './security.js';
 import {paginate} from './pagination.js';
 import {ScopeGuard} from './scope.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {WorkflowEngine} from './workflows.js';
-import {ReportingService,reportingOperations} from './reporting.js';
+import {ReportingService, reportingOperations} from './reporting.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {projectResponse} from './projection.js';
-import {WriteReviewService,writeTool} from './write-review.js';
+import {WriteReviewService, writeTool} from './write-review.js';
 import {validateAppleResponse} from './apple-native.js';
-import {microsoftGateway,validateMicrosoftResponse} from './microsoft-native.js';
-import {downloadReportArchive,parseMicrosoftReport,microsoftReportKey,microsoftReportPage} from './microsoft-report-download.js';
+import {microsoftGateway, validateMicrosoftResponse} from './microsoft-native.js';
+import {
+  downloadReportArchive,
+  parseMicrosoftReport,
+  microsoftReportKey,
+  microsoftReportPage,
+} from './microsoft-report-download.js';
 import {guidanceDiscovery} from './guidance.js';
-import {WorkspaceService,workspaceTool} from './workspace.js';
-import {CampaignRunner,campaignTool} from './campaign-runner.js';
-import {DecisionReporting,decisionTool} from './decision-reporting.js';
-import {ReportingOverview,overviewTool} from './reporting-overview.js';
+import {WorkspaceService, workspaceTool} from './workspace.js';
+import {CampaignRunner, campaignTool} from './campaign-runner.js';
+import {DecisionReporting, decisionTool} from './decision-reporting.js';
+import {ReportingOverview, overviewTool} from './reporting-overview.js';
 import {WriteVerifier} from './write-verification.js';
 import {validateProviderRequest} from './provider-validation.js';
-import {MediaUploadService,mediaTool} from './media-upload.js';
-import {nativeMediaInput,workflowMediaInput,mediaPreview,mediaNext,inspectDrive,mediaDiscovery,mediaInstructions} from './media-routing.js';
+import {MediaUploadService, mediaTool} from './media-upload.js';
+import {
+  nativeMediaInput,
+  workflowMediaInput,
+  mediaPreview,
+  mediaNext,
+  inspectDrive,
+  mediaDiscovery,
+  mediaInstructions,
+} from './media-routing.js';
 import {providerContractView} from './contract-evidence.js';
-import {googleGenerationKind,googleGenerationResult,validateGoogleGeneration} from './google-generation.js';
-import {dv360TargetingSearchRoute,validateDV360TargetingSearch,runDV360TargetingSearch} from './dv360-targeting-search.js';
-import {xAudienceEstimateRoute,validateXAudienceEstimate,runXAudienceEstimate} from './x-audience-estimate.js';
-export const strictOptions:CallOptions={mode:'strict',flags:{}};
+import {googleGenerationKind, googleGenerationResult, validateGoogleGeneration} from './google-generation.js';
+import {
+  dv360TargetingSearchRoute,
+  validateDV360TargetingSearch,
+  runDV360TargetingSearch,
+} from './dv360-targeting-search.js';
+import {xAudienceEstimateRoute, validateXAudienceEstimate, runXAudienceEstimate} from './x-audience-estimate.js';
+export const strictOptions: CallOptions = {mode: 'strict', flags: {}};
 /**
  * Tools whose results are composed entirely on this server from the static catalog, and so
  * cannot carry provider-authored text. Everything else is labelled, which means a tool added
  * later is labelled by default rather than silently exempt.
  */
-const localOnlyTools=new Set(['amcp_tool_help']);
+const localOnlyTools = new Set(['amcp_tool_help']);
 /**
  * The audit record of a completed read: its status, pages and headers, and the size, hash and row counts of what the
  * provider returned, but not the content. Report rows, lead details and ad copy stay in the response and in the
  * documents that deliberately keep them, not in the permanent audit trail (F-18).
  */
-export function auditedRead(outcome:JsonObject):JsonObject{
- const {data,generation,...rest}=outcome,text=stable(data)??'null';
- const arrays=data&&typeof data==='object'&&!Array.isArray(data)?Object.entries(data).filter(([,v])=>Array.isArray(v)).map(([k,v])=>[k,(v as unknown[]).length]):[];
- return {...rest,data_summary:{sha256:sha256(text),bytes:Buffer.byteLength(text),...(Array.isArray(data)?{rows:data.length}:{}),...(arrays.length?{arrays:Object.fromEntries(arrays)}:{}),content_retained:false},...(generation?{generation_retained:false}:{})};
+export function auditedRead(outcome: JsonObject): JsonObject {
+  const {data, generation, ...rest} = outcome,
+    text = stable(data) ?? 'null';
+  const arrays =
+    data && typeof data === 'object' && !Array.isArray(data)
+      ? Object.entries(data)
+          .filter(([, v]) => Array.isArray(v))
+          .map(([k, v]) => [k, (v as unknown[]).length])
+      : [];
+  return {
+    ...rest,
+    data_summary: {
+      sha256: sha256(text),
+      bytes: Buffer.byteLength(text),
+      ...(Array.isArray(data) ? {rows: data.length} : {}),
+      ...(arrays.length ? {arrays: Object.fromEntries(arrays)} : {}),
+      content_retained: false,
+    },
+    ...(generation ? {generation_retained: false} : {}),
+  };
 }
-export const carriesProviderContent=(tool:string)=>!localOnlyTools.has(tool);
+export const carriesProviderContent = (tool: string) => !localOnlyTools.has(tool);
 export class MirrorService {
- readonly compiler:Compiler;readonly introspection:Introspection;readonly credentials:CredentialProvider;
- readonly delegatedCompiler=new DelegatedNativeCompiler();
- listTools(){return [...this.registry.listTools(this.options).map(t=>({...t,...(mediaDiscovery(t.name)?{description:t.description+' '+mediaInstructions}:{})})),workspaceTool,campaignTool,decisionTool,overviewTool,...(this.policy.allowWrites?[writeTool,mediaTool]:[])];}
- constructor(readonly registry:Registry,readonly store:Store,readonly transport=new NativeTransport(),readonly options:CallOptions=strictOptions,readonly policy:ExecutionPolicy=readOnlyPolicy,private mediaFetcher:typeof fetch=fetch){this.compiler=new Compiler(registry);this.introspection=new Introspection(registry);this.credentials=new CredentialProvider(store);}
- async call(tool:string,input:JsonObject,actor:Actor):Promise<JsonObject>{
-  const requestId=randomUUID(),start=Date.now();
-  try{
-   this.store.assertActorActive(actor);
-   if(tool===overviewTool.name)return this.wrap(await new ReportingOverview(this,this.mediaFetcher).handle(input,actor),requestId,start,tool);
-   const call=(t:string,a:JsonObject,u:Actor)=>this.call(t,a,u);
-   if(tool===workspaceTool.name)return this.wrap(await new WorkspaceService(this.store,this.registry,this.transport,this.credentials,call,this.policy.allowWrites).handle(input,actor),requestId,start,tool);
-   if(tool===campaignTool.name)return this.wrap(await new CampaignRunner(this.store,call,(a,id)=>this.verifyWrite(a,id), (a,i)=>validateProviderRequest(this,a,i),(a,steps)=>campaignPreflight(this,a,steps),(g,op)=>this.registry.acceptsArgument(g,'account_id',op)).handle(input,actor),requestId,start,tool);
-   if(tool===decisionTool.name)return this.wrap(await new DecisionReporting(this.store,async(t,a,u)=>{
-    this.registry.validate(t,a,this.options);const p=this.registry.tools.get(t)?.mode==='delegated'?this.delegatedCompiler.compile(t,a):this.compiler.compile(t,a,this.options);
-    if(!applyExecutionRisk(p).readOnly)throw new MirrorError('REPORT_READ_REQUIRED','Reporting accepts independently qualified native reads only.');
-    return this.wrap(await this.runPlan(p,a.operation?a.arguments:a,u),requestId,start,tool);
-   }).handle(input,actor),requestId,start,tool);
-   if(tool===mediaTool.name)return this.wrap(mediaNext(await this.media().call(input,actor)),requestId,start,tool);
-   if(tool===writeTool.name){const result:any=await this.reviewed(input,actor);return {...this.wrap(result,requestId,start,tool),...(result.success===false?{success:false,error:errorResult(new MirrorError('WRITE_PARTIAL_OR_FAILED','Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.'),requestId,Date.now()-start).error}:{})};}
-   this.registry.validate(tool,input,this.options);
-   if(tool==='amcp_tool_help'){const help=this.registry.help(input,this.options),media=mediaDiscovery(input.gateway);return {...help,amcp_contract:providerContractView(input.gateway),amcp_action_contracts:{tool:'amcp_workspace',arguments:{action:'contracts',...(input.gateway?{gateway:input.gateway}:{})},meaning:'Action-level route coverage; exact-payload inspect remains mandatory.'},amcp_guidance:guidanceDiscovery,amcp_extensions:{gateways:[microsoftGateway]},...(media?{amcp_media_import:media}:{})};}
-   if(input.action==='LIST_ACTIONS')return this.wrap(this.introspection.list(tool,input,this.options),requestId,start,tool);
-   if(input.action==='DESCRIBE_ACTION'){const description=this.introspection.describe(tool,input),media=mediaDiscovery(tool);return this.wrap({...description,amcp_write_inspection:{tool:'amcp_write',action:'inspect',gateway:tool,usage:'Supply the intended native arguments to check local review-contract support without provider calls. Media routes use amcp_media.'},...(media?{amcp_media_import:media}:{})},requestId,start,tool);}
-   if(this.registry.tools.get(tool)?.mode==='delegated')return this.wrap(await this.delegated(tool,input.operation,input.arguments??{},actor,requestId),requestId,start,tool);
-   const plan=this.compiler.compile(tool,input,this.options);
-   const hasMediaSource=['drive_url','url','image_url','video_url','file_url','source'].some(k=>plan.body&&typeof plan.body==='object'&&(plan.body as JsonObject)[k]!==undefined);
-   const media=input.dry_run===false||hasMediaSource?nativeMediaInput(plan,this.connectionId(input)):undefined;
-   if(media)return this.wrap(input.dry_run===false?mediaNext(await this.media().call(media,actor)):mediaPreview(media),requestId,start,tool);
-   return this.wrap(await this.runPlan(plan,input,actor,requestId),requestId,start,tool);
-  }catch(e){const result=errorResult(e,requestId,Date.now()-start);this.store.appendAudit(actor.tenantId,requestId,{tool,input:redact(redactConnectionInput(tool,redactPlaceActionInput(tool,redactMetaPostInput(tool,input)))),outcome:result});return result;}
- }
- /**
-  * Campaign names, ad copy, creative and media metadata, report rows and account labels are
-  * written by whoever can edit the advertising account — agency staff, clients, and on Reddit
-  * and X the wider public. They arrive here as data and are handed to a language model that can
-  * go on to prepare provider mutations, which is the shape of a prompt-injection channel.
-  *
-  * Nothing is rewritten or stripped: altering a campaign name would corrupt the reporting it
-  * feeds. Responses that can carry third-party text are labelled instead, so the model is told
-  * at the point of use that the content is data rather than instruction. The reviewed-write
-  * protocol remains the control that stops an injected instruction from reaching a provider;
-  * this makes the risk legible to the model and to the person approving a plan.
-  */
+  readonly compiler: Compiler;
+  readonly introspection: Introspection;
+  readonly credentials: CredentialProvider;
+  readonly delegatedCompiler = new DelegatedNativeCompiler();
+  listTools() {
+    return [
+      ...this.registry
+        .listTools(this.options)
+        .map(t => ({...t, ...(mediaDiscovery(t.name) ? {description: t.description + ' ' + mediaInstructions} : {})})),
+      workspaceTool,
+      campaignTool,
+      decisionTool,
+      overviewTool,
+      ...(this.policy.allowWrites ? [writeTool, mediaTool] : []),
+    ];
+  }
+  constructor(
+    readonly registry: Registry,
+    readonly store: Store,
+    readonly transport = new NativeTransport(),
+    readonly options: CallOptions = strictOptions,
+    readonly policy: ExecutionPolicy = readOnlyPolicy,
+    private mediaFetcher: typeof fetch = fetch,
+  ) {
+    this.compiler = new Compiler(registry);
+    this.introspection = new Introspection(registry);
+    this.credentials = new CredentialProvider(store);
+  }
+  async call(tool: string, input: JsonObject, actor: Actor): Promise<JsonObject> {
+    const requestId = randomUUID(),
+      start = Date.now();
+    try {
+      this.store.assertActorActive(actor);
+      if (tool === overviewTool.name)
+        return this.wrap(
+          await new ReportingOverview(this, this.mediaFetcher).handle(input, actor),
+          requestId,
+          start,
+          tool,
+        );
+      const call = (t: string, a: JsonObject, u: Actor) => this.call(t, a, u);
+      if (tool === workspaceTool.name)
+        return this.wrap(
+          await new WorkspaceService(
+            this.store,
+            this.registry,
+            this.transport,
+            this.credentials,
+            call,
+            this.policy.allowWrites,
+          ).handle(input, actor),
+          requestId,
+          start,
+          tool,
+        );
+      if (tool === campaignTool.name)
+        return this.wrap(
+          await new CampaignRunner(
+            this.store,
+            call,
+            (a, id) => this.verifyWrite(a, id),
+            (a, i) => validateProviderRequest(this, a, i),
+            (a, steps) => campaignPreflight(this, a, steps),
+            (g, op) => this.registry.acceptsArgument(g, 'account_id', op),
+          ).handle(input, actor),
+          requestId,
+          start,
+          tool,
+        );
+      if (tool === decisionTool.name)
+        return this.wrap(
+          await new DecisionReporting(this.store, async (t, a, u) => {
+            this.registry.validate(t, a, this.options);
+            const p =
+              this.registry.tools.get(t)?.mode === 'delegated'
+                ? this.delegatedCompiler.compile(t, a)
+                : this.compiler.compile(t, a, this.options);
+            if (!applyExecutionRisk(p).readOnly)
+              throw new MirrorError(
+                'REPORT_READ_REQUIRED',
+                'Reporting accepts independently qualified native reads only.',
+              );
+            return this.wrap(await this.runPlan(p, a.operation ? a.arguments : a, u), requestId, start, tool);
+          }).handle(input, actor),
+          requestId,
+          start,
+          tool,
+        );
+      if (tool === mediaTool.name)
+        return this.wrap(mediaNext(await this.media().call(input, actor)), requestId, start, tool);
+      if (tool === writeTool.name) {
+        const result: any = await this.reviewed(input, actor);
+        return {
+          ...this.wrap(result, requestId, start, tool),
+          ...(result.success === false
+            ? {
+                success: false,
+                error: errorResult(
+                  new MirrorError(
+                    'WRITE_PARTIAL_OR_FAILED',
+                    'Provider reported an incomplete or failed mutation; inspect the retained outcome before further action.',
+                  ),
+                  requestId,
+                  Date.now() - start,
+                ).error,
+              }
+            : {}),
+        };
+      }
+      this.registry.validate(tool, input, this.options);
+      if (tool === 'amcp_tool_help') {
+        const help = this.registry.help(input, this.options),
+          media = mediaDiscovery(input.gateway);
+        return {
+          ...help,
+          amcp_contract: providerContractView(input.gateway),
+          amcp_action_contracts: {
+            tool: 'amcp_workspace',
+            arguments: {action: 'contracts', ...(input.gateway ? {gateway: input.gateway} : {})},
+            meaning: 'Action-level route coverage; exact-payload inspect remains mandatory.',
+          },
+          amcp_guidance: guidanceDiscovery,
+          amcp_extensions: {gateways: [microsoftGateway]},
+          ...(media ? {amcp_media_import: media} : {}),
+        };
+      }
+      if (input.action === 'LIST_ACTIONS')
+        return this.wrap(this.introspection.list(tool, input, this.options), requestId, start, tool);
+      if (input.action === 'DESCRIBE_ACTION') {
+        const description = this.introspection.describe(tool, input),
+          media = mediaDiscovery(tool);
+        return this.wrap(
+          {
+            ...description,
+            amcp_write_inspection: {
+              tool: 'amcp_write',
+              action: 'inspect',
+              gateway: tool,
+              usage:
+                'Supply the intended native arguments to check local review-contract support without provider calls. Media routes use amcp_media.',
+            },
+            ...(media ? {amcp_media_import: media} : {}),
+          },
+          requestId,
+          start,
+          tool,
+        );
+      }
+      if (this.registry.tools.get(tool)?.mode === 'delegated')
+        return this.wrap(
+          await this.delegated(tool, input.operation, input.arguments ?? {}, actor, requestId),
+          requestId,
+          start,
+          tool,
+        );
+      const plan = this.compiler.compile(tool, input, this.options);
+      const hasMediaSource = ['drive_url', 'url', 'image_url', 'video_url', 'file_url', 'source'].some(
+        k => plan.body && typeof plan.body === 'object' && (plan.body as JsonObject)[k] !== undefined,
+      );
+      const media =
+        input.dry_run === false || hasMediaSource ? nativeMediaInput(plan, this.connectionId(input)) : undefined;
+      if (media)
+        return this.wrap(
+          input.dry_run === false ? mediaNext(await this.media().call(media, actor)) : mediaPreview(media),
+          requestId,
+          start,
+          tool,
+        );
+      return this.wrap(await this.runPlan(plan, input, actor, requestId), requestId, start, tool);
+    } catch (e) {
+      const result = errorResult(e, requestId, Date.now() - start);
+      this.store.appendAudit(actor.tenantId, requestId, {
+        tool,
+        input: redact(redactConnectionInput(tool, redactPlaceActionInput(tool, redactMetaPostInput(tool, input)))),
+        outcome: result,
+      });
+      return result;
+    }
+  }
+  /**
+   * Campaign names, ad copy, creative and media metadata, report rows and account labels are
+   * written by whoever can edit the advertising account — agency staff, clients, and on Reddit
+   * and X the wider public. They arrive here as data and are handed to a language model that can
+   * go on to prepare provider mutations, which is the shape of a prompt-injection channel.
+   *
+   * Nothing is rewritten or stripped: altering a campaign name would corrupt the reporting it
+   * feeds. Responses that can carry third-party text are labelled instead, so the model is told
+   * at the point of use that the content is data rather than instruction. The reviewed-write
+   * protocol remains the control that stops an injected instruction from reaching a provider;
+   * this makes the risk legible to the model and to the person approving a plan.
+   */
 
- private wrap(data:unknown,requestId:string,start:number,tool?:string){
-  const meta:JsonObject={requestId,latencyMs:Date.now()-start};
-  // Everything under data may be provider text; meta, and any error message, remedy or next step, are AMCP's own.
-  if(tool&&carriesProviderContent(tool)){meta.untrusted_provider_content=untrustedProviderContent;meta.untrusted_paths=['data'];}
-  return {success:true,data,meta};
- }
- async verifyWrite(actor:Actor,id:string){return new WriteVerifier(this.store,this.registry,this.transport,this.credentials).verify(actor,id);}
- async verificationJob(tenant:string,kind:string,input:JsonObject){
-  if(kind!=='write_verification')throw new MirrorError('UNKNOWN_JOB_KIND','No worker handles this job.');
-  const actor=this.store.restoreJobActor(tenant,input.review_id,input.actor_binding);
-  if(input.__job_id)this.store.bindActorCheck(actor,()=>{const job=this.store.db.prepare('SELECT state,lease_token,lease_until FROM jobs WHERE tenant_id=? AND id=?').get(tenant,input.__job_id) as JsonObject|undefined;if(!job||job.state!=='running'||job.lease_token!==input.__lease_token||job.lease_until<=Date.now())throw new MirrorError('STALE_JOB_LEASE','This worker no longer owns the verification job.',{},409);});
-  return this.verifyWrite(actor,input.review_id);
- }
- private media(){return new MediaUploadService(this.registry,this.store,this.transport,this.credentials,this.policy,this.mediaFetcher);}
- private connectionId(input:JsonObject,outer?:string){const ids=[outer,input.connection_id,input.connectionId].filter(v=>v!==undefined);if(ids.some(v=>typeof v!=='string'||v!==ids[0]))throw new MirrorError('CONFLICTING_PARAMETER','Connection ID aliases must identify the same connection.');return ids[0];}
- private async reviewed(input:JsonObject,actor:Actor):Promise<unknown>{
-  for(const key of Object.keys(input))if(!Object.hasOwn(writeTool.inputSchema.properties,key))throw new MirrorError('INVALID_ARGUMENT','Unknown write-tool parameter.',{parameter:key});
-  if(input.action==='execute'&&typeof input.review_id==='string'&&this.store.db.prepare('SELECT 1 FROM documents WHERE tenant_id=? AND kind=? AND id=?').get(actor.tenantId,'media_review',input.review_id)){
-   if(input.gateway!==undefined||input.arguments!==undefined||input.connection_id!==undefined||input.spend_change_confirmed!==undefined)throw new MirrorError('INVALID_ARGUMENT','Media execution uses only its frozen review and confirmation.');
-   return this.media().call(input,actor);
+  private wrap(data: unknown, requestId: string, start: number, tool?: string) {
+    const meta: JsonObject = {requestId, latencyMs: Date.now() - start};
+    // Everything under data may be provider text; meta, and any error message, remedy or next step, are AMCP's own.
+    if (tool && carriesProviderContent(tool)) {
+      meta.untrusted_provider_content = untrustedProviderContent;
+      meta.untrusted_paths = ['data'];
+    }
+    return {success: true, data, meta};
   }
-  if(input.action==='prepare'&&typeof input.gateway==='string'&&input.arguments&&typeof input.arguments==='object'&&!Array.isArray(input.arguments)){
-   const args=input.arguments;this.registry.validate(input.gateway,args,this.options);
-   if(input.gateway==='amcp_native_action'&&args.operation==='platform_media_upload')return mediaNext(await this.media().call(workflowMediaInput(args.arguments,input.connection_id),actor));
-   if(this.registry.tools.get(input.gateway)?.mode!=='delegated'){
-    const plan=this.compiler.compile(input.gateway,args,this.options),media=nativeMediaInput(plan,this.connectionId(args,input.connection_id));
-    if(media)return mediaNext(await this.media().call(media,actor));
-   }
+  async verifyWrite(actor: Actor, id: string) {
+    return new WriteVerifier(this.store, this.registry, this.transport, this.credentials).verify(actor, id);
   }
-  return new WriteReviewService(this.registry,this.compiler,this.store,this.transport,this.credentials,this.options,this.policy,this.delegatedCompiler).call(input,actor);
- }
- async runPlan(plan:CompiledRequest,input:JsonObject,actor:Actor,requestId:string=randomUUID()):Promise<unknown>{
-  assertProviderActionAvailable(plan);
-  if(input.connection_id&&input.connectionId&&input.connection_id!==input.connectionId)throw new MirrorError('CONFLICTING_PARAMETER','Connection ID aliases must identify the same connection.',{},403);
-  plan=applyExecutionRisk(plan);
-  validateGoogleGeneration(plan);
-  validateDV360TargetingSearch(plan);
-  validateXAudienceEstimate(plan);
-  if(xAudienceEstimateRoute(plan)){
-   if(input.aggregate_pages||input.paginate||input.allPages)throw new MirrorError('INVALID_X_AUDIENCE_ESTIMATE','An audience range is not paginated or additive. Request one complete criteria set.');
-   plan={...plan,xAudienceDeadline:performance.now()+60000};
+  async verificationJob(tenant: string, kind: string, input: JsonObject) {
+    if (kind !== 'write_verification') throw new MirrorError('UNKNOWN_JOB_KIND', 'No worker handles this job.');
+    const actor = this.store.restoreJobActor(tenant, input.review_id, input.actor_binding);
+    if (input.__job_id)
+      this.store.bindActorCheck(actor, () => {
+        const job = this.store.db
+          .prepare('SELECT state,lease_token,lease_until FROM jobs WHERE tenant_id=? AND id=?')
+          .get(tenant, input.__job_id) as JsonObject | undefined;
+        if (!job || job.state !== 'running' || job.lease_token !== input.__lease_token || job.lease_until <= Date.now())
+          throw new MirrorError('STALE_JOB_LEASE', 'This worker no longer owns the verification job.', {}, 409);
+      });
+    return this.verifyWrite(actor, input.review_id);
   }
-  validatePlaceActionRead(plan,input);
-  if(xReportRoute(plan)&&(input.aggregate_pages||input.paginate||input.allPages))throw new MirrorError('INVALID_ARGUMENT','Poll explicit job_ids. Download one original job with offset/limit; do not aggregate job discovery.');
-  if(xReportRoute(plan)==='status')plan={...plan,xReportDeadline:performance.now()+60000};
-  if(tiktokReportRoute(plan)&&(input.aggregate_pages||input.paginate||input.allPages))throw new MirrorError('INVALID_ARGUMENT','TikTok asynchronous tasks are not paginated. Resume the same task using status/download.');
-  if(googleGenerationKind(plan)&&(input.aggregate_pages||input.paginate||input.allPages))throw new MirrorError('INVALID_ARGUMENT','Google generation is one bounded request, not a paginated query.');
-  if(input.dry_run===true||!plan.readOnly&&input.dry_run!==false){const result={success:true,dry_run:true,action:plan.action,request:plan,executed:false};this.store.appendAudit(actor.tenantId,requestId,{event:'preview',request:plan,outcome:'not_executed'});return result;}
-  authorizeExecution(actor,plan,input,this.policy);
-  if(!plan.readOnly)throw new MirrorError('WRITE_REVIEW_REQUIRED','Use amcp_write prepare and execute for a reviewed mutation.');
-  const connection=this.store.resolveConnection(actor,plan.gateway,plan.accountId,input.connection_id??input.connectionId);
-  if(!plan.accountId&&connection.accounts.length!==1)throw new MirrorError('ACCOUNT_REQUIRED','Specify an account_id for this connection.');
-  const scope=new ScopeGuard(this.registry,this.store),scopedId=scope.authorize(plan,connection);
-  if(placeActionReadKind(plan)&&!plan.accountId)plan={...plan,accountId:scopedId};
-  const credentials=await this.credentials.get(connection);
-  this.store.appendAudit(actor.tenantId,requestId,{event:'request_started',actor:actor.userId,request:plan});
-  try{
-   const reportAccess=(p:CompiledRequest)=>{if(p.criteoReportRead||p.tiktokReportRead||p.xReportRead){this.store.assertActorActive(actor);if(sha256(stable(this.store.credentials(actor.tenantId,connection.id)))!==sha256(stable(credentials)))throw new MirrorError('REAUTHORIZATION_REQUIRED','The selected login changed during report retrieval.',{},403);}};
-   const fetchPage=async(p:CompiledRequest)=>{const current=this.store.resolveConnection(actor,p.gateway,p.accountId,connection.id);scope.authorize(p,current);reportAccess(p);const access=nativeAuthority(this.store,this.registry,actor,p,current,credentials,()=>reportAccess(p));const result=await this.transport.request(p,access(),credentials,undefined,{beforeAttempt:access}),{data,status}=result;access();const active=this.store.resolveConnection(actor,p.gateway,p.accountId,current.id);scope.authorize(p,active);reportAccess(p);if((xAudienceEstimateRoute(p)||p.action==='AMCP_X_AUDIENCE_REFERENCE')&&status!==200)throw new MirrorError('X_AUDIENCE_RESPONSE_INVALID','X did not return HTTP 200 for this bounded estimate read.',{},502);this.delegatedCompiler.validateResponse(p,data,status);validateAppleResponse(p,data);if(p.gateway===microsoftGateway)validateMicrosoftResponse(p,result);if(placeActionReadKind(p))return placeActionReadResult(p,data,status);if(p.xReportRead){const rows=xReportStatus(p,result);observeXReport(p,active,this.store,rows);if(p.reportDownload)return this.xDownload(p,rows[0]!,actor,active.id,credentials);return xReportStatusData(p,result);}const tiktokData=tiktokReportReadResult(p,result);if(tiktokData)return tiktokData;const criteoData=criteoReportReadResult(p,result);if(criteoData){observeCriteoReportRead(p,active,this.store,criteoData);return criteoData;}const reportData=metaReportReadResult(p,result);if(reportData){observeMetaReportRead(p,active,this.store,reportData);return reportData;}scope.observe(p,active,data);if(p.gateway===microsoftGateway&&p.reportDownload)return this.microsoftDownload(p,data as JsonObject,actor,active.id);return data;};
-   const result=xAudienceEstimateRoute(plan)?await runXAudienceEstimate(plan,fetchPage):plan.tiktokReportRead?await runTiktokReportRead(plan,fetchPage):plan.criteoReportRead?await runCriteoReportRead(plan,fetchPage):placeActionReadKind(plan)?await runPlaceActionDiscovery(plan,fetchPage,connection.id):plan.metaReportRead?await runMetaReportRead(plan,fetchPage,!!input.aggregate_pages,Number(input.max_pages??25)):dv360TargetingSearchRoute(plan)?await runDV360TargetingSearch(plan,fetchPage,!!(input.aggregate_pages||input.paginate||input.allPages),Number(input.max_pages??25)):input.aggregate_pages||input.paginate||input.allPages?await paginate(plan,fetchPage,Number(input.max_pages??25)):{data:await fetchPage(plan),pages:1,truncated:false};
-   const nativeCsv=plan.tiktokReportRead?.kind==='download'?(result.data as JsonObject):undefined;
-   const projected=projectResponse(nativeCsv?{data:nativeCsv.data}:result.data,plan.responseControls,plan.gateway);
-   if(nativeCsv){const rows=(projected.data as JsonObject).data;projected.data={data:rows,report:{...nativeCsv.report,source_complete:nativeCsv.report.complete,source_rows:nativeCsv.report.rows,returned_rows:rows.length,complete:!projected.truncated,projection:{fields:plan.responseControls?.fields??null,empty_values_omitted:plan.responseControls?.compact===true,rows_omitted:projected.truncated}}};}
-   const generation=googleGenerationResult(plan,result.data);
-   const outcome={success:true,action:plan.action,dry_run:false,...result,data:projected.data,...(generation?{generation}:{}),truncated:result.truncated||projected.truncated,...(projected.truncated?{response_truncated:true}:{})};
-   this.store.appendAudit(actor.tenantId,requestId,{event:'request_completed',request:plan,outcome:plan.reportDownload&&plan.xReportRead||plan.tiktokReportRead?.kind==='download'?{success:true,action:plan.action,report:(result.data as JsonObject).report,rows_omitted:true}:auditedRead(outcome)});return outcome;
-  }catch(e){if(placeActionReadKind(plan))e=placeActionSafeError(e);this.store.appendAudit(actor.tenantId,requestId,{event:'request_failed',request:plan,error:e instanceof MirrorError?{code:e.code,message:e.message,details:e.details}:{code:'INTERNAL_ERROR'}});throw e;}
- }
- private async xDownload(plan:CompiledRequest,row:JsonObject,actor:Actor,connectionId:string,credentials:import('./types.js').Credentials){
-  const access=()=>{this.store.assertActorActive(actor);const c=this.store.resolveConnection(actor,plan.gateway,plan.accountId,connectionId);new ScopeGuard(this.registry,this.store).authorize(plan,c);if(xReportIdentity(this.store.credentials(actor.tenantId,c.id))!==xReportIdentity(credentials))throw new MirrorError('X_REPORT_LOGIN_CHANGED','The X login changed during retrieval.',{},403);};access();
-  const b=plan.xReportRead![0]!,{offset,limit}=plan.reportDownload!,next=(at:number)=>({tool:plan.gateway,arguments:{action:'x_stats_jobs_accounts_account_id_get',account_id:plan.accountId,connection_id:connectionId,params:{job_ids:b.job_id},download_report:true,offset:at,limit,dry_run:false}});
-  if(row.status==='PROCESSING')return {data:[],report:{job_id:b.job_id,account_id:b.account_id,status:'PROCESSING',complete:false,report_rows_downloaded:false,next_call:next(offset)}};
-  if(row.status!=='SUCCESS')throw new MirrorError(row.status==='FAILED'?'X_REPORT_FAILED':'X_REPORT_CANCELLED','The original X report did not complete. Inspect the retained definition before explicitly preparing a new job.',{job_id:b.job_id,provider_status:row.status},502);
-  if(Date.parse(row.expires_at)<=Date.now())throw new MirrorError('X_REPORT_EXPIRED','The native X result expired. This does not authorize another submission.',{job_id:b.job_id},410);
-  const key=sha256(connectionId+':'+b.job_id),lock='x-report-result:'+actor.tenantId+':'+key,owner=randomUUID();
-  if(!this.store.acquireLock(lock,owner,120000))throw new MirrorError('X_REPORT_DOWNLOAD_BUSY','This original report is already being retrieved. Retry the same read shortly.',{retry_after_ms:1000},409,true);
-  let slot:string|undefined;
-  try{
-   slot=[0,1].map(i=>'x-report-memory:'+i).find(k=>this.store.acquireLock(k,owner,120000));
-   if(!slot)throw new MirrorError('X_REPORT_DOWNLOAD_BUSY','Two report results are already being read in this deployment. Retry this same read shortly.',{retry_after_ms:1000},429,true);
-   let parsed=this.store.xReportResult(actor.tenantId,key);
-   if(!parsed){
-    parsed=await downloadXReport(row,b,access,this.mediaFetcher===fetch?undefined:this.mediaFetcher,plan.xReportDeadline);access();
-    // A final native check catches cancellation/replacement/expiry during transfer.
-    const check={...plan,reportDownload:undefined},current=this.store.resolveConnection(actor,plan.gateway,plan.accountId,connectionId),guard=nativeAuthority(this.store,this.registry,actor,check,current,credentials,access);
-    const response=await this.transport.request(check,guard(),credentials,undefined,{beforeAttempt:guard});access();const final=xReportStatus(check,response)[0]!;
-    if(final.status!=='SUCCESS'||Date.parse(final.expires_at)<=Date.now())throw new MirrorError('X_REPORT_STATE_UNVERIFIED','The report stopped being available while its result was downloaded.',{},502);
-    if([lock,slot].some(k=>!this.store.db.prepare('SELECT 1 FROM service_locks WHERE key=? AND owner=? AND expires_at>?').get(k,owner,Date.now())))throw new MirrorError('X_REPORT_DOWNLOAD_BUSY','Result retrieval lost its lease. Retry the original read.',{},409,true);
-    parsed={...parsed,binding_sha256:sha256(stable({definition:b.definition,login:b.login_fingerprint,account:b.account_id,job:b.job_id}))};
-    this.store.saveXReportResult(actor.tenantId,key,parsed,Math.min(Date.parse(final.expires_at),Date.now()+6*3600000));
-   }
-   access();if(parsed.binding_sha256!==sha256(stable({definition:b.definition,login:b.login_fingerprint,account:b.account_id,job:b.job_id})))throw new MirrorError('X_REPORT_STATE_UNVERIFIED','The retained report no longer matches the original definition.',{},502);
-   const rows=xReportPage(parsed.data,offset,limit),more=offset+rows.length<parsed.data.length;
-   return {data:rows,report:{...parsed.report,status:'SUCCESS',source_complete:parsed.report.complete,complete:parsed.report.complete&&!more&&offset===0,download_complete:true,source_rows:parsed.data.length,returned_rows:rows.length,offset,limit,has_more:more,...(more?{next_call:next(offset+rows.length)}:{})}};
-  }finally{if(slot)this.store.releaseLock(slot,owner);this.store.releaseLock(lock,owner);}
- }
- private async microsoftDownload(plan:CompiledRequest,data:JsonObject,actor:Actor,connectionId:string){
-  const access=()=>{this.store.assertActorActive(actor);const c=this.store.resolveConnection(actor,plan.gateway,plan.accountId,connectionId);new ScopeGuard(this.registry,this.store).authorize(plan,c);};access();
-  const reportId=(plan.body as JsonObject).ReportRequestId,status=data.ReportRequestStatus,key=microsoftReportKey(connectionId,plan.accountId!,reportId);
-  const next=(offset:number)=>({tool:microsoftGateway,arguments:{action:'PollGenerateReport',account_id:plan.accountId,connection_id:connectionId,payload:{ReportRequestId:reportId},download_report:true,offset,limit:plan.reportDownload!.limit}});
-  if(status.Status==='Pending')return {report_request_id:reportId,status:'Pending',complete:false,next_call:next(plan.reportDownload!.offset)};
-  if(status.Status==='Error')throw new MirrorError('REPORT_GENERATION_FAILED','Microsoft could not generate this report.',{},502);
-  let stored:JsonObject;try{stored=this.store.document(actor.tenantId,'microsoft_report',key);}catch{throw new MirrorError('REPORT_METADATA_REQUIRED','Submit this report through AMCP again to record the original format and columns.');}
-  if(stored.expires_at<=Date.now())throw new MirrorError('REPORT_EXPIRED','Submit a fresh Microsoft report.');
-  let parsed=stored.parsed;
-  if(!parsed){
-   if(status.ReportDownloadUrl==null||status.ReportDownloadUrl==='')parsed={columns:stored.request.Columns,rows:[],row_count:0,metadata:{},potentially_incomplete:stored.request.ReturnOnlyCompleteData===true?false:null,values:'native_strings',format:stored.request.Format??'Csv',empty_reason:'provider_returned_no_download_url'};
-   else{if(!['Csv','Tsv'].includes(stored.request.Format??'Csv'))throw new MirrorError('REPORT_FORMAT_UNSUPPORTED','Server parsing supports Csv and Tsv. Submit another report in one of those formats.');access();const bytes=await downloadReportArchive(status.ReportDownloadUrl,this.mediaFetcher===fetch?undefined:this.mediaFetcher);access();parsed=parseMicrosoftReport(bytes,stored.request,plan.accountId!);}
-   this.store.putDocument(actor.tenantId,'microsoft_report',key,{...stored,parsed});
+  private media() {
+    return new MediaUploadService(
+      this.registry,
+      this.store,
+      this.transport,
+      this.credentials,
+      this.policy,
+      this.mediaFetcher,
+    );
   }
-  access();const {offset,limit}=plan.reportDownload!,rows=microsoftReportPage(parsed.rows,offset,limit),hasMore=offset+rows.length<parsed.row_count;
-  return {...parsed,rows,status:'Success',report_request_id:reportId,download_complete:true,offset,limit,has_more:hasMore,...(hasMore?{next_call:next(offset+rows.length)}:{})};
- }
- private async delegated(gateway:string,operation:string,args:JsonObject,actor:Actor,requestId:string):Promise<unknown>{
-  if(gateway==='adjust_native_action'&&adjustReportingKind(operation,args.action))return adjustReporting(this.store,this.transport,this.credentials,operation,args,actor,requestId);
-  if(measurementConnectionSyncKind(gateway,operation,args.action))return syncMeasurementConnection(this.store,this.transport,this.credentials,gateway,operation,args,actor,requestId);
-  if(businessConnectionSyncKind(gateway,operation,args.action))return syncBusinessConnection(this.store,this.transport,this.credentials,args,actor,requestId);
-  if(connectionDisconnectKind(gateway,operation,args.action))return connectionDisconnect(this.store,gateway,operation,args,actor);
-  if(connectionDiagnosticKind(gateway,operation,args.action))return connectionDiagnostics(this.store,gateway,operation,args,actor,this.policy.allowWrites);
-  if(gateway==='amcp_native_action'&&operation==='search_ads_library')return searchMetaAdLibrary(this.registry,this.store,this.transport,this.credentials,args,actor,requestId);
-  if(gateway==='amcp_native_action'&&operation==='fetch_meta_existing_posts')return fetchMetaExistingPosts(this.store,this.transport,this.credentials,args,actor,requestId);
-  if(gateway==='amcp_native_action'&&operation==='inspect_google_drive_media'){this.store.assertActorActive(actor);return inspectDrive(args.link,this.mediaFetcher,actor.tenantId);}
-  if(gateway==='amcp_native_action'&&operation==='platform_media_upload'){
-   if(args.action==='FINALIZE_UPLOAD_SESSION'){
-    if(Object.keys(args).some(k=>!['action','upload_session_id','idempotency_key','confirmed','dry_run'].includes(k)))throw new MirrorError('INVALID_ARGUMENT','Finalize uses only the frozen review.');
-    if(args.dry_run!==false)return {dry_run:true,executed:false,next_call:{tool:'amcp_write',arguments:{action:'execute',review_id:args.upload_session_id,idempotency_key:args.idempotency_key,confirmed:true}}};
-    return this.media().call({action:'execute',review_id:args.upload_session_id,idempotency_key:args.idempotency_key,confirmed:args.confirmed},actor);
-   }
-   const media=workflowMediaInput(args);return args.dry_run===false?mediaNext(await this.media().call(media,actor)):mediaPreview(media);
+  private connectionId(input: JsonObject, outer?: string) {
+    const ids = [outer, input.connection_id, input.connectionId].filter(v => v !== undefined);
+    if (ids.some(v => typeof v !== 'string' || v !== ids[0]))
+      throw new MirrorError('CONFLICTING_PARAMETER', 'Connection ID aliases must identify the same connection.');
+    return ids[0];
   }
-  if(gateway==='gtm_native_action'&&gtmDiagnosticOperations.has(operation))return gtmDiagnostics(this.store,this.registry,this.transport,this.credentials,operation,args,actor);
-  if(this.delegatedCompiler.isNativeOperation(gateway,operation))return this.runPlan(this.delegatedCompiler.compile(gateway,{operation,arguments:args}),args,actor,requestId);
-  if(gateway==='amcp_native_action'&&reportingOperations.has(operation))return new ReportingService(this.store).handle(operation,args,actor);
-  if(['get_workspace_context','list_accounts','list_workspace_assets'].includes(operation)){
-   const connections=this.store.listConnections(actor.tenantId).filter(c=>c.enabled);
-   if(operation==='get_workspace_context')return {workspace:{id:actor.tenantId},actor:{id:actor.userId,role:actor.role},connections:connections.map(c=>({id:c.id,platform:c.gateway,accounts:c.accounts,write_accounts:c.writeAccounts??[],is_default:c.isDefault===true})),live_writes_enabled:this.policy.allowWrites};
-   if(operation==='list_accounts')return connections.filter(c=>!args.platform||c.gateway.startsWith(args.platform==='google'?'google_ads':String(args.platform))).flatMap(c=>c.accounts.map(id=>({id,platform:c.gateway,connection_id:c.id,name:c.label,source:'configured_binding',currency:null,timezone:null,write_enabled:this.policy.allowWrites&&actor.role!=='reader'&&c.writeAccounts?.includes(id)===true,is_default:c.isDefault===true})));
-   return this.store.documents(actor.tenantId,'workspace_asset');
+  private async reviewed(input: JsonObject, actor: Actor): Promise<unknown> {
+    for (const key of Object.keys(input))
+      if (!Object.hasOwn(writeTool.inputSchema.properties, key))
+        throw new MirrorError('INVALID_ARGUMENT', 'Unknown write-tool parameter.', {parameter: key});
+    if (
+      input.action === 'execute' &&
+      typeof input.review_id === 'string' &&
+      this.store.db
+        .prepare('SELECT 1 FROM documents WHERE tenant_id=? AND kind=? AND id=?')
+        .get(actor.tenantId, 'media_review', input.review_id)
+    ) {
+      if (
+        input.gateway !== undefined ||
+        input.arguments !== undefined ||
+        input.connection_id !== undefined ||
+        input.spend_change_confirmed !== undefined
+      )
+        throw new MirrorError('INVALID_ARGUMENT', 'Media execution uses only its frozen review and confirmation.');
+      return this.media().call(input, actor);
+    }
+    if (
+      input.action === 'prepare' &&
+      typeof input.gateway === 'string' &&
+      input.arguments &&
+      typeof input.arguments === 'object' &&
+      !Array.isArray(input.arguments)
+    ) {
+      const args = input.arguments;
+      this.registry.validate(input.gateway, args, this.options);
+      if (input.gateway === 'amcp_native_action' && args.operation === 'platform_media_upload')
+        return mediaNext(await this.media().call(workflowMediaInput(args.arguments, input.connection_id), actor));
+      if (this.registry.tools.get(input.gateway)?.mode !== 'delegated') {
+        const plan = this.compiler.compile(input.gateway, args, this.options),
+          media = nativeMediaInput(plan, this.connectionId(args, input.connection_id));
+        if (media) return mediaNext(await this.media().call(media, actor));
+      }
+    }
+    return new WriteReviewService(
+      this.registry,
+      this.compiler,
+      this.store,
+      this.transport,
+      this.credentials,
+      this.options,
+      this.policy,
+      this.delegatedCompiler,
+    ).call(input, actor);
   }
-  if(operation==='get_creative_generation_job')return this.store.job(actor.tenantId,String(args.job_id));
-  if(gateway==='amcp_native_action')return new WorkflowEngine({registry:this.registry,store:this.store,runNative:async(g,input,a)=>this.runPlan(this.compiler.compile(g,input,this.options),input,a)}).handle(operation,args,actor);
-  throw new MirrorError('WORKFLOW_ADAPTER_REQUIRED','This captured workflow still requires its independent implementation.',{gateway,operation});
- }
+  async runPlan(
+    plan: CompiledRequest,
+    input: JsonObject,
+    actor: Actor,
+    requestId: string = randomUUID(),
+  ): Promise<unknown> {
+    assertProviderActionAvailable(plan);
+    if (input.connection_id && input.connectionId && input.connection_id !== input.connectionId)
+      throw new MirrorError(
+        'CONFLICTING_PARAMETER',
+        'Connection ID aliases must identify the same connection.',
+        {},
+        403,
+      );
+    plan = applyExecutionRisk(plan);
+    validateGoogleGeneration(plan);
+    validateDV360TargetingSearch(plan);
+    validateXAudienceEstimate(plan);
+    if (xAudienceEstimateRoute(plan)) {
+      if (input.aggregate_pages || input.paginate || input.allPages)
+        throw new MirrorError(
+          'INVALID_X_AUDIENCE_ESTIMATE',
+          'An audience range is not paginated or additive. Request one complete criteria set.',
+        );
+      plan = {...plan, xAudienceDeadline: performance.now() + 60000};
+    }
+    validatePlaceActionRead(plan, input);
+    if (xReportRoute(plan) && (input.aggregate_pages || input.paginate || input.allPages))
+      throw new MirrorError(
+        'INVALID_ARGUMENT',
+        'Poll explicit job_ids. Download one original job with offset/limit; do not aggregate job discovery.',
+      );
+    if (xReportRoute(plan) === 'status') plan = {...plan, xReportDeadline: performance.now() + 60000};
+    if (tiktokReportRoute(plan) && (input.aggregate_pages || input.paginate || input.allPages))
+      throw new MirrorError(
+        'INVALID_ARGUMENT',
+        'TikTok asynchronous tasks are not paginated. Resume the same task using status/download.',
+      );
+    if (googleGenerationKind(plan) && (input.aggregate_pages || input.paginate || input.allPages))
+      throw new MirrorError('INVALID_ARGUMENT', 'Google generation is one bounded request, not a paginated query.');
+    if (input.dry_run === true || (!plan.readOnly && input.dry_run !== false)) {
+      const result = {success: true, dry_run: true, action: plan.action, request: plan, executed: false};
+      this.store.appendAudit(actor.tenantId, requestId, {event: 'preview', request: plan, outcome: 'not_executed'});
+      return result;
+    }
+    authorizeExecution(actor, plan, input, this.policy);
+    if (!plan.readOnly)
+      throw new MirrorError('WRITE_REVIEW_REQUIRED', 'Use amcp_write prepare and execute for a reviewed mutation.');
+    const connection = this.store.resolveConnection(
+      actor,
+      plan.gateway,
+      plan.accountId,
+      input.connection_id ?? input.connectionId,
+    );
+    if (!plan.accountId && connection.accounts.length !== 1)
+      throw new MirrorError('ACCOUNT_REQUIRED', 'Specify an account_id for this connection.');
+    const scope = new ScopeGuard(this.registry, this.store),
+      scopedId = scope.authorize(plan, connection);
+    if (placeActionReadKind(plan) && !plan.accountId) plan = {...plan, accountId: scopedId};
+    const credentials = await this.credentials.get(connection);
+    this.store.appendAudit(actor.tenantId, requestId, {event: 'request_started', actor: actor.userId, request: plan});
+    try {
+      const reportAccess = (p: CompiledRequest) => {
+        if (p.criteoReportRead || p.tiktokReportRead || p.xReportRead) {
+          this.store.assertActorActive(actor);
+          if (sha256(stable(this.store.credentials(actor.tenantId, connection.id))) !== sha256(stable(credentials)))
+            throw new MirrorError(
+              'REAUTHORIZATION_REQUIRED',
+              'The selected login changed during report retrieval.',
+              {},
+              403,
+            );
+        }
+      };
+      const fetchPage = async (p: CompiledRequest) => {
+        const current = this.store.resolveConnection(actor, p.gateway, p.accountId, connection.id);
+        scope.authorize(p, current);
+        reportAccess(p);
+        const access = nativeAuthority(this.store, this.registry, actor, p, current, credentials, () =>
+          reportAccess(p),
+        );
+        const result = await this.transport.request(p, access(), credentials, undefined, {beforeAttempt: access}),
+          {data, status} = result;
+        access();
+        const active = this.store.resolveConnection(actor, p.gateway, p.accountId, current.id);
+        scope.authorize(p, active);
+        reportAccess(p);
+        if ((xAudienceEstimateRoute(p) || p.action === 'AMCP_X_AUDIENCE_REFERENCE') && status !== 200)
+          throw new MirrorError(
+            'X_AUDIENCE_RESPONSE_INVALID',
+            'X did not return HTTP 200 for this bounded estimate read.',
+            {},
+            502,
+          );
+        this.delegatedCompiler.validateResponse(p, data, status);
+        validateAppleResponse(p, data);
+        if (p.gateway === microsoftGateway) validateMicrosoftResponse(p, result);
+        if (placeActionReadKind(p)) return placeActionReadResult(p, data, status);
+        if (p.xReportRead) {
+          const rows = xReportStatus(p, result);
+          observeXReport(p, active, this.store, rows);
+          if (p.reportDownload) return this.xDownload(p, rows[0]!, actor, active.id, credentials);
+          return xReportStatusData(p, result);
+        }
+        const tiktokData = tiktokReportReadResult(p, result);
+        if (tiktokData) return tiktokData;
+        const criteoData = criteoReportReadResult(p, result);
+        if (criteoData) {
+          observeCriteoReportRead(p, active, this.store, criteoData);
+          return criteoData;
+        }
+        const reportData = metaReportReadResult(p, result);
+        if (reportData) {
+          observeMetaReportRead(p, active, this.store, reportData);
+          return reportData;
+        }
+        scope.observe(p, active, data);
+        if (p.gateway === microsoftGateway && p.reportDownload)
+          return this.microsoftDownload(p, data as JsonObject, actor, active.id);
+        return data;
+      };
+      const result = xAudienceEstimateRoute(plan)
+        ? await runXAudienceEstimate(plan, fetchPage)
+        : plan.tiktokReportRead
+          ? await runTiktokReportRead(plan, fetchPage)
+          : plan.criteoReportRead
+            ? await runCriteoReportRead(plan, fetchPage)
+            : placeActionReadKind(plan)
+              ? await runPlaceActionDiscovery(plan, fetchPage, connection.id)
+              : plan.metaReportRead
+                ? await runMetaReportRead(plan, fetchPage, !!input.aggregate_pages, Number(input.max_pages ?? 25))
+                : dv360TargetingSearchRoute(plan)
+                  ? await runDV360TargetingSearch(
+                      plan,
+                      fetchPage,
+                      !!(input.aggregate_pages || input.paginate || input.allPages),
+                      Number(input.max_pages ?? 25),
+                    )
+                  : input.aggregate_pages || input.paginate || input.allPages
+                    ? await paginate(plan, fetchPage, Number(input.max_pages ?? 25))
+                    : {data: await fetchPage(plan), pages: 1, truncated: false};
+      const nativeCsv = plan.tiktokReportRead?.kind === 'download' ? (result.data as JsonObject) : undefined;
+      const projected = projectResponse(
+        nativeCsv ? {data: nativeCsv.data} : result.data,
+        plan.responseControls,
+        plan.gateway,
+      );
+      if (nativeCsv) {
+        const rows = (projected.data as JsonObject).data;
+        projected.data = {
+          data: rows,
+          report: {
+            ...nativeCsv.report,
+            source_complete: nativeCsv.report.complete,
+            source_rows: nativeCsv.report.rows,
+            returned_rows: rows.length,
+            complete: !projected.truncated,
+            projection: {
+              fields: plan.responseControls?.fields ?? null,
+              empty_values_omitted: plan.responseControls?.compact === true,
+              rows_omitted: projected.truncated,
+            },
+          },
+        };
+      }
+      const generation = googleGenerationResult(plan, result.data);
+      const outcome = {
+        success: true,
+        action: plan.action,
+        dry_run: false,
+        ...result,
+        data: projected.data,
+        ...(generation ? {generation} : {}),
+        truncated: result.truncated || projected.truncated,
+        ...(projected.truncated ? {response_truncated: true} : {}),
+      };
+      this.store.appendAudit(actor.tenantId, requestId, {
+        event: 'request_completed',
+        request: plan,
+        outcome:
+          (plan.reportDownload && plan.xReportRead) || plan.tiktokReportRead?.kind === 'download'
+            ? {success: true, action: plan.action, report: (result.data as JsonObject).report, rows_omitted: true}
+            : auditedRead(outcome),
+      });
+      return outcome;
+    } catch (e) {
+      if (placeActionReadKind(plan)) e = placeActionSafeError(e);
+      this.store.appendAudit(actor.tenantId, requestId, {
+        event: 'request_failed',
+        request: plan,
+        error:
+          e instanceof MirrorError ? {code: e.code, message: e.message, details: e.details} : {code: 'INTERNAL_ERROR'},
+      });
+      throw e;
+    }
+  }
+  private async xDownload(
+    plan: CompiledRequest,
+    row: JsonObject,
+    actor: Actor,
+    connectionId: string,
+    credentials: import('./types.js').Credentials,
+  ) {
+    const access = () => {
+      this.store.assertActorActive(actor);
+      const c = this.store.resolveConnection(actor, plan.gateway, plan.accountId, connectionId);
+      new ScopeGuard(this.registry, this.store).authorize(plan, c);
+      if (xReportIdentity(this.store.credentials(actor.tenantId, c.id)) !== xReportIdentity(credentials))
+        throw new MirrorError('X_REPORT_LOGIN_CHANGED', 'The X login changed during retrieval.', {}, 403);
+    };
+    access();
+    const b = plan.xReportRead![0]!,
+      {offset, limit} = plan.reportDownload!,
+      next = (at: number) => ({
+        tool: plan.gateway,
+        arguments: {
+          action: 'x_stats_jobs_accounts_account_id_get',
+          account_id: plan.accountId,
+          connection_id: connectionId,
+          params: {job_ids: b.job_id},
+          download_report: true,
+          offset: at,
+          limit,
+          dry_run: false,
+        },
+      });
+    if (row.status === 'PROCESSING')
+      return {
+        data: [],
+        report: {
+          job_id: b.job_id,
+          account_id: b.account_id,
+          status: 'PROCESSING',
+          complete: false,
+          report_rows_downloaded: false,
+          next_call: next(offset),
+        },
+      };
+    if (row.status !== 'SUCCESS')
+      throw new MirrorError(
+        row.status === 'FAILED' ? 'X_REPORT_FAILED' : 'X_REPORT_CANCELLED',
+        'The original X report did not complete. Inspect the retained definition before explicitly preparing a new job.',
+        {job_id: b.job_id, provider_status: row.status},
+        502,
+      );
+    if (Date.parse(row.expires_at) <= Date.now())
+      throw new MirrorError(
+        'X_REPORT_EXPIRED',
+        'The native X result expired. This does not authorize another submission.',
+        {job_id: b.job_id},
+        410,
+      );
+    const key = sha256(connectionId + ':' + b.job_id),
+      lock = 'x-report-result:' + actor.tenantId + ':' + key,
+      owner = randomUUID();
+    if (!this.store.acquireLock(lock, owner, 120000))
+      throw new MirrorError(
+        'X_REPORT_DOWNLOAD_BUSY',
+        'This original report is already being retrieved. Retry the same read shortly.',
+        {retry_after_ms: 1000},
+        409,
+        true,
+      );
+    let slot: string | undefined;
+    try {
+      slot = [0, 1].map(i => 'x-report-memory:' + i).find(k => this.store.acquireLock(k, owner, 120000));
+      if (!slot)
+        throw new MirrorError(
+          'X_REPORT_DOWNLOAD_BUSY',
+          'Two report results are already being read in this deployment. Retry this same read shortly.',
+          {retry_after_ms: 1000},
+          429,
+          true,
+        );
+      let parsed = this.store.xReportResult(actor.tenantId, key);
+      if (!parsed) {
+        parsed = await downloadXReport(
+          row,
+          b,
+          access,
+          this.mediaFetcher === fetch ? undefined : this.mediaFetcher,
+          plan.xReportDeadline,
+        );
+        access();
+        // A final native check catches cancellation/replacement/expiry during transfer.
+        const check = {...plan, reportDownload: undefined},
+          current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, connectionId),
+          guard = nativeAuthority(this.store, this.registry, actor, check, current, credentials, access);
+        const response = await this.transport.request(check, guard(), credentials, undefined, {beforeAttempt: guard});
+        access();
+        const final = xReportStatus(check, response)[0]!;
+        if (final.status !== 'SUCCESS' || Date.parse(final.expires_at) <= Date.now())
+          throw new MirrorError(
+            'X_REPORT_STATE_UNVERIFIED',
+            'The report stopped being available while its result was downloaded.',
+            {},
+            502,
+          );
+        if (
+          [lock, slot].some(
+            k =>
+              !this.store.db
+                .prepare('SELECT 1 FROM service_locks WHERE key=? AND owner=? AND expires_at>?')
+                .get(k, owner, Date.now()),
+          )
+        )
+          throw new MirrorError(
+            'X_REPORT_DOWNLOAD_BUSY',
+            'Result retrieval lost its lease. Retry the original read.',
+            {},
+            409,
+            true,
+          );
+        parsed = {
+          ...parsed,
+          binding_sha256: sha256(
+            stable({definition: b.definition, login: b.login_fingerprint, account: b.account_id, job: b.job_id}),
+          ),
+        };
+        this.store.saveXReportResult(
+          actor.tenantId,
+          key,
+          parsed,
+          Math.min(Date.parse(final.expires_at), Date.now() + 6 * 3600000),
+        );
+      }
+      access();
+      if (
+        parsed.binding_sha256 !==
+        sha256(stable({definition: b.definition, login: b.login_fingerprint, account: b.account_id, job: b.job_id}))
+      )
+        throw new MirrorError(
+          'X_REPORT_STATE_UNVERIFIED',
+          'The retained report no longer matches the original definition.',
+          {},
+          502,
+        );
+      const rows = xReportPage(parsed.data, offset, limit),
+        more = offset + rows.length < parsed.data.length;
+      return {
+        data: rows,
+        report: {
+          ...parsed.report,
+          status: 'SUCCESS',
+          source_complete: parsed.report.complete,
+          complete: parsed.report.complete && !more && offset === 0,
+          download_complete: true,
+          source_rows: parsed.data.length,
+          returned_rows: rows.length,
+          offset,
+          limit,
+          has_more: more,
+          ...(more ? {next_call: next(offset + rows.length)} : {}),
+        },
+      };
+    } finally {
+      if (slot) this.store.releaseLock(slot, owner);
+      this.store.releaseLock(lock, owner);
+    }
+  }
+  private async microsoftDownload(plan: CompiledRequest, data: JsonObject, actor: Actor, connectionId: string) {
+    const access = () => {
+      this.store.assertActorActive(actor);
+      const c = this.store.resolveConnection(actor, plan.gateway, plan.accountId, connectionId);
+      new ScopeGuard(this.registry, this.store).authorize(plan, c);
+    };
+    access();
+    const reportId = (plan.body as JsonObject).ReportRequestId,
+      status = data.ReportRequestStatus,
+      key = microsoftReportKey(connectionId, plan.accountId!, reportId);
+    const next = (offset: number) => ({
+      tool: microsoftGateway,
+      arguments: {
+        action: 'PollGenerateReport',
+        account_id: plan.accountId,
+        connection_id: connectionId,
+        payload: {ReportRequestId: reportId},
+        download_report: true,
+        offset,
+        limit: plan.reportDownload!.limit,
+      },
+    });
+    if (status.Status === 'Pending')
+      return {
+        report_request_id: reportId,
+        status: 'Pending',
+        complete: false,
+        next_call: next(plan.reportDownload!.offset),
+      };
+    if (status.Status === 'Error')
+      throw new MirrorError('REPORT_GENERATION_FAILED', 'Microsoft could not generate this report.', {}, 502);
+    let stored: JsonObject;
+    try {
+      stored = this.store.document(actor.tenantId, 'microsoft_report', key);
+    } catch {
+      throw new MirrorError(
+        'REPORT_METADATA_REQUIRED',
+        'Submit this report through AMCP again to record the original format and columns.',
+      );
+    }
+    if (stored.expires_at <= Date.now()) throw new MirrorError('REPORT_EXPIRED', 'Submit a fresh Microsoft report.');
+    let parsed = stored.parsed;
+    if (!parsed) {
+      if (status.ReportDownloadUrl == null || status.ReportDownloadUrl === '')
+        parsed = {
+          columns: stored.request.Columns,
+          rows: [],
+          row_count: 0,
+          metadata: {},
+          potentially_incomplete: stored.request.ReturnOnlyCompleteData === true ? false : null,
+          values: 'native_strings',
+          format: stored.request.Format ?? 'Csv',
+          empty_reason: 'provider_returned_no_download_url',
+        };
+      else {
+        if (!['Csv', 'Tsv'].includes(stored.request.Format ?? 'Csv'))
+          throw new MirrorError(
+            'REPORT_FORMAT_UNSUPPORTED',
+            'Server parsing supports Csv and Tsv. Submit another report in one of those formats.',
+          );
+        access();
+        const bytes = await downloadReportArchive(
+          status.ReportDownloadUrl,
+          this.mediaFetcher === fetch ? undefined : this.mediaFetcher,
+        );
+        access();
+        parsed = parseMicrosoftReport(bytes, stored.request, plan.accountId!);
+      }
+      this.store.putDocument(actor.tenantId, 'microsoft_report', key, {...stored, parsed});
+    }
+    access();
+    const {offset, limit} = plan.reportDownload!,
+      rows = microsoftReportPage(parsed.rows, offset, limit),
+      hasMore = offset + rows.length < parsed.row_count;
+    return {
+      ...parsed,
+      rows,
+      status: 'Success',
+      report_request_id: reportId,
+      download_complete: true,
+      offset,
+      limit,
+      has_more: hasMore,
+      ...(hasMore ? {next_call: next(offset + rows.length)} : {}),
+    };
+  }
+  private async delegated(
+    gateway: string,
+    operation: string,
+    args: JsonObject,
+    actor: Actor,
+    requestId: string,
+  ): Promise<unknown> {
+    if (gateway === 'adjust_native_action' && adjustReportingKind(operation, args.action))
+      return adjustReporting(this.store, this.transport, this.credentials, operation, args, actor, requestId);
+    if (measurementConnectionSyncKind(gateway, operation, args.action))
+      return syncMeasurementConnection(
+        this.store,
+        this.transport,
+        this.credentials,
+        gateway,
+        operation,
+        args,
+        actor,
+        requestId,
+      );
+    if (businessConnectionSyncKind(gateway, operation, args.action))
+      return syncBusinessConnection(this.store, this.transport, this.credentials, args, actor, requestId);
+    if (connectionDisconnectKind(gateway, operation, args.action))
+      return connectionDisconnect(this.store, gateway, operation, args, actor);
+    if (connectionDiagnosticKind(gateway, operation, args.action))
+      return connectionDiagnostics(this.store, gateway, operation, args, actor, this.policy.allowWrites);
+    if (gateway === 'amcp_native_action' && operation === 'search_ads_library')
+      return searchMetaAdLibrary(this.registry, this.store, this.transport, this.credentials, args, actor, requestId);
+    if (gateway === 'amcp_native_action' && operation === 'fetch_meta_existing_posts')
+      return fetchMetaExistingPosts(this.store, this.transport, this.credentials, args, actor, requestId);
+    if (gateway === 'amcp_native_action' && operation === 'inspect_google_drive_media') {
+      this.store.assertActorActive(actor);
+      return inspectDrive(args.link, this.mediaFetcher, actor.tenantId);
+    }
+    if (gateway === 'amcp_native_action' && operation === 'platform_media_upload') {
+      if (args.action === 'FINALIZE_UPLOAD_SESSION') {
+        if (
+          Object.keys(args).some(
+            k => !['action', 'upload_session_id', 'idempotency_key', 'confirmed', 'dry_run'].includes(k),
+          )
+        )
+          throw new MirrorError('INVALID_ARGUMENT', 'Finalize uses only the frozen review.');
+        if (args.dry_run !== false)
+          return {
+            dry_run: true,
+            executed: false,
+            next_call: {
+              tool: 'amcp_write',
+              arguments: {
+                action: 'execute',
+                review_id: args.upload_session_id,
+                idempotency_key: args.idempotency_key,
+                confirmed: true,
+              },
+            },
+          };
+        return this.media().call(
+          {
+            action: 'execute',
+            review_id: args.upload_session_id,
+            idempotency_key: args.idempotency_key,
+            confirmed: args.confirmed,
+          },
+          actor,
+        );
+      }
+      const media = workflowMediaInput(args);
+      return args.dry_run === false ? mediaNext(await this.media().call(media, actor)) : mediaPreview(media);
+    }
+    if (gateway === 'gtm_native_action' && gtmDiagnosticOperations.has(operation))
+      return gtmDiagnostics(this.store, this.registry, this.transport, this.credentials, operation, args, actor);
+    if (this.delegatedCompiler.isNativeOperation(gateway, operation))
+      return this.runPlan(
+        this.delegatedCompiler.compile(gateway, {operation, arguments: args}),
+        args,
+        actor,
+        requestId,
+      );
+    if (gateway === 'amcp_native_action' && reportingOperations.has(operation))
+      return new ReportingService(this.store).handle(operation, args, actor);
+    if (['get_workspace_context', 'list_accounts', 'list_workspace_assets'].includes(operation)) {
+      const connections = this.store.listConnections(actor.tenantId).filter(c => c.enabled);
+      if (operation === 'get_workspace_context')
+        return {
+          workspace: {id: actor.tenantId},
+          actor: {id: actor.userId, role: actor.role},
+          connections: connections.map(c => ({
+            id: c.id,
+            platform: c.gateway,
+            accounts: c.accounts,
+            write_accounts: c.writeAccounts ?? [],
+            is_default: c.isDefault === true,
+          })),
+          live_writes_enabled: this.policy.allowWrites,
+        };
+      if (operation === 'list_accounts')
+        return connections
+          .filter(
+            c =>
+              !args.platform || c.gateway.startsWith(args.platform === 'google' ? 'google_ads' : String(args.platform)),
+          )
+          .flatMap(c =>
+            c.accounts.map(id => ({
+              id,
+              platform: c.gateway,
+              connection_id: c.id,
+              name: c.label,
+              source: 'configured_binding',
+              currency: null,
+              timezone: null,
+              write_enabled:
+                this.policy.allowWrites && actor.role !== 'reader' && c.writeAccounts?.includes(id) === true,
+              is_default: c.isDefault === true,
+            })),
+          );
+      return this.store.documents(actor.tenantId, 'workspace_asset');
+    }
+    if (operation === 'get_creative_generation_job') return this.store.job(actor.tenantId, String(args.job_id));
+    if (gateway === 'amcp_native_action')
+      return new WorkflowEngine({
+        registry: this.registry,
+        store: this.store,
+        runNative: async (g, input, a) => this.runPlan(this.compiler.compile(g, input, this.options), input, a),
+      }).handle(operation, args, actor);
+    throw new MirrorError(
+      'WORKFLOW_ADAPTER_REQUIRED',
+      'This captured workflow still requires its independent implementation.',
+      {gateway, operation},
+    );
+  }
 }

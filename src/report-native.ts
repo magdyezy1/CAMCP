@@ -1,78 +1,920 @@
-import {fingerprint,reportContractVersion,ga4Quality,summarizeGA4Quality} from './report-quality.js';
+import {fingerprint, reportContractVersion, ga4Quality, summarizeGA4Quality} from './report-quality.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {xCampaignReport} from './x-campaign-report.js';
 import {metaCampaignRows} from './meta-report.js';
-import type {Actor,CompiledRequest,JsonObject} from './types.js';
+import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {MirrorService} from './service.js';
 import {MirrorError} from './errors.js';
-import {accountPlan,accountMetadata,accountCurrency,accountTimezone} from './workspace.js';
+import {accountPlan, accountMetadata, accountCurrency, accountTimezone} from './workspace.js';
 import {compileMicrosoft} from './microsoft-native.js';
-import {reportPlatforms,metricNumber,objectiveGroup} from './report-metrics.js';
+import {reportPlatforms, metricNumber, objectiveGroup} from './report-metrics.js';
 import {zonedMidnight} from './workflows.js';
 
-export const nativeMetricExamples:Record<string,string[]>={google:['metrics.all_conversions','metrics.all_conversions_value','metrics.interactions','metrics.video_views','metrics.engagements','metrics.view_through_conversions'],meta:['inline_link_clicks','outbound_clicks','unique_clicks','video_play_actions','video_p25_watched_actions','video_p50_watched_actions','video_p75_watched_actions','video_p100_watched_actions','cost_per_action_type'],tiktok:['reach','frequency','video_play_actions','video_watched_2s','video_watched_6s','video_views_p100','likes','comments','shares','follows','total_purchase','total_purchase_value'],snapchat:['video_views','view_completion','conversion_purchases','conversion_purchases_value','conversion_sign_ups','total_installs'],linkedin:['videoViews','videoCompletions','likes','comments','shares','externalWebsiteConversions','externalWebsitePostClickConversions','externalWebsitePostViewConversions','conversionValueInLocalCurrency','oneClickLeads'],x:['VIDEO','WEB_CONVERSION','MOBILE_CONVERSION'],microsoft:['AllConversions','AllRevenue','Assists','ViewThroughConversions','QualityScore','PhoneCalls','ImpressionSharePercent'],apple:[],reddit:['VIDEO_STARTED','VIDEO_VIEWABLE_IMPRESSIONS','CONVERSION_PURCHASE_TOTAL_ITEMS','CONVERSION_PURCHASE_TOTAL_VALUE'],ga4:['engagedSessions','engagementRate','bounceRate','screenPageViews','averageSessionDuration','eventCount','ecommercePurchases','purchaseRevenue'],gsc:[]};
-const bad=(message:string)=>{throw new MirrorError('INVALID_REPORT_SOURCE',message);};
-export function reportRange(range:JsonObject){if(!range||!['since','until'].every(k=>typeof range[k]==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(range[k])&&Number.isFinite(Date.parse(range[k]))&&new Date(range[k]).toISOString().slice(0,10)===range[k])||range.since>range.until||Date.parse(range.until)-Date.parse(range.since)>365*86400000)bad('Choose a valid inclusive date range of at most 366 days.');return range as {since:string;until:string};}
-const list=(v:unknown):JsonObject[]=>{if(!Array.isArray(v)||v.some(x=>!x||typeof x!=='object'||Array.isArray(x)))throw new MirrorError('REPORT_SHAPE_CHANGED','The provider returned an unexpected report collection.',{},502);return v;};
-const value=(v:unknown,divisor=1)=>{const n=metricNumber(v);return n===null?null:n/divisor;};
-function numericNative(platform:string,data:JsonObject,prefix='',output:JsonObject={},depth=0):JsonObject{if(depth>4)return output;for(const [k,v]of Object.entries(data)){const key=(prefix?prefix+'_':'')+k;if(/(^|_)(id|name|date|currency|timezone|time_zone)$/i.test(k.replace(/([a-z0-9])([A-Z])/g,'$1_$2')))continue;if(v&&typeof v==='object'&&!Array.isArray(v))numericNative(platform,v,key,output,depth+1);else if(Array.isArray(v)){for(const a of v)if(a&&typeof a==='object'&&typeof a.action_type==='string')output['native_'+platform+'_'+(key+'_'+a.action_type).replace(/[^a-zA-Z0-9_]/g,'_')]=metricNumber(a.value);}else if(platform==='ga4'&&v===null)output['native_'+platform+'_'+key.replace(/[^a-zA-Z0-9_]/g,'_')]=null;else if(typeof v==='number'||typeof v==='string'&&/^-?\d+(\.\d+)?$/.test(v))output['native_'+platform+'_'+key.replace(/[^a-zA-Z0-9_]/g,'_')]=metricNumber(v);}return output;}
-export function normalizeNativeRow(platform:string,raw:JsonObject):JsonObject{
- let id:any,name:any,objective:any,metrics:JsonObject={},currency:any=null;const p=platform,n=(k:string,d=1)=>value(raw[k],d);
- if(p==='google'){id=raw.campaign?.id;name=raw.campaign?.name;objective=null;currency=raw.customer?.currencyCode;const m=raw.metrics??{};metrics={spend:value(m.costMicros,1e6),impressions:value(m.impressions),clicks:value(m.clicks),conversions:value(m.conversions),conversion_value:value(m.conversionsValue),video_views:value(m.videoViews),engagements:value(m.engagements)};}
- if(p==='meta'){id=raw.campaign_id;name=raw.campaign_name;objective=raw.objective;const action=(keys:string[],field='actions')=>{const a=raw[field];if(!Array.isArray(a))return null;for(const key of keys){const found=a.find((v:JsonObject)=>v.action_type===key);if(found)return value(found.value);}return null;};const leads=action(['lead','onsite_conversion.lead_grouped','offsite_conversion.fb_pixel_lead']),purchases=action(['purchase','omni_purchase','offsite_conversion.fb_pixel_purchase']),installs=action(['mobile_app_install','app_install']);metrics={spend:n('spend'),impressions:n('impressions'),clicks:n('clicks'),reach:n('reach'),frequency:n('frequency'),leads,purchases,installs,conversions:objectiveGroup(objective)==='leads'?leads:objectiveGroup(objective)==='app_installs'?installs:objectiveGroup(objective)==='sales'?purchases:null,conversion_value:action(['purchase','omni_purchase','offsite_conversion.fb_pixel_purchase'],'action_values'),video_views:action(['video_view']),engagements:action(['post_engagement'])};}
- if(p==='tiktok'){id=raw.dimensions?.campaign_id;const m=raw.metrics??{};name=m.campaign_name;objective=raw.objective_type;metrics={spend:value(m.spend),impressions:value(m.impressions),clicks:value(m.clicks),conversions:value(m.conversion),reach:value(m.reach),frequency:value(m.frequency),video_views:value(m.video_play_actions),video_completions:value(m.video_views_p100),purchases:value(m.total_purchase),conversion_value:value(m.total_purchase_value)};}
- if(p==='snapchat'){id=raw.id;name=raw.name;objective=raw.objective;const m=raw.stats??{};metrics={spend:value(m.spend,1e6),impressions:value(m.impressions),clicks:value(m.swipes),purchases:value(m.conversion_purchases),conversion_value:value(m.conversion_purchases_value,1e6),leads:value(m.conversion_sign_ups),installs:value(m.total_installs),video_views:value(m.video_views),video_completions:value(m.view_completion)};metrics.conversions=objectiveGroup(objective)==='app_installs'?metrics.installs:objectiveGroup(objective)==='leads'?metrics.leads:objectiveGroup(objective)==='sales'?metrics.purchases:null;}
- if(p==='linkedin'){id=raw.pivotValues?.[0]?.split(':').at(-1);name=raw.name;objective=raw.objectiveType;metrics={spend:n('costInLocalCurrency'),impressions:n('impressions'),clicks:n('clicks'),conversions:n('externalWebsiteConversions'),conversion_value:n('conversionValueInLocalCurrency'),leads:n('oneClickLeads'),video_views:n('videoViews'),video_completions:n('videoCompletions')};}
- if(p==='x'){id=raw.id;name=raw.name;objective=raw.objective;metrics=raw.metrics??{};}
- if(p==='microsoft'){id=raw.CampaignId;name=raw.CampaignName;currency=raw.CurrencyCode;metrics={spend:n('Spend'),impressions:n('Impressions'),clicks:n('Clicks'),conversions:n('Conversions'),conversion_value:n('Revenue')};}
- if(p==='apple'){id=raw.metadata?.id;name=raw.metadata?.name;objective='APP_INSTALLS';const m=raw.totalMetrics;if(!m||typeof m!=='object'||Array.isArray(m))throw new MirrorError('REPORT_SHAPE_CHANGED','Apple v1 report row is missing totalMetrics.',{},502);currency=m.localSpend?.currency;metrics={spend:value(m.localSpend?.amount),impressions:value(m.impressions),clicks:value(m.taps),installs:value(m.totalInstalls),conversions:value(m.totalInstalls)};}
- if(p==='reddit'){id=raw.campaign_id??raw.CAMPAIGN_ID;name=raw.campaign_name;objective=raw.objective;metrics={spend:value(raw.SPEND??raw.spend,1e6),impressions:value(raw.IMPRESSIONS??raw.impressions),clicks:value(raw.CLICKS??raw.clicks),purchases:value(raw.CONVERSION_PURCHASE_TOTAL_ITEMS??raw.conversion_purchase_total_items),conversion_value:value(raw.CONVERSION_PURCHASE_TOTAL_VALUE??raw.conversion_purchase_total_value,100)};}
- if(p==='ga4'){id=raw.campaign_id;name=raw.campaign_name;metrics={sessions:n('sessions'),users:n('totalUsers'),conversions:n('keyEvents'),conversion_value:n('totalRevenue'),purchases:n('ecommercePurchases')};}
- if(p==='gsc'){id=raw.keys?.[0]??'site';name=id;metrics={clicks:n('clicks'),impressions:n('impressions'),position:n('position')};}
- if(id===undefined||id===null||typeof id==='number'&&!Number.isSafeInteger(id))throw new MirrorError('REPORT_ID_MISSING','The provider report did not include a safe campaign/resource identifier.',{},502);
- return {campaign_id:String(id),campaign_name:String(name??id),objective:objective??'unknown',objective_group:objectiveGroup(objective),currency:currency??null,metrics:{...metrics,...numericNative(platform,raw)},native:raw};
+export const nativeMetricExamples: Record<string, string[]> = {
+  google: [
+    'metrics.all_conversions',
+    'metrics.all_conversions_value',
+    'metrics.interactions',
+    'metrics.video_views',
+    'metrics.engagements',
+    'metrics.view_through_conversions',
+  ],
+  meta: [
+    'inline_link_clicks',
+    'outbound_clicks',
+    'unique_clicks',
+    'video_play_actions',
+    'video_p25_watched_actions',
+    'video_p50_watched_actions',
+    'video_p75_watched_actions',
+    'video_p100_watched_actions',
+    'cost_per_action_type',
+  ],
+  tiktok: [
+    'reach',
+    'frequency',
+    'video_play_actions',
+    'video_watched_2s',
+    'video_watched_6s',
+    'video_views_p100',
+    'likes',
+    'comments',
+    'shares',
+    'follows',
+    'total_purchase',
+    'total_purchase_value',
+  ],
+  snapchat: [
+    'video_views',
+    'view_completion',
+    'conversion_purchases',
+    'conversion_purchases_value',
+    'conversion_sign_ups',
+    'total_installs',
+  ],
+  linkedin: [
+    'videoViews',
+    'videoCompletions',
+    'likes',
+    'comments',
+    'shares',
+    'externalWebsiteConversions',
+    'externalWebsitePostClickConversions',
+    'externalWebsitePostViewConversions',
+    'conversionValueInLocalCurrency',
+    'oneClickLeads',
+  ],
+  x: ['VIDEO', 'WEB_CONVERSION', 'MOBILE_CONVERSION'],
+  microsoft: [
+    'AllConversions',
+    'AllRevenue',
+    'Assists',
+    'ViewThroughConversions',
+    'QualityScore',
+    'PhoneCalls',
+    'ImpressionSharePercent',
+  ],
+  apple: [],
+  reddit: [
+    'VIDEO_STARTED',
+    'VIDEO_VIEWABLE_IMPRESSIONS',
+    'CONVERSION_PURCHASE_TOTAL_ITEMS',
+    'CONVERSION_PURCHASE_TOTAL_VALUE',
+  ],
+  ga4: [
+    'engagedSessions',
+    'engagementRate',
+    'bounceRate',
+    'screenPageViews',
+    'averageSessionDuration',
+    'eventCount',
+    'ecommercePurchases',
+    'purchaseRevenue',
+  ],
+  gsc: [],
+};
+const bad = (message: string) => {
+  throw new MirrorError('INVALID_REPORT_SOURCE', message);
+};
+export function reportRange(range: JsonObject) {
+  if (
+    !range ||
+    !['since', 'until'].every(
+      k =>
+        typeof range[k] === 'string' &&
+        /^\d{4}-\d{2}-\d{2}$/.test(range[k]) &&
+        Number.isFinite(Date.parse(range[k])) &&
+        new Date(range[k]).toISOString().slice(0, 10) === range[k],
+    ) ||
+    range.since > range.until ||
+    Date.parse(range.until) - Date.parse(range.since) > 365 * 86400000
+  )
+    bad('Choose a valid inclusive date range of at most 366 days.');
+  return range as {since: string; until: string};
 }
-export class NativeCampaignReports{
- constructor(readonly service:MirrorService){}
- async collect(source:JsonObject,dates:JsonObject,actor:Actor,checkpoint:JsonObject={},save:(v:JsonObject)=>void=()=>{}):Promise<JsonObject>{
-  const p=source.platform,platform=reportPlatforms[p];if(!platform)bad('Unsupported reporting platform.');const account=String(source.account_id),connection=String(source.connection_id),range=reportRange(dates),extra=source.native_metrics??[];
-  if(!Array.isArray(extra)||extra.length>30||extra.some(x=>typeof x!=='string'||!(/^[A-Za-z][A-Za-z0-9_]{0,90}$/.test(x)||p==='google'&&/^metrics\.[a-z][a-z0-9_]{0,80}$/.test(x))))bad('Native metrics must be provider field names (at most 30).');
-  this.service.store.resolveConnection(actor,platform!.gateway,account,connection);
-  const lineage:JsonObject[]=[];const qualityPages:JsonObject[]=[];let quality:JsonObject={version:1,pages_collected:true,measurement_complete:null};
-  const run=async(plan:CompiledRequest,aggregate=true,stage='campaign_report')=>{try{const out=await this.service.runPlan(plan,{connection_id:connection,aggregate_pages:aggregate,max_pages:25},actor) as JsonObject;if(out.dry_run||out.success!==true||!out.data||typeof out.data!=='object')throw new MirrorError('REPORT_RESPONSE_INVALID','The reporting request did not return provider data.',{},502);if(out.truncated)throw new MirrorError('INCOMPLETE_REPORT','Report reached a pagination limit. Split the date range or accounts.');const d=out.data;if(d?.error||d?.code!==undefined&&Number(d.code)!==0||d?.request_status==='ERROR')throw new MirrorError('PROVIDER_REPORT_FAILED','The provider rejected this report.',{upstream:d},502);lineage.push({stage,method:plan.method,path:plan.path,origin:plan.origin??null,api_version:plan.headers?.['LinkedIn-Version']??plan.path.match(/\/(v?\d+(?:\.\d+)?(?:beta)?)(?:\/|$)/)?.[1]??'native',query_fingerprint:fingerprint({method:plan.method,path:plan.path,query:plan.query,body:plan.body}),response_fingerprint:fingerprint(d),captured_at:Date.now()});return d as JsonObject;}catch(e){if(e instanceof MirrorError)throw new MirrorError(e.code,e.message,{...e.details,report_request:{stage,method:plan.method,path:plan.path}},e.status,e.retryable);throw e;}};
-  const plan=(path:string,query:JsonObject={},body?:JsonObject,origin?:string):CompiledRequest=>({gateway:platform!.gateway,accountId:account,action:'AMCP_CAMPAIGN_REPORT',method:body?'POST':'GET',path,query,body,origin,headers:p==='linkedin'?{'LinkedIn-Version':linkedinVersion(),'X-Restli-Protocol-Version':'2.0.0'}:{},readOnly:true,destructive:false,requiresConfirmation:false,evidence:'Native campaign report, bounded account scope',warnings:[]});
-  let metadata:JsonObject={},currency:string|null=null,timezone:string|null=null,raw:JsonObject[]=[],warnings:string[]=[],attribution='provider configured',resultDefinition='unknown',complete=true;
-  if(!['ga4','gsc','apple'].includes(p)){const d=await run(accountPlan(platform!.gateway,account),false,'account_lookup');metadata=accountMetadata(platform!.gateway,d);currency=accountCurrency(platform!.gateway,d);timezone=accountTimezone(platform!.gateway,d);}
-  if(p==='google'){const fields=[...new Set(['campaign.id','campaign.name','campaign.status','campaign.advertising_channel_type','customer.currency_code','metrics.cost_micros','metrics.impressions','metrics.clicks','metrics.conversions','metrics.conversions_value',...extra])];raw=list((await run(plan('/v23/customers/'+account+'/googleAds:search',{}, {query:`SELECT ${fields.join(', ')} FROM campaign WHERE segments.date BETWEEN '${range.since}' AND '${range.until}'` }))).results??[]);resultDefinition='Google primary conversions (conversions column; interaction date)';}
-  else if(p==='meta'){raw=metaCampaignRows(await run(plan('/v25.0/act_'+account+'/insights',{level:'campaign',time_range:rangeToMeta(range),fields:[...new Set(['account_id','account_name','date_start','date_stop','campaign_id','campaign_name','objective','spend','impressions','clicks','reach','frequency','actions','action_values',...extra])].join(','),limit:500,use_unified_attribution_setting:true})),account,range);attribution='ad set unified attribution setting';resultDefinition='Objective-mapped lead, purchase or app-install action; aliases are not summed';}
-  else if(p==='tiktok'){const d=await run(plan('/v1.3/report/integrated/get/',{advertiser_id:account,report_type:'BASIC',data_level:'AUCTION_CAMPAIGN',dimensions:['campaign_id'],metrics:[...new Set(['campaign_name','spend','impressions','clicks','conversion',...extra])],start_date:range.since,end_date:range.until,page:1,page_size:1000}));raw=list(d.data?.list??[]);const inventory=list((await run(plan('/v1.3/campaign/get/',{advertiser_id:account,page:1,page_size:1000}))).data?.list??[]);raw=raw.map(r=>({...r,objective_type:inventory.find(c=>String(c.campaign_id)===String(r.dimensions?.campaign_id))?.objective_type}));resultDefinition='TikTok conversion metric for the selected optimization goal';}
-  else if(p==='snapchat'){if(!timezone)bad('Snapchat account timezone is required.');const start=new Date(zonedMidnight(range.since,timezone!,true)).toISOString(),end=new Date(zonedMidnight(nextDay(range.until),timezone!,true)).toISOString();const d=await run(plan('/v1/adaccounts/'+account+'/stats',{granularity:'TOTAL',breakdown:'campaign',start_time:start,end_time:end,fields:[...new Set(['spend','impressions','swipes','conversion_purchases','conversion_purchases_value','conversion_sign_ups','total_installs','video_views','view_completion',...extra])].join(','),swipe_up_attribution_window:'28_DAY',view_attribution_window:'1_DAY',omit_empty:false}));raw=list(d.total_stats??[]).flatMap(r=>list(r.total_stat?.breakdown_stats?.campaign??[]));const campaigns=list((await run(plan('/v1/adaccounts/'+account+'/campaigns'))).campaigns??[]).map(r=>r.campaign);raw=raw.map(r=>({...r,name:campaigns.find(c=>c.id===r.id)?.name,objective:campaigns.find(c=>c.id===r.id)?.objective}));attribution='28-day swipe / 1-day view';resultDefinition='Objective-specific purchases, sign-ups or installs when explicitly requested';}
-  else if(p==='linkedin'){timezone='UTC';const date=(s:string)=>{const [year,month,day]=s.split('-').map(Number);return `(year:${year},month:${month},day:${day})`;};const fields=[...new Set(['impressions','clicks','costInLocalCurrency','externalWebsiteConversions',...extra])];if(fields.length>18)bad('LinkedIn permits at most 18 selected metrics with campaign identifiers.');const d=await run(plan('/rest/adAnalytics',{q:'analytics',pivot:'CAMPAIGN',accounts:'List(urn:li:sponsoredAccount:'+account+')',dateRange:`(start:${date(range.since)},end:${date(range.until)})`,timeGranularity:'ALL',fields:['pivotValues','dateRange',...fields].join(',')}),false);raw=list(d.elements??[]);if(d.paging?.total>raw.length)throw new MirrorError('INCOMPLETE_REPORT','LinkedIn returned a partial analytics report.');resultDefinition='Attributed external website conversions';warnings.push('LinkedIn may suppress low-volume demographics. Campaign objectives should be confirmed in report settings.');}
-  else if(p==='x'){if(!timezone)bad('X account timezone is required.');const inventory=checkpoint.x_inventory??list((await run(plan('/12/accounts/'+account+'/campaigns',{count:1000,with_deleted:true}))).data??[]);if(!checkpoint.x_inventory)save({x_inventory:inventory});const report=await xCampaignReport(inventory,zonedMidnight(range.since,timezone!),zonedMidnight(nextDay(range.until),timezone!),extra,q=>run(plan('/12/stats/accounts/'+account,q),false),{checkpoint:checkpoint.x_report,save:x_report=>save({x_inventory:inventory,x_report})});raw=report.rows;complete=report.complete;warnings.push(...report.warnings);}
-  else if(p==='microsoft'){timezone='UTC';const date=(s:string)=>{const [Year,Month,Day]=s.split('-').map(Number);return {Year,Month,Day};};let reportId=checkpoint.report_id;if(!reportId){const d=await run(compileMicrosoft({action:'SubmitGenerateReport',account_id:account,payload:{ReportRequest:{Type:'CampaignPerformanceReportRequest',Aggregation:'Summary',Format:'Csv',ReportName:'AMCP campaign overview',ReturnOnlyCompleteData:true,Columns:[...new Set(['AccountId','CampaignId','CampaignName','CurrencyCode','Spend','Impressions','Clicks','Conversions','Revenue',...extra])],Scope:{AccountIds:[account]},Time:{CustomDateRangeStart:date(range.since),CustomDateRangeEnd:date(range.until),ReportTimeZone:'GreenwichMeanTimeDublinEdinburghLisbonLondon'}}}}),false);reportId=d.ReportRequestId;save({report_id:reportId});}let offset=0;for(let page=0;page<100;page++){const d=await run(compileMicrosoft({action:'PollGenerateReport',account_id:account,payload:{ReportRequestId:reportId},download_report:true,offset,limit:100}),false);if(d.ReportRequestStatus?.Status==='Pending'||d.status==='Pending')throw new MirrorError('REPORT_PENDING','Microsoft is preparing the report.',{retry_after_ms:30000,report_id:reportId},503,true);if(!d.download_complete)throw new MirrorError('REPORT_DOWNLOAD_FAILED','Microsoft report is not complete.',{},502);raw.push(...list(d.rows));if(d.potentially_incomplete!==false)complete=false;if(!d.has_more)break;offset+=d.rows.length;if(!d.rows.length||page===99)throw new MirrorError('INCOMPLETE_REPORT','Microsoft report exceeded the row limit.');}resultDefinition='Microsoft conversions included in the Conversions column';warnings.push('Report boundaries use Microsoft GreenwichMeanTimeDublinEdinburghLisbonLondon, including daylight saving.');timezone='Europe/London';}
-  else if(p==='apple'){const m=await run({...plan('/v1/ad-accounts/'+account),origin:'https://api.ads.apple.com'},false);metadata=m.result??m;currency=metadata.currency??null;timezone='UTC';const d=await run({...plan('/v1/reports/apps/campaigns/query',{}, {timeRange:{start:range.since,end:range.until,timeZone:'UTC'},pagination:{offset:0,pageSize:100},options:{}},'https://api.ads.apple.com'),action:'apple_ads_v1_reports_apps_campaigns'});raw=list(d.result?.rows??d.result??[]);resultDefinition='Apple total attributed installs (tap + view); totalMetrics';if(extra.length)warnings.push('Apple report returns native metric columns; arbitrary field selection is not supported by this endpoint.');}
-  else if(p==='reddit'){timezone='UTC';const d=await run(plan('/api/v3/ad_accounts/'+account+'/reports',{}, {data:{starts_at:range.since+'T00:00:00Z',ends_at:nextDay(range.until)+'T00:00:00Z',fields:[...new Set(['SPEND','IMPRESSIONS','CLICKS',...extra])],breakdowns:['CAMPAIGN_ID']}}));raw=list(d.data?.metrics??[]);const campaigns=list((await run(plan('/api/v3/ad_accounts/'+account+'/campaigns'))).data??[]);raw=raw.map(r=>({...r,campaign_name:campaigns.find(c=>c.id===r.campaign_id)?.name,objective:campaigns.find(c=>c.id===r.campaign_id)?.objective}));warnings.push('Reddit report dates are UTC; monetary conversion values and spend retain their distinct native units in source fields.');}
-  else if(p==='ga4'){metadata=await run(plan('/v1beta/properties/'+account,{},undefined,'https://analyticsadmin.googleapis.com'),false);currency=metadata.currencyCode??null;timezone=metadata.timeZone??null;const metrics=[...new Set(['sessions','totalUsers','keyEvents','totalRevenue',...extra])];if(metrics.length>10)bad('GA4 allows at most 10 metrics per request. Create separate saved reports for incompatible or additional metrics.');
-   const page=async(dimensions:string[],names:string[])=>{const out:{dims:string[];metrics:JsonObject}[]=[];for(let offset=0;offset<10000;offset+=1000){const d=await run(plan('/v1beta/properties/'+account+':runReport',{}, {dateRanges:[{startDate:range.since,endDate:range.until}],dimensions:dimensions.map(name=>({name})),metrics:names.map(name=>({name})),offset:String(offset),limit:'1000',keepEmptyRows:true,returnPropertyQuota:true}),false);qualityPages.push(ga4Quality(d.metadata??{},dimensions,offset));const restricted=new Set((d.metadata?.schemaRestrictionResponse?.activeMetricRestrictions??[]).map((v:JsonObject)=>v.metricName));const rows=list(d.rows??[]);out.push(...rows.map(r=>({dims:list(r.dimensionValues??[]).map(v=>String(v.value??'')),metrics:Object.fromEntries(list(d.metricHeaders??[]).map((h:JsonObject,i:number)=>[String(h.name),restricted.has(h.name)?null:(r.metricValues as JsonObject[]|undefined)?.[i]?.value]))})));if(d.metadata?.dataLossFromOtherRow||d.metadata?.subjectToThresholding)complete=false;if(offset+rows.length>=Number(d.rowCount??rows.length))break;if(!rows.length||offset===9000)throw new MirrorError('INCOMPLETE_REPORT','GA4 report exceeded the row limit.');}return out;};
-   // Metrics come from an ID-only report so GA4 aggregates them itself. One campaign ID can carry
-   // several campaign names -- a rename mid-flight, or inconsistent utm_campaign casing -- and
-   // summing those rows here would double count users and corrupt ratio metrics such as
-   // engagementRate and bounceRate. The name is resolved from a separate sessions-only report.
-   const totals=await page(['sessionCampaignId'],metrics),labels=await page(['sessionCampaignId','sessionCampaignName'],['sessions']);
-   const best=new Map<string,{name:string;sessions:number}>(),variants=new Map<string,Set<string>>();
-   for(const row of labels){const id=row.dims[0]??'',name=row.dims[1]??'',sessions=Number(row.metrics.sessions??0);if(!variants.has(id))variants.set(id,new Set());variants.get(id)!.add(name);const top=best.get(id);if(!top||sessions>top.sessions)best.set(id,{name,sessions});}
-   // sessionCampaignId can come from manual tagging or linked advertising integrations. (other)
-   // is GA4's cardinality overflow bucket. Neither is one campaign, so neither inherits a name.
-   const unattributed=(id:string)=>!id||id==='(not set)'||id==='(other)';
-   const drifted=[...variants].filter(([id,names])=>!unattributed(id)&&names.size>1).map(([id])=>id);
-   raw=totals.map(row=>{const id=row.dims[0]??'';return {campaign_id:unattributed(id)?id||'(not set)':id,campaign_name:unattributed(id)?id||'(not set)':best.get(id)?.name??id,...row.metrics};});
-   if(totals.some(row=>unattributed(row.dims[0]??''))){complete=false;warnings.push('GA4 returned unassigned or aggregated session campaign IDs. Check linked advertising integrations, tagging and attribution; missing utm_id is only one possible cause.');}
-   if(drifted.length)warnings.push(drifted.length+' GA4 campaign ID'+(drifted.length===1?'':'s')+' appeared under more than one campaign name in this range ('+drifted.slice(0,5).join(', ')+'). The name with the most sessions is shown; metrics were aggregated by ID at the provider.');
-   quality=summarizeGA4Quality(qualityPages);if(!quality.measurement_complete)complete=false;for(const row of raw)for(const metric of quality.restricted_metrics)row[metric]=null;if(quality.sampled)warnings.push('GA4 sampled this report; sampling counts are retained in source quality.');if(quality.restricted_metrics.length)warnings.push('GA4 access restrictions make these metrics unavailable: '+quality.restricted_metrics.join(', '));if(quality.thresholded||quality.data_loss)warnings.push('GA4 thresholding or high-cardinality aggregation limits this report.');if(quality.empty_reasons.length)warnings.push('GA4 empty response reasons: '+quality.empty_reasons.join('; '));resultDefinition='GA4 key events attributed to session campaign ID from manual tagging or linked advertising integrations';}
-  else if(p==='gsc'){timezone='America/Los_Angeles';const d=await run(plan('/webmasters/v3/sites/'+encodeURIComponent(account)+'/searchAnalytics/query',{}, {startDate:range.since,endDate:range.until,dimensions:['page'],rowLimit:25000,startRow:0,dataState:'final'}),false);raw=list(d.rows??[]);complete=false;warnings.push('Search Console reports pages, not paid campaigns, and returns top rows with privacy omissions. This is organic context, not a reconciled advertising total.');}
-  if(raw.length>10000)throw new MirrorError('REPORT_ROW_LIMIT','Report exceeds 10,000 rows. Narrow the date range or accounts.');
-  return {contract_version:reportContractVersion,quality,lineage,query_fingerprint:fingerprint(lineage.map(l=>l.query_fingerprint)),rows:raw.map(r=>normalizeNativeRow(p,r)),account_name:metadata.name??metadata.displayName??null,date_range:range,metadata,currency,timezone,complete,attribution,result_definition:resultDefinition,warnings,source_kind:platform!.kind,captured_at:Date.now()};
- }
+const list = (v: unknown): JsonObject[] => {
+  if (!Array.isArray(v) || v.some(x => !x || typeof x !== 'object' || Array.isArray(x)))
+    throw new MirrorError('REPORT_SHAPE_CHANGED', 'The provider returned an unexpected report collection.', {}, 502);
+  return v;
+};
+const value = (v: unknown, divisor = 1) => {
+  const n = metricNumber(v);
+  return n === null ? null : n / divisor;
+};
+function numericNative(
+  platform: string,
+  data: JsonObject,
+  prefix = '',
+  output: JsonObject = {},
+  depth = 0,
+): JsonObject {
+  if (depth > 4) return output;
+  for (const [k, v] of Object.entries(data)) {
+    const key = (prefix ? prefix + '_' : '') + k;
+    if (/(^|_)(id|name|date|currency|timezone|time_zone)$/i.test(k.replace(/([a-z0-9])([A-Z])/g, '$1_$2'))) continue;
+    if (v && typeof v === 'object' && !Array.isArray(v)) numericNative(platform, v, key, output, depth + 1);
+    else if (Array.isArray(v)) {
+      for (const a of v)
+        if (a && typeof a === 'object' && typeof a.action_type === 'string')
+          output['native_' + platform + '_' + (key + '_' + a.action_type).replace(/[^a-zA-Z0-9_]/g, '_')] =
+            metricNumber(a.value);
+    } else if (platform === 'ga4' && v === null)
+      output['native_' + platform + '_' + key.replace(/[^a-zA-Z0-9_]/g, '_')] = null;
+    else if (typeof v === 'number' || (typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v)))
+      output['native_' + platform + '_' + key.replace(/[^a-zA-Z0-9_]/g, '_')] = metricNumber(v);
+  }
+  return output;
 }
-const nextDay=(date:string)=>new Date(Date.parse(date)+86400000).toISOString().slice(0,10);
-const rangeToMeta=(r:{since:string;until:string})=>({since:r.since,until:r.until});
+export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObject {
+  let id: any,
+    name: any,
+    objective: any,
+    metrics: JsonObject = {},
+    currency: any = null;
+  const p = platform,
+    n = (k: string, d = 1) => value(raw[k], d);
+  if (p === 'google') {
+    id = raw.campaign?.id;
+    name = raw.campaign?.name;
+    objective = null;
+    currency = raw.customer?.currencyCode;
+    const m = raw.metrics ?? {};
+    metrics = {
+      spend: value(m.costMicros, 1e6),
+      impressions: value(m.impressions),
+      clicks: value(m.clicks),
+      conversions: value(m.conversions),
+      conversion_value: value(m.conversionsValue),
+      video_views: value(m.videoViews),
+      engagements: value(m.engagements),
+    };
+  }
+  if (p === 'meta') {
+    id = raw.campaign_id;
+    name = raw.campaign_name;
+    objective = raw.objective;
+    const action = (keys: string[], field = 'actions') => {
+      const a = raw[field];
+      if (!Array.isArray(a)) return null;
+      for (const key of keys) {
+        const found = a.find((v: JsonObject) => v.action_type === key);
+        if (found) return value(found.value);
+      }
+      return null;
+    };
+    const leads = action(['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead']),
+      purchases = action(['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase']),
+      installs = action(['mobile_app_install', 'app_install']);
+    metrics = {
+      spend: n('spend'),
+      impressions: n('impressions'),
+      clicks: n('clicks'),
+      reach: n('reach'),
+      frequency: n('frequency'),
+      leads,
+      purchases,
+      installs,
+      conversions:
+        objectiveGroup(objective) === 'leads'
+          ? leads
+          : objectiveGroup(objective) === 'app_installs'
+            ? installs
+            : objectiveGroup(objective) === 'sales'
+              ? purchases
+              : null,
+      conversion_value: action(['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase'], 'action_values'),
+      video_views: action(['video_view']),
+      engagements: action(['post_engagement']),
+    };
+  }
+  if (p === 'tiktok') {
+    id = raw.dimensions?.campaign_id;
+    const m = raw.metrics ?? {};
+    name = m.campaign_name;
+    objective = raw.objective_type;
+    metrics = {
+      spend: value(m.spend),
+      impressions: value(m.impressions),
+      clicks: value(m.clicks),
+      conversions: value(m.conversion),
+      reach: value(m.reach),
+      frequency: value(m.frequency),
+      video_views: value(m.video_play_actions),
+      video_completions: value(m.video_views_p100),
+      purchases: value(m.total_purchase),
+      conversion_value: value(m.total_purchase_value),
+    };
+  }
+  if (p === 'snapchat') {
+    id = raw.id;
+    name = raw.name;
+    objective = raw.objective;
+    const m = raw.stats ?? {};
+    metrics = {
+      spend: value(m.spend, 1e6),
+      impressions: value(m.impressions),
+      clicks: value(m.swipes),
+      purchases: value(m.conversion_purchases),
+      conversion_value: value(m.conversion_purchases_value, 1e6),
+      leads: value(m.conversion_sign_ups),
+      installs: value(m.total_installs),
+      video_views: value(m.video_views),
+      video_completions: value(m.view_completion),
+    };
+    metrics.conversions =
+      objectiveGroup(objective) === 'app_installs'
+        ? metrics.installs
+        : objectiveGroup(objective) === 'leads'
+          ? metrics.leads
+          : objectiveGroup(objective) === 'sales'
+            ? metrics.purchases
+            : null;
+  }
+  if (p === 'linkedin') {
+    id = raw.pivotValues?.[0]?.split(':').at(-1);
+    name = raw.name;
+    objective = raw.objectiveType;
+    metrics = {
+      spend: n('costInLocalCurrency'),
+      impressions: n('impressions'),
+      clicks: n('clicks'),
+      conversions: n('externalWebsiteConversions'),
+      conversion_value: n('conversionValueInLocalCurrency'),
+      leads: n('oneClickLeads'),
+      video_views: n('videoViews'),
+      video_completions: n('videoCompletions'),
+    };
+  }
+  if (p === 'x') {
+    id = raw.id;
+    name = raw.name;
+    objective = raw.objective;
+    metrics = raw.metrics ?? {};
+  }
+  if (p === 'microsoft') {
+    id = raw.CampaignId;
+    name = raw.CampaignName;
+    currency = raw.CurrencyCode;
+    metrics = {
+      spend: n('Spend'),
+      impressions: n('Impressions'),
+      clicks: n('Clicks'),
+      conversions: n('Conversions'),
+      conversion_value: n('Revenue'),
+    };
+  }
+  if (p === 'apple') {
+    id = raw.metadata?.id;
+    name = raw.metadata?.name;
+    objective = 'APP_INSTALLS';
+    const m = raw.totalMetrics;
+    if (!m || typeof m !== 'object' || Array.isArray(m))
+      throw new MirrorError('REPORT_SHAPE_CHANGED', 'Apple v1 report row is missing totalMetrics.', {}, 502);
+    currency = m.localSpend?.currency;
+    metrics = {
+      spend: value(m.localSpend?.amount),
+      impressions: value(m.impressions),
+      clicks: value(m.taps),
+      installs: value(m.totalInstalls),
+      conversions: value(m.totalInstalls),
+    };
+  }
+  if (p === 'reddit') {
+    id = raw.campaign_id ?? raw.CAMPAIGN_ID;
+    name = raw.campaign_name;
+    objective = raw.objective;
+    metrics = {
+      spend: value(raw.SPEND ?? raw.spend, 1e6),
+      impressions: value(raw.IMPRESSIONS ?? raw.impressions),
+      clicks: value(raw.CLICKS ?? raw.clicks),
+      purchases: value(raw.CONVERSION_PURCHASE_TOTAL_ITEMS ?? raw.conversion_purchase_total_items),
+      conversion_value: value(raw.CONVERSION_PURCHASE_TOTAL_VALUE ?? raw.conversion_purchase_total_value, 100),
+    };
+  }
+  if (p === 'ga4') {
+    id = raw.campaign_id;
+    name = raw.campaign_name;
+    metrics = {
+      sessions: n('sessions'),
+      users: n('totalUsers'),
+      conversions: n('keyEvents'),
+      conversion_value: n('totalRevenue'),
+      purchases: n('ecommercePurchases'),
+    };
+  }
+  if (p === 'gsc') {
+    id = raw.keys?.[0] ?? 'site';
+    name = id;
+    metrics = {clicks: n('clicks'), impressions: n('impressions'), position: n('position')};
+  }
+  if (id === undefined || id === null || (typeof id === 'number' && !Number.isSafeInteger(id)))
+    throw new MirrorError(
+      'REPORT_ID_MISSING',
+      'The provider report did not include a safe campaign/resource identifier.',
+      {},
+      502,
+    );
+  return {
+    campaign_id: String(id),
+    campaign_name: String(name ?? id),
+    objective: objective ?? 'unknown',
+    objective_group: objectiveGroup(objective),
+    currency: currency ?? null,
+    metrics: {...metrics, ...numericNative(platform, raw)},
+    native: raw,
+  };
+}
+export class NativeCampaignReports {
+  constructor(readonly service: MirrorService) {}
+  async collect(
+    source: JsonObject,
+    dates: JsonObject,
+    actor: Actor,
+    checkpoint: JsonObject = {},
+    save: (v: JsonObject) => void = () => {},
+  ): Promise<JsonObject> {
+    const p = source.platform,
+      platform = reportPlatforms[p];
+    if (!platform) bad('Unsupported reporting platform.');
+    const account = String(source.account_id),
+      connection = String(source.connection_id),
+      range = reportRange(dates),
+      extra = source.native_metrics ?? [];
+    if (
+      !Array.isArray(extra) ||
+      extra.length > 30 ||
+      extra.some(
+        x =>
+          typeof x !== 'string' ||
+          !(/^[A-Za-z][A-Za-z0-9_]{0,90}$/.test(x) || (p === 'google' && /^metrics\.[a-z][a-z0-9_]{0,80}$/.test(x))),
+      )
+    )
+      bad('Native metrics must be provider field names (at most 30).');
+    this.service.store.resolveConnection(actor, platform!.gateway, account, connection);
+    const lineage: JsonObject[] = [];
+    const qualityPages: JsonObject[] = [];
+    let quality: JsonObject = {version: 1, pages_collected: true, measurement_complete: null};
+    const run = async (plan: CompiledRequest, aggregate = true, stage = 'campaign_report') => {
+      try {
+        const out = (await this.service.runPlan(
+          plan,
+          {connection_id: connection, aggregate_pages: aggregate, max_pages: 25},
+          actor,
+        )) as JsonObject;
+        if (out.dry_run || out.success !== true || !out.data || typeof out.data !== 'object')
+          throw new MirrorError(
+            'REPORT_RESPONSE_INVALID',
+            'The reporting request did not return provider data.',
+            {},
+            502,
+          );
+        if (out.truncated)
+          throw new MirrorError(
+            'INCOMPLETE_REPORT',
+            'Report reached a pagination limit. Split the date range or accounts.',
+          );
+        const d = out.data;
+        if (d?.error || (d?.code !== undefined && Number(d.code) !== 0) || d?.request_status === 'ERROR')
+          throw new MirrorError('PROVIDER_REPORT_FAILED', 'The provider rejected this report.', {upstream: d}, 502);
+        lineage.push({
+          stage,
+          method: plan.method,
+          path: plan.path,
+          origin: plan.origin ?? null,
+          api_version:
+            plan.headers?.['LinkedIn-Version'] ??
+            plan.path.match(/\/(v?\d+(?:\.\d+)?(?:beta)?)(?:\/|$)/)?.[1] ??
+            'native',
+          query_fingerprint: fingerprint({method: plan.method, path: plan.path, query: plan.query, body: plan.body}),
+          response_fingerprint: fingerprint(d),
+          captured_at: Date.now(),
+        });
+        return d as JsonObject;
+      } catch (e) {
+        if (e instanceof MirrorError)
+          throw new MirrorError(
+            e.code,
+            e.message,
+            {...e.details, report_request: {stage, method: plan.method, path: plan.path}},
+            e.status,
+            e.retryable,
+          );
+        throw e;
+      }
+    };
+    const plan = (path: string, query: JsonObject = {}, body?: JsonObject, origin?: string): CompiledRequest => ({
+      gateway: platform!.gateway,
+      accountId: account,
+      action: 'AMCP_CAMPAIGN_REPORT',
+      method: body ? 'POST' : 'GET',
+      path,
+      query,
+      body,
+      origin,
+      headers: p === 'linkedin' ? {'LinkedIn-Version': linkedinVersion(), 'X-Restli-Protocol-Version': '2.0.0'} : {},
+      readOnly: true,
+      destructive: false,
+      requiresConfirmation: false,
+      evidence: 'Native campaign report, bounded account scope',
+      warnings: [],
+    });
+    let metadata: JsonObject = {},
+      currency: string | null = null,
+      timezone: string | null = null,
+      raw: JsonObject[] = [],
+      warnings: string[] = [],
+      attribution = 'provider configured',
+      resultDefinition = 'unknown',
+      complete = true;
+    if (!['ga4', 'gsc', 'apple'].includes(p)) {
+      const d = await run(accountPlan(platform!.gateway, account), false, 'account_lookup');
+      metadata = accountMetadata(platform!.gateway, d);
+      currency = accountCurrency(platform!.gateway, d);
+      timezone = accountTimezone(platform!.gateway, d);
+    }
+    if (p === 'google') {
+      const fields = [
+        ...new Set([
+          'campaign.id',
+          'campaign.name',
+          'campaign.status',
+          'campaign.advertising_channel_type',
+          'customer.currency_code',
+          'metrics.cost_micros',
+          'metrics.impressions',
+          'metrics.clicks',
+          'metrics.conversions',
+          'metrics.conversions_value',
+          ...extra,
+        ]),
+      ];
+      raw = list(
+        (
+          await run(
+            plan(
+              '/v23/customers/' + account + '/googleAds:search',
+              {},
+              {
+                query: `SELECT ${fields.join(', ')} FROM campaign WHERE segments.date BETWEEN '${range.since}' AND '${range.until}'`,
+              },
+            ),
+          )
+        ).results ?? [],
+      );
+      resultDefinition = 'Google primary conversions (conversions column; interaction date)';
+    } else if (p === 'meta') {
+      raw = metaCampaignRows(
+        await run(
+          plan('/v25.0/act_' + account + '/insights', {
+            level: 'campaign',
+            time_range: rangeToMeta(range),
+            fields: [
+              ...new Set([
+                'account_id',
+                'account_name',
+                'date_start',
+                'date_stop',
+                'campaign_id',
+                'campaign_name',
+                'objective',
+                'spend',
+                'impressions',
+                'clicks',
+                'reach',
+                'frequency',
+                'actions',
+                'action_values',
+                ...extra,
+              ]),
+            ].join(','),
+            limit: 500,
+            use_unified_attribution_setting: true,
+          }),
+        ),
+        account,
+        range,
+      );
+      attribution = 'ad set unified attribution setting';
+      resultDefinition = 'Objective-mapped lead, purchase or app-install action; aliases are not summed';
+    } else if (p === 'tiktok') {
+      const d = await run(
+        plan('/v1.3/report/integrated/get/', {
+          advertiser_id: account,
+          report_type: 'BASIC',
+          data_level: 'AUCTION_CAMPAIGN',
+          dimensions: ['campaign_id'],
+          metrics: [...new Set(['campaign_name', 'spend', 'impressions', 'clicks', 'conversion', ...extra])],
+          start_date: range.since,
+          end_date: range.until,
+          page: 1,
+          page_size: 1000,
+        }),
+      );
+      raw = list(d.data?.list ?? []);
+      const inventory = list(
+        (await run(plan('/v1.3/campaign/get/', {advertiser_id: account, page: 1, page_size: 1000}))).data?.list ?? [],
+      );
+      raw = raw.map(r => ({
+        ...r,
+        objective_type: inventory.find(c => String(c.campaign_id) === String(r.dimensions?.campaign_id))
+          ?.objective_type,
+      }));
+      resultDefinition = 'TikTok conversion metric for the selected optimization goal';
+    } else if (p === 'snapchat') {
+      if (!timezone) bad('Snapchat account timezone is required.');
+      const start = new Date(zonedMidnight(range.since, timezone!, true)).toISOString(),
+        end = new Date(zonedMidnight(nextDay(range.until), timezone!, true)).toISOString();
+      const d = await run(
+        plan('/v1/adaccounts/' + account + '/stats', {
+          granularity: 'TOTAL',
+          breakdown: 'campaign',
+          start_time: start,
+          end_time: end,
+          fields: [
+            ...new Set([
+              'spend',
+              'impressions',
+              'swipes',
+              'conversion_purchases',
+              'conversion_purchases_value',
+              'conversion_sign_ups',
+              'total_installs',
+              'video_views',
+              'view_completion',
+              ...extra,
+            ]),
+          ].join(','),
+          swipe_up_attribution_window: '28_DAY',
+          view_attribution_window: '1_DAY',
+          omit_empty: false,
+        }),
+      );
+      raw = list(d.total_stats ?? []).flatMap(r => list(r.total_stat?.breakdown_stats?.campaign ?? []));
+      const campaigns = list((await run(plan('/v1/adaccounts/' + account + '/campaigns'))).campaigns ?? []).map(
+        r => r.campaign,
+      );
+      raw = raw.map(r => ({
+        ...r,
+        name: campaigns.find(c => c.id === r.id)?.name,
+        objective: campaigns.find(c => c.id === r.id)?.objective,
+      }));
+      attribution = '28-day swipe / 1-day view';
+      resultDefinition = 'Objective-specific purchases, sign-ups or installs when explicitly requested';
+    } else if (p === 'linkedin') {
+      timezone = 'UTC';
+      const date = (s: string) => {
+        const [year, month, day] = s.split('-').map(Number);
+        return `(year:${year},month:${month},day:${day})`;
+      };
+      const fields = [
+        ...new Set(['impressions', 'clicks', 'costInLocalCurrency', 'externalWebsiteConversions', ...extra]),
+      ];
+      if (fields.length > 18) bad('LinkedIn permits at most 18 selected metrics with campaign identifiers.');
+      const d = await run(
+        plan('/rest/adAnalytics', {
+          q: 'analytics',
+          pivot: 'CAMPAIGN',
+          accounts: 'List(urn:li:sponsoredAccount:' + account + ')',
+          dateRange: `(start:${date(range.since)},end:${date(range.until)})`,
+          timeGranularity: 'ALL',
+          fields: ['pivotValues', 'dateRange', ...fields].join(','),
+        }),
+        false,
+      );
+      raw = list(d.elements ?? []);
+      if (d.paging?.total > raw.length)
+        throw new MirrorError('INCOMPLETE_REPORT', 'LinkedIn returned a partial analytics report.');
+      resultDefinition = 'Attributed external website conversions';
+      warnings.push(
+        'LinkedIn may suppress low-volume demographics. Campaign objectives should be confirmed in report settings.',
+      );
+    } else if (p === 'x') {
+      if (!timezone) bad('X account timezone is required.');
+      const inventory =
+        checkpoint.x_inventory ??
+        list((await run(plan('/12/accounts/' + account + '/campaigns', {count: 1000, with_deleted: true}))).data ?? []);
+      if (!checkpoint.x_inventory) save({x_inventory: inventory});
+      const report = await xCampaignReport(
+        inventory,
+        zonedMidnight(range.since, timezone!),
+        zonedMidnight(nextDay(range.until), timezone!),
+        extra,
+        q => run(plan('/12/stats/accounts/' + account, q), false),
+        {checkpoint: checkpoint.x_report, save: x_report => save({x_inventory: inventory, x_report})},
+      );
+      raw = report.rows;
+      complete = report.complete;
+      warnings.push(...report.warnings);
+    } else if (p === 'microsoft') {
+      timezone = 'UTC';
+      const date = (s: string) => {
+        const [Year, Month, Day] = s.split('-').map(Number);
+        return {Year, Month, Day};
+      };
+      let reportId = checkpoint.report_id;
+      if (!reportId) {
+        const d = await run(
+          compileMicrosoft({
+            action: 'SubmitGenerateReport',
+            account_id: account,
+            payload: {
+              ReportRequest: {
+                Type: 'CampaignPerformanceReportRequest',
+                Aggregation: 'Summary',
+                Format: 'Csv',
+                ReportName: 'AMCP campaign overview',
+                ReturnOnlyCompleteData: true,
+                Columns: [
+                  ...new Set([
+                    'AccountId',
+                    'CampaignId',
+                    'CampaignName',
+                    'CurrencyCode',
+                    'Spend',
+                    'Impressions',
+                    'Clicks',
+                    'Conversions',
+                    'Revenue',
+                    ...extra,
+                  ]),
+                ],
+                Scope: {AccountIds: [account]},
+                Time: {
+                  CustomDateRangeStart: date(range.since),
+                  CustomDateRangeEnd: date(range.until),
+                  ReportTimeZone: 'GreenwichMeanTimeDublinEdinburghLisbonLondon',
+                },
+              },
+            },
+          }),
+          false,
+        );
+        reportId = d.ReportRequestId;
+        save({report_id: reportId});
+      }
+      let offset = 0;
+      for (let page = 0; page < 100; page++) {
+        const d = await run(
+          compileMicrosoft({
+            action: 'PollGenerateReport',
+            account_id: account,
+            payload: {ReportRequestId: reportId},
+            download_report: true,
+            offset,
+            limit: 100,
+          }),
+          false,
+        );
+        if (d.ReportRequestStatus?.Status === 'Pending' || d.status === 'Pending')
+          throw new MirrorError(
+            'REPORT_PENDING',
+            'Microsoft is preparing the report.',
+            {retry_after_ms: 30000, report_id: reportId},
+            503,
+            true,
+          );
+        if (!d.download_complete)
+          throw new MirrorError('REPORT_DOWNLOAD_FAILED', 'Microsoft report is not complete.', {}, 502);
+        raw.push(...list(d.rows));
+        if (d.potentially_incomplete !== false) complete = false;
+        if (!d.has_more) break;
+        offset += d.rows.length;
+        if (!d.rows.length || page === 99)
+          throw new MirrorError('INCOMPLETE_REPORT', 'Microsoft report exceeded the row limit.');
+      }
+      resultDefinition = 'Microsoft conversions included in the Conversions column';
+      warnings.push(
+        'Report boundaries use Microsoft GreenwichMeanTimeDublinEdinburghLisbonLondon, including daylight saving.',
+      );
+      timezone = 'Europe/London';
+    } else if (p === 'apple') {
+      const m = await run({...plan('/v1/ad-accounts/' + account), origin: 'https://api.ads.apple.com'}, false);
+      metadata = m.result ?? m;
+      currency = metadata.currency ?? null;
+      timezone = 'UTC';
+      const d = await run({
+        ...plan(
+          '/v1/reports/apps/campaigns/query',
+          {},
+          {
+            timeRange: {start: range.since, end: range.until, timeZone: 'UTC'},
+            pagination: {offset: 0, pageSize: 100},
+            options: {},
+          },
+          'https://api.ads.apple.com',
+        ),
+        action: 'apple_ads_v1_reports_apps_campaigns',
+      });
+      raw = list(d.result?.rows ?? d.result ?? []);
+      resultDefinition = 'Apple total attributed installs (tap + view); totalMetrics';
+      if (extra.length)
+        warnings.push(
+          'Apple report returns native metric columns; arbitrary field selection is not supported by this endpoint.',
+        );
+    } else if (p === 'reddit') {
+      timezone = 'UTC';
+      const d = await run(
+        plan(
+          '/api/v3/ad_accounts/' + account + '/reports',
+          {},
+          {
+            data: {
+              starts_at: range.since + 'T00:00:00Z',
+              ends_at: nextDay(range.until) + 'T00:00:00Z',
+              fields: [...new Set(['SPEND', 'IMPRESSIONS', 'CLICKS', ...extra])],
+              breakdowns: ['CAMPAIGN_ID'],
+            },
+          },
+        ),
+      );
+      raw = list(d.data?.metrics ?? []);
+      const campaigns = list((await run(plan('/api/v3/ad_accounts/' + account + '/campaigns'))).data ?? []);
+      raw = raw.map(r => ({
+        ...r,
+        campaign_name: campaigns.find(c => c.id === r.campaign_id)?.name,
+        objective: campaigns.find(c => c.id === r.campaign_id)?.objective,
+      }));
+      warnings.push(
+        'Reddit report dates are UTC; monetary conversion values and spend retain their distinct native units in source fields.',
+      );
+    } else if (p === 'ga4') {
+      metadata = await run(
+        plan('/v1beta/properties/' + account, {}, undefined, 'https://analyticsadmin.googleapis.com'),
+        false,
+      );
+      currency = metadata.currencyCode ?? null;
+      timezone = metadata.timeZone ?? null;
+      const metrics = [...new Set(['sessions', 'totalUsers', 'keyEvents', 'totalRevenue', ...extra])];
+      if (metrics.length > 10)
+        bad(
+          'GA4 allows at most 10 metrics per request. Create separate saved reports for incompatible or additional metrics.',
+        );
+      const page = async (dimensions: string[], names: string[]) => {
+        const out: {dims: string[]; metrics: JsonObject}[] = [];
+        for (let offset = 0; offset < 10000; offset += 1000) {
+          const d = await run(
+            plan(
+              '/v1beta/properties/' + account + ':runReport',
+              {},
+              {
+                dateRanges: [{startDate: range.since, endDate: range.until}],
+                dimensions: dimensions.map(name => ({name})),
+                metrics: names.map(name => ({name})),
+                offset: String(offset),
+                limit: '1000',
+                keepEmptyRows: true,
+                returnPropertyQuota: true,
+              },
+            ),
+            false,
+          );
+          qualityPages.push(ga4Quality(d.metadata ?? {}, dimensions, offset));
+          const restricted = new Set(
+            (d.metadata?.schemaRestrictionResponse?.activeMetricRestrictions ?? []).map(
+              (v: JsonObject) => v.metricName,
+            ),
+          );
+          const rows = list(d.rows ?? []);
+          out.push(
+            ...rows.map(r => ({
+              dims: list(r.dimensionValues ?? []).map(v => String(v.value ?? '')),
+              metrics: Object.fromEntries(
+                list(d.metricHeaders ?? []).map((h: JsonObject, i: number) => [
+                  String(h.name),
+                  restricted.has(h.name) ? null : (r.metricValues as JsonObject[] | undefined)?.[i]?.value,
+                ]),
+              ),
+            })),
+          );
+          if (d.metadata?.dataLossFromOtherRow || d.metadata?.subjectToThresholding) complete = false;
+          if (offset + rows.length >= Number(d.rowCount ?? rows.length)) break;
+          if (!rows.length || offset === 9000)
+            throw new MirrorError('INCOMPLETE_REPORT', 'GA4 report exceeded the row limit.');
+        }
+        return out;
+      };
+      // Metrics come from an ID-only report so GA4 aggregates them itself. One campaign ID can carry
+      // several campaign names -- a rename mid-flight, or inconsistent utm_campaign casing -- and
+      // summing those rows here would double count users and corrupt ratio metrics such as
+      // engagementRate and bounceRate. The name is resolved from a separate sessions-only report.
+      const totals = await page(['sessionCampaignId'], metrics),
+        labels = await page(['sessionCampaignId', 'sessionCampaignName'], ['sessions']);
+      const best = new Map<string, {name: string; sessions: number}>(),
+        variants = new Map<string, Set<string>>();
+      for (const row of labels) {
+        const id = row.dims[0] ?? '',
+          name = row.dims[1] ?? '',
+          sessions = Number(row.metrics.sessions ?? 0);
+        if (!variants.has(id)) variants.set(id, new Set());
+        variants.get(id)!.add(name);
+        const top = best.get(id);
+        if (!top || sessions > top.sessions) best.set(id, {name, sessions});
+      }
+      // sessionCampaignId can come from manual tagging or linked advertising integrations. (other)
+      // is GA4's cardinality overflow bucket. Neither is one campaign, so neither inherits a name.
+      const unattributed = (id: string) => !id || id === '(not set)' || id === '(other)';
+      const drifted = [...variants].filter(([id, names]) => !unattributed(id) && names.size > 1).map(([id]) => id);
+      raw = totals.map(row => {
+        const id = row.dims[0] ?? '';
+        return {
+          campaign_id: unattributed(id) ? id || '(not set)' : id,
+          campaign_name: unattributed(id) ? id || '(not set)' : (best.get(id)?.name ?? id),
+          ...row.metrics,
+        };
+      });
+      if (totals.some(row => unattributed(row.dims[0] ?? ''))) {
+        complete = false;
+        warnings.push(
+          'GA4 returned unassigned or aggregated session campaign IDs. Check linked advertising integrations, tagging and attribution; missing utm_id is only one possible cause.',
+        );
+      }
+      if (drifted.length)
+        warnings.push(
+          drifted.length +
+            ' GA4 campaign ID' +
+            (drifted.length === 1 ? '' : 's') +
+            ' appeared under more than one campaign name in this range (' +
+            drifted.slice(0, 5).join(', ') +
+            '). The name with the most sessions is shown; metrics were aggregated by ID at the provider.',
+        );
+      quality = summarizeGA4Quality(qualityPages);
+      if (!quality.measurement_complete) complete = false;
+      for (const row of raw) for (const metric of quality.restricted_metrics) row[metric] = null;
+      if (quality.sampled) warnings.push('GA4 sampled this report; sampling counts are retained in source quality.');
+      if (quality.restricted_metrics.length)
+        warnings.push(
+          'GA4 access restrictions make these metrics unavailable: ' + quality.restricted_metrics.join(', '),
+        );
+      if (quality.thresholded || quality.data_loss)
+        warnings.push('GA4 thresholding or high-cardinality aggregation limits this report.');
+      if (quality.empty_reasons.length)
+        warnings.push('GA4 empty response reasons: ' + quality.empty_reasons.join('; '));
+      resultDefinition =
+        'GA4 key events attributed to session campaign ID from manual tagging or linked advertising integrations';
+    } else if (p === 'gsc') {
+      timezone = 'America/Los_Angeles';
+      const d = await run(
+        plan(
+          '/webmasters/v3/sites/' + encodeURIComponent(account) + '/searchAnalytics/query',
+          {},
+          {
+            startDate: range.since,
+            endDate: range.until,
+            dimensions: ['page'],
+            rowLimit: 25000,
+            startRow: 0,
+            dataState: 'final',
+          },
+        ),
+        false,
+      );
+      raw = list(d.rows ?? []);
+      complete = false;
+      warnings.push(
+        'Search Console reports pages, not paid campaigns, and returns top rows with privacy omissions. This is organic context, not a reconciled advertising total.',
+      );
+    }
+    if (raw.length > 10000)
+      throw new MirrorError('REPORT_ROW_LIMIT', 'Report exceeds 10,000 rows. Narrow the date range or accounts.');
+    return {
+      contract_version: reportContractVersion,
+      quality,
+      lineage,
+      query_fingerprint: fingerprint(lineage.map(l => l.query_fingerprint)),
+      rows: raw.map(r => normalizeNativeRow(p, r)),
+      account_name: metadata.name ?? metadata.displayName ?? null,
+      date_range: range,
+      metadata,
+      currency,
+      timezone,
+      complete,
+      attribution,
+      result_definition: resultDefinition,
+      warnings,
+      source_kind: platform!.kind,
+      captured_at: Date.now(),
+    };
+  }
+}
+const nextDay = (date: string) => new Date(Date.parse(date) + 86400000).toISOString().slice(0, 10);
+const rangeToMeta = (r: {since: string; until: string}) => ({since: r.since, until: r.until});

@@ -1,4 +1,4 @@
-import {snapUpdateKind,snapUpdateImpact} from './snapchat-nested-updates.js';
+import {snapUpdateKind, snapUpdateImpact} from './snapchat-nested-updates.js';
 import {snapchatMediaCopyImpact} from './snapchat-media-copy.js';
 import {snapDisclaimerImpact} from './snapchat-offer-disclaimers.js';
 import {snapSegmentDeleteImpact} from './snapchat-segment-deletions.js';
@@ -8,49 +8,71 @@ import {snapTemplateImpact} from './snapchat-dynamic-templates.js';
 import {snapEventImpact} from './snapchat-event-details.js';
 import {snapPixelNameImpact} from './snapchat-pixel-names.js';
 import {snapSegmentImpact} from './snapchat-segments.js';
-import {tiktokIdentityKind,tiktokIdentityImpact} from './tiktok-identities.js';
-import {metaCopyKind,metaCopyImpact} from './meta-copies.js';
-import {tiktokLookalikeKind,tiktokLookalikeImpact} from './tiktok-lookalikes.js';
-import {metaLookalikeKind,metaLookalikeImpact} from './meta-lookalikes.js';
-import {tiktokBudgetKind,tiktokBudgetImpact} from './tiktok-budgets.js';
-import {tiktokCustomConversionKind,tiktokCustomConversionImpact} from './tiktok-custom-conversions.js';
-import {tiktokSavedAudienceKind,tiktokSavedAudienceImpact} from './tiktok-saved-audiences.js';
-import {tiktokSmartPlusStatusKind,tiktokSmartPlusStatusImpact} from './tiktok-smart-plus-status.js';
-import {tiktokSmartPlusBudgetKind,tiktokSmartPlusBudgetImpact} from './tiktok-smart-plus-budgets.js';
-import {tiktokSmartPlusCampaignKind,tiktokSmartPlusCampaignImpact} from './tiktok-smart-plus-campaigns.js';
-import {tiktokSmartPlusAdgroupKind,tiktokSmartPlusAdgroupImpact} from './tiktok-smart-plus-adgroups.js';
-import {tiktokSmartPlusCampaignUpdateKind,tiktokSmartPlusCampaignUpdateImpact} from './tiktok-smart-plus-campaign-updates.js';
-import {tiktokCtaPortfolioKind,tiktokCtaPortfolioImpact} from './tiktok-cta-portfolios.js';
-import {tiktokSmartPlusAdKind,tiktokSmartPlusAdImpact} from './tiktok-smart-plus-ads.js';
-import {tiktokSmartPlusAdUpdateKind,tiktokSmartPlusAdUpdateImpact} from './tiktok-smart-plus-ad-updates.js';
-import {tiktokSmartPlusAdgroupUpdateKind,tiktokSmartPlusAdgroupUpdateImpact} from './tiktok-smart-plus-adgroup-updates.js';
-import {tiktokSmartPlusMaterialStatusKind,tiktokSmartPlusMaterialStatusImpact} from './tiktok-smart-plus-material-status.js';
-import {linkedinLeadFormKind,linkedinLeadFormImpact} from './linkedin-lead-forms.js';
-import {googlePreviewKind,googlePreviewImpact} from './google-preview-writes.js';
-import {criteoCampaignKind,criteoCampaignImpact} from './criteo-campaign-writes.js';
-import {metaReportKind,metaReportImpact} from './meta-insights-jobs.js';
-import {xReportKind,xReportImpact} from './x-report-jobs.js';
-import {tiktokReportKind,tiktokReportImpact} from './tiktok-report-jobs.js';
-import {criteoReportKind,criteoReportImpact} from './criteo-report-jobs.js';
-import {redditCreativeKind,redditCreativeServing,redditLeadFormSunset,redditLeadFormSource} from './reddit-creative-writes.js';
+import {tiktokIdentityKind, tiktokIdentityImpact} from './tiktok-identities.js';
+import {metaCopyKind, metaCopyImpact} from './meta-copies.js';
+import {tiktokLookalikeKind, tiktokLookalikeImpact} from './tiktok-lookalikes.js';
+import {metaLookalikeKind, metaLookalikeImpact} from './meta-lookalikes.js';
+import {tiktokBudgetKind, tiktokBudgetImpact} from './tiktok-budgets.js';
+import {tiktokCustomConversionKind, tiktokCustomConversionImpact} from './tiktok-custom-conversions.js';
+import {tiktokSavedAudienceKind, tiktokSavedAudienceImpact} from './tiktok-saved-audiences.js';
+import {tiktokSmartPlusStatusKind, tiktokSmartPlusStatusImpact} from './tiktok-smart-plus-status.js';
+import {tiktokSmartPlusBudgetKind, tiktokSmartPlusBudgetImpact} from './tiktok-smart-plus-budgets.js';
+import {tiktokSmartPlusCampaignKind, tiktokSmartPlusCampaignImpact} from './tiktok-smart-plus-campaigns.js';
+import {tiktokSmartPlusAdgroupKind, tiktokSmartPlusAdgroupImpact} from './tiktok-smart-plus-adgroups.js';
+import {
+  tiktokSmartPlusCampaignUpdateKind,
+  tiktokSmartPlusCampaignUpdateImpact,
+} from './tiktok-smart-plus-campaign-updates.js';
+import {tiktokCtaPortfolioKind, tiktokCtaPortfolioImpact} from './tiktok-cta-portfolios.js';
+import {tiktokSmartPlusAdKind, tiktokSmartPlusAdImpact} from './tiktok-smart-plus-ads.js';
+import {tiktokSmartPlusAdUpdateKind, tiktokSmartPlusAdUpdateImpact} from './tiktok-smart-plus-ad-updates.js';
+import {
+  tiktokSmartPlusAdgroupUpdateKind,
+  tiktokSmartPlusAdgroupUpdateImpact,
+} from './tiktok-smart-plus-adgroup-updates.js';
+import {
+  tiktokSmartPlusMaterialStatusKind,
+  tiktokSmartPlusMaterialStatusImpact,
+} from './tiktok-smart-plus-material-status.js';
+import {linkedinLeadFormKind, linkedinLeadFormImpact} from './linkedin-lead-forms.js';
+import {googlePreviewKind, googlePreviewImpact} from './google-preview-writes.js';
+import {criteoCampaignKind, criteoCampaignImpact} from './criteo-campaign-writes.js';
+import {metaReportKind, metaReportImpact} from './meta-insights-jobs.js';
+import {xReportKind, xReportImpact} from './x-report-jobs.js';
+import {tiktokReportKind, tiktokReportImpact} from './tiktok-report-jobs.js';
+import {criteoReportKind, criteoReportImpact} from './criteo-report-jobs.js';
+import {
+  redditCreativeKind,
+  redditCreativeServing,
+  redditLeadFormSunset,
+  redditLeadFormSource,
+} from './reddit-creative-writes.js';
 import {criteoTargetingKind} from './criteo-targeting-writes.js';
 import {keywordPlanKind} from './google-keyword-plan-writes.js';
 import {metaLabelImpact} from './meta-label-writes.js';
-import {googleBidKind,googleBidImpactFor} from './google-bid-modifiers.js';
-import {googleSegmentKind,googleSegmentImpact} from './google-custom-segments.js';
-import {googleConversionGoalKind,googleConversionGoalServing,googleConversionGoalImpact} from './google-conversion-goals.js';
-import {googleBiddingEventKind,googleBiddingEventImpact} from './google-bidding-events.js';
-import {googlePortfolioKind,googlePortfolioImpact} from './google-portfolio-strategies.js';
-import {googleConversionActionKind,googleConversionActionServing,googleConversionActionImpact} from './google-conversion-actions.js';
-import {xDraftKind,xDraftImpact} from './x-draft-writes.js';
-import {xTargetingBatchRoute,xTargetingBatchImpact} from './x-targeting-batch.js';
-import {linkedinTemplateKind,linkedinTemplateImpact} from './linkedin-audience-templates.js';
-import {linkedinConversionKind,linkedinConversionImpact} from './linkedin-conversion-links.js';
-import {linkedinRuleKind,linkedinRuleImpact} from './linkedin-conversion-rules.js';
-import {redditPostCreation,redditPromotedSource} from './reddit-post-creation.js';
-import {microsoftAssociationWrite,microsoftAssociationActivates} from './microsoft-associations.js';
+import {googleBidKind, googleBidImpactFor} from './google-bid-modifiers.js';
+import {googleSegmentKind, googleSegmentImpact} from './google-custom-segments.js';
+import {
+  googleConversionGoalKind,
+  googleConversionGoalServing,
+  googleConversionGoalImpact,
+} from './google-conversion-goals.js';
+import {googleBiddingEventKind, googleBiddingEventImpact} from './google-bidding-events.js';
+import {googlePortfolioKind, googlePortfolioImpact} from './google-portfolio-strategies.js';
+import {
+  googleConversionActionKind,
+  googleConversionActionServing,
+  googleConversionActionImpact,
+} from './google-conversion-actions.js';
+import {xDraftKind, xDraftImpact} from './x-draft-writes.js';
+import {xTargetingBatchRoute, xTargetingBatchImpact} from './x-targeting-batch.js';
+import {linkedinTemplateKind, linkedinTemplateImpact} from './linkedin-audience-templates.js';
+import {linkedinConversionKind, linkedinConversionImpact} from './linkedin-conversion-links.js';
+import {linkedinRuleKind, linkedinRuleImpact} from './linkedin-conversion-rules.js';
+import {redditPostCreation, redditPromotedSource} from './reddit-post-creation.js';
+import {microsoftAssociationWrite, microsoftAssociationActivates} from './microsoft-associations.js';
 import {xCreativeImpact} from './x-creative-writes.js';
-import {googleAssetLinkKind,googleAssetLinkActivates} from './google-asset-links.js';
+import {googleAssetLinkKind, googleAssetLinkActivates} from './google-asset-links.js';
 import {MirrorError} from './errors.js';
 import {appleEntityKind} from './apple-entity-writes.js';
 import {dv360ListKind} from './dv360-list-writes.js';
@@ -71,123 +93,350 @@ import {dv360SdfImpact} from './dv360-sdf-downloads.js';
 import {gtmWorkflowKind} from './gtm-workflow-writes.js';
 import {gtmWorkspaceKind} from './gtm-workspace-writes.js';
 import {stable} from './security.js';
-import type {CompiledRequest,JsonObject} from './types.js';
-const object=(v:unknown):v is JsonObject=>!!v&&typeof v==='object'&&!Array.isArray(v);
+import type {CompiledRequest, JsonObject} from './types.js';
+const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 /** PUT resets omitted configuration. Never silently merge live state into the
  * frozen request or treat a sparse update as a complete replacement. */
-function assertSnapchatReplacement(plan:CompiledRequest,state:unknown[]){
- const rows=(plan.body as JsonObject).creatives as JsonObject[];
- for(const row of rows){
-  const before=state.flatMap(s=>object(s)?s.creatives??[]:[]).map(r=>r.creative).find(r=>r?.id===row.id);
-  if(!before||before.ad_account_id!==plan.accountId)throw new MirrorError('STATE_TARGET_MISMATCH','The creative replacement requires its exact selected-account state.');
-  for(const field of ['id','ad_account_id','type'])if(row[field]!==before[field]||row[field]===undefined)throw new MirrorError('INVALID_CREATIVE_REPLACEMENT','Preserve the exact creative ID, account and immutable type.',{field});
-  for(const field of ['skippable','collection_properties'])if(Object.hasOwn(row,field)&&stable(row[field])!==stable(before[field]))throw new MirrorError('INVALID_CREATIVE_REPLACEMENT','This creative field is immutable.',{field});
-  const missing:string[]=[];
-  const check=(old:JsonObject,next:JsonObject,path:string)=>{for(const [key,value] of Object.entries(old)){
-   if(!path&&/^(?:created_at|updated_at|packaging_status|review_status(?:_.*)?|rejection(?:_.*)?|approval(?:_.*)?)$/.test(key))continue;
-   if(!Object.hasOwn(next,key)){missing.push(path+'/'+key);continue;}
-   if(object(value)&&object(next[key]))check(value,next[key],path+'/'+key);
-  }};check(before,row,'');
-  if(missing.length)throw new MirrorError('INCOMPLETE_CREATIVE_REPLACEMENT','Snapchat PUT can reset omitted fields; review a complete creative replacement or use the qualified PATCH route.',{creative_id:row.id,missing_fields:missing,source:'https://developers.snap.com/marketing-api/Ads-API/creatives',next_action:'Read the exact creative, preserve its intended configuration explicitly, remove provider-only status metadata, and prepare a new review. Optional removal must be explicit or use PATCH.'});
- }
+function assertSnapchatReplacement(plan: CompiledRequest, state: unknown[]) {
+  const rows = (plan.body as JsonObject).creatives as JsonObject[];
+  for (const row of rows) {
+    const before = state
+      .flatMap(s => (object(s) ? (s.creatives ?? []) : []))
+      .map(r => r.creative)
+      .find(r => r?.id === row.id);
+    if (!before || before.ad_account_id !== plan.accountId)
+      throw new MirrorError(
+        'STATE_TARGET_MISMATCH',
+        'The creative replacement requires its exact selected-account state.',
+      );
+    for (const field of ['id', 'ad_account_id', 'type'])
+      if (row[field] !== before[field] || row[field] === undefined)
+        throw new MirrorError(
+          'INVALID_CREATIVE_REPLACEMENT',
+          'Preserve the exact creative ID, account and immutable type.',
+          {field},
+        );
+    for (const field of ['skippable', 'collection_properties'])
+      if (Object.hasOwn(row, field) && stable(row[field]) !== stable(before[field]))
+        throw new MirrorError('INVALID_CREATIVE_REPLACEMENT', 'This creative field is immutable.', {field});
+    const missing: string[] = [];
+    const check = (old: JsonObject, next: JsonObject, path: string) => {
+      for (const [key, value] of Object.entries(old)) {
+        if (
+          !path &&
+          /^(?:created_at|updated_at|packaging_status|review_status(?:_.*)?|rejection(?:_.*)?|approval(?:_.*)?)$/.test(
+            key,
+          )
+        )
+          continue;
+        if (!Object.hasOwn(next, key)) {
+          missing.push(path + '/' + key);
+          continue;
+        }
+        if (object(value) && object(next[key])) check(value, next[key], path + '/' + key);
+      }
+    };
+    check(before, row, '');
+    if (missing.length)
+      throw new MirrorError(
+        'INCOMPLETE_CREATIVE_REPLACEMENT',
+        'Snapchat PUT can reset omitted fields; review a complete creative replacement or use the qualified PATCH route.',
+        {
+          creative_id: row.id,
+          missing_fields: missing,
+          source: 'https://developers.snap.com/marketing-api/Ads-API/creatives',
+          next_action:
+            'Read the exact creative, preserve its intended configuration explicitly, remove provider-only status metadata, and prepare a new review. Optional removal must be explicit or use PATCH.',
+        },
+      );
+  }
 }
-export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolean,connectionId:string):JsonObject|undefined{
- if(snapUpdateKind(plan))return snapUpdateImpact;
- const snapCopy=snapchatMediaCopyImpact(plan,state);if(snapCopy)return snapCopy;
- const snapDisclaimer=snapDisclaimerImpact(plan,state);if(snapDisclaimer)return snapDisclaimer;
- const snapSegmentDelete=snapSegmentDeleteImpact(plan,state);if(snapSegmentDelete)return snapSegmentDelete;
- const snapConversion=snapConversionImpact(plan,state);if(snapConversion)return snapConversion;
- const snapProductSet=snapProductSetImpact(plan,state);if(snapProductSet)return snapProductSet;
- // Registered families (reviewed-families.ts) are consulted here; the lines around this one belong to families not yet registered.
- const family=familyOf(plan),familyImpact=family?.impact?.(plan,state);if(familyImpact)return familyImpact;
- const snapTemplate=snapTemplateImpact(plan,state);if(snapTemplate)return snapTemplate;
- const snapEvent=snapEventImpact(plan,state);if(snapEvent)return snapEvent;
- const snapPixelName=snapPixelNameImpact(plan,state);if(snapPixelName)return snapPixelName;
- if(metaCopyKind(plan))return metaCopyImpact(plan,state);
- if(googlePreviewKind(plan))return googlePreviewImpact;
- if(googleDismissalKind(plan))return googleDismissalImpact(plan,state);
- if(googleAccessKind(plan))return googleAccessImpact(plan,state);
- if(businessAccessKind(plan))return businessAccessImpact(plan,state);
- if(businessNotificationKind(plan))return businessNotificationImpact(plan,state);
- if(placeActionKind(plan))return placeActionImpact(plan,state);
- if(linkedinTemplateKind(plan))return linkedinTemplateImpact;
- if(xTargetingBatchRoute(plan))return xTargetingBatchImpact();
- if(xDraftKind(plan))return xDraftImpact(plan);
- if(linkedinConversionKind(plan))return linkedinConversionImpact;
- if(linkedinRuleKind(plan))return linkedinRuleImpact;
- if(linkedinLeadFormKind(plan))return linkedinLeadFormImpact(plan,state);
- if(googleBidKind(plan))return googleBidImpactFor(plan);
- if(googleSegmentKind(plan))return {...googleSegmentImpact,may_affect_serving:googleConfigurationServing(plan)};
- if(googleBiddingEventKind(plan))return googleBiddingEventImpact;
- if(googlePortfolioKind(plan))return googlePortfolioImpact;
- if(googleConversionActionKind(plan))return {...googleConversionActionImpact,may_affect_serving:googleConversionActionServing(plan)};
- if(metaReportKind(plan))return metaReportImpact;
- if(criteoCampaignKind(plan))return criteoCampaignImpact;
- if(xReportKind(plan))return xReportImpact;
- if(tiktokReportKind(plan))return tiktokReportImpact;
- if(criteoReportKind(plan))return criteoReportImpact;
- if(googleConversionGoalKind(plan))return {...googleConversionGoalImpact,may_affect_serving:googleConversionGoalServing(plan),creation_effect:'New custom goals remain unattached until a separate campaign configuration update.'};
- const meta=metaLabelImpact(plan);if(meta)return meta;
- if(criteoTargetingKind(plan))return {provider:'criteo',effect:'Changes targeting of an existing preferred line item and may affect delivery immediately. Removing the last target or changing include/exclude can broaden or eliminate eligibility.',verification:'Fresh filtered account membership, parent campaign, retailer and complete target identifiers are checked before submission and read-back. Audience definitions must belong to this same account and retailer.',limits:'100 membership changes per review; 1000 retained targets; 24 requests and 8 MiB per state read. PUT changes scope while preserving exact current membership; use append/delete for membership changes. Product/category/store validity and provider eligibility remain provider checks.',recovery:'HTTP 200 errors, partial or lost responses do not permit replay. Keep the original review/key; inspect actual membership and prepare any correction separately.'};
- if(gtmWorkspaceKind(plan))return {provider:'gtm',workflow:gtmWorkspaceKind(plan),effect:'Changes this workspace without publishing. Sync and quick preview can replace or remove unmodified entities using the latest version; bulk deletions and conflict resolutions can discard workspace edits.',verification:'Reads every entity collection with bounded pagination. Quick preview checks the temporary version receipt and workspace contents, without treating it as a saved or published version. It does not verify browser tag execution or consent.',limits:'100 changes per bulk call; 1000 entities per kind, 5000 per workspace and 100 pages per collection. Temporary creates need unique names per kind for unambiguous unordered receipt matching.',recovery:'Sync conflicts, partial receipts and lost responses retain the submission claim. Read workspace status, preserve completed changes, and prepare each correction separately.'};
- if(gtmWorkflowKind(plan))return {provider:'gtm',workflow:gtmWorkflowKind(plan),effect:'Reverts discard the selected workspace edits and can remove entities. Folder and variable edits remain in the selected workspace; version latest changes the synchronization baseline, not the published version. Account permissions and environment reauthorization affect current users or preview snippets immediately.',security:'Administrator workflows require the matching native manage.accounts, manage.users or publish scope. Environment codes are never included in the retained review or result; obtain the new environment snippet in Tag Manager.',verification:'Native scoped read-back verifies the exact result. It does not prove browser tag execution or consent behavior. Gallery imports pin a SHA and require explicit permission acknowledgement.',recovery:'A partial or lost response retains the claim. Inspect state and prepare a separately reviewed correction; never automatically retry the mutation.'};
- const dv360Targeting=dv360TargetingImpact(plan,state);if(dv360Targeting)return dv360Targeting;
- const listingGroups=googleListingGroupImpact(plan,state);if(listingGroups)return listingGroups;
- const negativeKeywords=tiktokNegativeKeywordImpact(plan,state);if(negativeKeywords)return negativeKeywords;
- const brandSafety=tiktokBrandSafetyImpact(plan,state);if(brandSafety)return brandSafety;
- const valueRules=metaValueRuleImpact(plan,state);if(valueRules)return valueRules;
- const metaBrandSafety=metaBrandSafetyImpact(plan,state);if(metaBrandSafety)return metaBrandSafety;
- const criteoLineItem=criteoLineItemImpact(plan,state);if(criteoLineItem)return criteoLineItem;
- const criteoOverride=criteoOverrideImpact(plan,state);if(criteoOverride)return criteoOverride;
- const criteoCatalog=criteoCatalogImpact(plan,state);if(criteoCatalog)return criteoCatalog;
- const criteoProducts=criteoPromotedProductsImpact(plan,state);if(criteoProducts)return criteoProducts;
- const criteoBidding=criteoLineItemBiddingImpact(plan,state);if(criteoBidding)return criteoBidding;
- const dv360AdAssets=dv360AdAssetImpact(plan);if(dv360AdAssets)return dv360AdAssets;
- const dv360Ad=dv360AdImpact(plan,state);if(dv360Ad)return dv360Ad;
- const dv360Sdf=dv360SdfImpact(plan,state);if(dv360Sdf)return dv360Sdf;
- if(dv360ListKind(plan))return {provider:'dv360',effect:'Channel, location and negative-keyword lists can be shared by enabled line items. Membership edits affect all consumers of this selected-advertiser list. Replacement removes previous members not in the supplied complete list.',verification:'Complete membership read-back, including all pages, compares the resulting set. It does not establish serving or policy approval.',limits:'Advertiser-owned lists only; partner ownership requires separate grants. Maximum 1000 changes, 10000 snapshot members and 100 pages per review.',recovery:'Partial receipts and lost responses do not authorize replay. Preserve the frozen request and inspect membership; corrections require a fresh review.'};
- if(appleEntityKind(plan))return {provider:'apple',scope:appleEntityKind(plan),affected_account_ids:plan.scopeContext?.appleSharedAccountIds??[plan.accountId],effect:appleEntityKind(plan)==='shared_budget'?'Changes a budget shared by all listed accounts. Every affected account must remain write-authorized; each account policy reserves the entire positive increase conservatively.':'Changes the selected entity. Creative edits and exclusions may affect already enabled ads.',verification:'Exact configuration read-back proves the requested fields, not creative approval or serving. Provider business constraints and access remain live checks.',recovery:'Never repeat an uncertain mutation. Read the exact resources and retained receipt; a correction needs a fresh review.'};
- if(redditPostCreation(plan))return {provider:'reddit',scope:'post_creation',may_affect_serving:!!redditPromotedSource(plan),effect:redditPromotedSource(plan)?'Creates promoted content and disables voting and comments on BOTH the original community post and its promoted copy. Preserve the original headline.':'Publishes content for the selected Reddit profile. Posts have no paused state; create the subsequent advertising entity as PAUSED.',verification:'The original job is polled read-only, then the exact post configuration and current account/profile author are checked before its ID can be reused. Media URLs are ingested and replaced by Reddit-hosted references; byte or visual identity, approval and serving are not certified. Voting state on the original post is not exposed by this read contract.',media:'Reddit fetches explicit public media URLs directly; AMCP never asks the LLM to download and relay them. Private Drive authorization/transfer is a separate unfinished bridge. Source URLs must remain available and unchanged until ingestion finishes.',recovery:'Retain the original review and job ID across restarts. Poll amcp_campaign verify; pending, failed or uncertain creation never triggers another POST. Verified post IDs are returned in verified_resources.'};
- if(redditCreativeKind(plan))return {provider:'reddit',scope:redditCreativeKind(plan)!.kind,may_affect_serving:redditCreativeServing(plan),effect:redditCreativeServing(plan)?'Changes comments on the existing post wherever it is used. Content is immutable on these update routes.':'Creates an onsite lead form; no leads are collected by this operation and no ad is activated.',verification:'Exact selected-account form, or exact post and current account/profile author binding; read-back checks the requested fields.',recovery:'Preserve the receipt and original idempotency key. Uncertain mutations cannot be resubmitted.',...(redditCreativeKind(plan)!.kind==='lead_gen_forms'?{sunset_at:redditLeadFormSunset,source:redditLeadFormSource,warning:'Reddit withdraws onsite forms on 2026-09-21 and pauses existing ads using them on 2026-09-30. Use an external form with the appropriate measurement setup.'}:{})};
- if(keywordPlanKind(plan))return {provider:'google',scope:keywordPlanKind(plan),effect:'Edits saved Keyword Planner configuration. Planning bids are hypothetical, in native account-currency micros; no serving campaign is created or activated.',may_affect_serving:false,verification:'Exact saved configuration read-back; the whole existing planning hierarchy is frozen, including descendants of deleted parents. Forecast availability and accuracy require separate provider reads. Relative periods use the provider locale; custom forecast dates must be future dates when forecasting.',recovery:'Inspect the retained result before retrying. A lost or ambiguous response cannot resubmit this review; recover by reading the exact plan and preparing a new correction.'};
- if(googleConfigurationKind(plan)==='userLists')return googleUserListImpact(googleJson(plan.body));
- if(['conversionValueRules','conversionValueRuleSets'].includes(googleConfigurationKind(plan)??''))return googleValueRuleImpact(googleConfigurationKind(plan)!,googleJson(plan.body));
- if(googleConfigurationKind(plan))return {provider:'google',scope:googleConfigurationKind(plan),effect:googleConfigurationServing(plan)?'Changes configuration used by existing ads. Customizer values and ad parameters can change served text; signals, exclusions and feed membership can change eligible traffic. Shared feed edits affect all consumers.':'Changes organizational, measurement or unattached feed configuration.',may_affect_serving:googleConfigurationServing(plan),verification:'Exact selected-customer configuration read-back; no claim of serving, policy approval, conversion accrual or tracking installation. Feed snapshots cover current native membership and content, not future external inventory or synchronization.',recovery:'A rejected or lost response never authorizes replay. Inspect the original receipt and exact resources; corrections require a fresh review.'};
- if(googleAssetLinkKind(plan))return {provider:'google',effect:'Changes associations of existing assets; it does not create new assets. Enabled links may serve under enabled parents. An omitted create status is treated as activation for owner policy checks.',may_activate:googleAssetLinkActivates(plan),scope:googleAssetLinkKind(plan),source:'https://developers.google.com/google-ads/api/docs/assets/working-with-assets',limits:'Provider policy approval, campaign-type rules and asset-count requirements remain provider checks. Link read-back proves configuration, not impressions or approval. Lead-form delivery credentials are never read by this contract.'};
- if(microsoftAssociationWrite(plan))return {provider:'microsoft',effect:'Changes existing extension associations without modifying the asset library. Linking may serve immediately under an enabled parent.',may_activate:microsoftAssociationActivates(plan),limits:'Exact membership read-back does not establish editorial approval or delivery. Search parents only; ad-group associations require campaign_id. Review freezes the discovered extension types and asset content.'};
- const x=xCreativeImpact(plan,state,override,connectionId);
- if(x)return {provider:'x',...x};
- if(plan.gateway==='snapchat_native_action'&&['PUT','PATCH'].includes(plan.method)&&/\/creatives(?:\/[^/]+)?$/.test(plan.path)){
-  if(plan.method==='PUT')assertSnapchatReplacement(plan,state);
-  const rows=(plan.body as JsonObject)?.creatives;
-  return {provider:'snapchat',effect:'All ads referencing an edited creative use the changed creative. Reviewable creative edits can pause delivery during provider re-review. PUT requires a complete replacement; omitted fields can reset to defaults.',affected_creative_ids:Array.isArray(rows)?rows.map(r=>r.id):[plan.path.split('/').at(-1)],affected_ad_ids:null,enumeration:'not_available_in_this_contract',source:'https://developers.snap.com/marketing-api/Ads-API/creatives',recovery:'Inspect the ads sharing this creative before execution. Use a new creative and separately reviewed ad attachment when the change must affect only selected ads. No automatic ad replay is performed.'};
- }
- if(plan.gateway==='snapchat_native_action'&&plan.method==='PUT'&&/^\/v1\/adaccounts\/[^/]+\/segments$/.test(plan.path))return snapSegmentImpact(plan,state);
- if(tiktokIdentityKind(plan))return tiktokIdentityImpact(plan,state);
- if(tiktokLookalikeKind(plan))return tiktokLookalikeImpact(plan,state);
- if(metaLookalikeKind(plan))return metaLookalikeImpact(plan,state);
- if(tiktokBudgetKind(plan))return tiktokBudgetImpact(plan,state);
- if(tiktokCustomConversionKind(plan))return tiktokCustomConversionImpact(plan,state);
- if(tiktokSavedAudienceKind(plan))return tiktokSavedAudienceImpact(plan,state);
- if(tiktokSmartPlusStatusKind(plan))return tiktokSmartPlusStatusImpact(plan,state);
- if(tiktokSmartPlusBudgetKind(plan))return tiktokSmartPlusBudgetImpact(plan,state);
- if(tiktokSmartPlusCampaignKind(plan))return tiktokSmartPlusCampaignImpact(plan,state);
- if(tiktokSmartPlusAdgroupKind(plan))return tiktokSmartPlusAdgroupImpact(plan,state);
- if(tiktokSmartPlusCampaignUpdateKind(plan))return tiktokSmartPlusCampaignUpdateImpact(plan,state);
- if(tiktokCtaPortfolioKind(plan))return tiktokCtaPortfolioImpact(plan);
- if(tiktokSmartPlusAdKind(plan))return tiktokSmartPlusAdImpact(plan,state);
- if(tiktokSmartPlusAdUpdateKind(plan))return tiktokSmartPlusAdUpdateImpact(plan,state,override);
- if(tiktokSmartPlusAdgroupUpdateKind(plan))return tiktokSmartPlusAdgroupUpdateImpact(plan,state);
- if(tiktokSmartPlusMaterialStatusKind(plan))return tiktokSmartPlusMaterialStatusImpact(plan,state);
- return undefined;
+export function writeImpact(
+  plan: CompiledRequest,
+  state: unknown[],
+  override: boolean,
+  connectionId: string,
+): JsonObject | undefined {
+  if (snapUpdateKind(plan)) return snapUpdateImpact;
+  const snapCopy = snapchatMediaCopyImpact(plan, state);
+  if (snapCopy) return snapCopy;
+  const snapDisclaimer = snapDisclaimerImpact(plan, state);
+  if (snapDisclaimer) return snapDisclaimer;
+  const snapSegmentDelete = snapSegmentDeleteImpact(plan, state);
+  if (snapSegmentDelete) return snapSegmentDelete;
+  const snapConversion = snapConversionImpact(plan, state);
+  if (snapConversion) return snapConversion;
+  const snapProductSet = snapProductSetImpact(plan, state);
+  if (snapProductSet) return snapProductSet;
+  // Registered families (reviewed-families.ts) are consulted here; the lines around this one belong to families not yet registered.
+  const family = familyOf(plan),
+    familyImpact = family?.impact?.(plan, state);
+  if (familyImpact) return familyImpact;
+  const snapTemplate = snapTemplateImpact(plan, state);
+  if (snapTemplate) return snapTemplate;
+  const snapEvent = snapEventImpact(plan, state);
+  if (snapEvent) return snapEvent;
+  const snapPixelName = snapPixelNameImpact(plan, state);
+  if (snapPixelName) return snapPixelName;
+  if (metaCopyKind(plan)) return metaCopyImpact(plan, state);
+  if (googlePreviewKind(plan)) return googlePreviewImpact;
+  if (googleDismissalKind(plan)) return googleDismissalImpact(plan, state);
+  if (googleAccessKind(plan)) return googleAccessImpact(plan, state);
+  if (businessAccessKind(plan)) return businessAccessImpact(plan, state);
+  if (businessNotificationKind(plan)) return businessNotificationImpact(plan, state);
+  if (placeActionKind(plan)) return placeActionImpact(plan, state);
+  if (linkedinTemplateKind(plan)) return linkedinTemplateImpact;
+  if (xTargetingBatchRoute(plan)) return xTargetingBatchImpact();
+  if (xDraftKind(plan)) return xDraftImpact(plan);
+  if (linkedinConversionKind(plan)) return linkedinConversionImpact;
+  if (linkedinRuleKind(plan)) return linkedinRuleImpact;
+  if (linkedinLeadFormKind(plan)) return linkedinLeadFormImpact(plan, state);
+  if (googleBidKind(plan)) return googleBidImpactFor(plan);
+  if (googleSegmentKind(plan)) return {...googleSegmentImpact, may_affect_serving: googleConfigurationServing(plan)};
+  if (googleBiddingEventKind(plan)) return googleBiddingEventImpact;
+  if (googlePortfolioKind(plan)) return googlePortfolioImpact;
+  if (googleConversionActionKind(plan))
+    return {...googleConversionActionImpact, may_affect_serving: googleConversionActionServing(plan)};
+  if (metaReportKind(plan)) return metaReportImpact;
+  if (criteoCampaignKind(plan)) return criteoCampaignImpact;
+  if (xReportKind(plan)) return xReportImpact;
+  if (tiktokReportKind(plan)) return tiktokReportImpact;
+  if (criteoReportKind(plan)) return criteoReportImpact;
+  if (googleConversionGoalKind(plan))
+    return {
+      ...googleConversionGoalImpact,
+      may_affect_serving: googleConversionGoalServing(plan),
+      creation_effect: 'New custom goals remain unattached until a separate campaign configuration update.',
+    };
+  const meta = metaLabelImpact(plan);
+  if (meta) return meta;
+  if (criteoTargetingKind(plan))
+    return {
+      provider: 'criteo',
+      effect:
+        'Changes targeting of an existing preferred line item and may affect delivery immediately. Removing the last target or changing include/exclude can broaden or eliminate eligibility.',
+      verification:
+        'Fresh filtered account membership, parent campaign, retailer and complete target identifiers are checked before submission and read-back. Audience definitions must belong to this same account and retailer.',
+      limits:
+        '100 membership changes per review; 1000 retained targets; 24 requests and 8 MiB per state read. PUT changes scope while preserving exact current membership; use append/delete for membership changes. Product/category/store validity and provider eligibility remain provider checks.',
+      recovery:
+        'HTTP 200 errors, partial or lost responses do not permit replay. Keep the original review/key; inspect actual membership and prepare any correction separately.',
+    };
+  if (gtmWorkspaceKind(plan))
+    return {
+      provider: 'gtm',
+      workflow: gtmWorkspaceKind(plan),
+      effect:
+        'Changes this workspace without publishing. Sync and quick preview can replace or remove unmodified entities using the latest version; bulk deletions and conflict resolutions can discard workspace edits.',
+      verification:
+        'Reads every entity collection with bounded pagination. Quick preview checks the temporary version receipt and workspace contents, without treating it as a saved or published version. It does not verify browser tag execution or consent.',
+      limits:
+        '100 changes per bulk call; 1000 entities per kind, 5000 per workspace and 100 pages per collection. Temporary creates need unique names per kind for unambiguous unordered receipt matching.',
+      recovery:
+        'Sync conflicts, partial receipts and lost responses retain the submission claim. Read workspace status, preserve completed changes, and prepare each correction separately.',
+    };
+  if (gtmWorkflowKind(plan))
+    return {
+      provider: 'gtm',
+      workflow: gtmWorkflowKind(plan),
+      effect:
+        'Reverts discard the selected workspace edits and can remove entities. Folder and variable edits remain in the selected workspace; version latest changes the synchronization baseline, not the published version. Account permissions and environment reauthorization affect current users or preview snippets immediately.',
+      security:
+        'Administrator workflows require the matching native manage.accounts, manage.users or publish scope. Environment codes are never included in the retained review or result; obtain the new environment snippet in Tag Manager.',
+      verification:
+        'Native scoped read-back verifies the exact result. It does not prove browser tag execution or consent behavior. Gallery imports pin a SHA and require explicit permission acknowledgement.',
+      recovery:
+        'A partial or lost response retains the claim. Inspect state and prepare a separately reviewed correction; never automatically retry the mutation.',
+    };
+  const dv360Targeting = dv360TargetingImpact(plan, state);
+  if (dv360Targeting) return dv360Targeting;
+  const listingGroups = googleListingGroupImpact(plan, state);
+  if (listingGroups) return listingGroups;
+  const negativeKeywords = tiktokNegativeKeywordImpact(plan, state);
+  if (negativeKeywords) return negativeKeywords;
+  const brandSafety = tiktokBrandSafetyImpact(plan, state);
+  if (brandSafety) return brandSafety;
+  const valueRules = metaValueRuleImpact(plan, state);
+  if (valueRules) return valueRules;
+  const metaBrandSafety = metaBrandSafetyImpact(plan, state);
+  if (metaBrandSafety) return metaBrandSafety;
+  const criteoLineItem = criteoLineItemImpact(plan, state);
+  if (criteoLineItem) return criteoLineItem;
+  const criteoOverride = criteoOverrideImpact(plan, state);
+  if (criteoOverride) return criteoOverride;
+  const criteoCatalog = criteoCatalogImpact(plan, state);
+  if (criteoCatalog) return criteoCatalog;
+  const criteoProducts = criteoPromotedProductsImpact(plan, state);
+  if (criteoProducts) return criteoProducts;
+  const criteoBidding = criteoLineItemBiddingImpact(plan, state);
+  if (criteoBidding) return criteoBidding;
+  const dv360AdAssets = dv360AdAssetImpact(plan);
+  if (dv360AdAssets) return dv360AdAssets;
+  const dv360Ad = dv360AdImpact(plan, state);
+  if (dv360Ad) return dv360Ad;
+  const dv360Sdf = dv360SdfImpact(plan, state);
+  if (dv360Sdf) return dv360Sdf;
+  if (dv360ListKind(plan))
+    return {
+      provider: 'dv360',
+      effect:
+        'Channel, location and negative-keyword lists can be shared by enabled line items. Membership edits affect all consumers of this selected-advertiser list. Replacement removes previous members not in the supplied complete list.',
+      verification:
+        'Complete membership read-back, including all pages, compares the resulting set. It does not establish serving or policy approval.',
+      limits:
+        'Advertiser-owned lists only; partner ownership requires separate grants. Maximum 1000 changes, 10000 snapshot members and 100 pages per review.',
+      recovery:
+        'Partial receipts and lost responses do not authorize replay. Preserve the frozen request and inspect membership; corrections require a fresh review.',
+    };
+  if (appleEntityKind(plan))
+    return {
+      provider: 'apple',
+      scope: appleEntityKind(plan),
+      affected_account_ids: plan.scopeContext?.appleSharedAccountIds ?? [plan.accountId],
+      effect:
+        appleEntityKind(plan) === 'shared_budget'
+          ? 'Changes a budget shared by all listed accounts. Every affected account must remain write-authorized; each account policy reserves the entire positive increase conservatively.'
+          : 'Changes the selected entity. Creative edits and exclusions may affect already enabled ads.',
+      verification:
+        'Exact configuration read-back proves the requested fields, not creative approval or serving. Provider business constraints and access remain live checks.',
+      recovery:
+        'Never repeat an uncertain mutation. Read the exact resources and retained receipt; a correction needs a fresh review.',
+    };
+  if (redditPostCreation(plan))
+    return {
+      provider: 'reddit',
+      scope: 'post_creation',
+      may_affect_serving: !!redditPromotedSource(plan),
+      effect: redditPromotedSource(plan)
+        ? 'Creates promoted content and disables voting and comments on BOTH the original community post and its promoted copy. Preserve the original headline.'
+        : 'Publishes content for the selected Reddit profile. Posts have no paused state; create the subsequent advertising entity as PAUSED.',
+      verification:
+        'The original job is polled read-only, then the exact post configuration and current account/profile author are checked before its ID can be reused. Media URLs are ingested and replaced by Reddit-hosted references; byte or visual identity, approval and serving are not certified. Voting state on the original post is not exposed by this read contract.',
+      media:
+        'Reddit fetches explicit public media URLs directly; AMCP never asks the LLM to download and relay them. Private Drive authorization/transfer is a separate unfinished bridge. Source URLs must remain available and unchanged until ingestion finishes.',
+      recovery:
+        'Retain the original review and job ID across restarts. Poll amcp_campaign verify; pending, failed or uncertain creation never triggers another POST. Verified post IDs are returned in verified_resources.',
+    };
+  if (redditCreativeKind(plan))
+    return {
+      provider: 'reddit',
+      scope: redditCreativeKind(plan)!.kind,
+      may_affect_serving: redditCreativeServing(plan),
+      effect: redditCreativeServing(plan)
+        ? 'Changes comments on the existing post wherever it is used. Content is immutable on these update routes.'
+        : 'Creates an onsite lead form; no leads are collected by this operation and no ad is activated.',
+      verification:
+        'Exact selected-account form, or exact post and current account/profile author binding; read-back checks the requested fields.',
+      recovery: 'Preserve the receipt and original idempotency key. Uncertain mutations cannot be resubmitted.',
+      ...(redditCreativeKind(plan)!.kind === 'lead_gen_forms'
+        ? {
+            sunset_at: redditLeadFormSunset,
+            source: redditLeadFormSource,
+            warning:
+              'Reddit withdraws onsite forms on 2026-09-21 and pauses existing ads using them on 2026-09-30. Use an external form with the appropriate measurement setup.',
+          }
+        : {}),
+    };
+  if (keywordPlanKind(plan))
+    return {
+      provider: 'google',
+      scope: keywordPlanKind(plan),
+      effect:
+        'Edits saved Keyword Planner configuration. Planning bids are hypothetical, in native account-currency micros; no serving campaign is created or activated.',
+      may_affect_serving: false,
+      verification:
+        'Exact saved configuration read-back; the whole existing planning hierarchy is frozen, including descendants of deleted parents. Forecast availability and accuracy require separate provider reads. Relative periods use the provider locale; custom forecast dates must be future dates when forecasting.',
+      recovery:
+        'Inspect the retained result before retrying. A lost or ambiguous response cannot resubmit this review; recover by reading the exact plan and preparing a new correction.',
+    };
+  if (googleConfigurationKind(plan) === 'userLists') return googleUserListImpact(googleJson(plan.body));
+  if (['conversionValueRules', 'conversionValueRuleSets'].includes(googleConfigurationKind(plan) ?? ''))
+    return googleValueRuleImpact(googleConfigurationKind(plan)!, googleJson(plan.body));
+  if (googleConfigurationKind(plan))
+    return {
+      provider: 'google',
+      scope: googleConfigurationKind(plan),
+      effect: googleConfigurationServing(plan)
+        ? 'Changes configuration used by existing ads. Customizer values and ad parameters can change served text; signals, exclusions and feed membership can change eligible traffic. Shared feed edits affect all consumers.'
+        : 'Changes organizational, measurement or unattached feed configuration.',
+      may_affect_serving: googleConfigurationServing(plan),
+      verification:
+        'Exact selected-customer configuration read-back; no claim of serving, policy approval, conversion accrual or tracking installation. Feed snapshots cover current native membership and content, not future external inventory or synchronization.',
+      recovery:
+        'A rejected or lost response never authorizes replay. Inspect the original receipt and exact resources; corrections require a fresh review.',
+    };
+  if (googleAssetLinkKind(plan))
+    return {
+      provider: 'google',
+      effect:
+        'Changes associations of existing assets; it does not create new assets. Enabled links may serve under enabled parents. An omitted create status is treated as activation for owner policy checks.',
+      may_activate: googleAssetLinkActivates(plan),
+      scope: googleAssetLinkKind(plan),
+      source: 'https://developers.google.com/google-ads/api/docs/assets/working-with-assets',
+      limits:
+        'Provider policy approval, campaign-type rules and asset-count requirements remain provider checks. Link read-back proves configuration, not impressions or approval. Lead-form delivery credentials are never read by this contract.',
+    };
+  if (microsoftAssociationWrite(plan))
+    return {
+      provider: 'microsoft',
+      effect:
+        'Changes existing extension associations without modifying the asset library. Linking may serve immediately under an enabled parent.',
+      may_activate: microsoftAssociationActivates(plan),
+      limits:
+        'Exact membership read-back does not establish editorial approval or delivery. Search parents only; ad-group associations require campaign_id. Review freezes the discovered extension types and asset content.',
+    };
+  const x = xCreativeImpact(plan, state, override, connectionId);
+  if (x) return {provider: 'x', ...x};
+  if (
+    plan.gateway === 'snapchat_native_action' &&
+    ['PUT', 'PATCH'].includes(plan.method) &&
+    /\/creatives(?:\/[^/]+)?$/.test(plan.path)
+  ) {
+    if (plan.method === 'PUT') assertSnapchatReplacement(plan, state);
+    const rows = (plan.body as JsonObject)?.creatives;
+    return {
+      provider: 'snapchat',
+      effect:
+        'All ads referencing an edited creative use the changed creative. Reviewable creative edits can pause delivery during provider re-review. PUT requires a complete replacement; omitted fields can reset to defaults.',
+      affected_creative_ids: Array.isArray(rows) ? rows.map(r => r.id) : [plan.path.split('/').at(-1)],
+      affected_ad_ids: null,
+      enumeration: 'not_available_in_this_contract',
+      source: 'https://developers.snap.com/marketing-api/Ads-API/creatives',
+      recovery:
+        'Inspect the ads sharing this creative before execution. Use a new creative and separately reviewed ad attachment when the change must affect only selected ads. No automatic ad replay is performed.',
+    };
+  }
+  if (
+    plan.gateway === 'snapchat_native_action' &&
+    plan.method === 'PUT' &&
+    /^\/v1\/adaccounts\/[^/]+\/segments$/.test(plan.path)
+  )
+    return snapSegmentImpact(plan, state);
+  if (tiktokIdentityKind(plan)) return tiktokIdentityImpact(plan, state);
+  if (tiktokLookalikeKind(plan)) return tiktokLookalikeImpact(plan, state);
+  if (metaLookalikeKind(plan)) return metaLookalikeImpact(plan, state);
+  if (tiktokBudgetKind(plan)) return tiktokBudgetImpact(plan, state);
+  if (tiktokCustomConversionKind(plan)) return tiktokCustomConversionImpact(plan, state);
+  if (tiktokSavedAudienceKind(plan)) return tiktokSavedAudienceImpact(plan, state);
+  if (tiktokSmartPlusStatusKind(plan)) return tiktokSmartPlusStatusImpact(plan, state);
+  if (tiktokSmartPlusBudgetKind(plan)) return tiktokSmartPlusBudgetImpact(plan, state);
+  if (tiktokSmartPlusCampaignKind(plan)) return tiktokSmartPlusCampaignImpact(plan, state);
+  if (tiktokSmartPlusAdgroupKind(plan)) return tiktokSmartPlusAdgroupImpact(plan, state);
+  if (tiktokSmartPlusCampaignUpdateKind(plan)) return tiktokSmartPlusCampaignUpdateImpact(plan, state);
+  if (tiktokCtaPortfolioKind(plan)) return tiktokCtaPortfolioImpact(plan);
+  if (tiktokSmartPlusAdKind(plan)) return tiktokSmartPlusAdImpact(plan, state);
+  if (tiktokSmartPlusAdUpdateKind(plan)) return tiktokSmartPlusAdUpdateImpact(plan, state, override);
+  if (tiktokSmartPlusAdgroupUpdateKind(plan)) return tiktokSmartPlusAdgroupUpdateImpact(plan, state);
+  if (tiktokSmartPlusMaterialStatusKind(plan)) return tiktokSmartPlusMaterialStatusImpact(plan, state);
+  return undefined;
 }
-import {googleConfigurationKind,googleConfigurationServing} from './google-configuration-writes.js';
+import {googleConfigurationKind, googleConfigurationServing} from './google-configuration-writes.js';
 import {googleUserListImpact} from './google-user-lists.js';
 import {googleValueRuleImpact} from './google-value-rules.js';
 import {googleJson} from './google-contracts.js';
-import {placeActionKind,placeActionImpact} from './google-place-action-links.js';
-import {businessNotificationKind,businessNotificationImpact} from './google-business-notifications.js';
-import {businessAccessKind,businessAccessImpact} from './google-business-access.js';
-import {googleDismissalKind,googleDismissalImpact} from './google-recommendation-dismissal.js';
-import {googleAccessKind,googleAccessImpact} from './google-user-access.js';
+import {placeActionKind, placeActionImpact} from './google-place-action-links.js';
+import {businessNotificationKind, businessNotificationImpact} from './google-business-notifications.js';
+import {businessAccessKind, businessAccessImpact} from './google-business-access.js';
+import {googleDismissalKind, googleDismissalImpact} from './google-recommendation-dismissal.js';
+import {googleAccessKind, googleAccessImpact} from './google-user-access.js';
 import {familyOf} from './reviewed-families.js';
