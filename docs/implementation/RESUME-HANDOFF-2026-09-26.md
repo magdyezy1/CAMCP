@@ -1212,7 +1212,16 @@ Tests: `tests/dv360-audience-edits.test.mjs` (3), red on `7a4cda4` / green after
 
 - New reviewed family `linkedin_account_settings` (`src/linkedin-account-settings.ts`) for the ad account name and notification switches, one row. Status, reference and immutable fields stay unqualified.
 
-Tests: `tests/linkedin-account-settings.test.mjs` (3), red on `0f2ad86` / green after.
+Tests: `tests/linkedin-account-settings.test.mjs` (3), red on `0f2ad86` / green after. Committed as `b84a511`.
+
+## Finished batch — Business Profile location hours and contact details (2026-09-27)
+
+[Implementation](GOOGLE-BUSINESS-LOCATION-EDITS-2026-09-27.md) and
+[qualification](GOOGLE-BUSINESS-LOCATION-EDITS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `google_business_location_edits` (`src/google-business-location-edits.ts`) for regular and special hours, phones, website, labels and the Ads phone of a location grant, one row. Title, address, categories, open status and store code stay unqualified.
+
+Tests: `tests/google-business-location-edits.test.mjs` (3), red on `b84a511` / green after.
 
 ## CI and live evidence
 
@@ -1226,20 +1235,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 728 in reviewed write families. **697 remaining rows** are in
+3241 captured actions; 729 in reviewed write families. **696 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 588 |
+| blocked_write | 587 |
 | unmapped | 79 |
 | unqualified_read | 17 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 167, Meta 112, LinkedIn 87, Snapchat 66,
-Google Ads 57, X 35, DV360 29, Criteo 23, Business Profile 12.
+Google Ads 57, X 35, DV360 29, Criteo 23, Business Profile 11.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

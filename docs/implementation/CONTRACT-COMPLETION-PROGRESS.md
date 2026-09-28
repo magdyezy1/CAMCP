@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## FP — Business Profile location hours and contact details (2026-09-27)
+
+A Business Profile location's hours, holiday hours, phones, website, labels and Google Ads phone can
+now be edited through reviewed patches for the exact location grant that check every field against
+the pinned schema, refuse listings without Voice of Merchant and read the location back. See
+[implementation](GOOGLE-BUSINESS-LOCATION-EDITS-2026-09-27.md),
+[qualification](GOOGLE-BUSINESS-LOCATION-EDITS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 696 (one Business Profile row reviewed). Pushes go only to CAMCP; its exact-commit CI
+result and live acceptance are pending.
+
 ## FO — LinkedIn ad account name and notifications (2026-09-27)
 
 LinkedIn ad accounts can now be renamed and their Campaign Manager notifications switched through
@@ -17,7 +29,7 @@ read the account back. See
 [qualification](LINKEDIN-ACCOUNT-SETTINGS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 697 (one LinkedIn row reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 697 (one LinkedIn row reviewed). Committed as `b84a511`; its exact-commit CI result
 and live acceptance are pending.
 
 ## FN — DV360 customer match audience names (2026-09-27)

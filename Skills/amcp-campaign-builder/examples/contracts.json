@@ -1519,6 +1519,22 @@
       }
     },
     {
+      "gateway": "google_business_native_action",
+      "arguments": {
+        "operation": "gmb_location_ops",
+        "arguments": {
+          "action": "PATCH_LOCATION",
+          "location_id": "456",
+          "query": {
+            "updateMask": "websiteUri"
+          },
+          "payload": {
+            "websiteUri": "https://example.com/bakery"
+          }
+        }
+      }
+    },
+    {
       "gateway": "linkedin_native_action",
       "arguments": {
         "action": "linkedin_rest_ad_accounts_ad_account_id_post",

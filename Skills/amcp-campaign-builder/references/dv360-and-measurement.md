@@ -848,6 +848,32 @@ and [business identity/category data](https://developers.google.com/my-business/
 The pinned `.mirror/VENDOR/business-place-actions-v1.json` field/enum schema is
 checked by the contract tests. Provider approval and live behavior remain unverified.
 
+## Business Profile location hours and contact details
+
+`google_business_native_action` / `gmb_location_ops` / `PATCH_LOCATION` edits one location through
+the exact `locations/{id}` grant (`location_id`, not `account_id`), with `query: {updateMask}` naming
+`regularHours`, `specialHours`, `phoneNumbers`, `websiteUri`, `labels` and/or
+`adWordsLocationExtensions`, and a payload of exactly those fields:
+
+- `regularHours.periods` (1–50): `openDay`/`closeDay` MONDAY to SUNDAY, `openTime`/`closeTime`
+  between 00:00 and 24:00 (`{hours, minutes}`; Google omits zero fields), closing after opening.
+- `specialHours.specialHourPeriods` (at most 100): a `startDate` closed all day (`closed: true`), or
+  `openTime` and `closeTime` spanning less than 24 hours, ending on the start date or the next day.
+  Special hours need regular hours.
+- `phoneNumbers`: `primaryPhone` and `additionalPhones` (at most two, `[]` for none); Business
+  Profile requires both on every update.
+- `websiteUri` (http or https), `labels` (at most 50 distinct labels of 1–255 characters, hidden from
+  customers but used by Google Ads location asset filters) and `adWordsLocationExtensions: {adPhone}`
+  (the phone Google Ads location assets show instead of the primary phone).
+
+The title, address, categories, open status, profile, store code, service data and `validateOnly`
+are refused with `INVALID_BUSINESS_LOCATION_EDIT`, as are unchanged values. AMCP reads the location
+first: a listing without Voice of Merchant (Business Profile would not apply the edit) or closed
+permanently is refused. Google may review public edits before they appear; verification reads the
+location again and compares the edited fields, with omitted zero times read as 00:00. Nothing needs
+spending confirmation. Source: the pinned Business Information API v1 Discovery document
+(`.mirror/VENDOR/business-info-v1.json`, `locations.patch`), checked 2026-09-28.
+
 ## Business Profile account notification settings
 
 `google_business_native_action` / `gmb_notification_ops` /

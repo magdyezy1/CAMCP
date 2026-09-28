@@ -720,8 +720,8 @@
         {
           "operation": "gmb_location_ops",
           "action": "PATCH_LOCATION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_location_edits"
         },
         {
           "operation": "gmb_location_ops",
@@ -746,8 +746,8 @@
         {
           "operation": "gmb_location_ops",
           "action": "PATCH_LOCATION",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_location_edits"
         },
         {
           "operation": "gmb_location_ops",
