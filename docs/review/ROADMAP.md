@@ -22,8 +22,9 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
 - Data: audit minimisation, retention and purge on disconnect; encrypted-only backups (F-18). GCM tag length and key
   ids (F-19). Dot-segment rejection in `buildUrl` (F-20). Drive inspection limits (F-21). Provider-text labelling
   (F-22).
-- Auth follow-ups: challenge caps (F-12), timing-safe e-mail flows (F-13), reviewer sessions (F-14), legacy admin
-  hashing (F-16), idle timeout and grant pruning (F-25).
+- Auth follow-ups: **done in batch 6:** challenge caps per kind (F-12), e-mail flows that do not wait on delivery
+  (F-13), reviewer sessions (F-14), code-replay revocation and grant pruning (F-25). Remaining: legacy admin hashing
+  (F-16), idle timeout and change alerts (F-25).
 - Contracts: one LinkedIn version constant (F-53), Snapchat `lifetime_budget_micro` unit mapping (F-55), Reddit lead
   forms in `CONTRACTS.md` (F-54), runtime write pause (F-24), remove dead `maxBudgetChange` (F-23), report output
   files (F-69).
