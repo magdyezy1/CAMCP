@@ -12,3 +12,20 @@ test('remedies distinguish local contracts and grants from provider denial witho
  assert.equal(errorResult(new MirrorError('INSUFFICIENT_SCOPE','Local scopes missing'),'req',0).error.category,'grant');
  assert.equal(errorResult(new MirrorError('INSUFFICIENT_SCOPE','Provider scope error',{upstream}),'req',0).error.category,'provider');
 });
+
+test('frequent refusals name their own next step instead of a generic "prepare again"',()=>{
+ const expect:[string,string,RegExp][]=[
+  ['STATE_NOT_FOUND','state',/belongs to this account/],['STATE_TARGET_MISMATCH','state',/different object/],['INCOMPLETE_STATE','state',/never authorizes a write/],
+  ['STATE_READ_FAILED','state',/Retry the same call/],['STATE_TOO_LARGE','state',/Narrow/],
+  ['POLICY_BUDGET_LIMIT','policy',/No confirmation flag overrides it/],['POLICY_ACTIVATION_FORBIDDEN','policy',/ask the owner/],['WRITES_PAUSED','policy',/after the owner resumes/],
+  ['CONFIGURATION_EXISTS','state',/update of it instead of another create/],['PAUSED_CREATION_REQUIRED','request',/separate change/],
+  ['CONNECTION_REQUIRED','grant',/Connections page/],['AMBIGUOUS_CONNECTION','request',/connection_id/],['PROVIDER_WRITE_SCOPE_REQUIRED','grant',/write scope/],
+  ['ENCRYPTION_REQUIRED','deployment',/MIRROR_MASTER_KEY/],['LIVE_WRITES_DISABLED','deployment',/operator/],['TOKEN_REFRESH_FAILED','provider',/Reconnect/],
+  ['MEDIA_RESPONSE_INVALID','provider',/do not resubmit/],['REPORT_SHAPE_CHANGED','provider',/do not resubmit/],
+  ['INVALID_ARGUMENT','request',/argument the message names/],['MISSING_PARAMETER','request',/argument the message names/]];
+ for(const [code,category,action] of expect){
+  const r=errorResult(new MirrorError(code,'Fixture'),'req',1);
+  assert.equal(r.error.category,category,code);assert.match(r.error.remedy.action!,action,code);assert.equal(r.error.remedy.mutation_retry_safe,false,code);
+  if(code.startsWith('STATE_')||code.startsWith('POLICY_'))assert.doesNotMatch(r.error.remedy.action!,/prepare again/i,code);
+ }
+});
