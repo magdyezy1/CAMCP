@@ -1,3 +1,4 @@
+import {MirrorError} from './errors.js';
 import {effectiveProviderContract, providerContracts} from './provider-contracts.js';
 import {providerSunset} from './provider-sunsets.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -92,14 +93,43 @@ export function providerContractView(gateway?: string): JsonObject | undefined {
       'Catalog evidence is captured compatibility metadata. Vendor schemas, local reviewed contracts and live provider qualification are distinct. Use amcp_write inspect with the exact payload.',
   };
 }
-export function executionEvidence(plan: CompiledRequest): JsonObject {
+/**
+ * A reference to a gateway's provider contract (F-29): what identifies the contract and the version AMCP sends, and the
+ * call that returns the whole of it. It stands in for the 1.3-6.6 KB contract when the caller already has it.
+ */
+export function providerContractReference(gateway?: string): JsonObject | undefined {
+  const view = providerContractView(gateway);
+  if (!view) return undefined;
+  const fields = [
+    'id',
+    'gateway',
+    'api_version',
+    'contract_version',
+    'reviewed_at',
+    'reviewed_writes',
+    'live_qualification',
+    'version_end',
+  ];
+  return {
+    ...Object.fromEntries(fields.filter(f => view[f] !== undefined).map(f => [f, view[f]])),
+    full_contract: {tool: 'amcp_tool_help', arguments: {gateway}, result_field: 'amcp_contract'},
+  };
+}
+/** How much of the provider contract a review carries: the whole of it (the default) or a reference to it. */
+export type EvidenceForm = 'full' | 'ref';
+export function evidenceForm(value: unknown): EvidenceForm {
+  if (value === undefined) return 'full';
+  if (value === 'full' || value === 'ref') return value;
+  throw new MirrorError('INVALID_ARGUMENT', 'evidence must be "full" or "ref".', {parameter: 'evidence'});
+}
+export function executionEvidence(plan: CompiledRequest, form: EvidenceForm = 'full'): JsonObject {
   return {
     catalog_evidence: plan.evidence,
     ...(plan.contractEvidence ?? {
       route_source: 'AMCP_INDEPENDENT_CONTRACT_OR_CAPTURE',
       live_qualification: 'unverified',
     }),
-    provider: providerContractView(plan.gateway),
+    provider: form === 'ref' ? providerContractReference(plan.gateway) : providerContractView(plan.gateway),
     review_authorization:
       'Existing deployment, actor, account, resource, review and spending gates remain mandatory; provenance never grants access.',
   };

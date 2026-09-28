@@ -41,7 +41,7 @@ lines.push(
     googleAdsVersion +
     ': native RPC mappings are checked against the official Discovery document, with nested field/type/enum request validation. The generated vendor-method inventory identifies the current methods outside the captured catalog. Microsoft: six pinned WSDL documents with namespace-aware type declarations, inheritance, restrictions and operation correspondence. SOAP evidence does not establish JSON wire parity. No new operation gains write permission from ingestion.',
   '',
-  '`amcp_tool_help` returns `amcp_contract`. `amcp_write inspect` and prepare return `contract_evidence`. Errors include a category, owner and remedy. Destructive operations retain existing explicit review and policy controls; there is no new acknowledgement that could imply schema provenance makes a write safe.',
+  '`amcp_tool_help` returns `amcp_contract`. `amcp_write inspect` and prepare return `contract_evidence`; with `evidence: "ref"` its provider contract is a reference (versions, version end and the `amcp_tool_help` call that returns the whole contract), and `amcp_campaign` keeps its steps that way. Errors include a category, owner and remedy. Destructive operations retain existing explicit review and policy controls; there is no new acknowledgement that could imply schema provenance makes a write safe.',
   '',
   '`generate:vendor:check`, `generate:wsdl:check` and `contracts:check` are deterministic offline checks. The public-provider workflow separately checks remote schemas and documentation. A changed page is a maintenance signal, not proof of a breaking change. No CI job automatically upgrades versions or submits account mutations.',
 );

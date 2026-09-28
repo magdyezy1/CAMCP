@@ -67,7 +67,7 @@ import {
   mediaDiscovery,
   mediaInstructions,
 } from './media-routing.js';
-import {providerContractView} from './contract-evidence.js';
+import {evidenceForm, providerContractView} from './contract-evidence.js';
 import {googleGenerationKind, googleGenerationResult, validateGoogleGeneration} from './google-generation.js';
 import {
   dv360TargetingSearchRoute,
@@ -356,6 +356,8 @@ export class MirrorService {
     for (const key of Object.keys(input))
       if (!Object.hasOwn(writeTool.inputSchema.properties, key))
         throw new MirrorError('INVALID_ARGUMENT', 'Unknown write-tool parameter.', {parameter: key});
+    // Media reviews carry no provider contract, but a wrong form is refused on every route alike.
+    evidenceForm(input.evidence);
     if (
       input.action === 'execute' &&
       typeof input.review_id === 'string' &&

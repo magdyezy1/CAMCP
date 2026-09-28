@@ -85,7 +85,9 @@ that point in early October 2026 (its 12-month support ends around January 2027)
 from here and are recorded as unknown.
 
 **MCP workflow.** Each AMCP tool says when to use it rather than its neighbour. An opt-in flag
-(`MIRROR_FLAGS={"compactSchemas":true}`) removes the duplicated DV360 action names from every `tools/list`.
+(`MIRROR_FLAGS={"compactSchemas":true}`) removes the duplicated DV360 action names from every `tools/list`. A client
+that has read a platform's contract once can ask `amcp_write` for a reference to it (`evidence: "ref"`) instead of the
+whole contract in every inspect and prepare; `amcp_campaign` does so for each step it prepares.
 
 **Structure and code quality.**
 - 57 reviewed write families are declared next to their code and reached through a typed registry, instead of about
@@ -109,6 +111,7 @@ from here and are recorded as unknown.
 | Lifecycle wiring for reviewed families | ~14 order-sensitive chains; reader nesting 83 (review) and 80 (verification) levels | 57 families registered; 1,044 wiring lines removed; reader nesting 26 and 23 |
 | Refusal sites falling back to a generic "prepare again" | 1,436 of 1,956 | 379 |
 | DV360 schema in `tools/list` | 17.5 KB | 10.6 KB with `compactSchemas` |
+| A Meta campaign `prepare` result / a three-step campaign run once its first step is prepared | 7.2 KB / 9.3 KB | 2.7 KB with `evidence: "ref"` / 4.8 KB, and 4.5 KB less for each further prepared step |
 | Website text assets per full download | 308 KB | 82 KB (Brotli) |
 | Low-contrast texts over 50 page/width checks | 271 | 0 |
 | Pages that overflow at 320–360 px / whole-page live regions | 3 / 47 | 0 / 0 |

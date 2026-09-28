@@ -473,3 +473,20 @@ files equal `1acb866`, apart from `release-manifest.json`.
 Full qualification (`.release/batch24-20260928`, up to `f5c7ce6`): **2,779 / 2,779** tests and **4 / 4** capture
 tests; `format:check`, every generated-artifact check and the Railway check pass. 274 s. The candidate's 1,207 source
 files equal `f5c7ce6`, apart from `release-manifest.json`.
+
+## Batch 25 — contract evidence by reference (F-29)
+
+Every `amcp_write` inspect and prepare carried the provider's whole contract in `contract_evidence.provider`: 1.3 KB
+(Amazon) to 6.6 KB (Google Ads), the same for every review of a gateway. `amcp_campaign` stored each prepared step's
+review in the run and returned it again, so a run repeated it once per step.
+
+| Change | Evidence |
+|---|---|
+| `amcp_write` takes `evidence: "full"` (the default, unchanged) or `"ref"`. With `"ref"`, inspect and prepare return a reference in place of the provider contract: its id, gateway, versions, review date, write status, live qualification and version end, and `full_contract`, the `amcp_tool_help` call whose `amcp_contract` is the whole contract (`providerContractReference`) | `tests/write-evidence.test.ts`, red before the change (the parameter was refused as unknown): the rest of `contract_evidence` is unchanged; following `full_contract` returns exactly the contract left out, for all 17 gateways a review can name; every reference is under 700 bytes |
+| The form is not part of the review: the same request, before-state, state hash, spending policy and fingerprint, and the review executes as any other | same test |
+| Any other value is refused on every `amcp_write` route, media included, before a provider read | same test: `"summary"`, `true` and `null` are refused with `INVALID_ARGUMENT` for inspect and prepare, with no request sent |
+| `amcp_campaign` prepares its steps with `evidence: "ref"` | same test: the prepared step and the stored run hold the reference |
+
+A Meta campaign prepare response drops from 7,171 to 2,660 bytes (its evidence from 5,290 to 781). A three-step Meta
+campaign run once its first step is prepared drops from 9,264 to 4,755 bytes, and each further prepared step saves
+about 4.5 KB more.

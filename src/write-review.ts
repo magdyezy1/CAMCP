@@ -161,7 +161,7 @@ import {googlePortfolioKind, readGooglePortfolioState} from './google-portfolio-
 import {googleConversionActionKind, readGoogleConversionActionState} from './google-conversion-actions.js';
 import {linkedinDSC, linkedinMediaProjection} from './linkedin-posts.js';
 import {writeImpact} from './write-impact.js';
-import {executionEvidence} from './contract-evidence.js';
+import {evidenceForm, executionEvidence} from './contract-evidence.js';
 import {Registry} from './catalog.js';
 import {Compiler} from './compiler.js';
 import {Store} from './store.js';
@@ -224,6 +224,12 @@ export const writeTool = {
         type: 'boolean',
         description:
           'Explicitly acknowledge a reviewed X card edit/deletion or Tweet rename that may disrupt promoted ads. Freeze this choice during prepare and repeat it during execute.',
+      },
+      evidence: {
+        type: 'string',
+        enum: ['full', 'ref'],
+        description:
+          'inspect and prepare: "full" (default) includes the provider contract whole; "ref" only what identifies it (versions, review date, write status, version end), with full_contract naming the amcp_tool_help call that returns the rest.',
       },
     },
     additionalProperties: false,
@@ -755,6 +761,7 @@ export class WriteReviewService {
         fail('INVALID_ARGUMENT', 'Unknown write-tool parameter.', {parameter: key});
     if (input.creative_edit_confirmed !== undefined && typeof input.creative_edit_confirmed !== 'boolean')
       fail('INVALID_ARGUMENT', 'creative_edit_confirmed must be a boolean.');
+    const evidence = evidenceForm(input.evidence);
     if (input.action === 'prepare' || input.action === 'inspect') {
       if (
         typeof input.gateway !== 'string' ||
@@ -829,7 +836,7 @@ export class WriteReviewService {
             network_requests: 0,
             review_contract_supported: true,
             request: redact(plan.gateway === 'google_business_native_action' ? placeActionSafe(plan) : plan),
-            contract_evidence: executionEvidence(plan),
+            contract_evidence: executionEvidence(plan, evidence),
             state_reads: reads.map(r => ({method: r.method, path: r.path})),
             live_permissions_verified: false,
             account_capability: accountCapability,
@@ -854,7 +861,7 @@ export class WriteReviewService {
             network_requests: 0,
             review_contract_supported: false,
             request: redact(plan.gateway === 'google_business_native_action' ? placeActionSafe(plan) : plan),
-            contract_evidence: executionEvidence(plan),
+            contract_evidence: executionEvidence(plan, evidence),
             error: {code: e.code, message: e.message, details: e.details, category: remedy.category, remedy},
             live_permissions_verified: false,
           };
@@ -921,6 +928,7 @@ export class WriteReviewService {
           arguments: input.arguments,
           ...(input.connection_id !== undefined ? {connection_id: input.connection_id} : {}),
           ...(input.creative_edit_confirmed === true ? {creative_edit_confirmed: true} : {}),
+          ...(input.evidence !== undefined ? {evidence: input.evidence} : {}),
         },
       });
       this.store.appendAudit(actor.tenantId, reviewId, {
@@ -936,7 +944,7 @@ export class WriteReviewService {
         idempotency_key: reviewId,
         expires_at: new Date(expiresAt).toISOString(),
         request: redact(plan.gateway === 'google_business_native_action' ? placeActionSafe(plan) : plan),
-        contract_evidence: executionEvidence(plan),
+        contract_evidence: executionEvidence(plan, evidence),
         before_state: redact(state),
         spend_policy: spendPolicy,
         state_hash: stateHash,

@@ -77,7 +77,7 @@ Read the resulting resource before describing it as complete. A created ID is no
 
 ## Troubleshooting
 
-`amcp_tool_help` exposes `amcp_contract`; reviewed inspect/prepare expose `contract_evidence` with official provenance when available. Keep catalog captures, vendor documentation, local tests and live account qualification separate. `VERIFICATION_INCONCLUSIVE` means bounded exact reads have not established the requested state. Continue the original read-only verification; never repeat the mutation under a new key. Error `category` and `remedy` identify contract, grant, provider and state failures without turning an HTTP status into a guessed permission diagnosis.
+`amcp_tool_help` exposes `amcp_contract`; reviewed inspect/prepare expose `contract_evidence` with official provenance when available. Once you have read a gateway's `amcp_contract`, pass `evidence: "ref"` to inspect/prepare to receive a reference to it instead of the whole contract again. Keep catalog captures, vendor documentation, local tests and live account qualification separate. `VERIFICATION_INCONCLUSIVE` means bounded exact reads have not established the requested state. Continue the original read-only verification; never repeat the mutation under a new key. Error `category` and `remedy` identify contract, grant, provider and state failures without turning an HTTP status into a guessed permission diagnosis.
 
 - `WRITE_ACCOUNT_FORBIDDEN`: inspect the selected connection's grant and the error's next step. There is one per-account grant, not separate campaign/ad grants. Preserve an administrator's explicit reader-only choice.
 - `WRITE_CONTRACT_UNAVAILABLE`: the particular route lacks a reviewed execution contract. Report this accurately; a native alias cannot bypass it.

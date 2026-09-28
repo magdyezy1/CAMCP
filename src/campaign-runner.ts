@@ -554,9 +554,17 @@ export class CampaignRunner {
           if (resolved.operation) resolved.arguments = {...resolved.arguments, account_id: next.account_id};
           else Object.assign(resolved, {account_id: next.account_id});
         }
+        // Each step keeps a reference to the provider contract: the whole one is a single amcp_tool_help call away
+        // and would otherwise repeat 1.3-6.6 KB in every step of the run and its responses (F-29).
         prepared = await this.call(
           'amcp_write',
-          {action: 'prepare', gateway: next.gateway, connection_id: next.connection_id, arguments: resolved},
+          {
+            action: 'prepare',
+            gateway: next.gateway,
+            connection_id: next.connection_id,
+            arguments: resolved,
+            evidence: 'ref',
+          },
           actor,
         );
       }
