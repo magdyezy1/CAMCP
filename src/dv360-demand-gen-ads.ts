@@ -1,11 +1,10 @@
-import fs from 'node:fs';
-import {fileURLToPath} from 'node:url';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {dv360AdGroupStateRead, readDV360AdGroups} from './dv360-demand-gen-ad-groups.js';
+import {pinnedJson} from './pinned-json.js';
 
 /**
  * Demand Gen ads on Display & Video 360 API v4, per the pinned Discovery document (AdGroupAd, DemandGenVideoAd,
@@ -59,11 +58,7 @@ const productActions = [
 const statuses = ['ENTITY_STATUS_ACTIVE', 'ENTITY_STATUS_PAUSED'];
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const numeric = (v: unknown) => /^[1-9]\d*$/.test(String(v ?? ''));
-let schemas: Record<string, JsonObject> | undefined;
-const models = () =>
-  (schemas ??= JSON.parse(
-    fs.readFileSync(fileURLToPath(new URL('../../.mirror/VENDOR/dv360-v4.json', import.meta.url)), 'utf8'),
-  ).document.schemas as Record<string, JsonObject>);
+const models = (): Record<string, JsonObject> => pinnedJson('.mirror/VENDOR/dv360-v4.json').document.schemas;
 function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
   throw new MirrorError(code, message, details, status);
 }

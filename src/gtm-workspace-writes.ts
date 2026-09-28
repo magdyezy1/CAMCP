@@ -1,10 +1,9 @@
-import fs from 'node:fs';
-import {fileURLToPath} from 'node:url';
 import {MirrorError} from './errors.js';
 import {stable, sha256} from './security.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {pinnedJson} from './pinned-json.js';
 
 const prefix = '/tagmanager/v2/';
 const workspacePattern = 'accounts/[A-Za-z0-9_-]+/containers/[A-Za-z0-9_-]+/workspaces/[A-Za-z0-9_-]+';
@@ -45,11 +44,7 @@ function fail(code: string, message: string): never {
 function invalid(message: string): never {
   return fail('INVALID_GTM_REQUEST', message);
 }
-let document: JsonObject | undefined;
-const schemas = () =>
-  (document ??= JSON.parse(
-    fs.readFileSync(fileURLToPath(new URL('../../.mirror/VENDOR/gtm-v2.json', import.meta.url)), 'utf8'),
-  ).document).schemas;
+const schemas = (): JsonObject => pinnedJson('.mirror/VENDOR/gtm-v2.json').document.schemas;
 export function gtmWorkspaceKind(p: CompiledRequest): Workflow | undefined {
   const action = p.action.split('/').at(-1) as Workflow,
     c = gtmWorkspaceContracts[action];

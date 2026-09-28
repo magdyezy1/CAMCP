@@ -1,8 +1,7 @@
-import fs from 'node:fs';
-import {fileURLToPath} from 'node:url';
 import {MirrorError} from './errors.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import {pinnedJson} from './pinned-json.js';
 
 const variants: Record<string, {input: string; fields: string[]; details: string}> = {
   TARGETING_TYPE_GEO_REGION: {input: 'geoRegionSearchTerms', fields: ['geoRegionQuery'], details: 'geoRegionDetails'},
@@ -28,11 +27,7 @@ function fail(message: string, code = 'INVALID_DV360_SEARCH'): never {
         : 400,
   );
 }
-let schema: Record<string, JsonObject> | undefined;
-const models = () =>
-  (schema ??= JSON.parse(
-    fs.readFileSync(fileURLToPath(new URL('../../.mirror/VENDOR/dv360-v4.json', import.meta.url)), 'utf8'),
-  ).document.schemas);
+const models = (): Record<string, JsonObject> => pinnedJson('.mirror/VENDOR/dv360-v4.json').document.schemas;
 
 /** The exact documented POST search creates no assignment, list, task or job.
  * Metadata may wrongly call it a write; shape and advertiser scope are separate. */

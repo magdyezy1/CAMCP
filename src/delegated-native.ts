@@ -1,11 +1,10 @@
-import fs from 'node:fs';
-import {fileURLToPath} from 'node:url';
 import {Ajv} from 'ajv';
 import addFormatsModule from 'ajv-formats';
 import {MirrorError} from './errors.js';
 import {guardInput, stable as stableStringify} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {redditAudienceRoutes} from './reddit-extensions.js';
+import {pinnedJson} from './pinned-json.js';
 
 export interface VendorRoute {
   gateway: string;
@@ -312,11 +311,7 @@ export class DelegatedNativeCompiler {
       type: 'string',
       validate: (value: string) => /^[1-9][0-9]{0,18}$/.test(value) && BigInt(value) <= 9223372036854775807n,
     });
-    const source =
-      data ??
-      JSON.parse(
-        fs.readFileSync(fileURLToPath(new URL('../../generated/vendor-routes.json', import.meta.url)), 'utf8'),
-      );
+    const source = data ?? pinnedJson<VendorRoutes>('generated/vendor-routes.json');
     // Direct Google Ads compilation and ProtoJSON validation have their own entry
     // point. A vendor snapshot must not accidentally create a second delegated API.
     this.data = {...source, routes: source.routes.filter((r: VendorRoute) => r.gateway !== 'google_ads_native_action')};

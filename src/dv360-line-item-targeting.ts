@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-import {fileURLToPath} from 'node:url';
 import {MirrorError} from './errors.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import {dv360AdGroupStateRead} from './dv360-demand-gen-ad-groups.js';
@@ -7,6 +5,7 @@ import {dv360AudienceCollections} from './dv360-audiences.js';
 import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {pinnedJson} from './pinned-json.js';
 
 /**
  * Reviewed DV360 targeting of line items and advertisers, per Display & Video 360 API v4 (checked 2026-09-26):
@@ -241,11 +240,7 @@ function decoded(value: string): string | undefined {
 }
 const sameName = (actual: unknown, expected: string) =>
   typeof actual === 'string' && decoded(actual) !== undefined && decoded(actual) === decoded(expected);
-let schemas: Record<string, JsonObject> | undefined;
-const models = () =>
-  (schemas ??= JSON.parse(
-    fs.readFileSync(fileURLToPath(new URL('../../.mirror/VENDOR/dv360-v4.json', import.meta.url)), 'utf8'),
-  ).document.schemas as Record<string, JsonObject>);
+const models = (): Record<string, JsonObject> => pinnedJson('.mirror/VENDOR/dv360-v4.json').document.schemas;
 /** TARGETING_TYPE_GEO_REGION → geoRegionDetails, the union member that must match the targeting type. */
 export const dv360DetailsField = (type: string) =>
   type

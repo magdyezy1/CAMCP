@@ -1,9 +1,8 @@
-import fs from 'node:fs';
-import {fileURLToPath} from 'node:url';
 import {MirrorError} from './errors.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {pinnedJson} from './pinned-json.js';
 
 export const dv360ListContracts = {
   channels: {
@@ -63,11 +62,7 @@ function decoded(value: string): string | undefined {
 const keyword = (value: string) => value.replace(/%20/gi, ' ').trim();
 const sameName = (actual: unknown, expected: string) =>
   typeof actual === 'string' && decoded(actual) !== undefined && decoded(actual) === decoded(expected);
-let schemas: Record<string, JsonObject> | undefined;
-const models = () =>
-  (schemas ??= JSON.parse(
-    fs.readFileSync(fileURLToPath(new URL('../../.mirror/VENDOR/dv360-v4.json', import.meta.url)), 'utf8'),
-  ).document.schemas);
+const models = (): Record<string, JsonObject> => pinnedJson('.mirror/VENDOR/dv360-v4.json').document.schemas;
 export function dv360ListKind(p: CompiledRequest): Contract | undefined {
   if (
     p.gateway !== 'dv360_native_action' ||

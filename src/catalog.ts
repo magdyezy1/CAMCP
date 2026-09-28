@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-import {fileURLToPath} from 'node:url';
 import {Ajv} from 'ajv';
 import addFormatsModule from 'ajv-formats';
 import type {Action, CallOptions, Catalog, RegistryData, ToolDefinition, JsonObject} from './types.js';
@@ -15,11 +13,14 @@ import {extendAdjustTool} from './adjust-extensions.js';
 import {metaActionOverride} from './meta-contracts.js';
 import {catalogVersions} from './catalog-versions.js';
 import {extendXReportTool} from './x-report-jobs.js';
+import {pinnedJson} from './pinned-json.js';
 const addFormats = addFormatsModule as unknown as (ajv: Ajv) => void;
 export class Registry {
   readonly data: RegistryData;
   readonly tools = new Map<string, ToolDefinition>();
   readonly catalogs = new Map<string, Catalog>();
+  // Validators compile on first use: constructing a registry stays cheap, and a process pays only for the tools it calls.
+  private schemas = new Map<string, JsonObject>();
   private validators = new Map<string, ReturnType<Ajv['compile']>>();
   private routes = new Map<string, Action>();
   private ajv = new Ajv({
@@ -31,9 +32,7 @@ export class Registry {
     validateFormats: true,
   });
   constructor(data?: RegistryData) {
-    this.data =
-      data ??
-      JSON.parse(fs.readFileSync(fileURLToPath(new URL('../../generated/registry.json', import.meta.url)), 'utf8'));
+    this.data = data ?? pinnedJson<RegistryData>('generated/registry.json');
     addFormats(this.ajv);
     for (const original of this.data.tools) {
       const tool =
@@ -51,9 +50,8 @@ export class Registry {
                     ? extendAdjustTool(original)
                     : (catalogVersions[original.name]?.tool?.(original) ?? original);
       this.tools.set(tool.name, tool);
-      this.validators.set(tool.name, this.ajv.compile(tool.inputSchema));
-      for (const op of tool.operations ?? [])
-        this.validators.set(tool.name + '/' + op.operation, this.ajv.compile(op.argumentsSchema));
+      this.schemas.set(tool.name, tool.inputSchema);
+      for (const op of tool.operations ?? []) this.schemas.set(tool.name + '/' + op.operation, op.argumentsSchema);
     }
     for (const original of this.data.catalogs) {
       const actions =
@@ -70,7 +68,7 @@ export class Registry {
       for (const action of appleActions) this.register('apple_ads_native_action', action, false);
     if (this.tools.has('amcp_tool_help')) {
       this.tools.set(microsoftGateway, microsoftTool);
-      this.validators.set(microsoftGateway, this.ajv.compile(microsoftTool.inputSchema));
+      this.schemas.set(microsoftGateway, microsoftTool.inputSchema);
       this.catalogs.set(microsoftGateway, {
         gateway: microsoftGateway,
         mode: 'direct',
@@ -84,6 +82,17 @@ export class Registry {
       });
       for (const a of microsoftActions) this.register(microsoftGateway, a);
     }
+  }
+  private validator(key: string) {
+    let compiled = this.validators.get(key);
+    const schema = this.schemas.get(key);
+    if (!compiled && schema) this.validators.set(key, (compiled = this.ajv.compile(schema)));
+    return compiled;
+  }
+  /** Compiles every validator now, so a schema Ajv cannot compile fails a test rather than a tool's first call. */
+  compileAll() {
+    for (const key of this.schemas.keys()) this.validator(key);
+    return this.validators.size;
   }
   private register(gateway: string, action: Action, strict = true) {
     const names = new Set([action.name, action.canonical_name, ...action.aliases]);
@@ -112,13 +121,13 @@ export class Registry {
     if (options.mode === 'enhanced')
       for (const key of ['native_request', ...(options.flags.uniformIdempotency ? ['idempotency_key'] : [])])
         delete checkInput[key];
-    const validator = this.validators.get(tool)!;
+    const validator = this.validator(tool)!;
     if (!validator(checkInput))
       throw new MirrorError('INVALID_ARGUMENT', 'Arguments do not satisfy the captured gateway schema.', {
         errors: validator.errors,
       });
     if (definition.mode === 'delegated') {
-      const nested = this.validators.get(tool + '/' + input.operation);
+      const nested = this.validator(tool + '/' + input.operation);
       if (!nested || !nested(input.arguments ?? {}))
         throw new MirrorError('INVALID_ARGUMENT', 'Arguments do not satisfy the captured operation schema.', {
           errors: nested?.errors,
