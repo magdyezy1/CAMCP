@@ -224,7 +224,7 @@ export class MirrorService {
   if(connectionDiagnosticKind(gateway,operation,args.action))return connectionDiagnostics(this.store,gateway,operation,args,actor,this.policy.allowWrites);
   if(gateway==='amcp_native_action'&&operation==='search_ads_library')return searchMetaAdLibrary(this.registry,this.store,this.transport,this.credentials,args,actor,requestId);
   if(gateway==='amcp_native_action'&&operation==='fetch_meta_existing_posts')return fetchMetaExistingPosts(this.store,this.transport,this.credentials,args,actor,requestId);
-  if(gateway==='amcp_native_action'&&operation==='inspect_google_drive_media'){this.store.assertActorActive(actor);return inspectDrive(args.link,this.mediaFetcher);}
+  if(gateway==='amcp_native_action'&&operation==='inspect_google_drive_media'){this.store.assertActorActive(actor);return inspectDrive(args.link,this.mediaFetcher,actor.tenantId);}
   if(gateway==='amcp_native_action'&&operation==='platform_media_upload'){
    if(args.action==='FINALIZE_UPLOAD_SESSION'){
     if(Object.keys(args).some(k=>!['action','upload_session_id','idempotency_key','confirmed','dry_run'].includes(k)))throw new MirrorError('INVALID_ARGUMENT','Finalize uses only the frozen review.');

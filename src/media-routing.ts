@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import {driveDownloadUrl,downloadDriveMedia,MAX_MEDIA_BYTES} from './drive-media.js';
-import {sha256,stable} from './security.js';
+import {createHash} from 'node:crypto';
+import {stable} from './security.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 
 export const mediaPlatforms=['meta','tiktok','snapchat','google_ads','linkedin','x_ads','dv360'];
@@ -89,7 +90,19 @@ export function mediaNext(result:JsonObject):JsonObject {
  if(!result.review_id||result.executed||result.already_in_library||result.confirmation_required!==true)return result;
  return {...result,client_download_required:false,next_call:{tool:'amcp_write',arguments:{action:'execute',review_id:result.review_id,idempotency_key:result.idempotency_key,confirmed:true}}};
 }
-export async function inspectDrive(link:string,fetcher:typeof fetch):Promise<JsonObject> {
- const url=driveDownloadUrl(link),file=await downloadDriveMedia(link,fetcher);
- return {files:[{google_drive_file_id:url.searchParams.get('id'),...(url.searchParams.has('resourcekey')?{google_drive_resource_key:url.searchParams.get('resourcekey')}:{ }),url:link,media_type:file.kind,mime_type:file.mime,size_bytes:file.bytes.length,sha256:sha256(file.bytes)}],client_download_required:false,next_operation:'platform_media_upload',supported_platforms:mediaPlatforms};
+/** Drive inspections in progress: at most one per workspace and four per process, each streaming up to the media limit. */
+const inspecting=new Map<string,number>();
+/** Hashes and counts a download and keeps only the leading bytes that identify its type, never the file. */
+function digestSink(){
+ const hash=createHash('sha256'),head:Buffer[]=[];let size=0,kept=0;
+ return {sink:{write(bytes:Uint8Array){hash.update(bytes);size+=bytes.length;if(kept<64){const part=Buffer.from(bytes.subarray(0,64-kept));head.push(part);kept+=part.length;}},finish:()=>Buffer.concat(head)},digest:()=>({size,sha256:hash.digest('hex')})};
+}
+export async function inspectDrive(link:string,fetcher:typeof fetch,workspace=''):Promise<JsonObject> {
+ const url=driveDownloadUrl(link),total=[...inspecting.values()].reduce((a,b)=>a+b,0);
+ if(inspecting.has(workspace)||total>=4)throw new MirrorError('MEDIA_INSPECTION_BUSY',inspecting.has(workspace)?'This workspace is already inspecting a Drive file. Try again when it finishes.':'The server is inspecting other Drive files. Try again shortly.',{},429,true);
+ inspecting.set(workspace,1);
+ try{
+  const counter=digestSink(),file=await downloadDriveMedia(link,fetcher,counter.sink),{size,sha256:digest}=counter.digest();
+  return {files:[{google_drive_file_id:url.searchParams.get('id'),...(url.searchParams.has('resourcekey')?{google_drive_resource_key:url.searchParams.get('resourcekey')}:{ }),url:link,media_type:file.kind,mime_type:file.mime,size_bytes:size,sha256:digest}],client_download_required:false,next_operation:'platform_media_upload',supported_platforms:mediaPlatforms};
+ }finally{inspecting.delete(workspace);}
 }
