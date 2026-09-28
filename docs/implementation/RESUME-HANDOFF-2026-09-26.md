@@ -1158,7 +1158,16 @@ Tests: `tests/linkedin-lead-form-states.test.mjs` (3), red on `3a3a46d` / green 
 
 - New reviewed family `linkedin_entity_deletes` (`src/linkedin-entity-deletes.ts`) for BATCH_DELETE of DRAFT campaign groups without campaigns and of creatives that are DRAFT or in DRAFT campaigns, two rows. A partial reply is a failure that is never resubmitted.
 
-Tests: `tests/linkedin-entity-deletes.test.mjs` (3), red on `2e16202` / green after.
+Tests: `tests/linkedin-entity-deletes.test.mjs` (3), red on `2e16202` / green after. Committed as `0319a4c`.
+
+## Finished batch — TikTok library image edits (2026-09-27)
+
+[Implementation](TIKTOK-IMAGE-EDITS-2026-09-27.md) and
+[qualification](TIKTOK-IMAGE-EDITS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `tiktok_image_edits` (`src/tiktok-image-edits.ts`) for resized copies of library images (crop or Gaussian blur padding), one row, with the source image read first and the new image read back.
+
+Tests: `tests/tiktok-image-edits.test.mjs` (3), red on `0319a4c` / green after.
 
 ## CI and live evidence
 
@@ -1172,19 +1181,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 719 in reviewed write families. **706 remaining rows** are in
+3241 captured actions; 720 in reviewed write families. **705 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 597 |
+| blocked_write | 596 |
 | unmapped | 79 |
 | unqualified_read | 17 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 169, Meta 114, LinkedIn 91, Snapchat 66,
+Blocked writes by platform: TikTok 168, Meta 114, LinkedIn 91, Snapchat 66,
 Google Ads 57, X 35, DV360 30, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

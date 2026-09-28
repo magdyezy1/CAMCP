@@ -662,6 +662,18 @@ failure never resubmitted: the other assets may be gone, so search them before t
 Verification searches the assets again: the new name (or with TikTok's timestamp), or the deleted
 assets gone. `INVALID_TIKTOK_LIBRARY_ASSET` names the field to correct.
 
+Image edits: `tiktok_creative_image_edit_get` with `payload: {advertiser_id, image_id, width,
+height, edit_method, image_name}` adds a resized copy of a library image to the library and
+returns its new `image_id`. `edit_method` is `fix_size` (crop to the size, the default),
+`only_gauss_pad` (pad with Gaussian blur, no cropping) or `gauss_padding_reserve_score` (pad
+around the main subject); width and height are whole pixels; the optional `image_name` follows
+library names (1–100 characters). AMCP searches the source image first: one the advertiser does
+not have is `STATE_NOT_FOUND`, and an edit to the size it already has is refused. The source image
+and its ads are unchanged, so nothing needs spending confirmation. A non-zero `code` is a failure
+never resubmitted. Verification searches the new image and compares its size and name (a taken
+name may end with TikTok's millisecond timestamp). `INVALID_TIKTOK_IMAGE_EDIT` names the field to
+correct.
+
 Reference: TikTok API for Business v1.3 "Update the name of an image", "Update the name of a
 video" and "Delete creative assets"
 (https://business-api.tiktok.com/portal/docs/delete-creative-assets/v1.3), checked 2026-09-27.

@@ -8,6 +8,17 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## FJ — TikTok library image edits (2026-09-27)
+
+TikTok library images can now be edited into resized copies through reviewed requests that read the
+source image, refuse an edit to its current size and read the new image back. See
+[implementation](TIKTOK-IMAGE-EDITS-2026-09-27.md),
+[qualification](TIKTOK-IMAGE-EDITS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 705 (one TikTok row reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## FI — LinkedIn campaign group and creative batch deletion (2026-09-27)
 
 DRAFT LinkedIn campaign groups and deletable creatives can now be deleted in batches through reviewed
@@ -17,7 +28,7 @@ LinkedIn would not delete, never resubmit a partial reply and read each entity b
 [qualification](LINKEDIN-ENTITY-DELETES-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 706 (two LinkedIn rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 706 (two LinkedIn rows reviewed). Committed as `0319a4c`; its exact-commit CI result
 and live acceptance are pending.
 
 ## FH — LinkedIn lead form publishing and archiving (2026-09-27)

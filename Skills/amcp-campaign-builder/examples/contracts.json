@@ -1519,6 +1519,21 @@
       }
     },
     {
+      "gateway": "tiktok_native_action",
+      "arguments": {
+        "action": "tiktok_creative_image_edit_get",
+        "account_id": "123",
+        "payload": {
+          "advertiser_id": "123",
+          "image_id": "ad-site-i18n-sg/202609215d0d5ff24f8b2e5a4e15b8ea",
+          "edit_method": "fix_size",
+          "width": 640,
+          "height": 640,
+          "image_name": "Spring hero square.jpg"
+        }
+      }
+    },
+    {
       "gateway": "linkedin_native_action",
       "arguments": {
         "action": "linkedin_rest_ad_accounts_ad_account_id_ad_campaign_groups_delete",
