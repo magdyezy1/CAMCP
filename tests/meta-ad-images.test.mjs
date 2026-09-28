@@ -46,7 +46,7 @@ function fixture(mode = '') {
         path = u.pathname,
         method = init.method;
       calls.push({path, method, query: Object.fromEntries(u.searchParams)});
-      if (path !== '/v25.0/act_123/adimages') throw new Error('Unexpected ' + method + ' ' + path);
+      if (path !== '/v26.0/act_123/adimages') throw new Error('Unexpected ' + method + ' ' + path);
       if (method === 'GET') {
         const hashes = JSON.parse(u.searchParams.get('hashes') ?? '[]');
         return Response.json({

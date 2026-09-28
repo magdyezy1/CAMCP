@@ -10,7 +10,7 @@ const plan = (fields = {}) => ({
   gateway: 'meta_native_action',
   action: 'meta_ad_account_id_adlabels_create',
   method: 'POST',
-  path: '/v25.0/act_123/adlabels',
+  path: '/v26.0/act_123/adlabels',
   query: {},
   headers: {},
   body: {name: 'Label'},

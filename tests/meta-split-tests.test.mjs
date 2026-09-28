@@ -106,29 +106,29 @@ function fixture(o = {}) {
         f = u.searchParams.get('fields');
       calls.push({path, method});
       if (method === 'GET') {
-        if (path === '/v25.0/act_123')
+        if (path === '/v26.0/act_123')
           return Response.json({
             id: 'act_123',
             ...(f.includes('business') ? {business: {id: '555', name: 'Synthetic business'}} : {}),
           });
-        if (path === '/v25.0/act_123/adsets')
+        if (path === '/v26.0/act_123/adsets')
           return Response.json({
             data: [...adsets].map(([id, a]) => ({id, ...pick(a, f ?? 'name')})),
             paging: {cursors: {before: 'b', after: 'a'}},
           });
-        if (path === '/v25.0/act_123/campaigns')
+        if (path === '/v26.0/act_123/campaigns')
           return Response.json({
             data: [...campaigns].map(([id, c]) => ({id, ...pick(c, f ?? 'name')})),
             paging: {cursors: {before: 'b', after: 'a'}},
           });
-        let m = /^\/v25\.0\/(\d+)\/ad_studies$/.exec(path);
+        let m = /^\/v26\.0\/(\d+)\/ad_studies$/.exec(path);
         if (m)
           return Response.json({
             data: [...studies]
               .filter(([, s]) => s.cells.some(c => [...c.adsets, ...c.campaigns].includes(m[1])))
               .map(([id, s]) => ({id, type: s.type, start_time: iso(s.start_time), end_time: iso(s.end_time)})),
           });
-        m = /^\/v25\.0\/(\d+)\/cells$/.exec(path);
+        m = /^\/v26\.0\/(\d+)\/cells$/.exec(path);
         if (m && studies.has(m[1])) {
           assert.equal(f, 'name,treatment_percentage,adsets.limit(100){id},campaigns.limit(100){id}');
           return Response.json({
@@ -141,7 +141,7 @@ function fixture(o = {}) {
             })),
           });
         }
-        m = /^\/v25\.0\/(\d+)$/.exec(path);
+        m = /^\/v26\.0\/(\d+)$/.exec(path);
         if (m && adsets.has(m[1])) return Response.json({id: m[1], ...pick(adsets.get(m[1]), f)});
         if (m && campaigns.has(m[1])) return Response.json({id: m[1], ...pick(campaigns.get(m[1]), f)});
         if (m && studies.has(m[1])) {
@@ -162,7 +162,7 @@ function fixture(o = {}) {
       writes++;
       const b = Object.fromEntries(new URLSearchParams(String(init.body ?? '')));
       if (o.mode === 'error') return Response.json({error: {message: 'Invalid parameter', code: 100}}, {status: 400});
-      if (path === '/v25.0/555/ad_studies') {
+      if (path === '/v26.0/555/ad_studies') {
         const id = String(next++),
           cells = JSON.parse(b.cells);
         if (o.mode !== 'ignore')
@@ -182,7 +182,7 @@ function fixture(o = {}) {
           });
         return Response.json({id});
       }
-      const m = /^\/v25\.0\/(\d+)$/.exec(path);
+      const m = /^\/v26\.0\/(\d+)$/.exec(path);
       if (m && studies.has(m[1])) {
         const s = studies.get(m[1]);
         if (o.mode !== 'ignore') {

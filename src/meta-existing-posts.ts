@@ -4,6 +4,7 @@ import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import type {NativeTransport} from './transport.js';
 import type {CredentialProvider} from './auth.js';
+import {metaApiVersion, metaPrefix} from './meta-version.js';
 
 export const metaPostActions = [
   'GET_PAGE_POSTS',
@@ -15,7 +16,7 @@ export const metaPostActions = [
 ];
 const gateway = 'meta_native_action',
   origin = 'https://graph.facebook.com',
-  version = '/v25.0/';
+  version = metaPrefix;
 export const metaPostFields = {
   facebook: ['id', 'from', 'message', 'created_time', 'permalink_url', 'is_published'],
   instagram: ['id', 'owner', 'caption', 'media_type', 'media_product_type', 'permalink', 'timestamp'],
@@ -540,7 +541,7 @@ export async function fetchMetaExistingPosts(
     ...(v.lookup ? {found: matched, search_complete: !hasMore && !resumed} : {}),
     ...(next ? {next_call: next, cursor_expires_in_seconds: 900} : {}),
     ...(hasMore && !matched ? {incomplete_reason: v.lookup ? 'search_bound' : 'requested_result_limit'} : {}),
-    source: 'Meta Graph API v25.0',
+    source: 'Meta Graph API ' + metaApiVersion,
     fetched_at: new Date().toISOString(),
     qualification:
       'Account identity and native content owner checked. This is not proof of advertising eligibility, permissions to edit content, or successful creative creation. Facebook lists cover Page-owned posts; Instagram lists cover the linked professional account’s media. Deleted or unavailable posts may be absent.',

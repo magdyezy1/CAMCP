@@ -43,7 +43,7 @@ function fixture() {
       calls.push({path: u.pathname, method});
       if (method === 'GET') {
         reads++;
-        if (u.pathname === '/v25.0/act_123/account_controls') {
+        if (u.pathname === '/v26.0/act_123/account_controls') {
           // Meta reorders lists and moves the status while it applies controls.
           const shown = controls
             ? {
@@ -59,18 +59,18 @@ function fixture() {
             paging: {cursors: {before: 'b' + reads, after: 'a' + reads}},
           });
         }
-        if (u.pathname === '/v25.0/act_123/publisher_block_lists')
+        if (u.pathname === '/v26.0/act_123/publisher_block_lists')
           return Response.json({
             data: structuredClone(lists),
             ...(mode === 'many_lists'
-              ? {paging: {next: 'https://graph.facebook.com/v25.0/act_123/publisher_block_lists?after=x'}}
+              ? {paging: {next: 'https://graph.facebook.com/v26.0/act_123/publisher_block_lists?after=x'}}
               : {}),
           });
         throw new Error('Unexpected read ' + u.pathname);
       }
       writes++;
       const body = Object.fromEntries(new URLSearchParams(String(init.body ?? '')));
-      if (u.pathname === '/v25.0/act_123/account_controls') {
+      if (u.pathname === '/v26.0/act_123/account_controls') {
         if (mode === 'refused')
           return Response.json({
             id: '555',
@@ -84,7 +84,7 @@ function fixture() {
         };
         return Response.json({id: '555', success: true});
       }
-      if (u.pathname === '/v25.0/act_123/publisher_block_lists') {
+      if (u.pathname === '/v26.0/act_123/publisher_block_lists') {
         const id = String(602 + lists.length);
         lists.push({id, name: body.name});
         return Response.json({id});

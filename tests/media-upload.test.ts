@@ -104,7 +104,7 @@ function fixture(
       if (
         options.statusResponse &&
         [
-          '/v25.0/456',
+          '/v26.0/456',
           '/v1/media/456',
           '/rest/images/urn%3Ali%3Aimage%3A456',
           '/rest/videos/urn%3Ali%3Avideo%3A456',
@@ -116,7 +116,7 @@ function fixture(
         return reply(
           path.endsWith('/adimages')
             ? {data: [{hash: 'hash456'}]}
-            : path === '/v25.0/456'
+            : path === '/v26.0/456'
               ? {id: '456', status: {video_status: 'ready'}}
               : {id: 'act_123', account_status: 1, currency: 'USD', ...extra},
         );

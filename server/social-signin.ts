@@ -6,6 +6,7 @@ import {sha256} from '../src/security.js';
 import type {JsonObject} from '../src/types.js';
 import {cookieValue, type WebSession} from './web-store.js';
 import {UserAccounts, accountEmail, accountName} from './user-accounts.js';
+import {metaDialogUrl, metaGraphUrl} from '../src/meta-version.js';
 
 const random = () => randomBytes(32).toString('base64url');
 const definitions = {
@@ -27,8 +28,8 @@ const definitions = {
   },
   facebook: {
     name: 'Facebook',
-    authorize: 'https://www.facebook.com/v25.0/dialog/oauth',
-    token: 'https://graph.facebook.com/v25.0/oauth/access_token',
+    authorize: metaDialogUrl,
+    token: metaGraphUrl('oauth/access_token'),
     jwks: '',
     issuer: [],
     scope: 'public_profile,email',
@@ -213,7 +214,7 @@ export class SocialSignIn {
       if (typeof tokens.access_token !== 'string' || tokens.access_token.length > 8192)
         throw new MirrorError('SIGNIN_IDENTITY_INVALID', 'Facebook did not return a valid identity.');
       const proof = createHmac('sha256', c.secret!).update(tokens.access_token).digest('hex'),
-        info = await this.json('https://graph.facebook.com/v25.0/me?fields=id,name&appsecret_proof=' + proof, {
+        info = await this.json(metaGraphUrl('me?fields=id,name&appsecret_proof=') + proof, {
           headers: {Authorization: 'Bearer ' + tokens.access_token},
         });
       if (typeof info.id !== 'string' || !/^\d{1,100}$/.test(info.id))

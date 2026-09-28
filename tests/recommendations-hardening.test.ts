@@ -57,7 +57,7 @@ const policyPlan: CompiledRequest = {
   accountId: '123',
   action: 'meta_adset_update',
   method: 'POST',
-  path: '/v25.0/456',
+  path: '/v26.0/456',
   query: {},
   body: {daily_budget: 120},
   headers: {},
@@ -575,20 +575,20 @@ test('Meta preflight requires the actual Page and conversion pixel using only ac
           actor,
           {
             ...policyPlan,
-            path: '/v25.0/act_123/adcreatives',
+            path: '/v26.0/act_123/adcreatives',
             body: {object_story_spec: {page_id: '456', link_data: {link: 'https://example.test/'}}},
           },
           'meta_native_action',
         ),
       /Facebook Page/,
     );
-    assert.equal(calls[0]!.path, '/v25.0/act_123/promote_pages');
+    assert.equal(calls[0]!.path, '/v26.0/act_123/promote_pages');
     await assert.rejects(
       () =>
         metaPrerequisites(
           service,
           actor,
-          {...policyPlan, path: '/v25.0/act_123/adsets', body: {optimization_goal: 'OFFSITE_CONVERSIONS'}},
+          {...policyPlan, path: '/v26.0/act_123/adsets', body: {optimization_goal: 'OFFSITE_CONVERSIONS'}},
           'meta_native_action',
         ),
       /pixel and conversion/,
@@ -600,7 +600,7 @@ test('Meta preflight requires the actual Page and conversion pixel using only ac
           actor,
           {
             ...policyPlan,
-            path: '/v25.0/act_123/adsets',
+            path: '/v26.0/act_123/adsets',
             body: {optimization_goal: 'VALUE', promoted_object: {pixel_id: '789', custom_event_type: 'PURCHASE'}},
           },
           'meta_native_action',

@@ -7,6 +7,7 @@ import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import type {NativeTransport} from './transport.js';
 import type {CredentialProvider} from './auth.js';
+import {metaPrefix} from './meta-version.js';
 
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const invalid = (message: string, code = 'INVALID_AD_LIBRARY_SEARCH'): never => {
@@ -74,7 +75,7 @@ export function metaAdLibraryRead(p: CompiledRequest): boolean {
     !p.readOnly ||
     p.body !== undefined ||
     p.specialTransport ||
-    p.path !== '/v25.0/ads_archive' ||
+    p.path !== metaPrefix + 'ads_archive' ||
     p.origin !== 'https://graph.facebook.com' ||
     Object.keys(p.headers).length
   )
@@ -192,7 +193,7 @@ export async function searchMetaAdLibrary(
       gateway: 'meta_native_action',
       action: 'AMCP_META_AD_LIBRARY_READ',
       method: 'GET',
-      path: '/v25.0/ads_archive',
+      path: metaPrefix + 'ads_archive',
       origin: 'https://graph.facebook.com',
       query: {...base, limit: Math.min(100, base.limit - ads.length), ...(after ? {after} : {})},
       headers: {},

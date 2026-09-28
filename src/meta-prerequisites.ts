@@ -1,6 +1,7 @@
 import type {MirrorService} from './service.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
+import {metaPrefix} from './meta-version.js';
 
 export async function metaPrerequisites(
   service: MirrorService,
@@ -33,7 +34,7 @@ export async function metaPrerequisites(
       {
         ...plan,
         method: 'GET',
-        path: '/v25.0/act_' + plan.accountId + '/' + edge,
+        path: metaPrefix + 'act_' + plan.accountId + '/' + edge,
         body: undefined,
         query: {fields: 'id', limit: 100},
         readOnly: true,

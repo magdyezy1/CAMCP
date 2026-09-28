@@ -1,28 +1,28 @@
 {
-  "api_version": "v25.0",
-  "sdk_tag": "25.0.3",
-  "checked_at": "2026-09-20",
+  "api_version": "v26.0",
+  "sdk_tag": "26.0.2",
+  "checked_at": "2026-09-28",
   "meaning": "Official SDK schemas and read edges only; permissions, content eligibility and live responses require provider qualification.",
   "sources": {
     "page": {
-      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/25.0.3/facebook_business/adobjects/page.py",
-      "sha256": "ea86aa97c54b67eb08bd72fd868b57a602ea45978d1495ed7dacf85bde8d1c63"
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/page.py",
+      "sha256": "0d08e317fe078de5ad2805ab5501423fe51fea39ef90ae4a0160122a5914ee51"
     },
     "pagepost": {
-      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/25.0.3/facebook_business/adobjects/pagepost.py",
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/pagepost.py",
       "sha256": "b0b2009a0667ad57914423284877b104068dca1af4bdfb7f6543b0bec41f0b16"
     },
     "iguser": {
-      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/25.0.3/facebook_business/adobjects/iguser.py",
-      "sha256": "b9e5fc8f9347acc9fcdcd9033cf14ed1c4dc2d784b9756d4dba9e3757cafe2e8"
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/iguser.py",
+      "sha256": "591390f8d11e39da80e65e843e9d660d20f9aa962eda0b107c6035ee100ee666"
     },
     "igmedia": {
-      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/25.0.3/facebook_business/adobjects/igmedia.py",
-      "sha256": "243afd286ea7157747fd8dd1768a9b830867268a407f181684ce8c69dfd74aad"
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/igmedia.py",
+      "sha256": "0aa03916e0720628c0155889613cf60f0bf3a5eb4957c1a107e01793b2e3442b"
     },
     "adaccount": {
-      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/25.0.3/facebook_business/adobjects/adaccount.py",
-      "sha256": "7349d7ec8da801a33d37f7a02c67e163cfa7ebcc23eb2a5969adcc093d0a2b7e"
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/adaccount.py",
+      "sha256": "dd0a0d1acbc9c3a690f20f8b4ec28c7868211688a9973885c607660865313df6"
     }
   },
   "routes": {
@@ -117,11 +117,20 @@
       "has_slider": "bool",
       "id": "string",
       "ig_id": "string",
+      "ingest_first_video_received_time": "int",
+      "ingest_is_ready_to_start": "bool",
+      "ingest_key": "string",
+      "ingest_last_heartbeat_time": "int",
+      "ingest_state": "string",
+      "ingest_url": "string",
+      "ingest_video_height": "int",
+      "ingest_video_width": "int",
       "is_ai_generated": "bool",
       "is_comment_enabled": "bool",
       "is_shared_to_feed": "bool",
       "legacy_instagram_media_id": "string",
       "like_count": "int",
+      "live_status": "string",
       "media_audio_type": "string",
       "media_product_type": "string",
       "media_type": "string",

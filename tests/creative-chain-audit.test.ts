@@ -64,8 +64,8 @@ function fixture(platform: string) {
     calls.push({path, method, body: b, query: Object.fromEntries(url.searchParams)});
     if (platform === 'meta') {
       if (method === 'GET') {
-        if (path === '/v25.0/act_123') return Response.json({id: 'act_123', account_status: 1, currency: 'USD'});
-        if (path === '/v25.0/act_123/promote_pages') return Response.json({data: [{id: '500'}]});
+        if (path === '/v26.0/act_123') return Response.json({id: 'act_123', account_status: 1, currency: 'USD'});
+        if (path === '/v26.0/act_123/promote_pages') return Response.json({data: [{id: '500'}]});
         if (path.endsWith('/adimages')) return Response.json({data: [{hash: 'imagehash123'}]});
         return Response.json(records.get(path.split('/').at(-1)!) ?? {id: '200', name: 'Parent', status: 'PAUSED'});
       }

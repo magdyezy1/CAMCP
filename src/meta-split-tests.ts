@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {metaPrefix, metaRoute} from './meta-version.js';
 
 /**
  * Meta split tests, Marketing API v25.0 ("Ad Study" reference, updated 2026-03-24; "Split Testing" guide, updated
@@ -42,11 +43,11 @@ function invalid(message: string): never {
 function unverified(message: string): never {
   return fail('INCOMPLETE_STATE', message, {}, 502);
 }
-const target = (p: CompiledRequest) => /^\/v25\.0\/([1-9][0-9]{0,31})(?:\/ad_studies)?$/.exec(p.path)?.[1];
+const target = (p: CompiledRequest) => metaRoute('([1-9][0-9]{0,31})(?:/ad_studies)?$').exec(p.path)?.[1];
 export function metaSplitTestKind(p: CompiledRequest): Kind | undefined {
   if (p.gateway !== gateway || p.method !== 'POST' || p.specialTransport) return;
-  if (p.action === createAction && /^\/v25\.0\/[1-9][0-9]{0,31}\/ad_studies$/.test(p.path)) return 'create';
-  if (p.action === updateAction && /^\/v25\.0\/[1-9][0-9]{0,31}$/.test(p.path)) return 'update';
+  if (p.action === createAction && metaRoute('[1-9][0-9]{0,31}/ad_studies$').test(p.path)) return 'create';
+  if (p.action === updateAction && metaRoute('[1-9][0-9]{0,31}$').test(p.path)) return 'update';
   return;
 }
 const body = (p: CompiledRequest): JsonObject => (object(p.body) ? p.body : {});
@@ -178,7 +179,7 @@ const read = (p: CompiledRequest, path: string, query: JsonObject, extra: Partia
   ...extra,
 });
 const accountRead = (p: CompiledRequest, s: State) =>
-  read(p, '/v25.0/act_' + account(p.accountId), {fields: 'id,business'}, {metaStudyState: s});
+  read(p, metaPrefix + 'act_' + account(p.accountId), {fields: 'id,business'}, {metaStudyState: s});
 const studyFields = 'id,name,description,type,start_time,end_time,canceled_time,business';
 const cellFields = 'name,treatment_percentage,adsets.limit(100){id},campaigns.limit(100){id}';
 export function metaSplitTestSnapshots(p: CompiledRequest): Read[] {
@@ -209,13 +210,17 @@ export function authorizeMetaSplitTest(p: CompiledRequest, c: Connection, select
   )
     return false;
   assertMetaSplitTestScope(c);
-  if (p.path === '/v25.0/act_' + selected && p.query.fields === 'id,business' && Object.keys(p.query).length === 1)
+  if (
+    p.path === metaPrefix + 'act_' + selected &&
+    p.query.fields === 'id,business' &&
+    Object.keys(p.query).length === 1
+  )
     return true;
   if (r.metaStudyId && numeric(r.metaStudyId)) {
-    if (p.path === '/v25.0/' + r.metaStudyId && p.query.fields === studyFields && Object.keys(p.query).length === 1)
+    if (p.path === metaPrefix + r.metaStudyId && p.query.fields === studyFields && Object.keys(p.query).length === 1)
       return true;
     if (
-      p.path === '/v25.0/' + r.metaStudyId + '/cells' &&
+      p.path === metaPrefix + r.metaStudyId + '/cells' &&
       p.query.fields === cellFields &&
       String(p.query.limit) === '25' &&
       ['fields,limit', 'after,fields,limit'].includes(Object.keys(p.query).sort().join())
@@ -255,7 +260,7 @@ async function studyAndCells(
 ): Promise<JsonObject | null> {
   let d: unknown;
   try {
-    const r = await request(read(p, '/v25.0/' + id, {fields: studyFields}, {metaStudyId: id}));
+    const r = await request(read(p, metaPrefix + id, {fields: studyFields}, {metaStudyId: id}));
     if (r.status !== 200) unverified('Meta did not return study ' + id + '.');
     d = r.data;
   } catch (e) {
@@ -270,7 +275,7 @@ async function studyAndCells(
     const r = await request(
         read(
           p,
-          '/v25.0/' + id + '/cells',
+          metaPrefix + id + '/cells',
           {fields: cellFields, limit: 25, ...(after ? {after} : {})},
           {metaStudyId: id},
         ),
@@ -323,7 +328,7 @@ export async function readMetaSplitTests(
   const objects: JsonObject = {};
   for (const id of s.ids) {
     const r = await request({
-        ...read(p, '/v25.0/' + id, {fields: 'id,account_id,name,status'}),
+        ...read(p, metaPrefix + id, {fields: 'id,account_id,name,status'}),
         action: s.level === 'adsets' ? 'meta_ad_set_id_get' : 'meta_campaign_id_get',
         metaStudyPage: undefined,
       } as Read),
@@ -338,7 +343,7 @@ export async function readMetaSplitTests(
         409,
       );
     const st = await request({
-        ...read(p, '/v25.0/' + id + '/ad_studies', {fields: 'id,type,start_time,end_time,canceled_time', limit: 25}),
+        ...read(p, metaPrefix + id + '/ad_studies', {fields: 'id,type,start_time,end_time,canceled_time', limit: 25}),
         action: s.level === 'adsets' ? 'meta_ad_set_id_ad_studies_get' : 'meta_campaign_id_ad_studies_get',
         metaStudyPage: undefined,
       } as Read),

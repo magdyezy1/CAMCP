@@ -19,7 +19,7 @@ test('Meta credential diagnostic distinguishes absent, declined and granted scop
       new NativeTransport((async (url, init) => {
         const target = new URL(String(url));
         assert.equal(target.origin, 'https://graph.facebook.com');
-        assert.equal(target.pathname, '/v25.0/me/permissions');
+        assert.equal(target.pathname, '/v26.0/me/permissions');
         assert.equal(init?.method, 'GET');
         assert.equal(init?.body, undefined);
         assert.equal(target.searchParams.get('access_token'), null);

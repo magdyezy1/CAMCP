@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {metaPrefix, metaRoute} from './meta-version.js';
 
 /**
  * Meta pixels of an ad account, Marketing API v25.0 ("Ad Account Adspixels" and "Ad Pixel" references, checked
@@ -48,8 +49,8 @@ export function metaPixelKind(p: CompiledRequest): Kind | undefined {
     return;
   const k = actions[p.action];
   if (!k) return;
-  if (k === 'create' && /^\/v25\.0\/act_[0-9]{1,32}\/adspixels$/.test(p.path)) return k;
-  if (k === 'rename' && /^\/v25\.0\/[1-9][0-9]{0,31}$/.test(p.path)) return k;
+  if (k === 'create' && metaRoute('act_[0-9]{1,32}/adspixels$').test(p.path)) return k;
+  if (k === 'rename' && metaRoute('[1-9][0-9]{0,31}$').test(p.path)) return k;
 }
 const pixelOf = (p: CompiledRequest) => p.path.split('/')[2]!;
 export function assertMetaPixel(p: CompiledRequest): void {
@@ -110,7 +111,7 @@ const read = (p: CompiledRequest, path: string, query: JsonObject, state?: State
   metaPixelState: state,
 });
 const accountRead = (p: CompiledRequest, s: State) =>
-  read(p, '/v25.0/act_' + account(p.accountId), {fields: 'id,business'}, s);
+  read(p, metaPrefix + 'act_' + account(p.accountId), {fields: 'id,business'}, s);
 export function metaPixelSnapshots(p: CompiledRequest): Read[] {
   const kind = metaPixelKind(p)!;
   return [accountRead(p, {kind, ...(kind === 'rename' ? {pixel: pixelOf(p)} : {})})];
@@ -136,7 +137,7 @@ export async function readMetaPixels(
   for (let page = 0; ; page++) {
     if (page >= maxPages) unverified('The ad account lists more pixels than one review reads.');
     const r = await fetch(
-        read(p, '/v25.0/act_' + account(p.accountId) + '/adspixels', {
+        read(p, metaPrefix + 'act_' + account(p.accountId) + '/adspixels', {
           fields: 'id,name,owner_business',
           limit: pageLimit,
           ...(after ? {after} : {}),

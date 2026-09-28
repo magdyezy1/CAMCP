@@ -70,14 +70,14 @@ test('only HTTPS links on the platform’s own hosts count as preview links', ()
 
 test('Meta: lists the account’s ads, then reads each preview for the placement asked', async () => {
   const f = fixture('meta_native_action', '111', url => {
-    if (url.pathname === '/v25.0/act_111/ads')
+    if (url.pathname === '/v26.0/act_111/ads')
       return Response.json({
         data: [
           {id: '901', name: 'Spring'},
           {id: '902', name: 'Summer'},
         ],
       });
-    if (/^\/v25\.0\/90[12]\/previews$/.test(url.pathname))
+    if (/^\/v26\.0\/90[12]\/previews$/.test(url.pathname))
       return Response.json({
         data: [
           {
@@ -107,7 +107,7 @@ test('Meta: lists the account’s ads, then reads each preview for the placement
       ['902'],
     );
     assert.deepEqual(other.data.not_found, ['999']);
-    assert.equal(f.calls.filter(c => c.path === '/v25.0/999/previews').length, 0);
+    assert.equal(f.calls.filter(c => c.path === '/v26.0/999/previews').length, 0);
   } finally {
     f.store.close();
   }

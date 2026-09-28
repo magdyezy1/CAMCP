@@ -62,7 +62,7 @@ function fixture(insights: (url: URL) => unknown) {
         assert.equal(init?.method, 'GET');
         const u = new URL(String(url));
         calls.push(u);
-        assert.ok(u.pathname === '/v25.0/act_100' || u.pathname === '/v25.0/act_100/insights');
+        assert.ok(u.pathname === '/v26.0/act_100' || u.pathname === '/v26.0/act_100/insights');
         return Response.json(
           u.pathname.endsWith('/insights')
             ? insights(u)

@@ -32,7 +32,7 @@ for (const [alias, canonical, parameter] of aliases)
         enabled: true,
         label: 'Synthetic',
         scopes: ['ads_management'],
-        resourceBindings: [{accountId: '123', pathPrefix: '/v25.0/77'}],
+        resourceBindings: [{accountId: '123', pathPrefix: '/v26.0/77'}],
       };
     let writes = 0;
     const state = {id: '77', name: 'Before', status: 'PAUSED'},
@@ -42,7 +42,7 @@ for (const [alias, canonical, parameter] of aliases)
       registry,
       store,
       new NativeTransport(async (url, init) => {
-        assert.equal(new URL(String(url)).pathname, '/v25.0/77');
+        assert.equal(new URL(String(url)).pathname, '/v26.0/77');
         if (init!.method === 'GET') return Response.json(state);
         writes++;
         assert.equal(init!.method, deleting ? 'DELETE' : 'POST');

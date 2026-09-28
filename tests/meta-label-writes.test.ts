@@ -18,6 +18,7 @@ import {ScopeGuard} from '../src/scope.js';
 import {Introspection} from '../src/introspection.js';
 import {removeTestDirectory} from './temp.js';
 import type {Connection, JsonObject} from '../src/types.js';
+import {currentMetaRecord} from '../src/meta-version.js';
 
 const gateway = 'meta_native_action',
   registry = new Registry(),
@@ -56,8 +57,8 @@ function fixture(file = ':memory:') {
     label: 'Synthetic',
     scopes: ['ads_management'],
     resourceBindings: [
-      {accountId: '123', pathPrefix: '/v25.0/41'},
-      {accountId: '123', pathPrefix: '/v25.0/77'},
+      {accountId: '123', pathPrefix: '/v26.0/41'},
+      {accountId: '123', pathPrefix: '/v26.0/77'},
     ],
   };
   if (!store.listConnections(actor.tenantId).length) store.putConnection(owner, c, {accessToken: 'synthetic'});
@@ -72,23 +73,23 @@ function fixture(file = ':memory:') {
       if (method === 'GET') {
         reads++;
         if (mode === 'revoked') store.putConnection(owner, {...c, writeAccounts: []}, {accessToken: 'synthetic'});
-        if (u.pathname === '/v25.0/act_123') return Response.json({id: 'act_123', account_status: 1, currency: 'USD'});
-        if (u.pathname === '/v25.0/act_123/adlabels') {
+        if (u.pathname === '/v26.0/act_123') return Response.json({id: 'act_123', account_status: 1, currency: 'USD'});
+        if (u.pathname === '/v26.0/act_123/adlabels') {
           if (mode === 'error') return Response.json({error: {message: 'Synthetic denied'}});
           if (mode === 'partial')
             return Response.json({
               data: labels,
-              paging: {next: 'https://graph.facebook.com/v25.0/act_123/adlabels?after=x'},
+              paging: {next: 'https://graph.facebook.com/v26.0/act_123/adlabels?after=x'},
             });
           if (mode === 'foreign_page')
             return Response.json({
               data: [labels[0]],
-              paging: {cursors: {after: 'x'}, next: 'https://graph.facebook.com/v25.0/act_999/adlabels?after=x'},
+              paging: {cursors: {after: 'x'}, next: 'https://graph.facebook.com/v26.0/act_999/adlabels?after=x'},
             });
           if (mode === 'repeat_page')
             return Response.json({
               data: [labels[0]],
-              paging: {cursors: {after: 'x'}, next: 'https://graph.facebook.com/v25.0/act_123/adlabels?after=x'},
+              paging: {cursors: {after: 'x'}, next: 'https://graph.facebook.com/v26.0/act_123/adlabels?after=x'},
             });
           const selected = pages ? (u.searchParams.has('after') ? labels.slice(1) : labels.slice(0, 1)) : labels;
           return Response.json({
@@ -98,13 +99,13 @@ function fixture(file = ':memory:') {
               ? {
                   paging: {
                     cursors: {after: 'second'},
-                    next: 'https://graph.facebook.com/v25.0/act_123/adlabels?after=second&access_token=must-not-forward',
+                    next: 'https://graph.facebook.com/v26.0/act_123/adlabels?after=second&access_token=must-not-forward',
                   },
                 }
               : {}),
           });
         }
-        if (u.pathname === '/v25.0/77')
+        if (u.pathname === '/v26.0/77')
           return Response.json({
             ...target,
             adlabels: target.adlabels ? [...target.adlabels].reverse() : target.adlabels,
@@ -117,7 +118,7 @@ function fixture(file = ':memory:') {
       if (mode === 'failed') return Response.json({success: true, errors: [{message: 'Synthetic partial mutation'}]});
       if (mode === 'empty') return Response.json({});
       const payload = Object.fromEntries(new URLSearchParams(String(init!.body ?? '')));
-      if (u.pathname === '/v25.0/act_123/adlabels') {
+      if (u.pathname === '/v26.0/act_123/adlabels') {
         if (mode !== 'ignored' && mode !== 'existing_id')
           labels.push({id: '43', name: payload.name, account: {id: 'act_123'}});
         return Response.json({id: mode === 'existing_id' ? '41' : '43'});
@@ -128,7 +129,7 @@ function fixture(file = ':memory:') {
             labels.findIndex(l => l.id === '41'),
             1,
           );
-        else if (/^\/v25\.0\/\d+$/.test(u.pathname))
+        else if (/^\/v26\.0\/\d+$/.test(u.pathname))
           labels.find(l => l.id === u.pathname.split('/').at(-1))!.name = payload.name;
         else
           for (const l of JSON.parse(payload.adlabels!))
@@ -227,12 +228,13 @@ test('label route correction preserves captured raw evidence and describes the e
       .find(c => c.gateway === gateway)!
       .actions.find(a => a.name === 'meta_ad_account_id_adlabels_get')!,
     effective = registry.action(gateway, captured.name)!;
+  // The capture recorded v25.0; AMCP lists and sends the captured record at the current version.
   assert.equal(captured.path, '/v25.0/{ad_account_id}/adlabels');
-  assert.equal(effective.path, '/v25.0/act_{ad_account_id}/adlabels');
-  assert.deepEqual(effective.raw, captured.raw);
+  assert.equal(effective.path, '/v26.0/act_{ad_account_id}/adlabels');
+  assert.deepEqual(effective.raw, currentMetaRecord(captured.raw));
   const described = new Introspection(registry).describe(gateway, {target_action: captured.name});
   assert.equal(described.path, effective.path);
-  assert.deepEqual(described.captured_mapping, captured.raw);
+  assert.deepEqual(described.captured_mapping, currentMetaRecord(captured.raw));
   assert.match(described.source, /facebook-python-business-sdk/);
 });
 test('label names, actual membership and account changes conflict; telemetry and returned order do not', async () => {
@@ -398,7 +400,7 @@ test('label review bounds reject a full account before another create can exceed
     let count = 0;
     const result = await readMetaLabels(read, async request => {
       count++;
-      if (request.path === '/v25.0/act_123')
+      if (request.path === '/v26.0/act_123')
         return {status: 200, headers: {}, data: {id: 'act_123', account_status: 1, currency: 'USD'}};
       const offset = Number(request.query.after ?? 0),
         next = offset + 100;
@@ -411,7 +413,7 @@ test('label review bounds reject a full account before another create can exceed
             ? {
                 paging: {
                   cursors: {after: String(next)},
-                  next: 'https://graph.facebook.com/v25.0/act_123/adlabels?after=' + next,
+                  next: 'https://graph.facebook.com/v26.0/act_123/adlabels?after=' + next,
                 },
               }
             : {}),
@@ -441,7 +443,7 @@ test('label state bounds cover distinct oversized pages, bytes, continuation amb
         () =>
           readMetaLabels(read, async request => {
             calls++;
-            if (request.path === '/v25.0/act_123')
+            if (request.path === '/v26.0/act_123')
               return {status: 200, headers: {}, data: {id: 'act_123', account_status: 1, currency: 'USD'}};
             const offset = Number(request.query.after ?? 0),
               size = mode === '1001' ? Math.min(100, 1001 - offset) : 1,
@@ -461,7 +463,7 @@ test('label state bounds cover distinct oversized pages, bytes, continuation amb
             else if (mode !== 'response_bytes' && (mode !== '1001' || next < 1001))
               data.paging = {
                 cursors: {after: String(next)},
-                next: 'https://graph.facebook.com/v25.0/act_123/adlabels?after=' + next,
+                next: 'https://graph.facebook.com/v26.0/act_123/adlabels?after=' + next,
               };
             return {status: 200, headers: {}, data};
           }),

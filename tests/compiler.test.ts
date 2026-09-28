@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {Registry} from '../src/catalog.js';
 import {Compiler, expandPath} from '../src/compiler.js';
 import {strictOptions} from '../src/service.js';
-import {googleAdsActionVersion} from '../src/google-version.js';
+import {catalogVersions} from '../src/catalog-versions.js';
 const registry = new Registry(),
   compiler = new Compiler(registry);
 test('Google resource-name templates preserve path structure without traversal', () => {
@@ -43,7 +43,7 @@ test('Meta act_ alias and query precedence retain exact string identifiers', () 
     },
     strictOptions,
   );
-  assert.equal(p.path, '/v25.0/act_111111111111111/campaigns');
+  assert.equal(p.path, '/v26.0/act_111111111111111/campaigns');
   assert.equal(p.query.limit, 1);
 });
 test('LinkedIn keeps write params in query and payload in body', () => {
@@ -74,8 +74,8 @@ test('every method/path record expands deterministically from its declared templ
   let count = 0;
   for (const c of registry.data.catalogs) {
     for (const captured of c.actions) {
-      // The registry sends Google Ads actions at the current version (src/google-version.ts).
-      const a = c.gateway === 'google_ads_native_action' ? googleAdsActionVersion(captured) : captured;
+      // The registry sends Google Ads and Meta actions at their current versions (src/catalog-versions.ts).
+      const a = catalogVersions[c.gateway]?.action(captured) ?? captured;
       if (!a.method || !a.path) continue;
       const params: Record<string, unknown> = {};
       for (const required of a.required) if (typeof required === 'string') params[required] = 'test';
@@ -124,7 +124,7 @@ test('every method/path record expands deterministically from its declared templ
       // templates retain the original deterministic conformance assertion.
       const template =
         c.gateway === 'meta_native_action' && a.name === 'meta_ad_account_id_adlabels_get'
-          ? '/v25.0/act_{ad_account_id}/adlabels'
+          ? '/v26.0/act_{ad_account_id}/adlabels'
           : a.path.startsWith('https://')
             ? new URL(a.path).pathname
             : a.path.split('?')[0]!;

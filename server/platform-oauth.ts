@@ -6,6 +6,7 @@ import {WebStore, type WebSession} from './web-store.js';
 import {requestAppleAccessToken} from '../src/apple-auth.js';
 import {gtmWriteScopes} from '../src/measurement-writes.js';
 import {microsoftGateway, microsoftScope} from '../src/microsoft-native.js';
+import {metaDialogUrl, metaGraphUrl} from '../src/meta-version.js';
 
 export interface PlatformDefinition {
   id: string;
@@ -94,8 +95,8 @@ export const platforms: PlatformDefinition[] = [
     logo: '∞',
     gateway: 'meta_native_action',
     env: 'META',
-    authorize: 'https://www.facebook.com/v25.0/dialog/oauth',
-    token: 'https://graph.facebook.com/v25.0/oauth/access_token',
+    authorize: metaDialogUrl,
+    token: metaGraphUrl('oauth/access_token'),
     scopes: ['ads_read', 'pages_show_list', 'pages_read_engagement', 'business_management'],
     assetKinds: ['ad_accounts', 'pages', 'instagram', 'catalogs', 'pixels', 'mobile_apps', 'custom_conversions'],
   },

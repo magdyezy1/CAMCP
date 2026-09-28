@@ -37,11 +37,11 @@ async function site(kind: 'shared' | 'named' = 'shared', allowWrites = false) {
       );
     if (url.origin === 'https://graph.facebook.com') {
       assert.equal(init?.method ?? 'GET', 'GET', 'the connection flow must not mutate advertising resources');
-      if (url.pathname === '/v25.0/oauth/access_token') {
+      if (url.pathname === '/v26.0/oauth/access_token') {
         control.beforeExchange?.();
         return Response.json({access_token: 'synthetic-meta-access', expires_in: 3600});
       }
-      if (url.pathname === '/v25.0/me/adaccounts')
+      if (url.pathname === '/v26.0/me/adaccounts')
         return control.failDiscovery
           ? Response.json({error: {message: 'Synthetic discovery unavailable', code: 2}}, {status: 503})
           : Response.json({
@@ -55,7 +55,7 @@ async function site(kind: 'shared' | 'named' = 'shared', allowWrites = false) {
                 },
               ],
             });
-      if (url.pathname === '/v25.0/me')
+      if (url.pathname === '/v26.0/me')
         return Response.json({id: 'reviewer-provider-user', name: 'Reviewer platform login'});
     }
     if (url.origin === 'https://oauth2.googleapis.com' && url.pathname === '/token')

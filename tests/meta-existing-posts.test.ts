@@ -66,17 +66,17 @@ function fixture(filename = ':memory:') {
       const result = await hook(u, calls.length);
       if (result instanceof Response) return result;
       if (result !== undefined) return Response.json(result);
-      if (u.pathname === '/v25.0/act_123/promote_pages') return Response.json({data: [{id: '77'}]});
-      if (u.pathname === '/v25.0/act_123/instagram_accounts') return Response.json({data: [{id: '88'}]});
-      if (u.pathname === '/v25.0/77') {
+      if (u.pathname === '/v26.0/act_123/promote_pages') return Response.json({data: [{id: '77'}]});
+      if (u.pathname === '/v26.0/act_123/instagram_accounts') return Response.json({data: [{id: '88'}]});
+      if (u.pathname === '/v26.0/77') {
         assert.equal(auth, 'Bearer synthetic-user-token');
         return Response.json({id: '77', access_token: 'synthetic-page-token', instagram_business_account: {id: '88'}});
       }
       assert.equal(auth, 'Bearer synthetic-page-token');
-      if (u.pathname === '/v25.0/77/posts') return Response.json({data: [fb()]});
-      if (u.pathname === '/v25.0/88/media') return Response.json({data: [ig()]});
-      if (u.pathname === '/v25.0/77_1') return Response.json(fb());
-      if (u.pathname === '/v25.0/501') return Response.json(ig());
+      if (u.pathname === '/v26.0/77/posts') return Response.json({data: [fb()]});
+      if (u.pathname === '/v26.0/88/media') return Response.json({data: [ig()]});
+      if (u.pathname === '/v26.0/77_1') return Response.json(fb());
+      if (u.pathname === '/v26.0/501') return Response.json(ig());
       throw Error('Unexpected fixture URL ' + u.pathname);
     },
     async () => {},
@@ -107,7 +107,7 @@ test('both Page list actions traverse the selected account before obtaining the 
       assert.equal(r.data.posts[0].permalink, 'https://www.facebook.com/example/posts/1');
       assert.deepEqual(
         f.calls.map(c => c.path),
-        ['/v25.0/act_123/promote_pages', '/v25.0/77', '/v25.0/77/posts'],
+        ['/v26.0/act_123/promote_pages', '/v26.0/77', '/v26.0/77/posts'],
       );
       for (const secret of [
         'synthetic-page-token',
@@ -134,7 +134,7 @@ test('Instagram listing binds both the linked Page and the advertiser Instagram 
     assert.deepEqual(r.data.posts[0].creative_reference, {source_instagram_media_id: '501', instagram_user_id: '88'});
     assert.equal(r.data.posts[0].media_url, undefined);
     assert.equal(r.data.posts[0].permalink, 'https://www.instagram.com/p/Code501/');
-    assert.equal(f.calls[2]!.path, '/v25.0/act_123/instagram_accounts');
+    assert.equal(f.calls[2]!.path, '/v26.0/act_123/instagram_accounts');
     assert.equal(f.calls[2]!.auth, 'Bearer synthetic-user-token');
     assert.equal(f.calls[3]!.auth, 'Bearer synthetic-page-token');
   } finally {
@@ -165,7 +165,7 @@ test('exact Page and Instagram reads require the requested ID and matching nativ
   ]) {
     const f = fixture();
     try {
-      f.hook(u => (u.pathname === '/v25.0/77_1' ? raw : undefined));
+      f.hook(u => (u.pathname === '/v26.0/77_1' ? raw : undefined));
       assert.equal((await f.call({action: 'GET_POST_BY_ID', post_id: '1'})).success, false);
     } finally {
       f.store.close();
@@ -193,7 +193,7 @@ test('list limits expose encrypted exact-request continuations and resumed segme
   const f = fixture();
   try {
     f.hook(u =>
-      u.pathname === '/v25.0/77/posts'
+      u.pathname === '/v26.0/77/posts'
         ? u.searchParams.has('after')
           ? {data: [fb('2')]}
           : {data: [fb()], ...paging('synthetic-provider-secret')}
@@ -283,7 +283,7 @@ test('read cursors reject noncanonical base64, trailing padding data and extra s
 test('changing connection, actor, limit or lookup cannot reuse a returned continuation', async () => {
   const f = fixture();
   try {
-    f.hook(u => (u.pathname === '/v25.0/77/posts' ? {data: [fb()], ...paging()} : undefined));
+    f.hook(u => (u.pathname === '/v26.0/77/posts' ? {data: [fb()], ...paging()} : undefined));
     const r = await f.call({limit: 1});
     assert.equal(r.success, true, JSON.stringify(r));
     const args = r.data.next_call.arguments.arguments;
@@ -377,9 +377,9 @@ test('missing Page/Instagram membership, changed linkage and missing Page token 
         (mode === 'page' && u.pathname.endsWith('/promote_pages')) ||
         (mode === 'instagram' && u.pathname.endsWith('/instagram_accounts'))
           ? {data: []}
-          : mode === 'link' && u.pathname === '/v25.0/77'
+          : mode === 'link' && u.pathname === '/v26.0/77'
             ? {id: '77', access_token: 'synthetic-page-token', instagram_business_account: {id: '99'}}
-            : mode === 'token' && u.pathname === '/v25.0/77'
+            : mode === 'token' && u.pathname === '/v26.0/77'
               ? {id: '77'}
               : mode === 'owner' && u.pathname.endsWith('/posts')
                 ? {data: [{...fb(), from: {id: '99'}}]}
@@ -486,7 +486,7 @@ test('complete bounded identity discovery is required even if the target occurs 
     );
     assert.equal((await f.call()).success, true);
     assert.equal(f.calls[1]!.query.after, 'identities-2');
-    assert.equal(f.calls[2]!.path, '/v25.0/77');
+    assert.equal(f.calls[2]!.path, '/v26.0/77');
   } finally {
     f.store.close();
   }
@@ -606,9 +606,9 @@ test('runtime help and the action ledger agree without mutating captured schema 
     ),
   );
 });
-test('fixed read fields and identity edges are present in the source-hashed official v25 SDK fixture', () => {
-  const f = JSON.parse(fs.readFileSync('tests/fixtures/meta-post-sdk-v25.json', 'utf8'));
-  assert.equal(f.sdk_tag, '25.0.3');
+test('fixed read fields and identity edges are present in the source-hashed official v26 SDK fixture', () => {
+  const f = JSON.parse(fs.readFileSync('tests/fixtures/meta-post-sdk-v26.json', 'utf8'));
+  assert.equal(f.sdk_tag, '26.0.2');
   for (const field of metaPostFields.facebook) assert.ok(f.fields.pagepost[field], field);
   for (const field of metaPostFields.instagram) assert.ok(f.fields.igmedia[field], field);
   assert.deepEqual(
@@ -616,7 +616,7 @@ test('fixed read fields and identity edges are present in the source-hashed offi
     ['GET', 'GET', 'GET', 'GET'],
   );
   assert.equal(
-    Object.values(f.sources).filter((v: any) => /^[a-f0-9]{64}$/.test(v.sha256) && v.url.includes('/25.0.3/')).length,
+    Object.values(f.sources).filter((v: any) => /^[a-f0-9]{64}$/.test(v.sha256) && v.url.includes('/26.0.2/')).length,
     5,
   );
 });
@@ -701,7 +701,7 @@ test('reauthorization and changed Page-to-Instagram linkage invalidate old conti
     const r = await g.call({action: 'LIST_IG_MEDIA', limit: 1});
     assert.equal(r.success, true, JSON.stringify(r));
     g.hook(u =>
-      u.pathname === '/v25.0/77'
+      u.pathname === '/v26.0/77'
         ? {id: '77', access_token: 'synthetic-page-token', instagram_business_account: {id: '89'}}
         : u.pathname.endsWith('/instagram_accounts')
           ? {data: [{id: '89'}]}
@@ -711,7 +711,7 @@ test('reauthorization and changed Page-to-Instagram linkage invalidate old conti
       (await g.service.call(r.data.next_call.tool, r.data.next_call.arguments, actor)).error.code,
       'INVALID_READ_CURSOR',
     );
-    assert.ok(!g.calls.some(c => c.path === '/v25.0/89/media'));
+    assert.ok(!g.calls.some(c => c.path === '/v26.0/89/media'));
   } finally {
     g.store.close();
   }
@@ -725,7 +725,7 @@ test('exact Instagram foreign owners and unknown media types do not disclose a c
   ]) {
     const f = fixture();
     try {
-      f.hook(u => (u.pathname === '/v25.0/501' ? row : undefined));
+      f.hook(u => (u.pathname === '/v26.0/501' ? row : undefined));
       const r = await f.call({action: 'GET_IG_MEDIA', post_id: '501'});
       assert.equal(r.success, false);
       assert.equal(r.data, undefined);

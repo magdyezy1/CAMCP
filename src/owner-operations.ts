@@ -8,6 +8,7 @@ import {mediaLimitProblem} from './drive-media.js';
 import type {Actor, JsonObject} from './types.js';
 import {ownerAccess, saveSpendPolicy} from './spend-policy.js';
 import {googleAdsVersion} from './google-version.js';
+import {metaApiVersion} from './meta-version.js';
 const writePauseId = 'workspace';
 /** The owner's pause of every reviewed write of a workspace, or undefined when writes are not paused. */
 export function writePause(store: Store, tenant: string): JsonObject | undefined {
@@ -103,7 +104,7 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
       },
       api_versions: {
         google: googleAdsVersion,
-        meta: 'v25.0',
+        meta: metaApiVersion,
         tiktok: 'v1.3',
         snapchat: 'v1',
         linkedin: (() => {

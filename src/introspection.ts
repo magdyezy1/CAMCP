@@ -1,7 +1,8 @@
 import type {CallOptions, JsonObject, Action} from './types.js';
 import {Registry} from './catalog.js';
 import {MirrorError} from './errors.js';
-import {currentGoogleAdsRecord} from './google-version.js';
+import {currentCapture} from './catalog-versions.js';
+import {metaApiVersion} from './meta-version.js';
 export class Introspection {
   constructor(private registry: Registry) {}
   describe(gateway: string, input: JsonObject): JsonObject {
@@ -11,7 +12,7 @@ export class Introspection {
     if (gateway === 'meta_native_action' && effective?.name === 'meta_ad_account_id_adlabels_get')
       return {
         success: true,
-        api_version: 'v25.0',
+        api_version: metaApiVersion,
         ...structuredClone(effective.raw),
         path: effective.path,
         mirror_evidence: effective.evidence,
@@ -20,7 +21,7 @@ export class Introspection {
           'https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adaccount.py',
       };
     const exact = this.registry.data.descriptions[gateway + '/' + name];
-    if (exact) return structuredClone(gateway === 'google_ads_native_action' ? currentGoogleAdsRecord(exact) : exact);
+    if (exact) return structuredClone(currentCapture(gateway, exact));
     const action = this.registry.action(gateway, name);
     if (!action) throw new MirrorError('UNKNOWN_ACTION', 'Action is absent from the captured catalog.');
     return {

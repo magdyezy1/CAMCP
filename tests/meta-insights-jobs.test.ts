@@ -55,8 +55,8 @@ function fixture(file = ':memory:', persisted?: JsonObject, allowWrites = true) 
       enabled: true,
       scopes: ['ads_read'],
       resourceBindings: [
-        {accountId: '123', pathPrefix: '/v25.0/55'},
-        {accountId: '123', pathPrefix: '/v25.0/66'},
+        {accountId: '123', pathPrefix: '/v26.0/55'},
+        {accountId: '123', pathPrefix: '/v26.0/66'},
       ],
     };
   if (!store.listConnections(actor.tenantId).length) store.putConnection(owner, c, {accessToken: 'synthetic'});
@@ -100,7 +100,7 @@ function fixture(file = ':memory:', persisted?: JsonObject, allowWrites = true) 
         return Response.json({report_run_id: id});
       }
       afterRead?.();
-      if (u.pathname === '/v25.0/act_123')
+      if (u.pathname === '/v26.0/act_123')
         return Response.json({
           id: 'act_123',
           account_status: 1,
@@ -108,14 +108,14 @@ function fixture(file = ':memory:', persisted?: JsonObject, allowWrites = true) 
           timezone_name: data.timezone,
           request_id: String(calls.length),
         });
-      if (['/v25.0/55', '/v25.0/66'].includes(u.pathname))
+      if (['/v26.0/55', '/v26.0/66'].includes(u.pathname))
         return Response.json({
           id: u.pathname.slice(-2),
           account_id: mode === 'foreign_target' ? '999' : '123',
           campaign: {id: '55', account_id: '123'},
           updated_time: String(calls.length),
         });
-      const match = /^\/v25\.0\/(\d+)(\/insights)?$/.exec(u.pathname);
+      const match = /^\/v26\.0\/(\d+)(\/insights)?$/.exec(u.pathname);
       if (!match) throw Error('Unexpected ' + u.pathname);
       const job = data.jobs[match[1]!];
       assert.ok(job, 'Unknown synthetic job');
@@ -178,7 +178,7 @@ function fixture(file = ':memory:', persisted?: JsonObject, allowWrites = true) 
               paging: {
                 cursors: mode === 'no_cursor' ? {} : {after: 'second'},
                 next:
-                  'https://graph.facebook.com/v25.0/' +
+                  'https://graph.facebook.com/v26.0/' +
                   (mode === 'foreign_cursor' ? '999' : match[1]) +
                   '/insights?after=second&access_token=do-not-return',
               },
@@ -504,7 +504,7 @@ test('the exact four catalog aliases become reviewed report jobs without enablin
 });
 
 test('all supported fields, definition inputs and snapshot selectors match pinned official SDK evidence', async () => {
-  const proof = JSON.parse(readFileSync('tests/fixtures/meta-insights-sdk-v25.json', 'utf8')),
+  const proof = JSON.parse(readFileSync('tests/fixtures/meta-insights-sdk-v26.json', 'utf8')),
     f = fixture();
   try {
     const r = await f.prepare();
@@ -525,7 +525,7 @@ test('all supported fields, definition inputs and snapshot selectors match pinne
     assert.equal(proof.models.adsinsights.spend, 'string');
     assert.equal(proof.models.adsinsights.actions, 'list<AdsActionStats>');
     assert.ok(
-      Object.values(proof.sources).every((s: any) => s.url.includes('/25.0.3/') && /^[a-f0-9]{64}$/.test(s.sha256)),
+      Object.values(proof.sources).every((s: any) => s.url.includes('/26.0.2/') && /^[a-f0-9]{64}$/.test(s.sha256)),
     );
     assert.equal(metaReportSnapshots(plan)[0]!.query.fields, 'id,account_status,currency,timezone_name');
   } finally {
@@ -652,7 +652,7 @@ test('a report receipt cannot authorize unrelated mutations or query/header over
     assert.equal((await f.verify(r)).data.status, 'verified');
     const p: CompiledRequest = {
       ...r.data.request,
-      path: '/v25.0/900',
+      path: '/v26.0/900',
       method: 'POST',
       body: {status: 'ACTIVE'},
       readOnly: false,
@@ -853,7 +853,7 @@ test('report byte, row and monotonic deadline limits stop retrieval without crea
     const binding = f.store.document(actor.tenantId, 'meta_report_run', f.c.id + '/123/900'),
       p: CompiledRequest = {
         ...r.data.request,
-        path: '/v25.0/900/insights',
+        path: '/v26.0/900/insights',
         method: 'GET',
         body: undefined,
         query: {limit: 1000},

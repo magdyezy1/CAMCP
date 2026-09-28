@@ -10,6 +10,7 @@ import {googleAccountDiscovery} from './google-account-discovery.js';
 import {assetSyncDiagnostic, assetSyncErrorMessage} from '../src/report-errors.js';
 import {collectMeasurementAssets} from '../src/google-measurement-assets.js';
 import {sha256, stable} from '../src/security.js';
+import {metaPrefix} from '../src/meta-version.js';
 
 export interface WorkspaceAsset {
   id: string;
@@ -361,20 +362,20 @@ export class AssetDiscovery {
           if (kind === 'ad_accounts') {
             assets = (
               await pages(
-                '/v25.0/me/adaccounts',
+                metaPrefix + 'me/adaccounts',
                 {fields: 'id,account_id,name,account_status,currency,timezone_name', limit: 100},
                 d => d.data,
               )
             ).map(r => this.asset(r, kind));
             try {
-              const identity = await request(this.plan(connection, '/v25.0/me', {fields: 'id,name'}));
+              const identity = await request(this.plan(connection, metaPrefix + 'me', {fields: 'id,name'}));
               if (typeof (identity.data as JsonObject).name === 'string') label = (identity.data as JsonObject).name;
             } catch {
               /* Account discovery remains valid when identity profile access is unavailable. */
             }
           } else if (kind === 'pages' || kind === 'instagram') {
             const rows = await pages(
-              '/v25.0/me/accounts',
+              metaPrefix + 'me/accounts',
               {fields: 'id,name,instagram_business_account{id,username}', limit: 100},
               d => d.data,
             );
@@ -395,7 +396,7 @@ export class AssetDiscovery {
             }[kind];
             for (const id of connection.accounts) {
               const rows = await pages(
-                '/v25.0/act_' + encodeURIComponent(id) + '/' + edge,
+                metaPrefix + 'act_' + encodeURIComponent(id) + '/' + edge,
                 {fields: 'id,name', limit: 100},
                 d => d.data,
               );

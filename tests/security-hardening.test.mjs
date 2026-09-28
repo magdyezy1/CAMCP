@@ -45,12 +45,12 @@ test('transport refuses dot segments, including percent-encoded ones', () => {
     evidence: '',
     warnings: [],
   });
-  assert.equal(buildUrl(request('/v25.0/act_123/campaigns'), connection).pathname, '/v25.0/act_123/campaigns');
+  assert.equal(buildUrl(request('/v26.0/act_123/campaigns'), connection).pathname, '/v26.0/act_123/campaigns');
   for (const path of [
-    '/v25.0/act_123/../999/assigned_users',
-    '/v25.0/act_123/%2e%2e/999',
-    '/v25.0/act_123/%2E./999',
-    '/v25.0/./act_123',
+    '/v26.0/act_123/../999/assigned_users',
+    '/v26.0/act_123/%2e%2e/999',
+    '/v26.0/act_123/%2E./999',
+    '/v26.0/./act_123',
   ])
     assert.throws(() => buildUrl(request(path), connection), {code: 'INVALID_PATH'}, path);
 });

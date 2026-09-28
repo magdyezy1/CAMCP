@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection} from './types.js';
+import {metaRoute} from './meta-version.js';
 
 /** Exact documented reads whose resource names contain mutation-like words.
  * This only establishes HTTP semantics; credentials and object scope are separate. */
@@ -20,7 +21,7 @@ export function qualifiedProviderRead(p: CompiledRequest): boolean {
   if (!p.readOnly || p.method !== 'GET' || p.specialTransport || p.body !== undefined) return false;
   if (p.gateway === 'meta_native_action')
     return (
-      (!p.origin || p.origin === 'https://graph.facebook.com') && /^\/v25\.0\/act_\d+\/value_rule_set$/.test(p.path)
+      (!p.origin || p.origin === 'https://graph.facebook.com') && metaRoute('act_\\d+/value_rule_set$').test(p.path)
     );
   if (p.gateway === 'tiktok_native_action')
     return (

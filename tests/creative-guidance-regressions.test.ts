@@ -28,17 +28,17 @@ test('Meta existing Instagram creative uses Instagram identity without a fabrica
     new NativeTransport(async (url, init) => {
       if (init?.method === 'GET') {
         const path = new URL(String(url)).pathname;
-        if (path === '/v25.0/act_123') return Response.json({id: 'act_123', currency: 'USD', account_status: 1});
-        if (path === '/v25.0/act_123/promote_pages')
+        if (path === '/v26.0/act_123') return Response.json({id: 'act_123', currency: 'USD', account_status: 1});
+        if (path === '/v26.0/act_123/promote_pages')
           return Response.json({data: [{id: '500', instagram_business_account: {id: '888'}}]});
-        if (path === '/v25.0/act_123/instagram_accounts') return Response.json({data: [{id: '888'}]});
-        if (path === '/v25.0/500')
+        if (path === '/v26.0/act_123/instagram_accounts') return Response.json({data: [{id: '888'}]});
+        if (path === '/v26.0/500')
           return Response.json({
             id: '500',
             access_token: 'synthetic-page-token',
             instagram_business_account: {id: '888'},
           });
-        assert.equal(path, '/v25.0/777');
+        assert.equal(path, '/v26.0/777');
         assert.equal(new Headers(init.headers).get('Authorization'), 'Bearer synthetic-page-token');
         return Response.json({id: '777', owner: {id: '888'}, media_type: 'VIDEO'});
       }

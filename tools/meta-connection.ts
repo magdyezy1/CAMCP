@@ -10,6 +10,7 @@ import {MirrorError} from '../src/errors.js';
 import {redact} from '../src/security.js';
 import {prepareReadProbes} from '../src/read-verification.js';
 import {readMetaPermissions} from '../src/meta-auth-diagnostic.js';
+import {metaPrefix} from '../src/meta-version.js';
 import type {JsonObject} from '../src/types.js';
 
 const account = process.argv[3] ?? '111111111111111',
@@ -92,7 +93,7 @@ try {
       const target = new URL(String(url));
       if (
         target.origin !== 'https://graph.facebook.com' ||
-        target.pathname !== '/v25.0/me/permissions' ||
+        target.pathname !== metaPrefix + 'me/permissions' ||
         init?.method !== 'GET'
       )
         throw new MirrorError(
@@ -125,7 +126,7 @@ try {
     const requests: JsonObject[] = [];
     const transport = new NativeTransport((async (url, init) => {
       const target = new URL(String(url));
-      const accountPath = '/v25.0/act_' + account;
+      const accountPath = metaPrefix + 'act_' + account;
       if (
         target.origin !== 'https://graph.facebook.com' ||
         init?.method !== 'GET' ||

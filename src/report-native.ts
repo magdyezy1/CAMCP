@@ -10,6 +10,7 @@ import {compileMicrosoft} from './microsoft-native.js';
 import {reportPlatforms, metricNumber, objectiveGroup} from './report-metrics.js';
 import {zonedMidnight} from './workflows.js';
 import {googleAdsCustomers} from './google-version.js';
+import {metaPrefix} from './meta-version.js';
 
 export const nativeMetricExamples: Record<string, string[]> = {
   google: [
@@ -486,7 +487,7 @@ export class NativeCampaignReports {
     } else if (p === 'meta') {
       raw = metaCampaignRows(
         await run(
-          plan('/v25.0/act_' + account + '/insights', {
+          plan(metaPrefix + 'act_' + account + '/insights', {
             level: 'campaign',
             time_range: rangeToMeta(range),
             fields: [

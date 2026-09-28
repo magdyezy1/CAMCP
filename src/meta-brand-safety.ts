@@ -2,10 +2,12 @@ import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {metaPrefix, metaRoute} from './meta-version.js';
 
 /**
  * Account-level Meta brand safety, per the Marketing API references "Ad Account Account Controls", "Ad Account Business
- * Constraints", "Audience Controls" and "Ad Account Publisher Block Lists" (checked 2026-09-26; AMCP stays on Graph v25.0).
+ * Constraints", "Audience Controls" and "Ad Account Publisher Block Lists" (checked 2026-09-26 at Graph v25.0;
+ * the v26.0 SDK keeps both routes and adds one optional account control, placement_controls_per_objective).
  * - Account controls set the Advantage+ audience controls (minimum age 18–25, included countries and regions, excluded
  *   locations, and interest and employment exclusions) and up to five placement exclusions for every eligible campaign of
  *   the account. Each post sets the controls as sent, so leaving a control out removes it.
@@ -38,8 +40,8 @@ export function metaBrandSafetyKind(p: CompiledRequest): Kind | undefined {
     (p.origin !== undefined && p.origin !== 'https://graph.facebook.com')
   )
     return;
-  if (p.action === actions.controls && /^\/v25\.0\/act_\d+\/account_controls$/.test(p.path)) return 'controls';
-  if (p.action === actions.blocklist && /^\/v25\.0\/act_\d+\/publisher_block_lists$/.test(p.path)) return 'blocklist';
+  if (p.action === actions.controls && metaRoute('act_\\d+/account_controls$').test(p.path)) return 'controls';
+  if (p.action === actions.blocklist && metaRoute('act_\\d+/publisher_block_lists$').test(p.path)) return 'blocklist';
   return;
 }
 /** A list of {key} or {id} targets, distinct, with keys of the given shape. */
@@ -148,7 +150,8 @@ export function metaBrandSafetyReads(p: CompiledRequest): CompiledRequest[] {
       ...p,
       action: 'AMCP_META_BRAND_SAFETY_READ',
       method: 'GET',
-      path: '/v25.0/act_' + p.accountId + '/' + (kind === 'controls' ? 'account_controls' : 'publisher_block_lists'),
+      path:
+        metaPrefix + 'act_' + p.accountId + '/' + (kind === 'controls' ? 'account_controls' : 'publisher_block_lists'),
       query: kind === 'controls' ? {} : {fields: 'id,name', limit: 100},
       body: undefined,
       headers: {},

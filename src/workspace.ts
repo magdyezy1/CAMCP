@@ -29,6 +29,7 @@ import {
 } from './workspace-core.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {googleAdsCustomers} from './google-version.js';
+import {metaPrefix} from './meta-version.js';
 export const workspaceTool = tool(
   'amcp_workspace',
   'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its change history. Account readiness, capability evidence, approved client defaults/templates, and campaign change history. contracts lists every local action and its read/write/media/blocked contract classification without network calls; filter by gateway/search and paginate with offset/limit. Profiles never grant account access. check performs only provider reads; unsupported/missing evidence stays explicit.',
@@ -83,7 +84,7 @@ export const accountPlan = (gateway: string, id: string): CompiledRequest => {
   };
   switch (gateway) {
     case 'meta_native_action':
-      p.path = '/v25.0/act_' + id;
+      p.path = metaPrefix + 'act_' + id;
       p.query = {fields: 'id,name,account_status,currency,timezone_name'};
       break;
     case 'snapchat_native_action':

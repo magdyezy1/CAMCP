@@ -321,6 +321,7 @@ import {audit, bad, fingerprint, obj, optional, read} from './workspace-core.js'
 import type {Actor, CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import {nativeAuthority} from './native-authority.js';
 import {familyOf, familyOfRead, readThroughFamilies} from './reviewed-families.js';
+import {metaPrefix} from './meta-version.js';
 // Snapchat records whose read-back adds provider fields or renames sent ones are compared as projections.
 const snapProjections: Record<string, (row: unknown) => unknown> = {
   lead_generation_forms: snapLeadFormProjection,
@@ -473,7 +474,7 @@ function verificationReads(
     const expected = {...b};
     delete expected.execution_options;
     if (expected.creative?.creative_id) expected.creative = {id: expected.creative.creative_id};
-    return [{read: base('/v25.0/' + id, {fields: ['id', ...Object.keys(expected)].join(',')}), expected, id}];
+    return [{read: base(metaPrefix + id, {fields: ['id', ...Object.keys(expected)].join(',')}), expected, id}];
   }
   if (tiktokIdentityKind(plan))
     return tiktokIdentityVerification(plan, result).map(v => ({

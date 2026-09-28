@@ -13,7 +13,7 @@ import {extendGoogleBusinessTool} from './google-business-extensions.js';
 import {extendMetaPostWorkflow} from './meta-post-extensions.js';
 import {extendAdjustTool} from './adjust-extensions.js';
 import {metaActionOverride} from './meta-contracts.js';
-import {extendGoogleAdsTool, googleAdsActionVersion, googleAdsVersion} from './google-version.js';
+import {catalogVersions} from './catalog-versions.js';
 import {extendXReportTool} from './x-report-jobs.js';
 const addFormats = addFormatsModule as unknown as (ajv: Ajv) => void;
 export class Registry {
@@ -49,21 +49,19 @@ export class Registry {
                   ? extendMetaPostWorkflow(original)
                   : original.name === 'adjust_native_action'
                     ? extendAdjustTool(original)
-                    : original.name === 'google_ads_native_action'
-                      ? extendGoogleAdsTool(original)
-                      : original;
+                    : (catalogVersions[original.name]?.tool?.(original) ?? original);
       this.tools.set(tool.name, tool);
       this.validators.set(tool.name, this.ajv.compile(tool.inputSchema));
       for (const op of tool.operations ?? [])
         this.validators.set(tool.name + '/' + op.operation, this.ajv.compile(op.argumentsSchema));
     }
     for (const original of this.data.catalogs) {
-      const catalog =
-        original.gateway === 'meta_native_action'
-          ? {...original, actions: original.actions.map(metaActionOverride)}
-          : original.gateway === 'google_ads_native_action'
-            ? {...original, api_version: googleAdsVersion, actions: original.actions.map(googleAdsActionVersion)}
-            : original;
+      const actions =
+          original.gateway === 'meta_native_action' ? original.actions.map(metaActionOverride) : original.actions,
+        moved = catalogVersions[original.gateway],
+        catalog = moved
+          ? {...original, api_version: moved.version, actions: actions.map(moved.action)}
+          : {...original, actions};
       this.catalogs.set(catalog.gateway, catalog);
       for (const action of catalog.actions) this.register(catalog.gateway, action);
     }

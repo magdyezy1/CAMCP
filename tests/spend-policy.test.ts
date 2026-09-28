@@ -200,7 +200,7 @@ test('reservations are summed for the current day only and do not accumulate for
       policy: {enforcement: 'block', max_daily_increase_native: 100},
     });
     const budget = (amount: number) =>
-      plan('meta_native_action', {daily_budget: amount}, {action: 'meta_adset_update', path: '/v25.0/456'});
+      plan('meta_native_action', {daily_budget: amount}, {action: 'meta_adset_update', path: '/v26.0/456'});
     const policyId = (checkSpendPolicy(store, actor, budget(110), [{daily_budget: 100}], 'first') as JsonObject)
       .policy_id as string;
     // A reservation left over from an earlier day must not count against today's allowance.
@@ -243,7 +243,7 @@ test('a workspace default protects accounts nobody configured individually', () 
   try {
     connection(store, 'meta_native_action');
     const budget = (amount: number) =>
-      plan('meta_native_action', {daily_budget: amount}, {action: 'meta_adset_update', path: '/v25.0/456'});
+      plan('meta_native_action', {daily_budget: amount}, {action: 'meta_adset_update', path: '/v26.0/456'});
 
     // Before any policy exists the response says so plainly rather than looking protected.
     const none = checkSpendPolicy(store, actor, budget(500), [{daily_budget: 100}]);
@@ -302,7 +302,7 @@ test('a workspace default gives each account its own daily allowance', () => {
       policy: {enforcement: 'block', max_daily_increase_native: 50},
     });
     const budget = (account: string, amount: number) => ({
-      ...plan('meta_native_action', {daily_budget: amount}, {action: 'meta_adset_update', path: '/v25.0/456'}),
+      ...plan('meta_native_action', {daily_budget: amount}, {action: 'meta_adset_update', path: '/v26.0/456'}),
       accountId: account,
     });
     assert.equal(

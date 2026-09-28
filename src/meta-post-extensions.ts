@@ -69,7 +69,7 @@ export function extendMetaPostWorkflow(original: ToolDefinition): ToolDefinition
     pagination:
       'limit 1–100 for lists; URL searches inspect up to 1000 posts/25 pages per call. Use next_call for additional segments. Partial/continued responses are never marked globally complete.',
     qualification:
-      'Official SDK v25.0.3 plus local adversarial fixtures; live eligibility and application approval unverified.',
+      'Official SDK 26.0.2 (Graph v26.0) plus local adversarial fixtures; live eligibility and application approval unverified.',
   };
   return tool;
 }

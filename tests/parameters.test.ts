@@ -55,14 +55,14 @@ test('Meta fields are native selectors; response controls and top-level context 
     {action: 'meta_business_id_owned_ad_accounts_get', business_id: '42'},
     strictOptions,
   );
-  assert.equal(business.path, '/v25.0/42/owned_ad_accounts');
+  assert.equal(business.path, '/v26.0/42/owned_ad_accounts');
   assert.deepEqual(business.query, {});
   const report = compiler.compile(
     'meta_native_action',
     {action: 'meta_report_run_get', report_run_id: '42'},
     strictOptions,
   );
-  assert.equal(report.path, '/v25.0/42');
+  assert.equal(report.path, '/v26.0/42');
   const stats = registry.catalogs
     .get('snapchat_native_action')!
     .actions.find(a => a.method === 'GET' && a.path?.includes('/adaccounts/{ad_account_id}/stats'))!;
@@ -213,7 +213,7 @@ test('filtering runs after pagination and scope observation and leaves vendor fa
                 data: [{id: '111', name: 'A'}],
                 paging: {
                   cursors: {after: 'next'},
-                  next: 'https://graph.facebook.com/v25.0/act_123/campaigns?after=next',
+                  next: 'https://graph.facebook.com/v26.0/act_123/campaigns?after=next',
                 },
               }
             : {data: [{id: '222', name: 'B'}]},

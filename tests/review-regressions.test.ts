@@ -161,7 +161,7 @@ test('query method and batch tunneling cannot bypass write gates, including nati
       assert.equal(result.error.code, 'LIVE_WRITES_DISABLED');
       const plan = new Compiler(registry).compile(
         'meta_native_action',
-        {account_id: '111', native_request: {method: 'GET', path: '/v25.0/act_111', query}},
+        {account_id: '111', native_request: {method: 'GET', path: '/v26.0/act_111', query}},
         {mode: 'enhanced', flags: {nativeRequests: true}},
       );
       assert.equal(plan.readOnly, false);
@@ -177,9 +177,9 @@ test('native paths cannot smuggle query credentials, mutation overrides or fragm
     const options = {mode: 'enhanced' as const, flags: {nativeRequests: true}},
       service = new MirrorService(registry, x.store, x.transport, options);
     for (const path of [
-      '/v25.0/act_111/campaigns?method=POST&access_token=synthetic-query-token',
-      '/v25.0/act_111/campaigns#fragment',
-      '/v25.0/act_111/campaigns?method=DELETE',
+      '/v26.0/act_111/campaigns?method=POST&access_token=synthetic-query-token',
+      '/v26.0/act_111/campaigns#fragment',
+      '/v26.0/act_111/campaigns?method=DELETE',
     ]) {
       const result = await service.call(
         'meta_native_action',

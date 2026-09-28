@@ -3,6 +3,7 @@ import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {metaPrefix, metaRoute} from './meta-version.js';
 
 /**
  * Creating custom conversions in a Meta ad account, Marketing API v25.0 ("Ad Account Customconversions" reference,
@@ -63,7 +64,7 @@ function unverified(message: string): never {
 }
 export function metaConversionKind(p: CompiledRequest): 'create' | undefined {
   if (p.gateway !== gateway || (p.origin && p.origin !== 'https://graph.facebook.com') || p.specialTransport) return;
-  return p.method === 'POST' && /^\/v25\.0\/act_[1-9][0-9]{0,31}\/customconversions$/.test(p.path)
+  return p.method === 'POST' && metaRoute('act_[1-9][0-9]{0,31}/customconversions$').test(p.path)
     ? 'create'
     : undefined;
 }
@@ -152,7 +153,7 @@ const read = (p: CompiledRequest, path: string, query: JsonObject, state?: Read[
   ...p,
   action: 'AMCP_META_CONVERSION_READ',
   method: 'GET',
-  path: '/v25.0/act_' + account(p.accountId) + path,
+  path: metaPrefix + 'act_' + account(p.accountId) + path,
   query,
   body: undefined,
   headers: {},

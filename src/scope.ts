@@ -46,6 +46,7 @@ import {assertGoogleAdsScope} from './google-contracts.js';
 import {googleSegmentResource, googleSegmentKind} from './google-custom-segments.js';
 import {metaCopyKind, metaCopiedIds} from './meta-copies.js';
 import {reviewedFamilies} from './reviewed-families.js';
+import {metaRoute} from './meta-version.js';
 
 export function normalizeAccount(gateway: string, id: unknown): string {
   const value = String(id);
@@ -238,7 +239,7 @@ export class ScopeGuard {
     if (
       plan.gateway === 'meta_native_action' &&
       (plan.action === 'AMCP_META_LABEL_READ' ||
-        (plan.method === 'GET' && /^\/v25\.0\/act_\d+\/adlabels$/.test(plan.path)))
+        (plan.method === 'GET' && metaRoute('act_\\d+/adlabels$').test(plan.path)))
     )
       assertMetaLabelScope(connection);
     if (plan.gateway === 'criteo_native_action' && plan.action === 'AMCP_CRITEO_TARGET_READ')
@@ -538,13 +539,13 @@ export class ScopeGuard {
     // The account's value rule set list is ownership evidence for later edits and deletion of those sets by ID.
     if (
       plan.gateway === 'meta_native_action' &&
-      /^\/v25\.0\/act_\d+\/value_rule_set$/.test(plan.path) &&
+      metaRoute('act_\\d+/value_rule_set$').test(plan.path) &&
       Array.isArray(d?.data)
     ) {
       for (const set of d.data)
         if (typeof set?.id === 'string' && /^\d+$/.test(set.id)) this.store.rememberResource(connection, id, set.id);
     }
-    if (plan.gateway === 'meta_native_action' && /^\/v25\.0\/act_\d+\/adlabels$/.test(plan.path)) {
+    if (plan.gateway === 'meta_native_action' && metaRoute('act_\\d+/adlabels$').test(plan.path)) {
       const labels = metaLabelIdentities(d, id);
       for (const label of labels) this.store.rememberResource(connection, id, label);
     }

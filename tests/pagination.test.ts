@@ -6,7 +6,7 @@ const plan: CompiledRequest = {
   gateway: 'meta_native_action',
   action: 'list',
   method: 'GET',
-  path: '/v25.0/act_123/campaigns',
+  path: '/v26.0/act_123/campaigns',
   query: {},
   headers: {},
   readOnly: true,

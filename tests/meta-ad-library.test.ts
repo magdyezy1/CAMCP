@@ -42,7 +42,7 @@ function fixture() {
       const u = new URL(String(url));
       calls.push({url: u.href, method: init!.method});
       assert.equal(u.origin, 'https://graph.facebook.com');
-      assert.equal(u.pathname, '/v25.0/ads_archive');
+      assert.equal(u.pathname, '/v26.0/ads_archive');
       assert.equal(init!.method, 'GET');
       assert.equal(u.searchParams.get('ad_type'), 'ALL');
       assert.equal(u.searchParams.get('ad_active_status'), 'ACTIVE');
@@ -128,7 +128,7 @@ test('Meta public archive follows bounded cursors on the fixed origin and expose
     assert.equal(r.success, true);
     assert.equal(r.data.pages, 2);
     assert.equal(r.data.ads.length, 2);
-    assert.ok(f.calls.every(c => c.url.startsWith('https://graph.facebook.com/v25.0/ads_archive?')));
+    assert.ok(f.calls.every(c => c.url.startsWith('https://graph.facebook.com/v26.0/ads_archive?')));
     assert.ok(f.calls.every(c => !c.url.includes('access_token')));
   } finally {
     f.store.close();
@@ -309,7 +309,7 @@ test('Meta archive scope exception cannot authorize another Graph route, method,
       gateway: 'meta_native_action',
       action: 'AMCP_META_AD_LIBRARY_READ',
       method: 'GET',
-      path: '/v25.0/ads_archive',
+      path: '/v26.0/ads_archive',
       origin: 'https://graph.facebook.com',
       query: {
         search_terms: 'Example',
@@ -331,7 +331,7 @@ test('Meta archive scope exception cannot authorize another Graph route, method,
     assert.equal(metaAdLibraryRead(plan), true);
     assert.equal(new ScopeGuard(registry, f.store).authorize(plan, f.c), 'public_ad_library');
     for (const p of [
-      {...plan, path: '/v25.0/me'},
+      {...plan, path: '/v26.0/me'},
       {...plan, method: 'POST'},
       {...plan, origin: 'https://example.com'},
       {...plan, body: {}},

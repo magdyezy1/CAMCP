@@ -165,15 +165,15 @@ function fixture({extraAds = 0} = {}) {
           ),
         paging: {cursors: {before: 'b', after: 'a'}},
       });
-    if (method === 'GET' && (m = /^\/v25\.0\/(\d+)\/ads$/.exec(path))) {
+    if (method === 'GET' && (m = /^\/v26\.0\/(\d+)\/ads$/.exec(path))) {
       assert.equal(url.searchParams.get('fields'), 'id,adset_id,campaign_id');
       return page('ad', m[1], url.searchParams.get('fields'));
     }
-    if (method === 'GET' && (m = /^\/v25\.0\/(\d+)\/adsets$/.exec(path))) {
+    if (method === 'GET' && (m = /^\/v26\.0\/(\d+)\/adsets$/.exec(path))) {
       assert.equal(url.searchParams.get('fields'), 'id,campaign_id,daily_budget,lifetime_budget');
       return page('adset', m[1], url.searchParams.get('fields'));
     }
-    if (method === 'GET' && (m = /^\/v25\.0\/(\d+)$/.exec(path))) {
+    if (method === 'GET' && (m = /^\/v26\.0\/(\d+)$/.exec(path))) {
       const row = rows.get(m[1]);
       if (!row) return Response.json({error: {message: 'Unsupported get request.', code: 100}}, {status: 400});
       const fields = url.searchParams.get('fields').split(','),
@@ -194,7 +194,7 @@ function fixture({extraAds = 0} = {}) {
         );
       return Response.json(Object.fromEntries(fields.filter(f => row[f] !== undefined).map(f => [f, row[f]])));
     }
-    if (method === 'POST' && (m = /^\/v25\.0\/(\d+)\/copies$/.exec(path))) {
+    if (method === 'POST' && (m = /^\/v26\.0\/(\d+)\/copies$/.exec(path))) {
       writes.push(path);
       const b = Object.fromEntries(new URLSearchParams(String(init.body))),
         source = rows.get(m[1]);
@@ -384,7 +384,7 @@ test('a campaign copy needs an owned source, copies once, reports the copied bud
     assert.equal(p.success, true, JSON.stringify(p));
     assert.deepEqual(
       p.data.state_reads.map(r => r.path),
-      ['/v25.0/100'],
+      ['/v26.0/100'],
     );
     const impact = p.data.creative_impact;
     assert.equal(impact.may_activate, false);
@@ -395,7 +395,7 @@ test('a campaign copy needs an owned source, copies once, reports the copied bud
     const verified = await f.verify(p.data.review_id);
     assert.equal(verified.data.status, 'verified', JSON.stringify(verified));
     assert.equal((await f.execute(p.data.review_id)).data.replayed, true);
-    assert.deepEqual(f.writes, ['/v25.0/100/copies']);
+    assert.deepEqual(f.writes, ['/v26.0/100/copies']);
   } finally {
     f.store.close();
   }
@@ -426,7 +426,7 @@ test('an ad set copy with its ads lands in the owned target campaign, and every 
     assert.equal(p.success, true, JSON.stringify(p));
     assert.deepEqual(
       p.data.state_reads.map(r => r.path),
-      ['/v25.0/200', '/v25.0/101', '/v25.0/200/ads'],
+      ['/v26.0/200', '/v26.0/101', '/v26.0/200/ads'],
     );
     assert.equal(p.data.creative_impact.copies_expected, 3);
     assert.equal(p.data.creative_impact.campaign_id, '101');
@@ -521,7 +521,7 @@ test('a deep campaign copy reads its ad sets and ads, copies within the limit an
     assert.equal(p.success, true, JSON.stringify(p));
     assert.deepEqual(
       p.data.state_reads.map(r => r.path),
-      ['/v25.0/100', '/v25.0/100/adsets', '/v25.0/100/ads'],
+      ['/v26.0/100', '/v26.0/100/adsets', '/v26.0/100/ads'],
     );
     assert.equal(p.data.creative_impact.copies_expected, 4);
     assert.deepEqual(p.data.creative_impact.budgets_copied, [

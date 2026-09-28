@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {metaPrefix, metaRoute} from './meta-version.js';
 
 /**
  * Meta ad account settings, Marketing API v25.0 "Ad Account" reference (Updating and Reading, checked 2026-09-27).
@@ -47,7 +48,7 @@ export function metaAccountSettingsKind(p: CompiledRequest): boolean {
     !p.specialTransport &&
     (!p.origin || p.origin === 'https://graph.facebook.com') &&
     p.action === action &&
-    /^\/v25\.0\/act_[0-9]{1,32}$/.test(p.path)
+    metaRoute('act_[0-9]{1,32}$').test(p.path)
   );
 }
 const body = (p: CompiledRequest): JsonObject => (object(p.body) ? p.body : {});
@@ -89,7 +90,7 @@ const accountRead = (p: CompiledRequest, s: State): Read => ({
   ...p,
   action: 'AMCP_META_ACCOUNT_READ',
   method: 'GET',
-  path: '/v25.0/act_' + account(p.accountId),
+  path: metaPrefix + 'act_' + account(p.accountId),
   query: {fields: 'id,name,default_dsa_payor,default_dsa_beneficiary,is_notifications_enabled,account_status'},
   body: undefined,
   headers: {},

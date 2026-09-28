@@ -1,28 +1,28 @@
 {
-  "api_version": "v25.0",
-  "sdk_tag": "25.0.3",
-  "checked_at": "2026-09-20",
+  "api_version": "v26.0",
+  "sdk_tag": "26.0.2",
+  "checked_at": "2026-09-28",
   "method": "Deterministic extraction from the pinned official public Python SDK; schema evidence, not live provider acceptance.",
   "sources": {
     "adreportrun": {
-      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/25.0.3/facebook_business/adobjects/adreportrun.py",
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/adreportrun.py",
       "sha256": "b5ac4ac608eeac39fd761293c5142d166d88775d863a32610a26927ebeda00b4"
     },
     "adsinsights": {
-      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/25.0.3/facebook_business/adobjects/adsinsights.py",
-      "sha256": "4bfb9424877f477ba00f1eea4ac37abe824b2ab301e77039658277009b2f22dd"
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/adsinsights.py",
+      "sha256": "4fd1e5006619a90ebe37c09fe8cd59f21a7f8e6dfcaa331b50e3f303755d71c4"
     },
     "adaccount": {
-      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/25.0.3/facebook_business/adobjects/adaccount.py",
-      "sha256": "7349d7ec8da801a33d37f7a02c67e163cfa7ebcc23eb2a5969adcc093d0a2b7e"
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/adaccount.py",
+      "sha256": "dd0a0d1acbc9c3a690f20f8b4ec28c7868211688a9973885c607660865313df6"
     },
     "campaign": {
-      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/25.0.3/facebook_business/adobjects/campaign.py",
-      "sha256": "df063bd9b79d5675b307697874e5041beb91f01b916df2be8427b0cf3f82cbb5"
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/campaign.py",
+      "sha256": "3abe1426d0f27c6edc4e9e08503748f2e78814a653495ce2bfc3e11851ba1ba8"
     },
     "adset": {
-      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/25.0.3/facebook_business/adobjects/adset.py",
-      "sha256": "193f51b634e4e99e6408b9a45fa31b17fa9257fedafbf202e8033860462f26f7"
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/adset.py",
+      "sha256": "09bb520a7fd99e8e4790ed570f86767c4d1e30070ae7324697c03dba710608ee"
     }
   },
   "creation": {
@@ -203,6 +203,14 @@
       "configurable_attribution_action": "list<AdsActionStats>",
       "configurable_attribution_actionvalue": "list<AdsActionStats>",
       "configurable_audience_overlap_reach": "list<AdsActionStats>",
+      "configurable_audience_overlap_with_conv_action": "string",
+      "configurable_audience_overlap_with_conv_converters": "string",
+      "configurable_audience_overlap_with_conv_exposure_cost": "string",
+      "configurable_audience_overlap_with_conv_exposure_impressions": "string",
+      "configurable_audience_overlap_with_conv_exposure_reach": "string",
+      "configurable_placement_ptc_conversions": "string",
+      "configurable_placement_ptc_converters": "string",
+      "configurable_placement_ptc_reach": "string",
       "configurable_reachbyfrequency_action": "list<AdsActionStats>",
       "configurable_reachbyfrequency_converters_count": "string",
       "configurable_reachbyfrequency_impressions_cost": "string",
@@ -285,6 +293,7 @@
       "inline_link_click_ctr": "string",
       "inline_link_clicks": "string",
       "inline_post_engagement": "string",
+      "instagram_profile_follow": "string",
       "instagram_profile_visits": "string",
       "instagram_upcoming_event_reminders_set": "string",
       "instant_experience_clicks_to_open": "string",
@@ -314,13 +323,10 @@
       "marketing_messages_sent": "string",
       "marketing_messages_spend": "string",
       "marketing_messages_spend_currency": "string",
-      "marketing_messages_website_add_to_cart": "string",
-      "marketing_messages_website_initiate_checkout": "string",
-      "marketing_messages_website_purchase": "string",
-      "marketing_messages_website_purchase_values": "string",
       "messages_delivered": "string",
       "messages_delivered_ctr": "string",
       "mobile_app_purchase_roas": "list<AdsActionStats>",
+      "msa_seller_budget": "int",
       "multi_event_conversion_attribution_setting": "string",
       "objective": "string",
       "objective_result_rate": "list<Object>",
@@ -331,6 +337,8 @@
       "outbound_clicks": "list<AdsActionStats>",
       "outbound_clicks_ctr": "list<AdsActionStats>",
       "place_page_name": "string",
+      "playable_average_game_length": "string",
+      "playable_game_start_rate": "string",
       "product_group_retailer_id": "string",
       "product_retailer_id": "string",
       "product_views": "string",
@@ -344,6 +352,7 @@
       "result_rate": "list<Object>",
       "result_values_performance_indicator": "string",
       "results": "list<Object>",
+      "shop_clicks": "string",
       "shops_assisted_purchases": "string",
       "social_spend": "string",
       "spend": "string",

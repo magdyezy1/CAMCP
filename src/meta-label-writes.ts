@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {metaPrefix, metaRoute} from './meta-version.js';
 
 type Kind = 'create' | 'rename' | 'delete' | 'attach';
 const kinds: Record<string, Kind> = {
@@ -32,10 +33,10 @@ export function metaLabelKind(p: CompiledRequest): Kind | undefined {
   if (!kind) return;
   const path =
     kind === 'create'
-      ? /^\/v25\.0\/act_[1-9][0-9]*\/adlabels$/
+      ? metaRoute('act_[1-9][0-9]*/adlabels$')
       : kind === 'attach'
-        ? /^\/v25\.0\/[1-9][0-9]*\/adlabels$/
-        : /^\/v25\.0\/[1-9][0-9]*$/;
+        ? metaRoute('[1-9][0-9]*/adlabels$')
+        : metaRoute('[1-9][0-9]*$');
   return path.test(p.path) && p.method === (kind === 'delete' ? 'DELETE' : 'POST') ? kind : undefined;
 }
 export function assertMetaLabel(p: CompiledRequest) {
@@ -84,7 +85,7 @@ export function metaLabelSnapshots(p: CompiledRequest): CompiledRequest[] {
   const kind = metaLabelKind(p)!;
   return [
     {
-      ...base(p, '/v25.0/act_' + account(p.accountId), {fields: 'id,account_status,currency'}),
+      ...base(p, metaPrefix + 'act_' + account(p.accountId), {fields: 'id,account_status,currency'}),
       metaLabelState: {
         kind,
         ...(kind === 'attach' ? {targetId: targetId(p)} : kind !== 'create' ? {labelId: targetId(p)} : {}),
@@ -167,12 +168,12 @@ export async function readMetaLabels(
     if (bytes > 8 * 1024 * 1024) fail('Meta label state exceeds the 8 MiB total limit.', 'META_LABEL_STATE_UNVERIFIED');
     return d;
   };
-  const a = await call('/v25.0/act_' + expectedAccount, {fields: 'id,account_status,currency'});
+  const a = await call(metaPrefix + 'act_' + expectedAccount, {fields: 'id,account_status,currency'});
   if (account(a.id) !== expectedAccount || !Number.isSafeInteger(a.account_status) || typeof a.currency !== 'string')
     fail('Meta did not verify the selected account.', 'META_LABEL_STATE_UNVERIFIED');
   const labels: JsonObject = {},
     seen = new Set<string>(),
-    path = '/v25.0/act_' + expectedAccount + '/adlabels';
+    path = metaPrefix + 'act_' + expectedAccount + '/adlabels';
   let after: string | undefined;
   for (let page = 0; ; page++) {
     if (page >= 25) fail('Meta labels exceed 25 pages.', 'META_LABEL_STATE_UNVERIFIED');
@@ -217,7 +218,7 @@ export async function readMetaLabels(
     data.label = l ? {...l, present: true} : {id: context.labelId, present: false};
   }
   if (context.targetId) {
-    const t = await call('/v25.0/' + context.targetId, {fields: 'id,account_id,name,status,adlabels'});
+    const t = await call(metaPrefix + context.targetId, {fields: 'id,account_id,name,status,adlabels'});
     if (
       t.id !== context.targetId ||
       account(t.account_id) !== expectedAccount ||

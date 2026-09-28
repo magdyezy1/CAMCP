@@ -55,9 +55,9 @@ function fixture(mode = '', scopes = ['ads_management']) {
         path = u.pathname,
         method = init.method;
       calls.push({path, method});
-      if (method === 'GET' && path === '/v25.0/act_123')
+      if (method === 'GET' && path === '/v26.0/act_123')
         return Response.json({id: 'act_123', ...pick(acct, u.searchParams.get('fields') ?? 'name')});
-      if (method === 'POST' && path === '/v25.0/act_123') {
+      if (method === 'POST' && path === '/v26.0/act_123') {
         writes++;
         const body = Object.fromEntries(new URLSearchParams(String(init.body ?? '')));
         if (mode === 'error') return Response.json({error: {message: 'Invalid parameter', code: 100}}, {status: 400});

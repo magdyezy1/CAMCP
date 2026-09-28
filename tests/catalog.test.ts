@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import {Registry} from '../src/catalog.js';
 import {Introspection} from '../src/introspection.js';
 import {strictOptions} from '../src/service.js';
-import {currentGoogleAdsCapture} from '../src/google-version.js';
+import {currentCapture} from '../src/catalog-versions.js';
 const registry = new Registry(),
   introspection = new Introspection(registry);
 test('20 captured tools, Microsoft extension and 112 delegated schemas load and validate', () => {
@@ -53,10 +53,10 @@ test('strict full catalog pages match frozen live metadata', () => {
     for (const name of fs.readdirSync(dir).filter(n => /^catalog-\d{4}\.json$/.test(n))) {
       const e = JSON.parse(fs.readFileSync(dir + '/' + name, 'utf8')),
         observed = JSON.parse(e.response.content[0].text).data;
-      // Google Ads pages were captured at v23 and are listed at the version AMCP sends.
+      // Google Ads and Meta pages were captured at older versions and are listed at the version AMCP sends.
       assert.deepEqual(
         introspection.list(c.gateway, e.request.args, strictOptions),
-        c.gateway === 'google_ads_native_action' ? currentGoogleAdsCapture(observed) : observed,
+        currentCapture(c.gateway, observed),
         c.gateway + '/' + name,
       );
     }

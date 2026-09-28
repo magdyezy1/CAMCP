@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {metaPrefix, metaRoute} from './meta-version.js';
 
 /**
  * Renaming and deleting Meta ad creatives and custom audiences, Marketing API v25.0 ("Ad Creative" and "Custom Audience"
@@ -47,7 +48,7 @@ export function metaObjectKind(p: CompiledRequest): Kind | undefined {
   )
     return;
   const k = actions[p.action];
-  if (!k || !/^\/v25\.0\/[1-9][0-9]{0,31}$/.test(p.path)) return;
+  if (!k || !metaRoute('[1-9][0-9]{0,31}$').test(p.path)) return;
   return p.method === (k.op === 'delete' ? 'DELETE' : 'POST') ? k : undefined;
 }
 const targetOf = (p: CompiledRequest) => p.path.split('/')[2]!;
@@ -95,7 +96,7 @@ const read = (p: CompiledRequest, s: NonNullable<Read['metaObjectState']>): Read
   ...p,
   action: 'AMCP_META_OBJECT_READ',
   method: 'GET',
-  path: '/v25.0/' + s.id,
+  path: metaPrefix + s.id,
   query: {fields: fields[s.object]!},
   body: undefined,
   headers: {},

@@ -37,7 +37,7 @@ test('Meta campaign → adset → Drive image → creative → paused ad shares 
       const u = new URL(String(input));
       assert.equal(u.hostname, 'graph.facebook.com');
       if (init?.method === 'GET') {
-        if (u.pathname === '/v25.0/act_123/promote_pages') return Response.json({data: [{id: '500'}]});
+        if (u.pathname === '/v26.0/act_123/promote_pages') return Response.json({data: [{id: '500'}]});
         const id = u.pathname.split('/').at(-1);
         return Response.json(
           id === 'act_123' ? {id, account_status: 1, currency: 'USD'} : {id, name: 'Target', status: 'PAUSED'},

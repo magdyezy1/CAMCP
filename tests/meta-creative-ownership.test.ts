@@ -45,20 +45,20 @@ function fixture() {
         path = u.pathname;
       if (init?.method !== 'GET') {
         state.writes++;
-        assert.equal(path, '/v25.0/act_123/adcreatives');
+        assert.equal(path, '/v26.0/act_123/adcreatives');
         if (state.lose) throw Error('Synthetic lost response');
         return Response.json({id: '900'});
       }
       state.reads.push(path);
       hook?.(path);
-      if (path === '/v25.0/act_123') return Response.json({id: 'act_123', currency: 'USD', account_status: 1});
+      if (path === '/v26.0/act_123') return Response.json({id: 'act_123', currency: 'USD', account_status: 1});
       if (path.endsWith('/promote_pages'))
         return Response.json({data: state.pages, ...(state.paging ? {paging: state.paging} : {})});
       if (path.endsWith('/instagram_accounts')) return Response.json({data: state.instagram});
-      if (path === '/v25.0/500')
+      if (path === '/v26.0/500')
         return Response.json({id: '500', access_token: state.token, instagram_business_account: {id: '888'}});
       assert.equal(new Headers(init.headers).get('Authorization'), 'Bearer ' + state.token);
-      if (path === '/v25.0/777')
+      if (path === '/v26.0/777')
         return Response.json({
           id: '777',
           owner: {id: state.owner},
@@ -67,7 +67,7 @@ function fixture() {
           media_product_type: 'REELS',
           like_count: state.counter,
         });
-      if (path === '/v25.0/500_600')
+      if (path === '/v26.0/500_600')
         return Response.json({
           id: '500_600',
           from: {id: state.from},
@@ -209,7 +209,7 @@ test('write grant revocation and reauthorization during private post checks stop
     const f = fixture();
     try {
       f.hook(path => {
-        if (path === '/v25.0/500')
+        if (path === '/v26.0/500')
           f.store.putConnection(
             admin,
             {
@@ -230,7 +230,7 @@ test('write grant revocation and reauthorization during private post checks stop
             : 'CONNECTION_REQUIRED',
         JSON.stringify(result),
       );
-      assert.equal(f.state.reads.includes('/v25.0/777'), false);
+      assert.equal(f.state.reads.includes('/v26.0/777'), false);
       assert.equal(f.state.writes, 0);
     } finally {
       f.store.close();
@@ -271,7 +271,7 @@ test('duplicate account logins cannot supply identity access and missing content
     assert.equal(result.error.code, 'INSUFFICIENT_SCOPE');
     assert.ok(result.error.details.required_scopes.includes('instagram_basic'));
     assert.equal(f.state.writes, 0);
-    assert.equal(f.state.reads.includes('/v25.0/777'), false);
+    assert.equal(f.state.reads.includes('/v26.0/777'), false);
   } finally {
     f.store.close();
   }

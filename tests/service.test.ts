@@ -106,7 +106,7 @@ test('connected read traverses compiler, tenant binding, encrypted auth, transpo
     store,
     new NativeTransport((async (url, options) => {
       calls++;
-      assert.equal(String(url), 'https://graph.facebook.com/v25.0/act_123/campaigns?limit=1');
+      assert.equal(String(url), 'https://graph.facebook.com/v26.0/act_123/campaigns?limit=1');
       assert.equal((options!.headers as any).Authorization, 'Bearer test-secret');
       return new Response('{"data":[{"id":"1234567890123456789"}]}');
     }) as typeof fetch),

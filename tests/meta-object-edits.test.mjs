@@ -85,17 +85,17 @@ function fixture(mode = '') {
         method = init.method;
       calls.push({path, method});
       if (method === 'GET') {
-        if (path === '/v25.0/act_123/adcreatives')
+        if (path === '/v26.0/act_123/adcreatives')
           return Response.json({
             data: [...creatives].map(([id, c]) => ({id, ...pick(c, u.searchParams.get('fields') ?? 'name')})),
             paging: {cursors: {before: 'b', after: 'a'}},
           });
-        if (path === '/v25.0/act_123/customaudiences')
+        if (path === '/v26.0/act_123/customaudiences')
           return Response.json({
             data: [...audiences].map(([id, a]) => ({id, ...pick(a, u.searchParams.get('fields') ?? 'name')})),
             paging: {cursors: {before: 'b', after: 'a'}},
           });
-        const m = /^\/v25\.0\/(\d+)$/.exec(path);
+        const m = /^\/v26\.0\/(\d+)$/.exec(path);
         if (m && creatives.has(m[1]))
           return Response.json({id: m[1], ...pick(creatives.get(m[1]), u.searchParams.get('fields'))});
         if (m && audiences.has(m[1]))
@@ -103,7 +103,7 @@ function fixture(mode = '') {
         return missing();
       }
       writes++;
-      const m = /^\/v25\.0\/(\d+)$/.exec(path),
+      const m = /^\/v26\.0\/(\d+)$/.exec(path),
         id = m?.[1],
         body = Object.fromEntries(new URLSearchParams(String(init.body ?? '')));
       if (mode === 'fail')

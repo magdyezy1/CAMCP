@@ -87,11 +87,11 @@ function fixture() {
       calls.push({path: u.pathname, method, query: Object.fromEntries(u.searchParams)});
       if (method === 'GET') {
         reads++;
-        if (u.pathname === '/v25.0/act_123/value_rule_set')
+        if (u.pathname === '/v26.0/act_123/value_rule_set')
           return Response.json({
             ...edge(shown()),
             ...(mode === 'paged'
-              ? {paging: {next: 'https://graph.facebook.com/v25.0/act_123/value_rule_set?after=x'}}
+              ? {paging: {next: 'https://graph.facebook.com/v26.0/act_123/value_rule_set?after=x'}}
               : {}),
           });
         throw new Error('Unexpected read ' + u.pathname);
@@ -110,17 +110,17 @@ function fixture() {
               x.criteria_type === 'GENDER' ? x.criteria_values.map(v => v.toLowerCase()) : x.criteria_values,
           })),
         }));
-      if (u.pathname === '/v25.0/act_123/value_rule_set') {
+      if (u.pathname === '/v26.0/act_123/value_rule_set') {
         const id = String(next++);
         sets.push({id, name: body.name, rules: withIds(body.rules)});
         return Response.json({id});
       }
-      const del = /^\/v25\.0\/(\d+)\/delete_rule_set$/.exec(u.pathname);
+      const del = /^\/v26\.0\/(\d+)\/delete_rule_set$/.exec(u.pathname);
       if (del) {
         sets = sets.filter(s => s.id !== del[1]);
         return Response.json({success: true});
       }
-      const upd = /^\/v25\.0\/(\d+)$/.exec(u.pathname);
+      const upd = /^\/v26\.0\/(\d+)$/.exec(u.pathname);
       if (upd) {
         const s = sets.find(x => x.id === upd[1]);
         s.name = body.name;

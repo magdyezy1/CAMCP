@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {metaPrefix, metaRoute} from './meta-version.js';
 
 /**
  * Deleting ad images from a Meta ad account's library, Marketing API v25.0 ("Ad Image" reference, Deleting; checked
@@ -25,7 +26,7 @@ function unverified(message: string): never {
 }
 export function metaImageKind(p: CompiledRequest): 'delete' | undefined {
   if (p.gateway !== gateway || (p.origin && p.origin !== 'https://graph.facebook.com') || p.specialTransport) return;
-  return p.method === 'DELETE' && /^\/v25\.0\/act_[1-9][0-9]{0,31}\/adimages$/.test(p.path) ? 'delete' : undefined;
+  return p.method === 'DELETE' && metaRoute('act_[1-9][0-9]{0,31}/adimages$').test(p.path) ? 'delete' : undefined;
 }
 const hashOf = (p: CompiledRequest) => String(p.query.hash);
 export function assertMetaImage(p: CompiledRequest): void {
@@ -47,7 +48,7 @@ const read = (p: CompiledRequest, hash: string, optional = false): Read => ({
   ...p,
   action: 'AMCP_META_IMAGE_READ',
   method: 'GET',
-  path: '/v25.0/act_' + account(p.accountId) + '/adimages',
+  path: metaPrefix + 'act_' + account(p.accountId) + '/adimages',
   query: {hashes: JSON.stringify([hash]), fields: 'hash,id,name,status,account_id,created_time'},
   body: undefined,
   headers: {},

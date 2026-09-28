@@ -2,9 +2,11 @@ import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {metaPrefix, metaRoute} from './meta-version.js';
 
 /**
- * Meta value rule sets, per the Marketing API "Value Rules" guide (checked 2026-09-26; AMCP stays on Graph v25.0). A set
+ * Meta value rule sets, per the Marketing API "Value Rules" guide (checked 2026-09-26 at Graph v25.0;
+ * the v26.0 SDK keeps the route and its parameters). A set
  * holds up to 10 ordered rules; the first matching rule adjusts the bid, up by 1–1000% or down by 1–90%, for up to four
  * criteria. An account holds up to six sets. An update sends the complete set: existing rules and criteria keep their IDs,
  * new ones have none, and omitted ones are removed. Ad sets that use a set bid by it, so edits and deletion change their
@@ -78,9 +80,9 @@ export function metaValueRuleKind(p: CompiledRequest): Kind | undefined {
     (p.origin !== undefined && p.origin !== 'https://graph.facebook.com')
   )
     return;
-  if (p.action === actions.create && /^\/v25\.0\/act_\d+\/value_rule_set$/.test(p.path)) return 'create';
-  if (p.action === actions.update && /^\/v25\.0\/\d+$/.test(p.path)) return 'update';
-  if (p.action === actions.delete && /^\/v25\.0\/\d+\/delete_rule_set$/.test(p.path)) return 'delete';
+  if (p.action === actions.create && metaRoute('act_\\d+/value_rule_set$').test(p.path)) return 'create';
+  if (p.action === actions.update && metaRoute('\\d+$').test(p.path)) return 'update';
+  if (p.action === actions.delete && metaRoute('\\d+/delete_rule_set$').test(p.path)) return 'delete';
   return;
 }
 const target = (p: CompiledRequest) => p.path.split('/')[2]!;
@@ -208,7 +210,7 @@ export function metaValueRuleReads(p: CompiledRequest): CompiledRequest[] {
       ...p,
       action: 'AMCP_META_VALUE_RULE_READ',
       method: 'GET',
-      path: '/v25.0/act_' + p.accountId + '/value_rule_set',
+      path: metaPrefix + 'act_' + p.accountId + '/value_rule_set',
       query: {fields: metaValueRuleFields, limit: 25},
       body: undefined,
       headers: {},

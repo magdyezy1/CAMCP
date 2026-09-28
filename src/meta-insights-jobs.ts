@@ -3,6 +3,7 @@ import {stable} from './security.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {metaPrefix, metaRoute} from './meta-version.js';
 
 type Kind = 'account' | 'campaign' | 'adset';
 type Send = (p: CompiledRequest) => Promise<TransportResult>;
@@ -118,9 +119,7 @@ export function metaReportKind(p: CompiledRequest): Kind | undefined {
     (p.origin && p.origin !== 'https://graph.facebook.com')
   )
     return;
-  return (kind === 'account' ? /^\/v25\.0\/act_[1-9][0-9]*\/insights$/ : /^\/v25\.0\/[1-9][0-9]*\/insights$/).test(
-    p.path,
-  )
+  return (kind === 'account' ? metaRoute('act_[1-9][0-9]*/insights$') : metaRoute('[1-9][0-9]*/insights$')).test(p.path)
     ? kind
     : undefined;
 }
@@ -232,7 +231,7 @@ function response(r: TransportResult): JsonObject {
   return r.data;
 }
 export function metaReportSnapshots(p: CompiledRequest) {
-  const result = [read(p, '/v25.0/act_' + account(p), {fields: 'id,account_status,currency,timezone_name'})];
+  const result = [read(p, metaPrefix + 'act_' + account(p), {fields: 'id,account_status,currency,timezone_name'})];
   if (metaReportKind(p) !== 'account')
     result.push(
       read(p, p.path.slice(0, -9), {
@@ -243,7 +242,7 @@ export function metaReportSnapshots(p: CompiledRequest) {
 }
 export async function readMetaReportState(p: CompiledRequest, send: Send) {
   const a = response(
-    await send(read(p, '/v25.0/act_' + account(p), {fields: 'id,account_status,currency,timezone_name'})),
+    await send(read(p, metaPrefix + 'act_' + account(p), {fields: 'id,account_status,currency,timezone_name'})),
   );
   if (
     String(a.id).replace(/^act_/, '') !== account(p) ||
@@ -266,7 +265,7 @@ export async function readMetaReportState(p: CompiledRequest, send: Send) {
     const parent = p.path.split('/')[2]!,
       d = response(
         await send(
-          read(p, '/v25.0/' + parent, {
+          read(p, metaPrefix + parent, {
             fields: metaReportKind(p) === 'adset' ? 'id,account_id,campaign{id,account_id}' : 'id,account_id',
           }),
         ),
@@ -292,7 +291,7 @@ function retained(store: Store, c: Connection, a: string, job: string) {
  * Data access follows an independent account and definition check, not its ID. */
 export function authorizeMetaReportRead(p: CompiledRequest, c: Connection, store: Store, a: string): boolean {
   if (p.gateway !== 'meta_native_action') return false;
-  const match = /^\/v25\.0\/([1-9][0-9]*)(\/insights)?$/.exec(p.path);
+  const match = metaRoute('([1-9][0-9]*)(/insights)?$').exec(p.path);
   if (!match) return false;
   const job = match[1]!,
     saved = retained(store, c, a, job),
@@ -527,7 +526,7 @@ export function observeMetaReportRead(p: CompiledRequest, c: Connection, store: 
 }
 export async function verifyMetaReport(p: CompiledRequest, result: JsonObject, reviewId: string, send: Send) {
   const job = result.data.report_run_id,
-    plan = read(p, '/v25.0/' + job, {fields: statusFields.join(',')});
+    plan = read(p, metaPrefix + job, {fields: statusFields.join(',')});
   plan.scopeContext = {metaReportReviewId: reviewId};
   const d = metaReportReadResult(plan, await send(plan))!;
   const status =

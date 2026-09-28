@@ -73,20 +73,20 @@ function fixture({readRatio} = {}) {
       fields = url.searchParams.get('fields') ?? '';
     requests.push(method + ' ' + path);
     let m;
-    if (method === 'GET' && path === '/v25.0/act_123')
+    if (method === 'GET' && path === '/v26.0/act_123')
       return Response.json({id: 'act_123', account_status: 1, currency: 'USD'});
-    if (method === 'GET' && path === '/v25.0/act_123/customaudiences')
+    if (method === 'GET' && path === '/v26.0/act_123/customaudiences')
       return Response.json({
         data: [...audiences.values()].map(a => pick(a, fields || 'id')),
         paging: {cursors: {before: 'b', after: 'a'}},
       });
-    if (method === 'GET' && (m = /^\/v25\.0\/(\d+)$/.exec(path))) {
+    if (method === 'GET' && (m = /^\/v26\.0\/(\d+)$/.exec(path))) {
       const a = audiences.get(m[1]);
       return a
         ? Response.json(pick(a, fields))
         : Response.json({error: {message: 'Unsupported get request.', code: 100}}, {status: 400});
     }
-    if (method === 'POST' && path === '/v25.0/act_123/customaudiences') {
+    if (method === 'POST' && path === '/v26.0/act_123/customaudiences') {
       writes.push(path);
       const b = Object.fromEntries(new URLSearchParams(String(init.body))),
         spec = JSON.parse(b.lookalike_spec),
@@ -219,17 +219,17 @@ test('an owned seed is read twice, the lookalike is created once and its seed, r
     assert.equal(p.success, true, JSON.stringify(p));
     assert.deepEqual(
       p.data.state_reads.map(r => r.path),
-      ['/v25.0/act_123', '/v25.0/8001'],
+      ['/v26.0/act_123', '/v26.0/8001'],
     );
     assert.deepEqual(p.data.creative_impact.seed, {id: '8001', subtype: 'CUSTOM'});
     const done = await f.execute(p.data.review_id);
     assert.equal(done.success, true, JSON.stringify(done));
-    assert.equal(f.requests.filter(r => r === 'GET /v25.0/8001').length, 2);
+    assert.equal(f.requests.filter(r => r === 'GET /v26.0/8001').length, 2);
     const verified = await f.verify(p.data.review_id);
     assert.equal(verified.data.status, 'verified', JSON.stringify(verified));
     assert.equal(verified.data.checks[0].unobservable_fields, undefined);
     assert.equal((await f.execute(p.data.review_id)).data.replayed, true);
-    assert.deepEqual(f.writes, ['/v25.0/act_123/customaudiences']);
+    assert.deepEqual(f.writes, ['/v26.0/act_123/customaudiences']);
   } finally {
     f.store.close();
   }

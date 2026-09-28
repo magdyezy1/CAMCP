@@ -80,8 +80,8 @@ function fixture(mode = '') {
         path = u.pathname,
         method = init.method;
       calls.push({path, method});
-      if (method === 'GET' && path === '/v25.0/act_123/adspixels') return page(pixels, u);
-      if (method === 'GET' && path === '/v25.0/act_123/customconversions')
+      if (method === 'GET' && path === '/v26.0/act_123/adspixels') return page(pixels, u);
+      if (method === 'GET' && path === '/v26.0/act_123/customconversions')
         return page(
           [...conversions].map(([id, c]) => ({
             id,
@@ -90,7 +90,7 @@ function fixture(mode = '') {
           })),
           u,
         );
-      if (method === 'POST' && path === '/v25.0/act_123/customconversions') {
+      if (method === 'POST' && path === '/v26.0/act_123/customconversions') {
         writes++;
         const b = Object.fromEntries(new URLSearchParams(String(init.body ?? '')));
         const id = String(next++);

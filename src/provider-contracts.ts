@@ -2,6 +2,7 @@ import type {JsonObject} from './types.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {metaCreativeFields} from './creative-validation.js';
 import {googleAdsVersion} from './google-version.js';
+import {metaApiVersion} from './meta-version.js';
 
 /** Maintained contract boundaries, not inferred from generated action counts. */
 export const providerContracts: JsonObject[] = [
@@ -18,7 +19,7 @@ export const providerContracts: JsonObject[] = [
   [
     'meta',
     'meta',
-    'v25.0',
+    metaApiVersion,
     'meta',
     'meta',
     'campaigns, ad sets, creatives, ads; paused native copies of campaigns and ad sets (with at most three children) and ads into owned targets, with copied campaign and ad set budgets checked as new budgets (override and asynchronous copies stay unqualified); lookalike audiences from an owned, unflagged seed audience (customer-file, website, engagement and conversion lookalikes stay unqualified); creative creation rechecks advertiser/Page/Instagram identity and existing native content ownership at prepare and execute; complete account-label creation, renaming, deletion and existing-label attachment to ads, campaigns and creatives; bounded asynchronous account/campaign/ad-set Insights jobs with scoped polling and result retrieval; value rule sets (create, complete update, delete) checked against the account list; Advantage+ account controls and empty publisher block list creation; renaming and deleting ad creatives and custom audiences of the account with object reads and read-back; deleting unused library images and creating custom conversions on account pixels with list reads and read-back; creating an account pixel and renaming pixels of its own business with pixel list reads and read-back (matching and data use settings stay unqualified); ad account name, EU payor and beneficiary defaults and notifications with account read-back (spending caps stay unqualified); split tests of ad sets or campaigns of the selected account on its business, and study name, description and end changes, with account, object, study and cell reads, spending confirmation and read-back (lift studies and creative tests stay unqualified)',

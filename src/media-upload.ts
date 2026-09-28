@@ -31,6 +31,7 @@ import {
 } from './linkedin-media-resume.js';
 import {assertWritesNotPaused} from './owner-operations.js';
 import {googleAdsCustomers} from './google-version.js';
+import {metaPrefix} from './meta-version.js';
 
 const platforms = mediaPlatforms;
 /** Snapchat simple uploads take up to 32 MB; larger files are sent in parts well under the 32 MB part limit (either unit). */
@@ -215,7 +216,7 @@ export class MediaUploadService {
     };
     switch (platform) {
       case 'meta':
-        p.path = '/v25.0/act_' + account;
+        p.path = metaPrefix + 'act_' + account;
         p.query = {fields: 'id,account_status,currency'};
         break;
       case 'snapchat':
@@ -1390,7 +1391,7 @@ export class MediaUploadService {
     if (p.library_media) return this.attachLibrary(actor, p, p.library_media.id, p.library_media.key);
     if (p.platform === 'meta') {
       const r = await send(
-          '/v25.0/act_' + p.account_id + '/' + (p.kind === 'image' ? 'adimages' : 'advideos'),
+          metaPrefix + 'act_' + p.account_id + '/' + (p.kind === 'image' ? 'adimages' : 'advideos'),
           p.kind === 'image' ? {bytes: bytes.toString('base64'), name: p.name} : {title: p.name},
           {...(p.kind === 'video' ? {upload: binary('source')} : {})},
         ),
@@ -1906,7 +1907,7 @@ export class MediaUploadService {
     if (p.platform === 'meta' && p.kind === 'image') {
       const hash = responseId(receipt.media_id);
       const d = (
-        await this.send(actor, p, '/v25.0/act_' + p.account_id + '/adimages', undefined, {
+        await this.send(actor, p, metaPrefix + 'act_' + p.account_id + '/adimages', undefined, {
           method: 'GET',
           readOnly: true,
           query: {hashes: [hash], fields: 'hash', limit: 100},
@@ -2025,7 +2026,7 @@ export class MediaUploadService {
     if (p.platform === 'snapchat')
       r = await this.send(actor, p, '/v1/media/' + receipt.media_id, undefined, {method: 'GET', readOnly: true});
     else if (p.platform === 'meta' && p.kind === 'video')
-      r = await this.send(actor, p, '/v25.0/' + receipt.media_id, undefined, {
+      r = await this.send(actor, p, metaPrefix + receipt.media_id, undefined, {
         method: 'GET',
         readOnly: true,
         query: {fields: 'id,status'},

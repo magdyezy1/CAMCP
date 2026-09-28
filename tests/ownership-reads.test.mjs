@@ -66,8 +66,8 @@ test('a Snapchat ownership refusal names the one collection read that establishe
 
 test('a Meta ownership refusal lists one read per collection, because a Meta ID does not reveal its type', async () => {
   const f = fixture('meta_native_action', ['111'], path => {
-    if (path === '/v25.0/act_111/adsets') return Response.json({data: [{id: '555'}]});
-    if (path === '/v25.0/555') return Response.json({id: '555', name: 'Ad set'});
+    if (path === '/v26.0/act_111/adsets') return Response.json({data: [{id: '555'}]});
+    if (path === '/v26.0/555') return Response.json({id: '555', name: 'Ad set'});
     throw new Error('unexpected ' + path);
   });
   try {

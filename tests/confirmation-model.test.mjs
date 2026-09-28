@@ -162,7 +162,7 @@ test('reviewed writes refuse the enhanced native_request extension, which stays 
           arguments: {
             action: 'meta_campaign_id_update',
             account_id: '123',
-            native_request: {method: 'POST', path: '/v25.0/act_123/assigned_users', body: {tasks: ['MANAGE']}},
+            native_request: {method: 'POST', path: '/v26.0/act_123/assigned_users', body: {tasks: ['MANAGE']}},
           },
         },
         actor,

@@ -46,11 +46,11 @@ function fixture(mode = '', scopes = ['ads_management']) {
         method = init.method;
       calls.push({path, method, query: Object.fromEntries(u.searchParams)});
       if (method === 'GET') {
-        if (path === '/v25.0/act_123') {
+        if (path === '/v26.0/act_123') {
           assert.equal(u.searchParams.get('fields'), 'id,business');
           return Response.json({id: 'act_123', business: {id: '1001', name: 'Brand'}});
         }
-        if (path === '/v25.0/act_123/adspixels') {
+        if (path === '/v26.0/act_123/adspixels') {
           // Two pixels a page, so the review follows the cursor.
           const rows = [...pixels].map(([id, x]) => ({id, ...x})),
             start = u.searchParams.get('after') === 'c2' ? 2 : 0,
@@ -60,7 +60,7 @@ function fixture(mode = '', scopes = ['ads_management']) {
             data: page,
             paging: {
               cursors: {before: 'c0', after: more ? 'c2' : 'end'},
-              ...(more ? {next: 'https://graph.facebook.com/v25.0/act_123/adspixels?after=c2'} : {}),
+              ...(more ? {next: 'https://graph.facebook.com/v26.0/act_123/adspixels?after=c2'} : {}),
             },
           });
         }
@@ -70,12 +70,12 @@ function fixture(mode = '', scopes = ['ads_management']) {
       const body = Object.fromEntries(new URLSearchParams(String(init.body ?? '')));
       if (mode === 'exists')
         return Response.json({error: {message: 'A pixel already exists for this account', code: 6200}}, {status: 400});
-      if (path === '/v25.0/act_123/adspixels') {
+      if (path === '/v26.0/act_123/adspixels') {
         const id = String(next++);
         if (mode !== 'ignore') pixels.set(id, {name: body.name, owner_business: {id: '1001'}});
         return Response.json({id});
       }
-      const m = /^\/v25\.0\/(\d+)$/.exec(path);
+      const m = /^\/v26\.0\/(\d+)$/.exec(path);
       if (m && pixels.has(m[1])) {
         if (mode !== 'ignore') pixels.get(m[1]).name = body.name;
         return Response.json({success: true});

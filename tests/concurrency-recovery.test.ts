@@ -149,7 +149,7 @@ test('the daily spend cap holds when many processes reserve against it at once',
       w.directory,
       8,
       `
-   const plan={gateway:'meta_native_action',accountId:'123',action:'meta_adset_update',method:'POST',path:'/v25.0/456',query:{},body:{daily_budget:140},headers:{},readOnly:false,destructive:false,requiresConfirmation:true,evidence:'fixture',warnings:[]};
+   const plan={gateway:'meta_native_action',accountId:'123',action:'meta_adset_update',method:'POST',path:'/v26.0/456',query:{},body:{daily_budget:140},headers:{},readOnly:false,destructive:false,requiresConfirmation:true,evidence:'fixture',warnings:[]};
    say(checkSpendPolicy(store,actor,plan,[{daily_budget:100}],'reserve-'+index));`,
     );
 

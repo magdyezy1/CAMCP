@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import type {NativeTransport} from './transport.js';
+import {metaPrefix} from './meta-version.js';
 
 // Operator credential diagnostic only. This does not add an account-scope exception
 // to the MCP service or request any permission changes from Meta.
@@ -15,7 +16,7 @@ export async function readMetaPermissions(
     gateway: 'meta_native_action',
     action: 'LOCAL_TOKEN_PERMISSIONS',
     method: 'GET',
-    path: '/v25.0/me/permissions',
+    path: metaPrefix + 'me/permissions',
     query: {limit: 100},
     headers: {},
     readOnly: true,

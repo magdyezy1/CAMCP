@@ -1,0 +1,1499 @@
+{
+  "from": {
+    "api_version": "v25.0",
+    "sdk_tag": "25.0.3"
+  },
+  "to": {
+    "api_version": "v26.0",
+    "sdk_tag": "26.0.2"
+  },
+  "checked_at": "2026-09-28",
+  "meaning": "Differences between two releases of Meta's official SDK, generated from Meta's API specification: schema evidence, not behaviour, permissions or live acceptance.",
+  "source": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/<sdk_tag>/facebook_business/adobjects/<name>.py",
+  "sources": {
+    "ad": {
+      "from": "37347a3f6a4ae211f7119e78774b4ccd72364c5456c30709a1d0af9dbbe908a2",
+      "to": "1ae577cfbbd44c346bdde66eb556a2d8699fb8b8ea40a222d92bfb9a6048aa3a"
+    },
+    "adaccount": {
+      "from": "7349d7ec8da801a33d37f7a02c67e163cfa7ebcc23eb2a5969adcc093d0a2b7e",
+      "to": "dd0a0d1acbc9c3a690f20f8b4ec28c7868211688a9973885c607660865313df6"
+    },
+    "adaccountadruleshistory": {
+      "from": "e8ba0b9c512fc4b557fec1f480a8d3adf560b052405712ae9315fc5ed9a7daa0",
+      "to": "e8ba0b9c512fc4b557fec1f480a8d3adf560b052405712ae9315fc5ed9a7daa0"
+    },
+    "adaccountadvolume": {
+      "from": "5766d179f2fbf00340cf8ccf1ef4a276c7021a03ad9ac14eb68dfa3f7c931687",
+      "to": "a3de3b8127e1da976811c09df331729442ad55ff93de177a79e609dfd7244cd1"
+    },
+    "adaccountbusinessconstraints": {
+      "from": "0d82e5a1939709df759fce8285c06b356d5eb460dee5775e0d22aea564711b85",
+      "to": "ad91b3a7bf7dff002aeeb1301ec7d8b6d4544fddcdb3771962852048583c41f3"
+    },
+    "adaccountdeliveryestimate": {
+      "from": "2708fc6b6afc9c9d2ab113363d6e0d99d1c4a5cfb671c370aa677793b0964a7b",
+      "to": "dab7891612edcceb20c77ab02eb2c3d0a27bc1e8f36a9ba89a77dd74cff1fb1f"
+    },
+    "adaccountdsarecommendations": {
+      "from": "8c68c2172604eb383c97d66bcd8d8c55eee3a533a0e3bc5dc50c74cf304f6890",
+      "to": "8c68c2172604eb383c97d66bcd8d8c55eee3a533a0e3bc5dc50c74cf304f6890"
+    },
+    "adaccountiosfourteencampaignlimits": {
+      "from": "30ea8670a0a8464d9f04801628ff680dc8730c254753a2b16f68c0fd7205b925",
+      "to": "30ea8670a0a8464d9f04801628ff680dc8730c254753a2b16f68c0fd7205b925"
+    },
+    "adaccountmatchedsearchapplicationsedgedata": {
+      "from": "015c029806f73c0edda8593e7ed11833e6308b6d87e42af1e808975d2f24027b",
+      "to": "015c029806f73c0edda8593e7ed11833e6308b6d87e42af1e808975d2f24027b"
+    },
+    "adaccountmaxbid": {
+      "from": "8506d159ae566bce8ba34d2f6b3be7f267c6749ac0ebfc136c2f0e475413e7d6",
+      "to": "8506d159ae566bce8ba34d2f6b3be7f267c6749ac0ebfc136c2f0e475413e7d6"
+    },
+    "adaccountreachestimate": {
+      "from": "63ed306014ad7efe2d4f76499fb8895ffda9ab8a8e1d315c648d801a89e7ca58",
+      "to": "63ed306014ad7efe2d4f76499fb8895ffda9ab8a8e1d315c648d801a89e7ca58"
+    },
+    "adaccountrecommendations": {
+      "from": "b6682d9a5652b599ce988706acc2c0f8bda186d80a60e1d89a562b3e121f0980",
+      "to": "165e663a5a7beee408e0119771ce6d9b34786cf020fc0bfd121ba831c4ff78df"
+    },
+    "adaccountsubscribedapps": {
+      "from": "b3b5bce73a78453459938cd5ee427992e338eb6b4adc7c30b256c504e5b3cf67",
+      "to": "b3b5bce73a78453459938cd5ee427992e338eb6b4adc7c30b256c504e5b3cf67"
+    },
+    "adaccounttargetingunified": {
+      "from": "ec2509009937469b0881958cbda7ddb879a8a27e995c4039d116bf96dd4116da",
+      "to": "03203676952ea2ea599e54740d962077cdf3feedf86106756314313005a0914c"
+    },
+    "adaccounttrackingdata": {
+      "from": "8d09a16b3d7939a7cab21e9f7ba09276af0a5eab61becc4cf566b5e34eb781b0",
+      "to": "8d09a16b3d7939a7cab21e9f7ba09276af0a5eab61becc4cf566b5e34eb781b0"
+    },
+    "adaccountuser": {
+      "from": "7c80114010a19d8377ada7f4592cca143bf846923cb8ad2e7bfbc575d456ae53",
+      "to": "7c80114010a19d8377ada7f4592cca143bf846923cb8ad2e7bfbc575d456ae53"
+    },
+    "adactivity": {
+      "from": "6e938e75e463401b02b145868d80c108963babd696e1f5441ece0257eeb0facc",
+      "to": "6e938e75e463401b02b145868d80c108963babd696e1f5441ece0257eeb0facc"
+    },
+    "adasyncrequest": {
+      "from": "8db0f0bdee014027f5cb23dee3d30418c7d7cb28252fad64eb40ce40f171fb78",
+      "to": "8db0f0bdee014027f5cb23dee3d30418c7d7cb28252fad64eb40ce40f171fb78"
+    },
+    "adasyncrequestset": {
+      "from": "ad0f9756989224c53f2fa7e156c2eb9393b6d25907ff56565db9d259980d7e22",
+      "to": "ad0f9756989224c53f2fa7e156c2eb9393b6d25907ff56565db9d259980d7e22"
+    },
+    "adcampaigndeliveryestimate": {
+      "from": "54dbd0114628cf39c70a78f91d1d54bf17d480db43c9e438bbbea96e4e249001",
+      "to": "6760201f52d566ad4a44516721e8153002364c9addd6e8193bdccab234a3856a"
+    },
+    "adcreative": {
+      "from": "79fc073c3aaf66a5afbddddc312aafac8153d07a7ebc80224949b5df9ccc6c07",
+      "to": "e11e6ff50bbf169036505a73bf57ec106bfde819ea398f78b8cc047dc7e23dbe"
+    },
+    "adcreativeinsights": {
+      "from": "beb4036e7823907ea25dedb2e073b6b33c9aa3342fe35a5b1c9039e7f3c9cfb0",
+      "to": "beb4036e7823907ea25dedb2e073b6b33c9aa3342fe35a5b1c9039e7f3c9cfb0"
+    },
+    "adcustomderivedmetrics": {
+      "from": "c139c2fbf138ce9f1f0f8561ef98bd77ae73cbeb3b164ca65e26b26498f3e662",
+      "to": "c139c2fbf138ce9f1f0f8561ef98bd77ae73cbeb3b164ca65e26b26498f3e662"
+    },
+    "adimage": {
+      "from": "73d51ea2ad4c165f9386e412a6d59a2e8008145c2be403d56ae074a35c436111",
+      "to": "73d51ea2ad4c165f9386e412a6d59a2e8008145c2be403d56ae074a35c436111"
+    },
+    "adlabel": {
+      "from": "0a9378667d898e29763d621c31c6b2c6e9ed08a3d8fafbe8f1de7d9db157bf14",
+      "to": "0a9378667d898e29763d621c31c6b2c6e9ed08a3d8fafbe8f1de7d9db157bf14"
+    },
+    "adnetworkanalyticsasyncqueryresult": {
+      "from": "25fc741546766f006792c65d63aadb774b4a2a22758b6a2272b6a6056ac3a1e8",
+      "to": "25fc741546766f006792c65d63aadb774b4a2a22758b6a2272b6a6056ac3a1e8"
+    },
+    "adnetworkanalyticssyncqueryresult": {
+      "from": "e6e9beb4f72d7fc08d272c187a252fadebd6253e3f4bef815378cad7c7b4a057",
+      "to": "e6e9beb4f72d7fc08d272c187a252fadebd6253e3f4bef815378cad7c7b4a057"
+    },
+    "adplacement": {
+      "from": "cf9096b9cecb39842eb6a364e594e3feda89c5b3551c3abb731db4f5f249e2e2",
+      "to": "cf9096b9cecb39842eb6a364e594e3feda89c5b3551c3abb731db4f5f249e2e2"
+    },
+    "adplacepageset": {
+      "from": "828ed7af9be4b63f4dab2d7accca40818ef5194fbbff57dc52997c1302e03ec7",
+      "to": "828ed7af9be4b63f4dab2d7accca40818ef5194fbbff57dc52997c1302e03ec7"
+    },
+    "adpreview": {
+      "from": "3ce4ce49d0a45705858f900eb6230abd99759debb1bc0eb28b9a5beae4166fe7",
+      "to": "3ce4ce49d0a45705858f900eb6230abd99759debb1bc0eb28b9a5beae4166fe7"
+    },
+    "adreportrun": {
+      "from": "b5ac4ac608eeac39fd761293c5142d166d88775d863a32610a26927ebeda00b4",
+      "to": "b5ac4ac608eeac39fd761293c5142d166d88775d863a32610a26927ebeda00b4"
+    },
+    "adrule": {
+      "from": "ea2795bab1d3b3732da069034ca07efe922198952fbff8fdae9dff02d8dd38e1",
+      "to": "96ebc480538ac43b2fa1fc953a7b59bf0c7c97c3c4026c7dfabcb984462532d1"
+    },
+    "adrulehistory": {
+      "from": "ed36de23d4a26eeaca39fa408bd718717168a695c6308e70ed2b0b0d73b534d5",
+      "to": "ed36de23d4a26eeaca39fa408bd718717168a695c6308e70ed2b0b0d73b534d5"
+    },
+    "adsavedkeywords": {
+      "from": "9d375c30e00f9b85cfbde35f8b525021dc1a3bb2341f84462cb9286c1b44700e",
+      "to": "9d375c30e00f9b85cfbde35f8b525021dc1a3bb2341f84462cb9286c1b44700e"
+    },
+    "adsconversiongoal": {
+      "from": "4d6b22dddf550c3aad3fbccc2d6414bdd0b7a0ebd41535076a47f590a514eeb6",
+      "to": "4d6b22dddf550c3aad3fbccc2d6414bdd0b7a0ebd41535076a47f590a514eeb6"
+    },
+    "adsdataset": {
+      "from": "9549858a5328e55bdc417e0f8fe045689a6d912369ef686129054a4fededc94d",
+      "to": "9549858a5328e55bdc417e0f8fe045689a6d912369ef686129054a4fededc94d"
+    },
+    "adseligibility": {
+      "from": "b0e5e0c29d827dfcc2dcb8856d194d42834b5fa5b723f389810fcf06a259dd66",
+      "to": "b0e5e0c29d827dfcc2dcb8856d194d42834b5fa5b723f389810fcf06a259dd66"
+    },
+    "adset": {
+      "from": "193f51b634e4e99e6408b9a45fa31b17fa9257fedafbf202e8033860462f26f7",
+      "to": "09bb520a7fd99e8e4790ed570f86767c4d1e30070ae7324697c03dba710608ee"
+    },
+    "adsinsights": {
+      "from": "4bfb9424877f477ba00f1eea4ac37abe824b2ab301e77039658277009b2f22dd",
+      "to": "4fd1e5006619a90ebe37c09fe8cd59f21a7f8e6dfcaa331b50e3f303755d71c4"
+    },
+    "adsmcmeconversion": {
+      "from": "72d9a8d8303867b91f5a9e2040d8aabdcbb183ceebe7c81b63edbc0cb40d5bf4",
+      "to": "72d9a8d8303867b91f5a9e2040d8aabdcbb183ceebe7c81b63edbc0cb40d5bf4"
+    },
+    "adspixel": {
+      "from": "5e4d4bfb45c6b5701ea1543facfcf42d8c902f13c75eb81d9c7ca6c0afede7f0",
+      "to": "5e4d4bfb45c6b5701ea1543facfcf42d8c902f13c75eb81d9c7ca6c0afede7f0"
+    },
+    "adspixelstatsresult": {
+      "from": "3a3aa9609f2dc8a96d7d5ddce360ac85cbb1b05da47d105e259d62bca7e578d8",
+      "to": "3a3aa9609f2dc8a96d7d5ddce360ac85cbb1b05da47d105e259d62bca7e578d8"
+    },
+    "adsreportbuildermmmreport": {
+      "from": "ea5d7792b2ad54562cbcd931215fd0d76857656ee3309ef4365c62ca01e99c29",
+      "to": "ea5d7792b2ad54562cbcd931215fd0d76857656ee3309ef4365c62ca01e99c29"
+    },
+    "adsreportbuildermmmreportscheduler": {
+      "from": "0a20326d6c0489e523fbd9a588b236bcfd40942024c3c3bf734f4864d24903ce",
+      "to": "0a20326d6c0489e523fbd9a588b236bcfd40942024c3c3bf734f4864d24903ce"
+    },
+    "adstudy": {
+      "from": "0f4f5be6f3d47e516347d02a49fd1f7b72e5ac82f738569b6979c2a00c3b24cd",
+      "to": "0f4f5be6f3d47e516347d02a49fd1f7b72e5ac82f738569b6979c2a00c3b24cd"
+    },
+    "adstudycell": {
+      "from": "4cb1341911fa3464e1c6f0a145e8520e8b5f5897132cfcde52f98071f0dc4b80",
+      "to": "4cb1341911fa3464e1c6f0a145e8520e8b5f5897132cfcde52f98071f0dc4b80"
+    },
+    "adstudyobjective": {
+      "from": "cc91440d3703f33e31e5beeddc2587fbbd05df6a33a08e06e1a92e8c7230139b",
+      "to": "cc91440d3703f33e31e5beeddc2587fbbd05df6a33a08e06e1a92e8c7230139b"
+    },
+    "adsvalueadjustmentrulecollection": {
+      "from": "1f5dc28cf0751fe1e251ca259006edbb28148594648da1d49dc38881d00e9833",
+      "to": "1f5dc28cf0751fe1e251ca259006edbb28148594648da1d49dc38881d00e9833"
+    },
+    "advideo": {
+      "from": "890f7176b5ccac5ce7ec9d2bc4006fe99f7ef00c3503b9ee88cd639c78956797",
+      "to": "d41f1809df46228820fb3c54b63df4cfa088000f08645fe95a32811d71a232df"
+    },
+    "album": {
+      "from": "4381c9a39a27f77156c12dd26eb9e8c07d2a7dc94f0afa46668e3781ba48991e",
+      "to": "2e793d144567221a4e4278c17b3284b0639fb36848e3646ab36ee37b0c5edfeb"
+    },
+    "almadaccountinfo": {
+      "from": "efd0fc2c6b0ba9bc6b5607889b16c7c8dd75466a1264f1af37d0ced54bb4e962",
+      "to": "efd0fc2c6b0ba9bc6b5607889b16c7c8dd75466a1264f1af37d0ced54bb4e962"
+    },
+    "application": {
+      "from": "85f818a390ed6963d54b4a3b3f88477d9c44fe1e2314236b8aefb45c4422b793",
+      "to": "2f3b98392e4d064c7ab9a844b5b554f9d41fe12f448c0586da217bcef32e0c25"
+    },
+    "apprequest": {
+      "from": "3623f144f5a5e747a4fe8d3e7a2a7b8fcf6d499b55baba0f9d279647c8d15169",
+      "to": "3623f144f5a5e747a4fe8d3e7a2a7b8fcf6d499b55baba0f9d279647c8d15169"
+    },
+    "apprequestformerrecipient": {
+      "from": "541d082f029f0185ff67702419e9865df00fb25d880fff57b270c8dc7fae4c77",
+      "to": "541d082f029f0185ff67702419e9865df00fb25d880fff57b270c8dc7fae4c77"
+    },
+    "aradsdatacontainer": {
+      "from": "7020d15776f3615f58190d3be9e62b70615bfec7c4d6cf8ac9127e6a351f5e5c",
+      "to": "7020d15776f3615f58190d3be9e62b70615bfec7c4d6cf8ac9127e6a351f5e5c"
+    },
+    "assigneduser": {
+      "from": "f16abd05ce97553d5cd6963b079bacf461ae4abba692f2d7d6aefb3d76e678ba",
+      "to": "f16abd05ce97553d5cd6963b079bacf461ae4abba692f2d7d6aefb3d76e678ba"
+    },
+    "asyncrequest": {
+      "from": "6d38c5ca5817fc28620be57650c55fcd073afacfc7dc38332f398d05ccc2c550",
+      "to": "6d38c5ca5817fc28620be57650c55fcd073afacfc7dc38332f398d05ccc2c550"
+    },
+    "audiencefunnel": {
+      "from": "3c7e058fa1b01473371c6f08c9fb54b66bb95b2be1c762312164e9946315d5ab",
+      "to": "3c7e058fa1b01473371c6f08c9fb54b66bb95b2be1c762312164e9946315d5ab"
+    },
+    "automotivemodel": {
+      "from": "19209314ae0a3f0392ff52d22e80feee69dae068ac9981b339b0d1148aaa1392",
+      "to": "19209314ae0a3f0392ff52d22e80feee69dae068ac9981b339b0d1148aaa1392"
+    },
+    "brandedcontentshadowigmediaid": {
+      "from": "feed749153cb5051955e8b4cf46426893ddb1644c8d55d593f8784f679eee090",
+      "to": "feed749153cb5051955e8b4cf46426893ddb1644c8d55d593f8784f679eee090"
+    },
+    "brandedcontentshadowiguserid": {
+      "from": "ac3ad3c341135135fc64a7da6166805c7add08ef3a2ed92dec937181b6ebacb6",
+      "to": "ac3ad3c341135135fc64a7da6166805c7add08ef3a2ed92dec937181b6ebacb6"
+    },
+    "brandrequest": {
+      "from": "1c577a03ea8b227bb5708ba2d7f4e0217343338781500f7fd90d47c68feeb661",
+      "to": "1c577a03ea8b227bb5708ba2d7f4e0217343338781500f7fd90d47c68feeb661"
+    },
+    "broadtargetingcategories": {
+      "from": "7368d4d043d6ce9da07ea549dc072a5dbddcdcf420867b218eff904d9b272f0e",
+      "to": "7368d4d043d6ce9da07ea549dc072a5dbddcdcf420867b218eff904d9b272f0e"
+    },
+    "business": {
+      "from": "1122658a2045ba7c0d1a7a546ac2344e9916b350713c1e2620f3c7e0c39eaa30",
+      "to": "0c31b64f1857de18e7fabaa3a0fd6320c6f9a364f6f21fb675dc5d350ec3a5a9"
+    },
+    "businessadaccountrequest": {
+      "from": "af515f74614bcda9c1a038c29ef057aae85da47c105d45ee4df99d20ae3f81d2",
+      "to": "af515f74614bcda9c1a038c29ef057aae85da47c105d45ee4df99d20ae3f81d2"
+    },
+    "businessapplicationrequest": {
+      "from": "33bd8968a8df262e64b57bc9e1fff918dffef097091feb7188c7dd8e544c11e5",
+      "to": "33bd8968a8df262e64b57bc9e1fff918dffef097091feb7188c7dd8e544c11e5"
+    },
+    "businessassetgroup": {
+      "from": "e1ff25417b102f58320df2c33ed4cd29a64496db52708dba97d75abf23c39b3d",
+      "to": "e1ff25417b102f58320df2c33ed4cd29a64496db52708dba97d75abf23c39b3d"
+    },
+    "businessassetsharingagreement": {
+      "from": "ed461b71d0f2fb6a65ef7159f02b4dc3b98d96a64200aa329c5480fd5d2fb16c",
+      "to": "ed461b71d0f2fb6a65ef7159f02b4dc3b98d96a64200aa329c5480fd5d2fb16c"
+    },
+    "businesscreativefolder": {
+      "from": "231b40c876272658767a9c3d9efe6e7cfd02a7164e0fc087a464db644ed11ed0",
+      "to": "231b40c876272658767a9c3d9efe6e7cfd02a7164e0fc087a464db644ed11ed0"
+    },
+    "businessimage": {
+      "from": "dd64b9d6c011dc85bd2e7c62b5426d362a03191732d365454351c176737f1e1e",
+      "to": "dd64b9d6c011dc85bd2e7c62b5426d362a03191732d365454351c176737f1e1e"
+    },
+    "businessownedobjectonbehalfofrequest": {
+      "from": "e72e6f0a49f8f040f381ff4097b1a71666addea92035a7f566288b7235b633de",
+      "to": "e72e6f0a49f8f040f381ff4097b1a71666addea92035a7f566288b7235b633de"
+    },
+    "businesspagerequest": {
+      "from": "7702dfd0c27b173fdd19eda5d14101281fcf0403452e8e3bfa971638cd899108",
+      "to": "7702dfd0c27b173fdd19eda5d14101281fcf0403452e8e3bfa971638cd899108"
+    },
+    "businessproject": {
+      "from": "4b760b35fb2e70a4dce15019cb673be111e2ac2481131ee90753fb5d1d93a582",
+      "to": "4b760b35fb2e70a4dce15019cb673be111e2ac2481131ee90753fb5d1d93a582"
+    },
+    "businessrolerequest": {
+      "from": "6c15b29ee541ebe7c52aea3c3edb575d95129df868429dcf7217c365975dbccf",
+      "to": "6c15b29ee541ebe7c52aea3c3edb575d95129df868429dcf7217c365975dbccf"
+    },
+    "businessuser": {
+      "from": "d6ce92ac2325797a180f979abc92ff053db352ef4cba9ea9d7770d4eda088cad",
+      "to": "d6ce92ac2325797a180f979abc92ff053db352ef4cba9ea9d7770d4eda088cad"
+    },
+    "campaign": {
+      "from": "df063bd9b79d5675b307697874e5041beb91f01b916df2be8427b0cf3f82cbb5",
+      "to": "3abe1426d0f27c6edc4e9e08503748f2e78814a653495ce2bfc3e11851ba1ba8"
+    },
+    "canvas": {
+      "from": "857ad252b3bae26d29d40383eb6a977db020bada53aaf51451052ee407ca23dd",
+      "to": "857ad252b3bae26d29d40383eb6a977db020bada53aaf51451052ee407ca23dd"
+    },
+    "canvasbodyelement": {
+      "from": "4b7321b548b1180b971ab0d5ef831dddb5068b66a01b8eccb304faa9090b8a90",
+      "to": "4b7321b548b1180b971ab0d5ef831dddb5068b66a01b8eccb304faa9090b8a90"
+    },
+    "canvaspreview": {
+      "from": "b41f45f567813879ab8050a594cd0a7ab49d32eb547bd7463c7866ce1c70c410",
+      "to": "b41f45f567813879ab8050a594cd0a7ab49d32eb547bd7463c7866ce1c70c410"
+    },
+    "catalogcontentversionconfig": {
+      "from": "b6d2d55fa3b2e21ebf01de4b16f7d8f5452418bcaa04a8942e8440395c22c998",
+      "to": "b6d2d55fa3b2e21ebf01de4b16f7d8f5452418bcaa04a8942e8440395c22c998"
+    },
+    "catalogitemchannelstointegritystatus": {
+      "from": "61ed6797ae75a3dcb5f1d02dd9da2343c18c0dda1fffd6cfd46b1340d5406945",
+      "to": "61ed6797ae75a3dcb5f1d02dd9da2343c18c0dda1fffd6cfd46b1340d5406945"
+    },
+    "chatplugin": {
+      "from": "de2b8bcb281c0ed9b738f27e623813e6e6bfc6290ea86070b338e5c0f1c2127e",
+      "to": "de2b8bcb281c0ed9b738f27e623813e6e6bfc6290ea86070b338e5c0f1c2127e"
+    },
+    "checkbatchrequeststatus": {
+      "from": "b18d093b1f792415e9c6be47dfbe4fe81b83e7d1081713dd2ae151b797b255ec",
+      "to": "b18d093b1f792415e9c6be47dfbe4fe81b83e7d1081713dd2ae151b797b255ec"
+    },
+    "cloudgame": {
+      "from": "2e7ebe05b9a9d5f03599fd1bd11b6dcb0685443ad57d561294d520982732fbdc",
+      "to": "2e7ebe05b9a9d5f03599fd1bd11b6dcb0685443ad57d561294d520982732fbdc"
+    },
+    "collaborativeadssharesettings": {
+      "from": "564b0756977918886473f0b698f4805f693b372f2b2cbad472e6a58af44d4852",
+      "to": "564b0756977918886473f0b698f4805f693b372f2b2cbad472e6a58af44d4852"
+    },
+    "comment": {
+      "from": "47862c4e8c28908fb370907da1f1f3df52aee82eb2ed4ff8089f48202f9fc558",
+      "to": "47862c4e8c28908fb370907da1f1f3df52aee82eb2ed4ff8089f48202f9fc558"
+    },
+    "commercemerchantsettings": {
+      "from": "6f1db5be2cdf601c5d9b62fa985e75a2b27a264f6e74bd5f97f0a0c89f626985",
+      "to": "92ac69cd33b835ce0d69e9ea3e4e467d6ee10bbcaee8e901561a6b146d0f0ae3"
+    },
+    "commercemerchantsettingssetupstatus": {
+      "from": "86d15f7d613adc579b3f6eb01d5bd4d9985c0c21fdd96703df22b16e6935599d",
+      "to": "86d15f7d613adc579b3f6eb01d5bd4d9985c0c21fdd96703df22b16e6935599d"
+    },
+    "commerceorder": {
+      "from": "976e8da29eca033df3bcf077fe4bf31247937e0c6ac6f016e784cc0c6dc34be0",
+      "to": "2f7a5a706113bba65341908d965b865851e0192db0cfec1e5ef4497ad6ab1d02"
+    },
+    "commerceordertransactiondetail": {
+      "from": "46059871a3a3ac9a9285d56096960d2cd16ca5eaa9df19d496cb328f57dae847",
+      "to": "46059871a3a3ac9a9285d56096960d2cd16ca5eaa9df19d496cb328f57dae847"
+    },
+    "commercepayout": {
+      "from": "efb3b9813a5f917cf9f204f3c3eaf2e8fc01b4c348ac78ea0213ca5c147cab99",
+      "to": "efb3b9813a5f917cf9f204f3c3eaf2e8fc01b4c348ac78ea0213ca5c147cab99"
+    },
+    "contentpublishinglimitresponse": {
+      "from": "122b917b768a7b20ca5da923464293af8b6da06613818c14488bc1d0d58251ea",
+      "to": "122b917b768a7b20ca5da923464293af8b6da06613818c14488bc1d0d58251ea"
+    },
+    "cpasadvertiserpartnershiprecommendation": {
+      "from": "58b38d869a21abcf2e9a7ea2d1a06eeb28d9a5736924aebee46dc43eb1dd6816",
+      "to": "58b38d869a21abcf2e9a7ea2d1a06eeb28d9a5736924aebee46dc43eb1dd6816"
+    },
+    "cpasbusinesssetupconfig": {
+      "from": "684799a59d373e1873758b109de1eaa52edb262687c3673a4202730066eaacf6",
+      "to": "684799a59d373e1873758b109de1eaa52edb262687c3673a4202730066eaacf6"
+    },
+    "cpascollaborationrequest": {
+      "from": "1a991f8ec03cd0199b1354b170632b52558a637d740b443c0f2bdc555bca80d4",
+      "to": "95faa874b5ba7ba9b6e4571036982872af74d60d1c693f7fc619a3fe76f56220"
+    },
+    "cpaslsbimagebank": {
+      "from": "74505de9d069a2a5daeca4e79a71cab47930bbe52b2de27953650f0af2e621c8",
+      "to": "74505de9d069a2a5daeca4e79a71cab47930bbe52b2de27953650f0af2e621c8"
+    },
+    "cpasmerchantconfig": {
+      "from": "928908b78fe16f183f34997b3d58649e55b47896c36215663b15e8d6e4710e6b",
+      "to": "928908b78fe16f183f34997b3d58649e55b47896c36215663b15e8d6e4710e6b"
+    },
+    "creatorassetcreative": {
+      "from": "8c12a42f453efc6394d7420a947b07bbf27a939da0147718e212ceede317388a",
+      "to": "8c12a42f453efc6394d7420a947b07bbf27a939da0147718e212ceede317388a"
+    },
+    "creditcard": {
+      "from": "1021b92a9c7ed77ea5edc19a3ba68f70fa1b73b4382254f161f0b0e6653c15a4",
+      "to": "1021b92a9c7ed77ea5edc19a3ba68f70fa1b73b4382254f161f0b0e6653c15a4"
+    },
+    "ctxoptimizationeligibility": {
+      "from": "03f7c8a24032537b9df90512797885196b99f832a3a2590d1fea73c6be4e31ae",
+      "to": "03f7c8a24032537b9df90512797885196b99f832a3a2590d1fea73c6be4e31ae"
+    },
+    "ctxpartnerappwelcomemessageflow": {
+      "from": "a35ba1ff0d49cd2fbf1f25279496f2f4ec2f2b12746333987e00f218cda6309c",
+      "to": "a35ba1ff0d49cd2fbf1f25279496f2f4ec2f2b12746333987e00f218cda6309c"
+    },
+    "customaudience": {
+      "from": "3630614364fa6e24ee0ec440d4060d957421a35b03ed45117c59c6b7a8b06f99",
+      "to": "b5fca794038e0f1f184f7b559ad2c6e865d55ac28447ca25226ce02faecab311"
+    },
+    "customaudiencehealth": {
+      "from": "3b326b926855fbad60e7de8963218bc41c3b2a0246084685b7a94d1c0f870212",
+      "to": "3b326b926855fbad60e7de8963218bc41c3b2a0246084685b7a94d1c0f870212"
+    },
+    "customaudiencesalts": {
+      "from": "8e17d4f4eea9386b426e35e44ff30d23b9933ec3e7df08e73c3d2d5af0bd8d48",
+      "to": "8e17d4f4eea9386b426e35e44ff30d23b9933ec3e7df08e73c3d2d5af0bd8d48"
+    },
+    "customaudiencesession": {
+      "from": "acd52e2a88058c950c88f274431c0418e6211ccf994bb5fd4a74a723a99fde17",
+      "to": "acd52e2a88058c950c88f274431c0418e6211ccf994bb5fd4a74a723a99fde17"
+    },
+    "customaudiencesharedaccountinfo": {
+      "from": "710544000e6fb6c6b77010f473093624b452e01f781906cf6b0bec83fa78ec07",
+      "to": "710544000e6fb6c6b77010f473093624b452e01f781906cf6b0bec83fa78ec07"
+    },
+    "customaudiencestos": {
+      "from": "b40c75bdc55160484da3dfd386e285d6e6f17dc75cee1aac6e379627f33891fa",
+      "to": "b40c75bdc55160484da3dfd386e285d6e6f17dc75cee1aac6e379627f33891fa"
+    },
+    "customconversion": {
+      "from": "e487fb06efada425b162409e365b97c538e67faa4e9f3aa7db79f80dab8478ad",
+      "to": "e487fb06efada425b162409e365b97c538e67faa4e9f3aa7db79f80dab8478ad"
+    },
+    "customconversionstatsresult": {
+      "from": "c994ae543077d15f77c8bf745e2a2600bf91ebd53f0c4d37198b1f5d1c261e55",
+      "to": "c994ae543077d15f77c8bf745e2a2600bf91ebd53f0c4d37198b1f5d1c261e55"
+    },
+    "customusersettings": {
+      "from": "61b8ff568663b121d2e20647c64dd098ea24e92da22cd0eb9ad70617b5048d6e",
+      "to": "61b8ff568663b121d2e20647c64dd098ea24e92da22cd0eb9ad70617b5048d6e"
+    },
+    "dacheck": {
+      "from": "1876791f854f991d0de4713a5e7f3cd3e490d42b21d8c33e989714f6fa0fbdf9",
+      "to": "1876791f854f991d0de4713a5e7f3cd3e490d42b21d8c33e989714f6fa0fbdf9"
+    },
+    "dataset": {
+      "from": "9751afba265cafb81acaf04f210b0bca0d1f622777c113d9bff045ad59afb64b",
+      "to": "9751afba265cafb81acaf04f210b0bca0d1f622777c113d9bff045ad59afb64b"
+    },
+    "destination": {
+      "from": "18b5847b282dffc3013d996f71123e944f3f2cf821e3caec67ad17de0c106929",
+      "to": "18b5847b282dffc3013d996f71123e944f3f2cf821e3caec67ad17de0c106929"
+    },
+    "dynamicpriceconfigbydate": {
+      "from": "dbdeeb9f2386eda32c713dbc3d5d2f661cb90384967f735d40968e04fc2e88f9",
+      "to": "dbdeeb9f2386eda32c713dbc3d5d2f661cb90384967f735d40968e04fc2e88f9"
+    },
+    "dynamicvideometadata": {
+      "from": "944c37d251f7a5107c209ab0ddbc3c28c5b5adb192ca72e1fd964cb909070cfd",
+      "to": "944c37d251f7a5107c209ab0ddbc3c28c5b5adb192ca72e1fd964cb909070cfd"
+    },
+    "event": {
+      "from": "dea83535c15889ccec7d2029b59725d1bd0bb3aec8bd9e0f0b73c500282e7926",
+      "to": "dea83535c15889ccec7d2029b59725d1bd0bb3aec8bd9e0f0b73c500282e7926"
+    },
+    "eventsourcegroup": {
+      "from": "44c99e60bf1a84ccf277d4e13ec48d506cb58ac615164457f7992ddce43ad1b8",
+      "to": "44c99e60bf1a84ccf277d4e13ec48d506cb58ac615164457f7992ddce43ad1b8"
+    },
+    "eventtickettier": {
+      "from": "8c4cd5bc17f83dc92863d3567cac9c1c71555cecefa207dd8b963861b92d4aea",
+      "to": "8c4cd5bc17f83dc92863d3567cac9c1c71555cecefa207dd8b963861b92d4aea"
+    },
+    "extendedcredit": {
+      "from": "99caf10493ff74ba0649d470988d813e390d4f3699bf23e5be2ea665c925f0a2",
+      "to": "99caf10493ff74ba0649d470988d813e390d4f3699bf23e5be2ea665c925f0a2"
+    },
+    "extendedcreditallocationconfig": {
+      "from": "6b7961b4b14e2f2b14a82d203dc8b5b57c35b065a80aeb521bdd745d5734d3dc",
+      "to": "6b7961b4b14e2f2b14a82d203dc8b5b57c35b065a80aeb521bdd745d5734d3dc"
+    },
+    "extendedcreditapplication": {
+      "from": "85adeebf73df56f5a613bde2094717a3becbe46cfc8a1a3e3ba2bba7e4b9bd09",
+      "to": "85adeebf73df56f5a613bde2094717a3becbe46cfc8a1a3e3ba2bba7e4b9bd09"
+    },
+    "extendedcreditinvoicegroup": {
+      "from": "5c2c1777a93f39313daa019766c7898666d675a622da9544f9faa822c9177744",
+      "to": "5c2c1777a93f39313daa019766c7898666d675a622da9544f9faa822c9177744"
+    },
+    "externaleventsource": {
+      "from": "3649702229bdd1308bf2fd4f804c714ceb7a1511be8c3bb99166868eb54cef6e",
+      "to": "3649702229bdd1308bf2fd4f804c714ceb7a1511be8c3bb99166868eb54cef6e"
+    },
+    "fantasygame": {
+      "from": "f650170ec29ca50ee859e91e576dfe66a38e720c082f592a41ae46c9a8d8e40d",
+      "to": "f650170ec29ca50ee859e91e576dfe66a38e720c082f592a41ae46c9a8d8e40d"
+    },
+    "flight": {
+      "from": "d90eba6963104e1f9c1e95a0148af3b6e22a350e2450f95d7b8e28957905b8d6",
+      "to": "d90eba6963104e1f9c1e95a0148af3b6e22a350e2450f95d7b8e28957905b8d6"
+    },
+    "fundingsourcedetailscoupon": {
+      "from": "df05cd3d9b922760a09653644579dda1d1df777a2a12254417ab6a568366fab0",
+      "to": "df05cd3d9b922760a09653644579dda1d1df777a2a12254417ab6a568366fab0"
+    },
+    "fundraiserpersontocharity": {
+      "from": "b988ded38e4605184180103883e3f4f8d8ccbd8c2aaec04539d1ca02ba3e9990",
+      "to": "b988ded38e4605184180103883e3f4f8d8ccbd8c2aaec04539d1ca02ba3e9990"
+    },
+    "group": {
+      "from": "3ce3d9d165bce5a53ab05a36390a73c380de7b3ffc335ad3a92ff0027ccef8b9",
+      "to": "b4aa1daaf39e134349fd6f640718d40089726fe94c8e58bb4d3f1dfe3ac0aee7"
+    },
+    "highdemandperiod": {
+      "from": "0af0d8c17aad777ec27cc98912f90916725ad1a0ec1759a5fec1ed90007853a3",
+      "to": "0af0d8c17aad777ec27cc98912f90916725ad1a0ec1759a5fec1ed90007853a3"
+    },
+    "homelisting": {
+      "from": "de6ffd6ab198a3c2a07bb09c16ea685c077395ccb053b5f06ff048e9d07acc6f",
+      "to": "de6ffd6ab198a3c2a07bb09c16ea685c077395ccb053b5f06ff048e9d07acc6f"
+    },
+    "hotel": {
+      "from": "edc3905c75f30baa029f3afc487eacb08ca3a9b1572324b4f9488d49cad1e2c0",
+      "to": "edc3905c75f30baa029f3afc487eacb08ca3a9b1572324b4f9488d49cad1e2c0"
+    },
+    "hotelroom": {
+      "from": "835dfa1302d16984d2cc1ad7a1885741594b8778043d2dffe16a30e9be11b594",
+      "to": "835dfa1302d16984d2cc1ad7a1885741594b8778043d2dffe16a30e9be11b594"
+    },
+    "igbcadspermission": {
+      "from": "4fcc2f2302de7e49ed5315b1bb9ccfd37c306de3037109f52c8ea29f74b1502f",
+      "to": "4fcc2f2302de7e49ed5315b1bb9ccfd37c306de3037109f52c8ea29f74b1502f"
+    },
+    "igboostmediaad": {
+      "from": "96debd80b4e7c151b7822e9c8774628c73da1369f02a772c2fce3c6406145755",
+      "to": "96debd80b4e7c151b7822e9c8774628c73da1369f02a772c2fce3c6406145755"
+    },
+    "igcomment": {
+      "from": "6323e95692ce2c235874b8285a18fc902c54317c0ef0ae27bc3e12d624929f39",
+      "to": "6323e95692ce2c235874b8285a18fc902c54317c0ef0ae27bc3e12d624929f39"
+    },
+    "igmedia": {
+      "from": "243afd286ea7157747fd8dd1768a9b830867268a407f181684ce8c69dfd74aad",
+      "to": "0aa03916e0720628c0155889613cf60f0bf3a5eb4957c1a107e01793b2e3442b"
+    },
+    "igshoppingproductappeal": {
+      "from": "7e7067b3c9c9a191b8623f00004be07487747a3b356cade9b87cdc9e7189ca9e",
+      "to": "7e7067b3c9c9a191b8623f00004be07487747a3b356cade9b87cdc9e7189ca9e"
+    },
+    "igupcomingevent": {
+      "from": "ef661439688b0d8895e5255f6b7846d4205c6b724cdb8abb831d52def07f7f58",
+      "to": "ef661439688b0d8895e5255f6b7846d4205c6b724cdb8abb831d52def07f7f58"
+    },
+    "iguser": {
+      "from": "b9e5fc8f9347acc9fcdcd9033cf14ed1c4dc2d784b9756d4dba9e3757cafe2e8",
+      "to": "591390f8d11e39da80e65e843e9d660d20f9aa962eda0b107c6035ee100ee666"
+    },
+    "iguserexportforcam": {
+      "from": "a3abb50ed68bb3e7d1a3a65d02b045f905e70b0f6f53f5e670bf4aee33e0d38b",
+      "to": "ed119359bd87aae9e35e0488134ef679cedfa699ff67384596a802995433cdbe"
+    },
+    "imagecopyright": {
+      "from": "4a20e0edaeb57dda2ad7a190b1917487d7a007dfb5a3fbab9910657a2d746d75",
+      "to": "4a20e0edaeb57dda2ad7a190b1917487d7a007dfb5a3fbab9910657a2d746d75"
+    },
+    "insightsresult": {
+      "from": "dd431d4f9d732aa53bb57e9666c24a20b1aa00fc03072d93c1f024dca02a8952",
+      "to": "dd431d4f9d732aa53bb57e9666c24a20b1aa00fc03072d93c1f024dca02a8952"
+    },
+    "instagrambusinessasset": {
+      "from": "a574c6ef12e6e90f43497917a1e107f24f4e59540d0950cb4868a965b267675f",
+      "to": "a574c6ef12e6e90f43497917a1e107f24f4e59540d0950cb4868a965b267675f"
+    },
+    "instagraminsightsresult": {
+      "from": "b481a928bca7bf50dd418f1f83f162c8722bd0935f183dad5d36e8a80f3b267f",
+      "to": "b481a928bca7bf50dd418f1f83f162c8722bd0935f183dad5d36e8a80f3b267f"
+    },
+    "instagramuser": {
+      "from": "4019cad89b6b2d9912210391fb381fa97652355960477832180d8a7193a5d697",
+      "to": "4019cad89b6b2d9912210391fb381fa97652355960477832180d8a7193a5d697"
+    },
+    "lead": {
+      "from": "96d6a37a526f0a17e38c8012d5b7a571049f266773c4eee9e10090729ea89997",
+      "to": "96d6a37a526f0a17e38c8012d5b7a571049f266773c4eee9e10090729ea89997"
+    },
+    "leadgenform": {
+      "from": "13338f472d315ae86e4b892337fcb80a808f9ac69b88bf12a1487140513ae32c",
+      "to": "13338f472d315ae86e4b892337fcb80a808f9ac69b88bf12a1487140513ae32c"
+    },
+    "livevideo": {
+      "from": "e128d0137698d1153da5cb9de7f16d3dafd97d5a5433891efdae37415df59a5c",
+      "to": "e128d0137698d1153da5cb9de7f16d3dafd97d5a5433891efdae37415df59a5c"
+    },
+    "livevideoerror": {
+      "from": "751ce71deb15f4c56a92df7cf45974fba66ec1d08aef5ad8a7cdc2841b97e8c8",
+      "to": "751ce71deb15f4c56a92df7cf45974fba66ec1d08aef5ad8a7cdc2841b97e8c8"
+    },
+    "livevideoinputstream": {
+      "from": "2778b2f7df7cb8552e9d1e122236d785da93d5b1fd01830e36ae09ed3e5b7efb",
+      "to": "2778b2f7df7cb8552e9d1e122236d785da93d5b1fd01830e36ae09ed3e5b7efb"
+    },
+    "managedpartnerbusiness": {
+      "from": "b27a5dd812cf88aaa593c1ccbe2c735f77d6dde9d46311df33f83bf6fca85d1a",
+      "to": "b27a5dd812cf88aaa593c1ccbe2c735f77d6dde9d46311df33f83bf6fca85d1a"
+    },
+    "mediacopyrightupdaterecord": {
+      "from": "20f020f997aa5fb72e7ace0024a66430f6cfdc923dbb482cb8ec62fa1091c941",
+      "to": "20f020f997aa5fb72e7ace0024a66430f6cfdc923dbb482cb8ec62fa1091c941"
+    },
+    "mediafingerprint": {
+      "from": "db18705fa3d3e679b78821dc332e8aea5af66a531e770fcbdcd0da7a4be54ceb",
+      "to": "db18705fa3d3e679b78821dc332e8aea5af66a531e770fcbdcd0da7a4be54ceb"
+    },
+    "messagedeliveryestimate": {
+      "from": "2f0d2cd845394a3020b013a6256ea5ed120f38ccae12b013409df04182c790a0",
+      "to": "2f0d2cd845394a3020b013a6256ea5ed120f38ccae12b013409df04182c790a0"
+    },
+    "messagingfeaturereview": {
+      "from": "65a20c37c216c4731cb2480eed7b7efddb67d50c2a6a83a63f6cde922c716b0e",
+      "to": "65a20c37c216c4731cb2480eed7b7efddb67d50c2a6a83a63f6cde922c716b0e"
+    },
+    "messengeradspartialautomatedsteplist": {
+      "from": "a90a80fd5f95758472d1d5ba34a29d42c9debda684e720b05fe74b8574547e16",
+      "to": "a90a80fd5f95758472d1d5ba34a29d42c9debda684e720b05fe74b8574547e16"
+    },
+    "messengerbusinesstemplate": {
+      "from": "6e02741eb13fa359eadfd6170712d73103ff1f276c24681da5656188d15482d5",
+      "to": "6e02741eb13fa359eadfd6170712d73103ff1f276c24681da5656188d15482d5"
+    },
+    "messengercallpermissions": {
+      "from": "4a8d16b287f793f81516d4fadcef8073785e381cf5fe61317ed23ed92346673a",
+      "to": "4a8d16b287f793f81516d4fadcef8073785e381cf5fe61317ed23ed92346673a"
+    },
+    "messengercallsettings": {
+      "from": "4f9075bc7971d70bbf2b49722dca023b6105bdb923b4413a6496e50723b17a57",
+      "to": "4f9075bc7971d70bbf2b49722dca023b6105bdb923b4413a6496e50723b17a57"
+    },
+    "messengerprofile": {
+      "from": "b21dff23196691bcfa6fbe1d7e37025200a69104a00a7a8d3f0fd574aff504bb",
+      "to": "b21dff23196691bcfa6fbe1d7e37025200a69104a00a7a8d3f0fd574aff504bb"
+    },
+    "minimumbudget": {
+      "from": "45d0500ca63e84d0ee3b9f07a8794dd1668bd53ac307978f037e88804cdfd380",
+      "to": "45d0500ca63e84d0ee3b9f07a8794dd1668bd53ac307978f037e88804cdfd380"
+    },
+    "nullnode": {
+      "from": "f56ac172fd35a4d9063457be439661b9cb5a58dc82e48e6d116a163a1c728245",
+      "to": "f56ac172fd35a4d9063457be439661b9cb5a58dc82e48e6d116a163a1c728245"
+    },
+    "offlineconversiondataset": {
+      "from": "32890909512626764b779c00bb72a1d7afeb48f5c898efe093f2b6cefaeeb8db",
+      "to": "32890909512626764b779c00bb72a1d7afeb48f5c898efe093f2b6cefaeeb8db"
+    },
+    "offlineconversiondatasetupload": {
+      "from": "b1b7270439614c9f6f00f3d3fe125a27232229b3a4bb040c7ee828c9611ed6df",
+      "to": "b1b7270439614c9f6f00f3d3fe125a27232229b3a4bb040c7ee828c9611ed6df"
+    },
+    "offsitesignalcontainerbusinessobject": {
+      "from": "9dd56d701fb585ab98ed9afd262c4bf1dc1ae9e9ec18c2194f95515841d2936c",
+      "to": "9dd56d701fb585ab98ed9afd262c4bf1dc1ae9e9ec18c2194f95515841d2936c"
+    },
+    "omegacustomertrx": {
+      "from": "4418c118e563bc5b143a982bb27666bddf76fb6ab1aa5bbe6812934f41c19043",
+      "to": "4418c118e563bc5b143a982bb27666bddf76fb6ab1aa5bbe6812934f41c19043"
+    },
+    "openbridgeconfiguration": {
+      "from": "ab83beec008b1b0ea79caee760a8bd334d73d39aaed49a9b16f69b5b6e0306a5",
+      "to": "ab83beec008b1b0ea79caee760a8bd334d73d39aaed49a9b16f69b5b6e0306a5"
+    },
+    "overridedetails": {
+      "from": "b741bfb62605c1c8df6b792739e6a76cdcbc22fb31df9fd89efe5f9900e37179",
+      "to": "b741bfb62605c1c8df6b792739e6a76cdcbc22fb31df9fd89efe5f9900e37179"
+    },
+    "page": {
+      "from": "ea86aa97c54b67eb08bd72fd868b57a602ea45978d1495ed7dacf85bde8d1c63",
+      "to": "0d08e317fe078de5ad2805ab5501423fe51fea39ef90ae4a0160122a5914ee51"
+    },
+    "pagecalltoaction": {
+      "from": "e6bfa23dac125e924f9949dfecd5bd282c678e84cbbc6a5923f10efd25b0ad20",
+      "to": "e6bfa23dac125e924f9949dfecd5bd282c678e84cbbc6a5923f10efd25b0ad20"
+    },
+    "pagepost": {
+      "from": "b0b2009a0667ad57914423284877b104068dca1af4bdfb7f6543b0bec41f0b16",
+      "to": "b0b2009a0667ad57914423284877b104068dca1af4bdfb7f6543b0bec41f0b16"
+    },
+    "pagepostexperiment": {
+      "from": "f8a24d1fb49231b165e96575f5ef9dc7a3421c75806d78e41c12be1d9926bcd9",
+      "to": "f8a24d1fb49231b165e96575f5ef9dc7a3421c75806d78e41c12be1d9926bcd9"
+    },
+    "pagesettings": {
+      "from": "841aec6c78f8fef3475501c1b1c57fcd9b920e2ceb838a882cd54813f3e9ff2c",
+      "to": "841aec6c78f8fef3475501c1b1c57fcd9b920e2ceb838a882cd54813f3e9ff2c"
+    },
+    "pagethreadowner": {
+      "from": "d3f9ba084d65e1d2f9b7d06896e3293df031ba0c00dc777d9c44dc54436f52d6",
+      "to": "d3f9ba084d65e1d2f9b7d06896e3293df031ba0c00dc777d9c44dc54436f52d6"
+    },
+    "pageusermessagethreadlabel": {
+      "from": "1c5c4ef2be2982346dd1a9ba879f9bfdeeb54160418635fc77112a1ce8242a81",
+      "to": "1c5c4ef2be2982346dd1a9ba879f9bfdeeb54160418635fc77112a1ce8242a81"
+    },
+    "partneraccountlinking": {
+      "from": "78ad14842621c17ddf3a884b40b7bcf48b33bc3261002d55db7560c1800f6253",
+      "to": "78ad14842621c17ddf3a884b40b7bcf48b33bc3261002d55db7560c1800f6253"
+    },
+    "partnerstudy": {
+      "from": "62e2c8478ae55ce17c24c5c16888c436ac0e363a83dc97211b55455003328d34",
+      "to": "62e2c8478ae55ce17c24c5c16888c436ac0e363a83dc97211b55455003328d34"
+    },
+    "paymentenginepayment": {
+      "from": "c88f5fed64e0c6106af371a807085b712a6ce76ba29f84daf5141ecb9ff84877",
+      "to": "c88f5fed64e0c6106af371a807085b712a6ce76ba29f84daf5141ecb9ff84877"
+    },
+    "permission": {
+      "from": "12ca1d184a12e65a9a0a3f3b253a040356a30e916c718a5a6f2a40b75a36506a",
+      "to": "12ca1d184a12e65a9a0a3f3b253a040356a30e916c718a5a6f2a40b75a36506a"
+    },
+    "persona": {
+      "from": "3f1530f2ef019956501ea97363c2ec7dc6b56cfdcd226a4183c36f54b7ef7ac8",
+      "to": "3f1530f2ef019956501ea97363c2ec7dc6b56cfdcd226a4183c36f54b7ef7ac8"
+    },
+    "photo": {
+      "from": "552109ac5287dcea807c0a14ed7a312c7850f4f54c8089cf61bcaeb49efb7c43",
+      "to": "552109ac5287dcea807c0a14ed7a312c7850f4f54c8089cf61bcaeb49efb7c43"
+    },
+    "playablecontent": {
+      "from": "c9e95f08f843646af58df7328cf8a210d4345459c4b3b05d38ed2954bf5878fd",
+      "to": "c9e95f08f843646af58df7328cf8a210d4345459c4b3b05d38ed2954bf5878fd"
+    },
+    "post": {
+      "from": "1730fda312769d13be0d861d8c271eeb0cf786eeb934a692638b0b11a5b22da3",
+      "to": "1730fda312769d13be0d861d8c271eeb0cf786eeb934a692638b0b11a5b22da3"
+    },
+    "privateliftstudyinstance": {
+      "from": "9427a080cee474aaf24b6bca0617dc01e5ecbcc6b5d6ac65a4bf27e1e0938873",
+      "to": "9427a080cee474aaf24b6bca0617dc01e5ecbcc6b5d6ac65a4bf27e1e0938873"
+    },
+    "productcatalog": {
+      "from": "a53cd6ccb86ceaa6413df7330a3f3979303ceeee6a41cfbb28202ce43f566add",
+      "to": "6bed556f4ffee852db5f1888330a47ede9af3bc60f42e5265e0de208f07672fd"
+    },
+    "productcatalogcategory": {
+      "from": "d32e0506e5f074e621ca83c69240d6245c27747ecbaeacafd45dcdd834e948ec",
+      "to": "d32e0506e5f074e621ca83c69240d6245c27747ecbaeacafd45dcdd834e948ec"
+    },
+    "productcatalogcheckmarketplacepartnerdealsstatus": {
+      "from": "c47ce5f690ec4b44872bb5a2dfe714fb592588c718f6a00feec13c1f5eaab1e8",
+      "to": "c47ce5f690ec4b44872bb5a2dfe714fb592588c718f6a00feec13c1f5eaab1e8"
+    },
+    "productcatalogcheckmarketplacepartnersellersstatus": {
+      "from": "3ed96e4cf5d804c8a08d46cd9e1f4cb4305cfb48e260691565f8832fbd240667",
+      "to": "3ed96e4cf5d804c8a08d46cd9e1f4cb4305cfb48e260691565f8832fbd240667"
+    },
+    "productcatalogdatasource": {
+      "from": "95a26a9865d870d5c31a525af2c0fa921ef74a62fe49d8fe0aed2538cd4ff20b",
+      "to": "95a26a9865d870d5c31a525af2c0fa921ef74a62fe49d8fe0aed2538cd4ff20b"
+    },
+    "productcatalogdiagnosticgroup": {
+      "from": "3f61dfc0e584adc74b2e6a5674edabede1988a3e31fd8d37febb80f2413e5578",
+      "to": "3f61dfc0e584adc74b2e6a5674edabede1988a3e31fd8d37febb80f2413e5578"
+    },
+    "productcataloghotelroomsbatch": {
+      "from": "2ab4c80eb022f1732093974eb62015551901156981ccf53f172654d689ed1dfd",
+      "to": "a080026e0768e8f6202f1423f6eff409d6e817da6eb2c5c0088f9da83f7fd694"
+    },
+    "productcatalogpricingvariablesbatch": {
+      "from": "17fc7dbc06a3e56e8a5cf069ac940d48f73892559ac77469752aaf739eca8419",
+      "to": "17fc7dbc06a3e56e8a5cf069ac940d48f73892559ac77469752aaf739eca8419"
+    },
+    "productcatalogproductsetsbatch": {
+      "from": "bee2aef501307db4927c8c33924e79bd562db4189ee65b3c01cbb062fc389eff",
+      "to": "bee2aef501307db4927c8c33924e79bd562db4189ee65b3c01cbb062fc389eff"
+    },
+    "producteventstat": {
+      "from": "8541616f49bc1c9cdb171d3ca89da3ff653ee98aa207ee3a7a6fcf9e93c9a6f7",
+      "to": "8541616f49bc1c9cdb171d3ca89da3ff653ee98aa207ee3a7a6fcf9e93c9a6f7"
+    },
+    "productfeed": {
+      "from": "93c23464262d033312c6f74eff5c43229d81010e6209d4b21873ef8ddceb5e5f",
+      "to": "c9734f9b698a7659a8e003cec3942b0ded9c25ae32ff06975883133a9cd192b8"
+    },
+    "productfeedrule": {
+      "from": "2d14782488e8829c2bd01012b1096449163daaf9f5b08881bf1409d843d66a3c",
+      "to": "2d14782488e8829c2bd01012b1096449163daaf9f5b08881bf1409d843d66a3c"
+    },
+    "productfeedrulesuggestion": {
+      "from": "3137cb3572db03a7853d0b5240d5e6363cbdf2a61363d380b48db3b827f4d5e6",
+      "to": "3137cb3572db03a7853d0b5240d5e6363cbdf2a61363d380b48db3b827f4d5e6"
+    },
+    "productfeedschedule": {
+      "from": "df952dd3b186de56939f806ee5dcc5890a4ef7cc5cfaaba32ab49c07740f74b6",
+      "to": "df952dd3b186de56939f806ee5dcc5890a4ef7cc5cfaaba32ab49c07740f74b6"
+    },
+    "productfeedupload": {
+      "from": "a3e3ed4f1ff58d21343b36674b07dc53310ba1c6b16c62095aa784ec2ce8184c",
+      "to": "a3e3ed4f1ff58d21343b36674b07dc53310ba1c6b16c62095aa784ec2ce8184c"
+    },
+    "productfeeduploaderror": {
+      "from": "314ca4d97b3178c14293eb4e603b23acc61da07ec0dbbee91dafe598aed16ba8",
+      "to": "314ca4d97b3178c14293eb4e603b23acc61da07ec0dbbee91dafe598aed16ba8"
+    },
+    "productfeeduploaderrorsample": {
+      "from": "8e7be9ad144ef40258c195bd76e406e927af463586b185b8e98a998a865e83dd",
+      "to": "8e7be9ad144ef40258c195bd76e406e927af463586b185b8e98a998a865e83dd"
+    },
+    "productgroup": {
+      "from": "6fc3aed89bd45423a206d66d5a8c6855144b6ea4a8d70f16f27b29382332084b",
+      "to": "6fc3aed89bd45423a206d66d5a8c6855144b6ea4a8d70f16f27b29382332084b"
+    },
+    "productimage": {
+      "from": "5e024b299d235cc0e24f8ad5e7e21524e1923baa7369fd8e69231a5afe64054a",
+      "to": "5e024b299d235cc0e24f8ad5e7e21524e1923baa7369fd8e69231a5afe64054a"
+    },
+    "productitem": {
+      "from": "166103495107232fb6f51ad41d88f2b12899c8d4012d86d6de820743db4467c0",
+      "to": "05dd94ae995f2003f15bb3436effb4871ca6bb2c9eb5f669f173a6d005de6625"
+    },
+    "productset": {
+      "from": "37003a4a72fd3d0d7693a3228d6fd329daff6f6a17fb50e3f410eebcc5df0912",
+      "to": "37003a4a72fd3d0d7693a3228d6fd329daff6f6a17fb50e3f410eebcc5df0912"
+    },
+    "profile": {
+      "from": "ca743056d435a11ba10ac12e65907eee828232bead019a0aff768e2651fcc8b6",
+      "to": "ca743056d435a11ba10ac12e65907eee828232bead019a0aff768e2651fcc8b6"
+    },
+    "profilepicturesource": {
+      "from": "4006b60eff94d70b088b29730de78411f8181c02d9c0101523c91bf6793d4b6a",
+      "to": "4006b60eff94d70b088b29730de78411f8181c02d9c0101523c91bf6793d4b6a"
+    },
+    "publisherblocklist": {
+      "from": "001f1a9c6be8700159a53a5318922a5574380eb91f17ef22d506af0123074877",
+      "to": "001f1a9c6be8700159a53a5318922a5574380eb91f17ef22d506af0123074877"
+    },
+    "reachfrequencyprediction": {
+      "from": "1811ea551736d5312e101c297c77be70da990fdfe0e5c307cb9e5a34f54f67b6",
+      "to": "a0972d998bc02dc5dc21b2f45b7edb1ea34401a39ce9ce8c5de17cce1cae46a6"
+    },
+    "recommendation": {
+      "from": "7d5e03a5eccbc8996f045370259b8f80e92e2c64c0201cdba0470463288cb5ca",
+      "to": "7d5e03a5eccbc8996f045370259b8f80e92e2c64c0201cdba0470463288cb5ca"
+    },
+    "resellerguidance": {
+      "from": "10d290e694be798b0a93cd7695256390a71fdde4f10e5b1eb7c90f41c6d228aa",
+      "to": "10d290e694be798b0a93cd7695256390a71fdde4f10e5b1eb7c90f41c6d228aa"
+    },
+    "rtbdynamicpost": {
+      "from": "d5e286c40bb24973ba7900826ba2853aba45d6e3dbd5e81445c09db7b3cbc3b1",
+      "to": "d5e286c40bb24973ba7900826ba2853aba45d6e3dbd5e81445c09db7b3cbc3b1"
+    },
+    "savedaudience": {
+      "from": "7b3bd361613c5267e68d194f6748a392623658993539b0cf7c71544c49906ed2",
+      "to": "7b3bd361613c5267e68d194f6748a392623658993539b0cf7c71544c49906ed2"
+    },
+    "shadowighashtag": {
+      "from": "bd43b45ca08527ae58c055ae4d1eb94fbe67a015760f4db2345eaac99863a055",
+      "to": "bd43b45ca08527ae58c055ae4d1eb94fbe67a015760f4db2345eaac99863a055"
+    },
+    "shadowigmediacollaborators": {
+      "from": "de027968b8c0b9a5923809b65310f92cc5d3ab7120c1f66de1835e3fec0bd1b8",
+      "to": "de027968b8c0b9a5923809b65310f92cc5d3ab7120c1f66de1835e3fec0bd1b8"
+    },
+    "shadowigmediaproducttags": {
+      "from": "39ea96faacf62fa4ce24dc26d60bf21d263f5581478111afb939dab11416025e",
+      "to": "08bf81b379d99e831baf5aad9005f6ef8c9df21192628f72d1e0ac0e297b7050"
+    },
+    "shadowigscheduledmedia": {
+      "from": "b513bf5f8042924b21aa37e0321971adc6867396f71b841b983e6617654e0093",
+      "to": "b513bf5f8042924b21aa37e0321971adc6867396f71b841b983e6617654e0093"
+    },
+    "shadowigusercatalogproductsearch": {
+      "from": "a6a0aa509b4077e5d6b457cc44258a10e5ba9934a6fdb4999b9db90cf732133e",
+      "to": "a6a0aa509b4077e5d6b457cc44258a10e5ba9934a6fdb4999b9db90cf732133e"
+    },
+    "shadowigusercollaborationinvites": {
+      "from": "429c7312d2475fae836fae3600260e7556a4b755e0ab6abbc9bba82cd6224e59",
+      "to": "429c7312d2475fae836fae3600260e7556a4b755e0ab6abbc9bba82cd6224e59"
+    },
+    "shadowigusercollaborativemedia": {
+      "from": "7c122dab79a21a73e61c8257d1b60032bf25485fe77403420289884bdc69d2fb",
+      "to": "7c122dab79a21a73e61c8257d1b60032bf25485fe77403420289884bdc69d2fb"
+    },
+    "shadowiguserctxpartnerappwelcomemessageflow": {
+      "from": "e06297847b74fbb3fe99fd79366b10d0be5329923f2b6368ebfff4401a3ceb70",
+      "to": "e06297847b74fbb3fe99fd79366b10d0be5329923f2b6368ebfff4401a3ceb70"
+    },
+    "shop": {
+      "from": "ae1feee62995e184e5c99fcc69d2a5fae80d2a907d0f78128fa077c94137dfd7",
+      "to": "ae1feee62995e184e5c99fcc69d2a5fae80d2a907d0f78128fa077c94137dfd7"
+    },
+    "storecatalogsettings": {
+      "from": "1c84a5b2819e73e428c098426db642e5cfa9987a966c3eb0d410e559eb25b9e7",
+      "to": "1c84a5b2819e73e428c098426db642e5cfa9987a966c3eb0d410e559eb25b9e7"
+    },
+    "storelocation": {
+      "from": "8f4ec7e309c5d8626dec2056e5b48d7dc64c20bb4900192bbaf847bf6bcb80ea",
+      "to": "8f4ec7e309c5d8626dec2056e5b48d7dc64c20bb4900192bbaf847bf6bcb80ea"
+    },
+    "stories": {
+      "from": "273e2a4a3ce8a3170a9d1c390dcb4a205fad54898abefce489837d0184c58f4f",
+      "to": "273e2a4a3ce8a3170a9d1c390dcb4a205fad54898abefce489837d0184c58f4f"
+    },
+    "systemuser": {
+      "from": "174af4f6d3560cd781d61d7a378b28bca634c3c85b047a890e08df82ef5d0385",
+      "to": "174af4f6d3560cd781d61d7a378b28bca634c3c85b047a890e08df82ef5d0385"
+    },
+    "tab": {
+      "from": "d0588cd990a1ee924b983a4d4104aa8d80eab5178dc255ceb29ed1ada735d992",
+      "to": "d0588cd990a1ee924b983a4d4104aa8d80eab5178dc255ceb29ed1ada735d992"
+    },
+    "taggablesubject": {
+      "from": "9dd26aa44f908812aebaed5564c375bb2a3c6dc49e73a90f35685ed767dd3da9",
+      "to": "9dd26aa44f908812aebaed5564c375bb2a3c6dc49e73a90f35685ed767dd3da9"
+    },
+    "targetingsentenceline": {
+      "from": "8789a386a01db78c884383a8270726b5283c0b05cec2d4616aaf122222b5baab",
+      "to": "8789a386a01db78c884383a8270726b5283c0b05cec2d4616aaf122222b5baab"
+    },
+    "textwithentities": {
+      "from": "3808fbcef29b346329633fdbb9eafb8e327b75fd7fbd1c7adb66be591e7d0073",
+      "to": "3808fbcef29b346329633fdbb9eafb8e327b75fd7fbd1c7adb66be591e7d0073"
+    },
+    "thirdpartymeasurementreportdataset": {
+      "from": "bbe949c6b1cc4ed4f1077ba7e751227c2a1ce63dae853f0311f07262b2ac7234",
+      "to": "bbe949c6b1cc4ed4f1077ba7e751227c2a1ce63dae853f0311f07262b2ac7234"
+    },
+    "threadsuser": {
+      "from": "c09aab65fca920cbd6836418178bc58fbb7685a94fdb2e0262dc9eb7a14ac232",
+      "to": "c09aab65fca920cbd6836418178bc58fbb7685a94fdb2e0262dc9eb7a14ac232"
+    },
+    "unifiedthread": {
+      "from": "af588a5fd2a0799993c2e2f3595325b827e347636a602edc55fe2ce7ea2b6e1b",
+      "to": "af588a5fd2a0799993c2e2f3595325b827e347636a602edc55fe2ce7ea2b6e1b"
+    },
+    "user": {
+      "from": "d6cb2b29005f9954924561c6964a7de73fa85249f76bbfadb8cf9b26b3a702ea",
+      "to": "1172d384c4099ea824dee3e023dbea21612e2f553c0b828258bd6c05628d3c2f"
+    },
+    "useravailablecatalogs": {
+      "from": "2a840b3969f87470bf66b204672afc181913cfc96fff203ac84a608ccc61e304",
+      "to": "2a840b3969f87470bf66b204672afc181913cfc96fff203ac84a608ccc61e304"
+    },
+    "useridforapp": {
+      "from": "bb8b5859eedd136689eab0c0daabd54d41758582d43c94702c37ade1cfe3fefb",
+      "to": "bb8b5859eedd136689eab0c0daabd54d41758582d43c94702c37ade1cfe3fefb"
+    },
+    "useridforpage": {
+      "from": "8741d1a04b7bef7bee871775786fa9b65af2721a0f422da9cc5535f4685fe51d",
+      "to": "8741d1a04b7bef7bee871775786fa9b65af2721a0f422da9cc5535f4685fe51d"
+    },
+    "userpageonetimeoptintokensettings": {
+      "from": "4c15e689963371804821dcc907452b846990fb8eb6091045a8568e6ec4ef9619",
+      "to": "4c15e689963371804821dcc907452b846990fb8eb6091045a8568e6ec4ef9619"
+    },
+    "vehicle": {
+      "from": "cbfc3dba441e3682d46e952d61378304a010bcb139a551cc99030ba7b201bf8b",
+      "to": "cbfc3dba441e3682d46e952d61378304a010bcb139a551cc99030ba7b201bf8b"
+    },
+    "vehicleoffer": {
+      "from": "5ed41e5d4fb2f20eac9c04d4e5cb5973ce816f41a79fa649258856c16d6d317e",
+      "to": "5ed41e5d4fb2f20eac9c04d4e5cb5973ce816f41a79fa649258856c16d6d317e"
+    },
+    "videocopyright": {
+      "from": "14af04b65205cecd2bf303345e66738afa5d059aa525ce0fa0a384901a5fdd9d",
+      "to": "14af04b65205cecd2bf303345e66738afa5d059aa525ce0fa0a384901a5fdd9d"
+    },
+    "videocopyrightmatch": {
+      "from": "3ce8e5c8026d2eb4f2b658656e6f9971b430148ee29fbe5c0939d729fc24c790",
+      "to": "3ce8e5c8026d2eb4f2b658656e6f9971b430148ee29fbe5c0939d729fc24c790"
+    },
+    "videocopyrightrule": {
+      "from": "410f60366e850b394098ff5aca93390a25b6ce7789aa266c155ecbc72e044fc0",
+      "to": "410f60366e850b394098ff5aca93390a25b6ce7789aa266c155ecbc72e044fc0"
+    },
+    "videolist": {
+      "from": "f482465cfdee40a1bb469eab3f9cab60b2744d0b95ee59fd029bf7adaf10d07b",
+      "to": "f482465cfdee40a1bb469eab3f9cab60b2744d0b95ee59fd029bf7adaf10d07b"
+    },
+    "videopoll": {
+      "from": "b504c8ce7fd9474a4a583f1f1766e8ec4e13415e050c450e1928ffb7525fd83d",
+      "to": "b504c8ce7fd9474a4a583f1f1766e8ec4e13415e050c450e1928ffb7525fd83d"
+    },
+    "videothumbnail": {
+      "from": "4a4348b40e7fbcd663f3013e53d6e754394d4fc627d5185233338e1238abe5b3",
+      "to": "4a4348b40e7fbcd663f3013e53d6e754394d4fc627d5185233338e1238abe5b3"
+    },
+    "webpublisher": {
+      "from": "73afc454c295747efb2971b18f3abf9305619ffba539f295dca2fc3c2684e2a6",
+      "to": "73afc454c295747efb2971b18f3abf9305619ffba539f295dca2fc3c2684e2a6"
+    },
+    "whatsappbusinessaccount": {
+      "from": "45329e0be2195f895624b31a8c5db952141375faedb1e585da82427967f92f68",
+      "to": "72328a51cb296bbf4cd941820dc7452b24d74bfd13e0ef137e971cf9e33e6674"
+    },
+    "whatsappbusinesspartnerclientverificationsubmission": {
+      "from": "9a90cdc7f92d7c9e248281f704ac2c7fc4b7916780956fe91abc9c79c2b1cd05",
+      "to": "9a90cdc7f92d7c9e248281f704ac2c7fc4b7916780956fe91abc9c79c2b1cd05"
+    },
+    "whatsappbusinesspreverifiedphonenumber": {
+      "from": "1c92d85f39771092ecda6ce59dac75fa908558960c14885b3ac0f1bdaa5008d5",
+      "to": "1c92d85f39771092ecda6ce59dac75fa908558960c14885b3ac0f1bdaa5008d5"
+    }
+  },
+  "removed": {
+    "calls": [
+      "CommerceMerchantSettings GET /returns",
+      "CommerceMerchantSettings GET /tax_settings",
+      "CommerceOrder GET /cancellations",
+      "CommerceOrder GET /items",
+      "CommerceOrder GET /payments",
+      "CommerceOrder GET /refunds",
+      "CommerceOrder GET /shipments"
+    ],
+    "params": [
+      "AdAccount POST /adsets cost_bidding_mode",
+      "AdAccount POST /reachfrequencypredictions meta_moment_maker_spec",
+      "AdSet POST / cost_bidding_mode",
+      "WhatsAppBusinessAccount POST /message_templates bid_spec"
+    ],
+    "fields": [
+      "AdAccountDeliveryEstimate.daily_outcomes_curve",
+      "AdAccountDeliveryEstimate.estimate_dau",
+      "AdCampaignDeliveryEstimate.daily_outcomes_curve",
+      "AdCampaignDeliveryEstimate.estimate_dau",
+      "AdSet.cost_bidding_mode",
+      "AdSet.budget_schedule_specs",
+      "AdSet.budget_source",
+      "AdSet.budget_split_set_id",
+      "AdSet.campaign_spec",
+      "AdSet.daily_imps",
+      "AdSet.date_format",
+      "AdSet.execution_options",
+      "AdSet.is_sac_cfca_terms_certified",
+      "AdSet.line_number",
+      "AdSet.rb_prediction_id",
+      "AdSet.time_start",
+      "AdSet.time_stop",
+      "AdSet.topline_id",
+      "AdSet.tune_for_category",
+      "AdsInsights.marketing_messages_website_add_to_cart",
+      "AdsInsights.marketing_messages_website_initiate_checkout",
+      "AdsInsights.marketing_messages_website_purchase",
+      "AdsInsights.marketing_messages_website_purchase_values"
+    ],
+    "enum_values": [
+      "AdAccountAdVolume.RecommendationType.CTX_ZERO_OUTCOME_BUDGET",
+      "AdSet.AttributionCountType.ALL_CONVERSIONS",
+      "AdSet.AttributionCountType.FIRST_CONVERSION",
+      "AdSet.BudgetSource.NONE",
+      "AdSet.BudgetSource.RMN",
+      "AdSet.CostBiddingMode.BALANCED",
+      "AdSet.CostBiddingMode.COST_FOCUSED",
+      "AdSet.CostBiddingMode.VOLUME_FOCUSED"
+    ]
+  },
+  "added": {
+    "calls": 0,
+    "params": 38,
+    "fields": 43,
+    "enum_values": 542
+  },
+  "catalog": {
+    "actions": 591,
+    "with_sdk_request": 419,
+    "removed": []
+  },
+  "catalog_requests": {
+    "meta_ad_account_id_account_controls_get": "AdAccount.get_account_controls",
+    "meta_ad_account_id_ad_place_page_sets_get": "AdAccount.get_ad_place_page_sets",
+    "meta_ad_account_id_adcreatives_get": "AdAccount.get_ad_creatives",
+    "meta_ad_account_id_adimages_get": "AdAccount.get_ad_images",
+    "meta_ad_account_id_adlabels_get": "AdAccount.get_ad_labels",
+    "meta_ad_account_id_adplayables_get": "AdAccount.get_ad_playables",
+    "meta_ad_account_id_adrules_library_get": "AdAccount.get_ad_rules_library",
+    "meta_ad_account_id_ads_reporting_mmm_reports_get": "AdAccount.get_ads_reporting_mmm_reports",
+    "meta_ad_account_id_ads_reporting_mmm_schedulers_get": "AdAccount.get_ads_reporting_mmm_schedulers",
+    "meta_ad_account_id_advideos_get": "AdAccount.get_ad_videos",
+    "meta_ad_account_id_agencies_get": "AdAccount.get_agencies",
+    "meta_ad_account_id_applications_get": "AdAccount.get_applications",
+    "meta_ad_account_id_assigned_users_get": "AdAccount.get_assigned_users",
+    "meta_ad_account_id_asyncadcreatives_get": "AdAccount.get_async_ad_creatives",
+    "meta_ad_account_id_asyncadrequestsets_get": "AdAccount.get_async_ad_request_sets",
+    "meta_ad_account_id_broadtargetingcategories_get": "AdAccount.get_broad_targeting_categories",
+    "meta_ad_account_id_connected_instagram_accounts_get": "AdAccount.get_connected_instagram_accounts",
+    "meta_ad_account_id_customaudiencestos_get": "AdAccount.get_custom_audiences_tos",
+    "meta_ad_account_id_customconversions_get": "AdAccount.get_custom_conversions",
+    "meta_ad_account_id_delivery_estimate_get": "AdAccount.get_delivery_estimate",
+    "meta_ad_account_id_deprecatedtargetingadsets_get": "AdAccount.get_deprecated_targeting_ad_sets",
+    "meta_ad_account_id_dsa_recommendations_get": "AdAccount.get_dsa_recommendations",
+    "meta_ad_account_id_impacting_ad_studies_get": "AdAccount.get_impacting_ad_studies",
+    "meta_ad_account_id_insights_get": "AdAccount.get_insights",
+    "meta_ad_account_id_instagram_accounts_get": "AdAccount.get_instagram_accounts",
+    "meta_ad_account_id_mcmeconversions_get": "AdAccount.get_mcme_conversions",
+    "meta_ad_account_id_message_delivery_estimate_get": "AdAccount.get_message_delivery_estimate",
+    "meta_ad_account_id_minimum_budgets_get": "AdAccount.get_minimum_budgets",
+    "meta_ad_account_id_promote_pages_get": "AdAccount.get_promote_pages",
+    "meta_ad_account_id_publisher_block_lists_get": "AdAccount.get_publisher_block_lists",
+    "meta_ad_account_id_reachfrequencypredictions_get": "AdAccount.get_reach_frequency_predictions",
+    "meta_ad_account_id_saved_audiences_get": "AdAccount.get_saved_audiences",
+    "meta_ad_account_id_subscribed_apps_get": "AdAccount.get_subscribed_apps",
+    "meta_ad_account_id_targetingbrowse_get": "AdAccount.get_targeting_browse",
+    "meta_ad_account_id_targetingsearch_get": "AdAccount.get_targeting_search",
+    "meta_ad_account_id_targetingsuggestions_get": "AdAccount.get_targeting_suggestions",
+    "meta_ad_account_id_targetingvalidation_get": "AdAccount.get_targeting_valid_a_t_i_on",
+    "meta_ad_account_id_tracking_get": "AdAccount.get_tracking",
+    "meta_ad_account_id_users_get": "AdAccount.get_users",
+    "meta_ad_id_delete": "Ad.api_delete",
+    "meta_ad_id_get": "Ad.api_get",
+    "meta_ad_id_update": "Ad.api_update",
+    "meta_ad_id_adlabels_create": "Ad.create_ad_label",
+    "meta_ad_id_copies_copy": "Ad.create_copy",
+    "meta_ad_id_insights_get": "Ad.get_insights",
+    "meta_ad_id_leads_get": "Ad.get_leads",
+    "meta_ad_id_previews_get": "Ad.get_previews",
+    "meta_ad_id_targetingsentencelines_get": "Ad.get_targeting_sentence_lines",
+    "meta_ad_label_id_delete": "AdLabel.api_delete",
+    "meta_ad_label_id_update": "AdLabel.api_update",
+    "meta_ad_label_id_adcreatives_get": "AdLabel.get_ad_creatives",
+    "meta_ad_label_id_ads_get": "AdLabel.get_ads",
+    "meta_ad_label_id_adsets_get": "AdLabel.get_ad_sets",
+    "meta_ad_label_id_campaigns_get": "AdLabel.get_campaigns",
+    "meta_ad_set_id_delete": "AdSet.api_delete",
+    "meta_ad_set_id_get": "AdSet.api_get",
+    "meta_ad_set_id_update": "AdSet.api_update",
+    "meta_ad_set_id_ad_studies_get": "AdSet.get_ad_studies",
+    "meta_ad_set_id_adcreatives_get": "AdSet.get_ad_creatives",
+    "meta_ad_set_id_adrules_governed_get": "AdSet.get_ad_rules_governed",
+    "meta_ad_set_id_ads_get": "AdSet.get_ads",
+    "meta_ad_set_id_asyncadrequests_get": "AdSet.get_async_ad_requests",
+    "meta_ad_set_id_budget_schedules_get": "AdSet.get_budget_schedules",
+    "meta_ad_set_id_budget_schedules_create": "AdSet.create_budget_schedule",
+    "meta_ad_set_id_copies_get": "AdSet.get_copies",
+    "meta_ad_set_id_copies_copy": "AdSet.create_copy",
+    "meta_ad_set_id_delivery_estimate_get": "AdSet.get_delivery_estimate",
+    "meta_ad_set_id_insights_get": "AdSet.get_insights",
+    "meta_ad_set_id_insights_report_create": "AdSet.get_insights_async",
+    "meta_ad_set_id_message_delivery_estimate_get": "AdSet.get_message_delivery_estimate",
+    "meta_ad_set_id_targetingsentencelines_get": "AdSet.get_targeting_sentence_lines",
+    "meta_ad_study_id_get": "AdStudy.api_get",
+    "meta_ad_study_id_update": "AdStudy.api_update",
+    "meta_ad_study_id_cells_get": "AdStudy.get_cells",
+    "meta_ad_study_id_instances_get": "AdStudy.get_instances",
+    "meta_ad_study_id_objectives_get": "AdStudy.get_objectives",
+    "meta_business_id_get": "Business.api_get",
+    "meta_business_id_update": "Business.api_update",
+    "meta_business_id_ad_accounts_delete": "Business.delete_ad_accounts",
+    "meta_business_id_ad_studies_get": "Business.get_ad_studies",
+    "meta_business_id_ad_studies_create": "Business.create_ad_study",
+    "meta_business_id_adaccount_create": "Business.create_ad_account",
+    "meta_business_id_adnetworkanalytics_get": "Business.get_ad_network_analytics",
+    "meta_business_id_adnetworkanalytics_report_create": "Business.create_ad_network_analytic",
+    "meta_business_id_adnetworkanalytics_results_get": "Business.get_ad_network_analytics_results",
+    "meta_business_id_ads_reporting_mmm_reports_get": "Business.get_ads_reporting_mmm_reports",
+    "meta_business_id_ads_reporting_mmm_schedulers_get": "Business.get_ads_reporting_mmm_schedulers",
+    "meta_business_id_adspixels_get": "Business.get_ads_pixels",
+    "meta_business_id_agencies_delete": "Business.delete_agencies",
+    "meta_business_id_agencies_get": "Business.get_agencies",
+    "meta_business_id_an_placements_get": "Business.get_an_placements",
+    "meta_business_id_business_asset_groups_get": "Business.get_business_asset_groups",
+    "meta_business_id_business_invoices_get": "Business.get_business_invoices",
+    "meta_business_id_business_users_get": "Business.get_business_users",
+    "meta_business_id_business_users_create": "Business.create_business_user",
+    "meta_business_id_claim_custom_conversions_create": "Business.create_claim_custom_conversion",
+    "meta_business_id_client_ad_accounts_get": "Business.get_client_ad_accounts",
+    "meta_business_id_client_apps_get": "Business.get_client_apps",
+    "meta_business_id_client_apps_create": "Business.create_client_app",
+    "meta_business_id_client_instagram_assets_get": "Business.get_client_instagram_assets",
+    "meta_business_id_client_offsite_signal_container_business_objects_get": "Business.get_client_offsite_signal_container_business_objects",
+    "meta_business_id_client_pages_get": "Business.get_client_pages",
+    "meta_business_id_client_pixels_get": "Business.get_client_pixels",
+    "meta_business_id_client_product_catalogs_get": "Business.get_client_product_catalogs",
+    "meta_business_id_clients_delete": "Business.delete_clients",
+    "meta_business_id_clients_get": "Business.get_clients",
+    "meta_business_id_collaborative_ads_collaboration_requests_get": "Business.get_collaborative_ads_collaboration_requests",
+    "meta_business_id_collaborative_ads_suggested_partners_get": "Business.get_collaborative_ads_suggested_partners",
+    "meta_business_id_commerce_merchant_settings_get": "Business.get_commerce_merchant_settings",
+    "meta_business_id_event_source_groups_get": "Business.get_event_source_groups",
+    "meta_business_id_event_source_groups_create": "Business.create_event_source_group",
+    "meta_business_id_initiated_audience_sharing_requests_get": "Business.get_initiated_audience_sharing_requests",
+    "meta_business_id_instagram_accounts_delete": "Business.delete_instagram_accounts",
+    "meta_business_id_instagram_accounts_get": "Business.get_instagram_accounts",
+    "meta_business_id_instagram_business_accounts_get": "Business.get_instagram_business_accounts",
+    "meta_business_id_managed_businesses_create": "Business.create_managed_business",
+    "meta_business_id_managed_partner_ads_funding_source_details_get": "Business.get_managed_partner_ads_funding_source_details",
+    "meta_business_id_managed_partner_businesses_delete": "Business.delete_managed_partner_businesses",
+    "meta_business_id_managed_partner_businesses_create": "Business.create_managed_partner_business",
+    "meta_business_id_openbridge_configurations_get": "Business.get_open_bridge_configurations",
+    "meta_business_id_owned_ad_accounts_get": "Business.get_owned_ad_accounts",
+    "meta_business_id_owned_ad_accounts_create": "Business.create_owned_ad_account",
+    "meta_business_id_owned_apps_get": "Business.get_owned_apps",
+    "meta_business_id_owned_apps_create": "Business.create_owned_app",
+    "meta_business_id_owned_businesses_delete": "Business.delete_owned_businesses",
+    "meta_business_id_owned_businesses_get": "Business.get_owned_businesses",
+    "meta_business_id_owned_businesses_create": "Business.create_owned_business",
+    "meta_business_id_owned_instagram_accounts_get": "Business.get_owned_instagram_accounts",
+    "meta_business_id_owned_instagram_assets_get": "Business.get_owned_instagram_assets",
+    "meta_business_id_owned_offsite_signal_container_business_objects_get": "Business.get_owned_offsite_signal_container_business_objects",
+    "meta_business_id_owned_pages_get": "Business.get_owned_pages",
+    "meta_business_id_owned_pages_create": "Business.create_owned_page",
+    "meta_business_id_owned_pixels_get": "Business.get_owned_pixels",
+    "meta_business_id_owned_product_catalogs_get": "Business.get_owned_product_catalogs",
+    "meta_business_id_owned_product_catalogs_create": "Business.create_owned_product_catalog",
+    "meta_business_id_pages_delete": "Business.delete_pages",
+    "meta_business_id_partner_account_linking_get": "Business.get_partner_account_linking",
+    "meta_business_id_pending_client_ad_accounts_get": "Business.get_pending_client_ad_accounts",
+    "meta_business_id_pending_client_apps_get": "Business.get_pending_client_apps",
+    "meta_business_id_pending_client_pages_get": "Business.get_pending_client_pages",
+    "meta_business_id_pending_owned_ad_accounts_get": "Business.get_pending_owned_ad_accounts",
+    "meta_business_id_pending_owned_pages_get": "Business.get_pending_owned_pages",
+    "meta_business_id_pending_shared_offsite_signal_container_business_objects_get": "Business.get_pending_shared_offsite_signal_container_business_objects",
+    "meta_business_id_pending_users_get": "Business.get_pending_users",
+    "meta_business_id_received_audience_sharing_requests_get": "Business.get_received_audience_sharing_requests",
+    "meta_business_id_reseller_guidances_get": "Business.get_reseller_guidances",
+    "meta_business_id_system_user_access_tokens_create": "Business.create_system_user_access_token",
+    "meta_business_id_system_users_get": "Business.get_system_users",
+    "meta_business_id_system_users_create": "Business.create_system_user",
+    "meta_business_role_request_id_delete": "BusinessRoleRequest.api_delete",
+    "meta_business_role_request_id_get": "BusinessRoleRequest.api_get",
+    "meta_business_role_request_id_update": "BusinessRoleRequest.api_update",
+    "meta_business_user_id_delete": "BusinessUser.api_delete",
+    "meta_business_user_id_get": "BusinessUser.api_get",
+    "meta_business_user_id_update": "BusinessUser.api_update",
+    "meta_business_user_id_assigned_ad_accounts_get": "BusinessUser.get_assigned_ad_accounts",
+    "meta_business_user_id_assigned_business_asset_groups_get": "BusinessUser.get_assigned_business_asset_groups",
+    "meta_business_user_id_assigned_pages_get": "BusinessUser.get_assigned_pages",
+    "meta_business_user_id_assigned_product_catalogs_get": "BusinessUser.get_assigned_product_catalogs",
+    "meta_business_user_id_assigned_whatsapp_business_accounts_get": "BusinessUser.get_assigned_whats_app_business_accounts",
+    "meta_campaign_id_delete": "Campaign.api_delete",
+    "meta_campaign_id_get": "Campaign.api_get",
+    "meta_campaign_id_update": "Campaign.api_update",
+    "meta_campaign_id_ad_studies_get": "Campaign.get_ad_studies",
+    "meta_campaign_id_adlabels_create": "Campaign.create_ad_label",
+    "meta_campaign_id_adrules_governed_get": "Campaign.get_ad_rules_governed",
+    "meta_campaign_id_ads_get": "Campaign.get_ads",
+    "meta_campaign_id_adsets_get": "Campaign.get_ad_sets",
+    "meta_campaign_id_budget_schedules_get": "Campaign.get_budget_schedules",
+    "meta_campaign_id_budget_schedules_create": "Campaign.create_budget_schedule",
+    "meta_campaign_id_copies_get": "Campaign.get_copies",
+    "meta_campaign_id_copies_copy": "Campaign.create_copy",
+    "meta_campaign_id_insights_get": "Campaign.get_insights",
+    "meta_campaign_id_insights_report_create": "Campaign.get_insights_async",
+    "meta_canvas_id_get": "Canvas.api_get",
+    "meta_comment_id_update": "Comment.api_update",
+    "meta_creative_id_delete": "AdCreative.api_delete",
+    "meta_creative_id_get": "AdCreative.api_get",
+    "meta_creative_id_update": "AdCreative.api_update",
+    "meta_creative_id_adlabels_create": "AdCreative.create_ad_label",
+    "meta_creative_id_creative_insights_get": "AdCreative.get_creative_insights",
+    "meta_creative_id_previews_get": "AdCreative.get_previews",
+    "meta_custom_audience_id_delete": "CustomAudience.api_delete",
+    "meta_custom_audience_id_get": "CustomAudience.api_get",
+    "meta_custom_audience_id_update": "CustomAudience.api_update",
+    "meta_custom_audience_id_adaccounts_get": "CustomAudience.get_ad_accounts",
+    "meta_custom_audience_id_ads_get": "CustomAudience.get_ads",
+    "meta_custom_audience_id_health_get": "CustomAudience.get_health",
+    "meta_custom_audience_id_sessions_get": "CustomAudience.get_sessions",
+    "meta_custom_audience_id_shared_account_info_get": "CustomAudience.get_shared_account_info",
+    "meta_custom_audience_id_users_delete": "CustomAudience.delete_users",
+    "meta_custom_audience_id_users_create": "CustomAudience.create_user",
+    "meta_custom_audience_id_usersreplace_create": "CustomAudience.create_users_replace",
+    "meta_event_source_group_id_shared_accounts_get": "EventSourceGroup.get_shared_accounts",
+    "meta_form_id_leads_get": "LeadgenForm.get_leads",
+    "meta_high_demand_period_id_get": "HighDemandPeriod.api_get",
+    "meta_ig_media_id_branded_content_partner_promote_get": "IGMedia.get_branded_content_partner_promote",
+    "meta_ig_user_id_connected_threads_user_get": "IGUser.get_connected_threads_user",
+    "meta_ig_user_id_instagram_backed_threads_user_get": "IGUser.get_instagram_backed_threads_user",
+    "meta_lead_id_get": "Lead.api_get",
+    "meta_page_id_get": "Page.api_get",
+    "meta_page_id_canvas_elements_get": "Page.get_canvas_elements",
+    "meta_page_id_canvas_elements_create": "Page.create_canvas_element",
+    "meta_page_id_canvases_get": "Page.get_canvases",
+    "meta_page_id_commerce_merchant_settings_get": "Page.get_commerce_merchant_settings",
+    "meta_page_id_feed_get": "Page.get_feed",
+    "meta_page_id_feed_create": "Page.create_feed",
+    "meta_page_id_leadgen_forms_get": "Page.get_lead_gen_forms",
+    "meta_page_id_leadgen_forms_create": "Page.create_lead_gen_form",
+    "meta_page_id_messenger_lead_forms_create": "Page.create_messenger_lead_form",
+    "meta_page_id_page_backed_threads_accounts_create": "Page.create_page_backed_threads_account",
+    "meta_page_id_posts_get": "Page.get_posts",
+    "meta_page_id_videos_get": "Page.get_videos",
+    "meta_page_post_id_update": "PagePost.api_update",
+    "meta_pixel_id_get": "AdsPixel.api_get",
+    "meta_pixel_id_update": "AdsPixel.api_update",
+    "meta_pixel_id_agencies_get": "AdsPixel.get_agencies",
+    "meta_pixel_id_assigned_users_get": "AdsPixel.get_assigned_users",
+    "meta_pixel_id_da_checks_get": "AdsPixel.get_da_checks",
+    "meta_pixel_id_events_create": "AdsPixel.create_event",
+    "meta_pixel_id_openbridge_configurations_get": "AdsPixel.get_open_bridge_configurations",
+    "meta_pixel_id_shared_accounts_delete": "AdsPixel.delete_shared_accounts",
+    "meta_pixel_id_shared_accounts_get": "AdsPixel.get_shared_accounts",
+    "meta_pixel_id_shared_accounts_create": "AdsPixel.create_shared_account",
+    "meta_pixel_id_shared_agencies_get": "AdsPixel.get_shared_agencies",
+    "meta_pixel_id_stats_get": "AdsPixel.get_stats",
+    "meta_product_catalog_id_delete": "ProductCatalog.api_delete",
+    "meta_product_catalog_id_update": "ProductCatalog.api_update",
+    "meta_product_catalog_id_assigned_users_delete": "ProductCatalog.delete_assigned_users",
+    "meta_product_catalog_id_assigned_users_get": "ProductCatalog.get_assigned_users",
+    "meta_product_catalog_id_assigned_users_create": "ProductCatalog.create_assigned_user",
+    "meta_product_catalog_id_automotive_models_get": "ProductCatalog.get_automotive_models",
+    "meta_product_catalog_id_batch_create": "ProductCatalog.create_batch",
+    "meta_product_catalog_id_catalog_store_create": "ProductCatalog.create_catalog_store",
+    "meta_product_catalog_id_categories_get": "ProductCatalog.get_categories",
+    "meta_product_catalog_id_categories_create": "ProductCatalog.create_category",
+    "meta_product_catalog_id_check_batch_request_status_get": "ProductCatalog.get_check_batch_request_status",
+    "meta_product_catalog_id_check_marketplace_partner_sellers_status_get": "ProductCatalog.get_check_marketplace_partner_sellers_status",
+    "meta_product_catalog_id_collaborative_ads_share_settings_get": "ProductCatalog.get_collaborative_ads_share_settings",
+    "meta_product_catalog_id_data_sources_get": "ProductCatalog.get_data_sources",
+    "meta_product_catalog_id_destinations_get": "ProductCatalog.get_destinations",
+    "meta_product_catalog_id_diagnostics_get": "ProductCatalog.get_diagnostics",
+    "meta_product_catalog_id_event_stats_get": "ProductCatalog.get_event_stats",
+    "meta_product_catalog_id_external_event_sources_get": "ProductCatalog.get_external_event_sources",
+    "meta_product_catalog_id_external_event_sources_create": "ProductCatalog.create_external_event_source",
+    "meta_product_catalog_id_flights_get": "ProductCatalog.get_flights",
+    "meta_product_catalog_id_home_listings_get": "ProductCatalog.get_home_listings",
+    "meta_product_catalog_id_home_listings_create": "ProductCatalog.create_home_listing",
+    "meta_product_catalog_id_hotel_rooms_batch_get": "ProductCatalog.get_hotel_rooms_batch",
+    "meta_product_catalog_id_hotel_rooms_batch_create": "ProductCatalog.create_hotel_rooms_batch",
+    "meta_product_catalog_id_hotels_get": "ProductCatalog.get_hotels",
+    "meta_product_catalog_id_hotels_create": "ProductCatalog.create_hotel",
+    "meta_product_catalog_id_items_batch_create": "ProductCatalog.create_items_batch",
+    "meta_product_catalog_id_localized_items_batch_create": "ProductCatalog.create_localized_items_batch",
+    "meta_product_catalog_id_marketplace_partner_signals_create": "ProductCatalog.create_market_place_partner_signal",
+    "meta_product_catalog_id_pricing_variables_batch_get": "ProductCatalog.get_pricing_variables_batch",
+    "meta_product_catalog_id_pricing_variables_batch_create": "ProductCatalog.create_pricing_variables_batch",
+    "meta_product_catalog_id_product_feeds_get": "ProductCatalog.get_product_feeds",
+    "meta_product_catalog_id_product_feeds_create": "ProductCatalog.create_product_feed",
+    "meta_product_catalog_id_product_groups_get": "ProductCatalog.get_product_groups",
+    "meta_product_catalog_id_product_sets_get": "ProductCatalog.get_product_sets",
+    "meta_product_catalog_id_product_sets_create": "ProductCatalog.create_product_set",
+    "meta_product_catalog_id_product_sets_batch_get": "ProductCatalog.get_product_sets_batch",
+    "meta_product_catalog_id_products_get": "ProductCatalog.get_products",
+    "meta_product_catalog_id_products_create": "ProductCatalog.create_product",
+    "meta_product_catalog_id_vehicle_offers_get": "ProductCatalog.get_vehicle_offers",
+    "meta_product_catalog_id_vehicles_get": "ProductCatalog.get_vehicles",
+    "meta_product_catalog_id_vehicles_create": "ProductCatalog.create_vehicle",
+    "meta_product_feed_id_delete": "ProductFeed.api_delete",
+    "meta_product_feed_id_update": "ProductFeed.api_update",
+    "meta_product_feed_id_automotive_models_get": "ProductFeed.get_automotive_models",
+    "meta_product_feed_id_destinations_get": "ProductFeed.get_destinations",
+    "meta_product_feed_id_flights_get": "ProductFeed.get_flights",
+    "meta_product_feed_id_home_listings_get": "ProductFeed.get_home_listings",
+    "meta_product_feed_id_hotels_get": "ProductFeed.get_hotels",
+    "meta_product_feed_id_products_get": "ProductFeed.get_products",
+    "meta_product_feed_id_rules_get": "ProductFeed.get_rules",
+    "meta_product_feed_id_rules_create": "ProductFeed.create_rule",
+    "meta_product_feed_id_uploads_get": "ProductFeed.get_uploads",
+    "meta_product_feed_id_vehicle_offers_get": "ProductFeed.get_vehicle_offers",
+    "meta_product_feed_id_vehicles_get": "ProductFeed.get_vehicles",
+    "meta_product_set_id_delete": "ProductSet.api_delete",
+    "meta_product_set_id_update": "ProductSet.api_update",
+    "meta_product_set_id_automotive_models_get": "ProductSet.get_automotive_models",
+    "meta_product_set_id_destinations_get": "ProductSet.get_destinations",
+    "meta_product_set_id_flights_get": "ProductSet.get_flights",
+    "meta_product_set_id_home_listings_get": "ProductSet.get_home_listings",
+    "meta_product_set_id_hotels_get": "ProductSet.get_hotels",
+    "meta_product_set_id_products_get": "ProductSet.get_products",
+    "meta_product_set_id_vehicle_offers_get": "ProductSet.get_vehicle_offers",
+    "meta_product_set_id_vehicles_get": "ProductSet.get_vehicles",
+    "meta_report_run_id_get": "AdReportRun.api_get",
+    "meta_request_set_id_delete": "AdAsyncRequestSet.api_delete",
+    "meta_request_set_id_get": "AdAsyncRequestSet.api_get",
+    "meta_request_set_id_requests_get": "AdAsyncRequestSet.get_requests",
+    "meta_system_user_id_get": "SystemUser.api_get",
+    "meta_system_user_id_assigned_ad_accounts_get": "SystemUser.get_assigned_ad_accounts",
+    "meta_system_user_id_assigned_business_asset_groups_get": "SystemUser.get_assigned_business_asset_groups",
+    "meta_system_user_id_assigned_pages_get": "SystemUser.get_assigned_pages",
+    "meta_system_user_id_assigned_product_catalogs_get": "SystemUser.get_assigned_product_catalogs",
+    "meta_system_user_id_assigned_whatsapp_business_accounts_get": "SystemUser.get_assigned_whats_app_business_accounts",
+    "meta_user_id_ad_studies_create": "User.create_ad_study",
+    "meta_user_id_businesses_delete": "User.delete_businesses",
+    "meta_user_id_businesses_create": "User.create_business",
+    "meta_ad_account_id_get": "AdAccount.api_get",
+    "meta_ad_account_id_create": "AdAccount.api_update",
+    "meta_ad_account_id_account_controls_get_2": "AdAccount.get_account_controls",
+    "meta_ad_account_id_account_controls_create": "AdAccount.create_account_control",
+    "meta_ad_account_id_ad_place_page_sets_create": "AdAccount.create_ad_place_page_set",
+    "meta_ad_account_id_adcreatives_get_2": "AdAccount.get_ad_creatives",
+    "meta_ad_account_id_adcreatives_create": "AdAccount.create_ad_creative",
+    "meta_ad_account_id_adimages_delete": "AdAccount.delete_ad_images",
+    "meta_ad_account_id_adimages_get_2": "AdAccount.get_ad_images",
+    "meta_ad_account_id_adimages_create": "AdAccount.create_ad_image",
+    "meta_ad_account_id_adlabels_create": "AdAccount.create_ad_label",
+    "meta_ad_account_id_adplayables_create": "AdAccount.create_ad_playable",
+    "meta_ad_account_id_adrules_library_create": "AdAccount.create_ad_rules_library",
+    "meta_ad_account_id_ads_get": "AdAccount.get_ads",
+    "meta_ad_account_id_ads_create": "AdAccount.create_ad",
+    "meta_ad_account_id_adsbylabels_get": "AdAccount.get_ads_by_labels",
+    "meta_ad_account_id_adsets_get": "AdAccount.get_ad_sets",
+    "meta_ad_account_id_adsets_create": "AdAccount.create_ad_set",
+    "meta_ad_account_id_adspixels_create": "AdAccount.create_ads_pixel",
+    "meta_ad_account_id_advideos_delete": "AdAccount.delete_ad_videos",
+    "meta_ad_account_id_advideos_create": "AdAccount.create_ad_video",
+    "meta_ad_account_id_agencies_delete": "AdAccount.delete_agencies",
+    "meta_ad_account_id_assigned_users_delete": "AdAccount.delete_assigned_users",
+    "meta_ad_account_id_assigned_users_create": "AdAccount.create_assigned_user",
+    "meta_ad_account_id_async_batch_requests_create": "AdAccount.create_async_batch_request",
+    "meta_ad_account_id_async_requests_get": "AdAccount.get_async_requests",
+    "meta_ad_account_id_asyncadcreatives_create": "AdAccount.create_async_ad_creative",
+    "meta_ad_account_id_asyncadrequestsets_get_2": "AdAccount.get_async_ad_request_sets",
+    "meta_ad_account_id_asyncadrequestsets_create": "AdAccount.create_async_ad_request_set",
+    "meta_ad_account_id_campaigns_delete": "AdAccount.delete_campaigns",
+    "meta_ad_account_id_campaigns_get": "AdAccount.get_campaigns",
+    "meta_ad_account_id_campaigns_create": "AdAccount.create_campaign",
+    "meta_ad_account_id_connected_instagram_accounts_with_iabp_get": "AdAccount.get_connected_instagram_accounts_with_iabp",
+    "meta_ad_account_id_customaudiences_get": "AdAccount.get_custom_audiences",
+    "meta_ad_account_id_customaudiences_create": "AdAccount.create_custom_audience",
+    "meta_ad_account_id_customaudiencestos_create": "AdAccount.create_custom_audiences_to",
+    "meta_ad_account_id_customconversions_create": "AdAccount.create_custom_conversion",
+    "meta_ad_account_id_generatepreviews_get": "AdAccount.get_generate_previews",
+    "meta_ad_account_id_insights_get_2": "AdAccount.get_insights",
+    "meta_ad_account_id_insights_report_create": "AdAccount.get_insights_async",
+    "meta_ad_account_id_product_audiences_create": "AdAccount.create_product_audience",
+    "meta_ad_account_id_publisher_block_lists_create": "AdAccount.create_publisher_block_list",
+    "meta_ad_account_id_reachestimate_get": "AdAccount.get_reach_estimate",
+    "meta_ad_account_id_reachfrequencypredictions_create": "AdAccount.create_reach_frequency_prediction",
+    "meta_ad_account_id_recommendations_get": "AdAccount.get_recommendations",
+    "meta_ad_account_id_recommendations_create": "AdAccount.create_recommendation",
+    "meta_ad_account_id_subscribed_apps_delete": "AdAccount.delete_subscribed_apps",
+    "meta_ad_account_id_subscribed_apps_create": "AdAccount.create_subscribed_app",
+    "meta_ad_account_id_targetingsentencelines_get": "AdAccount.get_targeting_sentence_lines",
+    "meta_ad_account_id_tracking_create": "AdAccount.create_tracking",
+    "meta_ad_account_id_value_rule_set_get": "AdAccount.get_value_rule_set",
+    "meta_ad_account_id_value_rule_set_create": "AdAccount.create_value_rule_set",
+    "meta_custom_audience_id_get_2": "CustomAudience.api_get",
+    "meta_async_batch_create": "AdAccount.create_async_batch_request",
+    "meta_campaign_list": "AdAccount.get_campaigns",
+    "meta_campaign_create": "AdAccount.create_campaign",
+    "meta_campaign_get": "Campaign.api_get",
+    "meta_campaign_update": "Campaign.api_update",
+    "meta_campaign_delete": "Campaign.api_delete",
+    "meta_adset_list": "AdAccount.get_ad_sets",
+    "meta_adset_create": "AdAccount.create_ad_set",
+    "meta_adset_get": "AdSet.api_get",
+    "meta_adset_update": "AdSet.api_update",
+    "meta_adset_delete": "AdSet.api_delete",
+    "meta_ad_list": "AdAccount.get_ads",
+    "meta_ad_create": "AdAccount.create_ad",
+    "meta_ad_get": "Ad.api_get",
+    "meta_ad_update": "Ad.api_update",
+    "meta_ad_delete": "Ad.api_delete",
+    "meta_creative_list": "AdAccount.get_ad_creatives",
+    "meta_creative_create": "AdAccount.create_ad_creative",
+    "meta_creative_get": "AdCreative.api_get",
+    "meta_creative_update": "AdCreative.api_update",
+    "meta_creative_preview": "AdCreative.get_previews",
+    "meta_insights_get": "AdAccount.get_insights",
+    "meta_campaign_insights_get": "Campaign.get_insights",
+    "meta_adset_insights_get": "AdSet.get_insights",
+    "meta_ad_insights_get": "Ad.get_insights",
+    "meta_report_task_create": "AdAccount.get_insights_async",
+    "meta_report_run_get": "AdReportRun.api_get",
+    "meta_report_run_insights_get": "Ad.get_insights",
+    "meta_image_list": "AdAccount.get_ad_images",
+    "meta_image_upload": "AdAccount.create_ad_image",
+    "meta_video_list": "AdAccount.get_ad_videos",
+    "meta_video_upload": "AdAccount.create_ad_video",
+    "meta_custom_audience_list": "AdAccount.get_custom_audiences",
+    "meta_custom_audience_create": "AdAccount.create_custom_audience",
+    "meta_custom_audience_get": "CustomAudience.api_get",
+    "meta_custom_audience_update": "CustomAudience.api_update",
+    "meta_custom_audience_delete": "CustomAudience.api_delete",
+    "meta_custom_conversion_list": "AdAccount.get_custom_conversions",
+    "meta_preview_generate": "AdAccount.get_generate_previews",
+    "meta_targeting_search": "AdAccount.get_targeting_search",
+    "meta_targeting_browse": "AdAccount.get_targeting_browse",
+    "meta_targeting_suggestions": "AdAccount.get_targeting_suggestions",
+    "meta_targeting_validation": "AdAccount.get_targeting_valid_a_t_i_on",
+    "meta_audience_size_estimate": "AdAccount.get_reach_estimate",
+    "meta_reach_frequency_prediction_list": "AdAccount.get_reach_frequency_predictions",
+    "meta_reach_frequency_prediction_create": "AdAccount.create_reach_frequency_prediction",
+    "meta_pixel_events_create": "AdsPixel.create_event",
+    "meta_business_user_list": "Business.get_business_users",
+    "meta_business_user_invite": "Business.create_business_user",
+    "meta_business_user_get": "BusinessUser.api_get",
+    "meta_business_user_update": "BusinessUser.api_update",
+    "meta_business_user_remove": "BusinessUser.api_delete",
+    "meta_system_user_list": "Business.get_system_users",
+    "meta_system_user_create": "Business.create_system_user",
+    "meta_system_user_get": "SystemUser.api_get",
+    "meta_ad_account_user_list": "AdAccount.get_assigned_users",
+    "meta_ad_account_user_assign": "AdAccount.create_assigned_user",
+    "meta_ad_account_user_unassign": "AdAccount.delete_assigned_users",
+    "meta_catalog_user_list": "ProductCatalog.get_assigned_users",
+    "meta_catalog_user_assign": "ProductCatalog.create_assigned_user",
+    "meta_catalog_user_unassign": "ProductCatalog.delete_assigned_users",
+    "meta_pixel_user_list": "AdsPixel.get_assigned_users"
+  }
+}

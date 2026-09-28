@@ -1,13 +1,14 @@
 import {MirrorError} from './errors.js';
 import type {Action, CompiledRequest, JsonObject} from './types.js';
+import {metaPrefix} from './meta-version.js';
 
 /** Correct independently documented account scoping without rewriting capture evidence. */
 export function metaActionOverride(a: Action): Action {
   if (a.name !== 'meta_ad_account_id_adlabels_get') return a;
-  return {...a, path: '/v25.0/act_{ad_account_id}/adlabels', evidence: 'VENDOR_DOCUMENTED_INDEPENDENT_MAPPING'};
+  return {...a, path: metaPrefix + 'act_{ad_account_id}/adlabels', evidence: 'VENDOR_DOCUMENTED_INDEPENDENT_MAPPING'};
 }
 
-/** Endpoint-specific v25 campaign rules, not blanket bans on creative fields. */
+/** Endpoint-specific campaign rules (written against v25.0, unchanged in the v26.0 SDK), not blanket bans on creative fields. */
 export function validateMetaCampaign(plan: CompiledRequest) {
   if (plan.gateway !== 'meta_native_action' || plan.method !== 'POST') return;
   const creating = /^\/v[^/]+\/act_[^/]+\/campaigns$/.test(plan.path);
