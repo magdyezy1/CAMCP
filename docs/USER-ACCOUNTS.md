@@ -26,7 +26,7 @@ AMCP_RUN_WORKER=true
 
 Verify the sender domain using Resend's exact DNS records. Registration follows name/email → email link → choose password → workspace. Existing members can reset a password or change their verified recovery address. Verification can be resent; expired links have a fresh-start path. Public screens show available choices; owner Settings holds infrastructure diagnostics.
 
-Messages enter an encrypted SQLite outbox before delivery. Transient failures retry with an idempotency key, bounded timeout and worker lease. Single-use links expire after 30 minutes; retries do not extend them. Sent/expired queue payloads are cleared. Keep a worker running and the database persistent. Existing password sign-in continues without email configuration; registration and recovery require it.
+Messages enter an encrypted SQLite outbox before delivery. Delivery starts at once, but the response does not wait for it, so the time a registration or reset takes does not show whether the address has an account. Transient failures retry with an idempotency key, bounded timeout and worker lease. Single-use links expire after 30 minutes; retries do not extend them. Sent/expired queue payloads are cleared. Keep a worker running and the database persistent. Existing password sign-in continues without email configuration; registration and recovery require it.
 
 Passwords use asynchronous scrypt (N=32768, r=8, p=3), bounded memory and at most four concurrent hashes. Existing supported hashes upgrade on successful login. Run `node dist/tools/password-benchmark.js` on the production-sized host. A local benchmark is not a capacity guarantee.
 

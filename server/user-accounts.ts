@@ -87,7 +87,8 @@ export class UserAccounts {
  }
  challenge(kind:string,data:JsonObject,ttl=1800000){
   const token=opaque(),hash=sha256(token),db=this.web.store.db;db.prepare('DELETE FROM amcp_account_challenges WHERE expires_at<=?').run(Date.now());
-  const total=(db.prepare('SELECT count(*) AS n FROM amcp_account_challenges').get() as JsonObject).n;if(total>=10000)throw new MirrorError('AUTH_BUSY','Please try again later.',{},429);
+  // Each kind has its own cap, so anonymous social starts or registrations cannot use up the room resets, MFA and invitations need.
+  const total=(db.prepare('SELECT count(*) AS n FROM amcp_account_challenges WHERE kind=?').get(kind) as JsonObject).n;if(total>=10000)throw new MirrorError('AUTH_BUSY','Please try again later.',{},429);
   db.prepare('INSERT INTO amcp_account_challenges VALUES(?,?,?,?)').run(hash,kind,this.web.sealAccount(hash,data),Date.now()+ttl);return token;
  }
  readChallenge(token:unknown,kind:string,consume=false):JsonObject{
@@ -104,7 +105,9 @@ export class UserAccounts {
   const pending=this.readChallenge(token,kind),tenant=pending.tenantId??(pending.userId?this.user(pending.userId).tenant_id:this.web.tenantId);
   const id=sha256(token),now=Date.now(),secret=this.web.sealAccount('mail:'+id,{from:this.env.AMCP_EMAIL_FROM,to:[email],subject:title,text:title+'\n\n'+link+'\n\nThis link is single-use and expires at '+new Date(row.expires_at).toISOString()+'. If you did not request it, ignore this email.'});
   this.web.store.db.prepare("INSERT OR IGNORE INTO amcp_email_outbox(id,tenant_id,secret,state,available_at,expires_at,created_at) VALUES(?,?,?,'queued',?,?,?)").run(id,tenant,secret,now,row.expires_at,now);
-  await this.deliverEmails(id);
+  // Delivery starts now but is not awaited: register and requestReset send only for some addresses, so a response that
+  // waited on the email provider would tell the caller whether an account exists. The worker retries what stays queued.
+  void this.deliverEmails(id).catch(()=>{});
  }
  /** Queues a notification that carries no single-use link. The worker drains the outbox
   * every second, so callers need not await delivery inside a transaction. */

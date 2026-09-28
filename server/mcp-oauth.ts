@@ -81,8 +81,23 @@ export class McpOAuth implements OAuthServerProvider {
    if(approved){const code=opaque();this.put(code,'code',row.client_id,{...row.data,...(session.actor.userId!=='workspace-admin'?{ownerUserId:session.actor.userId}:{})},300000,session.actor.tenantId);url.searchParams.set('code',code);}else url.searchParams.set('error','access_denied');return url.href;
   });
  }
- async challengeForAuthorizationCode(client:OAuthClientInformationFull,code:string){return this.get(code,'code',client.client_id).data.challenge as string;}
+ async challengeForAuthorizationCode(client:OAuthClientInformationFull,code:string){
+  const row=this.get(code,'code',client.client_id,true);
+  // A code presented again revokes what its first exchange issued (RFC 6749 section 4.1.2), before PKCE is checked:
+  // whoever replays it holds a code that should never have left the client.
+  if(row.used){if(row.data.family)this.web.store.transaction(()=>this.revokeFamily(row.data.family,row.tenant_id));throw new InvalidGrantError('This authorization has expired or was already used.');}
+  return row.data.challenge as string;
+ }
+ /** Removes expired access grants with their keys, and expired refresh grants already rotated away. Each client keeps
+  * its newest refresh grant, so a registration still in use is never orphaned for the unused-client cleanup. */
+ private prune(){
+  const db=this.web.store.db,now=Date.now(),expired="SELECT hash FROM amcp_mcp_grants WHERE kind='access' AND expires_at<?";
+  db.prepare('DELETE FROM credential_owners WHERE hash IN ('+expired+')').run(now);db.prepare('DELETE FROM api_keys WHERE hash IN ('+expired+')').run(now);
+  db.prepare("DELETE FROM amcp_mcp_grants WHERE kind='access' AND expires_at<?").run(now);
+  db.prepare("DELETE FROM amcp_mcp_grants WHERE kind='refresh' AND used=1 AND expires_at<? AND EXISTS(SELECT 1 FROM amcp_mcp_grants o WHERE o.client_id=amcp_mcp_grants.client_id AND o.kind='refresh' AND o.expires_at>amcp_mcp_grants.expires_at)").run(now);
+ }
  private issue(client:string,data:JsonObject,tenant:string):OAuthTokens{
+  this.prune();
   const scopes=this.validateScopes(data.scope?.split(' ')),scope=scopes.join(' '),role=scopes.includes(writeScope)?'operator':'reader';
   const ownership=data.ownerUserId?{ownerUserId:data.ownerUserId}:{},family=data.family??randomUUID(),access=this.web.store.createKey({tenantId:tenant,userId:'oauth/'+client,role,...ownership},3600000),refresh=opaque();
   this.put(access,'access',client,{family,scope,...ownership},3600000,tenant);this.put(refresh,'refresh',client,{family,scope,...ownership},30*86400000,tenant);
@@ -93,7 +108,8 @@ export class McpOAuth implements OAuthServerProvider {
   return this.web.store.transaction(()=>{const row=this.get(code,'code',client.client_id);
    // The SDK validates PKCE before this method and omits verifier afterwards.
    if(redirectUri!==row.data.redirectUri||verifier!==undefined&&(!/^[A-Za-z0-9._~-]{43,128}$/.test(verifier)||!safeEqual(createHash('sha256').update(verifier).digest('base64url'),row.data.challenge)))throw new InvalidGrantError('The redirect URI or PKCE verifier does not match.');
-   this.web.store.db.prepare('UPDATE amcp_mcp_grants SET used=1 WHERE hash=?').run(row.hash);return this.issue(client.client_id,row.data,row.tenant_id);
+   // The code remembers the token family it issued, so a replay can revoke it.
+   const data={...row.data,family:randomUUID()};this.web.store.db.prepare('UPDATE amcp_mcp_grants SET used=1,data=? WHERE hash=?').run(JSON.stringify(data),row.hash);return this.issue(client.client_id,data,row.tenant_id);
   });
  }
  private revokeFamily(family:string,tenant:string){

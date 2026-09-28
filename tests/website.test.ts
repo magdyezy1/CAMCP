@@ -121,7 +121,9 @@ test('MCP OAuth discovery, registration, consent, PKCE, one-use codes, refresh r
   const decision=await s.request('/api/mcp/consent','POST',{request,approved:true},s.headers);assert.equal(decision.status,200);const callback=new URL((await decision.json()).url);assert.equal(callback.searchParams.get('state'),'original-state');
   const token=(values:Record<string,string>)=>fetch(s.base+'/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(values)});
   const grant={grant_type:'authorization_code',client_id:client.client_id,redirect_uri:client.redirect_uris[0],code:callback.searchParams.get('code')!,code_verifier:verifier,resource:origin+'/mcp'};
-  assert.equal((await token({...grant,code_verifier:'x'.repeat(64)})).status,400);const exchanged=await token(grant);assert.equal(exchanged.status,200);const credentials=await exchanged.json();assert.equal(s.store.authenticate(credentials.access_token).role,'reader');assert.equal((await token(grant)).status,400);
+  assert.equal((await token({...grant,code_verifier:'x'.repeat(64)})).status,400);const exchanged=await token(grant);assert.equal(exchanged.status,200);const credentials=await exchanged.json();assert.equal(s.store.authenticate(credentials.access_token).role,'reader');
   const refresh={grant_type:'refresh_token',client_id:client.client_id,refresh_token:credentials.refresh_token,resource:origin+'/mcp'};const refreshed=await token(refresh);assert.equal(refreshed.status,200);const rotated=await refreshed.json();assert.notEqual(rotated.refresh_token,credentials.refresh_token);assert.equal((await token(refresh)).status,400);assert.throws(()=>s.store.authenticate(rotated.access_token));
+  // The code stays single-use; replaying it mid-flow would revoke the tokens used above (tests/claude-oauth.test.ts).
+  assert.equal((await token(grant)).status,400);
  }finally{await s.close();}
 });

@@ -53,7 +53,7 @@ test('Claude confidential DCR, S256 authorization, consent, code exchange, refre
   const token=(body:Record<string,string>)=>s.request('/token','POST',new URLSearchParams(body));
   const {client_secret:_,...missingSecret}=grant;
   for(const invalid of [missingSecret,{...grant,client_secret:'incorrect'},{...grant,code_verifier:'x'.repeat(64)},{...grant,redirect_uri:redirect+'?changed=1'},{...grant,resource:'https://elsewhere.invalid/mcp'}])assert.equal((await token(invalid)).status,400);
-  const exchanged=await token(grant);assert.equal(exchanged.status,200);const credentials=await exchanged.json();assert.equal(credentials.scope,'mcp:read');assert.equal((await token(grant)).status,400);
+  const exchanged=await token(grant);assert.equal(exchanged.status,200);const credentials=await exchanged.json();assert.equal(credentials.scope,'mcp:read');
   await mcp.connect(new StreamableHTTPClientTransport(new URL(s.base+'/mcp'),{requestInit:{headers:{Authorization:'Bearer '+credentials.access_token}}}));
   assert.ok((await mcp.listTools()).tools.some(t=>t.name==='amcp_tool_help'));
   const help=await mcp.callTool({name:'amcp_tool_help',arguments:{}});assert.equal(help.isError,undefined);
@@ -63,6 +63,40 @@ test('Claude confidential DCR, S256 authorization, consent, code exchange, refre
   const access=await s.request('/mcp','POST',{jsonrpc:'2.0',id:1,method:'tools/list',params:{}},{Authorization:'Bearer '+rotated.access_token,Accept:'application/json, text/event-stream'});assert.equal(access.status,200);
   assert.equal((await token(refresh)).status,400);assert.throws(()=>s.store.authenticate(rotated.access_token));
  }finally{await mcp.close();await s.close();}
+});
+
+test('a replayed authorization code is refused and revokes the tokens its first exchange issued',async()=>{
+ const s=await site();try{
+  const client=await (await s.request('/register','POST',registration)).json(),verifier=randomBytes(48).toString('base64url');
+  const start=await s.request('/authorize?'+new URLSearchParams({client_id:client.client_id,redirect_uri:redirect,response_type:'code',code_challenge:createHash('sha256').update(verifier).digest('base64url'),code_challenge_method:'S256',scope:'mcp:read',resource:origin+'/mcp'}));
+  const request=new URL(start.headers.get('location')!).searchParams.get('request')!;
+  const code=new URL((await (await s.request('/api/mcp/consent','POST',{request,approved:true},s.headers)).json()).url).searchParams.get('code')!;
+  const grant={grant_type:'authorization_code',client_id:client.client_id,client_secret:client.client_secret,redirect_uri:redirect,code,code_verifier:verifier,resource:origin+'/mcp'};
+  const token=(body:Record<string,string>)=>s.request('/token','POST',new URLSearchParams(body));
+  const first=await token(grant);assert.equal(first.status,200);const credentials=await first.json();s.store.authenticate(credentials.access_token);
+  // Whoever replays the code, even without the verifier, ends the access the first exchange granted.
+  assert.equal((await token({...grant,code_verifier:'x'.repeat(64)})).status,400);
+  assert.throws(()=>s.store.authenticate(credentials.access_token));
+  assert.equal((await token({grant_type:'refresh_token',client_id:client.client_id,client_secret:client.client_secret,refresh_token:credentials.refresh_token,resource:origin+'/mcp'})).status,400);
+  assert.equal((await token(grant)).status,400);
+ }finally{await s.close();}
+});
+
+test('issuing tokens prunes expired access grants and rotated refresh grants, and keeps each client\'s newest refresh grant',async()=>{
+ const s=await site();try{
+  const db=s.store.db,past=Date.now()-1000,hash=(t:string)=>createHash('sha256').update(t).digest('hex');
+  const insert=(token:string,kind:string,client:string,used:number,expires:number)=>db.prepare('INSERT INTO amcp_mcp_grants VALUES(?,?,?,?,?,?,?)').run(hash(token),kind,client,'local','{}',expires,used);
+  const key=s.store.createKey({tenantId:'local',userId:'oauth/idle-client',role:'reader'},1);insert(key,'access','idle-client',0,past);
+  insert('rotated-refresh','refresh','idle-client',1,past-1000);insert('last-refresh','refresh','idle-client',1,past);insert('live-access','access','idle-client',0,Date.now()+3600000);
+  const client=await (await s.request('/register','POST',registration)).json(),verifier=randomBytes(48).toString('base64url');
+  const start=await s.request('/authorize?'+new URLSearchParams({client_id:client.client_id,redirect_uri:redirect,response_type:'code',code_challenge:createHash('sha256').update(verifier).digest('base64url'),code_challenge_method:'S256',scope:'mcp:read',resource:origin+'/mcp'}));
+  const request=new URL(start.headers.get('location')!).searchParams.get('request')!;
+  const code=new URL((await (await s.request('/api/mcp/consent','POST',{request,approved:true},s.headers)).json()).url).searchParams.get('code')!;
+  assert.equal((await s.request('/token','POST',new URLSearchParams({grant_type:'authorization_code',client_id:client.client_id,client_secret:client.client_secret,redirect_uri:redirect,code,code_verifier:verifier,resource:origin+'/mcp'}))).status,200);
+  const left=(db.prepare("SELECT hash FROM amcp_mcp_grants WHERE client_id='idle-client'").all() as {hash:string}[]).map(r=>r.hash).sort();
+  assert.deepEqual(left,[hash('last-refresh'),hash('live-access')].sort());
+  assert.equal(db.prepare('SELECT hash FROM api_keys WHERE hash=?').get(hash(key)),undefined);
+ }finally{await s.close();}
 });
 
 test('registration and authorization preserve public clients, redirect, scope, resource and PKCE restrictions',async()=>{

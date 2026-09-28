@@ -15,9 +15,9 @@ const master=Buffer.alloc(32,65).toString('base64'),password='synthetic-member-p
 const key=generateKeyPairSync('rsa',{modulusLength:2048}),json=(body:unknown)=>new Response(JSON.stringify(body),{headers:{'Content-Type':'application/json'}});
 async function fixture(extra:NodeJS.ProcessEnv={},site:{testPassword?:string}={}){
  const store=new Store(':memory:',master),env:NodeJS.ProcessEnv={AMCP_EMAIL_API_KEY:'synthetic-mail-secret',AMCP_EMAIL_FROM:'AMCP <accounts@example.test>',AMCP_SIGNIN_GOOGLE_CLIENT_ID:'google-client',AMCP_SIGNIN_GOOGLE_CLIENT_SECRET:'google-secret',AMCP_SIGNIN_APPLE_CLIENT_ID:'apple-client',AMCP_SIGNIN_APPLE_CLIENT_SECRET:'synthetic-apple-secret',AMCP_SIGNIN_FACEBOOK_CLIENT_ID:'facebook-client',AMCP_SIGNIN_FACEBOOK_CLIENT_SECRET:'facebook-secret',...extra};
- const web=new WebStore(store,{origin,masterKey:master,adminPassword:password,...site,authEnv:env,fetcher:((...args:Parameters<typeof fetch>)=>fetcher(...args)) as typeof fetch}),accounts=new UserAccounts(web),calls:{url:string;init:RequestInit}[]=[],emails:JsonObject[]=[],state={nonce:'',subject:'person-1',email:'member@example.test',invalid:''};
+ const web=new WebStore(store,{origin,masterKey:master,adminPassword:password,...site,authEnv:env,fetcher:((...args:Parameters<typeof fetch>)=>fetcher(...args)) as typeof fetch}),accounts=new UserAccounts(web),calls:{url:string;init:RequestInit}[]=[],emails:JsonObject[]=[],state={nonce:'',subject:'person-1',email:'member@example.test',invalid:'',mailGate:undefined as Promise<void>|undefined};
  const jwk={...await exportJWK(key.publicKey),alg:'RS256',kid:'test-key',use:'sig'};
- const fetcher:typeof fetch=async(url,init={})=>{const u=new URL(String(url));calls.push({url:u.href,init});if(u.href==='https://api.resend.com/emails'){emails.push(JSON.parse(String(init.body)));return json({id:'email-test'});}
+ const fetcher:typeof fetch=async(url,init={})=>{const u=new URL(String(url));calls.push({url:u.href,init});if(u.href==='https://api.resend.com/emails'){emails.push(JSON.parse(String(init.body)));await state.mailGate;return json({id:'email-test'});}
   if(u.pathname.endsWith('/certs')||u.pathname.endsWith('/keys'))return json({keys:[jwk]});
   if(u.hostname==='graph.facebook.com'){if(u.pathname.endsWith('/access_token'))return json({access_token:'facebook-access-only'});return json({id:'123456',name:'Facebook member',email:'do-not-trust@example.test'});}
   if(u.hostname==='oauth2.googleapis.com'||u.hostname==='appleid.apple.com'){
@@ -52,6 +52,30 @@ test('email registration verifies ownership before choosing a password; isolated
   assert.equal((await (await f.request('/api/session','GET',undefined,headers)).json()).workspaceName,'My workspace');
   assert.equal((await f.request('/api/account/options')).headers.get('cache-control'),'no-store');
   assert.equal((await f.request('/api/account/login','POST',{email:user.email,password:'wrong'})).status,401);
+ }finally{await f.close();}
+});
+test('reset and registration answer without waiting on the email provider, so response time does not reveal an account',async()=>{
+ const f=await fixture({AMCP_AUTO_APPROVE_SIGNUPS:'true'});let release=()=>{};try{
+  await f.create('member@example.test');f.state.mailGate=new Promise<void>(r=>release=r);
+  const answer=(path:string,body:JsonObject)=>Promise.race([f.request(path,'POST',body).then(r=>r.status),new Promise(r=>setTimeout(()=>r('waited on delivery'),3000))]);
+  // The existing account gets a reset email and the new address a registration email; neither response waits for it.
+  assert.equal(await answer('/api/account/forgot-password',{email:'member@example.test'}),200);
+  assert.equal(await answer('/api/account/register',{name:'New member',email:'new@example.test'}),200);
+  assert.deepEqual(f.emails.map(e=>e.to),[['member@example.test'],['new@example.test']],'delivery started for both');
+  const sent=()=>(f.store.db.prepare("SELECT count(*) AS n FROM amcp_email_outbox WHERE state='sent'").get() as JsonObject).n;
+  assert.equal(sent(),0);release();
+  for(let i=0;i<100&&sent()<2;i++)await new Promise(r=>setTimeout(r,10));
+  assert.equal(sent(),2,'the started deliveries complete after the responses');
+ }finally{release();await f.close();}
+});
+test('a flood of one challenge kind, such as anonymous social starts, leaves room for resets and two-step sign-in',async()=>{
+ const f=await fixture();try{
+  const insert=f.store.db.prepare('INSERT INTO amcp_account_challenges VALUES(?,?,?,?)'),until=Date.now()+600000;
+  f.store.transaction(()=>{for(let i=0;i<10000;i++)insert.run('flood-'+i,'social','sealed',until);});
+  assert.throws(()=>f.accounts.challenge('social',{}),{code:'AUTH_BUSY'});
+  const user=await f.create('member@example.test');
+  assert.match(f.accounts.challenge('reset',{userId:user.id,version:user.version}),/^[\w-]{43}$/);
+  assert.match(f.accounts.challenge('mfa_login',{userId:user.id}),/^[\w-]{43}$/);
  }finally{await f.close();}
 });
 test('reset links are single-use, expire, and revoke only their owner browser sessions and MCP credentials',async()=>{
@@ -268,6 +292,21 @@ test('a test account is scoped to the evaluator tabs and inherits no owner conne
  }finally{await f.close();}
 });
 
+test('two reviewers signed in with the test password cannot see or end each other\'s sessions',async()=>{
+ const testPassword='reviewer-password-for-google-review';
+ const f=await fixture({},{testPassword});
+ try{
+  const enter=async()=>{const r=await f.request('/api/session/test','POST',{password:testPassword});assert.equal(r.status,200);return {Cookie:r.headers.get('set-cookie')!.split(';')[0]!,'X-AMCP-CSRF':(await r.json()).csrf};};
+  const first=await enter(),second=await enter();
+  const list=async(h:Record<string,string>)=>(await (await f.request('/api/account/sessions','GET',undefined,h)).json()).sessions as JsonObject[];
+  const mine=await list(first),theirs=await list(second);
+  assert.equal(mine.length,1);assert.equal(mine[0]!.current,true);assert.equal(theirs.length,1);assert.notEqual(mine[0]!.id,theirs[0]!.id);
+  assert.equal((await f.request('/api/account/sessions/'+theirs[0]!.id,'DELETE',undefined,first)).status,404);
+  assert.equal((await f.request('/api/account','GET',undefined,second)).status,200,'the other reviewer stays signed in');
+  assert.equal((await f.request('/api/account/sessions/'+mine[0]!.id,'DELETE',undefined,first)).status,200);
+  assert.equal((await f.request('/api/account','GET',undefined,first)).status,401);
+ }finally{await f.close();}
+});
 test('a reviewer signs in with the test password and lands scoped, outside the owner workspace',async()=>{
  const testPassword='reviewer-password-for-google-review';
  const f=await fixture({},{testPassword});
