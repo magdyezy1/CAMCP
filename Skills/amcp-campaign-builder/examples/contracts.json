@@ -1521,6 +1521,19 @@
     {
       "gateway": "x_ads_native_action",
       "arguments": {
+        "action": "x_accounts_account_id_cards_image_conversation_card_id_put",
+        "account_id": "abc12",
+        "params": {
+          "card_id": "59woh"
+        },
+        "payload": {
+          "title": "Full moon tonight"
+        }
+      }
+    },
+    {
+      "gateway": "x_ads_native_action",
+      "arguments": {
         "action": "x_accounts_account_id_cards_poll_post",
         "account_id": "abc12",
         "payload": {

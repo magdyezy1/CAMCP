@@ -1113,7 +1113,16 @@ Tests: `tests/tiktok-rule-audiences.test.mjs` (4), red on `54e8dd1` / green afte
 
 - New reviewed family `x_conversation_cards` (`src/x-conversation-cards.ts`) for creating poll, image conversation and video conversation cards, three rows. Editing and deleting them stay blocked until they share the website card usage scan.
 
-Tests: `tests/x-conversation-cards.test.mjs` (4), red on `b45d675` / green after.
+Tests: `tests/x-conversation-cards.test.mjs` (4), red on `b45d675` / green after. Committed as `24facf6`.
+
+## Finished batch — X poll and conversation card edits and deletions (2026-09-27)
+
+[Implementation](X-LEGACY-CARD-EDITS-2026-09-27.md) and
+[qualification](X-LEGACY-CARD-EDITS-VERIFICATION-2026-09-27.json).
+
+- `src/x-creative-writes.ts` (family `x_creatives`) now covers conversation card edits and poll and conversation card deletions with its promoted Tweet usage scan, five rows.
+
+Tests: `tests/x-legacy-card-edits.test.mjs` (4), red on `24facf6` / green after; `tests/x-conversation-cards.test.mjs` updated.
 
 ## CI and live evidence
 
@@ -1127,20 +1136,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 708 in reviewed write families. **717 remaining rows** are in
+3241 captured actions; 713 in reviewed write families. **712 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 608 |
+| blocked_write | 603 |
 | unmapped | 79 |
 | unqualified_read | 17 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 169, Meta 117, LinkedIn 94, Snapchat 66,
-Google Ads 57, X 40, DV360 30, Criteo 23, Business Profile 12.
+Google Ads 57, X 35, DV360 30, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

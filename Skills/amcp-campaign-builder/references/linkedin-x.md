@@ -841,9 +841,21 @@ AMCP reads the account, each media item (`STATE_NOT_FOUND` when missing or delet
 or media still transcoding is refused) and, for a media poll, the account features. A new card
 reaches no one until a promoted Tweet uses it, so no spending confirmation is needed. A receipt
 without a card ID is a failure never resubmitted. Verification reads the new card and compares the
-fields sent (media keys are write-only on polls). Editing or deleting these cards stays
-unqualified: it needs the promoted Tweet usage scan of the website card contract.
-`INVALID_X_CONVERSATION_CARD` names the field to correct.
+fields sent (media keys are write-only on polls). `INVALID_X_CONVERSATION_CARD` names the field to
+correct.
+
+Editing and deleting these cards goes through the website card contract and its usage scan:
+
+- `x_accounts_account_id_cards_image_conversation_card_id_put` and
+  `..._video_conversation_card_id_put` (`params: {card_id}`) change any creation field; X cannot
+  edit poll cards.
+- `..._cards_poll_card_id_delete`, `..._image_conversation_card_id_delete` and
+  `..._video_conversation_card_id_delete` delete a card; owner deletion policies apply.
+- AMCP reads the card, any new media (the card image or video, poster and unlock media must be
+  ready and of the right type) and the promoted Tweets of every line item. A card that promoted
+  Tweets use is `CREATIVE_IN_USE` until `creative_edit_confirmed=true` is sent with the affected
+  ads reviewed. Verification reads the card again: the fields sent (poster and unlock media keys
+  are write-only) or `deleted`. `INVALID_X_CREATIVE` names the field to correct.
 
 Reference: [Creatives](https://docs.x.com/x-ads-api/creatives/reference) ("Poll Cards", "Image
 Conversation Cards", "Video Conversation Cards"), checked 2026-09-27.

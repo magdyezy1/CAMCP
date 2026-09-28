@@ -5,6 +5,13 @@ import type {TransportResult} from './transport.js';
 
 const gateway='x_ads_native_action';
 const native=/^[a-z0-9]{1,32}$/,snowflake=/^[0-9]{1,25}$/,mediaKey=/^[0-9]+_[0-9]+$/;
+// Poll, image conversation and video conversation cards have their own routes (Creatives reference, "Poll Cards",
+// "Image Conversation Cards", "Video Conversation Cards"; checked 2026-09-27). X cannot edit poll cards.
+const legacyRoute=/^\/cards\/(poll|image_conversation|video_conversation)\/([a-z0-9]+)$/,ctaTag=/^#[A-Za-z0-9_]{1,20}$/;
+const conversationFields=['name','media_key','first_cta','first_cta_tweet','second_cta','second_cta_tweet','third_cta','third_cta_tweet','fourth_cta','fourth_cta_tweet','title','thank_you_text','thank_you_url','unlocked_image_media_key'];
+const legacyFields:Record<string,string[]>={image_conversation:conversationFields,video_conversation:[...conversationFields,'poster_media_key','unlocked_video_media_key']};
+// X returns the card media key but not the poster or unlock media keys.
+const writeOnly=['poster_media_key','unlocked_image_media_key','unlocked_video_media_key'];
 const object=(v:unknown):v is JsonObject=>!!v&&typeof v==='object'&&!Array.isArray(v);
 function fail(message:string,details:JsonObject={}):never{throw new MirrorError('X_CREATIVE_STATE_UNVERIFIED',message,details);}
 type Kind='card_create'|'card_update'|'card_delete'|'tweet_create'|'tweet_rename'|'library_create'|'promotion';
@@ -13,11 +20,15 @@ export function xCreativeKind(p:CompiledRequest):Kind|undefined{
  const route=p.path.replace(/^\/12\/accounts\/[a-z0-9]+/,'');
  if(route==='/cards'&&p.method==='POST')return 'card_create';
  if(/^\/cards\/[a-z0-9]+$/.test(route)&&['PUT','DELETE'].includes(p.method))return p.method==='PUT'?'card_update':'card_delete';
+ const legacy=legacyRoute.exec(route);if(legacy&&(p.method==='DELETE'||p.method==='PUT'&&legacy[1]!=='poll'))return p.method==='PUT'?'card_update':'card_delete';
  if(route==='/tweet'&&p.method==='POST')return 'tweet_create';
  if(/^\/tweets\/[0-9]+\/name$/.test(route)&&p.method==='PUT')return 'tweet_rename';
  if(route==='/media_library'&&p.method==='POST')return 'library_create';
  if(route==='/promoted_tweets'&&p.method==='POST')return 'promotion';
 }
+/** The poll or conversation card type of a card edit or deletion; undefined for website cards. */
+export function xLegacyCardType(p:CompiledRequest):string|undefined{return legacyRoute.exec(p.path.replace(/^\/12\/accounts\/[a-z0-9]+/,''))?.[1];}
+const cardSuffix=(p:CompiledRequest)=>{const type=xLegacyCardType(p);return '/cards/'+(type?type+'/':'')+p.path.split('/').at(-1);};
 export const xCreativeEdit=(p:CompiledRequest)=>['card_update','card_delete','tweet_rename'].includes(xCreativeKind(p)??'');
 export const xPromotion=(p:CompiledRequest)=>xCreativeKind(p)==='promotion';
 export function xCreativeWarnings(p:CompiledRequest):string[]{
@@ -31,11 +42,21 @@ export function assertXCreative(p:CompiledRequest){
  function invalid(message:string,details:JsonObject={}):never{throw new MirrorError('INVALID_X_CREATIVE',message,details);}
  if(!object(b))invalid('Provide a native object payload.');
  const allowed:Record<Kind,string[]>={card_create:['name','components'],card_update:['name','components'],card_delete:[],tweet_create:['as_user_id','text','card_uri','nullcast','name'],tweet_rename:['name'],library_create:['media_key','name','file_name'],promotion:['line_item_id','tweet_ids']};
- for(const key of Object.keys(b))if(!allowed[kind].includes(key))invalid('This field is not qualified for this X creative route.',{field:key,...(key==='entity_status'?{next_action:'Remove entity_status. Promotion is an activation action, not a paused ad create.'}:key==='card_type'?{next_action:'Omit card_type; X derives the card format from its ordered components.'}:{})});
+ const fields=kind==='card_update'&&xLegacyCardType(p)?legacyFields[xLegacyCardType(p)!]!:allowed[kind];
+ for(const key of Object.keys(b))if(!fields.includes(key))invalid('This field is not qualified for this X creative route.',{field:key,...(key==='entity_status'?{next_action:'Remove entity_status. Promotion is an activation action, not a paused ad create.'}:key==='card_type'?{next_action:'Omit card_type; X derives the card format from its ordered components.'}:{})});
  const text=(key:string,max:number,required=true)=>{if(!required&&b[key]===undefined)return;if(typeof b[key]!=='string'||!b[key].trim()||Array.from(b[key]).length>max)invalid('Provide a nonempty '+key+' of at most '+max+' characters.',{field:key});};
  if(['card_create','tweet_rename'].includes(kind))text('name',80);
  if(['card_update','tweet_create'].includes(kind))text('name',80,false);
- if(kind==='card_update'&&!Object.keys(b).length)invalid('Provide a name or complete ordered components to update.');
+ if(kind==='card_update'&&!Object.keys(b).length)invalid(xLegacyCardType(p)?'Provide the conversation card fields to update.':'Provide a name or complete ordered components to update.');
+ if(kind==='card_update'&&xLegacyCardType(p)){
+  for(const o of ['first','second','third','fourth']){
+   if(b[o+'_cta']!==undefined&&(typeof b[o+'_cta']!=='string'||!ctaTag.test(b[o+'_cta'])))invalid(o+'_cta is a hashtag: # and 1–20 letters, digits or underscores.',{field:o+'_cta'});
+   text(o+'_cta_tweet',280,false);
+  }
+  text('thank_you_text',23,false);text('title',23,false);
+  for(const k of Object.keys(b).filter(k=>k.endsWith('media_key')))if(typeof b[k]!=='string'||!mediaKey.test(b[k]))invalid(k+' is a media key of the media library.',{field:k});
+  if(b.thank_you_url!==undefined){let u:URL|undefined;try{u=new URL(String(b.thank_you_url));}catch{u=undefined;}if(!u||u.protocol!=='https:')invalid('thank_you_url is an https URL.',{field:'thank_you_url'});}
+ }
  if(kind==='card_create'||kind==='card_update'&&b.components!==undefined){
   const components=b.components;
   if(!Array.isArray(components)||components.length!==2||components[0]?.type!=='MEDIA'||components[1]?.type!=='DETAILS')invalid('This contract supports one image/video website card: MEDIA followed by DETAILS. Other formats need a separate qualified contract.');
@@ -65,7 +86,8 @@ export function xRead(p:CompiledRequest,suffix:string,query:JsonObject={}):Compi
 /** inspect is local: these are the entry reads; account users and line items determine further reads. */
 export function xCreativeSnapshots(p:CompiledRequest):CompiledRequest[]{
  const b=(p.body??{}) as JsonObject,kind=xCreativeKind(p),reads=[xRead(p,'')];
- if(kind==='card_update'||kind==='card_delete')reads.push(xRead(p,'/cards/'+p.path.split('/').at(-1)));
+ if(kind==='card_update'||kind==='card_delete')reads.push(xRead(p,cardSuffix(p)));
+ if(kind==='card_update'&&xLegacyCardType(p))for(const k of Object.keys(b).filter(k=>k.endsWith('media_key')))reads.push(xRead(p,'/media_library/'+b[k]));
  if(kind==='card_create'||kind==='card_update')for(const c of b.components??[])if(c.type==='MEDIA')reads.push(xRead(p,'/media_library/'+c.media_key));
  if(kind==='tweet_create')reads.push(xRead(p,'/cards/all',{card_uris:b.card_uri}),xRead(p,'/promotable_users'));
  if(kind==='tweet_rename'||kind==='promotion')reads.push(xRead(p,'/promotable_users'));
@@ -109,7 +131,7 @@ export function xReader(p:CompiledRequest,send:Read){
   throw new MirrorError('X_CREATIVE_DISCOVERY_LIMIT','Creative discovery exceeded the page limit.');
  };
  const single=async(suffix:string,id:string,key='id',withDeleted=false)=>{
-  const d=await data(suffix,withDeleted?{with_deleted:true}:{}),row=/^\/cards\/[a-z0-9]+$/.test(suffix)?oneCard(d.data):d.data;
+  const d=await data(suffix,withDeleted?{with_deleted:true}:{}),row=/^\/cards\/(?:(?:poll|image_conversation|video_conversation)\/)?[a-z0-9]+$/.test(suffix)?oneCard(d.data):d.data;
   if(!object(row)||d.next_cursor)fail('X did not return one complete resource.');
   rowAccount(row,p);if(String(row[key])!==id||!withDeleted&&row.deleted===true)fail('X did not confirm the exact requested resource.',{resource_id:id});return row;
  };
@@ -140,7 +162,14 @@ function mediaReady(row:JsonObject){if(row.media_status!=='TRANSCODE_COMPLETED')
 export async function readXCreativeState(p:CompiledRequest,send:Read):Promise<unknown[]>{
  const read=xReader(p,send),kind=xCreativeKind(p),b=(p.body??{}) as JsonObject,states:unknown[]=[];
  states.push({account:await read.single('',p.accountId!)});let card:JsonObject|undefined;
- if(kind==='card_update'||kind==='card_delete'){card=await read.single('/cards/'+p.path.split('/').at(-1),p.path.split('/').at(-1)!);states.push({card});}
+ if(kind==='card_update'||kind==='card_delete'){card=await read.single(cardSuffix(p),p.path.split('/').at(-1)!);states.push({card});}
+ const legacy=kind==='card_update'?xLegacyCardType(p):undefined;
+ if(legacy)for(const k of Object.keys(b).filter(k=>k.endsWith('media_key'))){
+  const media=await read.single('/media_library/'+b[k],b[k],'media_key');mediaReady(media);
+  const want=k==='media_key'?(legacy==='image_conversation'?'IMAGE':'VIDEO'):k==='unlocked_video_media_key'?'VIDEO':'IMAGE';
+  if(media.media_type!==want)throw new MirrorError('INVALID_X_CREATIVE','Media '+b[k]+' is '+String(media.media_type)+'; '+k+' needs '+(want==='IMAGE'?'an image':'a video')+'.',{field:k});
+  states.push({media:{media_key:media.media_key,media_type:media.media_type,media_status:media.media_status,deleted:media.deleted??false}});
+ }
  if(kind==='card_create'||kind==='card_update')for(const component of b.components??[])if(component.type==='MEDIA'){const media=await read.single('/media_library/'+component.media_key,component.media_key,'media_key');mediaReady(media);states.push({media:{media_key:media.media_key,media_type:media.media_type,media_status:media.media_status,deleted:media.deleted??false}});}
  if(kind==='tweet_create'){
   const cards=await read.list('/cards/all',{card_uris:b.card_uri});if(cards.length!==1||cards[0]!.card_uri!==b.card_uri||cards[0]!.deleted===true)fail('The selected account did not return the exact card URI.');
@@ -224,7 +253,8 @@ export async function verifyXCreative(p:CompiledRequest,result:JsonObject,send:R
  }else if(kind==='library_create'){
   const row=await read.single('/media_library/'+b.media_key,b.media_key,'media_key');mediaReady(row);checks=[check(b.media_key,b,row)];
  }else if(kind==='card_create'||kind==='card_update'||kind==='card_delete'){
-  const id=xId(d)!,row=await read.single('/cards/'+id,id,'id',kind==='card_delete');checks=[check(id,kind==='card_delete'?{deleted:true}:b,row)];
+  const id=xId(d)!,row=await read.single(kind==='card_create'?'/cards/'+id:cardSuffix(p),id,'id',kind==='card_delete');
+  checks=[check(id,kind==='card_delete'?{deleted:true}:xLegacyCardType(p)?Object.fromEntries(Object.entries(b).filter(([k])=>!writeOnly.includes(k))):b,row)];
  }else return {status:'unsupported',checks:[]};
  return {status:checks.some(c=>c.status==='pending')?'pending':checks.every(c=>c.status==='verified')?'verified':'mismatch',checks};
 }

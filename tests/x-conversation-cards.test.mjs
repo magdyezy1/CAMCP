@@ -101,10 +101,10 @@ test('missing, deleted, unready or wrong media and a media poll without the feat
  const g=setup('',[]);try{assert.equal((await g.prepare(actions.poll,poll({media_key:'3_100'}))).error?.code,'INVALID_X_CONVERSATION_CARD');ok(await g.prepare(actions.poll,poll()));}finally{g.store.close();}
 });
 
-test('an error reply and a receipt without a card are never resubmitted, changed or missing cards are not verified, and the ledger lists the three rows',async()=>{
+test('an error reply and a receipt without a card are never resubmitted, changed or missing cards are not verified, and the ledger lists the three rows; edits and deletions belong to the card family',async()=>{
  for(const mode of ['error','noid']){const e=setup(mode);try{const p=ok(await e.prepare(actions.poll,poll()));assert.equal((await e.execute(p)).success,false,mode);assert.equal((await e.execute(p)).success,false,mode);assert.equal(e.writes(),1,mode);}finally{e.store.close();}}
  for(const mode of ['ignore','drift']){const g=setup(mode);try{const p=ok(await g.prepare(actions.image,imageCard()));ok(await g.execute(p));assert.notEqual(ok(await g.verify(p)).data.status,'verified',mode);}finally{g.store.close();}}
  const rows=actionContracts(registry).filter(r=>r.gateway===gateway);
  for(const action of Object.values(actions)){const row=rows.find(r=>r.action===action);assert.equal(row?.status,'reviewed_write_family',action);assert.equal(row.family,'x_conversation_cards',action);}
- assert.equal(rows.find(r=>r.action==='x_accounts_account_id_cards_poll_card_id_delete')?.status,'blocked_write');
+ assert.equal(rows.find(r=>r.action==='x_accounts_account_id_cards_poll_card_id_delete')?.family,'x_creatives');
 });
