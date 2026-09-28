@@ -404,6 +404,10 @@ unchecked here. The only recorded end dates are Criteo 2026-01's (the 12-month p
 on 2026-10-03) and Microsoft's SOAP retirement (2027-01-31, which does not affect AMCP's JSON transport). The others
 could not be read from here and stay unknown.
 
+Full qualification (`.release/batch20-20260928`, up to `0ce02ab`): **2,777 / 2,777** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check (now including `providers:sunsets`) and the Railway check pass.
+545 s. The candidate's 1,199 source files equal `0ce02ab`, apart from `release-manifest.json`.
+
 ## Batch 21 — the website code formatted
 
 Finding: F-62 (its remainder). `web/` was the part of the code base Prettier did not cover: 16 scripts and 6
