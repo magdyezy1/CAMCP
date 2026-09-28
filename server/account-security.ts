@@ -465,9 +465,25 @@ export class AccountSecurity {
         .get(data.tenantId) as JsonObject;
       if (count.n >= 100) throw new MirrorError('WORKSPACE_QUOTA', 'The workspace member limit has been reached.');
       this.accounts.readChallenge(input.token, 'invite', true);
+      // An account created through an invitation is approved only when the instance owner invited it, or sign-ups are
+      // approved automatically: a member of another workspace cannot grant access to this instance by inviting someone
+      // (owner decision, review 2026-09-28, F-15). The membership exists either way and applies once access is granted.
+      const byInstanceOwner =
+        data.inviter === 'workspace-admin' ||
+        (data.tenantId === this.web.tenantId &&
+          !!this.db
+            .prepare(
+              "SELECT 1 FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND role='owner' AND active=1",
+            )
+            .get(data.tenantId, data.inviter));
       const u = existing
         ? this.accounts.user(existing.id)
-        : this.accounts.newUser(accountName(input.name), data.email, hash!, true);
+        : this.accounts.newUser(
+            accountName(input.name),
+            data.email,
+            hash!,
+            byInstanceOwner || this.accounts.autoApprove,
+          );
       const current = this.db
         .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
         .get(data.tenantId, u.id);
@@ -482,10 +498,17 @@ export class AccountSecurity {
         state: 'accepted',
         accepted_at: Date.now(),
       });
-      return {
-        message: 'Invitation accepted. Sign in and choose the shared workspace from Account.',
-        workspaceId: data.tenantId,
-      };
+      return u.approved
+        ? {
+            message: 'Invitation accepted. Sign in and choose the shared workspace from Account.',
+            workspaceId: data.tenantId,
+          }
+        : {
+            message:
+              'Invitation accepted. Your account is waiting for the instance owner’s approval; you can sign in once access is granted.',
+            workspaceId: data.tenantId,
+            pending: true,
+          };
     });
   }
   changeMember(req: Request, input: JsonObject) {

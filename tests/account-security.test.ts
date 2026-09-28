@@ -156,3 +156,33 @@ test('invitations attach existing people to a shared workspace; demotion/removal
     f.store.close();
   }
 });
+test('an invitation creates an approved account only when the instance owner sent it', async () => {
+  const f = fixture();
+  try {
+    const lead = f.accounts.newUser('Team lead', 'lead@example.test', await hashUserPassword(password), true),
+      ls = f.accounts.session(lead);
+    await f.security.invite(f.req(ls), {email: 'new@example.test', role: 'operator'});
+    await f.accounts.deliverEmails();
+    const pending = await f.security.accept(f.req(), {...f.link(), password, name: 'New person'});
+    assert.equal(pending.pending, true);
+    assert.match(pending.message, /waiting for the instance owner/);
+    const approved = (email: string) =>
+      (f.store.db.prepare('SELECT approved FROM amcp_users WHERE email=?').get(email) as JsonObject).approved;
+    assert.equal(approved('new@example.test'), 0, 'a team lead cannot grant instance access');
+    // The membership is there and applies once the owner grants access.
+    const id = (f.store.db.prepare('SELECT id FROM amcp_users WHERE email=?').get('new@example.test') as JsonObject).id;
+    assert.ok(
+      f.store.db
+        .prepare('SELECT 1 FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
+        .get(lead.tenant_id, id),
+    );
+    const admin = f.web.signIn(password, '127.0.0.1');
+    await f.security.invite(f.req(admin), {email: 'second@example.test', role: 'viewer'});
+    await f.accounts.deliverEmails();
+    const accepted = await f.security.accept(f.req(), {...f.link(), password, name: 'Second person'});
+    assert.equal(accepted.pending, undefined);
+    assert.equal(approved('second@example.test'), 1, 'the instance owner vets by inviting');
+  } finally {
+    f.store.close();
+  }
+});
