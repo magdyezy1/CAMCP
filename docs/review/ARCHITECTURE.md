@@ -195,6 +195,11 @@ and removed 734 lines of wiring from the ten lifecycle modules; pass 2 registere
 (57 families; reader chains 83 → 42 → 26 and 80 → 39 → 23 levels; named spend-match exemptions 83 → 45 → 32).
 `docs/ADDING-A-REVIEWED-FAMILY.md` is the guide, `ROADMAP.md` tracks the rest.
 
+Families whose state reads need their own login binding or observation read through one guarded reader per side
+(`WriteReviewService.guardedReader`, `WriteVerifier.guardedReader`, batch 17): the read must be read-only, and the
+actor, connection and scope guard are checked again before the credentials are fetched, after, and after the
+response; a family may add an actor or connection check, a login binding and an `after` step.
+
 ## 6. Data model (SQLite)
 
 `src/store.ts`: `tenants`, `workspace_memberships`, `connections` (sealed credentials),

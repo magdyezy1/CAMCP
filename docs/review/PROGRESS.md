@@ -317,3 +317,29 @@ still read back and verify every change.
 Full qualification (`.release/batch15-20260928`, up to `9efd7b7`): **2,765 / 2,765** tests and **4 / 4** capture
 tests; `format:check`, every generated-artifact check and the Railway check pass. 514 s. The candidate's 1,191 source
 files equal `9efd7b7`, apart from `release-manifest.json`.
+
+## Batch 16 — Criteo 2026-07 prepared
+
+Finding: F-51. Last in the owner's upgrade order. Criteo's 2026-07 OpenAPI document is on `api.criteo.com`, which the
+review environment's network policy blocks. The copy bundled in Criteo's official Java SDK is reachable but differs
+from the official documents (compared at 2026-01: enum lists, `required` lists, inlined schemas), so it was used only
+to compare 2026-01 with 2026-07 and was not pinned as a contract. The
+[preparation record](../implementation/CRITEO-2026-07-PREPARATION.md) lists what changes: 98 of AMCP's 108 Criteo
+routes are unchanged in structure, the V2 asynchronous reports behind the report job family are removed (the bulk of
+the work), and balance reads move to V1. Documentation only; no code changed.
+
+## Batch 17 — one guarded reader (F-61)
+
+Finding: F-61. The families whose state reads bypass the generic reader chain had their own hand-written readers: 14
+in the review's `state()` and 17 in the verification. Each repeated the same guard (the read must be read-only; before
+the credentials are fetched, after, and after the response, the actor, connection and scopes are checked again and the
+scope guard authorizes the read), with small differences between copies.
+
+| Change | Evidence |
+|---|---|
+| `WriteReviewService.guardedReader` and `WriteVerifier.guardedReader` replace the 31 readers. A family passes its read-only message and, where it had them, an actor check, a connection check, a login binding (`sameLogin`, or the X and TikTok report identities) and an `after` step (the X, Criteo and Meta report observations); messages and error codes are unchanged per family | the suites of the 31 families, unchanged, and the full suite |
+| One copy was weaker than the rest: X creative verification re-resolved the connection after the credentials were fetched and after the response, but did not run the scope guard again there. It now does, like every other reader. No outcome changes: for X reads, what the guard checks beyond the connection's accounts depends only on the read, which the first check passed | `tests/x-creative-writes.test.ts`, unchanged |
+| 266 lines fewer (`src/write-review.ts` −118, `src/write-verification.ts` −148) | `git diff --numstat` |
+
+The generic state and verification loops still read through the nested family reader chains (F-60), which keep their
+own guard.

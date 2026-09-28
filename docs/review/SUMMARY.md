@@ -79,6 +79,8 @@ production, `AMCP_META_API_VERSION=v25.0` moves every Meta request back without 
   ten hand edits per family across ten lifecycle files. The move was proven equivalent by replaying 40,624 recorded
   calls from the old build with 0 differences.
 - The code is formatted with Prettier, in format-only commits, each proven by syntax-tree equality.
+- The state reads of the families with their own readers go through one guarded reader in the review and one in
+  the verification, instead of 31 hand-written copies (one of which skipped a scope check).
 - 32 unused declarations were removed, and the compiler now refuses new ones.
 - All 22 pinned vendor documents are sealed with a digest.
 - The test suite runs in parallel.
@@ -125,7 +127,7 @@ Each of these changes a level of protection, a deployment, a dependency or the p
 
 - Registry: the Snapchat families, Criteo catalog and overrides, DV360 SDF and TikTok negative keywords, each needing
   one more registry hook.
-- Architecture: one guarded-reader helper (F-61); splitting `write-review.ts` into stages.
+- Architecture: splitting `write-review.ts` into stages.
 - Code: formatting `web/`.
 - Auth: legacy administrator password hashing (F-16).
 - Contracts and operations: drift digests for every provider and a sunset alarm (F-56); lazy loading of generated

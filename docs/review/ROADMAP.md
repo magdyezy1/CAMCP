@@ -43,7 +43,8 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
    catalog/overrides and DV360 SDF (authorizers that must run before the generic qualified-read check), TikTok
    negative keywords (snapshots normalized by the generic TikTok branches), the families without readers, and
    compile-time path rewriting.
-2. **Guarded reader helper** replacing the 15 hand-copied wrappers in `state()` (F-61).
+2. **Guarded reader helper** replacing the 15 hand-copied wrappers in `state()` (F-61). **Done in batch 17**: one
+   reader in the review and one in the verification replace 31 wrappers.
 3. **Stage split** of `write-review.ts` / `write-verification.ts` along the lifecycle.
 4. **Formatting** — **done in batch 8**: Prettier at 120 columns, `.editorconfig` with LF, module by module in
    format-only commits, each proven neutral by syntax-tree equality (a Prettier-normalised `dist/` comparison turned
