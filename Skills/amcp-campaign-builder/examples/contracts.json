@@ -3834,6 +3834,29 @@
     {
       "gateway": "x_ads_native_action",
       "arguments": {
+        "action": "x_batch_accounts_account_id_line_items_post",
+        "account_id": "abc123",
+        "payload": [
+          {
+            "operation_type": "Update",
+            "params": {
+              "line_item_id": "9cqi0",
+              "bid_amount_local_micro": 1200000
+            }
+          },
+          {
+            "operation_type": "Update",
+            "params": {
+              "line_item_id": "9cqi1",
+              "name": "Search, weekdays"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "gateway": "x_ads_native_action",
+      "arguments": {
         "action": "x_batch_accounts_account_id_targeting_criteria_post",
         "account_id": "abc123",
         "payload": [

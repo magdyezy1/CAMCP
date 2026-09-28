@@ -36,6 +36,7 @@ import {isDV360AudienceEditRead} from './dv360-audience-edits.js';
 import {isLinkedInAccountSettingsRead} from './linkedin-account-settings.js';
 import {isBusinessLocationEditRead} from './google-business-location-edits.js';
 import {isBusinessAttributeRead} from './google-business-location-attributes.js';
+import {isXEntityBatchRead} from './x-entity-batches.js';
 import {isGoogleBrandGuidelinesRead} from './google-pmax-brand-guidelines.js';
 import {isGoogleCustomerTypeRead} from './google-user-list-customer-types.js';
 import {isGoogleDraftRead} from './google-campaign-drafts.js';
@@ -159,6 +160,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isLinkedInAccountSettingsRead(read))return normalizeReviewState(data);
  if(isBusinessLocationEditRead(read))return normalizeReviewState(data);
  if(isBusinessAttributeRead(read))return normalizeReviewState(data);
+ if(isXEntityBatchRead(read))return normalizeReviewState(data);
  if(isGoogleBrandGuidelinesRead(read))return normalizeReviewState(data);
  if(isGoogleCustomerTypeRead(read))return normalizeReviewState(data);
  if(isGoogleDraftRead(read))return normalizeReviewState(data);

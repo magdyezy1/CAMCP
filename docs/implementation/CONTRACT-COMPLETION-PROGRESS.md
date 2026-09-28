@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## FR — X campaign and line item batches (2026-09-28)
+
+X campaigns and line items can now be created paused, updated or deleted in reviewed batches of one
+operation type that read the funding instruments, parent campaigns or entities first, hold each
+entity's budgets to the owner spending policy against its own current budget, and read every entity
+back. See [implementation](X-ENTITY-BATCHES-2026-09-28.md),
+[qualification](X-ENTITY-BATCHES-VERIFICATION-2026-09-28.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 693 (two X rows reviewed). Pushes go only to CAMCP; its exact-commit CI result and
+live acceptance are pending.
+
 ## FQ — Business Profile location attributes (2026-09-27)
 
 Business Profile location attributes can now be set and cleared through reviewed edits for the exact
@@ -17,7 +29,7 @@ deprecated attributes and listings without Voice of Merchant, and read the attri
 [qualification](GOOGLE-BUSINESS-LOCATION-ATTRIBUTES-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 695 (one Business Profile row reviewed). Pushes go only to CAMCP; its exact-commit CI
+Remaining rows: 695 (one Business Profile row reviewed). Committed as `fd8340b`; its exact-commit CI
 result and live acceptance are pending.
 
 ## FP — Business Profile location hours and contact details (2026-09-27)

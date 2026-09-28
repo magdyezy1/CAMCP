@@ -1230,7 +1230,16 @@ Tests: `tests/google-business-location-edits.test.mjs` (3), red on `b84a511` / g
 
 - New reviewed family `google_business_location_attributes` (`src/google-business-location-attributes.ts`) for setting and clearing location attributes checked against the attribute metadata of the location, one row.
 
-Tests: `tests/google-business-location-attributes.test.mjs` (3), red on `ee25dfa` / green after; `tests/google-business-sync.test.ts` updated.
+Tests: `tests/google-business-location-attributes.test.mjs` (3), red on `ee25dfa` / green after; `tests/google-business-sync.test.ts` updated. Committed as `fd8340b`.
+
+## Finished batch — X campaign and line item batches (2026-09-28)
+
+[Implementation](X-ENTITY-BATCHES-2026-09-28.md) and
+[qualification](X-ENTITY-BATCHES-VERIFICATION-2026-09-28.json).
+
+- New reviewed family `x_entity_batches` (`src/x-entity-batches.ts`) for batches of paused campaign or line item creates, updates or deletions with funding instrument, campaign and entity reads and a per-entity budget policy, two rows.
+
+Tests: `tests/x-entity-batches.test.mjs` (3), red on `fd8340b` / green after.
 
 ## CI and live evidence
 
@@ -1244,20 +1253,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 730 in reviewed write families. **695 remaining rows** are in
+3241 captured actions; 732 in reviewed write families. **693 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 586 |
+| blocked_write | 584 |
 | unmapped | 79 |
 | unqualified_read | 17 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 167, Meta 112, LinkedIn 87, Snapchat 66,
-Google Ads 57, X 35, DV360 29, Criteo 23, Business Profile 10.
+Google Ads 57, X 33, DV360 29, Criteo 23, Business Profile 10.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

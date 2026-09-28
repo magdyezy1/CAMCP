@@ -952,3 +952,42 @@ Reference checked 2026-09-25:
 [X v12 campaign management reference](https://docs.x.com/x-ads-api/campaign-management/reference#post-batch-accounts-account-id-targeting-criteria).
 Source hash and native examples are pinned in
 `tests/fixtures/x-targeting-batch-evidence.json`.
+
+### X campaign and line item batches
+
+Use `x_batch_accounts_account_id_campaigns_post` or `x_batch_accounts_account_id_line_items_post`
+through `amcp_write inspect → prepare → execute` to create, update or delete up to 20 campaigns
+or line items of the selected account in one request (X accepts 40; 20 is the AMCP bound). The
+payload is the native ordered array of `{operation_type, params}` items, all of one type:
+
+- `Create` takes the parameters of the single create. A campaign needs `funding_instrument_id`,
+  `name` and `entity_status: PAUSED`, with optional `budget_optimization`, daily and total
+  budgets and `purchase_order_number`. A line item needs `campaign_id`, `objective`,
+  `product_type`, comma-separated `placements` and `entity_status: PAUSED`, with the documented
+  optional fields (times with their zone, bid strategy and amount, budgets, goal, pay_by,
+  frequency cap, app store identifiers, domain, IAB `categories`, `primary_web_event_tag`,
+  `advertiser_user_id`, `audience_expansion`, `standard_delivery`). Activation is a separate
+  reviewed update.
+- `Update` names `campaign_id` or `line_item_id` and at least one field of the single update.
+- `Delete` names only the ID. X cannot restore a deleted campaign or line item, and owner
+  deletion policies apply although the request is a POST.
+
+Amounts are whole micros of the account currency. Do not add `account_id`, query or header
+overrides, `standard_delivery` on campaigns (deprecated there) or undocumented fields; line item
+placements cannot be updated.
+
+AMCP reads the account and, for creates, each funding instrument (it must be able to fund
+campaigns; its description and credit amounts are not kept) or parent campaign; for updates and
+deletions, each entity. An update must change something; daily budgets may not exceed total
+budgets, AUTO bidding ignores a bid amount and end times follow start times, counting the
+entity's current values. Budgets, bids and ACTIVE statuses need `spend_change_confirmed=true`,
+and the owner spending policy compares each new budget with that entity's own current budget.
+X applies all items or none and answers them in order; request or item errors, or a missing
+item, are a failure that is never resubmitted. `amcp_campaign verify` reads each entity again
+(deleted ones with `with_deleted`) and compares the fields sent, placements and categories as
+sets and times as instants; a field X does not return leaves the check inconclusive.
+`INVALID_X_ENTITY_BATCH` names the item and field to correct.
+
+Reference: [Campaign Management](https://docs.x.com/x-ads-api/campaign-management/reference)
+(batch campaigns and line items and the single create, update and delete parameters), checked
+2026-09-28; the Update and Delete item IDs follow X's Python Ads SDK (`Batch.batch_save`).

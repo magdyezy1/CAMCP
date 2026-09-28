@@ -29,6 +29,7 @@ import {dv360AudienceEditImpact} from './dv360-audience-edits.js';
 import {linkedinAccountSettingsImpact} from './linkedin-account-settings.js';
 import {businessLocationEditImpact} from './google-business-location-edits.js';
 import {businessAttributeImpact} from './google-business-location-attributes.js';
+import {xEntityBatchImpact} from './x-entity-batches.js';
 import {snapSegmentImpact} from './snapchat-segments.js';
 import {tiktokIdentityKind,tiktokIdentityImpact} from './tiktok-identities.js';
 import {metaCopyKind,metaCopyImpact} from './meta-copies.js';
@@ -178,6 +179,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  const linkedinAccountSettings=linkedinAccountSettingsImpact(plan,state);if(linkedinAccountSettings)return linkedinAccountSettings;
  const businessLocationEdit=businessLocationEditImpact(plan,state);if(businessLocationEdit)return businessLocationEdit;
  const businessAttribute=businessAttributeImpact(plan,state);if(businessAttribute)return businessAttribute;
+ const xEntityBatch=xEntityBatchImpact(plan,state);if(xEntityBatch)return xEntityBatch;
  if(metaCopyKind(plan))return metaCopyImpact(plan,state);
  if(googlePreviewKind(plan))return googlePreviewImpact;
  if(googleDismissalKind(plan))return googleDismissalImpact(plan,state);
