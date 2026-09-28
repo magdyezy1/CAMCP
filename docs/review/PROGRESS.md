@@ -422,3 +422,25 @@ stylesheets, written with lines averaging over 300 characters.
 Full qualification (`.release/batch21-20260928`, up to `f6d2f66`): **2,777 / 2,777** tests and **4 / 4** capture
 tests; `format:check` (now including `web/`), every generated-artifact check and the Railway check pass. 533 s. The
 candidate's 1,199 source files equal `f6d2f66`, apart from `release-manifest.json`.
+
+## Batch 22 — start-up time and memory
+
+Finding: F-64. Every consumer parsed the generated artifacts again: each `Registry` parsed the 5.4 MB registry and
+compiled an Ajv validator for every tool and operation, each `MirrorService` and `WriteReviewService` built a compiler
+that parsed the 6 MB vendor routes again, a third module parsed them once more, six DV360 modules each parsed the
+pinned DV360 document, and two GTM modules the GTM one.
+
+| Change | Evidence |
+|---|---|
+| `src/pinned-json.ts` reads a generated artifact or pinned vendor document once per process and deep-freezes it; the registry, the compilers, the Google contracts and the DV360 and GTM families share that copy | `tests/pinned-json.test.mjs`. Freezing makes any write throw, and the full suite passes, so no module changed data another reads |
+| `Registry` compiles a validator the first time its tool or operation is validated; `compileAll()` compiles them all | the same test compiles every validator, so a schema Ajv cannot compile still fails a test |
+
+Measured on 4 CPUs, median of 5–7 fresh processes, before (`32e2d3b`) and after:
+
+| Measure | Before | After |
+|---|---:|---:|
+| `createRuntime()` (import + construction) | 860 ms (259 + 610) | 398 ms (252 + 147) |
+| Memory after `createRuntime()` (RSS / heap used) | 227 / 121 MB | 146 / 68 MB |
+| HTTP server ready (`http_listening`) / RSS | 1,400 ms / 284 MB | 916 ms / 169 MB |
+| stdio MCP server answering `initialize` / RSS | 1,012 ms / 211 MB | 544 ms / 161 MB |
+| Full test suite (`node --test`, 2,779 tests) | about 530 s | 244 s |

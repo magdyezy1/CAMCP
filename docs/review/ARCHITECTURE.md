@@ -222,4 +222,9 @@ Every tenant-owned table carries `tenant_id` in its primary key or first index c
 | Memory after start | RSS 197 MB, heap used 68 MB | same script |
 | Source size | `src/` 3.65 MB in 263 modules (100,847 lines once formatted at 120 columns vs 31,750 today) | Prettier copy in scratch |
 
+After batch 22 (F-64), measured the same way at `066739d` on 4 CPUs, median of 5: `createRuntime()` in 398 ms (import
+252 ms, construction 147 ms; 860 ms before the change, when the code had grown since this baseline), RSS 146 MB, heap
+used 68 MB. Generated artifacts are parsed once per process and frozen (`src/pinned-json.ts`), and tool validators
+compile on first use.
+
 Full-check timing and counts are in `PROGRESS.md`.

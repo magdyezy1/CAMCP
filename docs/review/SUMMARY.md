@@ -104,18 +104,18 @@ from here and are recorded as unknown.
 
 | Measure | Before (`03ac8d3`) | Now |
 |---|---|---|
-| Tests (full qualification) | 2,654 | 2,720 |
-| Full qualification time, 4 CPUs | 1,478 s (serial) | 511 s |
+| Tests (full qualification) | 2,654 | 2,779 |
+| Full qualification time, 4 CPUs | 1,478 s (serial) | about 530 s; the test suite alone 244 s since batch 22 |
 | Lifecycle wiring for reviewed families | ~14 order-sensitive chains; reader nesting 83 (review) and 80 (verification) levels | 57 families registered; 1,044 wiring lines removed; reader nesting 26 and 23 |
 | Refusal sites falling back to a generic "prepare again" | 1,436 of 1,956 | 379 |
 | DV360 schema in `tools/list` | 17.5 KB | 10.6 KB with `compactSchemas` |
 | Website text assets per full download | 308 KB | 82 KB (Brotli) |
-| Low-contrast texts over 50 page/width checks | 271 | 60, and the report table fixed since |
+| Low-contrast texts over 50 page/width checks | 271 | 0 |
 | Pages that overflow at 320–360 px / whole-page live regions | 3 / 47 | 0 / 0 |
 | Focus ring contrast | 2.78:1 | 7.06:1 |
 | Source lines over 300 characters (`src/`) | 1,640 | 61, all string literals |
 | Pinned vendor documents with a digest | 7 of 22 | 22 of 22 |
-| Cold start / memory | 1.1 s / 197 MB | unchanged (F-64 is planned) |
+| Cold start / memory (`createRuntime()`) | 1.1 s / 197 MB | 0.4 s / 146 MB; the HTTP server ready in 0.9 s, the MCP stdio server answering in 0.5 s |
 | Ways to bring media into AMCP | Google Drive only | Drive, a website upload or any public HTTPS link; one upload pushed to up to 20 accounts |
 
 ## Decisions
@@ -142,7 +142,7 @@ Each of these changes a level of protection, a deployment, a dependency or the p
   one more registry hook.
 - Architecture: splitting `write-review.ts` into stages.
 - Contracts and operations: the end dates this environment could not read (Google Ads v25, Meta, LinkedIn and the
-  others recorded as unknown); lazy loading of generated routes (F-64).
+  others recorded as unknown).
 - Website: target sizes of small inline links (a WCAG 2.2 criterion); folding the one-off tints into tokens.
 
 ## Limits
