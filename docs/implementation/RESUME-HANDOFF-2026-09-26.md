@@ -1032,7 +1032,16 @@ Tests: `tests/snapchat-pixel-names.test.mjs` (3), red on `85f8ec8` / green after
 
 - New reviewed family `linkedin_publisher_restrictions` (`src/linkedin-publisher-restrictions.ts`) for registering uploaded block and allow lists and replacing the account-level trust preferences, two rows. Files must be the account's, of the matching type and processed.
 
-Tests: `tests/linkedin-publisher-restrictions.test.mjs` (3), red on `00f480d` / green after.
+Tests: `tests/linkedin-publisher-restrictions.test.mjs` (3), red on `00f480d` / green after. Committed as `607d20d`.
+
+## Finished batch — DV360 custom bidding scripts and rules (2026-09-27)
+
+[Implementation](DV360-CUSTOM-BIDDING-FILES-2026-09-27.md) and
+[qualification](DV360-CUSTOM-BIDDING-FILES-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `dv360_custom_bidding_files` (`src/dv360-custom-bidding-files.ts`) for registering uploaded custom bidding scripts and rules for advertiser-owned algorithms, two rows. The upload itself stays outside; the algorithm type, owner and file reference are checked.
+
+Tests: `tests/dv360-custom-bidding-files.test.mjs` (3), red on `607d20d` / green after.
 
 ## CI and live evidence
 
@@ -1046,20 +1055,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 686 in reviewed write families. **745 remaining rows** are in
+3241 captured actions; 688 in reviewed write families. **743 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 630 |
+| blocked_write | 628 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 186, Meta 117, LinkedIn 94, Snapchat 66,
-Google Ads 57, X 43, DV360 32, Criteo 23, Business Profile 12.
+Google Ads 57, X 43, DV360 30, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

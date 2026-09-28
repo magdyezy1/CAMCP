@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## EV — DV360 custom bidding scripts and rules (2026-09-27)
+
+Uploaded DV360 custom bidding scripts and rules can now be registered for advertiser-owned algorithms
+through reviewed requests: the algorithm and its files are read with the advertiser as accessor, the
+type and file reference are checked, and the new file is read back. See
+[implementation](DV360-CUSTOM-BIDDING-FILES-2026-09-27.md),
+[qualification](DV360-CUSTOM-BIDDING-FILES-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 743 (two DV360 rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## EU — LinkedIn Audience Network publisher lists (2026-09-27)
 
 Uploaded LinkedIn publisher lists can now be registered, and account-level allow and block lists
@@ -17,7 +29,7 @@ and processing are checked, and the result is read back. See
 [qualification](LINKEDIN-PUBLISHER-RESTRICTIONS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 745 (two LinkedIn rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 745 (two LinkedIn rows reviewed). Committed as `607d20d`; its exact-commit CI result
 and live acceptance are pending.
 
 ## ET — Snapchat pixel names (2026-09-27)

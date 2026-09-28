@@ -2260,6 +2260,21 @@
     {
       "gateway": "dv360_native_action",
       "arguments": {
+        "action": "DV360_CUSTOM_BIDDING_ALGORITHMS_SCRIPTS_CREATE",
+        "params": {
+          "customBiddingAlgorithmId": "801",
+          "advertiserId": "123"
+        },
+        "body": {
+          "script": {
+            "resourceName": "customBiddingAlgorithms/801/scriptRef/upload-1"
+          }
+        }
+      }
+    },
+    {
+      "gateway": "dv360_native_action",
+      "arguments": {
         "action": "DV360_SDFDOWNLOADTASKS_CREATE",
         "params": {},
         "body": {

@@ -9,6 +9,7 @@ import {snapTemplateKind} from './snapchat-dynamic-templates.js';
 import {snapEventKind} from './snapchat-event-details.js';
 import {snapPixelNameKind} from './snapchat-pixel-names.js';
 import {linkedinPublisherKind} from './linkedin-publisher-restrictions.js';
+import {dv360BiddingFileKind} from './dv360-custom-bidding-files.js';
 import {xReportKind} from './x-report-jobs.js';
 import {googlePreviewKind} from './google-preview-writes.js';
 import {criteoCampaignKind} from './criteo-campaign-writes.js';
@@ -115,6 +116,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(snapEventKind(p))return 'snapchat_event_details';
  if(snapPixelNameKind(p))return 'snapchat_pixel_names';
  if(linkedinPublisherKind(p))return 'linkedin_publisher_restrictions';
+ if(dv360BiddingFileKind(p))return 'dv360_custom_bidding_files';
  if(googlePreviewKind(p))return 'google_shareable_previews';
  if(placeActionKind(p))return 'google_place_actions';
  if(businessNotificationKind(p))return 'google_business_notifications';

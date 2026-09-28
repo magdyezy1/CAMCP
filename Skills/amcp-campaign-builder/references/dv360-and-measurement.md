@@ -441,8 +441,8 @@ and the pinned v4 Discovery document, checked 2026-09-27.
   `body: {advertiserId, ...}`: the mask names `displayName`, `entityStatus` or both, and the body
   carries exactly those fields plus the owning advertiser (DV360 ignores it outside the mask).
 
-An algorithm bids only after a script or rules are uploaded (file uploads, outside this contract)
-and a line item uses it, which is a separate reviewed line item change; so nothing here needs
+An algorithm bids only after a script or rules are uploaded and registered (see below) and a line
+item uses it, which is a separate reviewed line item change; so nothing here needs
 spending confirmation, though an active status counts as activation under owner policies. AMCP reads
 the advertiser and, for a patch, the algorithm with the advertiser as accessor: partner-owned or
 shared algorithms are `ACCOUNT_SCOPE_MISMATCH`, and unchanged values are refused. DV360 refuses
@@ -452,6 +452,32 @@ Verification reads the algorithm again. `INVALID_DV360_CUSTOM_BIDDING` names the
 
 Reference: [customBiddingAlgorithms](https://developers.google.com/display-video/api/reference/rest/v4/customBiddingAlgorithms)
 and the pinned v4 Discovery document, checked 2026-09-27.
+
+### Custom bidding scripts and rules
+
+The file itself is uploaded outside AMCP: `customBiddingAlgorithms.uploadScript` (or `uploadRules`)
+returns a reference such as `customBiddingAlgorithms/801/scriptRef/{ref_id}`, and `media.upload`
+takes the bytes. Registering the uploaded file is reviewed:
+
+- `DV360_CUSTOM_BIDDING_ALGORITHMS_SCRIPTS_CREATE` with `params: {customBiddingAlgorithmId,
+  advertiserId}` and `body: {script: {resourceName: "customBiddingAlgorithms/{id}/scriptRef/{ref}"}}`
+  for a `SCRIPT_BASED` algorithm.
+- `DV360_CUSTOM_BIDDING_ALGORITHMS_RULES_CREATE` with the same params and `body: {rules:
+  {resourceName: "customBiddingAlgorithms/{id}/rulesRef/{ref}"}}` for a `RULE_BASED` algorithm.
+
+The reference must belong to the algorithm in the path; other fields are output only, and partner
+access (`partnerId`) is outside the contract. AMCP reads the algorithm with the advertiser as
+accessor and lists its scripts or rules: an unknown algorithm is `STATE_NOT_FOUND`, one owned by a
+partner or another advertiser is `ACCOUNT_SCOPE_MISMATCH`, and the wrong algorithm type, an archived
+algorithm and a file already registered are refused. DV360 refuses files for an algorithm a line item
+uses, so no live bidding changes and no spending confirmation is needed; that refusal is a failure
+never resubmitted. DV360 then checks the file (scripts `PENDING`, then `ACCEPTED` or `REJECTED`).
+Verification lists the files again and finds the new one with its reference.
+`INVALID_DV360_CUSTOM_BIDDING_FILE` names the field to correct.
+
+Reference: [customBiddingAlgorithms.scripts](https://developers.google.com/display-video/api/reference/rest/v4/customBiddingAlgorithms.scripts)
+and [customBiddingAlgorithms.rules](https://developers.google.com/display-video/api/reference/rest/v4/customBiddingAlgorithms.rules),
+with the pinned v4 Discovery document, checked 2026-09-27.
 
 ### SDF download tasks
 
