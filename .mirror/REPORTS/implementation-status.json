@@ -5,8 +5,8 @@
   "independent_extensions": [
     {
       "gateway": "microsoft_ads_native_action",
-      "actions": 24,
-      "reviewed_mutation_actions": 12,
+      "actions": 28,
+      "reviewed_mutation_actions": 14,
       "write_scope": "Search campaigns, ad groups, responsive search ads and keywords",
       "reporting": "Native account-bound submit/poll with optional server CSV/TSV ZIP parsing and cached bounded pages; campaign overview normalizes Spend, Impressions, Clicks, Conversions and Revenue while retaining native metrics",
       "live_qualified": false
@@ -20,17 +20,17 @@
     }
   ],
   "campaign_guidance": {
-    "resources": 11,
+    "resources": 13,
     "prompt": "amcp_build_campaign",
     "local_write_inspection": "amcp_write inspect",
     "coverage": {
-      "guides": 11,
-      "reviewed_write_gateways": 13,
-      "modules": 47,
-      "write_path_codes": 195,
-      "documented_codes": 63,
-      "family_codes": 96,
-      "listed_codes": 36,
+      "guides": 13,
+      "reviewed_write_gateways": 15,
+      "modules": 219,
+      "write_path_codes": 356,
+      "documented_codes": 223,
+      "family_codes": 101,
+      "listed_codes": 32,
       "missing_gateways": [],
       "undeclared_codes": [],
       "stale_allowlist": []
@@ -151,7 +151,7 @@
       "denominator_kind": "unknown",
       "catalog_complete": false,
       "captured_http_routes": 0,
-      "vendor_documented_routes": 23,
+      "vendor_documented_routes": 41,
       "legacy_adapters": 0,
       "live_mirror_verified": false,
       "production_ready": false,
@@ -181,7 +181,7 @@
       "denominator_kind": "operation_count",
       "catalog_complete": true,
       "captured_http_routes": 0,
-      "vendor_documented_routes": 104,
+      "vendor_documented_routes": 107,
       "legacy_adapters": 0,
       "live_mirror_verified": false,
       "production_ready": false,
@@ -360,29 +360,10 @@
   ],
   "live_read_samples": [],
   "delegated_routes": {
-    "mapped": 339,
+    "mapped": 342,
     "independent_routes": 2,
-    "json_compilable": 338,
-    "gaps": [
-      {
-        "gateway": "criteo_native_action",
-        "operation": "criteo_reporting_ops",
-        "action": "GENERATE_ASYNC_ACCOUNTS_REPORT",
-        "reason": "No exact vendor operation ID; request shape is not inferred"
-      },
-      {
-        "gateway": "criteo_native_action",
-        "operation": "criteo_reporting_ops",
-        "action": "GENERATE_ASYNC_CAMPAIGNS_REPORT",
-        "reason": "No exact vendor operation ID; request shape is not inferred"
-      },
-      {
-        "gateway": "criteo_native_action",
-        "operation": "criteo_reporting_ops",
-        "action": "GENERATE_ASYNC_LINE_ITEMS_REPORT",
-        "reason": "No exact vendor operation ID; request shape is not inferred"
-      }
-    ]
+    "json_compilable": 341,
+    "gaps": []
   },
   "google_legacy": {
     "total": 285,
@@ -3360,11 +3341,6 @@
     {
       "gateway": "amcp_native_action",
       "operation": "platform_media_upload",
-      "reason": "Workflow/provider implementation incomplete"
-    },
-    {
-      "gateway": "amcp_native_action",
-      "operation": "search_ads_library",
       "reason": "Workflow/provider implementation incomplete"
     },
     {

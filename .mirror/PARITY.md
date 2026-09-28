@@ -8,9 +8,9 @@ Production readiness: **not achieved**. Reviewed campaign-management writes are 
 | amazon_native_action | 0 (denominator unknown) | 0 | 0 | No |
 | amcp_native_action | 59 | 0 | 0 | No |
 | amcp_platform_workspace | 3 | 0 | 0 | No |
-| apple_ads_native_action | 0 (denominator unknown) | 0 | 23 | No |
+| apple_ads_native_action | 0 (denominator unknown) | 0 | 41 | No |
 | commerce_native_action | 2 | 0 | 0 | No |
-| criteo_native_action | 9 | 0 | 104 | No |
+| criteo_native_action | 9 | 0 | 107 | No |
 | dv360_native_action | 173 | 0 | 173 | No |
 | ga4_native_action | 10 | 0 | 18 | No |
 | google_ads_native_action | 456 | 171 | 0 | No |
@@ -28,9 +28,9 @@ Google has 285 independently specified legacy adapters. They preserve native res
 
 ## Independent extensions
 
-Microsoft Advertising: 24 actions, including 12 reviewed Search mutation routes. Live qualification remains incomplete; these actions are not part of the captured AMCP denominator.
+Microsoft Advertising: 28 actions, including 12 reviewed Search mutation routes. Live qualification remains incomplete; these actions are not part of the captured AMCP denominator.
 
-Campaign guidance: 11 MCP resources and the amcp_build_campaign prompt. amcp_write inspect checks local execution contracts without network calls.
+Campaign guidance: 13 MCP resources and the amcp_build_campaign prompt. amcp_write inspect checks local execution contracts without network calls.
 
 ## Unfinished workflows
 
@@ -44,7 +44,6 @@ Campaign guidance: 11 MCP resources and the amcp_build_campaign prompt. amcp_wri
 - amcp_native_action/get_creative_payload
 - amcp_native_action/openai_ads_ops
 - amcp_native_action/platform_media_upload
-- amcp_native_action/search_ads_library
 - amcp_native_action/suggest_targeting
 - ga4_native_action/ga4_connection_ops
 - ga4_native_action/ga4_sync_properties
