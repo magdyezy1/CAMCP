@@ -490,3 +490,7 @@ review in the run and returned it again, so a run repeated it once per step.
 A Meta campaign prepare response drops from 7,171 to 2,660 bytes (its evidence from 5,290 to 781). A three-step Meta
 campaign run once its first step is prepared drops from 9,264 to 4,755 bytes, and each further prepared step saves
 about 4.5 KB more.
+
+Full qualification (`.release/batch25-20260928`, up to `cab5ae2`): **2,783 / 2,783** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 282 s. The candidate's 1,208 source
+files equal `cab5ae2`, apart from `release-manifest.json`.
