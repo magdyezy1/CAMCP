@@ -58,6 +58,12 @@ export class Registry {
  listTools(options:CallOptions){return [...this.tools.values()].map(t=>({name:t.name,description:t.description,inputSchema:this.schema(t,options)}));}
  schema(tool:ToolDefinition,options:CallOptions):JsonObject{
   const schema=structuredClone(tool.inputSchema);
+  if(options.flags.compactSchemas&&Array.isArray(schema.properties?.action?.enum)){
+   // Validation keeps the full enum, so a legacy alias is still accepted; only the listing drops it.
+   const listed=new Set<string>(schema.properties.action.enum),aliases=new Set<string>();
+   for(const a of this.catalogs.get(tool.name)?.actions??[])if(listed.has(a.canonical_name))for(const alias of a.aliases)if(alias!==a.canonical_name)aliases.add(alias);
+   schema.properties.action.enum=schema.properties.action.enum.filter((v:string)=>!aliases.has(v));
+  }
   if(options.mode==='enhanced'&&tool.mode==='direct'){
    if(options.flags.dryRunSchemaDefault&&schema.properties.dry_run)schema.properties.dry_run.default=true;
    if(options.flags.uniformIdempotency)schema.properties.idempotency_key={type:'string',minLength:1,maxLength:256,description:'Tenant-scoped persistent idempotency key.'};

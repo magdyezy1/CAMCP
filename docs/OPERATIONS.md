@@ -24,6 +24,11 @@ Globally addressed Meta/Snapchat objects need recent ownership evidence from an 
 
 Set `MIRROR_ALLOW_WRITES=true` to expose `amcp_write`, grant specific accounts, and issue operator access. The review service reads provider state, freezes requests for five minutes, verifies state again before submission, and persists idempotency across restarts. Lost or partial responses are retained and must be reconciled before new submissions. There is no automatic rollback. See [write operations](WRITE-OPERATIONS.md).
 
+`MIRROR_FLAGS` takes a JSON object of opt-in enhancements. `{"compactSchemas":true}` lists each action once in the
+tool schemas: the DV360 tool otherwise lists all 173 actions twice, with and without the `DV360_` prefix, and the
+flag removes about 7 KB from every `tools/list`. The unprefixed legacy names stay accepted. Without the flag the
+schemas match the captured gateway schemas exactly.
+
 ## Backup and recovery
 
 `npm run admin -- backup <new-file>` uses SQLite's consistent backup API. Protect database and backup files using host ACLs. Keep the master key separately and back it up in the secret manager; losing it makes encrypted tokens unrecoverable. Restore into a new path, point MIRROR_DB there, inject the same key, and run `npm run admin -- audit-verify`. Do not copy only the main SQLite file while WAL writes are active.

@@ -108,5 +108,7 @@ export interface EnhancementFlags {
   catalogEnvelope?:boolean; catalogPagination?:boolean; catalogFields?:boolean;
   dryRunSchemaDefault?:boolean; uniformIdempotency?:boolean; scopeMetadata?:boolean;
   confirmationMetadata?:boolean; nativeRequests?:boolean; largeIdGuard?:boolean; catalogPreflight?:boolean;
+  /** Lists each action once in tool schemas: legacy aliases stay accepted but are left out of the advertised enum. */
+  compactSchemas?:boolean;
 }
 export interface CallOptions { mode:'strict'|'enhanced'; flags:EnhancementFlags }
