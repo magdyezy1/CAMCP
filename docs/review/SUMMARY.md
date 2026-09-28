@@ -115,7 +115,7 @@ Each of these changes a level of protection, a deployment, a dependency or the p
 | Spend confirmation on field names only | Yes | Done in batch 11 |
 | Idle timeout and security-change emails (F-25) | Yes | Done in batch 11 |
 | Encrypted-only backups and purge on disconnect (F-18) | Yes | Done in batch 11 |
-| Provider upgrades: Google Ads v25 first, then LinkedIn and Meta, then Criteo (F-49 … F-53) | Yes | Google Ads v25 done in batch 14 and Meta v26.0 in batch 15 (from Meta's official SDK). LinkedIn and Criteo wait on their documentation, which this environment's network policy blocks |
+| Provider upgrades: Google Ads v25 first, then LinkedIn and Meta, then Criteo (F-49 … F-53) | Yes | Google Ads v25 done in batch 14 and Meta v26.0 in batch 15 (from Meta's official SDK). LinkedIn and Criteo wait on their documentation, which this environment's network policy blocks. The Criteo work is scoped: the report family must move to the new 2026-07 reports |
 | Invitations while sign-up is closed (F-15) | Keep them pending | Done in batch 11 |
 | A vendored QR encoder for two-step setup | Yes | Done in batch 11 |
 | Production settings `MIRROR_FLAGS` and `AMCP_TRUSTED_PROXY_CIDRS` | Yes | Documented in `docs/DEPLOY-RAILWAY.md`; setting them needs Railway access, which this review does not have |
