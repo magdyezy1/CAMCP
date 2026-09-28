@@ -8,6 +8,17 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## FF — Meta pixels (2026-09-27)
+
+A Meta ad account pixel can now be created, and pixels of the account's own business renamed,
+through reviewed requests that list the account's pixels first and read the name back; matching and
+data use settings stay outside. See [implementation](META-PIXELS-2026-09-27.md),
+[qualification](META-PIXELS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 710 (two Meta rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## FE — X poll and conversation card edits and deletions (2026-09-27)
 
 Conversation cards can now be edited and poll and conversation cards deleted through the website
@@ -16,7 +27,7 @@ ads are reviewed and confirmed. See [implementation](X-LEGACY-CARD-EDITS-2026-09
 [qualification](X-LEGACY-CARD-EDITS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 712 (five X rows reviewed). Pushes go only to CAMCP; its exact-commit CI result and
+Remaining rows: 712 (five X rows reviewed). Committed as `f19a883`; its exact-commit CI result and
 live acceptance are pending.
 
 ## FD — X poll and conversation cards (2026-09-27)

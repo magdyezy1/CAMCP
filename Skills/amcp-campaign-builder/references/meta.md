@@ -429,3 +429,25 @@ Deleting), checked 2026-09-27.
 
 Reference: the Marketing API v25.0 "Ad Image" (Deleting) and "Ad Account Customconversions"
 (Creating) references, checked 2026-09-27.
+
+## Pixels
+
+- `meta_ad_account_id_adspixels_create` with `params: {ad_account_id}` and `payload: {name}` creates a
+  pixel for the ad account. Meta creates one pixel per ad account this way and answers 6200 ("A
+  pixel already exists for this account") otherwise; that reply is a failure never resubmitted.
+- `meta_pixel_id_update` with `params: {pixel_id}` and `payload: {name}` renames a pixel that the ad
+  account lists (`STATE_NOT_FOUND` otherwise) and that belongs to the account's business or to no
+  business yet; a pixel of another business is `STATE_TARGET_MISMATCH`, and an unchanged name is
+  refused.
+- Names have 1–100 characters without surrounding spaces. Advanced matching
+  (`enable_automatic_matching`, `automatic_matching_fields`), `data_use_setting`,
+  `first_party_cookie_status` and `server_events_business_ids` concern customer data and are refused
+  with `INVALID_META_PIXEL`.
+
+AMCP reads the ad account's business and every pixel it lists (following cursors). Nothing needs
+spending confirmation: a pixel measures nothing until its code is installed. The connection needs
+`ads_management` (`INSUFFICIENT_SCOPE` otherwise). Verification lists the pixels again and compares
+the name.
+
+Reference: the Marketing API v25.0 "Ad Account Adspixels" and "Ad Pixel" references, checked
+2026-09-27.

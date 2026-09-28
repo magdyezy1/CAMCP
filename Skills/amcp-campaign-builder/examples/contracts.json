@@ -1519,6 +1519,19 @@
       }
     },
     {
+      "gateway": "meta_native_action",
+      "arguments": {
+        "action": "meta_pixel_id_update",
+        "account_id": "123",
+        "params": {
+          "pixel_id": "701"
+        },
+        "payload": {
+          "name": "Store pixel (main site)"
+        }
+      }
+    },
+    {
       "gateway": "x_ads_native_action",
       "arguments": {
         "action": "x_accounts_account_id_cards_image_conversation_card_id_put",

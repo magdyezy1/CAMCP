@@ -24,6 +24,7 @@ import {isTiktokAudienceEditRead} from './tiktok-audience-edits.js';
 import {isTiktokLibraryRead} from './tiktok-library-assets.js';
 import {isTiktokRuleAudienceRead} from './tiktok-rule-audiences.js';
 import {isXConversationCardRead} from './x-conversation-cards.js';
+import {isMetaPixelRead} from './meta-pixels.js';
 import {isGoogleBrandGuidelinesRead} from './google-pmax-brand-guidelines.js';
 import {isGoogleCustomerTypeRead} from './google-user-list-customer-types.js';
 import {isGoogleDraftRead} from './google-campaign-drafts.js';
@@ -135,6 +136,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isTiktokLibraryRead(read))return normalizeReviewState(data);
  if(isTiktokRuleAudienceRead(read))return normalizeReviewState(data);
  if(isXConversationCardRead(read))return normalizeReviewState(data);
+ if(isMetaPixelRead(read))return normalizeReviewState(data);
  if(isGoogleBrandGuidelinesRead(read))return normalizeReviewState(data);
  if(isGoogleCustomerTypeRead(read))return normalizeReviewState(data);
  if(isGoogleDraftRead(read))return normalizeReviewState(data);

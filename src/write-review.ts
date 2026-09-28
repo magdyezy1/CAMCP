@@ -1,4 +1,5 @@
 import {snapUpdateKind,assertSnapUpdate,snapUpdateSnapshots,readSnapUpdateState,snapUpdateOutcome} from './snapchat-nested-updates.js';
+import {metaPixelKind,assertMetaPixel,assertMetaPixelScope,metaPixelSnapshots,readMetaPixels,isMetaPixelRead,validateMetaPixelState,metaPixelPrerequisites,metaPixelOutcome} from './meta-pixels.js';
 import {xConversationCardKind,assertXConversationCard,xConversationCardSnapshots,readXConversationCards,isXConversationCardRead,validateXConversationCardState,xConversationCardPrerequisites,xConversationCardOutcome} from './x-conversation-cards.js';
 import {tiktokRuleAudienceKind,assertTiktokRuleAudience,tiktokRuleAudienceSnapshots,readTiktokRuleAudiences,isTiktokRuleAudienceRead,validateTiktokRuleAudienceState,tiktokRuleAudiencePrerequisites,tiktokRuleAudienceOutcome} from './tiktok-rule-audiences.js';
 import {tiktokLibraryKind,assertTiktokLibraryAsset,tiktokLibrarySnapshots,readTiktokLibraryAssets,isTiktokLibraryRead,validateTiktokLibraryState,tiktokLibraryPrerequisites,tiktokLibraryOutcome} from './tiktok-library-assets.js';
@@ -232,6 +233,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(tiktokLibraryKind(plan))return tiktokLibraryOutcome(plan,result);
  if(tiktokRuleAudienceKind(plan))return tiktokRuleAudienceOutcome(plan,result);
  if(xConversationCardKind(plan))return xConversationCardOutcome(plan,result);
+ if(metaPixelKind(plan))return metaPixelOutcome(plan,result);
  if(xReportKind(plan))return xReportOutcome(plan,result);
  if(tiktokReportKind(plan))return tiktokReportOutcome(plan,result);
  if(criteoReportKind(plan))return criteoReportOutcome(plan,result);
@@ -343,6 +345,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  if(isTiktokLibraryRead(read)){validateTiktokLibraryState(read,result);return;}
  if(isTiktokRuleAudienceRead(read)){validateTiktokRuleAudienceState(read,result);return;}
  if(isXConversationCardRead(read)){validateXConversationCardState(read,result);return;}
+ if(isMetaPixelRead(read)){validateMetaPixelState(read,result);return;}
  if(isDV360LineItemBulkRead(read)){validateDV360LineItemBulkState(read,result);return;}
  if(isDV360LineItemDuplicateRead(read)){validateDV360LineItemDuplicateState(read,result);return;}
  if(isDV360InventoryGroupRead(read)){validateDV360InventoryGroupState(read,result);return;}
@@ -487,6 +490,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(tiktokLibraryKind(plan)){assertTiktokLibraryAsset(plan);return;}
  if(tiktokRuleAudienceKind(plan)){assertTiktokRuleAudience(plan);return;}
  if(xConversationCardKind(plan)){assertXConversationCard(plan);return;}
+ if(metaPixelKind(plan)){assertMetaPixel(plan);return;}
  if(linkedinMessageKind(plan)){assertLinkedInMessage(plan);return;}
  if(googleBrandGuidelinesKind(plan)){assertGoogleBrandGuidelines(plan);return;}
  if(googleCustomerTypeKind(plan)){assertGoogleCustomerTypes(plan);return;}
@@ -644,6 +648,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(tiktokLibraryKind(plan))return tiktokLibrarySnapshots(plan);
  if(tiktokRuleAudienceKind(plan))return tiktokRuleAudienceSnapshots(plan);
  if(xConversationCardKind(plan))return xConversationCardSnapshots(plan);
+ if(metaPixelKind(plan))return metaPixelSnapshots(plan);
  if(googlePreviewKind(plan))return googlePreviewSnapshots(plan);
  if(placeActionKind(plan))return placeActionSnapshots(plan);
  if(businessNotificationKind(plan))return businessNotificationSnapshots(plan);
@@ -848,6 +853,7 @@ export class WriteReviewService {
   if(businessAccessKind(plan))assertBusinessAccessScope(c);
   if(metaLabelKind(plan))assertMetaLabelScope(c,true);
   if(metaObjectKind(plan))assertMetaObjectScope(c,true);
+  if(metaPixelKind(plan))assertMetaPixelScope(c,true);
   if(metaImageKind(plan))assertMetaImageScope(c,true);
   if(metaConversionKind(plan))assertMetaConversionScope(c,true);
   if(googleBidKind(plan))assertGoogleBidScope(c);
@@ -966,7 +972,7 @@ export class WriteReviewService {
   });
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
-   try{result=await readXConversationCards(read,xCardPage=>readTiktokRuleAudiences(xCardPage,ruleAudiencePage=>readTiktokLibraryAssets(ruleAudiencePage,libraryPage=>readTiktokAudienceEdits(libraryPage,audienceEditPage=>readTiktokDeletions(audienceEditPage,deletionPage=>readTiktokConversionEdits(deletionPage,conversionEditPage=>readTiktokBlockedWords(conversionEditPage,blockedWordPage=>readDV360BiddingFiles(blockedWordPage,biddingFilePage=>readLinkedInPublisher(biddingFilePage,publisherPage=>readSnapPixelNames(publisherPage,pixelNamePage=>readSnapEvents(pixelNamePage,eventPage=>readSnapTemplates(eventPage,templatePage=>readLinkedInDomains(templatePage,domainPage=>readSnapProductSets(domainPage,productSetPage=>readSnapConversions(productSetPage,conversionReadPage=>readLinkedInAb(conversionReadPage,abPage=>readDV360Sdf(abPage,sdfPage=>readGoogleApply(sdfPage,applyPage=>readLinkedInInsight(applyPage,insightPage=>readSnapSegmentDelete(insightPage,segmentDeletePage=>readMetaImage(segmentDeletePage,imagePage=>readMetaConversions(imagePage,conversionPage=>readDV360Bidding(conversionPage,biddingPage=>readCriteoCatalog(biddingPage,catalogPage=>readCriteoPreferred(catalogPage,preferredPage=>readXAudience(preferredPage,audiencePage=>readXScheduled(audiencePage,scheduledPage=>readXMedia(scheduledPage,mediaPage=>readXPrerollCtas(mediaPage,ctaPage=>readSnapDisclaimers(ctaPage,disclaimerPage=>readMetaObject(disclaimerPage,metaObjectPage=>readCriteoSegments(metaObjectPage,segmentPage=>readDV360Advertiser(segmentPage,advertiserPage=>readGoogleSubscriptions(advertiserPage,subscriptionPage=>readGoogleSmart(subscriptionPage,smartPage=>readGoogleCustomerSettings(smartPage,settingsPage=>readGoogleAutoAssets(settingsPage,autoAssetPage=>readGoogleUploads(autoAssetPage,uploadPage=>readGoogleExperiments(uploadPage,experimentPage=>readDV360InventoryGroup(experimentPage,inventoryPage=>readCriteoOverrides(inventoryPage,overridePage=>readLinkedInMessage(overridePage,messagePage=>readXCurated(messagePage,curatedPage=>readGoogleDrafts(curatedPage,draftPage=>readXAssociations(draftPage,xAssociationPage=>readLinkedInThirdParty(xAssociationPage,thirdPartyPage=>readXTrackingTags(thirdPartyPage,xTagPage=>readDV360LineItemDuplicate(xTagPage,copyLinePage=>readGoogleCustomerTypes(copyLinePage,typePage=>readSnapchatMediaCopy(typePage,copyPage=>readDV360LineItemBulk(copyPage,bulkPage=>readGoogleBrandGuidelines(bulkPage,brandPage=>readLinkedInTracking(brandPage,trackingPage=>readLinkedInRules(trackingPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;})))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
+   try{result=await readMetaPixels(read,pixelPage=>readXConversationCards(pixelPage,xCardPage=>readTiktokRuleAudiences(xCardPage,ruleAudiencePage=>readTiktokLibraryAssets(ruleAudiencePage,libraryPage=>readTiktokAudienceEdits(libraryPage,audienceEditPage=>readTiktokDeletions(audienceEditPage,deletionPage=>readTiktokConversionEdits(deletionPage,conversionEditPage=>readTiktokBlockedWords(conversionEditPage,blockedWordPage=>readDV360BiddingFiles(blockedWordPage,biddingFilePage=>readLinkedInPublisher(biddingFilePage,publisherPage=>readSnapPixelNames(publisherPage,pixelNamePage=>readSnapEvents(pixelNamePage,eventPage=>readSnapTemplates(eventPage,templatePage=>readLinkedInDomains(templatePage,domainPage=>readSnapProductSets(domainPage,productSetPage=>readSnapConversions(productSetPage,conversionReadPage=>readLinkedInAb(conversionReadPage,abPage=>readDV360Sdf(abPage,sdfPage=>readGoogleApply(sdfPage,applyPage=>readLinkedInInsight(applyPage,insightPage=>readSnapSegmentDelete(insightPage,segmentDeletePage=>readMetaImage(segmentDeletePage,imagePage=>readMetaConversions(imagePage,conversionPage=>readDV360Bidding(conversionPage,biddingPage=>readCriteoCatalog(biddingPage,catalogPage=>readCriteoPreferred(catalogPage,preferredPage=>readXAudience(preferredPage,audiencePage=>readXScheduled(audiencePage,scheduledPage=>readXMedia(scheduledPage,mediaPage=>readXPrerollCtas(mediaPage,ctaPage=>readSnapDisclaimers(ctaPage,disclaimerPage=>readMetaObject(disclaimerPage,metaObjectPage=>readCriteoSegments(metaObjectPage,segmentPage=>readDV360Advertiser(segmentPage,advertiserPage=>readGoogleSubscriptions(advertiserPage,subscriptionPage=>readGoogleSmart(subscriptionPage,smartPage=>readGoogleCustomerSettings(smartPage,settingsPage=>readGoogleAutoAssets(settingsPage,autoAssetPage=>readGoogleUploads(autoAssetPage,uploadPage=>readGoogleExperiments(uploadPage,experimentPage=>readDV360InventoryGroup(experimentPage,inventoryPage=>readCriteoOverrides(inventoryPage,overridePage=>readLinkedInMessage(overridePage,messagePage=>readXCurated(messagePage,curatedPage=>readGoogleDrafts(curatedPage,draftPage=>readXAssociations(draftPage,xAssociationPage=>readLinkedInThirdParty(xAssociationPage,thirdPartyPage=>readXTrackingTags(thirdPartyPage,xTagPage=>readDV360LineItemDuplicate(xTagPage,copyLinePage=>readGoogleCustomerTypes(copyLinePage,typePage=>readSnapchatMediaCopy(typePage,copyPage=>readDV360LineItemBulk(copyPage,bulkPage=>readGoogleBrandGuidelines(bulkPage,brandPage=>readLinkedInTracking(brandPage,trackingPage=>readLinkedInRules(trackingPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;}))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
    const reader=this.access(actor,plan,connectionId);validateState(read,result);if(read.gateway==='snapchat_native_action')new ScopeGuard(this.registry,this.store).observe(read,reader,result.data);
    // A Smart+ bid edit also reads the campaign's ad groups once the ad group names its campaign.
    const sibling=tiktokSmartPlusAdgroupUpdateSiblingRead(plan,read,result.data);if(sibling&&!reads.some(r=>r.path===sibling.path&&stable(r.query)===stable(sibling.query)))reads.push(sibling);
@@ -1004,6 +1010,7 @@ export class WriteReviewService {
   tiktokLibraryPrerequisites(plan,values);
   tiktokRuleAudiencePrerequisites(plan,values);
   xConversationCardPrerequisites(plan,values);
+  metaPixelPrerequisites(plan,values);
   googleBrandGuidelinesPrerequisites(plan,values);
   googleCustomerTypePrerequisites(plan,values);
   googleDraftPrerequisites(plan,values);
