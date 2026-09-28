@@ -2,13 +2,80 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 // Only locally supplied public googleapis v23 protos are read. No credentials.
-const directory=process.argv[process.argv.indexOf('--source-dir')+1];
-if(!process.argv.includes('--source-dir')||!directory)throw Error('Supply --source-dir containing the public v23 access protos.');
-const names=['resources/customer_user_access','resources/customer_user_access_invitation','services/customer_user_access_service','services/customer_user_access_invitation_service','enums/access_role','enums/access_invitation_status','errors/customer_user_access_error','errors/access_invitation_error','resources/multi_party_auth_review'],sources={},content={};
-for(const name of names){const bytes=fs.readFileSync(path.join(directory,name.replace('/','_')+'.proto'));content[name]=bytes.toString('utf8');sources[name]={url:'https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/'+name+'.proto',sha256:createHash('sha256').update(bytes).digest('hex')};}
-const enums={};for(const name of ['access_role','access_invitation_status']){const matches=[...content['enums/'+name].matchAll(/^\s+([A-Z_]+) = (\d+);/gm)];if(matches.length<5)throw Error('Changed native enum: '+name);enums[name]=Object.fromEntries(matches.map(m=>[m[1],Number(m[2])]));}
-const patterns={};for(const name of ['customer_user_access','customer_user_access_invitation','multi_party_auth_review']){const pattern=/pattern: "([^"]+)"/.exec(content['resources/'+name])?.[1];if(!pattern)throw Error('Missing native resource identity: '+name);patterns[name]=pattern;}
-const services={};for(const [name,collection]of [['customer_user_access','customerUserAccesses'],['customer_user_access_invitation','customerUserAccessInvitations']]){const text=content['services/'+name+'_service'];const route='/v23/customers/{customer_id=*}/'+collection+':mutate';if(!text.includes(route)||!/Operation operation = 2/.test(text)||/bool (?:validate_only|partial_failure)/.test(text)||!text.includes('Result result = 1'))throw Error('Changed singular access request/response contract: '+name);services[name]={method:'POST',route,request_field:'operation',response_field:'result',validate_only:false,partial_failure:false};}
-const fixture={version:'v23',checked_at:'2026-09-20',meaning:'Source-hashed official Google v23 proto extraction plus pinned Discovery validation; schema evidence only, not live access approval.',sources,enums,patterns,services},output='tests/fixtures/google-user-access-v23.json',text=JSON.stringify(fixture,null,2)+'\n';
-if(process.argv.includes('--check')){if(fs.readFileSync(output,'utf8')!==text)throw Error('Google user-access evidence differs.');}else fs.writeFileSync(output,text);
-console.log('Verified two singular mutation services, two role/status enums, three resource patterns and nine public proto source hashes.');
+const directory = process.argv[process.argv.indexOf('--source-dir') + 1];
+if (!process.argv.includes('--source-dir') || !directory)
+  throw Error('Supply --source-dir containing the public v23 access protos.');
+const names = [
+    'resources/customer_user_access',
+    'resources/customer_user_access_invitation',
+    'services/customer_user_access_service',
+    'services/customer_user_access_invitation_service',
+    'enums/access_role',
+    'enums/access_invitation_status',
+    'errors/customer_user_access_error',
+    'errors/access_invitation_error',
+    'resources/multi_party_auth_review',
+  ],
+  sources = {},
+  content = {};
+for (const name of names) {
+  const bytes = fs.readFileSync(path.join(directory, name.replace('/', '_') + '.proto'));
+  content[name] = bytes.toString('utf8');
+  sources[name] = {
+    url: 'https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/' + name + '.proto',
+    sha256: createHash('sha256').update(bytes).digest('hex'),
+  };
+}
+const enums = {};
+for (const name of ['access_role', 'access_invitation_status']) {
+  const matches = [...content['enums/' + name].matchAll(/^\s+([A-Z_]+) = (\d+);/gm)];
+  if (matches.length < 5) throw Error('Changed native enum: ' + name);
+  enums[name] = Object.fromEntries(matches.map(m => [m[1], Number(m[2])]));
+}
+const patterns = {};
+for (const name of ['customer_user_access', 'customer_user_access_invitation', 'multi_party_auth_review']) {
+  const pattern = /pattern: "([^"]+)"/.exec(content['resources/' + name])?.[1];
+  if (!pattern) throw Error('Missing native resource identity: ' + name);
+  patterns[name] = pattern;
+}
+const services = {};
+for (const [name, collection] of [
+  ['customer_user_access', 'customerUserAccesses'],
+  ['customer_user_access_invitation', 'customerUserAccessInvitations'],
+]) {
+  const text = content['services/' + name + '_service'];
+  const route = '/v23/customers/{customer_id=*}/' + collection + ':mutate';
+  if (
+    !text.includes(route) ||
+    !/Operation operation = 2/.test(text) ||
+    /bool (?:validate_only|partial_failure)/.test(text) ||
+    !text.includes('Result result = 1')
+  )
+    throw Error('Changed singular access request/response contract: ' + name);
+  services[name] = {
+    method: 'POST',
+    route,
+    request_field: 'operation',
+    response_field: 'result',
+    validate_only: false,
+    partial_failure: false,
+  };
+}
+const fixture = {
+    version: 'v23',
+    checked_at: '2026-09-20',
+    meaning:
+      'Source-hashed official Google v23 proto extraction plus pinned Discovery validation; schema evidence only, not live access approval.',
+    sources,
+    enums,
+    patterns,
+    services,
+  },
+  output = 'tests/fixtures/google-user-access-v23.json',
+  text = JSON.stringify(fixture, null, 2) + '\n';
+if (process.argv.includes('--check')) {
+  if (fs.readFileSync(output, 'utf8') !== text) throw Error('Google user-access evidence differs.');
+} else fs.writeFileSync(output, text);
+console.log(
+  'Verified two singular mutation services, two role/status enums, three resource patterns and nine public proto source hashes.',
+);

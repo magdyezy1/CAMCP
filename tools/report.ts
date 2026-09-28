@@ -7,25 +7,223 @@ import {businessWorkflowOperations} from '../src/workflows.js';
 import {reportingOperations} from '../src/reporting.js';
 import {verifyCapturedContracts} from '../src/verification.js';
 import {appleActions} from '../src/apple-native.js';
-import {microsoftActions,microsoftGateway} from '../src/microsoft-native.js';
+import {microsoftActions, microsoftGateway} from '../src/microsoft-native.js';
 import {redditAudienceRoutes} from '../src/reddit-extensions.js';
 import {guidanceResources} from '../src/guidance.js';
 import {assertGuidanceCoverage} from './guidance-coverage.js';
 // The report files are tracked. `--check` (npm run check) fails when they are stale instead of rewriting them.
-const check=process.argv.includes('--check'),stale:string[]=[];
+const check = process.argv.includes('--check'),
+  stale: string[] = [];
 // A public release does not ship these files (tools/prepare-public-release.mjs), so only files present are compared.
-const write=(file:string,text:string)=>{if(!check){fs.writeFileSync(file,text);return;}if(fs.existsSync(file)&&fs.readFileSync(file,'utf8')!==text)stale.push(file);};
-const registry=new Registry(),vendor=new DelegatedNativeCompiler(),legacy=googleLegacyCoverage();
-const unimplemented:string[]=[];
-const localReads=new Set(['get_workspace_context','list_accounts','list_workspace_assets','get_creative_generation_job','inspect_google_drive_media','search_ads_library']);
-const gateways=registry.data.catalogs.map(c=>({gateway:c.gateway,mode:c.mode,catalog_records:c.captured,known_denominator:c.reported_total,denominator_kind:c.denominator_kind,catalog_complete:c.complete,captured_http_routes:c.actions.filter(a=>a.path&&a.method).length,vendor_documented_routes:registry.data.supplemental.filter(a=>a.gateway===c.gateway).length+vendor.data.routes.filter(a=>a.gateway===c.gateway&&!a.unsupportedMedia).length+(c.gateway==='apple_ads_native_action'?appleActions.length:0),legacy_adapters:c.gateway==='google_ads_native_action'?legacy.total:0,live_mirror_verified:false,production_ready:false,gaps:c.gaps}));
-const workflowGaps=registry.data.tools.filter(t=>t.mode==='delegated').flatMap(t=>(t.operations??[]).filter(op=>t.name!=='amcp_platform_workspace'&&!vendor.isNativeOperation(t.name,op.operation)&&!(t.name==='amcp_native_action'&&(localReads.has(op.operation)||reportingOperations.has(op.operation)||businessWorkflowOperations.has(op.operation)&&!unimplemented.includes(op.operation)))).map(op=>({gateway:t.name,operation:op.operation,reason:'Workflow/provider implementation incomplete'})));
-const guidance=assertGuidanceCoverage();
-const report={version:2,production_ready:false,captured_tools:registry.data.tools.length,independent_extensions:[{gateway:microsoftGateway,actions:microsoftActions.length,reviewed_mutation_actions:microsoftActions.filter(a=>!a.read_only).length,write_scope:'Search campaigns, ad groups, responsive search ads and keywords',reporting:'Native account-bound submit/poll with optional server CSV/TSV ZIP parsing and cached bounded pages; campaign overview normalizes Spend, Impressions, Clicks, Conversions and Revenue while retaining native metrics',live_qualified:false},{gateway:'reddit_native_action',actions:redditAudienceRoutes.length,reviewed_mutation_actions:8,write_scope:'Classic campaigns, ad groups, existing-post ads and saved Reddit targeting audiences',live_qualified:false}],campaign_guidance:{resources:guidanceResources.length,prompt:'amcp_build_campaign',local_write_inspection:'amcp_write inspect',coverage:guidance},live_writes_enabled_by_default:false,media_upload_extension:{tool:'amcp_media',available:true,platforms:['meta','tiktok','snapchat','google_ads','linkedin','x_ads','dv360'],native_routes_integrated:true,workflow_actions:['UPLOAD_FROM_URL','UPLOAD_FROM_URL_VIA_SESSION','QUEUE_GOOGLE_DRIVE_IMPORT','FINALIZE_UPLOAD_SESSION'],client_download_required:false,source:'public_or_selected_private_google_drive_file',maximum_bytes:MAX_MEDIA_BYTES,live_qualified:false},new_connections_default_to_reviewed_writes_when_enabled:true,reviewed_write_extension:{tool:'amcp_write',available:true,gateways:['google_ads','meta','tiktok','snapchat','linkedin','x_ads','dv360','ga4','gtm','google_search_console','apple_ads','microsoft_ads','reddit'],live_qualified:false},tools:registry.tools.size,nested_schemas:registry.data.tools.reduce((n,t)=>n+(t.operations?.length??0),0),gateways,live_read_samples:JSON.parse(fs.readFileSync('.mirror/RESULTS/live-read-samples.json','utf8').replace(/^\uFEFF/,'')),delegated_routes:{mapped:vendor.data.routes.length,independent_routes:redditAudienceRoutes.length,json_compilable:vendor.data.routes.filter(r=>!r.unsupportedMedia).length,gaps:vendor.data.gaps},google_legacy:legacy,workflow_gaps:workflowGaps,limitations:['Routing and local contract tests do not prove vendor behavior.','This artifact contains no live account samples. Provider access, approvals, quotas and mutation qualification require current account-specific evidence.','Special media transports, several provider workflows and exact legacy response parity remain incomplete.','Writes are opt-in through amcp_write with operator role, account grants, expiring server-read reviews, explicit confirmation and durable idempotency. Campaign-management contracts have synthetic tests; no live mutation qualification is claimed.','No claim of total API operation coverage: delegated operation schemas may contain further action enums, and Amazon/Apple catalog denominators are unknown.']};
-const compatibilityVerification=verifyCapturedContracts(registry);
-fs.mkdirSync('.mirror/REPORTS',{recursive:true});write('.mirror/REPORTS/implementation-status.json',JSON.stringify({...report,compatibility_verification:compatibilityVerification},null,2)+'\n');
-write('.mirror/REPORTS/compatibility-verification.json',JSON.stringify(compatibilityVerification,null,2)+'\n');
-const lines=['# Implementation and verification status','','Production readiness: **not achieved**. Reviewed campaign-management writes are available when enabled; they remain disabled by default.','','| Gateway | Catalog records | Declared HTTP routes | Additional vendor routes | Full platform verified |','|---|---:|---:|---:|---|',...gateways.map(g=>`| ${g.gateway} | ${g.catalog_records}${g.known_denominator===null?' (denominator unknown)':''} | ${g.captured_http_routes} | ${g.vendor_documented_routes} | No |`),'','Google has 285 independently specified legacy adapters. They preserve native responses; exact AMCP legacy behavior is unverified. One legacy update (UPDATE_CUSTOMIZER_ATTRIBUTE) has no supported vendor update operation and is rejected.','','## Independent extensions','','Microsoft Advertising: '+microsoftActions.length+' actions, including 12 reviewed Search mutation routes. Live qualification remains incomplete; these actions are not part of the captured AMCP denominator.','','Campaign guidance: '+guidanceResources.length+' MCP resources and the amcp_build_campaign prompt. amcp_write inspect checks local execution contracts without network calls.','','## Unfinished workflows','',...workflowGaps.map(g=>'- '+g.gateway+'/'+g.operation),'','## Limits','',...report.limitations.map(s=>'- '+s),'','Detailed mapping and known vendor route gaps: REPORTS/implementation-status.json.'];write('.mirror/PARITY.md',lines.join('\n')+'\n');
-process.stdout.write('Recorded '+registry.tools.size+' tools, '+report.nested_schemas+' nested schemas, '+vendor.data.routes.length+' delegated mappings; production readiness remains false.\n');
-process.stdout.write('Guidance covers '+guidance.reviewed_write_gateways+' reviewed-write gateways and accounts for '+guidance.write_path_codes+' refusals across '+guidance.modules+' modules reachable from the reviewed-write and media entry points ('+guidance.documented_codes+' documented in guides, '+guidance.family_codes+' by family, '+guidance.listed_codes+' individually listed).\n');
-if(stale.length){process.stderr.write('Stale report files: '+stale.join(', ')+'. Run npm run report and commit them.\n');process.exitCode=1;}
+const write = (file: string, text: string) => {
+  if (!check) {
+    fs.writeFileSync(file, text);
+    return;
+  }
+  if (fs.existsSync(file) && fs.readFileSync(file, 'utf8') !== text) stale.push(file);
+};
+const registry = new Registry(),
+  vendor = new DelegatedNativeCompiler(),
+  legacy = googleLegacyCoverage();
+const unimplemented: string[] = [];
+const localReads = new Set([
+  'get_workspace_context',
+  'list_accounts',
+  'list_workspace_assets',
+  'get_creative_generation_job',
+  'inspect_google_drive_media',
+  'search_ads_library',
+]);
+const gateways = registry.data.catalogs.map(c => ({
+  gateway: c.gateway,
+  mode: c.mode,
+  catalog_records: c.captured,
+  known_denominator: c.reported_total,
+  denominator_kind: c.denominator_kind,
+  catalog_complete: c.complete,
+  captured_http_routes: c.actions.filter(a => a.path && a.method).length,
+  vendor_documented_routes:
+    registry.data.supplemental.filter(a => a.gateway === c.gateway).length +
+    vendor.data.routes.filter(a => a.gateway === c.gateway && !a.unsupportedMedia).length +
+    (c.gateway === 'apple_ads_native_action' ? appleActions.length : 0),
+  legacy_adapters: c.gateway === 'google_ads_native_action' ? legacy.total : 0,
+  live_mirror_verified: false,
+  production_ready: false,
+  gaps: c.gaps,
+}));
+const workflowGaps = registry.data.tools
+  .filter(t => t.mode === 'delegated')
+  .flatMap(t =>
+    (t.operations ?? [])
+      .filter(
+        op =>
+          t.name !== 'amcp_platform_workspace' &&
+          !vendor.isNativeOperation(t.name, op.operation) &&
+          !(
+            t.name === 'amcp_native_action' &&
+            (localReads.has(op.operation) ||
+              reportingOperations.has(op.operation) ||
+              (businessWorkflowOperations.has(op.operation) && !unimplemented.includes(op.operation)))
+          ),
+      )
+      .map(op => ({gateway: t.name, operation: op.operation, reason: 'Workflow/provider implementation incomplete'})),
+  );
+const guidance = assertGuidanceCoverage();
+const report = {
+  version: 2,
+  production_ready: false,
+  captured_tools: registry.data.tools.length,
+  independent_extensions: [
+    {
+      gateway: microsoftGateway,
+      actions: microsoftActions.length,
+      reviewed_mutation_actions: microsoftActions.filter(a => !a.read_only).length,
+      write_scope: 'Search campaigns, ad groups, responsive search ads and keywords',
+      reporting:
+        'Native account-bound submit/poll with optional server CSV/TSV ZIP parsing and cached bounded pages; campaign overview normalizes Spend, Impressions, Clicks, Conversions and Revenue while retaining native metrics',
+      live_qualified: false,
+    },
+    {
+      gateway: 'reddit_native_action',
+      actions: redditAudienceRoutes.length,
+      reviewed_mutation_actions: 8,
+      write_scope: 'Classic campaigns, ad groups, existing-post ads and saved Reddit targeting audiences',
+      live_qualified: false,
+    },
+  ],
+  campaign_guidance: {
+    resources: guidanceResources.length,
+    prompt: 'amcp_build_campaign',
+    local_write_inspection: 'amcp_write inspect',
+    coverage: guidance,
+  },
+  live_writes_enabled_by_default: false,
+  media_upload_extension: {
+    tool: 'amcp_media',
+    available: true,
+    platforms: ['meta', 'tiktok', 'snapchat', 'google_ads', 'linkedin', 'x_ads', 'dv360'],
+    native_routes_integrated: true,
+    workflow_actions: [
+      'UPLOAD_FROM_URL',
+      'UPLOAD_FROM_URL_VIA_SESSION',
+      'QUEUE_GOOGLE_DRIVE_IMPORT',
+      'FINALIZE_UPLOAD_SESSION',
+    ],
+    client_download_required: false,
+    source: 'public_or_selected_private_google_drive_file',
+    maximum_bytes: MAX_MEDIA_BYTES,
+    live_qualified: false,
+  },
+  new_connections_default_to_reviewed_writes_when_enabled: true,
+  reviewed_write_extension: {
+    tool: 'amcp_write',
+    available: true,
+    gateways: [
+      'google_ads',
+      'meta',
+      'tiktok',
+      'snapchat',
+      'linkedin',
+      'x_ads',
+      'dv360',
+      'ga4',
+      'gtm',
+      'google_search_console',
+      'apple_ads',
+      'microsoft_ads',
+      'reddit',
+    ],
+    live_qualified: false,
+  },
+  tools: registry.tools.size,
+  nested_schemas: registry.data.tools.reduce((n, t) => n + (t.operations?.length ?? 0), 0),
+  gateways,
+  live_read_samples: JSON.parse(
+    fs.readFileSync('.mirror/RESULTS/live-read-samples.json', 'utf8').replace(/^\uFEFF/, ''),
+  ),
+  delegated_routes: {
+    mapped: vendor.data.routes.length,
+    independent_routes: redditAudienceRoutes.length,
+    json_compilable: vendor.data.routes.filter(r => !r.unsupportedMedia).length,
+    gaps: vendor.data.gaps,
+  },
+  google_legacy: legacy,
+  workflow_gaps: workflowGaps,
+  limitations: [
+    'Routing and local contract tests do not prove vendor behavior.',
+    'This artifact contains no live account samples. Provider access, approvals, quotas and mutation qualification require current account-specific evidence.',
+    'Special media transports, several provider workflows and exact legacy response parity remain incomplete.',
+    'Writes are opt-in through amcp_write with operator role, account grants, expiring server-read reviews, explicit confirmation and durable idempotency. Campaign-management contracts have synthetic tests; no live mutation qualification is claimed.',
+    'No claim of total API operation coverage: delegated operation schemas may contain further action enums, and Amazon/Apple catalog denominators are unknown.',
+  ],
+};
+const compatibilityVerification = verifyCapturedContracts(registry);
+fs.mkdirSync('.mirror/REPORTS', {recursive: true});
+write(
+  '.mirror/REPORTS/implementation-status.json',
+  JSON.stringify({...report, compatibility_verification: compatibilityVerification}, null, 2) + '\n',
+);
+write('.mirror/REPORTS/compatibility-verification.json', JSON.stringify(compatibilityVerification, null, 2) + '\n');
+const lines = [
+  '# Implementation and verification status',
+  '',
+  'Production readiness: **not achieved**. Reviewed campaign-management writes are available when enabled; they remain disabled by default.',
+  '',
+  '| Gateway | Catalog records | Declared HTTP routes | Additional vendor routes | Full platform verified |',
+  '|---|---:|---:|---:|---|',
+  ...gateways.map(
+    g =>
+      `| ${g.gateway} | ${g.catalog_records}${g.known_denominator === null ? ' (denominator unknown)' : ''} | ${g.captured_http_routes} | ${g.vendor_documented_routes} | No |`,
+  ),
+  '',
+  'Google has 285 independently specified legacy adapters. They preserve native responses; exact AMCP legacy behavior is unverified. One legacy update (UPDATE_CUSTOMIZER_ATTRIBUTE) has no supported vendor update operation and is rejected.',
+  '',
+  '## Independent extensions',
+  '',
+  'Microsoft Advertising: ' +
+    microsoftActions.length +
+    ' actions, including 12 reviewed Search mutation routes. Live qualification remains incomplete; these actions are not part of the captured AMCP denominator.',
+  '',
+  'Campaign guidance: ' +
+    guidanceResources.length +
+    ' MCP resources and the amcp_build_campaign prompt. amcp_write inspect checks local execution contracts without network calls.',
+  '',
+  '## Unfinished workflows',
+  '',
+  ...workflowGaps.map(g => '- ' + g.gateway + '/' + g.operation),
+  '',
+  '## Limits',
+  '',
+  ...report.limitations.map(s => '- ' + s),
+  '',
+  'Detailed mapping and known vendor route gaps: REPORTS/implementation-status.json.',
+];
+write('.mirror/PARITY.md', lines.join('\n') + '\n');
+process.stdout.write(
+  'Recorded ' +
+    registry.tools.size +
+    ' tools, ' +
+    report.nested_schemas +
+    ' nested schemas, ' +
+    vendor.data.routes.length +
+    ' delegated mappings; production readiness remains false.\n',
+);
+process.stdout.write(
+  'Guidance covers ' +
+    guidance.reviewed_write_gateways +
+    ' reviewed-write gateways and accounts for ' +
+    guidance.write_path_codes +
+    ' refusals across ' +
+    guidance.modules +
+    ' modules reachable from the reviewed-write and media entry points (' +
+    guidance.documented_codes +
+    ' documented in guides, ' +
+    guidance.family_codes +
+    ' by family, ' +
+    guidance.listed_codes +
+    ' individually listed).\n',
+);
+if (stale.length) {
+  process.stderr.write('Stale report files: ' + stale.join(', ') + '. Run npm run report and commit them.\n');
+  process.exitCode = 1;
+}
