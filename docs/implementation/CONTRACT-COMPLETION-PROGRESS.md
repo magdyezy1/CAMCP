@@ -8,6 +8,17 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## EY — TikTok saved audience and identity deletion (2026-09-27)
+
+Unused TikTok saved audiences and custom identities can now be deleted through reviewed requests: the
+audiences or identities and the ad groups or ads that use them are read first, and the deletion is
+read back. See [implementation](TIKTOK-DELETIONS-2026-09-27.md),
+[qualification](TIKTOK-DELETIONS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 735 (two TikTok rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## EX — TikTok custom conversion edits (2026-09-27)
 
 TikTok custom conversions can now be renamed and deleted through reviewed requests: the conversion is
@@ -17,7 +28,7 @@ protected, and the result is read back. See
 [qualification](TIKTOK-CONVERSION-EDITS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 737 (two TikTok rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 737 (two TikTok rows reviewed). Committed as `5ca6357`; its exact-commit CI result
 and live acceptance are pending.
 
 ## EW — TikTok ad comment blocked words (2026-09-27)

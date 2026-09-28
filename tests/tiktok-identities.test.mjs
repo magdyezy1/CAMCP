@@ -38,12 +38,12 @@ function fixture({images={'ad-site/avatar':[200,200],'ad-site/wide':[750,422]},r
  return {store,requests,writes,call,prepare,execute,verify,mode:v=>{mode=v;},restart:()=>{service=start();}};
 }
 
-test('identity creation is a reviewed TikTok family; deletion stays blocked',async()=>{
+test('identity creation is a reviewed TikTok family; deletion is reviewed by the deletions family',async()=>{
  const f=fixture();try{
   const inspected=await f.call('amcp_write',{action:'inspect',gateway,connection_id:TIKTOK,arguments:{action:'tiktok_identity_create',account_id:account,payload:{display_name:'Brand'}}});
   assert.equal(inspected.data.review_contract_supported,true,JSON.stringify(inspected));
   const status=Object.fromEntries((await f.call('amcp_workspace',{action:'contracts',gateway,search:'identity',limit:100})).data.actions.map(r=>[r.action,r.status]));
-  assert.equal(status.tiktok_identity_create,'reviewed_write_family');assert.equal(status.tiktok_identity_delete,'blocked_write');
+  assert.equal(status.tiktok_identity_create,'reviewed_write_family');assert.equal(status.tiktok_identity_delete,'reviewed_write_family');
   assert.equal(f.requests.length,0);
  }finally{f.store.close();}
 });

@@ -19,6 +19,7 @@ import {isLinkedInPublisherRead} from './linkedin-publisher-restrictions.js';
 import {isDV360BiddingFileRead} from './dv360-custom-bidding-files.js';
 import {isTiktokBlockedWordRead} from './tiktok-blocked-words.js';
 import {isTiktokConversionEditRead} from './tiktok-conversion-edits.js';
+import {isTiktokDeletionRead} from './tiktok-deletions.js';
 import {isGoogleBrandGuidelinesRead} from './google-pmax-brand-guidelines.js';
 import {isGoogleCustomerTypeRead} from './google-user-list-customer-types.js';
 import {isGoogleDraftRead} from './google-campaign-drafts.js';
@@ -125,6 +126,7 @@ export function normalizeSnapshot(read:CompiledRequest,data:unknown):unknown{
  if(isDV360BiddingFileRead(read))return normalizeReviewState(data);
  if(isTiktokBlockedWordRead(read))return normalizeReviewState(data);
  if(isTiktokConversionEditRead(read))return normalizeReviewState(data);
+ if(isTiktokDeletionRead(read))return normalizeReviewState(data);
  if(isGoogleBrandGuidelinesRead(read))return normalizeReviewState(data);
  if(isGoogleCustomerTypeRead(read))return normalizeReviewState(data);
  if(isGoogleDraftRead(read))return normalizeReviewState(data);

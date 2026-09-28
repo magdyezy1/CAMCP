@@ -117,8 +117,9 @@ Use [the media guide](media.md) for Drive imports. Poll asynchronous video proce
 - A TikTok-declared error is reported once (`PLATFORM_ERROR`); the review then stays
   `WRITE_OUTCOME_UNCERTAIN` and is never resubmitted. Prepare a new review after checking
   `tiktok_identity_list`.
-- Not available: identity deletion (ads may use it) and TikTok-account identities (`AUTH_CODE`,
-  `TT_USER`, `BC_AUTH_TT`), which are authorized rather than created.
+- Not available: TikTok-account identities (`AUTH_CODE`, `TT_USER`, `BC_AUTH_TT`), which are
+  authorized rather than created. Deleting a custom identity no ad uses is covered under "TikTok
+  saved audience and identity deletion".
 
 ## TikTok ad group budgets
 
@@ -227,7 +228,27 @@ Conversion" (https://business-api.tiktok.com/portal/docs?id=1842225247176705), c
   ID lists and actions compare as sets, and the price range compares as its lowest and highest
   value, because TikTok returns the range in steps of 50.
 - TikTok allows 400 saved audiences per advertiser; its list read does not page, so TikTok
-  enforces the limit. Deletion is not qualified.
+  enforces the limit. Deletion is covered in the next section.
+
+## TikTok saved audience and identity deletion
+
+- `tiktok_dmp_saved_audience_delete` with `payload: {advertiser_id, saved_audience_ids: [...]}`
+  deletes 1–100 saved audiences. TikTok deletes a saved audience "only when the ad group has been
+  deleted" that applied it.
+- `tiktok_identity_delete` with `payload: {advertiser_id, identity_id, identity_type:
+  "CUSTOMIZED_USER"}` deletes a custom identity; TikTok has no identity edit, so a changed identity
+  is a new one. TikTok-account identities cannot be deleted this way.
+
+AMCP reads the named saved audiences (or pages through the custom identities) and the advertiser's
+ad groups (or ads): an audience or identity the advertiser does not have is `STATE_NOT_FOUND`; a
+saved audience an ad group uses is `AUDIENCE_IN_USE` and an identity an ad uses is
+`IDENTITY_IN_USE`. Nothing needs spending confirmation; deletions count under owner deletion
+policies. A non-zero `code` is a failure never resubmitted. Verification reads the audiences or
+identities again and expects the deleted ones gone. `INVALID_TIKTOK_DELETION` names the field to
+correct.
+
+Reference: TikTok API for Business v1.3 "Delete Saved Audiences" and "Delete an identity"
+(https://business-api.tiktok.com/portal/docs?id=1780154666312706), checked 2026-09-27.
 
 ## TikTok Upgraded Smart+ status
 

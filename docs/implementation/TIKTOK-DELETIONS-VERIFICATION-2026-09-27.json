@@ -1,0 +1,100 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "5ca63573003db1989c4d7e0b386c49d4ae450f41",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/tiktok-deletions-20260927-a",
+    "files": 1042,
+    "source_tree_hash": "86b501ea36ff44c5823d0012b6f3ba6de58d636a98b86e9495ede1a1f24b9ab6",
+    "index_code_test_guidance_files_compared": 785,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/tiktok-deletions-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/tiktok-deletions-20260927/install.log",
+      "sha256": "fd1d9de07b2f08802677e9eb68653e02fcf4423e062c4d00c4a3afe0d39973f2"
+    },
+    {
+      "path": ".runtime/tiktok-deletions-20260927/check.log",
+      "sha256": "6c29f85159d3c1eb25df73e20342e716f16aa65c8f00be39250c37109652249c",
+      "started": "Mon Sep 28 01:23:08 UTC 2026",
+      "finished": "Mon Sep 28 04:38:28 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2585,
+          "pass": 2585,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/tiktok-deletions-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/tiktok-deletions-20260927/red-check.log",
+      "sha256": "0b4b922a0e9d32ea060edc66b943717dddadee9c449a9eeaaf9f7851581e03a1",
+      "meaning": "tests/tiktok-deletions.test.mjs against a build of 5ca6357: expected red, 3/3 fail (no reviewed family: WRITE_CONTRACT_UNAVAILABLE)"
+    },
+    {
+      "path": ".runtime/tiktok-deletions-20260927/targeted.log",
+      "sha256": "e5038d18c877fabdd041e31f7575702270c8561edd64fe0811e6a9cbaa1c2e2f",
+      "meaning": "198 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 1980/1980 pass, none skipped."
+    }
+  ],
+  "development_failures": [],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2585,
+    "main_pass": 2585,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Refusing to delete an identity an ad uses is AMCP's rule; TikTok does not document what happens to such ads. Ad and ad group reads stop at 10000 each.",
+    "The saved audience list read is filtered by the named IDs and not paged, as the reference shows it.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

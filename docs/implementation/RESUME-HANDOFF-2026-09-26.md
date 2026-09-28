@@ -1059,7 +1059,16 @@ Tests: `tests/tiktok-blocked-words.test.mjs` (4), red on `1ecf2a8` / green after
 
 - New reviewed family `tiktok_custom_conversion_edits` (`src/tiktok-conversion-edits.ts`) for renaming and deleting pixel custom conversions, two rows. The conversion is found among the advertiser's pixels; ad groups optimizing for it block deletion. The creation test now expects both to be reviewed.
 
-Tests: `tests/tiktok-conversion-edits.test.mjs` (3), red on `aef9f72` / green after.
+Tests: `tests/tiktok-conversion-edits.test.mjs` (3), red on `aef9f72` / green after. Committed as `5ca6357`.
+
+## Finished batch — TikTok saved audience and identity deletion (2026-09-27)
+
+[Implementation](TIKTOK-DELETIONS-2026-09-27.md) and
+[qualification](TIKTOK-DELETIONS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `tiktok_deletions` (`src/tiktok-deletions.ts`) for deleting unused saved audiences and custom identities, two rows. Ad groups or ads that use them block the deletion; the creation tests now expect deletion to be reviewed.
+
+Tests: `tests/tiktok-deletions.test.mjs` (3), red on `5ca6357` / green after.
 
 ## CI and live evidence
 
@@ -1073,19 +1082,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 694 in reviewed write families. **737 remaining rows** are in
+3241 captured actions; 696 in reviewed write families. **735 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 622 |
+| blocked_write | 620 |
 | unmapped | 79 |
 | unqualified_read | 23 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 180, Meta 117, LinkedIn 94, Snapchat 66,
+Blocked writes by platform: TikTok 178, Meta 117, LinkedIn 94, Snapchat 66,
 Google Ads 57, X 43, DV360 30, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

@@ -50,12 +50,12 @@ function fixture({readDrift}={}){
  return {store,requests,writes,call,args,prepare,execute,verify,mode:v=>{mode=v;},restart:()=>{service=start();}};
 }
 
-test('saved audience creation is a reviewed TikTok family; deletion stays blocked',async()=>{
+test('saved audience creation is a reviewed TikTok family; deletion is reviewed by the deletions family',async()=>{
  const f=fixture();try{
   const inspected=await f.call('amcp_write',{action:'inspect',gateway,connection_id:TIKTOK,arguments:f.args(audience())});
   assert.equal(inspected.data.review_contract_supported,true,JSON.stringify(inspected));
   const deletion=await f.call('amcp_write',{action:'inspect',gateway,connection_id:TIKTOK,arguments:f.args({saved_audience_ids:['9900001']},'tiktok_dmp_saved_audience_delete')});
-  assert.notEqual(deletion.data?.review_contract_supported,true,JSON.stringify(deletion));assert.equal(f.requests.length,0);
+  assert.equal(deletion.data?.review_contract_supported,true,JSON.stringify(deletion));assert.equal(f.requests.length,0);
  }finally{f.store.close();}
 });
 
