@@ -1523,6 +1523,30 @@
       "arguments": {
         "operation": "gmb_location_ops",
         "arguments": {
+          "action": "UPDATE_LOCATION_ATTRIBUTES",
+          "location_id": "456",
+          "query": {
+            "attributeMask": "attributes/wi_fi"
+          },
+          "payload": {
+            "name": "locations/456/attributes",
+            "attributes": [
+              {
+                "name": "attributes/wi_fi",
+                "values": [
+                  "free_wi_fi"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "gateway": "google_business_native_action",
+      "arguments": {
+        "operation": "gmb_location_ops",
+        "arguments": {
           "action": "PATCH_LOCATION",
           "location_id": "456",
           "query": {

@@ -874,6 +874,21 @@ location again and compares the edited fields, with omitted zero times read as 0
 spending confirmation. Source: the pinned Business Information API v1 Discovery document
 (`.mirror/VENDOR/business-info-v1.json`, `locations.patch`), checked 2026-09-28.
 
+## Business Profile location attributes
+
+`gmb_location_ops` / `UPDATE_LOCATION_ATTRIBUTES` sets or clears attributes of one location through
+the exact `locations/{id}` grant: `query: {attributeMask}` lists up to 50 `attributes/{attribute}`
+names, and `payload: {name: "locations/{id}/attributes", attributes: [...]}` gives a value for each
+attribute to set; a masked attribute without an entry is cleared. A value is one of `values` (one
+`true`/`false` for BOOL, one enum value for ENUM), `uriValues` (`[{uri}]`, http or https, for URL)
+or `repeatedEnumValue` (`setValues` and `unsetValues`, distinct, for REPEATED_ENUM); `valueType` is
+read-only. AMCP reads the location, its attributes and the attributes available to it
+(`attributes.list` with `parent`): an attribute must be available and not deprecated (Business
+Profile would not save it), the value must match its type and supported values, and a URL takes one
+value unless the attribute is repeatable. Listings without Voice of Merchant, permanently closed
+locations and unchanged values are refused (`INVALID_BUSINESS_LOCATION_ATTRIBUTE`). Nothing needs
+spending confirmation; verification reads the attributes again: set values, and cleared ones absent.
+
 ## Business Profile account notification settings
 
 `google_business_native_action` / `gmb_notification_ops` /

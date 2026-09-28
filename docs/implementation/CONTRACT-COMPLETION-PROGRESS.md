@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## FQ — Business Profile location attributes (2026-09-27)
+
+Business Profile location attributes can now be set and cleared through reviewed edits for the exact
+location grant that check each value against the attributes available to the location, refuse
+deprecated attributes and listings without Voice of Merchant, and read the attributes back. See
+[implementation](GOOGLE-BUSINESS-LOCATION-ATTRIBUTES-2026-09-27.md),
+[qualification](GOOGLE-BUSINESS-LOCATION-ATTRIBUTES-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 695 (one Business Profile row reviewed). Pushes go only to CAMCP; its exact-commit CI
+result and live acceptance are pending.
+
 ## FP — Business Profile location hours and contact details (2026-09-27)
 
 A Business Profile location's hours, holiday hours, phones, website, labels and Google Ads phone can
@@ -17,7 +29,7 @@ the pinned schema, refuse listings without Voice of Merchant and read the locati
 [qualification](GOOGLE-BUSINESS-LOCATION-EDITS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 696 (one Business Profile row reviewed). Pushes go only to CAMCP; its exact-commit CI
+Remaining rows: 696 (one Business Profile row reviewed). Committed as `ee25dfa`; its exact-commit CI
 result and live acceptance are pending.
 
 ## FO — LinkedIn ad account name and notifications (2026-09-27)

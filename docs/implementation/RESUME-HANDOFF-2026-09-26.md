@@ -1221,7 +1221,16 @@ Tests: `tests/linkedin-account-settings.test.mjs` (3), red on `0f2ad86` / green 
 
 - New reviewed family `google_business_location_edits` (`src/google-business-location-edits.ts`) for regular and special hours, phones, website, labels and the Ads phone of a location grant, one row. Title, address, categories, open status and store code stay unqualified.
 
-Tests: `tests/google-business-location-edits.test.mjs` (3), red on `b84a511` / green after.
+Tests: `tests/google-business-location-edits.test.mjs` (3), red on `b84a511` / green after. Committed as `ee25dfa`.
+
+## Finished batch — Business Profile location attributes (2026-09-27)
+
+[Implementation](GOOGLE-BUSINESS-LOCATION-ATTRIBUTES-2026-09-27.md) and
+[qualification](GOOGLE-BUSINESS-LOCATION-ATTRIBUTES-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `google_business_location_attributes` (`src/google-business-location-attributes.ts`) for setting and clearing location attributes checked against the attribute metadata of the location, one row.
+
+Tests: `tests/google-business-location-attributes.test.mjs` (3), red on `ee25dfa` / green after; `tests/google-business-sync.test.ts` updated.
 
 ## CI and live evidence
 
@@ -1235,20 +1244,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 729 in reviewed write families. **696 remaining rows** are in
+3241 captured actions; 730 in reviewed write families. **695 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 587 |
+| blocked_write | 586 |
 | unmapped | 79 |
 | unqualified_read | 17 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 167, Meta 112, LinkedIn 87, Snapchat 66,
-Google Ads 57, X 35, DV360 29, Criteo 23, Business Profile 11.
+Google Ads 57, X 35, DV360 29, Criteo 23, Business Profile 10.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

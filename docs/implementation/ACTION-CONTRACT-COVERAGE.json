@@ -122,10 +122,10 @@
       "gateway": "google_business_native_action",
       "actions": 59,
       "counts": {
-        "blocked_write": 11,
+        "blocked_write": 10,
         "local_workflow": 4,
         "native_read": 28,
-        "reviewed_write_family": 12,
+        "reviewed_write_family": 13,
         "unmapped": 4
       },
       "captured_catalog_complete": true,
@@ -21698,7 +21698,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -21719,7 +21720,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -21740,7 +21742,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -21761,7 +21764,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -21782,7 +21786,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -21872,7 +21877,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -21893,7 +21899,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -21914,7 +21921,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -21935,7 +21943,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -21956,7 +21965,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22219,7 +22229,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22240,7 +22251,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22261,7 +22273,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22282,7 +22295,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22303,7 +22317,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22342,7 +22357,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22354,12 +22370,15 @@
       "method": "PATCH",
       "path": "/v1/{+name}",
       "origin": "https://mybusinessbusinessinformation.googleapis.com",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/google-business-location-attributes.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://mybusinessbusinessinformation.googleapis.com/$discovery/rest?version=v1",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/google-business-location-attributes.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "google_business_location_attributes"
     },
     {
       "gateway": "google_business_native_action",
@@ -22378,7 +22397,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22399,7 +22419,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22435,7 +22456,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22474,7 +22496,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22495,7 +22518,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22516,7 +22540,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22568,7 +22593,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22604,7 +22630,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -22625,7 +22652,8 @@
         "tests/google-business-notifications.test.ts",
         "tests/google-business-access.test.ts",
         "tests/google-business-sync.test.ts",
-        "tests/google-business-location-edits.test.mjs"
+        "tests/google-business-location-edits.test.mjs",
+        "tests/google-business-location-attributes.test.mjs"
       ],
       "live_qualification": "unverified"
     },
