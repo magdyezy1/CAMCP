@@ -39,6 +39,12 @@ referenced asset exists, `accessibility.css` is the last stylesheet, `#content` 
 confirmation dialog exists and is named, and no script uses native `confirm()` except the one synchronous
 unsaved-changes guard. The check fails on `03ac8d3` with six violations and passes after.
 
+Batch 6: every action bound through `authBind` returns keyboard focus to its control after a re-render, or to the
+first control of its surviving section, or to the page heading — never to the body (checked in Chromium on the
+settings page: "Refresh health" keeps focus; pausing writes moves it to "Resume writes"). MFA setup has numbered
+steps, an open-in-authenticator link built from the server's `otpauth://` URI, a grouped, copyable key and copy or
+download of the recovery codes. Removing a workspace member is its own confirmed button instead of a role.
+
 Remaining (see [FINDINGS.md](FINDINGS.md)): 60 low-contrast labels, mostly inside the landing-page illustration and
-a few workspace captions; small inline links (target size is a WCAG 2.2 criterion); focus restoration after partial
-re-renders (F-39); MFA setup without a QR code (F-41); the team-members flow (F-42); right-to-left layout (F-47).
+a few workspace captions; small inline links (target size is a WCAG 2.2 criterion); a QR code for MFA setup (needs a
+vendored encoder, since the CSP allows only same-origin scripts); right-to-left layout (F-47).

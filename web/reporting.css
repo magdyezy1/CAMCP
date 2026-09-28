@@ -14,3 +14,6 @@
 .metric-sources summary{cursor:pointer;font-weight:600}
 .metric-sources td small{display:block;margin-top:2px}
 .metric-sources code{overflow-wrap:anywhere}
+.mfa-steps{padding-left:1.25em}
+.mfa-steps li{margin-bottom:18px}
+.mfa-steps .recovery-key{letter-spacing:.08em;margin:10px 0}

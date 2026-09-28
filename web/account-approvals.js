@@ -69,7 +69,8 @@ renderSettings=async function(){
   event.preventDefault();
   const form=event.target,error=area.querySelector('#approvals-error');if(error)error.textContent='';
   const values=Object.fromEntries(new FormData(form));
-  try{const r=await api('/api/owner/accounts/test-invite',{method:'POST',body:JSON.stringify(values)});if(error)error.textContent=r.message;form.reset();}
+  // A sent invitation is a success, not an error: announce it and keep the error line for failures.
+  try{const r=await api('/api/owner/accounts/test-invite',{method:'POST',body:JSON.stringify(values)});toast(r.message);form.reset();}
   catch(e){if(error)error.textContent=e.message;}
  });
 };
