@@ -51,7 +51,9 @@ export function validateGoogleRequest(plan:CompiledRequest):void{
    if(!decimal)issue(path,'Expected a decimal string or safe integer');
    else {const n=BigInt(value),unsigned=schema.format==='uint64';if(n<(unsigned?0n:-(1n<<63n))||n>(unsigned?(1n<<64n)-1n:(1n<<63n)-1n))issue(path,'Integer outside the declared 64-bit range');}
   }else if(schema.enum&&typeof value==='number'&&Number.isSafeInteger(value)){
-   // ProtoJSON permits enum numbers. Discovery has no reliable numeric mapping.
+   // ProtoJSON permits enum numbers, but Discovery has no reliable numeric mapping: a reviewed mutation could not be
+   // checked against owner policies or read back (CampaignStatus 2 is ENABLED). Reads keep the ProtoJSON allowance.
+   if(!plan.readOnly)issue(path,'Use the enum name; a numeric enum value cannot be reviewed');
   }else if(schema.type==='integer'){
    if(!Number.isSafeInteger(value))issue(path,'Expected a safe integer');
   }else if(schema.type==='number'){

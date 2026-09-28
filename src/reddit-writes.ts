@@ -37,6 +37,25 @@ export function assertRedditWrite(plan:CompiledRequest){
  for(const k of ['bid_value','goal_value','spend_cap'])if(d[k]!==undefined&&d[k]!==null&&(!Number.isSafeInteger(d[k])||d[k]<0))fail(k+' must use a nonnegative safe integer in native provider units.');
  for(const k of ['campaign_id','ad_group_id','post_id','profile_id','saved_audience_id','funding_instrument_id','conversion_pixel_id'])if(d[k]!==undefined&&d[k]!==null&&!identifier(d[k]))fail(k+' must be an existing native identifier.');
 }
+/**
+ * Owner-policy amounts of a Reddit campaign or ad group goal. The pinned Reddit Ads API v3 OpenAPI describes a campaign
+ * goal_value as "The goal value (microcurrency)" and an ad group goal_value as "Measured in microcurrency for monetary
+ * goal types", where ad group goal_type allows only DAILY_SPEND, LIFETIME_SPEND or null; so goal_value is always a
+ * budget here. An update that omits goal_type keeps the reviewed entity's goal type, and the baseline key carries the
+ * goal type, so switching between daily and lifetime goals has no comparable baseline.
+ * spend_cap keeps the generic walk's refusal under numeric limits: it has no unit mapping in the owner policy yet.
+ */
+export function redditPolicyAmounts(plan:CompiledRequest,before:unknown,policy:JsonObject={}){
+ const route=redditWriteKind(plan),d=object(plan.body)?plan.body.data:undefined;
+ if(!route||!['campaigns','ad_groups'].includes(route.kind)||!object(d)||d.goal_value===undefined||d.goal_value===null)return;
+ const current=route.create?undefined:(Array.isArray(before)?before:[]).map(s=>object(s)&&object(s.data)?s.data:undefined).find(s=>s?.id===route.target);
+ const type=d.goal_type!==undefined?d.goal_type:current?.goal_type;
+ if(d.spend_cap!==undefined&&d.spend_cap!==null&&['max_budget_native','max_budget_increase_percent','max_daily_increase_native'].some(k=>policy[k]!==undefined))throw new MirrorError('POLICY_AMOUNT_UNSUPPORTED','This budget field needs an explicit native unit mapping before it can be used under the owner policy.',{field:'/body/data/spend_cap'});
+ if(!Number.isSafeInteger(d.goal_value)||d.goal_value<0)fail('goal_value must use a nonnegative safe integer in native provider units.');
+ const key='goal_value:'+String(type??'unknown'),amount=(v:number)=>({path:'/body/data/goal_value',key,amount:v,decimal:String(v)});
+ const old=current&&Number.isSafeInteger(current.goal_value)&&(current.goal_type??null)===(type??null)?[amount(current.goal_value)]:[];
+ return {creating:route.create,amounts:[amount(d.goal_value)],old};
+}
 export function assertRedditWriteScopes(connection:Connection){
  if(!['adsread','adsedit'].every(s=>connection.scopes.includes(s)))throw new MirrorError('INSUFFICIENT_SCOPE','Reddit review and execution require adsread and adsedit on the selected connection.',{},403);
 }
