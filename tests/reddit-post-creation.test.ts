@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,rmSync} from 'node:fs';
+import {mkdtempSync} from 'node:fs';
+import {removeTestDirectory} from './temp.js';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {Registry} from '../src/catalog.js';
@@ -110,7 +111,7 @@ test('async resolution survives restart and does not authorize guessed post IDs,
   assert.throws(()=>guard.authorize(redditPostRead(plan,'/api/v3/structured_posts/jobs/job_12345678',p.data.review_id),{...x.connection,id:'other'}));
   assert.throws(()=>guard.authorize({...redditPostRead(plan,'/api/v3/structured_posts/jobs/job_12345678',p.data.review_id),accountId:'a2_other'},{...x.connection,accounts:[account,'a2_other']}));
   assert.equal((await x.verify(p)).data.status,'verified');assert.equal(x.writes(),1);
- }finally{x.store.close();rmSync(dir,{recursive:true,force:true});}
+ }finally{x.store.close();removeTestDirectory(dir,'amcp-reddit-job-');}
 });
 
 for(const type of ['TEXT','IMAGE','VIDEO','CAROUSEL'])test(type+' campaign resolves a verified asynchronous post into a paused ad without another create',async()=>{

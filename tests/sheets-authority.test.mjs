@@ -6,9 +6,10 @@ import {MirrorError} from '../dist/src/errors.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {ReportingOverview} from '../dist/src/reporting-overview.js';
-import {mkdtempSync,rmSync} from 'node:fs';
+import {mkdtempSync} from 'node:fs';
+import {removeTestDirectory} from '../dist/tests/temp.js';
 import {tmpdir} from 'node:os';
-import {join,resolve,dirname,basename} from 'node:path';
+import {join} from 'node:path';
 
 function fixture({change='none',at='metadata',lost=false,reply,database=':memory:'}={}){
  const store=new Store(database,Buffer.alloc(32,53).toString('base64')),actor={tenantId:'t',userId:'u',role:'admin'};
@@ -81,8 +82,7 @@ test('Sheets lost-response reconciliation survives closing and reopening SQLite'
   assert.equal(result.reconciled,true);assert.equal(f.counts().writes,1);assert.equal(reopened.documents('t','sheets_delivery')[0].state,'complete');
  }finally{
   if(reopened)reopened.close();else f.store.close();
-  assert.equal(dirname(resolve(directory)),resolve(tmpdir()));assert.ok(basename(directory).startsWith('amcp-sheets-recovery-'));
-  rmSync(directory,{recursive:true,force:true,maxRetries:5,retryDelay:100});
+  removeTestDirectory(directory,'amcp-sheets-recovery-');
  }
 });
 for(const [label,reply] of [['wrong spreadsheet',{spreadsheetId:'other123',replies:[]}],['empty envelope',{}],['embedded error',{error:{code:403,message:'Synthetic'}}],['missing replies',{spreadsheetId:'sheet123'}],['incomplete replies',{spreadsheetId:'sheet123',replies:[]}]])test('Sheets rejects '+label+' in HTTP 200 instead of claiming delivery',async()=>{

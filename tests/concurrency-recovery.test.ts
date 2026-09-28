@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
-import {mkdtempSync,rmSync,writeFileSync} from 'node:fs';
+import {mkdtempSync,writeFileSync} from 'node:fs';
+import {removeTestDirectory} from './temp.js';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {Store} from '../src/store.js';
@@ -24,7 +25,7 @@ const dist=new URL('../src/',import.meta.url).href;
 
 function workspace(){
  const directory=mkdtempSync(join(tmpdir(),'amcp-concurrency-'));
- return {directory,database:join(directory,'mirror.sqlite'),cleanup:()=>rmSync(directory,{recursive:true,force:true})};
+ return {directory,database:join(directory,'mirror.sqlite'),cleanup:()=>removeTestDirectory(directory,'amcp-concurrency-')};
 }
 
 /** Runs `body` in `count` separate processes at once and returns what each printed. */

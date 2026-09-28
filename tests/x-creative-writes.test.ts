@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,rmSync} from 'node:fs';
+import {mkdtempSync} from 'node:fs';
+import {removeTestDirectory} from './temp.js';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {Store} from '../src/store.js';
@@ -256,7 +257,7 @@ test('X receipt replay survives reopening SQLite; expired and tampered reviews c
   assert.equal(succeeded(await x.execute(r)).replayed,true);assert.equal(x.writes().length,0);
   x.seed();const expired=await prepared(x.prepare(cardCreate)),record=x.store.document(actor.tenantId,'write_review',expired.review_id);x.store.putDocument(actor.tenantId,'write_review',expired.review_id,{...record,expires_at:Date.now()-1});assert.equal((await x.execute(expired)).error.code,'REVIEW_EXPIRED');
   const edit=await prepared(x.prepare(cardEdit,{creative_edit_confirmed:true})),stored=x.store.document(actor.tenantId,'write_review',edit.review_id);x.store.putDocument(actor.tenantId,'write_review',edit.review_id,{...stored,creative_edit_confirmed:false});assert.equal((await x.execute(edit)).error.code,'REVIEW_CHANGED');assert.equal(x.writes().length,0);
- }finally{x.store.close();rmSync(dir,{recursive:true,force:true});}
+ }finally{x.store.close();removeTestDirectory(dir,'amcp-x-review-');}
 });
 
 test('durable X campaign plans preflight symbolic media/card IDs and execute only verified predecessor references',async()=>{

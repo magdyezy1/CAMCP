@@ -10,6 +10,7 @@ import {NativeTransport} from '../src/transport.js';
 import {saveSpendPolicy} from '../src/spend-policy.js';
 import {ScopeGuard} from '../src/scope.js';
 import type {Connection,JsonObject} from '../src/types.js';
+import {removeTestDirectory} from './temp.js';
 
 const gateway='criteo_native_action',registry=new Registry(),actor={tenantId:'criteo',userId:'operator',role:'operator' as const},owner={...actor,role:'admin' as const};
 const prefix='/2026-01/retail-media',base=prefix+'/preferred-line-items/789';
@@ -124,7 +125,7 @@ test('Criteo completed and uncertain claims survive reopening SQLite and service
  try{for(const mode of ['complete','lost']){const f=await fixture('stores',true,path.join(temp,mode+'.sqlite'));try{
   const p=await f.prepare('APPEND_STORE_TARGETS_BY_LINE_ITEM_ID',{storeIds:['40']});if(mode==='lost')f.mode('lost');await f.execute(p);f.restart();const r=await f.execute(p);assert.equal(f.writes(),1);
   if(mode==='complete'){assert.equal(r.data.replayed,true);assert.equal((await f.verify(p)).data.status,'verified');}else assert.equal(r.error.code,'WRITE_OUTCOME_UNCERTAIN');
- }finally{f.store.close();}}}finally{fs.rmSync(temp,{recursive:true,force:true});}
+ }finally{f.store.close();}}}finally{removeTestDirectory(temp,'amcp-criteo-restart-');}
 });
 test('successful Criteo verification cache cannot outlive a revoked recorded read scope',async()=>{
  const f=await fixture();try{const p=await f.prepare('APPEND_STORE_TARGETS_BY_LINE_ITEM_ID',{storeIds:['40']});await f.execute(p);assert.equal((await f.verify(p)).data.status,'verified');f.store.putConnection(owner,{...f.c,scopes:[]},{accessToken:'synthetic'});const n=f.reads();assert.equal((await f.verify(p)).success,false);assert.equal(f.reads(),n);}finally{f.store.close();}

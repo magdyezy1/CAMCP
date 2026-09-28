@@ -15,6 +15,7 @@ import {applyExecutionRisk} from '../src/execution-risk.js';
 import {actionContracts} from '../src/action-contracts.js';
 import {googlePreviewSnapshots,readGooglePreviewState} from '../src/google-preview-writes.js';
 import type {Connection,JsonObject} from '../src/types.js';
+import {removeTestDirectory} from './temp.js';
 
 const gateway='google_ads_native_action',rpc='google_ads_v23_shareable_preview_generate_shareable_previews';
 const actor={tenantId:'preview-test',userId:'operator',role:'operator' as const},owner={...actor,userId:'owner',role:'admin' as const};
@@ -143,14 +144,14 @@ test('concurrent executes submit once; a lost provider response and 503 never re
  for(const mode of ['lost','503']){const f=fixture();try{const r=await f.prepare();assert.equal(r.success,true,JSON.stringify(r));f.mode(mode);assert.equal((await f.execute(r)).success,false);assert.equal((await f.execute(r)).error?.code,'WRITE_OUTCOME_UNCERTAIN');assert.equal(f.writes(),1);}finally{f.store.close();}}
 });
 test('completed URLs survive restart encrypted, never leak into normal SQL/audit, and expire without resubmission',async()=>{
- const path=join(mkdtempSync(join(tmpdir(),'amcp-previews-')),'db.sqlite');let f=fixture(path);const r=await f.prepare();assert.equal(r.success,true,JSON.stringify(r));const e=await f.execute(r);assert.equal(e.success,true,JSON.stringify(e));
+ const directory=mkdtempSync(join(tmpdir(),'amcp-previews-')),path=join(directory,'db.sqlite');let f=fixture(path);const r=await f.prepare();assert.equal(r.success,true,JSON.stringify(r));const e=await f.execute(r);assert.equal(e.success,true,JSON.stringify(e));
  for(const table of ['documents','idempotency','audit'])assert.ok(!JSON.stringify(f.store.db.prepare('SELECT * FROM '+table).all()).includes('private-preview'),table);
  assert.ok(f.store.document(actor.tenantId,'preview_receipt',r.data.review_id).secret);f.store.close();f=fixture(path);
  try{
   const replay=await f.execute(r);assert.equal(replay.success,true,JSON.stringify(replay));assert.match(JSON.stringify(replay.data.previews),/private-preview/);assert.equal(f.calls.length,0);assert.equal((await f.verify(r)).data.status,'verified');
   const saved=f.store.document(actor.tenantId,'preview_receipt',r.data.review_id);f.store.putDocument(actor.tenantId,'preview_receipt',r.data.review_id,{...saved,expires_at:Date.now()-1});
   const expired=await f.execute(r);assert.equal(expired.data.previews.status,'unavailable');assert.ok(!JSON.stringify(expired).includes('private-preview'));assert.equal((await f.verify(r)).data.status,'inconclusive');f.store.cleanupTransient();assert.throws(()=>f.store.document(actor.tenantId,'preview_receipt',r.data.review_id),{code:'NOT_FOUND'});assert.equal(f.writes(),0);
- }finally{f.store.close();}
+ }finally{f.store.close();removeTestDirectory(directory,'amcp-previews-');}
 });
 test('revocation during generation withholds URLs but preserves the completed outcome for authorized recovery',async()=>{
  const f=fixture();try{const r=await f.prepare();assert.equal(r.success,true,JSON.stringify(r));f.hook(kind=>{if(kind==='submission')f.store.putConnection(owner,{...f.c,writeAccounts:[]},{accessToken:'synthetic'});});

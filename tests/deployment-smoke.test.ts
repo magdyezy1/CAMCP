@@ -2,8 +2,9 @@ import {listenForFetch} from './http-listener.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomBytes} from 'node:crypto';
-import {mkdtempSync,rmSync} from 'node:fs';
-import {join,resolve,sep} from 'node:path';
+import {mkdtempSync} from 'node:fs';
+import {join,resolve} from 'node:path';
+import {removeTestDirectory} from './temp.js';
 import {tmpdir} from 'node:os';
 import {pathToFileURL} from 'node:url';
 import type {Server} from 'node:http';
@@ -37,8 +38,6 @@ for(const writes of [false,true])test(`deployment HTTP contract includes reporti
  }finally{
   await stop();
   // Remove only this test's freshly created temporary directory.
-  const target=resolve(directory),parent=resolve(tmpdir());
-  if(!target.startsWith(parent+sep)||!target.startsWith(join(parent,'amcp-deployment-smoke-')))throw Error('Unexpected smoke temporary path');
-  rmSync(target,{recursive:true,force:true});
+  removeTestDirectory(directory,'amcp-deployment-smoke-');
  }
 });
