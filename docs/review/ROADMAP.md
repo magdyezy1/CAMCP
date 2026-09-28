@@ -46,8 +46,8 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
 2. **Guarded reader helper** replacing the 15 hand-copied wrappers in `state()` (F-61). **Done in batch 17**: one
    reader in the review and one in the verification replace 31 wrappers.
 3. **Stage split** of `write-review.ts` / `write-verification.ts` along the lifecycle. **Done for `write-review.ts` in
-   batch 23** (outcome, state validation, shape and snapshot-plan stages in their own modules); `write-verification.ts`
-   remains.
+   batch 23** (outcome, state validation, shape and snapshot-plan stages in their own modules), and for
+   `write-verification.ts` in batch 24 (the verification plan in `verification-reads.ts`).
 4. **Formatting** — **done in batch 8**: Prettier at 120 columns, `.editorconfig` with LF, module by module in
    format-only commits, each proven neutral by syntax-tree equality (a Prettier-normalised `dist/` comparison turned
    out not to be a proof, because Prettier keeps some input line breaks); `format:check` runs first in

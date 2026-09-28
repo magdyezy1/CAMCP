@@ -148,7 +148,7 @@ Code anchors (formatted line numbers differ; search by name):
 | Policy | `checkSpendPolicy` (activation, deletion, budget amounts, daily reservation) | `src/spend-policy.ts` |
 | Confirmation | `authorizeExecution` (per-family spend confirmations, generic text match) | `src/preflight.ts` |
 | Execute | `transport.request` once; `writeOutcome` + `confirmedMutationResult` (chain) | `src/write-review.ts`, `src/write-outcome.ts` |
-| Verify | `WriteVerifier.verify` (`verificationReads`, `observed`, nested reader chain) | `src/write-verification.ts` |
+| Verify | `WriteVerifier.verify` (`verificationReads`, `observed`, nested reader chain) | `src/write-verification.ts`, `src/verification-reads.ts` |
 
 Invariants the lifecycle maintains (all verified in code; see `FINDINGS.md` for exceptions):
 
