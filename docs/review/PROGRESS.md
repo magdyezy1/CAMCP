@@ -384,3 +384,22 @@ visitor, administrator and reviewer at 320, 360 and 1280 px) against a throwaway
 Full qualification (`.release/batch19-20260928`, up to `7dc5e53`): **2,770 / 2,770** tests and **4 / 4** capture
 tests; `format:check`, every generated-artifact check and the Railway check pass. 577 s. The candidate's 1,195 source
 files equal `7dc5e53`, apart from `release-manifest.json`.
+
+## Batch 20 — provider schema drift and end dates
+
+Findings: F-81 (new), F-56. The live drift check compares every pinned vendor document with what its official URL
+serves today; it reads public documents only. Four Google documents had changed within their versions. The full
+review is in [SCHEMA-DRIFT-2026-09-28](../implementation/SCHEMA-DRIFT-2026-09-28.md).
+
+| Change | Evidence |
+|---|---|
+| DV360 v4 re-pinned (20260902 → 20260928): the device-type YouTube and partners bid multiplier is writable, and its write needs a spend confirmation; four video fields became output-only. The Demand Gen family's special case for the video availability note is gone, since the pin now marks it output-only | `tests/dv360-ad-group-targeting.test.mjs` (new; refused as output-only under the old pin); the Demand Gen read-back fixture now carries the note |
+| GA4 Data v1beta and v1alpha re-pinned (→ 20260924). GA4 now says when it truncated a report. The truncation is kept in source quality, a truncated source is not measurement-complete (so the report is partial with a warning naming the limits), and period comparisons and the website carry it | `tests/audit-report-quality.test.mjs`, `tests/ga4-campaign-report.test.ts` (both new and red before) |
+| Business Information v1 re-pinned (→ 20260927): descriptions only | the drift diff |
+| `tools/fetch-vendor-specs.mjs --refresh name…` re-pins single documents. Regenerated artifacts are equal in content: 511 vendor routes with no gaps; 173 DV360 routes equal apart from copied vendor records and parameter order; 1,207 ledger records identical, reordered | every generated-artifact check |
+| `src/provider-sunsets.ts` records when each version AMCP sends ends: official date, support-period policy, or unknown. `npm run check` fails if it does not match the versions AMCP sends; the weekly provider workflow fails 90 days before a recorded date. The contract view MCP clients read has `version_end`. `CONTRACTS.md` no longer presents v23's 2027-02 sunset as the pinned version's; it states Criteo 2026-01's policy end (2027-01) | `tests/provider-sunsets.test.mjs` (4 tests); `node dist/tools/provider-sunsets.js` |
+
+Criteo, Reddit and the six Microsoft documents could not be fetched from this environment (HTTP 403), so their drift is
+unchecked here. The only recorded end dates are Criteo 2026-01's (the 12-month policy, January 2027; the alarm starts
+on 2026-10-03) and Microsoft's SOAP retirement (2027-01-31, which does not affect AMCP's JSON transport). The others
+could not be read from here and stay unknown.

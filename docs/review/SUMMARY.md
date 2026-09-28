@@ -75,6 +75,15 @@ AMCP sends, and every catalog request that can be compared (419 of 591) still ex
 production, `AMCP_META_API_VERSION=v25.0` moves every Meta request back without a code change
 ([migration record](../implementation/META-V26-2026-09-28.md)).
 
+**Provider changes and end dates.** A live comparison of every pinned vendor document found four that Google had
+changed within their versions. Each difference was reviewed and the documents re-pinned: a DV360 YouTube bid
+multiplier became writable and now needs a spend confirmation, and GA4 began saying when it truncated a report, so a
+truncated GA4 report is now partial and says why ([the review](../implementation/SCHEMA-DRIFT-2026-09-28.md)). A
+registry records when each version AMCP sends stops working. It is checked against the versions AMCP sends, so an
+upgrade must update it. The weekly provider workflow fails 90 days before a recorded end date. Criteo 2026-01 reaches
+that point in early October 2026 (its 12-month support ends around January 2027); most other dates could not be read
+from here and are recorded as unknown.
+
 **MCP workflow.** Each AMCP tool says when to use it rather than its neighbour. An opt-in flag
 (`MIRROR_FLAGS={"compactSchemas":true}`) removes the duplicated DV360 action names from every `tools/list`.
 
@@ -133,8 +142,8 @@ Each of these changes a level of protection, a deployment, a dependency or the p
   one more registry hook.
 - Architecture: splitting `write-review.ts` into stages.
 - Code: formatting `web/`.
-- Contracts and operations: drift digests for every provider and a sunset alarm (F-56); lazy loading of generated
-  routes (F-64).
+- Contracts and operations: the end dates this environment could not read (Google Ads v25, Meta, LinkedIn and the
+  others recorded as unknown); lazy loading of generated routes (F-64).
 - Website: target sizes of small inline links (a WCAG 2.2 criterion); folding the one-off tints into tokens.
 
 ## Limits
