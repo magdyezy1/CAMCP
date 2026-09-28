@@ -52,5 +52,20 @@ instead of raw ISO dates. The table's secondary text (IDs, currency, time zone a
 #9b8ba9 at 3.15:1 and #8f7aa2 at 3.84:1, both 10 px, to the muted ink at 5.32:1 and 12 px; the column headers also
 move to 12 px (4.81:1 on their tint).
 
-Remaining (see [FINDINGS.md](FINDINGS.md)): 60 low-contrast labels, mostly inside the landing-page illustration and
-a few workspace captions; small inline links (target size is a WCAG 2.2 criterion); right-to-left layout (F-47).
+Batch 19: the same audit, same pages and widths, finds **0** texts below contrast (from 60), no horizontal overflow and
+no unnamed control.
+
+- Real text keeps its hue, darkened until it reaches 4.6:1 on its own background: dashboard captions, report pill
+  labels, platform counts and section numbers, the homepage step numbers, the AI-tool and evidence labels, the account
+  initial, and the platform initials in their brand hue. `--muted` is now `#696678` (was `#6c697b`), so muted text also
+  passes on the light tints: it was 4.41:1 on the active filter tab and 4.44:1 under report metrics. Text at 10px or
+  less moved to the 12px floor.
+- The two homepage mock-ups, the workflow window and the example campaign plan, hold text at 6 to 8px. They are now
+  labelled images (`role="img"` with a description of what they show), so their text is part of a picture, which WCAG
+  1.4.3 exempts. The audit leaves out text inside `role="img"`, as assistive technology does.
+- Decorative glyphs (the report spark, stat icons, link arrows, the account initial) are `aria-hidden`.
+- Text fields, text areas and table cells take their direction from their own text (`unicode-bidi: plaintext`): an
+  Arabic campaign name starts at the right edge of its cell, English names and numbers at the left (F-47).
+- The design tokens are defined once, in `web/tokens.css` (F-40).
+
+Remaining (see [FINDINGS.md](FINDINGS.md)): small inline links (target size is a WCAG 2.2 criterion).

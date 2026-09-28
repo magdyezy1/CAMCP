@@ -55,5 +55,5 @@ The owner's decisions of 2026-09-28 are applied (caps that ask rather than fail,
 sign-out and security emails, encrypted-only backups and purge on disconnect, pending invitations, the QR encoder,
 Google Ads v25 and Meta v26.0); [the owner summary](review/SUMMARY.md) lists them with what remains. Still open: the
 LinkedIn and Criteo version moves (their documentation is outside this environment's network policy), the remaining
-registry and contrast work, and the items [the roadmap](review/ROADMAP.md) lists.
+registry work, and the items [the roadmap](review/ROADMAP.md) lists.
 

@@ -46,7 +46,9 @@ No protection was loosened. The changes that would loosen one are listed below f
 - Destructive actions ask first.
 - Errors are page-level.
 - Keyboard focus survives re-renders.
-- Contrast and reflow meet WCAG 2.1 AA except for the items listed in ACCESSIBILITY.md.
+- Contrast and reflow meet WCAG 2.1 AA on every audited page (60 → 0 texts below 4.5:1 in batch 19).
+- The design tokens are defined once, in `web/tokens.css`.
+- Arabic or Hebrew campaign names and ad copy read right to left in fields and tables.
 - MFA setup is guided.
 - Assets are compressed and revalidated.
 
@@ -133,7 +135,7 @@ Each of these changes a level of protection, a deployment, a dependency or the p
 - Code: formatting `web/`.
 - Contracts and operations: drift digests for every provider and a sunset alarm (F-56); lazy loading of generated
   routes (F-64).
-- Website: one token file for the design (F-40); right-to-left layout (F-47); the remaining 60 low-contrast labels.
+- Website: target sizes of small inline links (a WCAG 2.2 criterion); folding the one-off tints into tokens.
 
 ## Limits
 

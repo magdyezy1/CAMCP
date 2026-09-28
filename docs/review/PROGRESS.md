@@ -365,3 +365,14 @@ every session it had opened, and the MCP access approved from those sessions, in
 
 Tests that sign in with either password now await the sign-in. One test fabricated a reviewer session for an
 arbitrary workspace; it now signs in with the reviewer password instead and keeps the same assertion.
+
+## Batch 19 — design tokens, the last contrast failures, right-to-left text
+
+Findings: F-40, F-38, F-47. Measured with the batch 3 Playwright audit (50 page and width combinations: anonymous
+visitor, administrator and reviewer at 320, 360 and 1280 px) against a throwaway local site.
+
+| Change | Evidence |
+|---|---|
+| `web/tokens.css`, loaded first, is the only `:root`. It holds the palette the page already used; app.css's dead green theme and identity.css's `--green` (which held purple) are gone, and `--text-muted` merged into `--muted` | Neutral, proven in Chromium: with every `var()` replaced by its value, the 7,969 declarations of the stylesheets are identical in order, and all 406 computed properties of the root element are equal. `tools/check-web.mjs` requires `tokens.css` first and refuses tokens elsewhere; it fails on the previous files |
+| The last 60 texts below 4.5:1: real text darkened within its hue to 4.6:1 or more (`--muted` `#6c697b` → `#696678`; 10px text to 12px); the two homepage mock-ups labelled images; decorative glyphs `aria-hidden` | audit: 60 → 0 below contrast, 0 overflow, 0 unnamed controls, console unchanged (three expected 401s on the anonymous OAuth result page) |
+| Text fields, text areas and table cells take their direction from their own text (`unicode-bidi: plaintext`) | Chromium probe: an Arabic cell starts at its right edge; English and number cells at the left |
