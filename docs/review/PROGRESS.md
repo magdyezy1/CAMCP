@@ -209,3 +209,15 @@ source files equal `0eddae1`, apart from `release-manifest.json`. Pushed as `0ed
 Full qualification (`.release/batch10-20260928`, up to `3340f25`): **2,720 / 2,720** tests and **4 / 4** capture
 tests; `format:check`, every generated-artifact check and the Railway check pass. 514 s. The candidate's source
 files equal `3340f25`, apart from `release-manifest.json`.
+
+## Batch 11 — the owner's decisions of 2026-09-28
+
+| Change | Evidence |
+|---|---|
+| The generic spend confirmation reads field names, field paths carried as values (JSON Patch, masks, `$delete`) and Google resource types, never content | the 5,432 recorded `authorizeExecution` calls replay with 0 differences; all 170 recorded generic refusals still match; `tests/spend-field-names.test.mjs` red/green |
+| Caps ask instead of refusing: `enforcement: confirm` (default) or `block`; `spend_policy.exceeded`, `exceeded_summary`, `execute_requirements.cap_override_confirmed`, `CAP_CONFIRMATION_REQUIRED` without it, an audit record with it; `max_bid_native`; caps in account currency via `src/budget-units.ts` where the unit is documented; per-platform workspace caps (`per_gateway`) with a warning for a single native default; the owner form offers all of it | `tests/spend-caps-confirm.test.mjs` (5) red/green; 21 policy suites now state `enforcement: 'block'` where they test refusals; the owner form exercised in Chromium |
+| A website session ends after 2 hours without a request; security notices for password, email, two-step, recovery-code and sign-in-method changes | two tests in `tests/user-accounts.test.ts`, red on the previous code with only the exported constant added |
+| `admin backup` writes the encrypted archive; disconnect deletes the report data read through the login (finished snapshots, captured reports, parsed downloads) and keeps definitions, reviews, receipts and the audit | `tests/operations.test.ts`; a red/green test in `tests/connection-disconnect.test.ts` |
+| Accounts created through invitations stay pending unless the instance owner invited them | red/green test in `tests/account-security.test.ts` |
+| QR code in two-step setup from the vendored `qrcode-generator` 2.0.4 (integrity recorded) | `tests/mfa-qr.test.mjs`; the rendered QR decodes to the exact `otpauth://` URI with jsQR in Chromium (scratch check) |
+| The two approved production settings are documented for the owner to set in Railway | `docs/DEPLOY-RAILWAY.md` |

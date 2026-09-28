@@ -112,6 +112,15 @@ bearer_token_env_var = "AMCP_MCP_TOKEN"
 
 Provide `AMCP_MCP_TOKEN` in the client process environment. Website tokens expire after 30 days; browser authorization issues one-hour access tokens with rotating 30-day refresh tokens. Revoke either type on the connector page. New credentials default to operator when write support is enabled; explicit reader credentials remain available. With write support enabled, select operator on the connector page and confirm access; then grant individual accounts in Connections. OAuth clients may explicitly request `mcp:write` during both registration and authorization. See [the write runbook](WRITE-OPERATIONS.md).
 
+## Settings approved by the owner (2026-09-28)
+
+Set these as Railway service variables; AMCP reads them at start-up. This review did not change the deployment.
+
+| Variable | Value | Why |
+|---|---|---|
+| `MIRROR_FLAGS` | `{"compactSchemas":true}` | Lists each DV360 action once in `tools/list` (about 7 KB smaller); the legacy unprefixed names stay accepted. |
+| `AMCP_TRUSTED_PROXY_CIDRS` | The address range of Railway's edge proxy, as Railway documents it | Sign-in and OAuth rate limits then count each client separately instead of everyone together. Railway, not Cloudflare, is the immediate peer. Confirm the range against the peer address of a real request before relying on it, and list only that range. |
+
 ## Operations and qualification
 
 The embedded report worker uses the same volume. Do not create a second Railway service expecting to share this volume. To run a separately supervised worker on another supported host, disable the embedded one using `AMCP_RUN_WORKER=false` and provision a shared local database deliberately.

@@ -79,24 +79,23 @@ No protection was loosened. The changes that would loosen one are listed below f
 | Pinned vendor documents with a digest | 7 of 22 | 22 of 22 |
 | Cold start / memory | 1.1 s / 197 MB | unchanged (F-64 is planned) |
 
-## Decisions that are yours
+## Decisions
 
-Each of these changes a level of protection, a deployment, a dependency or the product. Nothing here was done without
-your yes.
+Each of these changes a level of protection, a deployment, a dependency or the product. The owner answered them on
+2026-09-28.
 
-| Decision | Recommendation |
-|---|---|
-| Unit-aware workspace default spending caps, and a default policy when an account is first connected (F-04) | Yes: caps per gateway in canonical units, refused where no unit mapping exists |
-| An optional bid ceiling per account (F-57) | Yes, as an opt-in `max_bid_native` |
-| Out-of-band approval for spend and activation | Yes: MCP elicitation where the client supports it, otherwise a website approval bound to the review's state hash |
-| Match spend confirmation on field names only (drop the value-text match) | Yes, now that the structural rule covers value-only cases. This removes some confirmations, so it waits for you |
-| Let AMCP run the ownership read itself when the provider's record states the owning account | Yes for Meta and Snapchat objects that report their account |
-| Invitations while sign-up is closed (F-15) | Invited accounts stay pending unless the instance owner invited them |
-| Idle timeout and security-change alert emails (F-25) | A 2-hour sliding idle timeout inside the 8-hour limit; alerts on password, email and two-step changes |
-| Encrypted-only backups and purge on disconnect (F-18) | Yes; keep the key in the secret manager and test a restore first |
-| Provider upgrades: Google Ads v23 → v25 (v23 sunsets 2027-02), Microsoft REST evidence, Criteo 2026-07, Meta v26, LinkedIn 202609 (F-49 … F-53) | Google Ads first, then LinkedIn and Meta, then Criteo |
-| A vendored QR encoder for MFA setup | Yes, a small audited encoder served from `/assets` (the CSP allows only same-origin scripts) |
-| Production settings: `AMCP_TRUSTED_PROXY_CIDRS` for Railway's proxy (F-08); `MIRROR_FLAGS={"compactSchemas":true}` | Set both after checking the proxy's address range |
+| Decision | Owner's answer | Where it stands |
+|---|---|---|
+| Unit-aware spending caps, a bid ceiling, a policy when an account is first connected (F-04, F-57) | Yes, but a cap must ask or inform, not fail | Done in batch 11: `enforcement: confirm` by default (`block` optional), `cap_override_confirmed`, per-platform caps in account currency where the unit is documented, `max_bid_native`; unprotected accounts are shown to the owner, not given invented amounts |
+| Out-of-band approval for spend and activation | No | Not implemented |
+| Spend confirmation on field names only | Yes | Done in batch 11 |
+| Idle timeout and security-change emails (F-25) | Yes | Done in batch 11 |
+| Encrypted-only backups and purge on disconnect (F-18) | Yes | Done in batch 11 |
+| Provider upgrades: Google Ads v25 first, then LinkedIn and Meta, then Criteo (F-49 … F-53) | Yes | In progress, against official documentation |
+| Invitations while sign-up is closed (F-15) | Keep them pending | Done in batch 11 |
+| A vendored QR encoder for two-step setup | Yes | Done in batch 11 |
+| Production settings `MIRROR_FLAGS` and `AMCP_TRUSTED_PROXY_CIDRS` | Yes | Documented in `docs/DEPLOY-RAILWAY.md`; setting them needs Railway access, which this review does not have |
+| Let AMCP run the ownership read itself when the provider's record states the owning account | Not asked yet | Open |
 
 ## Still open, not waiting on you
 
