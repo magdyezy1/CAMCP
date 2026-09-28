@@ -58,7 +58,7 @@ renderSettings=async function(){
   if(!button.dataset.user)return;
   const grant=button.dataset.grant==='true';
   // Removing access ends live sessions and connector credentials, so say so before doing it.
-  if(!grant&&!confirm('Remove access for this account? Their sessions and connector credentials end immediately.'))return;
+  if(!grant&&!await confirmAction({title:'Remove access for this account?',consequence:'Their sessions and connector credentials end immediately.',confirmLabel:'Remove access'}))return;
   button.disabled=true;
   const body={user_id:button.dataset.user,grant,...(button.dataset.test?{test:button.dataset.test==='true'}:{})};
   try{await api('/api/owner/accounts/access',{method:'POST',body:JSON.stringify(body)});await reload();}

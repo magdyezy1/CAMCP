@@ -16,3 +16,12 @@ The website uses ink (`#201d30`), iris (`#7560da`), apricot (`#ffbd96`) and warm
 Homepage illustrations contain no fabricated account metrics. New accounts begin with their own empty workspace. Reduced-motion preferences are respected, navigation supports keyboard focus, forms have visible labels, and account data responses use `Cache-Control: no-store`.
 
 Google, Apple and Facebook sign-in require the separate app credentials documented in [user accounts](USER-ACCOUNTS.md). No advertising-account writes, hosting changes or DNS changes are required to test the design locally.
+
+## Accessible shades (2026-09-28)
+
+`web/accessibility.css` loads after every other stylesheet and adds three shades of the same palette so text and
+controls meet WCAG 2.1 AA on the light surfaces: `--text-muted` `#6c697b` (the lightest text colour, 4.5:1 or more on
+paper and white), `--iris-700` `#5a43bd` (focus rings and links, 7.06:1 on white) and `--line-strong` `#8e87a0`
+(input borders, 3.43:1 on white). Focus rings are 2 px `--iris-700` with a 2 px offset, and readable text is at least
+12 px. Measurements are in [the accessibility report](review/ACCESSIBILITY.md). The palette itself is unchanged; the
+remaining token consolidation (one `:root`, `--green*` renamed to `--iris*`) is on the [roadmap](review/ROADMAP.md).

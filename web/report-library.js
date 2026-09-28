@@ -56,7 +56,7 @@ async function openOverviewHistory(id){
 function bindOverviewHistory(){
  authBind('.report-history [data-report-open]',async b=>openOverviewHistory(b.dataset.reportOpen));
  authBind('.report-history [data-report-delete]',async b=>{
-  const r=overviewState.history.find(r=>r.id===b.dataset.reportDelete);if(!r||!confirm('Delete the collected snapshot “'+overviewLabel(r.config)+'”? Its active jobs will stop. Saved report setups, other snapshots and external spreadsheets are kept.'))return;
+  const r=overviewState.history.find(r=>r.id===b.dataset.reportDelete);if(!r||!await confirmAction({title:'Delete the collected snapshot “'+overviewLabel(r.config)+'”?',consequence:'Its active jobs will stop. Saved report setups, other snapshots and external spreadsheets are kept.',confirmLabel:'Delete snapshot'}))return;
   await overviewCall({action:'delete_report',id:r.id,confirmed:true});if(overviewState.report?.id===r.id){clearTimeout(pollTimer);overviewState.loadSequence++;overviewState.report=null;}
   overviewState.config=overviewConfig();await renderReportingOverview();toast('Snapshot deleted.');
  });
@@ -68,7 +68,7 @@ function bindOverviewLibrary(){
  authBind('#overview-template',async()=>saveOverviewDefinition(true));
  authBind('#overview-use-template',async()=>{const c=overviewConfig();await newOverviewReport({...c,client_name:'',sources:[]});toast('Choose the client and accounts for this report.');});
  authBind('#overview-delete',async()=>{
-  const s=overviewState.selection;if(!s)return;const noun=s.kind==='template'?'template':'saved report';if(!confirm('Delete the '+noun+' “'+overviewState.config.name+'”?'+(s.kind==='view'?' Its schedule and pending deliveries will stop. Collected snapshots and external spreadsheets are kept.':' Reports already created from it are kept.')))return;
+  const s=overviewState.selection;if(!s)return;const noun=s.kind==='template'?'template':'saved report';if(!await confirmAction({title:'Delete the '+noun+' “'+overviewState.config.name+'”?',consequence:s.kind==='view'?'Its schedule and pending deliveries will stop. Collected snapshots and external spreadsheets are kept.':'Reports already created from it are kept.',confirmLabel:'Delete '+noun}))return;
   await overviewCall({action:s.kind==='template'?'delete_template':'delete_view',id:s.id,expected_revision:s.revision,confirmed:true});await newOverviewReport();toast(pretty(noun)+' deleted.');
  });
  $('#overview-saved').addEventListener('change',async e=>{

@@ -1,0 +1,26 @@
+/* Accessibility layer, loaded after every other stylesheet (review 2026-09-28; docs/review/FINDINGS.md F-37, F-38, F-44). WCAG 2.1 AA: text at least 4.5:1,
+   focus rings and control borders at least 3:1 (1.4.11), a 12px floor for readable text, and reflow down to 320px.
+   The shades are the identity's own ink and iris; ratios are recorded in docs/review/ACCESSIBILITY.md. */
+:root{--iris-700:#5a43bd;--text-muted:#6c697b;--line-strong:#8e87a0}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,[tabindex]:focus-visible,.command-search input:focus-visible{outline:2px solid var(--iris-700);outline-offset:2px}
+input:not([type=checkbox]):not([type=radio]),select,textarea{border-color:var(--line-strong)}
+.page-heading p,.page-footer,.command-trigger,.command-trigger kbd,.initial-loading,.report-section-label small,.native-settings,.custom-metric-heading p,.forgot-link,.auth-switch,.auth-legal{color:var(--text-muted)}
+.auth-switch a{color:var(--iris-700)}
+.page-footer,.command-trigger kbd,.forgot-link,.auth-legal{font-size:12px}
+.auth-form .form-note{color:var(--text-muted);font-size:12px!important}
+.status{color:#4f4a5c}
+input[type=checkbox],input[type=radio]{min-width:18px;min-height:18px}
+input,select,textarea{min-width:0;max-width:100%}
+code{overflow-wrap:anywhere}
+@media (max-width:850px){.sidebar{box-shadow:none}.menu-open .sidebar{box-shadow:15px 0 50px #18112230}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+.page-error{max-width:640px;margin:40px auto}.page-error h1{font-size:26px}.page-error h1:focus{outline:none}
+.metric-formula{display:block;font-size:12px;font-weight:400;color:var(--text-muted)}.report-table-wrap:focus-visible{outline:2px solid var(--iris-700);outline-offset:2px}
+.breadcrumb span,#menu-toggle,.report-heading .eyebrow,.report-heading p{color:var(--text-muted)}
+.auth-story>.eyebrow,.auth-story>p{color:#5f5b70}
+.auth-story h2 em{color:var(--iris-700)}
+.feature-card p{color:#5f5b70}
+.panel-header{flex-wrap:wrap}
+@media (max-width:600px){.recipe-fields{grid-template-columns:minmax(0,1fr)}}
+.recipe-fields>label{min-width:0}.recipe-fields select{width:100%}
+#recipe-form{grid-template-columns:minmax(0,1fr)}#recipe-form>*{min-width:0}
