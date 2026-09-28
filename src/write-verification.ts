@@ -617,13 +617,11 @@ function verificationReads(
   }
   if (gateway === 'x_ads_native_action') {
     const records = Array.isArray(d.data) ? d.data : [d.data];
-    return records
-      .filter(Boolean)
-      .map((r: JsonObject) => ({
-        read: base(plan.method === 'POST' ? plan.path + '/' + r.id : plan.path),
-        expected: b,
-        id: String(r.id),
-      }));
+    return records.filter(Boolean).map((r: JsonObject) => ({
+      read: base(plan.method === 'POST' ? plan.path + '/' + r.id : plan.path),
+      expected: b,
+      id: String(r.id),
+    }));
   }
   if (gateway === 'linkedin_native_action') {
     const id = String(result.created_id ?? result.headers?.['x-restli-id'] ?? plan.path.split('/').at(-1)),

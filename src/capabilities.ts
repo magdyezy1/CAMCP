@@ -68,30 +68,28 @@ export function workspaceCapabilities(store: Store, actor: Actor) {
     contract_version: 1,
     providers: providerContracts.map(c => effectiveProviderContract(c.id)),
     features,
-    evidence: store
-      .listConnections(actor.tenantId)
-      .flatMap(c =>
-        c.accounts.map(account => ({
-          gateway: c.gateway,
-          connection_id: c.id,
-          account_id: account,
-          read: checks
-            .filter(r => r.connection_id === c.id && r.account_id === account && r.live_read)
-            .map(r => ({at: r.checked_at, requirements: r.requirements})),
-          provider_validation: validations
-            .filter(r => r.connection_id === c.id && r.account_id === account)
-            .map(({actor, ...r}: JsonObject) => r),
-          writes: writes
-            .filter(r => r.connection_id === c.id && r.account_id === account)
-            .map(r => ({
-              review_id: r.review_id,
-              action: r.action,
-              status: r.status,
-              at: r.checked_at,
-              checks: r.checks,
-            })),
-        })),
-      ),
+    evidence: store.listConnections(actor.tenantId).flatMap(c =>
+      c.accounts.map(account => ({
+        gateway: c.gateway,
+        connection_id: c.id,
+        account_id: account,
+        read: checks
+          .filter(r => r.connection_id === c.id && r.account_id === account && r.live_read)
+          .map(r => ({at: r.checked_at, requirements: r.requirements})),
+        provider_validation: validations
+          .filter(r => r.connection_id === c.id && r.account_id === account)
+          .map(({actor, ...r}: JsonObject) => r),
+        writes: writes
+          .filter(r => r.connection_id === c.id && r.account_id === account)
+          .map(r => ({
+            review_id: r.review_id,
+            action: r.action,
+            status: r.status,
+            at: r.checked_at,
+            checks: r.checks,
+          })),
+      })),
+    ),
     meaning:
       'Implemented and fixture-tested are not live qualification. Evidence is timestamped and applies only to the listed account, action and fields.',
   };

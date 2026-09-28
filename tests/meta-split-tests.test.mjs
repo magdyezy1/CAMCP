@@ -132,15 +132,13 @@ function fixture(o = {}) {
         if (m && studies.has(m[1])) {
           assert.equal(f, 'name,treatment_percentage,adsets.limit(100){id},campaigns.limit(100){id}');
           return Response.json({
-            data: studies
-              .get(m[1])
-              .cells.map((c, i) => ({
-                id: m[1] + i,
-                name: c.name,
-                treatment_percentage: c.treatment_percentage,
-                ...(c.adsets.length ? {adsets: {data: c.adsets.map(id => ({id}))}} : {}),
-                ...(c.campaigns.length ? {campaigns: {data: c.campaigns.map(id => ({id}))}} : {}),
-              })),
+            data: studies.get(m[1]).cells.map((c, i) => ({
+              id: m[1] + i,
+              name: c.name,
+              treatment_percentage: c.treatment_percentage,
+              ...(c.adsets.length ? {adsets: {data: c.adsets.map(id => ({id}))}} : {}),
+              ...(c.campaigns.length ? {campaigns: {data: c.campaigns.map(id => ({id}))}} : {}),
+            })),
           });
         }
         m = /^\/v25\.0\/(\d+)$/.exec(path);

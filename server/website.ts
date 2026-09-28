@@ -462,14 +462,12 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       const session = web.session(req),
         connections = session ? store.listConnections(session.actor.tenantId) : [];
       res.json({
-        platforms: oauth
-          .publicConfig()
-          .map(p => ({
-            ...p,
-            connections: connections
-              .filter(c => c.gateway === p.gateway)
-              .map(c => publicConnection(session!.actor.tenantId, c)),
-          })),
+        platforms: oauth.publicConfig().map(p => ({
+          ...p,
+          connections: connections
+            .filter(c => c.gateway === p.gateway)
+            .map(c => publicConnection(session!.actor.tenantId, c)),
+        })),
         authenticated: !!session,
       });
     }),

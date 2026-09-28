@@ -119,12 +119,10 @@ function fixture({readDrift} = {}) {
       const b = JSON.parse(init.body);
       writes.push(b);
       // TikTok stores the definition; it may return rules and values in another order and numbers in another format.
-      const rules = [...b.rules]
-        .reverse()
-        .map(r => ({
-          ...r,
-          values: [...r.values].reverse().map(v => (r.parameter === 'VALUE' ? String(Number(v)) : v)),
-        }));
+      const rules = [...b.rules].reverse().map(r => ({
+        ...r,
+        values: [...r.values].reverse().map(v => (r.parameter === 'VALUE' ? String(Number(v)) : v)),
+      }));
       conversions.push({
         custom_conversion_id: '8800001',
         name: b.name,

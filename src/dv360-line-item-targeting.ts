@@ -818,12 +818,10 @@ function rowsOf(value: unknown): Row[] {
   if (Array.isArray(value.assignedTargetingOptions))
     return value.assignedTargetingOptions.filter(obj).map(o => ({owner: advertiserOwner, option: o}));
   if (Array.isArray(value.adGroupAssignedTargetingOptions))
-    return value.adGroupAssignedTargetingOptions
-      .filter(obj)
-      .map(r => ({
-        owner: String(r.adGroupId),
-        option: obj(r.assignedTargetingOption) ? r.assignedTargetingOption : {},
-      }));
+    return value.adGroupAssignedTargetingOptions.filter(obj).map(r => ({
+      owner: String(r.adGroupId),
+      option: obj(r.assignedTargetingOption) ? r.assignedTargetingOption : {},
+    }));
   return list(value.lineItemAssignedTargetingOptions)
     .filter(obj)
     .map(r => ({owner: String(r.lineItemId), option: obj(r.assignedTargetingOption) ? r.assignedTargetingOption : {}}));

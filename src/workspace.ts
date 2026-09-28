@@ -240,32 +240,28 @@ export class WorkspaceService {
         at: Date.now(),
         writes_enabled: this.allowWrites,
         writes_paused: writePause(this.store, actor.tenantId) ?? null,
-        connections: this.store
-          .listConnections(actor.tenantId)
-          .map(c => ({
-            id: c.id,
-            gateway: c.gateway,
-            label: c.label,
-            enabled: c.enabled,
-            accounts: c.accounts,
-            write_accounts: c.writeAccounts ?? [],
-            accounts_status: c.accounts.map(account => ({
-              account_id: account,
-              check: checks.find(x => x.connection_id === c.id && x.account_id === account) ?? null,
-              verified_writes: receipts
-                .filter(r => r.connection_id === c.id && r.account_id === account)
-                .map(r => ({review_id: r.id, at: r.checked_at, status: r.status, action: r.action})),
-            })),
+        connections: this.store.listConnections(actor.tenantId).map(c => ({
+          id: c.id,
+          gateway: c.gateway,
+          label: c.label,
+          enabled: c.enabled,
+          accounts: c.accounts,
+          write_accounts: c.writeAccounts ?? [],
+          accounts_status: c.accounts.map(account => ({
+            account_id: account,
+            check: checks.find(x => x.connection_id === c.id && x.account_id === account) ?? null,
+            verified_writes: receipts
+              .filter(r => r.connection_id === c.id && r.account_id === account)
+              .map(r => ({review_id: r.id, at: r.checked_at, status: r.status, action: r.action})),
           })),
-        campaigns: this.store
-          .documents(actor.tenantId, 'campaign_run')
-          .map(r => ({
-            id: r.id,
-            name: r.name,
-            state: r.state,
-            updated_at: r.updated_at,
-            steps: r.steps.map((s: JsonObject) => ({id: s.id, status: s.status, error: s.error})),
-          })),
+        })),
+        campaigns: this.store.documents(actor.tenantId, 'campaign_run').map(r => ({
+          id: r.id,
+          name: r.name,
+          state: r.state,
+          updated_at: r.updated_at,
+          steps: r.steps.map((s: JsonObject) => ({id: s.id, status: s.status, error: s.error})),
+        })),
         levels: ['implemented', 'locally_tested', 'provider_read_checked', 'provider_validated', 'write_verified'],
         limitations:
           'A connection check is not validation of every workflow. No live badge is inferred from catalog coverage.',

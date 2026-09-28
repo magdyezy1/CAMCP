@@ -92,12 +92,10 @@ export function reportSourceError(error: unknown, source: JsonObject): JsonObjec
     ...(syncing ? {operation: 'account_sync', asset_kind: source.asset_kind} : {}),
   };
   if (e.code === 'REPORT_PERIODS_FAILED' && Array.isArray(e.details.periods))
-    diagnostic.period_errors = e.details.periods
-      .slice(0, 366)
-      .map((r: JsonObject) => ({
-        date_range: r.date_range,
-        error: {code: text(r.error?.code, 160), message: text(r.error?.message)},
-      }));
+    diagnostic.period_errors = e.details.periods.slice(0, 366).map((r: JsonObject) => ({
+      date_range: r.date_range,
+      error: {code: text(r.error?.code, 160), message: text(r.error?.message)},
+    }));
   if (typeof e.details.retry_after_ms === 'number' && Number.isFinite(e.details.retry_after_ms))
     diagnostic.retry_after_ms = e.details.retry_after_ms;
   if (providerCode || providerMessage || requestId)

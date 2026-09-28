@@ -175,13 +175,11 @@ function fixture() {
           assert.equal(u.searchParams.get('fields'), 'bidOverride,status');
           const limit = Number(u.searchParams.get('limit')),
             offset = Number(u.searchParams.get('offset'));
-          let rows = lines
-            .get(m[1])
-            .products.map(p => ({
-              id: p.id,
-              type: 'RetailMediaPromotedProduct',
-              attributes: {bidOverride: p.bidOverride, status: p.status},
-            }));
+          let rows = lines.get(m[1]).products.map(p => ({
+            id: p.id,
+            type: 'RetailMediaPromotedProduct',
+            attributes: {bidOverride: p.bidOverride, status: p.status},
+          }));
           if (mode === 'many')
             rows = Array.from({length: 1501}, (_, i) => ({
               id: 'bulk-' + i,

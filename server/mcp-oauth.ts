@@ -98,17 +98,15 @@ export class McpOAuth implements OAuthServerProvider {
           client.client_secret_expires_at = 0;
         }
         const {client_secret, ...metadata} = client;
-        this.web.store.db
-          .prepare('INSERT INTO amcp_mcp_clients VALUES(?,?)')
-          .run(
-            client.client_id,
-            JSON.stringify({
-              ...metadata,
-              ...(client_secret
-                ? {encrypted_client_secret: this.web.sealClientSecret(client.client_id, client_secret)}
-                : {}),
-            }),
-          );
+        this.web.store.db.prepare('INSERT INTO amcp_mcp_clients VALUES(?,?)').run(
+          client.client_id,
+          JSON.stringify({
+            ...metadata,
+            ...(client_secret
+              ? {encrypted_client_secret: this.web.sealClientSecret(client.client_id, client_secret)}
+              : {}),
+          }),
+        );
         return client;
       },
     };

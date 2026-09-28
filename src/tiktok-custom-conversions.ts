@@ -283,19 +283,17 @@ export function tiktokCustomConversionProjection(v: unknown): JsonObject {
 /** Stable review state for the pixel read: identity and ownership, not event data TikTok refreshes every few hours. */
 export function tiktokPixelState(data: JsonObject): JsonObject {
   return {
-    pixels: (Array.isArray(data.data?.pixels) ? data.data.pixels : [])
-      .filter(obj)
-      .map((p: JsonObject) => ({
-        pixel_id: p.pixel_id === undefined ? undefined : String(p.pixel_id),
-        pixel_code: p.pixel_code,
-        pixel_name: p.pixel_name,
-        asset_ownership: obj(p.asset_ownership)
-          ? {
-              ownership_status: p.asset_ownership.ownership_status,
-              asset_relation_status: p.asset_ownership.asset_relation_status ?? null,
-            }
-          : null,
-      })),
+    pixels: (Array.isArray(data.data?.pixels) ? data.data.pixels : []).filter(obj).map((p: JsonObject) => ({
+      pixel_id: p.pixel_id === undefined ? undefined : String(p.pixel_id),
+      pixel_code: p.pixel_code,
+      pixel_name: p.pixel_name,
+      asset_ownership: obj(p.asset_ownership)
+        ? {
+            ownership_status: p.asset_ownership.ownership_status,
+            asset_relation_status: p.asset_ownership.asset_relation_status ?? null,
+          }
+        : null,
+    })),
   };
 }
 /** Stable review state for the pixel's custom conversions: definitions, not activity counts. */

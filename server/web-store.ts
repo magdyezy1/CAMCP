@@ -238,19 +238,17 @@ export class WebStore {
     const user = this.store.db
       .prepare('SELECT version FROM amcp_users WHERE id=? AND disabled=0 AND approved=1')
       .get(actor.userId) as JsonObject | undefined;
-    this.store.db
-      .prepare('INSERT INTO amcp_web_sessions VALUES(?,?,?,?)')
-      .run(
-        sha256(s.id),
-        JSON.stringify(
-          Object.assign(actor, {
-            ...(user ? {accountVersion: user.version} : {}),
-            signedInAt: Math.min(signedInAt, now),
-          }),
-        ),
-        s.csrf,
-        s.expiresAt,
-      );
+    this.store.db.prepare('INSERT INTO amcp_web_sessions VALUES(?,?,?,?)').run(
+      sha256(s.id),
+      JSON.stringify(
+        Object.assign(actor, {
+          ...(user ? {accountVersion: user.version} : {}),
+          signedInAt: Math.min(signedInAt, now),
+        }),
+      ),
+      s.csrf,
+      s.expiresAt,
+    );
     return s;
   }
   /** Password sign-in for a reviewer. Mirrors the administrator door but lands in the test

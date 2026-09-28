@@ -200,24 +200,22 @@ function fixture(
       if (u.pathname === prefix + '/accounts/123/balances')
         return Response.json(
           page(
-            u.searchParams
-              .getAll('limitToId')
-              .map(balance => ({
-                id: mode === 'foreign_balance' ? '999' : balance,
-                type: 'Balance',
-                attributes: {
-                  name: 'Fund',
-                  balanceType: 'capped',
-                  deposited: data.deposited ?? 10000,
-                  spent: calls.length,
-                  remaining: 10000 - calls.length,
-                  spendType: 'Onsite',
-                  privateMarketBillingType: 'notApplicable',
-                  startDate: '2026-01-01',
-                  endDate: null,
-                  status: 'active',
-                },
-              })),
+            u.searchParams.getAll('limitToId').map(balance => ({
+              id: mode === 'foreign_balance' ? '999' : balance,
+              type: 'Balance',
+              attributes: {
+                name: 'Fund',
+                balanceType: 'capped',
+                deposited: data.deposited ?? 10000,
+                spent: calls.length,
+                remaining: 10000 - calls.length,
+                spendType: 'Onsite',
+                privateMarketBillingType: 'notApplicable',
+                startDate: '2026-01-01',
+                endDate: null,
+                status: 'active',
+              },
+            })),
             u,
           ),
         );

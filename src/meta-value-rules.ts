@@ -246,26 +246,24 @@ export function validateMetaValueRuleState(read: CompiledRequest, result: Transp
 /** Stable review state: the sets with their rules and criteria as plain lists, without paging cursors. It accepts its own output. */
 export function metaValueRuleState(data: JsonObject): JsonObject {
   return {
-    data: (Array.isArray(data.data) ? data.data : [])
-      .filter(obj)
-      .map((set: JsonObject) => ({
-        id: set.id,
-        name: set.name,
-        rules: edges(set.rules).map(r => ({
-          id: r.id,
-          name: r.name,
-          adjust_sign: r.adjust_sign,
-          adjust_value: r.adjust_value,
-          status: r.status ?? null,
-          criterias: edges(r.criterias).map(c => ({
-            id: c.id,
-            criteria_type: c.criteria_type,
-            operator: c.operator,
-            criteria_values: c.criteria_values,
-            criteria_value_types: c.criteria_value_types,
-          })),
+    data: (Array.isArray(data.data) ? data.data : []).filter(obj).map((set: JsonObject) => ({
+      id: set.id,
+      name: set.name,
+      rules: edges(set.rules).map(r => ({
+        id: r.id,
+        name: r.name,
+        adjust_sign: r.adjust_sign,
+        adjust_value: r.adjust_value,
+        status: r.status ?? null,
+        criterias: edges(r.criterias).map(c => ({
+          id: c.id,
+          criteria_type: c.criteria_type,
+          operator: c.operator,
+          criteria_values: c.criteria_values,
+          criteria_value_types: c.criteria_value_types,
         })),
       })),
+    })),
   };
 }
 /** A set as Meta applies it: ordered rules without IDs, criteria sorted by type and value pairs, values in upper case. */

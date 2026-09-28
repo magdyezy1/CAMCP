@@ -117,14 +117,12 @@ function fixture(file = ':memory:') {
           if (mode === 'missing_id') rows = rows.map(r => ({...r, userId: undefined, invitationId: undefined}));
           if (mode === 'moving' && reads > 3) rows = rows.map(r => ({...r, accessRole: 'READ_ONLY'}));
           if (mode === 'telemetry')
-            rows = rows
-              .reverse()
-              .map(r => ({
-                ...r,
-                ...(kind === 'customer_user_access'
-                  ? {accessCreationDateTime: String(reads), inviterUserEmailAddress: 'different@example.test'}
-                  : {creationDateTime: String(reads)}),
-              }));
+            rows = rows.reverse().map(r => ({
+              ...r,
+              ...(kind === 'customer_user_access'
+                ? {accessCreationDateTime: String(reads), inviterUserEmailAddress: 'different@example.test'}
+                : {creationDateTime: String(reads)}),
+            }));
         }
         const total = rows.length;
         let next: string | undefined;

@@ -319,15 +319,13 @@ export function googleListingGroupState(read: CompiledRequest, data: JsonObject)
   };
 }
 const stateNodes = (v: unknown): Node[] =>
-  (obj(v) && Array.isArray(v.nodes) ? v.nodes : [])
-    .filter(obj)
-    .map((n: JsonObject) => ({
-      name: n.resource_name,
-      type: n.type,
-      source: n.listing_source,
-      parent: n.parent ?? undefined,
-      caseValue: n.case_value ?? undefined,
-    }));
+  (obj(v) && Array.isArray(v.nodes) ? v.nodes : []).filter(obj).map((n: JsonObject) => ({
+    name: n.resource_name,
+    type: n.type,
+    source: n.listing_source,
+    parent: n.parent ?? undefined,
+    caseValue: n.case_value ?? undefined,
+  }));
 /** Applies the operations in order, as Google does, refusing parents removed before their children and children created before their parents. */
 function finalTree(p: CompiledRequest, current: Node[]): Map<string, Node> {
   const tree = new Map(current.map(n => [n.name, n])),

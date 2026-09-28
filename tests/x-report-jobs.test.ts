@@ -104,24 +104,22 @@ function fixture(file = ':memory:', allowWrites = true) {
   const result = () => ({
     data_type: 'stats',
     time_series_length: xReportBuckets(state.query, state.timezone),
-    data: state.query.entity_ids
-      .split(',')
-      .map((id: string) => ({
-        id,
-        id_data: [
-          {
-            segment: state.query.segmentation_type
-              ? {name: 'Synthetic <script>ignored</script>', value: 'native-segment'}
-              : null,
-            metrics: {
-              impressions: Array(xReportBuckets(state.query, state.timezone)).fill(100),
-              clicks: null,
-              billed_charge_local_micro: Array(xReportBuckets(state.query, state.timezone)).fill(1234567),
-              conversion_purchases: {post_view: Array(xReportBuckets(state.query, state.timezone)).fill(null)},
-            },
+    data: state.query.entity_ids.split(',').map((id: string) => ({
+      id,
+      id_data: [
+        {
+          segment: state.query.segmentation_type
+            ? {name: 'Synthetic <script>ignored</script>', value: 'native-segment'}
+            : null,
+          metrics: {
+            impressions: Array(xReportBuckets(state.query, state.timezone)).fill(100),
+            clicks: null,
+            billed_charge_local_micro: Array(xReportBuckets(state.query, state.timezone)).fill(1234567),
+            conversion_purchases: {post_view: Array(xReportBuckets(state.query, state.timezone)).fill(null)},
           },
-        ],
-      })),
+        },
+      ],
+    })),
     request: {params: nativeDefinition()},
   });
   const transport = new NativeTransport(

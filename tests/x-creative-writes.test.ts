@@ -260,16 +260,14 @@ function fixture(file = ':memory:') {
     }
     if (suffix === '/promoted_tweets') {
       assert.equal(Object.hasOwn(b, 'entity_status'), false);
-      const rows = b.tweet_ids
-        .split(',')
-        .map((id: string, i: number) => ({
-          id: 'promo' + (ads.length + i + 1),
-          line_item_id: b.line_item_id,
-          tweet_id: id,
-          entity_status: 'ACTIVE',
-          approval_status: 'ACCEPTED',
-          deleted: false,
-        }));
+      const rows = b.tweet_ids.split(',').map((id: string, i: number) => ({
+        id: 'promo' + (ads.length + i + 1),
+        line_item_id: b.line_item_id,
+        tweet_id: id,
+        entity_status: 'ACTIVE',
+        approval_status: 'ACCEPTED',
+        deleted: false,
+      }));
       ads.push(...rows);
       return Response.json({data: rows});
     }

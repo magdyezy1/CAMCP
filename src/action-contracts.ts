@@ -606,20 +606,18 @@ export function actionContracts(registry: Registry): ActionContract[] {
 }
 export function actionContractSummary(registry: Registry) {
   const rows = actionContracts(registry);
-  return [...new Set([...registry.catalogs.keys(), ...rows.map(r => r.gateway)])]
-    .sort()
-    .map(gateway => ({
-      gateway,
-      actions: rows.filter(r => r.gateway === gateway).length,
-      counts: Object.fromEntries(
-        [...new Set(rows.filter(r => r.gateway === gateway).map(r => r.status))]
-          .sort()
-          .map(status => [status, rows.filter(r => r.gateway === gateway && r.status === status).length]),
-      ),
-      captured_catalog_complete: registry.catalogs.get(gateway)?.complete ?? false,
-      provider_api_coverage: 'unknown',
-      live_qualification: 'unverified',
-    }));
+  return [...new Set([...registry.catalogs.keys(), ...rows.map(r => r.gateway)])].sort().map(gateway => ({
+    gateway,
+    actions: rows.filter(r => r.gateway === gateway).length,
+    counts: Object.fromEntries(
+      [...new Set(rows.filter(r => r.gateway === gateway).map(r => r.status))]
+        .sort()
+        .map(status => [status, rows.filter(r => r.gateway === gateway && r.status === status).length]),
+    ),
+    captured_catalog_complete: registry.catalogs.get(gateway)?.complete ?? false,
+    provider_api_coverage: 'unknown',
+    live_qualification: 'unverified',
+  }));
 }
 export function actionContractPage(registry: Registry, input: JsonObject) {
   const offset = input.offset ?? 0,

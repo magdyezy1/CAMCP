@@ -97,13 +97,11 @@ function fixture(file = ':memory:') {
             if (mode === 'duplicate') list = [...list, ...list];
             if (mode === 'moving' && reads > 2) list = list.map(v => ({...v, type: 'KEYWORD'}));
             if (mode === 'telemetry')
-              list = list
-                .reverse()
-                .map(v => ({
-                  ...v,
-                  campaigns: [...v.campaigns].reverse(),
-                  impact: {baseMetrics: {costMicros: String(reads)}},
-                }));
+              list = list.reverse().map(v => ({
+                ...v,
+                campaigns: [...v.campaigns].reverse(),
+                impact: {baseMetrics: {costMicros: String(reads)}},
+              }));
           }
           const total = list.length;
           let token: string | undefined;
