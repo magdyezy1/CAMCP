@@ -86,7 +86,8 @@ the generic budget scan cannot find them, so budget limits apply.
    ledger route is claimed by two families, that its reader passes foreign reads on, and that no lifecycle module
    names it directly.
 6. Regenerate the ledger, contracts and status report: `npm run contracts:actions`, `npm run contracts:generate`,
-   `npm run report` (`npm run check` fails while any of them is stale). Name any
+   `npm run report`, and after adding the family's record to `docs/implementation/`, the documentation map:
+   `npm run docs:index` (`npm run check` fails while any of them is stale). Name any
    new refusal code in a guide (`Skills/amcp-campaign-builder/references/`, listed in `src/guidance.ts`), or
    declare it in `tools/guidance-coverage.ts` with a reason.
 7. `npm run format`, `npm run test:related`, then the full qualification in a release candidate (`docs/review/PROGRESS.md` shows the

@@ -101,6 +101,8 @@ whole contract in every inspect and prepare; `amcp_campaign` does so for each st
 - The test suite runs in parallel.
 - `npm run test:related` runs only the affected suites.
 - `docs/ADDING-A-REVIEWED-FAMILY.md` explains how to add a family.
+- `docs/README.md` maps every guide, review and implementation record, and `docs/CONTRACTS.md` lists each gateway's
+  argument names. Both are generated and checked, so neither can fall behind.
 
 ## Measurements
 

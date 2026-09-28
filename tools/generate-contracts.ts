@@ -3,6 +3,7 @@ import {providerContracts} from '../src/provider-contracts.js';
 import {providerMaintenance} from '../src/contract-evidence.js';
 import {googleAdsVersion} from '../src/google-version.js';
 import {providerSunset} from '../src/provider-sunsets.js';
+import {Registry} from '../src/catalog.js';
 const escape = (v: unknown) =>
   String(v ?? 'Unsupported')
     .replaceAll('|', '\\|')
@@ -32,6 +33,108 @@ for (const c of providerContracts)
 lines.push(
   '',
   'Every local action and delegated enum has a status in [ACTION-CONTRACT-COVERAGE.csv](implementation/ACTION-CONTRACT-COVERAGE.csv), also available through `amcp_workspace contracts`. [VENDOR-METHOD-COVERAGE.json](implementation/VENDOR-METHOD-COVERAGE.json) separately includes every method in the pinned public specifications, including methods missing from the catalog. Generate and check both with `contracts:actions` / `contracts:actions:check`. These inventories preserve blocked operations and never grant execution.',
+);
+// Each direct gateway's argument names (F-32). The captured gateways name the same things differently, and AMCP keeps
+// their names to stay compatible with them. A cell lists names separated by commas; `a=b` is the name `a` with its
+// alias `b`, and `[...]` a note. Every name must exist in the gateway's schema, and every direct gateway must be
+// listed, so the table cannot drift from the schemas.
+const argumentNames: [gateway: string, account: string, path: string, query: string, body: string, pages: string][] = [
+  ['google_ads_native_action', 'account_id', 'path_params', 'params, query', 'payload', ''],
+  [
+    'meta_native_action',
+    'ad_account_id=account_id',
+    'path_params',
+    'params, query',
+    'payload',
+    'aggregate_pages, max_pages',
+  ],
+  [
+    'tiktok_native_action',
+    'advertiser_id=account_id',
+    'path_params',
+    'params, query',
+    'payload',
+    'aggregate_pages, max_pages',
+  ],
+  [
+    'snapchat_native_action',
+    'ad_account_id=account_id',
+    'path_params',
+    'params, query',
+    'payload',
+    'aggregate_pages, max_pages',
+  ],
+  ['linkedin_native_action', '[a path or query value]', 'path_params', 'params, query', 'payload', ''],
+  ['x_ads_native_action', 'account_id', 'path_params', 'params, query', 'payload', ''],
+  [
+    'dv360_native_action',
+    '[advertiserId or partnerId in params]',
+    'pathParams, params',
+    'params, query',
+    'body=payload',
+    'paginate=allPages',
+  ],
+  [
+    'amazon_native_action',
+    'profile_id, region',
+    'path_params',
+    'params, query',
+    'payload',
+    'aggregate_pages, max_pages',
+  ],
+  [
+    'apple_ads_native_action',
+    'account_id=ad_account_id, org_id [org_id for v5 calls]',
+    'path_params',
+    'params, query',
+    'payload',
+    'aggregate_pages, max_pages',
+  ],
+  ['microsoft_ads_native_action', 'account_id', '', '', 'payload', ''],
+];
+const parse = (spec: string) => {
+  const [, list = '', note] = spec.match(/^(.*?)\s*(?:\[(.*)\])?$/)!;
+  const entries = list ? list.split(', ').map(n => n.split('=') as [string, string?]) : [];
+  return {entries, note};
+};
+const schemas = new Map(new Registry().listTools({mode: 'strict', flags: {}}).map(t => [t.name, t.inputSchema]));
+const argumentProblems: string[] = [];
+for (const [gateway, schema] of schemas)
+  if (schema?.properties?.action && !argumentNames.some(([listed]) => listed === gateway))
+    argumentProblems.push(gateway + ' is not listed');
+for (const [gateway, ...cells] of argumentNames)
+  for (const [name, alias] of cells.flatMap(c => parse(c).entries)) {
+    const properties = schemas.get(gateway)?.properties ?? {};
+    for (const n of alias ? [name, alias] : [name]) if (!properties[n]) argumentProblems.push(gateway + ' has no ' + n);
+    if (alias && !/alias/i.test(properties[alias]?.description ?? ''))
+      argumentProblems.push(gateway + ': the schema does not describe ' + alias + ' as an alias');
+  }
+if (argumentProblems.length) throw Error('Argument names table: ' + argumentProblems.join('; '));
+const cell = (spec: string) => {
+  const {entries, note} = parse(spec),
+    text = entries.map(([name, alias]) => '`' + name + '`' + (alias ? ' (alias `' + alias + '`)' : '')).join(', ');
+  return (text || '—') + (note ? ' (' + note + ')' : '');
+};
+lines.push(
+  '',
+  '## Argument names by gateway',
+  '',
+  "The captured gateways name the same things differently, and AMCP keeps their names so that clients written for them keep working. Delegated gateways (Reddit, Criteo, GA4, Tag Manager, Business Profile, Search Console, Adjust and the AMCP gateways) take `operation` and `arguments`; `amcp_tool_help` with the gateway and the operation lists that operation's names.",
+  '',
+  '| Gateway | Account | Path values | Query values | Body | Follow provider pages | Connection |',
+  '| --- | --- | --- | --- | --- | --- | --- |',
+  ...argumentNames.map(
+    ([gateway, ...cells]) =>
+      '| `' +
+      gateway +
+      '` | ' +
+      // A schema that allows extra arguments also takes the connectionId alias the service reads.
+      [
+        ...cells.map(cell),
+        '`connection_id`' + (schemas.get(gateway)?.additionalProperties === false ? '' : ' (alias `connectionId`)'),
+      ].join(' | ') +
+      ' |',
+  ),
 );
 lines.push(
   '',

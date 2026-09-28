@@ -494,3 +494,11 @@ about 4.5 KB more.
 Full qualification (`.release/batch25-20260928`, up to `cab5ae2`): **2,783 / 2,783** tests and **4 / 4** capture
 tests; `format:check`, every generated-artifact check and the Railway check pass. 282 s. The candidate's 1,208 source
 files equal `cab5ae2`, apart from `release-manifest.json`.
+
+## Batch 26 — a map of the documentation, and argument names by gateway
+
+| Change | Evidence |
+|---|---|
+| `docs/README.md` maps all 203 documents: the guides and reviews by section, and the implementation records by platform, newest first, each beside its verification file. It is generated from the documents' own titles (`npm run docs:index`) and linked from the repository README (F-68) | `npm run docs:index:check`, now part of `npm run check`, failed before the map existed and passes after. It also fails on a guide or review not placed in a section (tried with a new `docs/ZZ-NEW-GUIDE.md`) and on a record without a title |
+| `docs/CONTRACTS.md` lists each direct gateway's argument names: the account, path, query and body values, how to follow provider pages, and the connection (F-32). The captured names stay, so clients written for the captured interface keep working | generated with the contract guide (`contracts:check`). The generator refuses a name the gateway's schema lacks, an alias the schema does not call an alias, and a direct gateway left out (each tried: `region_code` on Amazon, Meta's alias reversed, Microsoft's row removed) |
+| `docs/ADDING-A-REVIEWED-FAMILY.md` names `npm run docs:index` among the regeneration steps | — |
