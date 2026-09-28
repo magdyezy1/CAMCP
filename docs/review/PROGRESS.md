@@ -366,6 +366,10 @@ every session it had opened, and the MCP access approved from those sessions, in
 Tests that sign in with either password now await the sign-in. One test fabricated a reviewer session for an
 arbitrary workspace; it now signs in with the reviewer password instead and keeps the same assertion.
 
+Full qualification (`.release/batch18-20260928`, up to `53848b4`): **2,770 / 2,770** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 554 s. The candidate's 1,194 source
+files equal `53848b4`, apart from `release-manifest.json`.
+
 ## Batch 19 — design tokens, the last contrast failures, right-to-left text
 
 Findings: F-40, F-38, F-47. Measured with the batch 3 Playwright audit (50 page and width combinations: anonymous
