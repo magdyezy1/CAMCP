@@ -221,3 +221,7 @@ files equal `3340f25`, apart from `release-manifest.json`.
 | Accounts created through invitations stay pending unless the instance owner invited them | red/green test in `tests/account-security.test.ts` |
 | QR code in two-step setup from the vendored `qrcode-generator` 2.0.4 (integrity recorded) | `tests/mfa-qr.test.mjs`; the rendered QR decodes to the exact `otpauth://` URI with jsQR in Chromium (scratch check) |
 | The two approved production settings are documented for the owner to set in Railway | `docs/DEPLOY-RAILWAY.md` |
+
+Full qualification (`.release/batch11-20260928`, up to `4d77183`): **2,734 / 2,734** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 533 s. The candidate's 1,177
+source files equal `4d77183`, apart from `release-manifest.json`.
