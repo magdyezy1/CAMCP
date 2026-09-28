@@ -100,6 +100,14 @@ the code path was read end to end without running it.
 | F-71 | medium | Reports put each platform's "conversions" in one column although it is a different measure on every platform (Google `metrics.conversions`, LinkedIn `externalWebsiteConversions`, GA4 `keyEvents`, Meta and Snapchat by objective, none on Reddit and X); nothing in the view or the exports said so | `src/report-native.ts` `normalizeNativeRow` | Show the native source of every metric per platform, kept equal to the code by a test | S | fixed (batch 4: `metricSources`, reporting view, evidence download) |
 | F-72 | low | Only Google Ads and Microsoft pinned documents carry `document_sha256`; the other 15 can change on disk unnoticed | `.mirror/VENDOR/*.json` | Seal every pinned document | S | fixed (batch 5: all 22 sealed; the vendor tools and a test require the seal) |
 
+## Product gaps (5.8)
+
+| ID | Sev | Finding | Evidence | Recommendation | Effort | Status |
+|---|---|---|---|---|---|---|
+| F-73 | medium | Media could come only from Google Drive: the website had no file upload, arbitrary links were refused, and one creative could not be pushed to several accounts | `src/media-upload.ts` `source()` (Drive or variant only); `web/workspace.js` media page | Direct upload in parts into the encrypted staging; public-link import with an address guard; a multi-account push | L | fixed (batch 12: `src/media-sources.ts`, `src/media-link.ts`, `amcp_media plan`, *Push a creative*) |
+| F-74 | medium | Refusals that a conversion would solve (an image over a platform's limit, MOV for X or LinkedIn) ended the flow with no way forward | `src/media-upload.ts` prepare | Opt-in fit to the platform, named in the refusal | M | fixed (batch 12: `fit_to_platform`, owner's 1080 × 1920 delivery size, never cropped) |
+| F-75 | low | Docs drift: conversion limit stated as 32 MiB (it is the media limit, 128 MiB by default); receipt reuse described as not a fresh availability check (it is one); receipts described as `source:"uploaded"` | `docs/WORKSPACE-OPERATIONS.md:12,15`, `Skills/…/workspace.md:88`, `docs/MEDIA-UPLOADS.md:64` | Correct the text | S | fixed (batch 12) |
+
 ## Architecture, performance, developer experience (5.1, 5.6, 5.9)
 
 | ID | Sev | Finding | Evidence | Recommendation | Effort | Status |

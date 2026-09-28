@@ -225,3 +225,23 @@ files equal `3340f25`, apart from `release-manifest.json`.
 Full qualification (`.release/batch11-20260928`, up to `4d77183`): **2,734 / 2,734** tests and **4 / 4** capture
 tests; `format:check`, every generated-artifact check and the Railway check pass. 533 s. The candidate's 1,177
 source files equal `4d77183`, apart from `release-manifest.json`.
+
+## Batch 12 — media without Google Drive, fit to each platform, push a creative
+
+Findings: F-73, F-74, F-75. The owner's request of 2026-09-28: uploads not dependent on Google Drive, a creative
+pushed from the website to chosen accounts, and automatic resizing when pixels exceed a limit (4500 × 4500 → 1080 ×
+1080, 4500 × 8000 → 1080 × 1920).
+
+| Change | Evidence |
+|---|---|
+| The media conversion code shares one bounded workspace (temporary directory, two processes at once), one ffprobe call with the input guard and one conversion call; variants and placement checks use them unchanged | the 54 existing media tests pass before and after, including the real-FFmpeg variant test |
+| Uploads in 1 MiB parts into the encrypted staging, with their own quota (four waiting per workspace, eight in all) apart from the two reviews each workspace stages; completion checks every part, the type from the bytes and the SHA-256, then reads the size and a preview frame; uploads belong to their member, administrators can use all, readers and test accounts cannot upload | `tests/media-sources.test.ts`: staging quota, parts, resumable completion, ownership, website routes over HTTP (CSRF, exact part length, content type, test-account refusal) |
+| Public-link import (`source_url`, the website's link field, native `url`): HTTPS on port 443 with a host name, every resolved address public, connection to the checked address, each of at most three redirects checked again, host recorded but never the link | the same file: 17 address cases, 9 refused link forms, private resolutions refused through the real HTTPS transport before any connection, redirect rules, the link's token absent from documents and audit |
+| `fit_to_platform`: scale down to at most 1080 on the short side and 1920 on the long side, never crop or enlarge; re-encode an image over the platform limit (PNG to JPEG only without transparency); MOV to MP4 for X and LinkedIn (stream copy when already H.264/AAC); EXIF orientation applied by AMCP because FFmpeg 5.1 and later versions differ | 4500 × 4500 JPEG → 1080 × 1080 for LinkedIn, uploaded bytes decoded as 1080 × 1080; 4500 × 8000 PNG → 1080 × 1920 for TikTok; a 6.2 MB PNG → JPEG under TikTok's 5 MiB; EXIF orientations 1–8 in both byte orders give pixel-identical output to FFmpeg's own EXIF handling (scratch check) |
+| `amcp_media plan`: for up to 20 destinations, access and the exact file each would receive, without staging or calling a platform; `prepare` takes `expected_sha256` and refuses a different file | plan test: shared conversion, per-platform wording, an unconnected destination reported, nothing staged or uploaded; a different file refused with `MEDIA_CHANGED` |
+| *Push a creative* on the Media library page: upload once or import a link, choose accounts, see what each receives and why, confirm once, then each account is prepared and pushed in turn | Chromium against a local server with simulated Meta, TikTok and LinkedIn APIs: upload of a 4500 × 4500 JPEG, three reviews at 1080 × 1080, three uploads with their media IDs, no console errors, no page overflow at 360 px (the table scrolls in its own labelled region) |
+| Every refusal new in this batch has its own remedy; the stale media docs are corrected | `tests/error-remedy.test.ts` (5 new codes); `docs/MEDIA-UPLOADS.md`, `docs/WORKSPACE-OPERATIONS.md`, the workspace guide |
+
+A push stages one review at a time, so the workspace's two-review staging limit is unchanged. The first browser run
+found that preparing every account before confirming would hit that limit from the third account on; the limit
+stays, and the push plans first instead.

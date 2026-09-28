@@ -66,12 +66,14 @@ Rated by likelihood × impact for this deployment (one replica, one owner worksp
 | T10 | Information disclosure: plaintext response history | Database or backup copy exposes report rows and lead PII | Secrets sealed; tokens hashed; since batch 7 a read is audited by size, hash and row counts, not content | Rows written before batch 7 keep full outcomes; no purge on disconnect; plain `admin backup` (F-18) | Medium |
 | T11 | Tampering: family misclassification | Enhanced mode `native_request` with a spoofed `action` | Strict mode default | `amcp_write` accepts native requests (F-07) | Medium (non-default) |
 | T12 | Cross-tenant access | Operator guesses another tenant's review or connection id | Tenant column in every key and query | Verified correct | Low |
-| T13 | SSRF | Media URL or Drive link to internal addresses | Host allowlists, pinned DNS for report downloads, `redirect: 'error'` | Verified correct; dot-segment hardening (F-20) | Low |
+| T13 | SSRF | Media URL or Drive link to internal addresses | Host allowlists, pinned DNS for report downloads, `redirect: 'error'`; since batch 12 a public-link import (`source_url`) accepts HTTPS on port 443 with a host name, requires every resolved address to be public, connects to the checked address and re-checks each of at most three redirects | Verified correct; dot-segment hardening (F-20); link guard tested through the real HTTPS transport | Low |
 | T14 | Injection | CSV/Sheets formulas, GAQL, REST.li, path traversal, FFmpeg arguments | Escaping, strict regexes, `shell:false`, protocol whitelist | Verified correct | Low |
 | T15 | Repudiation | A write without a trail | Hash-chained audit per tenant | Verified correct; retention missing (F-18) | Low |
 | T16 | Tampering: stored secret forgery | Truncated GCM tag accepted | AES-256-GCM | Tag length unchecked (F-19); needs DB write access | Low |
 | T17 | Downgrade | HTTP to the site | Cloudflare TLS, `Secure` cookies | No HSTS (F-17) | Low |
 | T18 | Availability: provider sunset | Google Ads v23 sunsets 2027-02; Microsoft SOAP 2027-01-31 | Pinned versions, drift tooling | No dated sunset registry or alarm (F-49…F-56) | Medium |
+| T19 | Denial of service: uploads fill disk or memory | Many or large uploads, or parts sent in parallel | Since batch 12: four waiting uploads per workspace and eight in all, each within the media limit; parts of at most 1 MiB read only after session, CSRF, ownership and exact length are checked; 16 parts in flight server-wide; 30-minute expiry; a link import holds the media byte admission | New surface; bounded | Low |
+| T20 | Tampering: hostile file to FFmpeg | A crafted upload aimed at the decoder | Type from magic bytes, fixed demuxer per type, local-file protocols only, no QuickTime external references, bounded allocation, time limits, 40 MP / 180 s, two processes at once | Existing controls, now also on uploaded files | Low |
 
 ## 5. Assumptions
 

@@ -48,6 +48,14 @@ No protection was loosened. The changes that would loosen one are listed below f
 - MFA setup is guided.
 - Assets are compressed and revalidated.
 
+**Media and creative push.** Media no longer needs Google Drive. On the Media library page, *Push a creative* takes a
+file (or a public link), shows what each chosen account will receive, and after one confirmation uploads it to each
+account in turn, reporting each result. With *fit to each platform* on, anything larger than 1080 × 1920 is scaled
+down without cropping (4500 × 4500 → 1080 × 1080, 4500 × 8000 → 1080 × 1920), an image over a platform's size limit
+is re-encoded, and MOV becomes MP4 for X and LinkedIn. Phone photos keep their orientation. Every change is listed in
+the review. MCP clients get the same through `amcp_media` (`source_id`, `source_url`, `fit_to_platform`, `plan`).
+Links are fetched only from public internet addresses.
+
 **MCP workflow.** Each AMCP tool says when to use it rather than its neighbour. An opt-in flag
 (`MIRROR_FLAGS={"compactSchemas":true}`) removes the duplicated DV360 action names from every `tools/list`.
 
@@ -78,6 +86,7 @@ No protection was loosened. The changes that would loosen one are listed below f
 | Source lines over 300 characters (`src/`) | 1,640 | 61, all string literals |
 | Pinned vendor documents with a digest | 7 of 22 | 22 of 22 |
 | Cold start / memory | 1.1 s / 197 MB | unchanged (F-64 is planned) |
+| Ways to bring media into AMCP | Google Drive only | Drive, a website upload or any public HTTPS link; one upload pushed to up to 20 accounts |
 
 ## Decisions
 

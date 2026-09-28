@@ -1,6 +1,31 @@
-# Media from Google Drive
+# Media uploads
 
-Give AMCP a Google Drive file link. Private files require a separate selected Drive connection; see [workspace operations](WORKSPACE-OPERATIONS.md). **The AMCP server downloads and transfers the file; the MCP client/LLM never needs to download it or expose base64 bytes.** Normal native upload actions, `platform_media_upload` and `amcp_media` share the same reviewed uploader.
+A file reaches AMCP in one of three ways: uploaded on the website (the **Media library** page), a public HTTPS link, or Google Drive (a public share link, or a private file selected in a separate Drive connection; see [workspace operations](WORKSPACE-OPERATIONS.md)). **The AMCP server receives or downloads the file and transfers it; the MCP client/LLM never needs to download it or expose base64 bytes.** Normal native upload actions, `platform_media_upload` and `amcp_media` share the same reviewed uploader.
+
+## Without Google Drive
+
+**Upload on the website.** *Push a creative* on the Media library page takes a PNG, JPEG, MP4 or MOV file. The browser sends it in 1 MiB parts, so each part arrives within the server's 45-second request limit even on a slow connection, and a part that fails is sent again on its own. Each part is encrypted into the same staging as reviews. On completion AMCP checks that every part arrived, that the file really is PNG, JPEG, MP4 or MOV (from its bytes, not its name), records its SHA-256, and reads its dimensions and a small preview frame with FFmpeg. The upload is then an **upload source**, `src-…`, kept for 30 minutes. It belongs to the member who uploaded it; workspace administrators can use every upload of the workspace. At most four uploads wait per workspace and eight in all, apart from the reviews each workspace may stage. Readers cannot upload, and neither can reviewer test accounts.
+
+**A public link.** `amcp_media` accepts `source_url`, and the website accepts a link in place of a file. The link must be HTTPS on the standard port, name a host (not an IP address or a single-label local name) and carry no user name or password. Every address the host resolves to must be public: private, loopback, link-local (cloud metadata), carrier-grade NAT, multicast, documentation and other special-purpose ranges are refused. The connection goes to the address that was checked, so the name cannot be re-pointed between the check and the download. At most three redirects are followed, each checked the same way. No cookie, credential or advertising token is sent. The download is limited to the media limit and must be PNG, JPEG, MP4 or MOV by its bytes. AMCP records the host the file came from, never the full link, which may carry a token. Google Drive links go through `drive_url` instead.
+
+**From MCP.** `amcp_media list` returns current uploads under `sources`. `prepare`, `plan`, `variant` and `inspect_eligibility` take exactly one file: `source_id`, `source_url`, `drive_url` or `variant_id`. Native upload actions and `platform_media_upload` take a public HTTPS link in `url` just as they take a Drive link; an upload is used through `amcp_media` with its `source_id`.
+
+## Fit to each platform
+
+With `fit_to_platform: true`, `prepare` fits the file before freezing it for review, as the owner decided on 2026-09-28:
+
+- Media larger than **1080 pixels on its short side or 1920 on its long side** is scaled down to fit, keeping its shape: 4500 × 4500 becomes 1080 × 1080, 4500 × 8000 becomes 1080 × 1920, 3840 × 2160 video becomes 1920 × 1080. Nothing is cropped, padded or enlarged. This is AMCP's delivery size, not a limit any platform states.
+- An image still above the platform's image limit (table below) is re-encoded: a PNG stays PNG when it fits, otherwise becomes JPEG unless it has transparency (then AMCP refuses and says so); a JPEG is saved at FFmpeg quality 2, then 5, then 9, until it fits.
+- A MOV video for X or LinkedIn, which take only MP4, becomes MP4. Streams that are already H.264 and AAC are copied without re-encoding.
+- A JPEG's EXIF orientation is applied to the pixels, since the output carries no metadata. FFmpeg 5.1 (the production image) and later versions treat EXIF orientation differently, so AMCP reads it itself and applies it once.
+
+Media that already fits is uploaded byte for byte. Otherwise `request.transform` in the review states `from` and `to` (dimensions, bytes, type), each step, and those steps in words for the platform. Fitting is bounded like variants: one image or video stream, at most 40 megapixels and 180 seconds, two conversions at once. Without `fit_to_platform`, a refusal that fitting would solve (an image over the limit, MOV for X or LinkedIn) says so.
+
+## Push to several accounts
+
+`amcp_media plan` takes an upload's `source_id`, `fit_to_platform` and up to 20 `destinations` (`platform`, `account_id`, optional `connection_id`, `owner_urn`, `dv360_target`). Without staging anything or calling a platform, it returns for each destination whether access allows it and the exact file it would receive: SHA-256, size, type, dimensions and every change. Platforms with the same limits share one conversion. Each ready destination is then prepared with `expected_sha256` set to its planned SHA-256 (`prepare` refuses with `MEDIA_CHANGED` if the file differs) and executed as its own review.
+
+The website's *Push a creative* follows exactly this: upload once, choose accounts, see what each receives and why, confirm once, then AMCP prepares and pushes one account at a time and shows each result. One staged review at a time keeps a push within the workspace's two-review staging limit.
 
 ## Normal native flow
 
@@ -61,7 +86,7 @@ This returns the same review and execution `next_call`. `UPLOAD_FROM_URL_VIA_SES
 
 Prepare one selected account per review. Names: `meta`, `tiktok`, `snapchat`, `google_ads`, `linkedin`, `x_ads`, `dv360`; shared workflows also accept `google`, `x`, `twitter`. A single `target_platforms` entry is accepted. Repeat the same link for other targets, without a client download. Use outer `amcp_write.connection_id` to select a login.
 
-`amcp_media prepare` remains available with `platform`, `account_id`, `drive_url`, optional `connection_id` and `name`. Completed uploads appear in `list_media_assets` with `source:"uploaded"`, their platform identifiers and connection ID.
+`amcp_media prepare` takes `platform`, `account_id`, one file (`source_id`, `source_url`, `drive_url` or `variant_id`), optional `connection_id`, `name` and `fit_to_platform`. Completed uploads appear in `amcp_media list` and `list_media_assets` with their platform identifiers, connection ID and `source`: `amcp_upload` (uploaded on the website), `link_import` (a public link) or `server_drive_import` (Google Drive, directly or through a variant).
 
 ## Files and processing
 
@@ -75,7 +100,7 @@ Prepare one selected account per review. Names: `meta`, `tiktok`, `snapchat`, `g
 | X | PNG/JPEG ≤5 MiB; MP4 within the configured limit (default 128 MiB) | `media_id`, `x_media_key`, library ID when attached |
 | DV360 | PNG/JPEG ≤10 MiB; MP4/MOV within the configured limit (default 128 MiB) | `dv360_media_id` and native `asset`; availability handoff remains unqualified and is not marked ready |
 
-Providers additionally enforce dimensions, duration, codecs, permissions and app approvals. AMCP preserves bytes without resizing/transcoding. Upload success does not establish ad approval. Binary upload APIs for other catalog providers are not implemented; measurement services and Apple Ads do not use this advertising-media flow.
+Providers additionally enforce dimensions, duration, codecs, permissions and app approvals. Without `fit_to_platform`, AMCP uploads the exact bytes; with it, the review states every change. Upload success does not establish ad approval. Binary upload APIs for other catalog providers are not implemented; measurement services and Apple Ads do not use this advertising-media flow.
 
 Call `amcp_media {"action":"status","review_id":"..."}` for processing reads and follow its continuation:
 
@@ -87,9 +112,9 @@ Call `amcp_media {"action":"status","review_id":"..."}` for processing reads and
 
 Deployment writes must be enabled; the connector must be operator/admin and the selected connection must grant account writes. This single grant covers campaigns, ad sets, ads, creatives and media equally. `WRITE_ACCOUNT_FORBIDDEN` identifies the chosen connection/account and whether another login has a write grant. Choose that connection explicitly or update the grant in Connections. New connections default to reviewed writes when enabled; existing reader grants are preserved.
 
-Public Drive imports require a downloadable share link. Private files use drive_connection_id and an explicit file selection through Drive OAuth. Folders, Google Docs exports and permission/quota/confirmation HTML remain unsupported. Advertising credentials/cookies are never sent to Drive; redirects are restricted to approved download hosts. Arbitrary source URLs are rejected.
+Public Drive imports require a downloadable share link. Private files use drive_connection_id and an explicit file selection through Drive OAuth. Folders, Google Docs exports and permission/quota/confirmation HTML remain unsupported. Advertising credentials/cookies are never sent to Drive; redirects are restricted to approved download hosts. Any other link goes through `source_url` and its public-address rules (see *Without Google Drive*).
 
-Frozen bytes prevent later Drive edits from changing the reviewed upload. Temporary staging permits two pending files per tenant and eight application-wide, each within the configured limit (default 128 MiB). Expired files are removed on the next capacity reservation; submitted uploads delete bytes immediately on success/failure. `amcp_media cancel` discards an unsubmitted review. Receipts and audits remain.
+Frozen bytes prevent later Drive edits from changing the reviewed upload. Temporary staging permits two pending reviews or variants per tenant and eight application-wide, each within the configured limit (default 128 MiB); uploads waiting to be pushed have their own four per tenant and eight application-wide. Expired files are removed on the next capacity reservation; submitted uploads delete bytes immediately on success/failure. `amcp_media cancel` discards an unsubmitted review. Receipts and audits remain.
 
 Uploads are never automatically retried. Known allocation IDs and `retry_safe:false` survive partial failure. Lost responses leave durable uncertain claims; inspect provider state before deciding to retry. Resumable Google session state is retained encrypted and restricted to its HTTPS resumable-upload origin. LinkedIn URLs are restricted to its HTTPS upload host/path. Multi-step uploads cannot roll back atomically across providers.
 
@@ -105,6 +130,6 @@ Upload execution commits its durable receipt before checking provider availabili
 
 AMCP_MAX_MEDIA_MB controls the staging bound (32–512 MiB, default 128); a value outside that range is rejected, the 128 MiB default applies, and the reason is written to stderr and reported by `amcp_workspace health` under `configuration_problems` rather than stopping the server; lower provider image/format limits still apply. Files are encrypted in 4 MiB SQLite chunks with a checked manifest. Transfers use bounded memory buffers. Google video uploads use resumable chunks and authoritative offset queries; unknown finalization is never blindly repeated.
 
-Use amcp_media inspect_eligibility with a Drive URL and square/portrait/vertical/landscape preset to inspect geometry and codec before upload. FFmpeg/ffprobe are required. These are AMCP preset checks, not a certificate of platform acceptance. A preset on prepare requires the frozen source to pass these checks.
+Use amcp_media inspect_eligibility with a file (`source_id`, `source_url` or `drive_url`) and square/portrait/vertical/landscape preset to inspect geometry and codec before upload. FFmpeg/ffprobe are required. These are AMCP preset checks, not a certificate of platform acceptance. A preset on prepare requires the frozen source to pass these checks.
 
 execute_async queues the confirmed frozen review; job_status exposes durable progress. Reviews still expire if execution does not begin in time. Cancellation prevents unsubmitted work; a provider request already sent can finish. Reuse performs a fresh account-scoped availability check; unsupported lookup paths require a fresh reviewed upload. No LLM file download is necessary.
