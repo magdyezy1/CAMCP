@@ -1519,6 +1519,38 @@
       }
     },
     {
+      "gateway": "meta_native_action",
+      "arguments": {
+        "action": "meta_business_id_ad_studies_create",
+        "account_id": "123",
+        "params": {
+          "business_id": "555"
+        },
+        "payload": {
+          "type": "SPLIT_TEST",
+          "name": "Placement test",
+          "start_time": 1893456000,
+          "end_time": 1894665600,
+          "cells": [
+            {
+              "name": "Feed",
+              "treatment_percentage": 50,
+              "adsets": [
+                "601"
+              ]
+            },
+            {
+              "name": "Stories",
+              "treatment_percentage": 50,
+              "adsets": [
+                "602"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
       "gateway": "tiktok_native_action",
       "arguments": {
         "action": "tiktok_changelog_task_create",

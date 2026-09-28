@@ -1176,7 +1176,16 @@ Tests: `tests/tiktok-image-edits.test.mjs` (3), red on `0319a4c` / green after. 
 
 - New reviewed family `tiktok_change_log_tasks` (`src/tiktok-change-logs.ts`) for starting change log download tasks, one row, with advertiser and filtered object reads and the task checked until SUCCESS.
 
-Tests: `tests/tiktok-change-logs.test.mjs` (3), red on `39ee55b` / green after.
+Tests: `tests/tiktok-change-logs.test.mjs` (3), red on `39ee55b` / green after. Committed as `b271e1f`.
+
+## Finished batch — Meta split tests (2026-09-27)
+
+[Implementation](META-SPLIT-TESTS-2026-09-27.md) and
+[qualification](META-SPLIT-TESTS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `meta_split_tests` (`src/meta-split-tests.ts`) for SPLIT_TEST studies of ad sets or campaigns and their name, description and end changes, two rows, with business, object, study and cell reads and spending confirmation. Lift studies and creative tests stay unqualified.
+
+Tests: `tests/meta-split-tests.test.mjs` (3), red on `b271e1f` / green after.
 
 ## CI and live evidence
 
@@ -1190,19 +1199,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 721 in reviewed write families. **704 remaining rows** are in
+3241 captured actions; 723 in reviewed write families. **702 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 595 |
+| blocked_write | 593 |
 | unmapped | 79 |
 | unqualified_read | 17 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 167, Meta 114, LinkedIn 91, Snapchat 66,
+Blocked writes by platform: TikTok 167, Meta 112, LinkedIn 91, Snapchat 66,
 Google Ads 57, X 35, DV360 30, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

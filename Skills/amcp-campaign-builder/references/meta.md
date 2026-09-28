@@ -470,3 +470,30 @@ are unchanged values. AMCP reads the account first and again after the change; n
 spending confirmation. The connection needs `ads_management`.
 
 Reference: the Marketing API v25.0 "Ad Account" reference (Reading, Updating), checked 2026-09-27.
+
+## Split tests
+
+`meta_business_id_ad_studies_create` with `params: {business_id}` (the business that owns the
+selected ad account) creates a split test from a payload of `type: "SPLIT_TEST"`, `name`, optional
+`description`, `start_time` and `end_time` (Unix seconds) and `cells`: 2–10 cells of `{name,
+treatment_percentage, adsets}` or `{name, treatment_percentage, campaigns}`, every cell at the same
+level, each naming 1–10 IDs (at most 20 in the study), each at least 10 percent and together at most
+100. An ad set or campaign belongs to one cell. Lift studies, creative tests (`SPLIT_TEST_V2` with a
+test budget), whole ad accounts as cells, objectives and viewers are refused with
+`INVALID_META_SPLIT_TEST`.
+
+AMCP reads the ad account's business (another business is `RESOURCE_SCOPE_REQUIRED`) and each ad set
+or campaign by ID, so list the account's ad sets or campaigns first: they must belong to the account,
+not be ARCHIVED or DELETED, and not be in a split test that is still running. From `start_time` Meta
+divides the audience between the cells, so execution needs `spend_change_confirmed=true`.
+
+`meta_ad_study_id_update` with `params: {ad_study_id}` changes `name`, `description` and/or `end_time`
+of a split test of the same business; cells, percentages and `start_time` stay (Meta refuses them once
+the study runs). A new `end_time` must be in the future and after the start, and an ended study keeps
+its end; moving the end needs spending confirmation.
+
+A reply without the new ID (or `success`) is a failure never resubmitted. Verification reads the
+study and its cells and compares name, type, times, business, percentages and objects.
+
+Reference: the Marketing API v25.0 "Ad Study" reference and the "Split Testing" guide, checked
+2026-09-28.

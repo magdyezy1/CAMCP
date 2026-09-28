@@ -174,10 +174,10 @@
       "gateway": "meta_native_action",
       "actions": 591,
       "counts": {
-        "blocked_write": 114,
+        "blocked_write": 112,
         "media_workflow": 4,
         "native_read": 420,
-        "reviewed_write_family": 52,
+        "reviewed_write_family": 54,
         "unqualified_read": 1
       },
       "captured_catalog_complete": true,
@@ -30988,7 +30988,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31031,7 +31032,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31058,7 +31060,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31085,7 +31088,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31112,7 +31116,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31139,7 +31144,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31179,7 +31185,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31222,7 +31229,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31249,7 +31257,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31276,7 +31285,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31334,7 +31344,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31361,7 +31372,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31404,7 +31416,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31444,7 +31457,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31484,7 +31498,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31524,7 +31539,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31567,7 +31583,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31594,7 +31611,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31621,7 +31639,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31648,7 +31667,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31691,7 +31711,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31762,7 +31783,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31802,7 +31824,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31829,7 +31852,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31856,7 +31880,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31909,7 +31934,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31949,7 +31975,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -31976,7 +32003,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32016,7 +32044,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32056,7 +32085,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32083,7 +32113,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32110,7 +32141,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32137,7 +32169,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32193,7 +32226,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32220,7 +32254,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32247,7 +32282,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32274,7 +32310,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32333,7 +32370,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32373,7 +32411,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32416,7 +32455,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32443,7 +32483,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32470,7 +32511,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32497,7 +32539,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32524,7 +32567,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32551,7 +32595,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32578,7 +32623,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32605,7 +32651,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32632,7 +32679,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32675,7 +32723,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32702,7 +32751,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32729,7 +32779,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32756,7 +32807,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32783,7 +32835,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32810,7 +32863,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32837,7 +32891,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32864,7 +32919,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32904,7 +32960,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32931,7 +32988,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -32958,7 +33016,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33001,7 +33060,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33028,7 +33088,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33068,7 +33129,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33108,7 +33170,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33135,7 +33198,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33162,7 +33226,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33189,7 +33254,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33216,7 +33282,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33243,7 +33310,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33296,7 +33364,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33323,7 +33392,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33350,7 +33420,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33377,7 +33448,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33404,7 +33476,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33431,7 +33504,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33458,7 +33532,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33498,7 +33573,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33525,7 +33601,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33552,7 +33629,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33609,6 +33687,7 @@
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
         "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs",
         "tests/provider-read-contracts.test.ts"
       ],
       "live_qualification": "unverified"
@@ -33636,7 +33715,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33663,7 +33743,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33690,7 +33771,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33734,7 +33816,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33814,7 +33897,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33889,7 +33973,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33916,7 +34001,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33943,7 +34029,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33970,7 +34057,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -33997,7 +34085,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34042,7 +34131,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34069,7 +34159,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34096,7 +34187,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34123,7 +34215,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34150,7 +34243,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34211,7 +34305,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34238,7 +34333,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34265,7 +34361,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34292,7 +34389,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34319,7 +34417,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34346,7 +34445,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34373,7 +34473,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34413,7 +34514,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34440,7 +34542,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34483,7 +34586,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34526,7 +34630,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34553,7 +34658,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34580,7 +34686,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34607,7 +34714,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34650,7 +34758,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34677,7 +34786,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34704,7 +34814,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34731,7 +34842,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34774,7 +34886,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34801,7 +34914,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34828,7 +34942,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34855,7 +34970,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34882,7 +34998,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34909,7 +35026,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -34919,12 +35037,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v25.0/{ad_study_id}",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/meta-split-tests.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/meta-split-tests.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "meta_split_tests"
     },
     {
       "gateway": "meta_native_action",
@@ -34949,7 +35070,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35032,7 +35154,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35061,7 +35184,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35090,7 +35214,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35135,7 +35260,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35177,7 +35303,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35206,7 +35333,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35261,7 +35389,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35284,12 +35413,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v25.0/{business_id}/ad_studies",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/meta-split-tests.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/meta-split-tests.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "meta_split_tests"
     },
     {
       "gateway": "meta_native_action",
@@ -35314,7 +35446,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35354,7 +35487,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35381,7 +35515,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35421,7 +35556,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35448,7 +35584,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35475,7 +35612,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35502,7 +35640,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35529,7 +35668,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35556,7 +35696,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35596,7 +35737,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35623,7 +35765,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35650,7 +35793,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35677,7 +35821,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35704,7 +35849,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35731,7 +35877,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35758,7 +35905,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35785,7 +35933,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35812,7 +35961,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35852,7 +36002,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35905,7 +36056,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35945,7 +36097,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35972,7 +36125,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -35999,7 +36153,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36026,7 +36181,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36053,7 +36209,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36080,7 +36237,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36107,7 +36265,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36134,7 +36293,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36161,7 +36321,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36188,7 +36349,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36228,7 +36390,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36255,7 +36418,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36282,7 +36446,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36309,7 +36474,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36336,7 +36502,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36363,7 +36530,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36390,7 +36558,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36417,7 +36586,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36444,7 +36614,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36471,7 +36642,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36511,7 +36683,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36538,7 +36711,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36565,7 +36739,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36592,7 +36767,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36619,7 +36795,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36646,7 +36823,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36673,7 +36851,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36713,7 +36892,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36740,7 +36920,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36780,7 +36961,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36833,7 +37015,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36860,7 +37043,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36887,7 +37071,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36927,7 +37112,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -36967,7 +37153,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37020,7 +37207,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37047,7 +37235,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37074,7 +37263,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37101,7 +37291,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37128,7 +37319,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37155,7 +37347,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37195,7 +37388,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37222,7 +37416,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37262,7 +37457,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37289,7 +37485,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37329,7 +37526,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37356,7 +37554,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37383,7 +37582,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37410,7 +37610,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37437,7 +37638,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37464,7 +37666,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37491,7 +37694,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37518,7 +37722,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37545,7 +37750,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37572,7 +37778,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37599,7 +37806,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37626,7 +37834,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37653,7 +37862,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37680,7 +37890,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37707,7 +37918,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37734,7 +37946,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37761,7 +37974,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37788,7 +38002,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37815,7 +38030,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37842,7 +38058,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37869,7 +38086,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37896,7 +38114,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37923,7 +38142,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37950,7 +38170,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -37977,7 +38198,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38004,7 +38226,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38031,7 +38254,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38058,7 +38282,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38085,7 +38310,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38112,7 +38338,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38165,7 +38392,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38192,7 +38420,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38219,7 +38448,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38246,7 +38476,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38273,7 +38504,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38313,7 +38545,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38340,7 +38573,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38367,7 +38601,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38407,7 +38642,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38449,7 +38685,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38476,7 +38713,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38503,7 +38741,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38530,7 +38769,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38557,7 +38797,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38584,7 +38825,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38611,7 +38853,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38638,7 +38881,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38665,7 +38909,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38692,7 +38937,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38719,7 +38965,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38746,7 +38993,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38786,7 +39034,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38843,7 +39092,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38938,7 +39188,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38965,7 +39216,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -38992,7 +39244,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39035,7 +39288,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39062,7 +39316,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39089,7 +39344,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39129,7 +39385,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39172,7 +39429,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39215,7 +39473,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39242,7 +39501,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39301,7 +39561,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39330,7 +39591,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39359,7 +39621,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39417,7 +39680,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39461,7 +39725,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39536,7 +39801,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39579,7 +39845,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39622,7 +39889,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39649,7 +39917,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39694,7 +39963,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39723,7 +39993,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39806,7 +40077,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39859,7 +40131,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39886,7 +40159,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39913,7 +40187,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39956,7 +40231,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -39983,7 +40259,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40010,7 +40287,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40037,7 +40315,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40064,7 +40343,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40091,7 +40371,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40160,7 +40441,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40200,7 +40482,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40229,7 +40512,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40276,7 +40560,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40303,7 +40588,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40330,7 +40616,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40370,7 +40657,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40397,7 +40685,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40424,7 +40713,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40451,7 +40741,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40478,7 +40769,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40507,7 +40799,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40553,7 +40846,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40580,7 +40874,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40620,7 +40915,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40647,7 +40943,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40674,7 +40971,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40714,7 +41012,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40741,7 +41040,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40768,7 +41068,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40808,7 +41109,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40835,7 +41137,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40862,7 +41165,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40902,7 +41206,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40955,7 +41260,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -40982,7 +41288,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41009,7 +41316,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41062,7 +41370,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41104,7 +41413,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41131,7 +41441,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41158,7 +41469,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41185,7 +41497,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41212,7 +41525,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41239,7 +41553,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41266,7 +41581,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41293,7 +41609,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41320,7 +41637,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41347,7 +41665,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41374,7 +41693,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41401,7 +41721,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41428,7 +41749,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41455,7 +41777,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41482,7 +41805,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41522,7 +41846,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41549,7 +41874,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41576,7 +41902,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41603,7 +41930,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41630,7 +41958,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41657,7 +41986,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41684,7 +42014,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41711,7 +42042,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41738,7 +42070,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41765,7 +42098,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41792,7 +42126,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41819,7 +42154,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41846,7 +42182,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41899,7 +42236,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41926,7 +42264,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41953,7 +42292,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -41980,7 +42320,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42007,7 +42348,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42052,7 +42394,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42081,7 +42424,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42108,7 +42452,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42161,7 +42506,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42188,7 +42534,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42228,7 +42575,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42255,7 +42603,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42282,7 +42631,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42335,7 +42685,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42362,7 +42713,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42389,7 +42741,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42416,7 +42769,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42443,7 +42797,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42470,7 +42825,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42497,7 +42853,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42537,7 +42894,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42564,7 +42922,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42591,7 +42950,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42618,7 +42978,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42658,7 +43019,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42685,7 +43047,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42712,7 +43075,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42752,7 +43116,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42792,7 +43157,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42832,7 +43198,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42872,7 +43239,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42938,7 +43306,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -42978,7 +43347,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43005,7 +43375,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43032,7 +43403,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43072,7 +43444,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43112,7 +43485,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43139,7 +43513,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43179,7 +43554,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43206,7 +43582,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43246,7 +43623,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43273,7 +43651,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43313,7 +43692,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43340,7 +43720,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43367,7 +43748,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43394,7 +43776,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43421,7 +43804,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43461,7 +43845,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43501,7 +43886,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43528,7 +43914,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43555,7 +43942,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43582,7 +43970,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43622,7 +44011,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43649,7 +44039,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43676,7 +44067,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43703,7 +44095,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43730,7 +44123,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43770,7 +44164,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43797,7 +44192,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43841,7 +44237,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43870,7 +44267,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43897,7 +44295,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43926,7 +44325,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -43997,7 +44397,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44024,7 +44425,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44051,7 +44453,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44078,7 +44481,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44122,7 +44526,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44149,7 +44554,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44176,7 +44582,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44203,7 +44610,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44230,7 +44638,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44257,7 +44666,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44284,7 +44694,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44311,7 +44722,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44338,7 +44750,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44365,7 +44778,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44392,7 +44806,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44419,7 +44834,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44446,7 +44862,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44475,7 +44892,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44504,7 +44922,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44533,7 +44952,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44562,7 +44982,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44591,7 +45012,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44657,7 +45079,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44726,7 +45149,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44769,7 +45193,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },
@@ -44798,7 +45223,8 @@
         "tests/meta-ad-images.test.mjs",
         "tests/meta-custom-conversions.test.mjs",
         "tests/meta-pixels.test.mjs",
-        "tests/meta-account-settings.test.mjs"
+        "tests/meta-account-settings.test.mjs",
+        "tests/meta-split-tests.test.mjs"
       ],
       "live_qualification": "unverified"
     },

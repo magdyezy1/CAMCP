@@ -23,6 +23,7 @@ import {linkedinLeadFormStateImpact} from './linkedin-lead-form-states.js';
 import {linkedinDeleteImpact} from './linkedin-entity-deletes.js';
 import {tiktokImageEditImpact} from './tiktok-image-edits.js';
 import {tiktokChangeLogImpact} from './tiktok-change-logs.js';
+import {metaSplitTestImpact} from './meta-split-tests.js';
 import {snapSegmentImpact} from './snapchat-segments.js';
 import {tiktokIdentityKind,tiktokIdentityImpact} from './tiktok-identities.js';
 import {metaCopyKind,metaCopyImpact} from './meta-copies.js';
@@ -166,6 +167,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  const linkedinDelete=linkedinDeleteImpact(plan,state);if(linkedinDelete)return linkedinDelete;
  const tiktokImageEdit=tiktokImageEditImpact(plan,state);if(tiktokImageEdit)return tiktokImageEdit;
  const tiktokChangeLog=tiktokChangeLogImpact(plan,state);if(tiktokChangeLog)return tiktokChangeLog;
+ const metaSplitTest=metaSplitTestImpact(plan,state);if(metaSplitTest)return metaSplitTest;
  if(metaCopyKind(plan))return metaCopyImpact(plan,state);
  if(googlePreviewKind(plan))return googlePreviewImpact;
  if(googleDismissalKind(plan))return googleDismissalImpact(plan,state);

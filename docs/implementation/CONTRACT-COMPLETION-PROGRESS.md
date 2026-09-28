@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## FL — Meta split tests (2026-09-27)
+
+Meta split tests of the selected account's ad sets or campaigns can now be created on its business
+and renamed or extended through reviewed requests that read the business, every object and the
+studies it is in, need spending confirmation and read the study and its cells back. See
+[implementation](META-SPLIT-TESTS-2026-09-27.md),
+[qualification](META-SPLIT-TESTS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 702 (two Meta rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## FK — TikTok change log download tasks (2026-09-27)
 
 TikTok change log download tasks can now be started through reviewed requests that bound the window
@@ -17,7 +29,7 @@ succeeds. See
 [qualification](TIKTOK-CHANGE-LOGS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 704 (one TikTok row reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 704 (one TikTok row reviewed). Committed as `b271e1f`; its exact-commit CI result
 and live acceptance are pending.
 
 ## FJ — TikTok library image edits (2026-09-27)
