@@ -48,6 +48,7 @@ import {authorizeLinkedInPublisher} from './linkedin-publisher-restrictions.js';
 import {authorizeDV360BiddingFile} from './dv360-custom-bidding-files.js';
 import {authorizeMetaPixel} from './meta-pixels.js';
 import {authorizeLinkedInLeadFormState} from './linkedin-lead-form-states.js';
+import {authorizeLinkedInDelete} from './linkedin-entity-deletes.js';
 import {authorizeLinkedInMessage} from './linkedin-message-ads.js';
 import {authorizeLinkedInTemplate} from './linkedin-audience-templates.js';
 import {authorizeLinkedInRule} from './linkedin-conversion-rules.js';
@@ -152,6 +153,7 @@ export class ScopeGuard {
   if(authorizeDV360BiddingFile(plan,connection,id))return id;
   if(authorizeMetaPixel(plan,connection,id))return id;
   if(authorizeLinkedInLeadFormState(plan,connection,id))return id;
+  if(authorizeLinkedInDelete(plan,connection,id))return id;
   if(authorizeLinkedInMessage(plan,connection,id))return id;
   if(authorizeLinkedInRule(plan,connection,id))return id;
   if(authorizeLinkedInLeadForm(plan,connection,this.store,id))return id;

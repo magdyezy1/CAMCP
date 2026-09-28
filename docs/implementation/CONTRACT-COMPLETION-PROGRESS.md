@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## FI — LinkedIn campaign group and creative batch deletion (2026-09-27)
+
+DRAFT LinkedIn campaign groups and deletable creatives can now be deleted in batches through reviewed
+requests that read every entity (with a group's campaigns or a creative's campaign), refuse anything
+LinkedIn would not delete, never resubmit a partial reply and read each entity back. See
+[implementation](LINKEDIN-ENTITY-DELETES-2026-09-27.md),
+[qualification](LINKEDIN-ENTITY-DELETES-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 706 (two LinkedIn rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## FH — LinkedIn lead form publishing and archiving (2026-09-27)
 
 LinkedIn lead gen forms can now be published and archived through reviewed requests that read the
@@ -17,7 +29,7 @@ new state back; content edits stay outside. See
 [qualification](LINKEDIN-LEAD-FORM-STATES-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 708 (one LinkedIn row reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 708 (one LinkedIn row reviewed). Committed as `2e16202`; its exact-commit CI result
 and live acceptance are pending.
 
 ## FG — Meta ad account name, EU payor and beneficiary (2026-09-27)

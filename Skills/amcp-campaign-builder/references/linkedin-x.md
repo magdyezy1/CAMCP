@@ -112,6 +112,19 @@ Confirm the Page/organization, post author, media owner and ad-account associati
 
 LinkedIn creatives use intendedStatus: PAUSED or DRAFT at creation; campaigns and campaign groups use status. A top-level creative status is refused. Activation through patch.$set.intendedStatus still requires spending confirmation and an owner policy that permits activation. Read the created creative by the x-restli-id response header; an empty 201 body is normal. This exact-ID verification does not need a collection finder.
 
+Batch deletion: `linkedin_rest_ad_accounts_ad_account_id_ad_campaign_groups_delete` with
+`query: {ids: ["<group ID>", ...]}` deletes DRAFT campaign groups, and
+`linkedin_rest_ad_accounts_ad_account_id_creatives_delete` with
+`query: {ids: ["urn:li:sponsoredCreative:<id>", ...]}` deletes creatives that are DRAFT or
+belong to a DRAFT campaign; both take `restli_method: "BATCH_DELETE"`, 1–25 distinct IDs
+of the selected ad account and no payload (`INVALID_LINKEDIN_BATCH_DELETE`). AMCP reads
+every entity first: it must belong to the selected account (`RESOURCE_SCOPE_REQUIRED`),
+a group must hold no campaigns, and a creative that is not DRAFT needs a DRAFT campaign.
+Delete anything else by setting `PENDING_DELETION` through its own update. LinkedIn
+answers 204 or per-entity results; any error in them is a failure that is never
+resubmitted. Verification reads each entity again and expects it gone (a REMOVED
+creative, kept for reporting, counts as deleted).
+
 POST /rest/posts now has a narrow reviewed DSC contract. Use `linkedin_rest_posts_post`, the selected account/connection, an exactly bound organization author, one AVAILABLE image/video owned by that author, and recorded `w_organization_social` plus `r_organization_social` for mandatory read-back. The media must have a provider-verified AMCP receipt in that connection/account or an exact administrator media binding. `LINKEDIN_ORGANIZATION_BINDING_REQUIRED` and `LINKEDIN_MEDIA_BINDING_REQUIRED` require those exact grants, not a broader path prefix. `LINKEDIN_MEDIA_NOT_READY` requires correcting the selected owner/asset or waiting for processing. AMCP currently qualifies matching owner/author only; it does not claim other provider combinations are impossible. Page role, app product access and live acceptance still require verification; a 403 alone does not identify a missing scope.
 
 The normal LinkedIn connection defaults remain advertising-only. After the app has the required provider products/permissions, an administrator can configure `AMCP_LINKEDIN_SCOPES=r_ads r_ads_reporting rw_ads w_organization_social r_organization_social` and reconnect the selected identity through Connections. An environment override replaces the scope list; changing it does not upgrade an existing token. Exact organization/media AMCP bindings are a separate administrator action. Do not request or alter live grants merely to make a code test pass.

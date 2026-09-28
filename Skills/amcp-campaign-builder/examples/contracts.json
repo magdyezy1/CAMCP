@@ -1521,6 +1521,20 @@
     {
       "gateway": "linkedin_native_action",
       "arguments": {
+        "action": "linkedin_rest_ad_accounts_ad_account_id_ad_campaign_groups_delete",
+        "account_id": "507",
+        "restli_method": "BATCH_DELETE",
+        "query": {
+          "ids": [
+            "801",
+            "802"
+          ]
+        }
+      }
+    },
+    {
+      "gateway": "linkedin_native_action",
+      "arguments": {
         "action": "linkedin_rest_lead_forms_lead_form_id_post",
         "account_id": "507",
         "path_params": {

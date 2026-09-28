@@ -1149,7 +1149,16 @@ Tests: `tests/meta-account-settings.test.mjs` (3), red on `e53b8ce` / green afte
 
 - New reviewed family `linkedin_lead_form_states` (`src/linkedin-lead-form-states.ts`) for publishing DRAFT and archiving PUBLISHED lead gen forms, one row, always with spending confirmation. Content edits stay unqualified.
 
-Tests: `tests/linkedin-lead-form-states.test.mjs` (3), red on `3a3a46d` / green after; `tests/linkedin-lead-forms.test.mjs` updated.
+Tests: `tests/linkedin-lead-form-states.test.mjs` (3), red on `3a3a46d` / green after; `tests/linkedin-lead-forms.test.mjs` updated. Committed as `2e16202`.
+
+## Finished batch — LinkedIn campaign group and creative batch deletion (2026-09-27)
+
+[Implementation](LINKEDIN-ENTITY-DELETES-2026-09-27.md) and
+[qualification](LINKEDIN-ENTITY-DELETES-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `linkedin_entity_deletes` (`src/linkedin-entity-deletes.ts`) for BATCH_DELETE of DRAFT campaign groups without campaigns and of creatives that are DRAFT or in DRAFT campaigns, two rows. A partial reply is a failure that is never resubmitted.
+
+Tests: `tests/linkedin-entity-deletes.test.mjs` (3), red on `2e16202` / green after.
 
 ## CI and live evidence
 
@@ -1163,19 +1172,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 717 in reviewed write families. **708 remaining rows** are in
+3241 captured actions; 719 in reviewed write families. **706 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 599 |
+| blocked_write | 597 |
 | unmapped | 79 |
 | unqualified_read | 17 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 169, Meta 114, LinkedIn 93, Snapchat 66,
+Blocked writes by platform: TikTok 169, Meta 114, LinkedIn 91, Snapchat 66,
 Google Ads 57, X 35, DV360 30, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
