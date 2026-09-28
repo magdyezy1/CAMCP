@@ -292,3 +292,7 @@ The official pages on `developers.google.com` are outside the review environment
 the v25 field reference and the release notes were not read. The Discovery document and the googleapis protos are
 the evidence. LinkedIn, Meta and Criteo, next in the owner's order, publish their API references on hosts the same
 policy blocks, so their upgrades wait for documentation access.
+
+Full qualification (`.release/batch14-20260928`, up to `60e2b65`): **2,760 / 2,760** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 520 s. The candidate's 1,184 source
+files equal `60e2b65`, apart from `release-manifest.json`.
