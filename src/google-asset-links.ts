@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import {googleJson} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {googleAdsCustomers} from './google-version.js';
 
 // Native association contracts, independent of whether the caller used an RPC
 // name or a legacy alias. Source: Google Ads v23 resource and GAQL references.
@@ -176,7 +177,7 @@ const contentFields: Record<string, string[]> = {
 };
 export const googleAssetContentFields = contentFields;
 export function googleAssetLinkKind(plan: CompiledRequest): Kind | undefined {
-  const kind = plan.path.match(/^\/v23\/customers\/\d+\/([^/]+):mutate$/)?.[1];
+  const kind = plan.path.match(/^\/v\d+\/customers\/\d+\/([^/]+):mutate$/)?.[1];
   return plan.gateway === 'google_ads_native_action' &&
     plan.method === 'POST' &&
     kind &&
@@ -301,7 +302,7 @@ function search(
     ...plan,
     action: 'AMCP_STATE_READ',
     method: 'POST',
-    path: '/v23/customers/' + plan.accountId!.replaceAll('-', '') + '/googleAds:search',
+    path: googleAdsCustomers + plan.accountId!.replaceAll('-', '') + '/googleAds:search',
     body: {query},
     query: {},
     headers: {},
@@ -347,7 +348,7 @@ export function googleAssetLinkSnapshots(plan: CompiledRequest): CompiledRequest
       ...plan,
       action: 'AMCP_STATE_READ',
       method: 'POST',
-      path: '/v23/customers/' + plan.accountId + '/googleAds:search',
+      path: googleAdsCustomers + plan.accountId + '/googleAds:search',
       query: {},
       body: {query: 'SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1'},
       headers: {},

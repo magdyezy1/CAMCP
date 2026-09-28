@@ -332,7 +332,7 @@ test('Google resumable upload queries a lost chunk offset and never repeats a lo
     return Response.json({resourceName: 'customers/123/youTubeVideoUploads/456'});
   });
   const result = await t.uploadGoogleVideo(
-    'https://googleads.googleapis.com/resumable/upload/v23/session',
+    'https://googleads.googleapis.com/resumable/upload/v25/session',
     bytes,
     'fixture',
     {progress: n => progress.push(n)},
@@ -351,7 +351,7 @@ test('Google resumable upload queries a lost chunk offset and never repeats a lo
   await assert.rejects(
     () =>
       final.uploadGoogleVideo(
-        'https://googleads.googleapis.com/resumable/upload/v23/session',
+        'https://googleads.googleapis.com/resumable/upload/v25/session',
         Buffer.alloc(10),
         'fixture',
       ),

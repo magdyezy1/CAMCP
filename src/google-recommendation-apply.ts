@@ -3,6 +3,7 @@ import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {googleAdsCustomers} from './google-version.js';
 
 /**
  * Applying keyword and campaign budget recommendations, Google Ads API v23 (pinned Discovery document:
@@ -49,7 +50,7 @@ export function googleApplyKind(p: CompiledRequest): boolean {
     p.method === 'POST' &&
     !p.specialTransport &&
     (!p.origin || p.origin === 'https://googleads.googleapis.com') &&
-    /^\/v23\/customers\/\d+\/recommendations:apply$/.test(p.path)
+    /^\/v\d+\/customers\/\d+\/recommendations:apply$/.test(p.path)
   );
 }
 const operations = (p: CompiledRequest) => (googleJson(p.body).operations ?? []) as JsonObject[];
@@ -101,7 +102,7 @@ function search(p: CompiledRequest, query: string): Read {
     ...p,
     action: 'AMCP_GOOGLE_APPLY_READ',
     method: 'POST',
-    path: '/v23/customers/' + account(p) + '/googleAds:search',
+    path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {query},
     query: {},
     headers: {},
@@ -431,7 +432,7 @@ export function googleApplyImpact(p: CompiledRequest, state: unknown[]): JsonObj
     verification: budget
       ? 'Reads each campaign budget again and compares its amount.'
       : 'Reads the keywords of each ad group again and looks for each keyword added.',
-    source: 'https://developers.google.com/google-ads/api/reference/rpc/v23/RecommendationService',
+    source: 'https://developers.google.com/google-ads/api/reference/rpc/v25/RecommendationService',
   };
 }
 export function googleApplyOutcome(p: CompiledRequest, r: TransportResult): boolean {

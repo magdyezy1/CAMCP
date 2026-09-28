@@ -280,8 +280,8 @@ export class ScopeGuard {
       plan.gateway === 'google_ads_native_action' &&
       plan.readOnly &&
       plan.method === 'POST' &&
-      /^\/v23:[A-Za-z]+$/.test(decoded) &&
-      googleGlobalReadMethods.has(decoded.slice(5))
+      /^\/v\d+:[A-Za-z]+$/.test(decoded) &&
+      googleGlobalReadMethods.has(decoded.slice(decoded.indexOf(':') + 1))
     )
       return id;
     if (plan.gateway === 'meta_native_action' && plan.action === 'AMCP_META_REPORT_READ')

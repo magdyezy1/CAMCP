@@ -4,6 +4,7 @@ import {googleFeedAssetFields} from './google-asset-set-fields.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {googleAdsCustomers} from './google-version.js';
 
 export const googleAssetSetFields = [
   'name',
@@ -179,7 +180,7 @@ function search(p: CompiledRequest, entity: string, fields: string[], where: str
     ...p,
     action: 'AMCP_FEED_READ',
     method: 'POST',
-    path: '/v23/customers/' + p.accountId!.replaceAll('-', '') + '/googleAds:search',
+    path: googleAdsCustomers + p.accountId!.replaceAll('-', '') + '/googleAds:search',
     headers: {},
     query: {},
     body: {

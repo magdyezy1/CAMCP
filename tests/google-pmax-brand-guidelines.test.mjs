@@ -88,7 +88,7 @@ function fixture(mode = '') {
       path = u.pathname,
       body = init.body ? JSON.parse(String(init.body)) : undefined;
     calls.push({path, body});
-    if (path === '/v23/customers/123/googleAds:search') {
+    if (path === '/v25/customers/123/googleAds:search') {
       const q = body.query;
       if (/FROM customer /.test(q + ' '))
         return Response.json({results: [{customer: {resourceName: C.slice(0, -1), id: '123', manager: false}}]});
@@ -119,7 +119,7 @@ function fixture(mode = '') {
       }
       throw new Error('Unexpected query ' + q);
     }
-    if (path === '/v23/customers/123/campaigns:enablePMaxBrandGuidelines') {
+    if (path === '/v25/customers/123/campaigns:enablePMaxBrandGuidelines') {
       writes++;
       return Response.json({
         results: body.operations.map((op, i) => {
@@ -353,19 +353,19 @@ test('a result with an enablement error is a failure, and an ignored enablement 
 });
 
 test('the method and models match the pinned Discovery document, and the ledger lists both actions in the family', () => {
-  const doc = JSON.parse(readFileSync('.mirror/VENDOR/google-ads-v23.json', 'utf8')),
+  const doc = JSON.parse(readFileSync('.mirror/VENDOR/google-ads-v25.json', 'utf8')),
     d = doc.document ?? doc,
     S = d.schemas;
   assert.match(
-    S.GoogleAdsGoogleadsV23Services__EnablePMaxBrandGuidelinesRequest.properties.operations.description,
+    S.GoogleAdsGoogleadsV25Services__EnablePMaxBrandGuidelinesRequest.properties.operations.description,
     /maximum of 10/,
   );
   assert.match(
-    S.GoogleAdsGoogleadsV23Resources__Campaign.properties.brandGuidelinesEnabled.description,
+    S.GoogleAdsGoogleadsV25Resources__Campaign.properties.brandGuidelinesEnabled.description,
     /not possible to disable Brand Guidelines/,
   );
-  assert.match(S.GoogleAdsGoogleadsV23Services__EnableOperation.properties.fontFamily.description, /Playfair Display/);
-  assert.deepEqual(Object.keys(S.GoogleAdsGoogleadsV23Services__BrandCampaignAssets.properties).sort(), [
+  assert.match(S.GoogleAdsGoogleadsV25Services__EnableOperation.properties.fontFamily.description, /Playfair Display/);
+  assert.deepEqual(Object.keys(S.GoogleAdsGoogleadsV25Services__BrandCampaignAssets.properties).sort(), [
     'businessNameAsset',
     'landscapeLogoAsset',
     'logoAsset',

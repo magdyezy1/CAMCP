@@ -139,7 +139,7 @@ function fixture(interest = false, file = ':memory:') {
           ...(mode === 'partial_read' ? {nextPageToken: 'unread'} : {}),
         });
       }
-      assert.equal(u.pathname, '/v23/customers/123/' + (interest ? 'customInterests' : 'customAudiences') + ':mutate');
+      assert.equal(u.pathname, '/v25/customers/123/' + (interest ? 'customInterests' : 'customAudiences') + ':mutate');
       const results = b.operations.map((op: JsonObject, i: number) => {
         const name = op.remove ?? op.update?.resourceName ?? resource(interest, String(500 + i));
         if (mode !== 'ignored') {

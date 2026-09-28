@@ -4,6 +4,7 @@ import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {googleAdsCustomers} from './google-version.js';
 
 const gateway = 'google_ads_native_action';
 const actions = new Set(['DISMISS_RECOMMENDATION', 'google_ads_v23_recommendation_dismiss_recommendation']);
@@ -42,7 +43,7 @@ export function googleDismissalKind(p: CompiledRequest): boolean {
     p.method === 'POST' &&
     !p.specialTransport &&
     (!p.origin || p.origin === 'https://googleads.googleapis.com') &&
-    /^\/v23\/customers\/\d+\/recommendations:dismiss$/.test(p.path)
+    /^\/v\d+\/customers\/\d+\/recommendations:dismiss$/.test(p.path)
   );
 }
 const targets = (p: CompiledRequest): string[] =>
@@ -82,7 +83,7 @@ function read(p: CompiledRequest, kind: 'customer' | 'recommendation'): Compiled
     ...p,
     action: 'AMCP_RECOMMENDATION_DISMISS_READ',
     method: 'POST',
-    path: '/v23/customers/' + account(p) + '/googleAds:search',
+    path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {query},
     query: {},
     headers: {},

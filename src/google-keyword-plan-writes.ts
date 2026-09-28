@@ -3,6 +3,7 @@ import {googleJson} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {googleAdsCustomers} from './google-version.js';
 
 type PlanningResource = {resource: string; fields: string[]; parent?: {field: string; collection: string}};
 export const keywordPlanResources: Record<string, PlanningResource> = {
@@ -40,7 +41,7 @@ const keys = (value: JsonObject, allowed: string[]) => {
   if (Object.keys(value).some(k => !allowed.includes(k))) invalid('Unqualified keyword-planning field.');
 };
 export function keywordPlanKind(p: CompiledRequest): string | undefined {
-  const k = p.path.match(/^\/v23\/customers\/\d+\/([^/]+):mutate$/)?.[1];
+  const k = p.path.match(/^\/v\d+\/customers\/\d+\/([^/]+):mutate$/)?.[1];
   return p.gateway === 'google_ads_native_action' &&
     p.method === 'POST' &&
     (!p.origin || p.origin === 'https://googleads.googleapis.com') &&
@@ -192,7 +193,7 @@ function search(p: CompiledRequest, collection: string, field: string, values: s
   return {
     ...p,
     action: 'AMCP_KEYWORD_PLAN_READ',
-    path: '/v23/customers/' + p.accountId!.replaceAll('-', '') + '/googleAds:search',
+    path: googleAdsCustomers + p.accountId!.replaceAll('-', '') + '/googleAds:search',
     method: 'POST',
     body: {query},
     query: {},

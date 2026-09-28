@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import {providerContracts} from '../src/provider-contracts.js';
 import {providerMaintenance} from '../src/contract-evidence.js';
+import {googleAdsVersion} from '../src/google-version.js';
 const escape = (v: unknown) =>
   String(v ?? 'Unsupported')
     .replaceAll('|', '\\|')
@@ -35,7 +36,9 @@ lines.push(
   '',
   '## Evidence and maintenance',
   '',
-  'Google Ads v23: native RPC mappings are checked against the official Discovery document, with nested field/type/enum request validation. The generated vendor-method inventory identifies the current methods outside the captured catalog. Microsoft: six pinned WSDL documents with namespace-aware type declarations, inheritance, restrictions and operation correspondence. SOAP evidence does not establish JSON wire parity. No new operation gains write permission from ingestion.',
+  'Google Ads ' +
+    googleAdsVersion +
+    ': native RPC mappings are checked against the official Discovery document, with nested field/type/enum request validation. The generated vendor-method inventory identifies the current methods outside the captured catalog. Microsoft: six pinned WSDL documents with namespace-aware type declarations, inheritance, restrictions and operation correspondence. SOAP evidence does not establish JSON wire parity. No new operation gains write permission from ingestion.',
   '',
   '`amcp_tool_help` returns `amcp_contract`. `amcp_write inspect` and prepare return `contract_evidence`. Errors include a category, owner and remedy. Destructive operations retain existing explicit review and policy controls; there is no new acknowledgement that could imply schema provenance makes a write safe.',
   '',

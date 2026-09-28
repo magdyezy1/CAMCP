@@ -92,14 +92,16 @@ test('Every captured Google legacy MUTATE alias is checked against its native op
     const request = d[mapping.googleProto.rpcRequests[entry.canonical]],
       field = request?.fields?.operations ?? request?.fields?.operation;
     assert.ok(field, entry.name);
-    const operation = d[field.type] ?? d['google.ads.googleads.v23.services.' + field.type];
+    const operation = d[field.type] ?? d['google.ads.googleads.v25.services.' + field.type];
     assert.ok(operation, entry.name);
     if (!operation.fields[entry.verb]) unsupported.push(entry.name);
   }
+  // The MUTATE aliases refused by name are exactly those whose verb the union lacks; the others the list refuses
+  // (lifecycle goals, campaign brand safety) lost their operation in Google Ads v25 (tests/google-version.test.mjs).
   assert.deepEqual(
     unsupported.sort(),
     unsupportedProviderAliases
-      .filter(a => a.gateway === gateway)
+      .filter(a => a.gateway === gateway && entries.some(e => e.name === a.action))
       .map(a => a.action)
       .sort(),
   );

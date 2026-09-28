@@ -166,7 +166,7 @@ function fixture(mode = '') {
         path = decodeURIComponent(u.pathname),
         body = init.body ? JSON.parse(String(init.body)) : undefined;
       calls.push({path, body});
-      if (path === '/v23/customers/123/googleAds:search') {
+      if (path === '/v25/customers/123/googleAds:search') {
         const q = body.query + ' ';
         if (/FROM customer /.test(q))
           return Response.json({results: [{customer: {resourceName: 'customers/123', id: '123', manager: false}}]});
@@ -215,7 +215,7 @@ function fixture(mode = '') {
         }
         throw new Error('Unexpected query ' + q);
       }
-      if (path === '/v23/customers/123/experiments:mutate') {
+      if (path === '/v25/customers/123/experiments:mutate') {
         writes++;
         return Response.json({
           results: body.operations.map(op => {
@@ -234,7 +234,7 @@ function fixture(mode = '') {
           }),
         });
       }
-      if (path === '/v23/customers/123/experimentArms:mutate') {
+      if (path === '/v25/customers/123/experimentArms:mutate') {
         writes++;
         return Response.json({
           results: body.operations.map(op => {
@@ -576,9 +576,9 @@ test('a receipt naming an experiment of another customer is a failure never resu
   } finally {
     ignored.store.close();
   }
-  const d = JSON.parse(readFileSync('.mirror/VENDOR/google-ads-v23.json', 'utf8')),
+  const d = JSON.parse(readFileSync('.mirror/VENDOR/google-ads-v25.json', 'utf8')),
     S = (d.document ?? d).schemas,
-    R = 'GoogleAdsGoogleadsV23Resources__';
+    R = 'GoogleAdsGoogleadsV25Resources__';
   for (const f of ['name', 'type', 'suffix', 'status', 'description', 'startDate', 'endDate', 'syncEnabled'])
     assert.ok(S[R + 'Experiment'].properties[f], f);
   for (const f of ['experiment', 'name', 'control', 'trafficSplit', 'campaigns', 'inDesignCampaigns'])

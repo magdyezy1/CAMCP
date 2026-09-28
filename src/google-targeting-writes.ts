@@ -1,5 +1,6 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {googleAdsCustomers} from './google-version.js';
 
 const snake = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -120,7 +121,7 @@ const config = {
 };
 export const googleTargetingKinds = Object.keys(config);
 export function googleTargetingKind(plan: CompiledRequest) {
-  const kind = plan.path.match(/^\/v23\/customers\/\d+\/([^/]+):mutate$/)?.[1];
+  const kind = plan.path.match(/^\/v\d+\/customers\/\d+\/([^/]+):mutate$/)?.[1];
   return plan.gateway === 'google_ads_native_action' && plan.method === 'POST' && kind && Object.hasOwn(config, kind)
     ? (kind as keyof typeof config)
     : undefined;
@@ -310,7 +311,7 @@ export function googleTargetingSnapshots(plan: CompiledRequest): CompiledRequest
       ...plan,
       action: 'AMCP_STATE_READ',
       method: 'POST',
-      path: '/v23/customers/' + account + '/googleAds:search',
+      path: googleAdsCustomers + account + '/googleAds:search',
       query: {},
       body: {query},
       readOnly: true,
@@ -329,7 +330,7 @@ export function googleTargetingSnapshots(plan: CompiledRequest): CompiledRequest
       ...plan,
       action: 'AMCP_STATE_READ',
       method: 'POST',
-      path: '/v23/customers/' + account + '/googleAds:search',
+      path: googleAdsCustomers + account + '/googleAds:search',
       query: {},
       body: {query: 'SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1'},
       readOnly: true,

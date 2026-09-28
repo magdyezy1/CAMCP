@@ -635,7 +635,7 @@ export class NativeTransport {
                 plan.query.action === 'finalizeUpload') ||
               (plan.gateway === 'google_ads_native_action' &&
                 plan.method === 'POST' &&
-                /^\/resumable\/upload\/v23\/customers\/\d+\/youTubeVideoUploads:create$/.test(plan.path) &&
+                /^\/resumable\/upload\/v\d+\/customers\/\d+\/youTubeVideoUploads:create$/.test(plan.path) &&
                 response.headers.has('x-goog-upload-url')));
           let bodyIntegrity: TransportResult['bodyIntegrity'];
           const tiktokCsv =

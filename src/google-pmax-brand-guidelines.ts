@@ -3,6 +3,7 @@ import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {googleAdsCustomers} from './google-version.js';
 
 /**
  * Brand guidelines of existing Performance Max campaigns, Google Ads API v23 (pinned Discovery document:
@@ -58,7 +59,7 @@ export function googleBrandGuidelinesKind(p: CompiledRequest): boolean {
     p.method === 'POST' &&
     !p.specialTransport &&
     (!p.origin || p.origin === 'https://googleads.googleapis.com') &&
-    /^\/v23\/customers\/\d+\/campaigns:enablePMaxBrandGuidelines$/.test(p.path)
+    /^\/v\d+\/customers\/\d+\/campaigns:enablePMaxBrandGuidelines$/.test(p.path)
   );
 }
 const operations = (p: CompiledRequest) => googleJson(p.body).operations as JsonObject[];
@@ -144,7 +145,7 @@ function read(p: CompiledRequest, query: string): Read {
     ...p,
     action: 'AMCP_BRAND_GUIDELINES_READ',
     method: 'POST',
-    path: '/v23/customers/' + account(p) + '/googleAds:search',
+    path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {query},
     query: {},
     headers: {},
@@ -396,7 +397,7 @@ export function googleBrandGuidelinesImpact(p: CompiledRequest, state: unknown[]
       'Links the business name and logos to each campaign instead of its asset groups, and applies the brand colors and font to automatically generated assets. Brand guidelines cannot be turned off again. Enabled campaigns serve with the new brand assets at once.',
     verification:
       'Reads each campaign again: brand guidelines enabled, the colors and font sent, and enabled campaign links of every brand asset sent (or at least one business name and logo when Google chooses them).',
-    source: 'https://developers.google.com/google-ads/api/reference/rpc/v23/CampaignService/EnablePMaxBrandGuidelines',
+    source: 'https://developers.google.com/google-ads/api/reference/rpc/v25/CampaignService/EnablePMaxBrandGuidelines',
   };
 }
 export function googleBrandGuidelinesOutcome(p: CompiledRequest, r: TransportResult): boolean {

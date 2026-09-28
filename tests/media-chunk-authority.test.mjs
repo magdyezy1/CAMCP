@@ -46,7 +46,7 @@ for (const lost of [false, true])
               return new Response(null, {
                 headers: {
                   'x-goog-upload-url':
-                    'https://googleads.googleapis.com/resumable/upload/v23/session?upload_id=synthetic-capability',
+                    'https://googleads.googleapis.com/resumable/upload/v25/session?upload_id=synthetic-capability',
                 },
               });
             if (h.get('X-Goog-Upload-Command') === 'query') {

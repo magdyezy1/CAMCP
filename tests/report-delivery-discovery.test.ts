@@ -185,7 +185,7 @@ test('website selection saves a cancelled Google account with its verified manag
       gateway: c.gateway,
       action: 'report',
       accountId: '302',
-      path: '/v23/customers/302/googleAds:search',
+      path: '/v25/customers/302/googleAds:search',
       method: 'POST',
       query: {},
       body: {query: 'SELECT campaign.id FROM campaign'},

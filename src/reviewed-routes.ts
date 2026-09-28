@@ -177,7 +177,7 @@ export function reviewedWriteFamily(p: CompiledRequest): string | undefined {
     if (googleAssetLinkKind(p)) return 'google_asset_links';
     if (googleTargetingKind(p)) return 'google_targeting';
     return method === 'POST' &&
-      /^\/v23\/customers\/[^/]+\/(campaigns|adGroups|adGroupAds|campaignBudgets|ads|assetGroups|assets):mutate$/.test(
+      /^\/v\d+\/customers\/[^/]+\/(campaigns|adGroups|adGroupAds|campaignBudgets|ads|assetGroups|assets):mutate$/.test(
         route,
       )
       ? 'google_entities'

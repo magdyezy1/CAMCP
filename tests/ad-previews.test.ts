@@ -243,10 +243,15 @@ test('Google Ads names the reviewed write that creates a shareable preview; X an
       ad_ids: ['987654321', 'customers/1234567890/adGroupAds/11~22'],
     });
     assert.equal(google.success, true, JSON.stringify(google));
-    assert.deepEqual(google.data.next_call.arguments.arguments.payload.shareablePreviews, [
-      {assetGroupIdentifier: {assetGroupId: '987654321'}},
-      {adGroupAd: 'customers/1234567890/adGroupAds/11~22', previewType: 'YOUTUBE_LIVE_PREVIEW'},
-    ]);
+    // The Google Ads v25 request: asset groups by resource with UI_PREVIEW, video ads with YOUTUBE_LIVE_PREVIEW.
+    assert.deepEqual(google.data.next_call.arguments.arguments.payload, {
+      operation: {
+        shareablePreviews: [
+          {assetGroup: 'customers/1234567890/assetGroups/987654321', previewType: 'UI_PREVIEW'},
+          {adGroupAd: 'customers/1234567890/adGroupAds/11~22', previewType: 'YOUTUBE_LIVE_PREVIEW'},
+        ],
+      },
+    });
     assert.equal(google.data.next_call.tool, 'amcp_write');
     assert.equal((await f.previews({platform: 'x_ads'})).data.preview_route, 'not_qualified');
     assert.equal((await f.previews({platform: 'dv360'})).data.preview_route, 'none');

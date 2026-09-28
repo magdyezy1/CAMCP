@@ -27,4 +27,4 @@ async function worker() {
   }
 }
 await Promise.all(Array.from({length: 8}, worker));
-console.log('Verified ' + verified + ' pinned official Google v23 source files.');
+console.log('Verified ' + verified + ' pinned official Google Ads ' + mapping.googleProto.version + ' source files.');

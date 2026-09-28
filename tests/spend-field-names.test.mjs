@@ -49,7 +49,7 @@ test('field names, field paths in values and Google resource types still ask for
       ...plan(),
       gateway: 'google_ads_native_action',
       action: 'google_ads_v23_ad_group_bid_modifier_mutate_ad_group_bid_modifiers',
-      path: '/v23/customers/123/adGroupBidModifiers:mutate',
+      path: '/v25/customers/123/adGroupBidModifiers:mutate',
       body: {operations: [{remove: 'customers/123/adGroupBidModifiers/456~30001'}]},
     },
   };

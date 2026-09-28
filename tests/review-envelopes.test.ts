@@ -166,7 +166,7 @@ type Layout = {
 const layouts: Layout[] = [
   {
     gateway,
-    path: '/v23/customers/123/googleAds:search',
+    path: '/v25/customers/123/googleAds:search',
     body: {
       query:
         "SELECT campaign.resource_name FROM campaign WHERE campaign.resource_name IN ('customers/123/campaigns/1')",

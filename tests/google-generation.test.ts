@@ -142,7 +142,7 @@ for (const [action, payload, response] of actions)
       assert.equal(f.calls[0]!.method, 'POST');
       assert.match(
         f.calls[0]!.url,
-        /^https:\/\/googleads\.googleapis\.com\/v23\/customers\/123\/(?:assetGenerations:generate(?:Text|Images)|recommendations:generate)$/,
+        /^https:\/\/googleads\.googleapis\.com\/v25\/customers\/123\/(?:assetGenerations:generate(?:Text|Images)|recommendations:generate)$/,
       );
       assert.equal(f.store.db.prepare('SELECT count(*) AS n FROM idempotency').get()!.n, 0);
       const row = actionContracts(registry).find(a => a.gateway === gateway && a.action === action);
@@ -401,10 +401,10 @@ test('empty protobuf output is explicit and malformed or partial responses never
 test('generation never paginates, retries lost responses or enables apply and shareable-preview mutations', async () => {
   const p = compiler.compile(gateway, {action: actions[1]![0], account_id: account, payload: text}, options);
   for (const path of [
-    '/v23/customers/123/recommendations:apply',
-    '/v23/customers/123/recommendations:dismiss',
-    '/v23/customers/123:generateShareablePreviews',
-    '/v23/customers/123/campaigns:generateText',
+    '/v25/customers/123/recommendations:apply',
+    '/v25/customers/123/recommendations:dismiss',
+    '/v25/customers/123:generateShareablePreviews',
+    '/v25/customers/123/campaigns:generateText',
   ])
     assert.equal(applyExecutionRisk({...p, path}).readOnly, false);
   assert.equal(googleGenerationKind({...p, origin: 'https://attacker.example'}), undefined);

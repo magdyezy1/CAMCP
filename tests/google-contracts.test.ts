@@ -5,8 +5,9 @@ import {createHash} from 'node:crypto';
 import {validateGoogleRequest, googleContractEvidence, googleJson} from '../src/google-contracts.js';
 import {NativeTransport} from '../src/transport.js';
 import {campaignRecipe} from '../src/campaign-recipes.js';
+import {retiredGoogleAdsActions} from '../src/retired-provider-actions.js';
 import type {CompiledRequest, Connection, JsonObject} from '../src/types.js';
-const plan = (body: JsonObject, path = '/v23/customers/123/campaigns:mutate'): CompiledRequest => ({
+const plan = (body: JsonObject, path = '/v25/customers/123/campaigns:mutate'): CompiledRequest => ({
   gateway: 'google_ads_native_action',
   accountId: '123',
   action: 'test',
@@ -21,9 +22,9 @@ const plan = (body: JsonObject, path = '/v23/customers/123/campaigns:mutate'): C
   evidence: 'SYNTHETIC',
   warnings: [],
 });
-test('Google native routes map to all 171 original RPCs with first-party request schemas and pinned integrity', () => {
+test('Google native routes map every captured RPC v25 still has to its first-party request schema, with pinned integrity', () => {
   const artifact = JSON.parse(fs.readFileSync('generated/vendor-routes.json', 'utf8')),
-    envelope = JSON.parse(fs.readFileSync('.mirror/VENDOR/google-ads-v23.json', 'utf8')),
+    envelope = JSON.parse(fs.readFileSync('.mirror/VENDOR/google-ads-v25.json', 'utf8')),
     registry = JSON.parse(fs.readFileSync('generated/registry.json', 'utf8'));
   const source = new Map<string, JsonObject>();
   function visit(d: JsonObject) {
@@ -31,16 +32,17 @@ test('Google native routes map to all 171 original RPCs with first-party request
     for (const r of Object.values(d.resources ?? {}) as JsonObject[]) visit(r);
   }
   visit(envelope.document);
-  assert.equal(source.size, 176);
-  assert.equal(Object.keys(envelope.document.schemas).length, 1443);
+  // v25 against v23: the two lifecycle goal methods are gone and Smart campaign PMax draft generation is new.
+  assert.equal(source.size, 175);
+  assert.equal(Object.keys(envelope.document.schemas).length, 1489);
   const routes = artifact.routes.filter((r: JsonObject) => r.gateway === 'google_ads_native_action');
-  assert.equal(routes.length, 171);
+  assert.equal(routes.length, 169);
   assert.deepEqual(
     new Set(routes.map((r: JsonObject) => r.action)),
     new Set(
       registry.catalogs
         .find((r: JsonObject) => r.gateway === 'google_ads_native_action')
-        .actions.filter((a: JsonObject) => a.raw.surface === 'rpc')
+        .actions.filter((a: JsonObject) => a.raw.surface === 'rpc' && !retiredGoogleAdsActions.includes(a.name))
         .map((a: JsonObject) => a.name),
     ),
   );
@@ -52,7 +54,7 @@ test('Google native routes map to all 171 original RPCs with first-party request
     assert.deepEqual(r.requestSchema, official.request ? envelope.document.schemas[official.request.$ref] : undefined);
   }
   assert.equal(
-    artifact.sourceIntegrity['google-ads-v23'].document_sha256,
+    artifact.sourceIntegrity['google-ads-v25'].document_sha256,
     createHash('sha256').update(JSON.stringify(envelope.document)).digest('hex'),
   );
   assert.equal(
@@ -85,12 +87,12 @@ test('Discovery validation rejects obsolete dates, unknown nested fields, bad en
     assert.throws(
       () =>
         validateGoogleRequest(
-          plan({operations: [{create: {amount_micros}}]}, '/v23/customers/123/campaignBudgets:mutate'),
+          plan({operations: [{create: {amount_micros}}]}, '/v25/customers/123/campaignBudgets:mutate'),
         ),
       {code: 'INVALID_VENDOR_BODY'},
     );
   validateGoogleRequest(
-    plan({operations: [{create: {amount_micros: '9007199254740993'}}]}, '/v23/customers/123/campaignBudgets:mutate'),
+    plan({operations: [{create: {amount_micros: '9007199254740993'}}]}, '/v25/customers/123/campaignBudgets:mutate'),
   );
   assert.throws(() => googleJson({amount_micros: '1', amountMicros: '2'}), {code: 'CONFLICTING_PARAMETER'});
   let requests = 0;

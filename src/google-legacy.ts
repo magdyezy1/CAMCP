@@ -1,6 +1,7 @@
 import mapping from './google-legacy-mapping.json' with {type: 'json'};
 import {MirrorError} from './errors.js';
 import {assertProviderAliasAvailable} from './retired-provider-actions.js';
+import {googleAdsRequestChange} from './google-version.js';
 import {guardInput, stable as stableJson} from './security.js';
 import type {Registry} from './catalog.js';
 import type {Action, JsonObject} from './types.js';
@@ -40,7 +41,9 @@ const descriptors = mapping.googleProto.descriptors as Record<string, Descriptor
 const requests = mapping.googleProto.rpcRequests as Record<string, string>;
 const entries = new Map<string, Entry>(mapping.entries.map(e => [e.name, e]));
 const gateway = 'google_ads_native_action';
-const prefix = 'google.ads.googleads.v23.';
+/** The Google Ads version of the pinned descriptors (tools/google-legacy-descriptors.mjs), the version AMCP sends. */
+const version = mapping.googleProto.version,
+  prefix = 'google.ads.googleads.' + version + '.';
 const snake = (s: string) =>
   s
     .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
@@ -108,7 +111,7 @@ export function validateGoogleMessage(
   for (const [key, v] of Object.entries(input)) {
     const field = desc.fields?.[key];
     if (!field)
-      error('UNKNOWN_GOOGLE_FIELD', 'Field is absent from the pinned Google v23 message.', {
+      error('UNKNOWN_GOOGLE_FIELD', 'Field is absent from the pinned Google Ads ' + version + ' message.', {
         message: name,
         field: path + '.' + key,
       });
@@ -159,7 +162,7 @@ export function validateGoogleMessage(
       }
       if (d?.kind === 'enum') {
         if (typeof item !== 'string' || !d.values?.includes(item))
-          error('INVALID_GOOGLE_ENUM', 'Use a symbolic enum value from the pinned v23 schema.', {
+          error('INVALID_GOOGLE_ENUM', 'Use a symbolic enum value from the pinned Google Ads ' + version + ' schema.', {
             field: path + '.' + key,
             allowed: d.values,
           });
@@ -597,7 +600,16 @@ function nativeBody(action: Action, body: JsonObject, account: string): JsonObje
       error('ACCOUNT_SCOPE_MISMATCH', 'Native request customer_id conflicts with account_id.');
     value.customer_id = account;
   }
-  const validated = validateGoogleMessage(desc, value);
+  let validated: JsonObject;
+  try {
+    validated = validateGoogleMessage(desc, value);
+  } catch (e) {
+    // A request shaped for the captured version names what the current one takes instead.
+    const change = googleAdsRequestChange(action.name);
+    if (change && e instanceof MirrorError)
+      throw new MirrorError(e.code, e.message, {...e.details, version_change: change}, e.status, e.retryable);
+    throw e;
+  }
   assertAccountReferences(validated, account);
   for (const key of ['operations', 'operation'])
     if (validated[key])
@@ -1020,7 +1032,9 @@ export function adaptGoogleLegacy(registry: Registry, input: JsonObject): Google
     responseMode: 'native',
     warnings: [
       'Google legacy adapter uses an independently specified input contract. Exact AMCP payload/response parity is unverified.',
-      'Request structure is checked against pinned Google v23 protobuf metadata. Vendor business rules, permissions and eligibility still require vendor validation.',
+      'Request structure is checked against the pinned Google Ads ' +
+        version +
+        ' protobuf metadata and, when sent, against its Discovery contract. Vendor business rules, permissions and eligibility still require vendor validation.',
       'Native response envelopes and partial-failure details are preserved without claiming a legacy response transformation.',
     ],
   };

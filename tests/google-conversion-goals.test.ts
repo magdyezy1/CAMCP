@@ -36,7 +36,7 @@ const mutate = (kind: string, operations: JsonObject[]): CompiledRequest => ({
   gateway,
   action: 'synthetic',
   method: 'POST',
-  path: '/v23/customers/123/' + kind + ':mutate',
+  path: '/v25/customers/123/' + kind + ':mutate',
   body: {operations},
   query: {},
   headers: {},
@@ -692,7 +692,7 @@ test('cached and in-flight verification recheck provider scopes; direct gateway 
   }
 });
 test('native mutation envelopes exactly match pinned Discovery without invented partialFailure fields', async () => {
-  const models = JSON.parse(readFileSync('.mirror/VENDOR/google-ads-v23.json', 'utf8')).document.schemas;
+  const models = JSON.parse(readFileSync('.mirror/VENDOR/google-ads-v25.json', 'utf8')).document.schemas;
   for (const [kind, action] of Object.entries(rpc)) {
     const route = registry.action(gateway, action)!;
     assert.ok(route.path?.includes(kind));

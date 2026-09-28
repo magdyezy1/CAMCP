@@ -3,6 +3,7 @@ import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {googleAdsCustomers} from './google-version.js';
 
 /**
  * Auto-apply recommendation subscriptions, Google Ads API v23 (pinned Discovery document:
@@ -40,7 +41,7 @@ export function googleSubscriptionKind(p: CompiledRequest): boolean {
     p.method === 'POST' &&
     !p.specialTransport &&
     (!p.origin || p.origin === 'https://googleads.googleapis.com') &&
-    /^\/v23\/customers\/\d+\/recommendationSubscriptions:mutateRecommendationSubscription$/.test(p.path)
+    /^\/v\d+\/customers\/\d+\/recommendationSubscriptions:mutateRecommendationSubscription$/.test(p.path)
   );
 }
 const operations = (p: CompiledRequest) => (googleJson(p.body).operations ?? []) as JsonObject[];
@@ -115,7 +116,7 @@ function read(p: CompiledRequest): Read {
     ...p,
     action: 'AMCP_GOOGLE_SUBSCRIPTION_READ',
     method: 'POST',
-    path: '/v23/customers/' + account(p) + '/googleAds:search',
+    path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {query: subscriptionQuery},
     query: {},
     headers: {},

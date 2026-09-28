@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import {googleJson, validateGoogleRequest} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {googleAdsCustomers} from './google-version.js';
 
 /**
  * Listing group filters of Performance Max retail asset groups, per Google Ads API v23 AssetGroupListingGroupFilterService
@@ -78,7 +79,7 @@ export function googleListingGroupKind(p: CompiledRequest): boolean {
     p.method === 'POST' &&
     !p.specialTransport &&
     (!p.origin || p.origin === 'https://googleads.googleapis.com') &&
-    /^\/v23\/customers\/\d+\/assetGroupListingGroupFilters:mutate$/.test(p.path)
+    /^\/v\d+\/customers\/\d+\/assetGroupListingGroupFilters:mutate$/.test(p.path)
   );
 }
 /** The dimension that splits a node from its siblings and whether it is the "Other" node of that dimension. */
@@ -219,7 +220,7 @@ function search(p: CompiledRequest, kind: 'group' | 'tree', group: string): Comp
     ...p,
     action: 'AMCP_LISTING_GROUP_READ',
     method: 'POST',
-    path: '/v23/customers/' + c + '/googleAds:search',
+    path: googleAdsCustomers + c + '/googleAds:search',
     body: {query},
     query: {},
     headers: {},

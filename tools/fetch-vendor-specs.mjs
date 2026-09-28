@@ -4,7 +4,7 @@ const hash = document => createHash('sha256').update(JSON.stringify(document)).d
 const google = (name, version) => 'https://www.googleapis.com/discovery/v1/apis/' + name + '/' + version + '/rest';
 const service = (name, version) => 'https://' + name + '.googleapis.com/$discovery/rest?version=' + version;
 const sources = {
-  'google-ads-v23': service('googleads', 'v23'),
+  'google-ads-v25': service('googleads', 'v25'),
   'gtm-v2': google('tagmanager', 'v2'),
   'ga4-data-v1beta': service('analyticsdata', 'v1beta'),
   'ga4-data-v1alpha': service('analyticsdata', 'v1alpha'),
@@ -109,9 +109,15 @@ function add(gateway, operation, action, file, id, readOnly) {
 }
 // Bind only existing native RPC routes with an exact verb and normalized path.
 // Discovery does not automatically expose new methods or grant reviewed writes.
-const ads = docs.get('google-ads-v23');
-if (!ads || ads.document.name !== 'googleads' || ads.document.version !== 'v23')
-  throw Error('Fetch the official Google Ads v23 Discovery document before generation.');
+// The captured catalog recorded Google Ads routes at v23; AMCP now sends them to the pinned version (src/google-version.ts).
+const ads = docs.get('google-ads-v25');
+if (!ads || ads.document.name !== 'googleads' || ads.document.version !== 'v25')
+  throw Error('Fetch the official Google Ads v25 Discovery document before generation.');
+const currentVersion = path => path.replace(/^\/v\d+(?=[/:])/, '/' + ads.document.version);
+// Catalog actions whose method v25 removed (src/retired-provider-actions.ts refuses them; a test keeps both lists equal).
+const retiredGoogleMethods = new Set(
+  ['customer', 'campaign'].map(k => 'google_ads_v23_' + k + '_lifecycle_goal_configure_' + k + '_lifecycle_goals'),
+);
 const routeKey = (method, path) =>
   method.toUpperCase() +
   ' /' +
@@ -122,11 +128,15 @@ const routeKey = (method, path) =>
 for (const action of registry.catalogs
   .find(c => c.gateway === 'google_ads_native_action')
   .actions.filter(a => a.raw.surface === 'rpc')) {
-  const found = [...methods.get('google-ads-v23').values()].filter(
-    m => routeKey(m.httpMethod, m.flatPath ?? m.path) === routeKey(action.method, action.path),
+  const found = [...methods.get('google-ads-v25').values()].filter(
+    m => routeKey(m.httpMethod, m.flatPath ?? m.path) === routeKey(action.method, currentVersion(action.path)),
   );
-  if (found.length !== 1) throw Error('Google Ads native RPC must map to exactly one official method: ' + action.name);
-  add('google_ads_native_action', '', action.name, 'google-ads-v23', found[0].id, action.read_only);
+  if (found.length !== 1) {
+    // A method Google removed has no official route left; src/retired-provider-actions.ts refuses it by name.
+    if (!found.length && retiredGoogleMethods.has(action.name)) continue;
+    throw Error('Google Ads native RPC must map to exactly one official method: ' + action.name);
+  }
+  add('google_ads_native_action', '', action.name, 'google-ads-v25', found[0].id, action.read_only);
 }
 const gtm = 'gtm_native_action',
   gtmPrefix = 'tagmanager.accounts';
@@ -511,7 +521,7 @@ const artifact =
           schemas: Object.fromEntries(Object.entries(criteoSchemas).sort(([a], [b]) => a.localeCompare(b, 'en'))),
         },
         'reddit-v3': reddit.document.components,
-        'google-ads-v23': {schemas: ads.document.schemas},
+        'google-ads-v25': {schemas: ads.document.schemas},
       },
     },
     null,

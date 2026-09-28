@@ -20,7 +20,7 @@ test('withdrawn GTM methods remain inventoried and fail without provider calls o
         throw Error('No egress');
       }),
     );
-    for (const r of retiredProviderActions) {
+    for (const r of retiredProviderActions.filter(r => r.gateway === 'gtm_native_action')) {
       const args = {
         operation: 'gtm_ops',
         arguments: {

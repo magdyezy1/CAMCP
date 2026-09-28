@@ -4,6 +4,7 @@ import {googleJson} from './google-contracts.js';
 import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {googleAdsCustomers} from './google-version.js';
 
 type Context = {groups: string[]; targets: string[]};
 type Read = CompiledRequest & {googleBidState?: Context};
@@ -93,7 +94,7 @@ export function googleBidKind(p: CompiledRequest): boolean {
       p.method === 'POST' &&
       !p.specialTransport &&
       (!p.origin || p.origin === 'https://googleads.googleapis.com') &&
-      /^\/v23\/customers\/\d+\/adGroupBidModifiers:mutate$/.test(p.path))
+      /^\/v\d+\/customers\/\d+\/adGroupBidModifiers:mutate$/.test(p.path))
   );
 }
 export {assertGoogleAdsScope as assertGoogleBidScope} from './google-contracts.js';
@@ -219,7 +220,7 @@ function read(p: CompiledRequest, query: string): Read {
     ...p,
     action: 'AMCP_GOOGLE_BID_READ',
     method: 'POST',
-    path: '/v23/customers/' + account(p) + '/googleAds:search',
+    path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {query},
     query: {},
     headers: {},

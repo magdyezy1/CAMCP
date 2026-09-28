@@ -15,7 +15,7 @@ export const budgetUnits: Readonly<Record<string, BudgetUnit>> = Object.freeze({
   google_ads_native_action: {
     perCurrencyUnit: 1_000_000,
     unit: 'micros',
-    evidence: 'CampaignBudget.amountMicros, pinned Google Ads v23 Discovery document',
+    evidence: 'CampaignBudget.amountMicros, pinned Google Ads v25 Discovery document',
   },
   dv360_native_action: {
     perCurrencyUnit: 1_000_000,

@@ -51,7 +51,7 @@ function fixture(mode = '') {
         path = decodeURIComponent(u.pathname),
         body = init.body ? JSON.parse(String(init.body)) : undefined;
       calls.push({path, body});
-      if (path === '/v23/customers/123/googleAds:search') {
+      if (path === '/v25/customers/123/googleAds:search') {
         if (/FROM recommendation_subscription/.test(body.query))
           return Response.json({
             results: [...subscriptions].map(([type, status]) => ({
@@ -60,7 +60,7 @@ function fixture(mode = '') {
           });
         throw new Error('Unexpected query ' + body.query);
       }
-      if (path === '/v23/customers/123/recommendationSubscriptions:mutateRecommendationSubscription') {
+      if (path === '/v25/customers/123/recommendationSubscriptions:mutateRecommendationSubscription') {
         writes++;
         return Response.json({
           results: body.operations.map(op => {

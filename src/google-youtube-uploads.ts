@@ -3,6 +3,7 @@ import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {googleAdsCustomers} from './google-version.js';
 
 /**
  * YouTube video uploads made through the Google Ads API, v23 (pinned Discovery document: YouTubeVideoUploadService
@@ -38,7 +39,7 @@ export function googleUploadKind(p: CompiledRequest): Kind | undefined {
     (p.origin && p.origin !== 'https://googleads.googleapis.com')
   )
     return;
-  const m = /^\/v23\/customers\/\d+\/youTubeVideoUploads:(update|remove)$/.exec(p.path);
+  const m = /^\/v\d+\/customers\/\d+\/youTubeVideoUploads:(update|remove)$/.exec(p.path);
   return m ? (m[1] as Kind) : undefined;
 }
 const uploadPattern = (p: CompiledRequest) =>
@@ -93,7 +94,7 @@ function read(p: CompiledRequest, query: string): Read {
     ...p,
     action: 'AMCP_GOOGLE_YOUTUBE_UPLOAD_READ',
     method: 'POST',
-    path: '/v23/customers/' + account(p) + '/googleAds:search',
+    path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {query},
     query: {},
     headers: {},
@@ -253,7 +254,7 @@ export function googleUploadImpact(p: CompiledRequest, state: unknown[]): JsonOb
       kind === 'remove'
         ? 'Reads the uploads again and expects them to be gone or unavailable.'
         : 'Reads the upload again and compares its privacy.',
-    source: 'https://developers.google.com/google-ads/api/reference/rpc/v23/YouTubeVideoUploadService',
+    source: 'https://developers.google.com/google-ads/api/reference/rpc/v25/YouTubeVideoUploadService',
   };
 }
 export function googleUploadOutcome(p: CompiledRequest, r: TransportResult): boolean {

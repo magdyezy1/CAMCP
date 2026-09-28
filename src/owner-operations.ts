@@ -7,6 +7,7 @@ import {budgetUnits} from './budget-units.js';
 import {mediaLimitProblem} from './drive-media.js';
 import type {Actor, JsonObject} from './types.js';
 import {ownerAccess, saveSpendPolicy} from './spend-policy.js';
+import {googleAdsVersion} from './google-version.js';
 const writePauseId = 'workspace';
 /** The owner's pause of every reviewed write of a workspace, or undefined when writes are not paused. */
 export function writePause(store: Store, tenant: string): JsonObject | undefined {
@@ -101,7 +102,7 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
           'No verified backup receipt has been recorded. Use the encrypted backup command and test restoration before relying on recovery.',
       },
       api_versions: {
-        google: 'v23',
+        google: googleAdsVersion,
         meta: 'v25.0',
         tiktok: 'v1.3',
         snapchat: 'v1',

@@ -643,7 +643,7 @@ test('singular native remove operations have destructive risk and cannot imperso
   assert.equal(googleAccessKind(p), 'members');
   assert.equal(googleAccessKind({...p, origin: 'https://evil.invalid'}), undefined);
   assert.equal(googleAccessKind({...p, action: inviteRpc}), undefined);
-  assert.equal(googleAccessKind({...p, path: '/v23/customers/123/campaigns:mutate'}), undefined);
+  assert.equal(googleAccessKind({...p, path: '/v25/customers/123/campaigns:mutate'}), undefined);
   const before = [{invitations: {[inv()]: {}}}];
   assert.equal(
     googleAccessOutcome(
@@ -668,25 +668,25 @@ test('Google user access capability inventory includes all six native and legacy
 });
 
 test('pinned v23 Discovery and source-hashed protos agree on singular operations and optional authorization reviews', () => {
-  const evidence = JSON.parse(readFileSync('tests/fixtures/google-user-access-v23.json', 'utf8')),
-    spec = JSON.parse(readFileSync('.mirror/VENDOR/google-ads-v23.json', 'utf8')).document,
+  const evidence = JSON.parse(readFileSync('tests/fixtures/google-user-access-v25.json', 'utf8')),
+    spec = JSON.parse(readFileSync('.mirror/VENDOR/google-ads-v25.json', 'utf8')).document,
     s = spec.schemas;
   assert.equal(Object.keys(evidence.sources).length, 9);
   for (const source of Object.values(evidence.sources) as JsonObject[]) {
     assert.match(source.sha256, /^[a-f0-9]{64}$/);
     assert.match(
       source.url,
-      /^https:\/\/raw\.githubusercontent\.com\/googleapis\/googleapis\/master\/google\/ads\/googleads\/v23\//,
+      /^https:\/\/raw\.githubusercontent\.com\/googleapis\/googleapis\/master\/google\/ads\/googleads\/v25\//,
     );
   }
   for (const type of ['CustomerUserAccess', 'CustomerUserAccessInvitation']) {
-    assert.deepEqual(Object.keys(s['GoogleAdsGoogleadsV23Services__Mutate' + type + 'Request'].properties), [
+    assert.deepEqual(Object.keys(s['GoogleAdsGoogleadsV25Services__Mutate' + type + 'Request'].properties), [
       'operation',
     ]);
-    assert.deepEqual(Object.keys(s['GoogleAdsGoogleadsV23Services__Mutate' + type + 'Response'].properties), [
+    assert.deepEqual(Object.keys(s['GoogleAdsGoogleadsV25Services__Mutate' + type + 'Response'].properties), [
       'result',
     ]);
-    assert.deepEqual(Object.keys(s['GoogleAdsGoogleadsV23Services__Mutate' + type + 'Result'].properties).sort(), [
+    assert.deepEqual(Object.keys(s['GoogleAdsGoogleadsV25Services__Mutate' + type + 'Result'].properties).sort(), [
       'multiPartyAuthReview',
       'resourceName',
     ]);

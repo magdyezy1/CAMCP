@@ -3,6 +3,7 @@ import {googleJson} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {googleAdsCustomers} from './google-version.js';
 
 const resources = {
   customerConversionGoals: 'customer_conversion_goal',
@@ -108,7 +109,7 @@ const actionFields = [
 ];
 const liveCampaigns = "campaign.status != 'REMOVED' AND campaign.advertising_channel_type != 'MULTI_CHANNEL'";
 export function googleConversionGoalKind(p: CompiledRequest): Kind | undefined {
-  const kind = p.path.match(/^\/v23\/customers\/\d+\/([A-Za-z]+):mutate$/)?.[1];
+  const kind = p.path.match(/^\/v\d+\/customers\/\d+\/([A-Za-z]+):mutate$/)?.[1];
   return p.gateway === 'google_ads_native_action' &&
     p.method === 'POST' &&
     !p.specialTransport &&
@@ -215,7 +216,7 @@ function read(p: CompiledRequest, resource: string, fields: string[], where = ''
     ...p,
     action: 'AMCP_CONVERSION_GOAL_READ',
     method: 'POST',
-    path: '/v23/customers/' + account(p) + '/googleAds:search',
+    path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {
       query:
         'SELECT ' +

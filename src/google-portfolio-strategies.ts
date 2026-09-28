@@ -3,6 +3,7 @@ import {googleJson} from './google-contracts.js';
 import {sha256, stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {googleAdsCustomers} from './google-version.js';
 
 type Send = (plan: CompiledRequest) => Promise<TransportResult>;
 const schemes: Record<string, string[]> = {
@@ -70,7 +71,7 @@ export function googlePortfolioKind(p: CompiledRequest): boolean {
     p.method === 'POST' &&
     !p.specialTransport &&
     (!p.origin || p.origin === 'https://googleads.googleapis.com') &&
-    /^\/v23\/customers\/\d+\/biddingStrategies:mutate$/.test(p.path)
+    /^\/v\d+\/customers\/\d+\/biddingStrategies:mutate$/.test(p.path)
   );
 }
 function values(scheme: string, input: JsonObject, complete: boolean): JsonObject {
@@ -219,7 +220,7 @@ function read(p: CompiledRequest, query: string): CompiledRequest {
     ...p,
     action: 'AMCP_PORTFOLIO_READ',
     method: 'POST',
-    path: '/v23/customers/' + account(p) + '/googleAds:search',
+    path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {query},
     query: {},
     headers: {},

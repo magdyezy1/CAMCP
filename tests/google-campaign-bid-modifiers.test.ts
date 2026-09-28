@@ -137,7 +137,7 @@ function fixture(file = ':memory:') {
           ...(mode === 'new_envelope' ? {futureEnvelope: true} : {}),
         });
       }
-      assert.equal(path, '/v23/customers/123/campaignBidModifiers:mutate');
+      assert.equal(path, '/v25/customers/123/campaignBidModifiers:mutate');
       if (mode === 'lost') throw Error('Synthetic lost response');
       if (mode === 'partial')
         return Response.json({results: [], partialFailureError: {code: 3, message: 'Synthetic partial'}});
@@ -501,7 +501,7 @@ test('state reading enforces per-page bytes, total bytes, page count and a monot
   const p: CompiledRequest = {
     gateway,
     action: rpc,
-    path: '/v23/customers/123/campaignBidModifiers:mutate',
+    path: '/v25/customers/123/campaignBidModifiers:mutate',
     accountId: '123',
     method: 'POST',
     query: {},

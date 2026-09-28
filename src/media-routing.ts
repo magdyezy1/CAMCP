@@ -88,9 +88,9 @@ export function mediaRoute(
   if (p === 'x_ads' && path === '/1.1/media/upload.json') return {platform: p};
   if (p === 'linkedin' && ['/rest/images', '/rest/videos'].includes(path) && plan.query.action === 'initializeUpload')
     return {platform: p, media_type: path.endsWith('images') ? 'image' : 'video'};
-  if (p === 'google_ads' && /^\/v23\/customers\/[^/]+\/assets:mutate$/.test(path))
+  if (p === 'google_ads' && /^\/v\d+\/customers\/[^/]+\/assets:mutate$/.test(path))
     return {platform: p, media_type: 'image'};
-  if (p === 'google_ads' && /^\/v23\/customers\/[^/]+\/youTubeVideoUploads:create$/.test(path))
+  if (p === 'google_ads' && /^\/v\d+\/customers\/[^/]+\/youTubeVideoUploads:create$/.test(path))
     return {platform: p, media_type: 'video'};
   if (p === 'dv360' && /^\/(?:upload\/)?v4\/advertisers\/[^/]+\/assets$/.test(path)) return {platform: p};
   // Demand Gen image ad assets; YouTube video ad assets are created by video ID instead.

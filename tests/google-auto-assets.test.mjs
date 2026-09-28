@@ -57,7 +57,7 @@ function fixture(mode = '') {
         path = decodeURIComponent(u.pathname),
         body = init.body ? JSON.parse(String(init.body)) : undefined;
       calls.push({path, body});
-      if (path === '/v23/customers/123/googleAds:search') {
+      if (path === '/v25/customers/123/googleAds:search') {
         const q = body.query + ' ';
         if (/FROM customer /.test(q))
           return Response.json({results: [{customer: {resourceName: 'customers/123', id: '123'}}]});
@@ -97,11 +97,11 @@ function fixture(mode = '') {
       const remove = (o, a, t) => {
         if (mode !== 'ignore') for (const l of links) if (l[0] === o && l[1] === a && l[2] === t) l[4] = false;
       };
-      if (path === C.replace(/^/, '/v23/') + 'adGroupAds/10~20:removeAutomaticallyCreatedAssets') {
+      if (path === C.replace(/^/, '/v25/') + 'adGroupAds/10~20:removeAutomaticallyCreatedAssets') {
         for (const x of body.assetsWithFieldType) remove(ad, x.asset, x.assetFieldType);
         return Response.json({});
       }
-      if (path === '/v23/customers/123:removeCampaignAutomaticallyCreatedAsset') {
+      if (path === '/v25/customers/123:removeCampaignAutomaticallyCreatedAsset') {
         for (const x of body.operations) remove(x.campaign, x.asset, x.fieldType);
         return Response.json(mode === 'partial' ? {partialFailureError: {code: 3, message: 'One removal failed'}} : {});
       }

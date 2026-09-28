@@ -28,6 +28,7 @@ import {
   type ToolCall,
 } from './workspace-core.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
+import {googleAdsCustomers} from './google-version.js';
 export const workspaceTool = tool(
   'amcp_workspace',
   'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its change history. Account readiness, capability evidence, approved client defaults/templates, and campaign change history. contracts lists every local action and its read/write/media/blocked contract classification without network calls; filter by gateway/search and paginate with offset/limit. Profiles never grant account access. check performs only provider reads; unsupported/missing evidence stays explicit.',
@@ -94,7 +95,7 @@ export const accountPlan = (gateway: string, id: string): CompiledRequest => {
       break;
     case 'google_ads_native_action':
       p.method = 'POST';
-      p.path = '/v23/customers/' + id + '/googleAds:search';
+      p.path = googleAdsCustomers + id + '/googleAds:search';
       p.body = {query: 'SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1'};
       break;
     case 'linkedin_native_action':

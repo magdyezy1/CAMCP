@@ -1,9 +1,5 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import {createHash} from 'node:crypto';
-const directory = process.argv[process.argv.indexOf('--source-dir') + 1];
-if (!process.argv.includes('--source-dir') || !directory)
-  throw Error('Supply --source-dir containing the eight public Google Ads v23 conversion-action protos.');
+import {fieldNames, googleVersion, message, pin, readProtos} from './google-protos.mjs';
+// The GAQL field table of conversion_action is separate evidence: tools/google-conversion-field-evidence.mjs.
 const names = [
     'resources/conversion_action',
     'services/conversion_action_service',
@@ -14,42 +10,10 @@ const names = [
     'enums/attribution_model',
     'errors/conversion_action_error',
   ],
-  sources = {},
-  content = {};
-for (const name of names) {
-  const bytes = fs.readFileSync(path.join(directory, name.replace('/', '_') + '.proto'));
-  content[name] = bytes.toString('utf8');
-  sources[name] = {
-    url: 'https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/' + name + '.proto',
-    sha256: createHash('sha256').update(bytes).digest('hex'),
-  };
-}
-function message(text, name) {
-  const start = text.indexOf('message ' + name + ' {');
-  if (start < 0) throw Error('Missing native message ' + name);
-  const begin = text.indexOf('{', start);
-  let depth = 1,
-    end = begin;
-  while (depth && ++end < text.length) {
-    if (text[end] === '{') depth++;
-    if (text[end] === '}') depth--;
-  }
-  if (depth) throw Error('Unclosed native message');
-  return text.slice(begin + 1, end);
-}
+  {sources, content} = readProtos(names, 'conversion-action protos');
 const fields = {};
-for (const name of ['ConversionAction', 'ValueSettings', 'AttributionModelSettings']) {
-  const native = message(content['resources/conversion_action'], name);
-  fields[name] = [
-    ...new Set(
-      [
-        ...native
-          .replace(/\/\/[^\n]*/g, '')
-          .matchAll(/(?:^|\n)\s+(?:optional\s+|repeated\s+)?[\w.]+\s+([a-z_]+)\s*=\s*\d+/g),
-      ].map(m => m[1]),
-    ),
-  ].sort();
-}
+for (const name of ['ConversionAction', 'ValueSettings', 'AttributionModelSettings'])
+  fields[name] = fieldNames(message(content['resources/conversion_action'], name));
 const enums = {};
 for (const name of names.filter(n => n.startsWith('enums/') || n.startsWith('errors/'))) {
   enums[name.split('/')[1]] = Object.fromEntries(
@@ -58,7 +22,7 @@ for (const name of names.filter(n => n.startsWith('enums/') || n.startsWith('err
   if (Object.keys(enums[name.split('/')[1]]).length < 4) throw Error('Changed native enum ' + name);
 }
 const resourcePattern = /pattern: "([^"]+)"/.exec(content['resources/conversion_action'])?.[1],
-  route = '/v23/customers/{customer_id=*}/conversionActions:mutate',
+  route = '/' + googleVersion + '/customers/{customer_id=*}/conversionActions:mutate',
   service = content['services/conversion_action_service'];
 if (
   resourcePattern !== 'customers/{customer_id}/conversionActions/{conversion_action_id}' ||
@@ -67,29 +31,11 @@ if (
   !service.includes('repeated MutateConversionActionResult results = 2;')
 )
   throw Error('Native conversion action route or request/receipt changed.');
-const fieldBytes = fs.readFileSync(path.join(directory, 'fields.txt')),
-  fieldText = fieldBytes.toString('utf8').replace(/^L\d+: /gm, '');
-const queryFields = {};
-for (const m of fieldText.matchAll(/## conversion_action\.([a-z_.]+)\n([\s\S]*?)(?=\n## |\n-{5}|$)/g)) {
-  const s = /Selectable (True|False)/.exec(m[2]),
-    r = /Repeated (True|False)/.exec(m[2]);
-  if (s && r) queryFields[m[1]] = {selectable: s[1] === 'True', repeated: r[1] === 'True'};
-}
-if (
-  !queryFields.id?.selectable ||
-  !queryFields.phone_call_duration_seconds?.selectable ||
-  !queryFields.app_id?.selectable
-)
-  throw Error('Missing official field-table evidence. Supply fields.txt from the public v23 reference.');
-const fieldEvidence = {
-  source: 'https://developers.google.com/google-ads/api/fields/v23/conversion_action',
-  method: 'Offline field-heading/table extraction from public web-tool reference excerpts; not a live account query.',
-  source_text_sha256: createHash('sha256').update(fieldBytes).digest('hex'),
-  fields: queryFields,
-};
-const result = {
-    version: 'v23',
-    checked_at: '2026-09-25',
+pin(
+  'tests/fixtures/google-conversion-actions-' + googleVersion + '.json',
+  {
+    version: googleVersion,
+    checked_at: '2026-09-28',
     meaning:
       'Public source-hashed protocol evidence. Native definition support does not establish tracking, upload eligibility or provider permissions.',
     sources,
@@ -97,13 +43,9 @@ const result = {
     route,
     fields,
     enums,
-    fieldEvidence,
   },
-  output = 'tests/fixtures/google-conversion-actions-v23.json',
-  text = JSON.stringify(result, null, 2) + '\n';
-if (process.argv.includes('--check')) {
-  if (fs.readFileSync(output, 'utf8') !== text) throw Error('Conversion evidence differs from pinned fixture.');
-} else fs.writeFileSync(output, text);
+  'Conversion evidence',
+);
 console.log(
   'Verified conversion-action service, resource, nested business settings, six enums and eight public source hashes.',
 );

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {Registry} from './catalog.js';
 import {Compiler} from './compiler.js';
 import {Introspection} from './introspection.js';
+import {currentGoogleAdsCapture} from './google-version.js';
 import type {CallOptions, JsonObject} from './types.js';
 const strict: CallOptions = {mode: 'strict', flags: {}};
 /** Replays evidence before reporting a pass; no inference from catalog or adapter counts. */
@@ -38,7 +39,9 @@ export function verifyCapturedContracts(registry: Registry) {
         kind === 'catalog_pages'
           ? introspection.list(g.gateway, input, strict)
           : introspection.describe(g.gateway, input);
-      assert.deepEqual(actual, outer.data, g.gateway + '/' + name);
+      // Google Ads pages were captured at v23; AMCP lists them at the version it sends (src/google-version.ts).
+      const expected = g.gateway === 'google_ads_native_action' ? currentGoogleAdsCapture(outer.data) : outer.data;
+      assert.deepEqual(actual, expected, g.gateway + '/' + name);
       g.tier1[kind]++;
     }
   }

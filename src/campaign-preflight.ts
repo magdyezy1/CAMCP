@@ -21,7 +21,7 @@ function googleReference(service: MirrorService, parent: JsonObject | undefined,
   if (parent.gateway !== 'google_ads_native_action')
     throw new MirrorError('INVALID_REFERENCE', 'A Google resource name must come from a Google predecessor.');
   const plan = service.compiler.compile(parent.gateway, {...parent.arguments, account_id: account}, service.options);
-  const match = plan.path.match(/^\/v23\/customers\/(\d+)\/([A-Za-z]+):mutate$/);
+  const match = plan.path.match(/^\/v\d+\/customers\/(\d+)\/([A-Za-z]+):mutate$/);
   if (!match)
     throw new MirrorError('INVALID_REFERENCE', 'This predecessor has no declared Google resource mutation receipt.');
   const pointer = /^\/data\/results\/(0|[1-9][0-9]*)\/resourceName$/.exec(ref.slice(ref.indexOf('#') + 1));

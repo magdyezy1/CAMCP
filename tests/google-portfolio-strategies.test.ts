@@ -10,7 +10,7 @@ import {NativeTransport} from '../src/transport.js';
 import {saveSpendPolicy} from '../src/spend-policy.js';
 import {googleJson} from '../src/google-contracts.js';
 import {googlePortfolioFields, readGooglePortfolioState} from '../src/google-portfolio-strategies.js';
-import evidence from './fixtures/google-portfolio-v23.json' with {type: 'json'};
+import evidence from './fixtures/google-portfolio-v25.json' with {type: 'json'};
 import {removeTestDirectory} from './temp.js';
 import type {Connection, JsonObject} from '../src/types.js';
 
@@ -115,7 +115,7 @@ function fixture(file = ':memory:') {
         if (mode === 'unknown') data.partial = true;
         return Response.json(data);
       }
-      assert.equal(path, '/v23/customers/123/biddingStrategies:mutate');
+      assert.equal(path, '/v25/customers/123/biddingStrategies:mutate');
       if (mode === 'partial') return Response.json({results: [], partialFailureError: {code: 3}});
       if (mode === 'empty') return Response.json({});
       const results = body.operations.map((op: JsonObject) => {

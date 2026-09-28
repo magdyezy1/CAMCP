@@ -13,6 +13,7 @@ import {extendGoogleBusinessTool} from './google-business-extensions.js';
 import {extendMetaPostWorkflow} from './meta-post-extensions.js';
 import {extendAdjustTool} from './adjust-extensions.js';
 import {metaActionOverride} from './meta-contracts.js';
+import {extendGoogleAdsTool, googleAdsActionVersion, googleAdsVersion} from './google-version.js';
 import {extendXReportTool} from './x-report-jobs.js';
 const addFormats = addFormatsModule as unknown as (ajv: Ajv) => void;
 export class Registry {
@@ -48,7 +49,9 @@ export class Registry {
                   ? extendMetaPostWorkflow(original)
                   : original.name === 'adjust_native_action'
                     ? extendAdjustTool(original)
-                    : original;
+                    : original.name === 'google_ads_native_action'
+                      ? extendGoogleAdsTool(original)
+                      : original;
       this.tools.set(tool.name, tool);
       this.validators.set(tool.name, this.ajv.compile(tool.inputSchema));
       for (const op of tool.operations ?? [])
@@ -58,7 +61,9 @@ export class Registry {
       const catalog =
         original.gateway === 'meta_native_action'
           ? {...original, actions: original.actions.map(metaActionOverride)}
-          : original;
+          : original.gateway === 'google_ads_native_action'
+            ? {...original, api_version: googleAdsVersion, actions: original.actions.map(googleAdsActionVersion)}
+            : original;
       this.catalogs.set(catalog.gateway, catalog);
       for (const action of catalog.actions) this.register(catalog.gateway, action);
     }

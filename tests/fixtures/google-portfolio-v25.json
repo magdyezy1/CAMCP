@@ -1,39 +1,39 @@
 {
-  "version": "v23",
-  "checked_at": "2026-09-24",
+  "version": "v25",
+  "checked_at": "2026-09-28",
   "meaning": "Public source-hashed protocol evidence; not live eligibility or permission.",
   "sources": {
     "resources/bidding_strategy": {
-      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/resources/bidding_strategy.proto",
-      "sha256": "4bae48c2546cbc5a4103d5de0558951d40c13c7933daee36e8ec3257d721405b"
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/resources/bidding_strategy.proto",
+      "sha256": "5d4357e39bc804e80586f4937fa5216a05df0f17691f2078392ae655f649c231"
     },
     "services/bidding_strategy_service": {
-      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/services/bidding_strategy_service.proto",
-      "sha256": "d93c462bed46045069fca4974884f3581a8b62ae318c895237ef276fafedf862"
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/services/bidding_strategy_service.proto",
+      "sha256": "f2f4916ad7678405e93f733bb16720d2b1f0f9dde54620657e31c3a2bca0e476"
     },
     "common/bidding": {
-      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/common/bidding.proto",
-      "sha256": "be53631c8679407c828a4cf8b801b56906ffa535fa9cf4db16ee4fd70bb60d38"
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/common/bidding.proto",
+      "sha256": "6ab11f07cfd13c1655033062d9d6dba6eb982360e276ed9b5a714ff714129f35"
     },
     "enums/bidding_strategy_status": {
-      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/enums/bidding_strategy_status.proto",
-      "sha256": "9dbbdc1af2ee24ea2155a4ee1a785b1fdfcc1813b442dc3179f92409663cfa7b"
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/enums/bidding_strategy_status.proto",
+      "sha256": "613ddea130aa2feac3ea53e749879c1f97fd06aa2afc91aa4aa49ee0062e71b1"
     },
     "enums/bidding_strategy_type": {
-      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/enums/bidding_strategy_type.proto",
-      "sha256": "08b2c068e762d1f28b958301bbb68171f636a921c371f5362a10c9acfebd19dd"
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/enums/bidding_strategy_type.proto",
+      "sha256": "36ebe8bd9ddc8c249ee14408a30aed26e604ace2ae6f69af41a2c87c203e604e"
     },
     "enums/target_impression_share_location": {
-      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/enums/target_impression_share_location.proto",
-      "sha256": "28b64595f617cfe03c54746ebb408b4e2cba5d5a7905e8442a4962276a3779fd"
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/enums/target_impression_share_location.proto",
+      "sha256": "f511480d0fb14e1d156aeed18b301180007ff7b9d1271e9326c75bdcfb6d0d2f"
     },
     "errors/bidding_strategy_error": {
-      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/errors/bidding_strategy_error.proto",
-      "sha256": "6b3ddef8b63fe97df70884824d301ae467386d2dd5f32819b20fe5233c8b2b19"
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/errors/bidding_strategy_error.proto",
+      "sha256": "abe520c290b2c06dfd2ad288a5a7dd9ea9f802e09bbb1ce43aefbb2aa7499c16"
     }
   },
   "resourcePattern": "customers/{customer_id}/biddingStrategies/{bidding_strategy_id}",
-  "route": "/v23/customers/{customer_id=*}/biddingStrategies:mutate",
+  "route": "/v25/customers/{customer_id=*}/biddingStrategies:mutate",
   "resourceFields": [
     "aligned_campaign_budget_id",
     "campaign_count",

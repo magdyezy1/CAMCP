@@ -72,7 +72,7 @@ function fixture(
           headers: {
             'x-goog-upload-url': options.badUrl
               ? 'https://attacker.invalid/upload'
-              : 'https://googleads.googleapis.com/resumable/upload/v23/session?upload_id=synthetic',
+              : 'https://googleads.googleapis.com/resumable/upload/v25/session?upload_id=synthetic',
           },
         });
       }

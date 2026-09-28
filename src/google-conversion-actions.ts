@@ -93,7 +93,7 @@ export function googleConversionActionKind(p: CompiledRequest): boolean {
     p.method === 'POST' &&
     !p.specialTransport &&
     (!p.origin || p.origin === 'https://googleads.googleapis.com') &&
-    /^\/v23\/customers\/\d+\/conversionActions:mutate$/.test(p.path)
+    /^\/v\d+\/customers\/\d+\/conversionActions:mutate$/.test(p.path)
   );
 }
 function shape(row: JsonObject, creating: boolean) {

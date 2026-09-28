@@ -52,7 +52,7 @@ const failure = {
     message: 'The caller does not have permission',
     details: [
       {
-        '@type': 'type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure',
+        '@type': 'type.googleapis.com/google.ads.googleads.v25.errors.GoogleAdsFailure',
         requestId: 'synthetic-google-request',
         errors: [
           {errorCode: {authorizationError: 'AUTHORIZATION_ERROR'}, message: 'Authorization of the client failed.'},

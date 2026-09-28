@@ -30,6 +30,7 @@ import {
   assertLinkedInWaiting,
 } from './linkedin-media-resume.js';
 import {assertWritesNotPaused} from './owner-operations.js';
+import {googleAdsCustomers} from './google-version.js';
 
 const platforms = mediaPlatforms;
 /** Snapchat simple uploads take up to 32 MB; larger files are sent in parts well under the 32 MB part limit (either unit). */
@@ -225,7 +226,7 @@ export class MediaUploadService {
         p.query = {advertiser_ids: [account]};
         break;
       case 'google_ads':
-        p.path = '/v23/customers/' + account + '/googleAds:search';
+        p.path = googleAdsCustomers + account + '/googleAds:search';
         p.method = 'POST';
         p.body = {query: 'SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1'};
         break;
@@ -1415,7 +1416,7 @@ export class MediaUploadService {
         const started = session
           ? {headers: {'x-goog-upload-url': session.url, 'x-goog-upload-chunk-granularity': session.granularity}}
           : await send(
-              '/resumable/upload/v23/customers/' + p.account_id + '/youTubeVideoUploads:create',
+              '/resumable/upload' + googleAdsCustomers + p.account_id + '/youTubeVideoUploads:create',
               {
                 customerId: p.account_id,
                 youTubeVideoUpload: {videoTitle: p.name, videoDescription: '', videoPrivacy: 'UNLISTED'},
@@ -1467,7 +1468,7 @@ export class MediaUploadService {
         return {media_id: id, ready: false, processing_status: 'UPLOADED'};
       }
       const d = (
-        await send('/v23/customers/' + p.account_id + '/assets:mutate', {
+        await send(googleAdsCustomers + p.account_id + '/assets:mutate', {
           operations: [{create: {name: p.name, type: 'IMAGE', imageAsset: {data: bytes.toString('base64')}}}],
           partialFailure: false,
         })
@@ -1928,7 +1929,7 @@ export class MediaUploadService {
           await this.send(
             actor,
             p,
-            '/v23/customers/' + p.account_id + '/googleAds:search',
+            googleAdsCustomers + p.account_id + '/googleAds:search',
             {query: "SELECT asset.resource_name, asset.type FROM asset WHERE asset.resource_name = '" + resource + "'"},
             {readOnly: true},
           )
@@ -1980,7 +1981,7 @@ export class MediaUploadService {
       r = await this.send(
         actor,
         p,
-        '/v23/customers/' + p.account_id + '/googleAds:search',
+        googleAdsCustomers + p.account_id + '/googleAds:search',
         {
           query:
             "SELECT you_tube_video_upload.resource_name, you_tube_video_upload.video_id, you_tube_video_upload.state FROM you_tube_video_upload WHERE you_tube_video_upload.resource_name = '" +

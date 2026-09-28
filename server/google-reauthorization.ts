@@ -7,6 +7,7 @@ import {assetSyncDiagnostic} from '../src/report-errors.js';
 import type {Actor, Connection, Credentials, JsonObject} from '../src/types.js';
 import {googleAccountDiscovery} from './google-account-discovery.js';
 import type {AssetGroup} from './asset-discovery.js';
+import {googleAdsCustomers} from '../src/google-version.js';
 
 export const googleAdsScope = 'https://www.googleapis.com/auth/adwords';
 export function googleAuthorizationRevision(store: Store, tenant: string, id: string): string | null {
@@ -130,7 +131,7 @@ export async function reauthorizeGoogleConnection(input: {
           gateway: c.gateway,
           action: 'AMCP_GOOGLE_SELECTED_VERIFICATION',
           method: 'POST',
-          path: '/v23/customers/' + id + '/googleAds:search',
+          path: googleAdsCustomers + id + '/googleAds:search',
           query: {},
           body: {
             query: 'SELECT customer.id, customer.currency_code, customer.time_zone, customer.status FROM customer',

@@ -152,8 +152,8 @@ const withMask = (record: Json, mask: unknown): Json => {
 };
 
 const genericFamilies: Record<string, GenericFamily> = {
-  // Google Ads API v23 campaigns, ad groups and campaign budgets :mutate. CampaignStatus / AdGroupStatus: ENABLED,
-  // PAUSED, REMOVED (pinned google-ads-v23 Discovery).
+  // Google Ads API campaigns, ad groups and campaign budgets :mutate. CampaignStatus / AdGroupStatus: ENABLED,
+  // PAUSED, REMOVED (pinned google-ads-v25 Discovery).
   google_entities: {
     entity: 'Google Ads campaign, ad group or budget',
     neutral: {resource_name: true, name: true, status: ['PAUSED', 'REMOVED']},

@@ -88,7 +88,7 @@ function fixture(tree: JsonObject[] = [{resourceName: node(10), type: 'UNIT_INCL
       const path = new URL(String(url)).pathname,
         b = JSON.parse(String(init?.body));
       calls.push({path, body: b});
-      if (path === '/v23/customers/123/googleAds:search') {
+      if (path === '/v25/customers/123/googleAds:search') {
         const entity = b.query.match(/ FROM ([a-z_]+)/)[1],
           target = b.query.match(/'(customers\/[^']+)'/)[1];
         if (entity === 'asset_group') {
@@ -129,7 +129,7 @@ function fixture(tree: JsonObject[] = [{resourceName: node(10), type: 'UNIT_INCL
           ...(mode === 'page' ? {nextPageToken: 'more'} : {}),
         });
       }
-      assert.equal(path, '/v23/customers/123/assetGroupListingGroupFilters:mutate');
+      assert.equal(path, '/v25/customers/123/assetGroupListingGroupFilters:mutate');
       writes++;
       const temp = new Map<string, string>(),
         results: JsonObject[] = [];
@@ -497,7 +497,7 @@ test('reads use only fields pinned from the v23 reference, and all three catalog
     accountId: '123',
     action: native,
     method: 'POST',
-    path: '/v23/customers/123/assetGroupListingGroupFilters:mutate',
+    path: '/v25/customers/123/assetGroupListingGroupFilters:mutate',
     query: {},
     headers: {},
     body: {operations: []},

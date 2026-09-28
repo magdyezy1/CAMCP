@@ -17,6 +17,7 @@ import {responseControls} from './projection.js';
 import {validateApplePlan} from './apple-native.js';
 import {microsoftGateway, compileMicrosoft} from './microsoft-native.js';
 import {googleContractEvidence} from './google-contracts.js';
+import {googleAdsRequestChange} from './google-version.js';
 import {googleGenerationPlan} from './google-generation.js';
 import {dv360TargetingSearchPlan} from './dv360-targeting-search.js';
 import {linkedinVersion} from './linkedin-version.js';
@@ -215,14 +216,17 @@ export class Compiler {
         )
           continue;
         if (v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0)) {
-          if (gateway === 'google_ads_native_action')
+          if (gateway === 'google_ads_native_action') {
+            const change = googleAdsRequestChange(action.name);
             throw new MirrorError(
-              'INTERNAL_ERROR',
+              'MISSING_PARAMETER',
               action.name +
                 " requires request field '" +
                 key +
                 "'. Pass path values in path_params and all other native request fields in params or payload.",
+              {parameter: key, ...(change ? {version_change: change} : {})},
             );
+          }
           throw new MirrorError('MISSING_PARAMETER', 'Missing required parameter: ' + key, {parameter: key});
         }
       }

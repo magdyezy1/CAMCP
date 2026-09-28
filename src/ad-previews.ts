@@ -50,7 +50,7 @@ export const previewTool = {
         minItems: 1,
         maxItems: 10,
         description:
-          'The ads to preview (Snapchat and LinkedIn: creative IDs; Google Ads: adGroupAds resource names or asset group IDs). By default, the first `limit` in the account.',
+          'The ads to preview (Snapchat and LinkedIn: creative IDs; Google Ads: asset group IDs or resource names, or adGroupAds resource names of video ads). By default, the first `limit` in the account.',
       },
       limit: {type: 'integer', minimum: 1, maximum: 10},
       ad_format: {type: 'string', enum: metaPreviewFormats, description: 'Meta only: the placement to preview.'},
@@ -306,12 +306,14 @@ export class AdPreviews {
         );
       }
       case 'google_ads': {
-        // Google creates a shareable preview (generateShareablePreviews), which AMCP reviews as a write.
-        const targets = (wanted ?? []).map(id =>
-          /^\d+$/.test(id)
-            ? {assetGroupIdentifier: {assetGroupId: id}}
-            : {adGroupAd: id, previewType: 'YOUTUBE_LIVE_PREVIEW'},
-        );
+        // Google creates a shareable preview (generateShareablePreviews), which AMCP reviews as a write. Since v25 an
+        // asset group is named by its resource, and every preview states its type.
+        const customer = 'customers/' + account.replaceAll('-', ''),
+          targets = (wanted ?? []).map(id =>
+            id.includes('/adGroupAds/')
+              ? {adGroupAd: id, previewType: 'YOUTUBE_LIVE_PREVIEW'}
+              : {assetGroup: /^\d+$/.test(id) ? customer + '/assetGroups/' + id : id, previewType: 'UI_PREVIEW'},
+          );
         return result([], {
           preview_route: 'reviewed_write',
           explanation:
@@ -326,9 +328,11 @@ export class AdPreviews {
                 action: 'GENERATE_SHAREABLE_PREVIEWS',
                 account_id: account,
                 payload: {
-                  shareablePreviews: targets.length
-                    ? targets
-                    : [{assetGroupIdentifier: {assetGroupId: 'ASSET_GROUP_ID'}}],
+                  operation: {
+                    shareablePreviews: targets.length
+                      ? targets
+                      : [{assetGroup: customer + '/assetGroups/ASSET_GROUP_ID', previewType: 'UI_PREVIEW'}],
+                  },
                 },
               },
             },

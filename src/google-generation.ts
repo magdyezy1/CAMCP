@@ -35,7 +35,7 @@ const recommendationFields: Record<string, string> = {
   TARGET_ROAS_OPT_IN: 'targetRoasOptInRecommendation',
 };
 
-/** Explicit v23 draft-generation RPCs. Neither apply nor shareable previews qualify. */
+/** Explicit draft-generation RPCs (present in v23 and v25). Neither apply nor shareable previews qualify. */
 export function googleGenerationKind(p: CompiledRequest): Kind | undefined {
   if (
     p.gateway !== 'google_ads_native_action' ||
@@ -45,7 +45,7 @@ export function googleGenerationKind(p: CompiledRequest): Kind | undefined {
   )
     return;
   const route =
-    /^\/v23\/customers\/\d+\/(assetGenerations:generateText|assetGenerations:generateImages|recommendations:generate)$/.exec(
+    /^\/v\d+\/customers\/\d+\/(assetGenerations:generateText|assetGenerations:generateImages|recommendations:generate)$/.exec(
       p.path,
     )?.[1];
   return route === 'assetGenerations:generateText'

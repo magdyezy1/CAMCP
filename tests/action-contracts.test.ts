@@ -34,7 +34,7 @@ test('vendor denominator includes uncatalogued operations from every pinned spec
     inventory.summary.filter(r => r.gateway === 'microsoft_ads_native_action').reduce((n, r) => n + r.methods, 0),
     291,
   );
-  assert.equal(inventory.summary.find(r => r.source_file.endsWith('google-ads-v23.json'))!.methods, 176);
+  assert.equal(inventory.summary.find(r => r.source_file.endsWith('google-ads-v25.json'))!.methods, 175);
   const unique = new Set(inventory.methods.map(r => r.source_file + '/' + r.method + '/' + r.id));
   assert.equal(unique.size, inventory.methods.length);
   assert.ok(inventory.methods.some(r => r.id === 'AddAdExtensions' && r.mapping_status === 'no_mapped_action'));
@@ -125,7 +125,7 @@ test('Google POST removals trigger deletion policy regardless of legacy/RPC cata
     action: 'google_ads_v23_campaign_asset_mutate_campaign_assets',
     accountId: '123',
     method: 'POST',
-    path: '/v23/customers/123/campaignAssets:mutate',
+    path: '/v25/customers/123/campaignAssets:mutate',
     query: {},
     body: {operations: [{remove: 'customers/123/campaignAssets/100~200~SITELINK'}]},
     headers: {},
@@ -137,7 +137,7 @@ test('Google POST removals trigger deletion policy regardless of legacy/RPC cata
   } as CompiledRequest;
   assert.equal(applyExecutionRisk(p).destructive, true);
   assert.equal(reviewedWriteFamily(p), 'google_asset_links');
-  assert.equal(reviewedWriteFamily({...p, path: '/v23/customers/123/customerUserAccessInvitations:mutate'}), undefined);
+  assert.equal(reviewedWriteFamily({...p, path: '/v25/customers/123/customerUserAccessInvitations:mutate'}), undefined);
 });
 
 test('Google root planning RPCs remain read-only and scoped to a configured connection', async () => {
@@ -158,7 +158,7 @@ test('Google root planning RPCs remain read-only and scoped to a configured conn
       store,
       new NativeTransport(async (input, init) => {
         calls++;
-        assert.equal(new URL(String(input)).pathname, '/v23:listPlannableLocations');
+        assert.equal(new URL(String(input)).pathname, '/v25:listPlannableLocations');
         assert.equal(init?.method, 'POST');
         return Response.json({plannableLocations: [{id: '1', name: 'Synthetic'}]});
       }),
@@ -170,7 +170,7 @@ test('Google root planning RPCs remain read-only and scoped to a configured conn
     assert.equal((await service.call(gateway, args, actor)).success, true);
     assert.equal((await service.call(gateway, {...args, account_id: '999'}, actor)).success, false);
     assert.equal(calls, 1);
-    assert.equal(applyExecutionRisk({...p, path: '/v23:mutate'}).readOnly, false);
+    assert.equal(applyExecutionRisk({...p, path: '/v25:mutate'}).readOnly, false);
     assert.equal(applyExecutionRisk({...p, body: {method: 'DELETE'}}).readOnly, false);
   } finally {
     store.close();

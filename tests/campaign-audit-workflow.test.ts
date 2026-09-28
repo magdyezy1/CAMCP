@@ -26,7 +26,7 @@ function fixture(mode = 'normal') {
     registry,
     store,
     new NativeTransport((async (url, init) => {
-      assert.equal(new URL(String(url)).pathname, '/v23/customers/123/googleAds:search');
+      assert.equal(new URL(String(url)).pathname, '/v25/customers/123/googleAds:search');
       const q = JSON.parse(String(init!.body)).query;
       queries.push(q);
       let data: unknown;

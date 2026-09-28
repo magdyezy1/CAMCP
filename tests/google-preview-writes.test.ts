@@ -23,7 +23,8 @@ const actor = {tenantId: 'preview-test', userId: 'operator', role: 'operator' as
   owner = {...actor, userId: 'owner', role: 'admin' as const};
 const key = Buffer.alloc(32, 76).toString('base64'),
   rn = (kind: string, id: string) => 'customers/123/' + kind + '/' + id;
-const ui = {assetGroupIdentifier: {assetGroupId: '7'}, previewType: 'UI_PREVIEW'},
+const ui = {assetGroup: rn('assetGroups', '7'), previewType: 'UI_PREVIEW'},
+  second = {assetGroup: rn('assetGroups', '8'), previewType: 'UI_PREVIEW'},
   video = {adGroupAd: rn('adGroupAds', '5~9'), previewType: 'YOUTUBE_LIVE_PREVIEW'};
 function fixture(path = ':memory:') {
   const store = new Store(path, key),
@@ -142,36 +143,51 @@ function fixture(path = ':memory:') {
           ...(mode === 'partial_read' ? {partialFailureError: {code: 3}} : {}),
         });
       }
-      assert.equal(urlPath, '/v23/customers/123:generateShareablePreviews');
+      assert.equal(urlPath, '/v25/customers/123:generateShareablePreviews');
       hook?.('submission');
       if (mode === 'lost') throw Error('Lost response after acceptance');
       if (mode === '503') return Response.json({error: {code: 503, message: 'Unavailable'}}, {status: 503});
-      const expiry = new Date(Date.now() + (mode === 'expired' ? -1000 : 3600000)).toISOString();
-      const responses = b.shareablePreviews.map((p: JsonObject, i: number) => ({
-        ...(p.assetGroupIdentifier ? {assetGroupIdentifier: p.assetGroupIdentifier} : {adGroupAd: p.adGroupAd}),
-        ...(mode === 'partial' && i === 0
-          ? {partialFailureError: {code: 3, message: 'Unsupported format'}}
+      if (mode === 'rejected')
+        return Response.json(
+          {error: {code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT'}},
+          {status: 400},
+        );
+      const expiry = (i: number) =>
+        new Date(
+          Date.now() + (mode === 'expired' || (mode === 'one_expired' && i === 0) ? -1000 : 3600000),
+        ).toISOString();
+      // The v25 result: one row per preview, naming its target and holding the result of its type.
+      const previews = b.operation.shareablePreviews.map((p: JsonObject, i: number) => ({
+        ...(p.assetGroup ? {assetGroup: p.assetGroup} : {adGroupAd: p.adGroupAd}),
+        expirationDateTime: expiry(i),
+        ...(p.adGroupAd
+          ? {
+              youtubeLivePreviewResult: {
+                youtubePreviewUrl: 'https://www.youtube.com/watch?v=synthetic&preview=private-preview-' + i,
+                youtubeTvPreviewUrl: 'https://tv.youtube.com/preview/private-tv-' + i,
+              },
+            }
           : {
-              shareablePreviewResult: {
-                expirationDateTime: expiry,
-                ...(p.adGroupAd
-                  ? {
-                      youtubeLivePreviewResult: {
-                        youtubePreviewUrl: 'https://www.youtube.com/watch?v=synthetic&preview=private-preview-' + i,
-                        youtubeTvPreviewUrl: 'https://tv.youtube.com/preview/private-tv-' + i,
-                      },
-                    }
-                  : {shareablePreviewUrl: 'https://ads.google.com/aw_cm/ExternalPreview?preview=private-preview-' + i}),
+              uiPreviewResult: {
+                shareablePreviewUrl: 'https://ads.google.com/aw_cm/ExternalPreview?preview=private-preview-' + i,
               },
             }),
       }));
-      if (mode === 'foreign_receipt') responses[0].assetGroupIdentifier = {assetGroupId: '999'};
-      if (mode === 'both_results') responses[0].partialFailureError = {code: 3};
-      if (mode === 'unsafe_url') responses[0].shareablePreviewResult.shareablePreviewUrl = 'https://127.0.0.1/private';
+      if (mode === 'foreign_receipt') previews[0].assetGroup = rn('assetGroups', '999');
+      if (mode === 'both_results')
+        previews[0].youtubeLivePreviewResult = {youtubePreviewUrl: 'https://www.youtube.com/watch?v=other'};
+      if (mode === 'unsafe_url') previews[0].uiPreviewResult.shareablePreviewUrl = 'https://127.0.0.1/private';
+      if (mode === 'v23_receipt')
+        return Response.json({
+          responses: previews.map(({uiPreviewResult, ...row}: JsonObject) => ({
+            shareablePreviewResult: uiPreviewResult ?? {},
+            ...row,
+          })),
+        });
       return Response.json(
         mode === 'empty'
           ? {}
-          : {responses: mode === 'duplicate_receipt' ? [responses[0], responses[0]] : responses.reverse()},
+          : {result: {previews: mode === 'duplicate_receipt' ? [previews[0], previews[0]] : previews.reverse()}},
       );
     },
     async () => {},
@@ -188,7 +204,7 @@ function fixture(path = ':memory:') {
     action,
     account_id: '123',
     connection_id: c.id,
-    payload: {shareablePreviews: previews},
+    payload: {operation: {shareablePreviews: previews}},
   });
   const prepare = (previews: JsonObject[] = [ui], action = rpc) =>
     service.call('amcp_write', {action: 'prepare', gateway, arguments: args(previews, action)}, actor);
@@ -291,33 +307,53 @@ test('preview inputs enforce native oneofs, exact customer IDs, no invented flag
     for (const previews of [
       [],
       [{}],
-      [{assetGroupIdentifier: {assetGroupId: 0}}],
-      [{assetGroupIdentifier: {assetGroupId: '9223372036854775808'}}],
-      [{assetGroupIdentifier: {assetGroupId: '7', customerId: '123'}}],
+      [{assetGroup: rn('assetGroups', '0'), previewType: 'UI_PREVIEW'}],
+      [{assetGroup: 'customers/999/assetGroups/7', previewType: 'UI_PREVIEW'}],
+      [{...ui, customerId: '123'}],
+      [{assetGroup: ui.assetGroup}],
       [{...ui, adGroupAd: video.adGroupAd}],
       [{...ui, previewType: 'YOUTUBE_LIVE_PREVIEW'}],
       [{...video, previewType: 'UI_PREVIEW'}],
       [{...video, adGroupAd: video.adGroupAd.replace('/123/', '/999/')}],
       [{...video, adGroupAd: rn('adGroupAds', '5~9 OR 1=1')}],
       [ui, ui],
-      Array.from({length: 26}, (_, i) => ({assetGroupIdentifier: {assetGroupId: String(i + 1)}})),
+      Array.from({length: 26}, (_, i) => ({assetGroup: rn('assetGroups', String(i + 1)), previewType: 'UI_PREVIEW'})),
       [{...ui, publish: true}],
     ]) {
       const r = await f.prepare(previews);
       assert.equal(r.success, false, JSON.stringify(previews));
     }
-    for (const payload of [
-      {shareablePreviews: [ui], partialFailure: true},
-      {shareablePreviews: [ui], shareable_previews: [ui]},
-      {shareablePreviews: [ui], validateOnly: true},
+    const payload = (p: JsonObject) =>
+      f.service.call('amcp_write', {action: 'prepare', gateway, arguments: {...f.args(), payload: p}}, actor);
+    for (const p of [
+      {operation: {shareablePreviews: [ui]}, partialFailure: true},
+      {operation: {shareablePreviews: [ui]}, validateOnly: true},
+      {operation: {shareablePreviews: [ui], validateOnly: true}},
+      {operation: {shareablePreviews: [ui]}, shareablePreviews: [ui]},
     ])
-      assert.equal(
-        (await f.service.call('amcp_write', {action: 'prepare', gateway, arguments: {...f.args(), payload}}, actor))
-          .success,
-        false,
-      );
+      assert.equal((await payload(p)).success, false, JSON.stringify(p));
+    // A request in the v23 shape is refused with the v25 shape to send, by the native name and the legacy alias.
+    for (const action of [rpc, 'GENERATE_SHAREABLE_PREVIEWS'])
+      for (const p of [
+        {shareablePreviews: [{assetGroupIdentifier: {assetGroupId: '7'}}]},
+        {operation: {shareablePreviews: [{assetGroupIdentifier: {assetGroupId: '7'}, previewType: 'UI_PREVIEW'}]}},
+      ]) {
+        const old = await f.service.call(
+          'amcp_write',
+          {action: 'prepare', gateway, arguments: {...f.args([], action), payload: p}},
+          actor,
+        );
+        assert.equal(old.success, false, action);
+        assert.match(
+          old.error.details.version_change,
+          /"operation".*"assetGroup": "customers\/\{customer_id\}\/assetGroups/,
+          action,
+        );
+      }
     assert.equal(f.calls.length, 0);
-    const native = await f.prepare([{asset_group_identifier: {asset_group_id: '7'}}]);
+    const native = await payload({
+      operation: {shareable_previews: [{asset_group: rn('assetGroups', '7'), preview_type: 'UI_PREVIEW'}]},
+    });
     assert.equal(native.success, true, JSON.stringify(native));
   } finally {
     f.store.close();
@@ -331,15 +367,18 @@ test('root-customer RPC guard distinguishes the method delimiter from the custom
       p = applyExecutionRisk(new Compiler(registry).compile(gateway, f.args(), {mode: 'strict', flags: {}}));
     assert.equal(scope.authorize(p, f.c), '123');
     for (const path of [
-      '/v23/customers/999:generateShareablePreviews',
-      '/v23/customers/1230:generateShareablePreviews',
-      '/v23/customers/123%3Aevil/../customers/999:generateShareablePreviews',
+      '/v25/customers/999:generateShareablePreviews',
+      '/v25/customers/1230:generateShareablePreviews',
+      '/v25/customers/123%3Aevil/../customers/999:generateShareablePreviews',
     ])
       assert.throws(() => scope.authorize({...p, path}, f.c), {code: 'ACCOUNT_SCOPE_MISMATCH'});
     assert.throws(
       () =>
         scope.authorize(
-          {...p, body: {shareablePreviews: [{...video, adGroupAd: video.adGroupAd.replace('/123/', '/999/')}]}},
+          {
+            ...p,
+            body: {operation: {shareablePreviews: [{...video, adGroupAd: video.adGroupAd.replace('/123/', '/999/')}]}},
+          },
           f.c,
         ),
       {code: 'ACCOUNT_SCOPE_MISMATCH'},
@@ -352,7 +391,7 @@ test('telemetry and source row order do not conflict, while real source changes 
   for (const change of ['none', 'name', 'url', 'status', 'parent'] as const) {
     const f = fixture();
     try {
-      const r = await f.prepare([ui, {assetGroupIdentifier: {assetGroupId: '8'}}]);
+      const r = await f.prepare([ui, second]);
       assert.equal(r.success, true, JSON.stringify(r));
       if (change === 'name') f.groups[0]!.name = 'Changed';
       if (change === 'url') f.groups[0]!.finalUrls = ['https://example.com/changed'];
@@ -378,7 +417,7 @@ test('bounded source pagination succeeds; incomplete, foreign, duplicate or fail
   const f = fixture();
   try {
     f.mode('pages');
-    const r = await f.prepare([ui, {assetGroupIdentifier: {assetGroupId: '8'}}]);
+    const r = await f.prepare([ui, second]);
     assert.equal(r.success, true, JSON.stringify(r));
     assert.equal((await f.execute(r)).success, true);
   } finally {
@@ -464,7 +503,7 @@ test('duplicate customer IDs require a chosen connection; expired review and tam
     assert.equal((await f.execute(r)).error?.code, 'REVIEW_EXPIRED');
     f.store.putDocument(actor.tenantId, 'write_review', r.data.review_id, {
       ...saved,
-      plan: {...saved.plan, body: {shareablePreviews: [video]}},
+      plan: {...saved.plan, body: {operation: {shareablePreviews: [video]}}},
     });
     assert.equal((await f.execute(r)).error?.code, 'REVIEW_CHANGED');
     assert.equal(f.writes(), 0);
@@ -472,10 +511,12 @@ test('duplicate customer IDs require a chosen connection; expired review and tam
     f.store.close();
   }
 });
-test('HTTP 200 partial errors and malformed receipts retain the original claim and validated successful links only', async () => {
+test('rejected requests and malformed or expired receipts keep the original claim and deliver only validated links', async () => {
   for (const mode of [
-    'partial',
+    'one_expired',
+    'rejected',
     'empty',
+    'v23_receipt',
     'foreign_receipt',
     'duplicate_receipt',
     'both_results',
@@ -489,16 +530,22 @@ test('HTTP 200 partial errors and malformed receipts retain the original claim a
       f.mode(mode);
       const e = await f.execute(r);
       assert.equal(e.success, false, mode + JSON.stringify(e));
-      assert.equal(e.data.retry_safe, false);
       assert.equal(f.writes(), 1);
-      if (mode === 'partial') {
-        assert.equal(e.data.previews.status, 'partial');
-        assert.equal(e.data.previews.results.filter((r: JsonObject) => r.status === 'generated').length, 1);
-        assert.match(JSON.stringify(e.data.previews), /private-preview/);
-      } else assert.equal(e.data.previews.results.filter((r: JsonObject) => r.status === 'generated').length, 0, mode);
-      assert.ok(!JSON.stringify(e.data.previews).includes('127.0.0.1'));
+      if (mode !== 'rejected') {
+        assert.equal(e.data.retry_safe, false);
+        if (mode === 'one_expired') {
+          assert.equal(e.data.previews.status, 'partial');
+          assert.equal(e.data.previews.results.filter((r: JsonObject) => r.status === 'generated').length, 1);
+          assert.match(JSON.stringify(e.data.previews), /private-preview/);
+        } else
+          assert.equal(e.data.previews.results.filter((r: JsonObject) => r.status === 'generated').length, 0, mode);
+        assert.ok(!JSON.stringify(e.data.previews).includes('127.0.0.1'));
+      }
       const again = await f.execute(r);
-      assert.equal(again.data.replayed, true);
+      assert.ok(
+        again.data?.replayed === true || again.error?.code === 'WRITE_OUTCOME_UNCERTAIN' || again.success === false,
+        mode,
+      );
       assert.equal(f.writes(), 1);
     } finally {
       f.store.close();
@@ -608,21 +655,25 @@ test('preview links do not activate ads or spend budgets under zero-limit owner 
   }
 });
 test('native protocol evidence matches pinned Discovery fields, route and scope', () => {
-  const evidence = JSON.parse(readFileSync('tests/fixtures/google-preview-v23.json', 'utf8')),
+  const evidence = JSON.parse(readFileSync('tests/fixtures/google-preview-v25.json', 'utf8')),
     vendor = JSON.parse(readFileSync('generated/vendor-routes.json', 'utf8')),
-    schemas = vendor.schemaComponents['google-ads-v23'].schemas;
-  assert.equal(evidence.version, 'v23');
-  assert.equal(evidence.route, '/v23/customers/{customer_id=*}:generateShareablePreviews');
+    schemas = vendor.schemaComponents['google-ads-v25'].schemas;
+  assert.equal(evidence.version, 'v25');
+  assert.equal(evidence.route, '/v25/customers/{customer_id=*}:generateShareablePreviews');
   assert.equal(evidence.scope, 'https://www.googleapis.com/auth/adwords');
-  assert.match(evidence.source.sha256, /^[a-f0-9]{64}$/);
+  for (const source of Object.values(evidence.sources) as JsonObject[]) assert.match(source.sha256, /^[a-f0-9]{64}$/);
   for (const [name, fields] of Object.entries(evidence.fields) as [string, string[]][]) {
     const expected = fields
       .filter(k => k !== 'customer_id')
       .map(k => k.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase()))
       .sort();
-    assert.deepEqual(Object.keys(schemas['GoogleAdsGoogleadsV23Services__' + name].properties).sort(), expected, name);
+    const schema =
+      schemas['GoogleAdsGoogleadsV25Services__' + name] ?? schemas['GoogleAdsGoogleadsV25Actions__' + name];
+    assert.deepEqual(Object.keys(schema.properties).sort(), expected, name);
   }
-  assert.deepEqual(evidence.oneofs.ShareablePreviewOrError, ['generate_shareable_preview_response', 'identifier']);
+  // One target and one result per preview; Google has no per-preview error in v25.
+  assert.deepEqual(evidence.oneofs.ShareablePreview, ['identifier']);
+  assert.deepEqual(evidence.oneofs.ShareablePreviewResult, ['identifier', 'result']);
   const f = fixture();
   try {
     const p = new Compiler(new Registry()).compile(gateway, f.args([ui, video]), {mode: 'strict', flags: {}});

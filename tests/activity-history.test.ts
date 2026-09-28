@@ -22,7 +22,7 @@ const diagnostic = {
     message: 'Authorization of the client failed.',
     request_id: 'synthetic-google-trace',
   },
-  request: {stage: 'account_lookup', method: 'POST', path: '/v23/customers/1234567890/googleAds:search'},
+  request: {stage: 'account_lookup', method: 'POST', path: '/v25/customers/1234567890/googleAds:search'},
   login_customer_id: '1234567890',
 };
 

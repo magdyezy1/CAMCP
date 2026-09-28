@@ -662,6 +662,7 @@ import {
 import {familyOf, familyOfRead, readThroughFamilies} from './reviewed-families.js';
 import {assertWritesNotPaused} from './owner-operations.js';
 import {assertDV360WriteScope} from './dv360-scope.js';
+import {googleAdsCustomers} from './google-version.js';
 
 export const writeTool = {
   name: 'amcp_write',
@@ -1817,7 +1818,7 @@ export function snapshotPlans(plan: CompiledRequest, registry: Registry): Compil
         for (const f of deletionFields[resource] ?? []) fields.add(resource + '.' + f);
       }
     }
-    const search = (query: string) => base('/v23/customers/' + id + '/googleAds:search', {}, {query}, 'POST');
+    const search = (query: string) => base(googleAdsCustomers + id + '/googleAds:search', {}, {query}, 'POST');
     if (names.length)
       snapshots.push(
         search(

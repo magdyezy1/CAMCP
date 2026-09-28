@@ -3,6 +3,7 @@ import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {googleAdsCustomers} from './google-version.js';
 
 /**
  * Removal of automatically created assets, Google Ads API v23 (pinned Discovery document:
@@ -38,8 +39,8 @@ export function googleAutoAssetKind(p: CompiledRequest): Kind | undefined {
     (p.origin && p.origin !== 'https://googleads.googleapis.com')
   )
     return;
-  if (/^\/v23\/customers\/\d+\/adGroupAds\/[^/:]+:removeAutomaticallyCreatedAssets$/.test(p.path)) return 'ad';
-  if (/^\/v23\/customers\/\d+:removeCampaignAutomaticallyCreatedAsset$/.test(p.path)) return 'campaign';
+  if (/^\/v\d+\/customers\/\d+\/adGroupAds\/[^/:]+:removeAutomaticallyCreatedAssets$/.test(p.path)) return 'ad';
+  if (/^\/v\d+\/customers\/\d+:removeCampaignAutomaticallyCreatedAsset$/.test(p.path)) return 'campaign';
   return;
 }
 const fieldTypes = (v: unknown) =>
@@ -67,7 +68,7 @@ export function assertGoogleAutoAssets(p: CompiledRequest): void {
   if (!kind) return;
   const id = account(p),
     asset = new RegExp('^customers/' + id + '/assets/[1-9][0-9]*$');
-  if (p.path.split('/')[3] !== id && !p.path.startsWith('/v23/customers/' + id + ':'))
+  if (p.path.split('/')[3] !== id && !p.path.startsWith(googleAdsCustomers + id + ':'))
     fail('ACCOUNT_SCOPE_MISMATCH', 'The path must use the selected customer.', {}, 403);
   if (Object.keys(p.query).length || Object.keys(p.headers).length)
     invalid('These reviews take no query or header overrides.');
@@ -122,7 +123,7 @@ function read(p: CompiledRequest, query: string): Read {
     ...p,
     action: 'AMCP_GOOGLE_AUTO_ASSET_READ',
     method: 'POST',
-    path: '/v23/customers/' + account(p) + '/googleAds:search',
+    path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {query},
     query: {},
     headers: {},
@@ -293,7 +294,7 @@ export function googleAutoAssetImpact(p: CompiledRequest, state: unknown[]): Jso
       '; ads stop showing them. Google may create other assets while automatic asset creation stays on.',
     verification: 'Reads the automatically created asset links again and expects the removed ones to be gone.',
     source:
-      'https://developers.google.com/google-ads/api/reference/rpc/v23/' +
+      'https://developers.google.com/google-ads/api/reference/rpc/v25/' +
       (kind === 'ad' ? 'AdGroupAdService' : 'AutomaticallyCreatedAssetRemovalService'),
   };
 }

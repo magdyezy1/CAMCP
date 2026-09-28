@@ -1,11 +1,7 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import {createHash} from 'node:crypto';
-// Only locally supplied public googleapis v23 protos are read. No credentials.
-const directory = process.argv[process.argv.indexOf('--source-dir') + 1];
-if (!process.argv.includes('--source-dir') || !directory)
-  throw Error('Supply --source-dir containing the public v23 access protos.');
-const names = [
+import {googleVersion, pin, readProtos} from './google-protos.mjs';
+// Only locally supplied public googleapis protos are read. No credentials.
+const {sources, content} = readProtos(
+  [
     'resources/customer_user_access',
     'resources/customer_user_access_invitation',
     'services/customer_user_access_service',
@@ -16,16 +12,8 @@ const names = [
     'errors/access_invitation_error',
     'resources/multi_party_auth_review',
   ],
-  sources = {},
-  content = {};
-for (const name of names) {
-  const bytes = fs.readFileSync(path.join(directory, name.replace('/', '_') + '.proto'));
-  content[name] = bytes.toString('utf8');
-  sources[name] = {
-    url: 'https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/' + name + '.proto',
-    sha256: createHash('sha256').update(bytes).digest('hex'),
-  };
-}
+  'access protos',
+);
 const enums = {};
 for (const name of ['access_role', 'access_invitation_status']) {
   const matches = [...content['enums/' + name].matchAll(/^\s+([A-Z_]+) = (\d+);/gm)];
@@ -44,7 +32,7 @@ for (const [name, collection] of [
   ['customer_user_access_invitation', 'customerUserAccessInvitations'],
 ]) {
   const text = content['services/' + name + '_service'];
-  const route = '/v23/customers/{customer_id=*}/' + collection + ':mutate';
+  const route = '/' + googleVersion + '/customers/{customer_id=*}/' + collection + ':mutate';
   if (
     !text.includes(route) ||
     !/Operation operation = 2/.test(text) ||
@@ -61,21 +49,22 @@ for (const [name, collection] of [
     partial_failure: false,
   };
 }
-const fixture = {
-    version: 'v23',
-    checked_at: '2026-09-20',
+pin(
+  'tests/fixtures/google-user-access-' + googleVersion + '.json',
+  {
+    version: googleVersion,
+    checked_at: '2026-09-28',
     meaning:
-      'Source-hashed official Google v23 proto extraction plus pinned Discovery validation; schema evidence only, not live access approval.',
+      'Source-hashed official Google ' +
+      googleVersion +
+      ' proto extraction plus pinned Discovery validation; schema evidence only, not live access approval.',
     sources,
     enums,
     patterns,
     services,
   },
-  output = 'tests/fixtures/google-user-access-v23.json',
-  text = JSON.stringify(fixture, null, 2) + '\n';
-if (process.argv.includes('--check')) {
-  if (fs.readFileSync(output, 'utf8') !== text) throw Error('Google user-access evidence differs.');
-} else fs.writeFileSync(output, text);
+  'Google user-access evidence',
+);
 console.log(
   'Verified two singular mutation services, two role/status enums, three resource patterns and nine public proto source hashes.',
 );

@@ -23,7 +23,7 @@ export async function validateProviderRequest(
   service.registry.validate(input.gateway, args, service.options);
   const plan = service.compiler.compile(input.gateway, args, service.options);
   assertWriteShape(plan);
-  if (plan.method !== 'POST' || !/^\/v23\/customers\/\d+\/[A-Za-z]+:mutate$/.test(plan.path))
+  if (plan.method !== 'POST' || !/^\/v\d+\/customers\/\d+\/[A-Za-z]+:mutate$/.test(plan.path))
     throw new MirrorError('PROVIDER_VALIDATION_UNSUPPORTED', 'Select a supported Google Ads mutate request.');
   const c = service.store.resolveConnection(
     actor,

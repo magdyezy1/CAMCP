@@ -72,7 +72,7 @@ function fixture(mode = '') {
       path = decodeURIComponent(u.pathname),
       body = init.body ? JSON.parse(String(init.body)) : undefined;
     calls.push({path, body});
-    if (path === '/v23/customers/123/googleAds:search') {
+    if (path === '/v25/customers/123/googleAds:search') {
       const q = body.query;
       if (/FROM customer /.test(q + ' '))
         return Response.json({results: [{customer: {resourceName: 'customers/123', id: '123', manager: false}}]});
@@ -94,7 +94,7 @@ function fixture(mode = '') {
       }
       throw new Error('Unexpected query ' + q);
     }
-    if (path === '/v23/customers/123/campaignDrafts:mutate') {
+    if (path === '/v25/customers/123/campaignDrafts:mutate') {
       writes++;
       return Response.json({
         results: body.operations.map(op => {
@@ -114,7 +114,7 @@ function fixture(mode = '') {
         }),
       });
     }
-    const m = /^\/v23\/customers\/123\/campaignDrafts\/(\d+~\d+):promote$/.exec(path);
+    const m = /^\/v25\/customers\/123\/campaignDrafts\/(\d+~\d+):promote$/.exec(path);
     if (m) {
       writes++;
       if (mode !== 'ignore')
@@ -352,9 +352,9 @@ test('a result naming another draft is a failure that is never resubmitted, an i
   } finally {
     ignored.store.close();
   }
-  const doc = JSON.parse(readFileSync('.mirror/VENDOR/google-ads-v23.json', 'utf8')),
+  const doc = JSON.parse(readFileSync('.mirror/VENDOR/google-ads-v25.json', 'utf8')),
     S = (doc.document ?? doc).schemas;
-  assert.deepEqual(S.GoogleAdsGoogleadsV23Resources__CampaignDraft.properties.status.enum, [
+  assert.deepEqual(S.GoogleAdsGoogleadsV25Resources__CampaignDraft.properties.status.enum, [
     'UNSPECIFIED',
     'UNKNOWN',
     'PROPOSED',

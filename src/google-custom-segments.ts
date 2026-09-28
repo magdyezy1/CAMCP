@@ -128,13 +128,13 @@ export function googleSegmentCanonical(resource: string, row: JsonObject, defaul
 export function googleSegmentRemoval(p: CompiledRequest): boolean {
   return (
     p.gateway === 'google_ads_native_action' &&
-    /^\/v23\/customers\/\d+\/customInterests:mutate$/.test(p.path) &&
+    /^\/v\d+\/customers\/\d+\/customInterests:mutate$/.test(p.path) &&
     Array.isArray(googleJson(p.body).operations) &&
     googleJson(p.body).operations.some((v: JsonObject) => v.update?.status === 'REMOVED')
   );
 }
 export function googleSegmentKind(p: CompiledRequest): string | undefined {
-  const match = /^\/v23\/customers\/\d+\/(customAudiences|customInterests):mutate$/.exec(p.path);
+  const match = /^\/v\d+\/customers\/\d+\/(customAudiences|customInterests):mutate$/.exec(p.path);
   return p.gateway === 'google_ads_native_action' && p.method === 'POST' && match ? match[1] : undefined;
 }
 export const googleSegmentImpact = {

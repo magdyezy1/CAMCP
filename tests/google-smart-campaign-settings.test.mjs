@@ -62,7 +62,7 @@ function fixture(mode = '') {
         path = decodeURIComponent(u.pathname),
         body = init.body ? JSON.parse(String(init.body)) : undefined;
       calls.push({path, body});
-      if (path === '/v23/customers/123/googleAds:search') {
+      if (path === '/v25/customers/123/googleAds:search') {
         const names = inList(body.query, 'smart_campaign_setting.resource_name');
         return Response.json({
           results: [...settings]
@@ -77,7 +77,7 @@ function fixture(mode = '') {
             })),
         });
       }
-      if (path === '/v23/customers/123/smartCampaignSettings:mutate') {
+      if (path === '/v25/customers/123/smartCampaignSettings:mutate') {
         writes++;
         return Response.json({
           results: body.operations.map(op => {

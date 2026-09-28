@@ -33,7 +33,7 @@ const failure = (reason: string, message = 'Access denied') => ({
     message: 'The caller does not have permission',
     details: [
       {
-        '@type': 'type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure',
+        '@type': 'type.googleapis.com/google.ads.googleads.v25.errors.GoogleAdsFailure',
         requestId: 'synthetic-body-trace',
         errors: [
           {
@@ -113,7 +113,7 @@ test('Google partial sync retains provider reasons and request context, without 
     assert.equal(deniedAccount.provider.code, 'USER_PERMISSION_DENIED');
     assert.equal(deniedAccount.http_status, 403);
     assert.equal(deniedAccount.request.stage, 'account_lookup');
-    assert.equal(deniedAccount.request.path, '/v23/customers/400/googleAds:search');
+    assert.equal(deniedAccount.request.path, '/v25/customers/400/googleAds:search');
     assert.equal(deniedAccount.login_customer_id, '400');
     assert.equal(deniedAccount.provider.request_id, 'synthetic-header-trace');
     assert.match(group.error!, /400: USER_PERMISSION_DENIED/);
@@ -147,7 +147,7 @@ test('Google failures at the account-list and hierarchy stages retain their dist
       assert.equal(group.diagnostics![0]!.request.stage, hierarchy ? 'manager_hierarchy' : 'account_list');
       assert.equal(
         group.diagnostics![0]!.request.path,
-        hierarchy ? '/v23/customers/300/googleAds:search' : '/v23/customers:listAccessibleCustomers',
+        hierarchy ? '/v25/customers/300/googleAds:search' : '/v25/customers:listAccessibleCustomers',
       );
       assert.equal(group.assets.length, hierarchy ? 1 : 0);
     } finally {
@@ -187,7 +187,7 @@ test('Google project access works without a legacy developer token while OAuth a
     gateway: connection.gateway,
     action: 'report',
     accountId: '300',
-    path: '/v23/customers/300/googleAds:search',
+    path: '/v25/customers/300/googleAds:search',
     method: 'POST',
     query: {},
     body: {query: 'SELECT customer.id FROM customer'},
@@ -314,7 +314,7 @@ test('the connection manager displays provider-specific failures and escapes unt
         account_id: '400',
         code: 'INSUFFICIENT_SCOPE',
         provider: {code: 'USER_PERMISSION_DENIED', message: '<img src=x onerror=alert(1)>'},
-        request: {stage: 'manager_hierarchy', method: 'POST', path: '/v23/customers/400/googleAds:search'},
+        request: {stage: 'manager_hierarchy', method: 'POST', path: '/v25/customers/400/googleAds:search'},
         next_action: 'Check the connected Google identity',
       },
     ],

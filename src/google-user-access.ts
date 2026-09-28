@@ -4,6 +4,7 @@ import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {googleAdsCustomers} from './google-version.js';
 
 const gateway = 'google_ads_native_action',
   ranks: Record<string, number> = {EMAIL_ONLY: 0, READ_ONLY: 1, STANDARD: 2, ADMIN: 3};
@@ -76,9 +77,9 @@ export function googleAccessKind(p: CompiledRequest): Kind | undefined {
     (p.origin && p.origin !== 'https://googleads.googleapis.com')
   )
     return;
-  if (memberActions.has(p.action) && /^\/v23\/customers\/\d+\/customerUserAccesses:mutate$/.test(p.path))
+  if (memberActions.has(p.action) && /^\/v\d+\/customers\/\d+\/customerUserAccesses:mutate$/.test(p.path))
     return 'members';
-  if (inviteActions.has(p.action) && /^\/v23\/customers\/\d+\/customerUserAccessInvitations:mutate$/.test(p.path))
+  if (inviteActions.has(p.action) && /^\/v\d+\/customers\/\d+\/customerUserAccessInvitations:mutate$/.test(p.path))
     return 'invitations';
 }
 export function assertGoogleAccessActor(p: CompiledRequest, a: Actor) {
@@ -146,7 +147,7 @@ function read(p: CompiledRequest, kind: keyof typeof fields): CompiledRequest {
     ...p,
     action: 'AMCP_GOOGLE_ACCESS_READ',
     method: 'POST',
-    path: '/v23/customers/' + account(p) + '/googleAds:search',
+    path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {query},
     query: {},
     headers: {},

@@ -1,0 +1,113 @@
+{
+  "api_version": "v23",
+  "source": "https://developers.google.com/google-ads/api/fields/v23/conversion_action",
+  "checked_at": "2026-09-25",
+  "method": "Offline field-heading/table extraction from public web-tool reference excerpts; not a live account query.",
+  "source_text_sha256": "d5f0ca275cb3793f36e30cbc6c74ba065d7e0990c96f2c196c9134c192d9dfba",
+  "fields": {
+    "name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "origin": {
+      "selectable": true,
+      "repeated": false
+    },
+    "owner_customer": {
+      "selectable": true,
+      "repeated": false
+    },
+    "phone_call_duration_seconds": {
+      "selectable": true,
+      "repeated": false
+    },
+    "primary_for_goal": {
+      "selectable": true,
+      "repeated": false
+    },
+    "resource_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "status": {
+      "selectable": true,
+      "repeated": false
+    },
+    "tag_snippets": {
+      "selectable": true,
+      "repeated": true
+    },
+    "third_party_app_analytics_settings.event_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "app_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "attribution_model_settings.attribution_model": {
+      "selectable": true,
+      "repeated": false
+    },
+    "attribution_model_settings.data_driven_model_status": {
+      "selectable": true,
+      "repeated": false
+    },
+    "category": {
+      "selectable": true,
+      "repeated": false
+    },
+    "click_through_lookback_window_days": {
+      "selectable": true,
+      "repeated": false
+    },
+    "counting_type": {
+      "selectable": true,
+      "repeated": false
+    },
+    "firebase_settings.property_id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "firebase_settings.property_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "id": {
+      "selectable": true,
+      "repeated": false
+    },
+    "include_in_conversions_metric": {
+      "selectable": true,
+      "repeated": false
+    },
+    "mobile_app_vendor": {
+      "selectable": true,
+      "repeated": false
+    },
+    "value_settings.always_use_default_value": {
+      "selectable": true,
+      "repeated": false
+    },
+    "value_settings.default_currency_code": {
+      "selectable": true,
+      "repeated": false
+    },
+    "value_settings.default_value": {
+      "selectable": true,
+      "repeated": false
+    },
+    "view_through_lookback_window_days": {
+      "selectable": true,
+      "repeated": false
+    },
+    "third_party_app_analytics_settings.provider_name": {
+      "selectable": true,
+      "repeated": false
+    },
+    "type": {
+      "selectable": true,
+      "repeated": false
+    }
+  }
+}

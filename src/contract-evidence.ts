@@ -20,7 +20,7 @@ export const providerMaintenance: Record<string, JsonObject> = {
     sunset_month: '2027-02',
     sandbox: 'Test accounts under a test manager; production hostname. Project access level and quota are separate.',
     traps: [
-      'v23 uses start_date_time/end_date_time in customer timezone, not start_date/end_date.',
+      'v23 and v25 use start_date_time/end_date_time in customer timezone, not start_date/end_date.',
       'Discovery validates fields; review contracts still restrict mutation families and batch sizes.',
       'Explorer access needs administrator/provider approval; do not infer a token sunset.',
     ],

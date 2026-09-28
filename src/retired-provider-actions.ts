@@ -1,9 +1,22 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest} from './types.js';
 
+const tagManagerReplacement =
+  'Use the current Google tag management interface and supported list/get workflows; no equivalent API mutation has been established.';
+const lifecycleReplacement =
+  'In v25 new customer acquisition is a goal: a NEW_CUSTOMER_ACQUISITION goal (google_ads_v23_goal_mutate_goals) and its campaign settings (google_ads_v23_campaign_goal_config_mutate_campaign_goal_configs). AMCP has not reviewed those goal writes yet; until it does, set the goal in the Google Ads interface.';
 /** Official withdrawal overrides a historical catalog or Discovery mapping.
  * Keep these entries discoverable; never turn them into executable contracts. */
-export const retiredProviderActions = [
+export const retiredProviderActions: {
+  gateway: string;
+  action: string;
+  method: string;
+  path: RegExp;
+  source: string;
+  updated: string;
+  reason?: string;
+  replacement?: string;
+}[] = [
   {
     gateway: 'gtm_native_action',
     action: 'COMBINE_CONTAINERS',
@@ -39,23 +52,78 @@ export const retiredProviderActions = [
       'https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers.destinations/get',
     updated: '2026-06-04',
   },
+  // Google Ads API v25 has no lifecycle goal methods, schemas or GAQL rows (pinned v25 Discovery document, revision
+  // 20260923, compared with the v23 one); its Goal and CampaignGoalConfig resources gained new customer acquisition.
+  ...(['customer', 'campaign'] as const).map(kind => ({
+    gateway: 'google_ads_native_action',
+    action: 'google_ads_v23_' + kind + '_lifecycle_goal_configure_' + kind + '_lifecycle_goals',
+    method: 'POST',
+    path: new RegExp(
+      '^/v\\d+/customers/[^/]+/' +
+        kind +
+        'LifecycleGoal:configure' +
+        (kind === 'customer' ? 'Customer' : 'Campaign') +
+        'LifecycleGoals$',
+    ),
+    source: 'https://googleads.googleapis.com/$discovery/rest?version=v25',
+    updated: '2026-09-23',
+    reason: 'Google Ads API v25 no longer has lifecycle goal configuration.',
+    replacement: lifecycleReplacement,
+  })),
 ];
+/** The catalog actions whose Google Ads method v25 removed; tools/fetch-vendor-specs.mjs keeps the same list. */
+export const retiredGoogleAdsActions = retiredProviderActions
+  .filter(r => r.gateway === 'google_ads_native_action')
+  .map(r => r.action);
 export const retiredProviderAction = (p: CompiledRequest) =>
   retiredProviderActions.find(r => r.gateway === p.gateway && r.method === p.method && r.path.test(p.path));
-/** These aliases were captured but never corresponded to the versioned provider
- * operation. Match the alias, not its shared mutate route: create/remove work. */
+/** Legacy names that do not correspond to an operation of the current provider version: captured aliases that never
+ * did, and aliases whose operation a newer version removed. Match the alias, not its shared route. */
 export const unsupportedProviderAliases = [
   {
     gateway: 'google_ads_native_action',
     action: 'UPDATE_CUSTOMIZER_ATTRIBUTE',
-    version: 'v23',
+    version: 'v25',
     source:
-      'https://github.com/googleapis/googleapis/blob/master/google/ads/googleads/v23/services/customizer_attribute_service.proto',
-    checked_at: '2026-09-25',
+      'https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/services/customizer_attribute_service.proto (sha256 7eb3650bd6eee98d0ec2d60b785e2934cf91c8dc07ae75a42447bac779c1b2aa)',
+    checked_at: '2026-09-28',
     reason:
-      'The v23 CustomizerAttributeOperation oneof contains create and remove only. An update_mask field or broad service comment does not define an update operation.',
+      'The v25 CustomizerAttributeOperation oneof contains create and remove only. An update_mask field or broad service comment does not define an update operation.',
     replacement:
       'Create a new attribute with the correct name/type. Separately review replacement customizer associations and affected ads before considering removal of the old attribute. AMCP does not automatically migrate or delete it.',
+  },
+  ...(['CUSTOMER', 'CAMPAIGN'] as const).flatMap(kind => [
+    {
+      gateway: 'google_ads_native_action',
+      action: 'CONFIGURE_' + kind + '_LIFECYCLE_GOAL',
+      version: 'v25',
+      source: 'https://googleads.googleapis.com/$discovery/rest?version=v25',
+      checked_at: '2026-09-28',
+      reason: 'Google Ads API v25 no longer has lifecycle goal configuration.',
+      replacement: lifecycleReplacement,
+    },
+    {
+      gateway: 'google_ads_native_action',
+      action: 'LIST_' + kind + '_LIFECYCLE_GOALS',
+      version: 'v25',
+      source: 'https://googleads.googleapis.com/$discovery/rest?version=v25 (GoogleAdsRow has no lifecycle goal rows)',
+      checked_at: '2026-09-28',
+      reason: 'Google Ads API v25 no longer has lifecycle goals to read.',
+      replacement:
+        'Read goals and their campaign settings with RUN_GAQL_QUERY: FROM goal, and FROM campaign_goal_config.',
+    },
+  ]),
+  {
+    gateway: 'google_ads_native_action',
+    action: 'SET_CAMPAIGN_BRAND_SAFETY',
+    version: 'v25',
+    source:
+      'https://googleads.googleapis.com/$discovery/rest?version=v25 (Campaign has no videoBrandSafetySuitability)',
+    checked_at: '2026-09-28',
+    reason:
+      'Google Ads API v25 removed the campaign-level video brand safety setting; only the account-level one remains.',
+    replacement:
+      "Set the account's videoBrandSafetySuitability with a reviewed customer change (google_ads_v23_customer_mutate_customer), or exclude content labels per campaign (SET_CAMPAIGN_CONTENT_LABEL_EXCLUSIONS).",
   },
 ];
 export const unsupportedProviderAlias = (gateway: string, action: string) =>
@@ -70,14 +138,14 @@ export function assertProviderActionAvailable(p: CompiledRequest): void {
   if (retired)
     throw new MirrorError(
       'PROVIDER_ACTION_UNSUPPORTED',
-      'Google documents this method as no longer supported. A historical mapping cannot make it executable.',
+      retired.reason ??
+        'Google documents this method as no longer supported. A historical mapping cannot make it executable.',
       {
         action: retired.action,
         source: retired.source,
         documentation_updated: retired.updated,
-        checked_at: '2026-09-19',
-        replacement:
-          'Use the current Google tag management interface and supported list/get workflows; no equivalent API mutation has been established.',
+        checked_at: retired.gateway === 'google_ads_native_action' ? '2026-09-28' : '2026-09-19',
+        replacement: retired.replacement ?? tagManagerReplacement,
       },
     );
 }

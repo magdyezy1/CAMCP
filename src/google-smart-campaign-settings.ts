@@ -3,6 +3,7 @@ import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {googleAdsCustomers} from './google-version.js';
 
 /**
  * Smart campaign settings, Google Ads API v23 (pinned Discovery document: SmartCampaignSettingService.
@@ -46,7 +47,7 @@ export function googleSmartKind(p: CompiledRequest): boolean {
     p.method === 'POST' &&
     !p.specialTransport &&
     (!p.origin || p.origin === 'https://googleads.googleapis.com') &&
-    /^\/v23\/customers\/\d+\/smartCampaignSettings:mutate$/.test(p.path)
+    /^\/v\d+\/customers\/\d+\/smartCampaignSettings:mutate$/.test(p.path)
   );
 }
 const operations = (p: CompiledRequest) => (googleJson(p.body).operations ?? []) as JsonObject[];
@@ -142,7 +143,7 @@ function read(p: CompiledRequest, names: string[]): Read {
     ...p,
     action: 'AMCP_GOOGLE_SMART_READ',
     method: 'POST',
-    path: '/v23/customers/' + account(p) + '/googleAds:search',
+    path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {
       query:
         'SELECT smart_campaign_setting.resource_name, smart_campaign_setting.campaign, smart_campaign_setting.phone_number.phone_number, smart_campaign_setting.phone_number.country_code, smart_campaign_setting.final_url, smart_campaign_setting.advertising_language_code, smart_campaign_setting.business_name, smart_campaign_setting.business_profile_location, smart_campaign_setting.ad_optimized_business_profile_setting.include_lead_form, campaign.status, campaign.advertising_channel_type FROM smart_campaign_setting WHERE smart_campaign_setting.resource_name IN (' +

@@ -33,7 +33,7 @@ for (const lostFinal of [false, true])
           return new Response(null, {
             headers: {
               'x-goog-upload-url':
-                'https://googleads.googleapis.com/resumable/upload/v23/session?upload_id=private-capability',
+                'https://googleads.googleapis.com/resumable/upload/v25/session?upload_id=private-capability',
               'x-goog-upload-chunk-granularity': '262144',
             },
           });

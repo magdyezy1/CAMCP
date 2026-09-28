@@ -105,7 +105,7 @@ function fixture(mode = '') {
         path = decodeURIComponent(u.pathname),
         body = init.body ? JSON.parse(String(init.body)) : undefined;
       calls.push({path, body});
-      if (path === '/v23/customers/123/googleAds:search') {
+      if (path === '/v25/customers/123/googleAds:search') {
         const q = body.query,
           names = inList(q);
         if (/FROM recommendation /.test(q))
@@ -134,7 +134,7 @@ function fixture(mode = '') {
           });
         throw new Error('Unexpected query ' + q);
       }
-      if (path === '/v23/customers/123/recommendations:apply') {
+      if (path === '/v25/customers/123/recommendations:apply') {
         writes++;
         const results = body.operations.map(op => {
           const id = op.resourceName.split('/').at(-1),
@@ -335,7 +335,7 @@ test('a receipt naming another recommendation is never resubmitted, an ignored a
   } finally {
     g.store.close();
   }
-  const d = JSON.parse(readFileSync('.mirror/VENDOR/google-ads-v23.json', 'utf8')),
+  const d = JSON.parse(readFileSync('.mirror/VENDOR/google-ads-v25.json', 'utf8')),
     doc = d.document ?? d,
     S = doc.schemas,
     find = re => S[Object.keys(S).find(k => re.test(k))];

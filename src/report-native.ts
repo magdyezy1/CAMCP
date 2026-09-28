@@ -9,6 +9,7 @@ import {accountPlan, accountMetadata, accountCurrency, accountTimezone} from './
 import {compileMicrosoft} from './microsoft-native.js';
 import {reportPlatforms, metricNumber, objectiveGroup} from './report-metrics.js';
 import {zonedMidnight} from './workflows.js';
+import {googleAdsCustomers} from './google-version.js';
 
 export const nativeMetricExamples: Record<string, string[]> = {
   google: [
@@ -472,7 +473,7 @@ export class NativeCampaignReports {
         (
           await run(
             plan(
-              '/v23/customers/' + account + '/googleAds:search',
+              googleAdsCustomers + account + '/googleAds:search',
               {},
               {
                 query: `SELECT ${fields.join(', ')} FROM campaign WHERE segments.date BETWEEN '${range.since}' AND '${range.until}'`,

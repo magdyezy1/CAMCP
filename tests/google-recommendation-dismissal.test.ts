@@ -120,7 +120,7 @@ function fixture(file = ':memory:') {
             ...(mode === 'count' ? {totalResultsCount: '100'} : {}),
           });
         }
-        assert.equal(path, '/v23/customers/123/recommendations:dismiss');
+        assert.equal(path, '/v25/customers/123/recommendations:dismiss');
         if (gate) {
           entered!();
           await gate;
@@ -468,7 +468,7 @@ test('manager routing stays on the selected customer and login even when another
     assert.equal((await f.execute(p)).success, true);
     assert.equal((await f.service.verifyWrite(actor, p.data.review_id)).status, 'verified');
     assert.ok(f.calls.every(c => new Headers(c.headers).get('login-customer-id') === '456'));
-    assert.ok(f.calls.every(c => c.path.startsWith('/v23/customers/123/')));
+    assert.ok(f.calls.every(c => c.path.startsWith('/v25/customers/123/')));
   } finally {
     f.store.close();
   }
@@ -625,18 +625,18 @@ test('native request, response, projection fields and both catalog surfaces matc
   const rows = actionContracts(registry).filter(r => r.family === 'google_recommendation_dismissal');
   assert.equal(rows.length, 2);
   assert.ok(rows.every(r => r.status === 'reviewed_write_family'));
-  const spec = JSON.parse(readFileSync('.mirror/VENDOR/google-ads-v23.json', 'utf8')).document,
+  const spec = JSON.parse(readFileSync('.mirror/VENDOR/google-ads-v25.json', 'utf8')).document,
     s = spec.schemas;
-  assert.deepEqual(Object.keys(s.GoogleAdsGoogleadsV23Services__DismissRecommendationRequest.properties).sort(), [
+  assert.deepEqual(Object.keys(s.GoogleAdsGoogleadsV25Services__DismissRecommendationRequest.properties).sort(), [
     'operations',
     'partialFailure',
   ]);
   assert.deepEqual(
-    Object.keys(s.GoogleAdsGoogleadsV23Services_DismissRecommendationRequest_DismissRecommendationOperation.properties),
+    Object.keys(s.GoogleAdsGoogleadsV25Services_DismissRecommendationRequest_DismissRecommendationOperation.properties),
     ['resourceName'],
   );
   for (const field of ['resourceName', 'type', 'dismissed', 'campaign', 'campaigns', 'campaignBudget', 'adGroup'])
-    assert.ok(s.GoogleAdsGoogleadsV23Resources__Recommendation.properties[field]);
+    assert.ok(s.GoogleAdsGoogleadsV25Resources__Recommendation.properties[field]);
   assert.equal(spec.resources.customers.resources.recommendations.methods.dismiss.httpMethod, 'POST');
   assert.equal(
     googleDismissalKind(

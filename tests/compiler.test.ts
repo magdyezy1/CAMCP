@@ -3,15 +3,16 @@ import assert from 'node:assert/strict';
 import {Registry} from '../src/catalog.js';
 import {Compiler, expandPath} from '../src/compiler.js';
 import {strictOptions} from '../src/service.js';
+import {googleAdsActionVersion} from '../src/google-version.js';
 const registry = new Registry(),
   compiler = new Compiler(registry);
 test('Google resource-name templates preserve path structure without traversal', () => {
-  const p = expandPath('/v23/{resource_name=customers/*/adGroups/*}', {resource_name: 'customers/123/adGroups/456'});
-  assert.equal(p.path, '/v23/customers/123/adGroups/456');
+  const p = expandPath('/v25/{resource_name=customers/*/adGroups/*}', {resource_name: 'customers/123/adGroups/456'});
+  assert.equal(p.path, '/v25/customers/123/adGroups/456');
   assert.throws(() => expandPath('/{id}', {id: '../secret'}), /Unsafe/);
   assert.throws(() => expandPath('/{id}', {id: '%2fsecret'}), /Unsafe/);
   assert.throws(
-    () => expandPath('/v23/{r=customers/*/adGroups/*}', {r: 'customers/123/campaigns/456'}),
+    () => expandPath('/v25/{r=customers/*/adGroups/*}', {r: 'customers/123/campaigns/456'}),
     /does not match/,
   );
 });
@@ -26,7 +27,7 @@ test('Google customer alias and GAQL body route correctly', () => {
     strictOptions,
   );
   assert.equal(p.method, 'POST');
-  assert.equal(p.path, '/v23/customers/1234567890/googleAds:search');
+  assert.equal(p.path, '/v25/customers/1234567890/googleAds:search');
   assert.equal((p.body as any).query, 'SELECT campaign.id FROM campaign LIMIT 1');
   assert.deepEqual(p.query, {});
   assert.equal(p.readOnly, true);
@@ -72,7 +73,9 @@ test('TikTok large advertiser ID stays a string', () => {
 test('every method/path record expands deterministically from its declared template', () => {
   let count = 0;
   for (const c of registry.data.catalogs) {
-    for (const a of c.actions) {
+    for (const captured of c.actions) {
+      // The registry sends Google Ads actions at the current version (src/google-version.ts).
+      const a = c.gateway === 'google_ads_native_action' ? googleAdsActionVersion(captured) : captured;
       if (!a.method || !a.path) continue;
       const params: Record<string, unknown> = {};
       for (const required of a.required) if (typeof required === 'string') params[required] = 'test';

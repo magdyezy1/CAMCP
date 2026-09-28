@@ -43,6 +43,7 @@ import {
 } from './google-asset-set-writes.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {googleAdsCustomers} from './google-version.js';
 
 type Reference = {field: string; collection: string; parts: number; resource: string; fields: string[]};
 type Contract = {
@@ -454,7 +455,7 @@ function account(p: CompiledRequest) {
   return id;
 }
 export function googleConfigurationKind(p: CompiledRequest): string | undefined {
-  const kind = p.path.match(/^\/v23\/customers\/\d+\/([^/]+):mutate$/)?.[1];
+  const kind = p.path.match(/^\/v\d+\/customers\/\d+\/([^/]+):mutate$/)?.[1];
   // Some historical UPDATE aliases target services whose fields are immutable.
   // Do not advertise a route-family match as support for that impossible update.
   if (kind && p.action.startsWith('UPDATE_') && googleConfigurationContracts[kind]?.mutable.length === 0) return;
@@ -693,7 +694,7 @@ function search(
     ...p,
     action: 'AMCP_CONFIG_READ',
     method: 'POST',
-    path: '/v23/customers/' + account(p) + '/googleAds:search',
+    path: googleAdsCustomers + account(p) + '/googleAds:search',
     query: {},
     body: {query},
     headers: {},
@@ -736,7 +737,7 @@ export function googleConfigurationSnapshots(p: CompiledRequest): CompiledReques
       ...p,
       action: 'AMCP_STATE_READ',
       method: 'POST',
-      path: '/v23/customers/' + account(p) + '/googleAds:search',
+      path: googleAdsCustomers + account(p) + '/googleAds:search',
       query: {},
       body: {query: 'SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1'},
       headers: {},

@@ -54,7 +54,7 @@ function fixture(mode = '') {
         path = decodeURIComponent(u.pathname),
         body = init.body ? JSON.parse(String(init.body)) : undefined;
       calls.push({path, body});
-      if (path === '/v23/customers/123/googleAds:search') {
+      if (path === '/v25/customers/123/googleAds:search') {
         const q = body.query + ' ';
         if (/FROM customer /.test(q))
           return Response.json({
@@ -69,7 +69,7 @@ function fixture(mode = '') {
           });
         throw new Error('Unexpected query ' + q);
       }
-      if (path === '/v23/customers/123:mutate') {
+      if (path === '/v25/customers/123:mutate') {
         writes++;
         const up = body.operation.update;
         if (mode !== 'ignore')
@@ -296,8 +296,8 @@ test('unchanged settings and unusable conversion actions are refused without wri
   } finally {
     ignored.store.close();
   }
-  const d = JSON.parse(readFileSync('.mirror/VENDOR/google-ads-v23.json', 'utf8')),
-    C = (d.document ?? d).schemas.GoogleAdsGoogleadsV23Resources__Customer.properties;
+  const d = JSON.parse(readFileSync('.mirror/VENDOR/google-ads-v25.json', 'utf8')),
+    C = (d.document ?? d).schemas.GoogleAdsGoogleadsV25Resources__Customer.properties;
   assert.deepEqual(C.videoBrandSafetySuitability.enum.slice(2), [
     'EXPANDED_INVENTORY',
     'STANDARD_INVENTORY',

@@ -3,6 +3,7 @@ import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {googleAdsCustomers} from './google-version.js';
 
 /**
  * Customer types of Google Ads user lists, API v23 (pinned Discovery document: UserListCustomerTypeService
@@ -25,7 +26,6 @@ export const googleCustomerTypeCategories = [
   'QUALIFIED_LEADS',
   'CONVERTED_LEADS',
   'PAID_SUBSCRIBERS',
-  'LOYALTY_SIGN_UPS',
   'CART_ABANDONERS',
   ...tiers,
 ];
@@ -39,7 +39,7 @@ export const googleCustomerTypeConflicts = [
   ['DISENGAGED_CUSTOMERS', 'QUALIFIED_LEADS'],
   ['DISENGAGED_CUSTOMERS', 'CART_ABANDONERS'],
 ];
-/** v23 names CRM-based and rule-based lists; data-model and GCN lists, also eligible, have no v23 type and read as UNKNOWN. */
+/** v25 names CRM-based and rule-based lists; data-model and GCN lists, also eligible, have no type of their own and read as UNKNOWN. */
 const eligible = ['CRM_BASED', 'RULE_BASED'];
 const tracked = ['CONVERSION_TRACKING_MANAGED_BY_SELF', 'CONVERSION_TRACKING_MANAGED_BY_THIS_MANAGER'];
 const maxOperations = 100;
@@ -64,7 +64,7 @@ export function googleCustomerTypeKind(p: CompiledRequest): boolean {
     p.method === 'POST' &&
     !p.specialTransport &&
     (!p.origin || p.origin === 'https://googleads.googleapis.com') &&
-    /^\/v23\/customers\/\d+\/userListCustomerTypes:mutate$/.test(p.path)
+    /^\/v\d+\/customers\/\d+\/userListCustomerTypes:mutate$/.test(p.path)
   );
 }
 const operations = (p: CompiledRequest) => googleJson(p.body).operations as JsonObject[];
@@ -135,7 +135,7 @@ function read(p: CompiledRequest, query: string): Read {
     ...p,
     action: 'AMCP_CUSTOMER_TYPE_READ',
     method: 'POST',
-    path: '/v23/customers/' + account(p) + '/googleAds:search',
+    path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {query},
     query: {},
     headers: {},
@@ -357,7 +357,7 @@ export function googleCustomerTypeImpact(p: CompiledRequest, state: unknown[]): 
     effect:
       "Changes which of the advertiser's lists count as purchasers, leads, subscribers, loyalty members or cart abandoners. Campaigns with a customer acquisition goal use them to tell new customers from existing ones, which can change their bids. Budgets and list members do not change.",
     verification: 'Reads the customer types of every list again and compares them with the types after this request.',
-    source: 'https://developers.google.com/google-ads/api/reference/rpc/v23/UserListCustomerTypeService',
+    source: 'https://developers.google.com/google-ads/api/reference/rpc/v25/UserListCustomerTypeService',
   };
 }
 export function googleCustomerTypeOutcome(p: CompiledRequest, r: TransportResult): boolean {

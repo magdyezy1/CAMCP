@@ -75,7 +75,7 @@ function fixture({readBack} = {}) {
           fieldMask: 'audience.resource_name',
         });
       }
-      assert.equal(path, '/v23/customers/123/audiences:mutate');
+      assert.equal(path, '/v25/customers/123/audiences:mutate');
       writes.push(path);
       const results = body.operations.map(op => {
         const name = op.update?.resourceName ?? 'customers/123/audiences/' + (500 + records.size);

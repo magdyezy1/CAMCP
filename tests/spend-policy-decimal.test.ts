@@ -277,7 +277,7 @@ test('native integer micros keep their range and unit without currency scaling',
       ...request(0),
       gateway: 'google_ads_native_action',
       action: 'google_ads_v23_campaign_budget_mutate_campaign_budgets',
-      path: '/v23/customers/123/campaignBudgets:mutate',
+      path: '/v25/customers/123/campaignBudgets:mutate',
       body: {operations: [{update: {amountMicros: '110000000'}, updateMask: 'amount_micros'}]},
     };
     assert.equal(
@@ -306,7 +306,7 @@ test('a valid multi-operation reservation can exceed the safe per-field integer 
       ...request(0),
       gateway: 'google_ads_native_action',
       action: 'google_ads_v23_campaign_budget_mutate_campaign_budgets',
-      path: '/v23/customers/123/campaignBudgets:mutate',
+      path: '/v25/customers/123/campaignBudgets:mutate',
       body: {
         operations: [
           {create: {name: 'Synthetic A', amountMicros: '9007199254740991'}},

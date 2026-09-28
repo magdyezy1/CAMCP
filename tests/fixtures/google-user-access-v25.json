@@ -1,0 +1,83 @@
+{
+  "version": "v25",
+  "checked_at": "2026-09-28",
+  "meaning": "Source-hashed official Google v25 proto extraction plus pinned Discovery validation; schema evidence only, not live access approval.",
+  "sources": {
+    "resources/customer_user_access": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/resources/customer_user_access.proto",
+      "sha256": "d67118c949b57dce24ef9d7d316f1d07e29ef5e17bc61ef4945f4136c6de71e0"
+    },
+    "resources/customer_user_access_invitation": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/resources/customer_user_access_invitation.proto",
+      "sha256": "74e2adbb97ddc74e1a96e7756f7e2b3c80ec4435ac0fe46d88ff6bda2b267c2d"
+    },
+    "services/customer_user_access_service": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/services/customer_user_access_service.proto",
+      "sha256": "c11ac77401a55215bfa792681148ab7faae30dd073df7feda5593d39b8ecc53d"
+    },
+    "services/customer_user_access_invitation_service": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/services/customer_user_access_invitation_service.proto",
+      "sha256": "7f82d9a668e8033b00b02d5d76d8af90ebb8941e395190c8de5a7df7a2df647f"
+    },
+    "enums/access_role": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/enums/access_role.proto",
+      "sha256": "c04e311970992cb23309a1d3d822825bdc593c97f612f1402a490a06d9ceee32"
+    },
+    "enums/access_invitation_status": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/enums/access_invitation_status.proto",
+      "sha256": "13f94a34bf9fabfe4c791406b5340d3d588e467219a28d206505a1741b5c223f"
+    },
+    "errors/customer_user_access_error": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/errors/customer_user_access_error.proto",
+      "sha256": "d51283cd0320353c973f3f94222b48af1894b95bbadbaef57bf3ee2567a77f11"
+    },
+    "errors/access_invitation_error": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/errors/access_invitation_error.proto",
+      "sha256": "ff2179fd281ec6033e837ae6dd9b8abd9dfecbd2394eac8defd338bc810f572b"
+    },
+    "resources/multi_party_auth_review": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/resources/multi_party_auth_review.proto",
+      "sha256": "38864616de255b4db9ced3b09a340b31a259403a91f745d97f51d90cb22c02a7"
+    }
+  },
+  "enums": {
+    "access_role": {
+      "UNSPECIFIED": 0,
+      "UNKNOWN": 1,
+      "ADMIN": 2,
+      "STANDARD": 3,
+      "READ_ONLY": 4,
+      "EMAIL_ONLY": 5
+    },
+    "access_invitation_status": {
+      "UNSPECIFIED": 0,
+      "UNKNOWN": 1,
+      "PENDING": 2,
+      "DECLINED": 3,
+      "EXPIRED": 4
+    }
+  },
+  "patterns": {
+    "customer_user_access": "customers/{customer_id}/customerUserAccesses/{user_id}",
+    "customer_user_access_invitation": "customers/{customer_id}/customerUserAccessInvitations/{invitation_id}",
+    "multi_party_auth_review": "customers/{customer_id}/multiPartyAuthReviews/{customer_invitation_id}"
+  },
+  "services": {
+    "customer_user_access": {
+      "method": "POST",
+      "route": "/v25/customers/{customer_id=*}/customerUserAccesses:mutate",
+      "request_field": "operation",
+      "response_field": "result",
+      "validate_only": false,
+      "partial_failure": false
+    },
+    "customer_user_access_invitation": {
+      "method": "POST",
+      "route": "/v25/customers/{customer_id=*}/customerUserAccessInvitations:mutate",
+      "request_field": "operation",
+      "response_field": "result",
+      "validate_only": false,
+      "partial_failure": false
+    }
+  }
+}

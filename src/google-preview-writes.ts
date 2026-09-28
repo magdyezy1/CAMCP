@@ -4,10 +4,10 @@ import {changedStateFields} from './review-state.js';
 import {redact, stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {googleAdsCustomers, googleAdsVersion} from './google-version.js';
 
 type Send = (read: CompiledRequest) => Promise<TransportResult>;
 type Target = {
-  key: string;
   kind: 'asset_group' | 'ad_group_ad';
   name: string;
   previewType: 'UI_PREVIEW' | 'YOUTUBE_LIVE_PREVIEW';
@@ -46,17 +46,6 @@ const cid = (p: CompiledRequest) => {
   if (!id || !/^[1-9][0-9]*$/.test(id)) fail('Choose an exact Google Ads client customer.');
   return id!;
 };
-function integer(v: unknown): string {
-  if (
-    !(
-      (typeof v === 'string' && /^[1-9][0-9]*$/.test(v)) ||
-      (typeof v === 'number' && Number.isSafeInteger(v) && v > 0)
-    ) ||
-    BigInt(v as string) > 9223372036854775807n
-  )
-    fail('IDs must be exact positive int64 values. Prefer decimal strings.');
-  return String(v);
-}
 function resource(p: CompiledRequest, v: unknown, kind: string, pattern = '[1-9][0-9]*'): string {
   if (typeof v !== 'string' || !new RegExp('^customers/' + cid(p) + '/' + kind + '/' + pattern + '$').test(v))
     fail('The preview resource must belong to the selected customer.');
@@ -68,44 +57,39 @@ export function googlePreviewKind(p: CompiledRequest): boolean {
     p.method === 'POST' &&
     !p.specialTransport &&
     (!p.origin || p.origin === 'https://googleads.googleapis.com') &&
-    /^\/v23\/customers\/\d+:generateShareablePreviews$/.test(p.path)
+    /^\/v\d+\/customers\/\d+:generateShareablePreviews$/.test(p.path)
   );
 }
+/** The previews a request names. Google Ads v25 takes {operation: {shareablePreviews: [{assetGroup | adGroupAd,
+ * previewType}]}} (actions/generate_shareable_previews.proto; tests/fixtures/google-preview-v25.json). */
 function targets(p: CompiledRequest): Target[] {
   const body = googleJson(p.body);
-  if (!object(body)) fail('Supply the native shareablePreviews list.');
-  only(body, ['shareablePreviews']);
-  if (!Array.isArray(body.shareablePreviews) || !body.shareablePreviews.length || body.shareablePreviews.length > 25)
-    fail('Review 1–25 distinct previews per request.');
-  const out: Target[] = body.shareablePreviews.map((r: unknown) => {
+  if (!object(body) || !object(body.operation)) fail('Supply the native operation with its shareablePreviews list.');
+  only(body, ['operation']);
+  only(body.operation, ['shareablePreviews']);
+  const list = body.operation.shareablePreviews;
+  if (!Array.isArray(list) || !list.length || list.length > 25) fail('Review 1–25 distinct previews per request.');
+  const out: Target[] = list.map((r: unknown) => {
     if (!object(r)) fail('Each preview must be an object.');
-    only(r, ['assetGroupIdentifier', 'adGroupAd', 'previewType']);
-    if (r.assetGroupIdentifier !== undefined) {
-      if (
-        !object(r.assetGroupIdentifier) ||
-        r.adGroupAd !== undefined ||
-        (r.previewType !== undefined && !['UI_PREVIEW', 'UNSPECIFIED'].includes(r.previewType))
-      )
-        fail('An asset group uses UI_PREVIEW (or omitted) and no adGroupAd.');
-      only(r.assetGroupIdentifier, ['assetGroupId']);
-      const id = integer(r.assetGroupIdentifier.assetGroupId);
-      return {
-        key: 'asset_group:' + id,
-        kind: 'asset_group',
-        name: 'customers/' + cid(p) + '/assetGroups/' + id,
-        previewType: 'UI_PREVIEW',
-      };
+    only(r, ['assetGroup', 'adGroupAd', 'previewType']);
+    if (r.assetGroup !== undefined) {
+      if (r.adGroupAd !== undefined || r.previewType !== 'UI_PREVIEW')
+        fail('An asset group preview names previewType UI_PREVIEW and no adGroupAd.');
+      return {kind: 'asset_group', name: resource(p, r.assetGroup, 'assetGroups'), previewType: 'UI_PREVIEW'};
     }
-    if (r.previewType !== 'YOUTUBE_LIVE_PREVIEW') fail('An adGroupAd requires YOUTUBE_LIVE_PREVIEW.');
-    const name = resource(p, r.adGroupAd, 'adGroupAds', '[1-9][0-9]*~[1-9][0-9]*');
-    return {key: 'ad_group_ad:' + name, kind: 'ad_group_ad', name, previewType: 'YOUTUBE_LIVE_PREVIEW'};
+    if (r.previewType !== 'YOUTUBE_LIVE_PREVIEW') fail('An adGroupAd preview names previewType YOUTUBE_LIVE_PREVIEW.');
+    return {
+      kind: 'ad_group_ad',
+      name: resource(p, r.adGroupAd, 'adGroupAds', '[1-9][0-9]*~[1-9][0-9]*'),
+      previewType: 'YOUTUBE_LIVE_PREVIEW',
+    };
   });
-  if (new Set(out.map(r => r.key)).size !== out.length) fail('Each preview target may occur only once.');
+  if (new Set(out.map(r => r.name)).size !== out.length) fail('Each preview target may occur only once.');
   return out;
 }
 export function assertGooglePreview(p: CompiledRequest): void {
   if (
-    p.path !== '/v23/customers/' + cid(p) + ':generateShareablePreviews' ||
+    p.path !== googleAdsCustomers + cid(p) + ':generateShareablePreviews' ||
     Object.keys(p.query).length ||
     Object.keys(p.headers).length
   )
@@ -169,7 +153,7 @@ export function googlePreviewSnapshots(p: CompiledRequest): CompiledRequest[] {
     ...p,
     action: 'AMCP_GOOGLE_PREVIEW_READ',
     method: 'POST',
-    path: '/v23/customers/' + cid(p) + '/googleAds:search',
+    path: googleAdsCustomers + cid(p) + '/googleAds:search',
     query: {},
     body: {query},
     headers: {},
@@ -354,81 +338,53 @@ function link(v: unknown, type: Target['previewType']): string | undefined {
     return;
   }
 }
+/** The validated previews of a v25 result ({result: {previews: [...]}}), one per reviewed target, or undefined when the
+ * response is not exactly that. Google answers the whole request or fails it: there are no per-preview errors. */
 function receipt(p: CompiledRequest, result: TransportResult): JsonObject[] | undefined {
+  const data = result.data;
   if (
     result.status !== 200 ||
-    !object(result.data) ||
-    Object.keys(result.data).some(k => k !== 'responses') ||
-    !Array.isArray(result.data.responses)
+    !object(data) ||
+    Object.keys(data).some(k => k !== 'result') ||
+    !object(data.result) ||
+    Object.keys(data.result).some(k => k !== 'previews') ||
+    !Array.isArray(data.result.previews)
   )
     return;
   const expected = targets(p),
+    rows = data.result.previews,
     seen = new Set<string>(),
     out: JsonObject[] = [];
-  if (result.data.responses.length !== expected.length) return;
-  for (const row of result.data.responses) {
+  if (rows.length !== expected.length) return;
+  for (const row of rows) {
     if (
       !object(row) ||
       Object.keys(row).some(
-        k => !['assetGroupIdentifier', 'adGroupAd', 'shareablePreviewResult', 'partialFailureError'].includes(k),
+        k =>
+          !['assetGroup', 'adGroupAd', 'uiPreviewResult', 'youtubeLivePreviewResult', 'expirationDateTime'].includes(k),
       ) ||
-      Number(row.assetGroupIdentifier !== undefined) + Number(row.adGroupAd !== undefined) !== 1 ||
-      Number(row.shareablePreviewResult !== undefined) + Number(row.partialFailureError !== undefined) !== 1
+      Number(row.assetGroup !== undefined) + Number(row.adGroupAd !== undefined) !== 1
     )
       return;
-    let key: string;
-    try {
-      if (row.assetGroupIdentifier !== undefined) {
-        if (!object(row.assetGroupIdentifier) || Object.keys(row.assetGroupIdentifier).some(k => k !== 'assetGroupId'))
-          return;
-        key = 'asset_group:' + integer(row.assetGroupIdentifier.assetGroupId);
-      } else key = 'ad_group_ad:' + resource(p, row.adGroupAd, 'adGroupAds', '[1-9][0-9]*~[1-9][0-9]*');
-    } catch {
-      return;
-    }
-    const target = expected.find(t => t.key === key);
-    if (!target || seen.has(key)) return;
-    seen.add(key);
-    if (row.partialFailureError !== undefined) {
-      const e = row.partialFailureError;
-      if (!object(e) || !Number.isInteger(e.code) || e.code <= 0 || e.code > 16) return;
-      const codes: string[] = [];
-      for (const detail of Array.isArray(e.details) ? e.details : [])
-        for (const error of Array.isArray(detail?.errors) ? detail.errors : [])
-          if (object(error.errorCode))
-            for (const code of Object.values(error.errorCode))
-              if (typeof code === 'string' && /^[A-Z][A-Z0-9_]{1,127}$/.test(code)) codes.push(code);
-      out.push({
-        target: target.name,
-        preview_type: target.previewType,
-        status: 'failed',
-        error: {
-          code: e.code,
-          native_error_codes: [...new Set(codes)],
-          message:
-            typeof e.message === 'string'
-              ? redact(e.message.slice(0, 2000)).replace(/https?:\/\/\S+/gi, '[PROVIDER_URL]')
-              : 'Google rejected this preview.',
-        },
-      });
-      continue;
-    }
-    const value = row.shareablePreviewResult;
-    if (
-      !object(value) ||
-      Object.keys(value).some(
-        k => !['shareablePreviewUrl', 'youtubeLivePreviewResult', 'expirationDateTime'].includes(k),
-      )
-    )
-      return;
+    const kind = row.assetGroup !== undefined ? 'asset_group' : 'ad_group_ad',
+      target = expected.find(t => t.kind === kind && t.name === (row.assetGroup ?? row.adGroupAd));
+    if (!target || seen.has(target.name)) return;
+    seen.add(target.name);
     const urls: JsonObject = {};
     if (target.previewType === 'UI_PREVIEW') {
-      if (value.youtubeLivePreviewResult !== undefined || !link(value.shareablePreviewUrl, target.previewType)) return;
-      urls.shareablePreviewUrl = value.shareablePreviewUrl;
-    } else {
-      const youtube = value.youtubeLivePreviewResult;
+      const ui = row.uiPreviewResult;
       if (
-        value.shareablePreviewUrl !== undefined ||
+        row.youtubeLivePreviewResult !== undefined ||
+        !object(ui) ||
+        Object.keys(ui).some(k => k !== 'shareablePreviewUrl') ||
+        !link(ui.shareablePreviewUrl, target.previewType)
+      )
+        return;
+      urls.shareablePreviewUrl = ui.shareablePreviewUrl;
+    } else {
+      const youtube = row.youtubeLivePreviewResult;
+      if (
+        row.uiPreviewResult !== undefined ||
         !object(youtube) ||
         !Object.keys(youtube).length ||
         Object.keys(youtube).some(k => !['youtubePreviewUrl', 'youtubeTvPreviewUrl'].includes(k))
@@ -439,7 +395,7 @@ function receipt(p: CompiledRequest, result: TransportResult): JsonObject[] | un
         urls[k] = v;
       }
     }
-    const expiration = value.expirationDateTime;
+    const expiration = row.expirationDateTime;
     if (
       expiration !== undefined &&
       (typeof expiration !== 'string' ||
@@ -475,7 +431,7 @@ export function googlePreviewSafeOutcome(p: CompiledRequest, outcome: JsonObject
           failures: outcome.failures.map((f: JsonObject) => ({
             path: f.path,
             message:
-              'Inspect preview_results for validated per-target errors. Malformed native details remain in encrypted recovery storage.',
+              'The response does not match the reviewed previews. Its native details remain only in encrypted recovery storage.',
           })),
         }
       : {}),
@@ -500,7 +456,7 @@ export function googlePreviewDelivery(p: CompiledRequest, outcome: JsonObject, r
       links_retained: !!raw,
       automatic_regeneration: false,
       next_action: raw
-        ? 'Open a generated link in a separate browser tab. Review failed entries separately; never repeat successful or uncertain generation automatically.'
+        ? 'Open a generated link in a separate browser tab. Never repeat a successful or uncertain generation automatically.'
         : 'Private preview links expired locally or are unavailable. The original submission remains recorded; a fresh generation requires an explicit new review.',
     },
   };
@@ -542,7 +498,9 @@ export const googlePreviewImpact = {
   state_boundary:
     'Freezes selected source IDs, names, delivery state, parent identity/channel and destination URLs. The preview is rendered by Google and can reflect inherited assets, feeds or later source changes; this is not approval or a byte-frozen rendering of creative content.',
   limits:
-    'Google Ads v23, 1–25 distinct targets; no Search/Display previews. Provider format eligibility is determined by the native per-item result. UI previews cannot be embedded in iframes. Expiration is provider-controlled.',
+    'Google Ads ' +
+    googleAdsVersion +
+    ', 1–25 distinct targets: asset groups take UI_PREVIEW and eligible video ads YOUTUBE_LIVE_PREVIEW; Search and Display ads are unsupported. Google accepts or rejects the whole request, so one ineligible target fails every preview in it. Preview links cannot be embedded in iframes. Expiration is provider-controlled.',
   recovery:
-    'One generation attempt per frozen review. Reuse its receipt and key after a lost client response. Read-back validates that receipt and current sources without fetching or regenerating links. Partial or uncertain submission must not be repeated automatically.',
+    'One generation attempt per frozen review. Reuse its receipt and key after a lost client response. Read-back validates that receipt and current sources without fetching or regenerating links. An uncertain submission must not be repeated automatically.',
 };

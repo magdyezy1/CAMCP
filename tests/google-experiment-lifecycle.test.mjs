@@ -134,7 +134,7 @@ function fixture(mode = '') {
         path = decodeURIComponent(u.pathname),
         body = init.body ? JSON.parse(String(init.body)) : undefined;
       calls.push({path, body});
-      if (path === '/v23/customers/123/googleAds:search') {
+      if (path === '/v25/customers/123/googleAds:search') {
         const q = body.query + ' ';
         if (/FROM customer /.test(q))
           return Response.json({
@@ -190,7 +190,7 @@ function fixture(mode = '') {
         }
         throw new Error('Unexpected query ' + q);
       }
-      const m = /^\/v23\/customers\/123\/experiments\/(\d+):(schedule|end|promote|graduate)Experiment$/.exec(path);
+      const m = /^\/v25\/customers\/123\/experiments\/(\d+):(schedule|end|promote|graduate)Experiment$/.exec(path);
       if (!m) throw new Error('Unexpected ' + path);
       writes++;
       const e = experiments.get(m[1]);
@@ -371,7 +371,7 @@ test('malformed lifecycle requests are refused before any request', async () => 
   const cases = [
     ['schedule body (Discovery contract)', () => ['schedule', '501', {partialFailure: false}], 'INVALID_VENDOR_BODY'],
     ['validateOnly true', () => ['end', '502', {validateOnly: true}]],
-    ['no mapping (required by the compiler)', () => ['graduate', '502', {}], 'INTERNAL_ERROR'],
+    ['no mapping (required by the compiler)', () => ['graduate', '502', {}], 'MISSING_PARAMETER'],
     [
       'two mappings',
       () => [

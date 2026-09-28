@@ -232,8 +232,8 @@ test('POST read authorization requires an independent known read route', () => {
     strictOptions,
   );
   assert.equal(applyExecutionRisk(search).readOnly, true);
-  assert.equal(applyExecutionRisk({...search, path: '/v23/customers/111/something:unknown'}).readOnly, false);
-  assert.equal(applyExecutionRisk({...search, path: '/v23/customers/111/campaigns:mutate'}).readOnly, false);
+  assert.equal(applyExecutionRisk({...search, path: '/v25/customers/111/something:unknown'}).readOnly, false);
+  assert.equal(applyExecutionRisk({...search, path: '/v25/customers/111/campaigns:mutate'}).readOnly, false);
   const meta = compiler.compile(
     'meta_native_action',
     {action: 'meta_ad_account_id_campaigns_get', account_id: '111'},

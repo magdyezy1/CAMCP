@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import {Registry} from '../src/catalog.js';
 import {Introspection} from '../src/introspection.js';
 import {strictOptions} from '../src/service.js';
+import {currentGoogleAdsCapture} from '../src/google-version.js';
 const registry = new Registry(),
   introspection = new Introspection(registry);
 test('20 captured tools, Microsoft extension and 112 delegated schemas load and validate', () => {
@@ -12,7 +13,7 @@ test('20 captured tools, Microsoft extension and 112 delegated schemas load and 
   assert.equal(registry.data.catalogs.length, 19);
   assert.deepEqual(registry.help({}, strictOptions), registry.data.discovery);
 });
-test('gateway help preserves every captured field and only declared DV360 and X extensions', () => {
+test('gateway help preserves every captured field and only declared DV360, X and Google Ads version extensions', () => {
   for (const tool of registry.data.tools.filter(t => t.mode === 'direct')) {
     const schema = registry.help({gateway: tool.name}, strictOptions).inputSchema;
     if (tool.name === 'dv360_native_action') {
@@ -36,6 +37,13 @@ test('gateway help preserves every captured field and only declared DV360 and X 
       delete schema.properties.download_report;
       assert.equal(tool.inputSchema.properties.download_report, undefined);
     }
+    // Google Ads restates the version it sends in four descriptions (src/google-version.ts); nothing else differs.
+    if (tool.name === 'google_ads_native_action')
+      for (const key of ['action', 'params', 'payload', 'dry_run']) {
+        assert.match(schema.properties[key].description, /v25/, key);
+        assert.match(tool.inputSchema.properties[key].description, /v23/, key);
+        schema.properties[key].description = tool.inputSchema.properties[key].description;
+      }
     assert.deepEqual(schema, tool.inputSchema);
   }
 });
@@ -45,7 +53,12 @@ test('strict full catalog pages match frozen live metadata', () => {
     for (const name of fs.readdirSync(dir).filter(n => /^catalog-\d{4}\.json$/.test(n))) {
       const e = JSON.parse(fs.readFileSync(dir + '/' + name, 'utf8')),
         observed = JSON.parse(e.response.content[0].text).data;
-      assert.deepEqual(introspection.list(c.gateway, e.request.args, strictOptions), observed, c.gateway + '/' + name);
+      // Google Ads pages were captured at v23 and are listed at the version AMCP sends.
+      assert.deepEqual(
+        introspection.list(c.gateway, e.request.args, strictOptions),
+        c.gateway === 'google_ads_native_action' ? currentGoogleAdsCapture(observed) : observed,
+        c.gateway + '/' + name,
+      );
     }
   }
 });

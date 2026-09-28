@@ -3,6 +3,7 @@ import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {googleAdsCustomers} from './google-version.js';
 
 /**
  * Campaign drafts, Google Ads API v23 (pinned Discovery document: CampaignDraftService MutateCampaignDrafts and
@@ -46,8 +47,8 @@ export function googleDraftKind(p: CompiledRequest): Kind | undefined {
     (p.origin && p.origin !== 'https://googleads.googleapis.com')
   )
     return;
-  if (/^\/v23\/customers\/\d+\/campaignDrafts:mutate$/.test(p.path)) return 'mutate';
-  if (/^\/v23\/customers\/\d+\/campaignDrafts\/[^/:]+:promote$/.test(p.path)) return 'promote';
+  if (/^\/v\d+\/customers\/\d+\/campaignDrafts:mutate$/.test(p.path)) return 'mutate';
+  if (/^\/v\d+\/customers\/\d+\/campaignDrafts\/[^/:]+:promote$/.test(p.path)) return 'promote';
   return;
 }
 const draftPattern = (p: CompiledRequest) =>
@@ -59,7 +60,7 @@ const promoted = (p: CompiledRequest) =>
     .split('/')
     .slice(1)
     .join('/')
-    .replace(/^v23\//, '')
+    .replace(/^v\d+\//, '')
     .replace(/:promote$/, '');
 function draftName(p: CompiledRequest, v: unknown, label: string): string {
   if (typeof v !== 'string' || !draftPattern(p).test(v))
@@ -154,7 +155,7 @@ function read(p: CompiledRequest, query: string): Read {
     ...p,
     action: 'AMCP_CAMPAIGN_DRAFT_READ',
     method: 'POST',
-    path: '/v23/customers/' + account(p) + '/googleAds:search',
+    path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {query},
     query: {},
     headers: {},

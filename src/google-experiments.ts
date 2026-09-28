@@ -3,6 +3,7 @@ import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {googleAdsCustomers} from './google-version.js';
 
 /**
  * System-managed experiments, Google Ads API v23 (pinned Discovery document: ExperimentService.MutateExperiments,
@@ -78,9 +79,9 @@ export function googleExperimentKind(p: CompiledRequest): Kind | undefined {
     (p.origin && p.origin !== 'https://googleads.googleapis.com')
   )
     return;
-  if (/^\/v23\/customers\/\d+\/experiments:mutate$/.test(p.path)) return 'experiments';
-  if (/^\/v23\/customers\/\d+\/experimentArms:mutate$/.test(p.path)) return 'arms';
-  const action = /^\/v23\/customers\/\d+\/experiments\/[^/:]+:(schedule|end|promote|graduate)Experiment$/.exec(p.path);
+  if (/^\/v\d+\/customers\/\d+\/experiments:mutate$/.test(p.path)) return 'experiments';
+  if (/^\/v\d+\/customers\/\d+\/experimentArms:mutate$/.test(p.path)) return 'arms';
+  const action = /^\/v\d+\/customers\/\d+\/experiments\/[^/:]+:(schedule|end|promote|graduate)Experiment$/.exec(p.path);
   return action ? (action[1] as Kind) : undefined;
 }
 /** The experiment a lifecycle action names in its path. */
@@ -352,7 +353,7 @@ function read(p: CompiledRequest, query: string): Read {
     ...p,
     action: 'AMCP_GOOGLE_EXPERIMENT_READ',
     method: 'POST',
-    path: '/v23/customers/' + account(p) + '/googleAds:search',
+    path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {query},
     query: {},
     headers: {},

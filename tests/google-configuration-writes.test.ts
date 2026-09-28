@@ -509,7 +509,7 @@ function fixture(row = cases[0]!, allowWrites = true) {
             }),
           );
         }
-        assert.equal(path, '/v23/customers/123/' + row.route + ':mutate');
+        assert.equal(path, '/v25/customers/123/' + row.route + ':mutate');
         writes++;
         const results = body.operations.map((op: JsonObject) => {
           const collection =

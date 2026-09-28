@@ -1,0 +1,66 @@
+{
+  "version": "v25",
+  "checked_at": "2026-09-28",
+  "meaning": "Public native protocol evidence, not live format eligibility or permission.",
+  "sources": {
+    "services/shareable_preview_service": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/services/shareable_preview_service.proto",
+      "sha256": "4e640942ca904bf0e5f8880d99312162e225a61e0e446509ba60a9ad32d2a98a"
+    },
+    "actions/generate_shareable_previews": {
+      "url": "https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/actions/generate_shareable_previews.proto",
+      "sha256": "defca284ddd49679cb87d1ece3052ddebdde91825fbae2731316966070075f65"
+    }
+  },
+  "route": "/v25/customers/{customer_id=*}:generateShareablePreviews",
+  "scope": "https://www.googleapis.com/auth/adwords",
+  "fields": {
+    "GenerateShareablePreviewsRequest": [
+      "customer_id",
+      "operation"
+    ],
+    "GenerateShareablePreviewsResponse": [
+      "result"
+    ],
+    "GenerateShareablePreviewsOperation": [
+      "shareable_previews"
+    ],
+    "ShareablePreview": [
+      "ad_group_ad",
+      "asset_group",
+      "preview_type"
+    ],
+    "GenerateShareablePreviewsResult": [
+      "previews"
+    ],
+    "ShareablePreviewResult": [
+      "ad_group_ad",
+      "asset_group",
+      "expiration_date_time",
+      "ui_preview_result",
+      "youtube_live_preview_result"
+    ],
+    "UiPreviewResult": [
+      "shareable_preview_url"
+    ],
+    "YouTubeLivePreviewResult": [
+      "youtube_preview_url",
+      "youtube_tv_preview_url"
+    ]
+  },
+  "oneofs": {
+    "GenerateShareablePreviewsRequest": [],
+    "GenerateShareablePreviewsResponse": [],
+    "GenerateShareablePreviewsOperation": [],
+    "ShareablePreview": [
+      "identifier"
+    ],
+    "GenerateShareablePreviewsResult": [],
+    "ShareablePreviewResult": [
+      "identifier",
+      "result"
+    ],
+    "UiPreviewResult": [],
+    "YouTubeLivePreviewResult": []
+  }
+}

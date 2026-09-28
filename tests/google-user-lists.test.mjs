@@ -124,7 +124,7 @@ function fixture({readBack} = {}) {
           });
         return Response.json({...(rows.length ? {results: rows} : {}), fieldMask: m[1]});
       }
-      assert.equal(path, '/v23/customers/123/userLists:mutate');
+      assert.equal(path, '/v25/customers/123/userLists:mutate');
       writes.push(body);
       const results = body.operations.map(op => {
         if (op.update) {

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import {googleAdsContract, googleAdsRequestChange, googleAdsVersion} from './google-version.js';
 
 export function assertGoogleAdsScope(c: Connection): void {
   if (!c.scopes.includes('https://www.googleapis.com/auth/adwords'))
@@ -75,7 +76,7 @@ export function googleContractEvidence(plan: CompiledRequest): CompiledRequest {
 export function validateGoogleRequest(plan: CompiledRequest): void {
   const r = route(plan);
   if (!r?.requestSchema || plan.body === undefined) return;
-  const schemas = data().schemaComponents['google-ads-v23'].schemas,
+  const schemas = data().schemaComponents[googleAdsContract].schemas,
     issues: JsonObject[] = [];
   let nodes = 0;
   const issue = (field: string, reason: string) => {
@@ -130,11 +131,12 @@ export function validateGoogleRequest(plan: CompiledRequest): void {
   if (issues.length)
     throw new MirrorError(
       'INVALID_VENDOR_BODY',
-      'Request differs from the official Google Ads v23 Discovery contract.',
+      'Request differs from the official Google Ads ' + googleAdsVersion + ' Discovery contract.',
       {
         vendor_method: r.vendorMethod,
         source: r.source,
         errors: issues,
+        ...(googleAdsRequestChange(plan.action) ? {version_change: googleAdsRequestChange(plan.action)} : {}),
         next_action:
           'Correct the listed request fields. Refresh and review the pinned specification before enabling a newly introduced vendor field.',
       },

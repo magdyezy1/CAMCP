@@ -129,7 +129,7 @@ function fixture(file = ':memory:') {
           ...(token ? {nextPageToken: token} : {}),
         });
       }
-      assert.equal(path, '/v23/customers/123/adGroupBidModifiers:mutate');
+      assert.equal(path, '/v25/customers/123/adGroupBidModifiers:mutate');
       if (mode === 'lost') throw Error('Synthetic lost response');
       if (mode === 'partial') return Response.json({results: [], partialFailureError: {code: 3, message: 'Synthetic'}});
       if (mode === 'unknown') return Response.json({});

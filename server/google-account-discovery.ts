@@ -3,6 +3,7 @@ import type {CompiledRequest, Connection, Credentials, JsonObject} from '../src/
 import type {NativeTransport} from '../src/transport.js';
 import type {AssetGroup, WorkspaceAsset} from './asset-discovery.js';
 import {assetSyncDiagnostic, assetSyncErrorMessage} from '../src/report-errors.js';
+import {googleAdsCustomers, googleAdsPath} from '../src/google-version.js';
 
 /** Discover every status beneath each directly accessible root, without granting account access. */
 export async function googleAccountDiscovery(
@@ -45,7 +46,7 @@ export async function googleAccountDiscovery(
     }
   };
   const result = await request(
-    plan('/v23/customers:listAccessibleCustomers'),
+    plan(googleAdsPath('/customers:listAccessibleCustomers')),
     {...credentials, loginCustomerId: undefined},
     'account_list',
   );
@@ -70,7 +71,7 @@ export async function googleAccountDiscovery(
     let token: string | undefined;
     for (let page = 0; page < 25; page++) {
       const response = await request(
-        plan('/v23/customers/' + root + '/googleAds:search', {query, ...(token ? {pageToken: token} : {})}),
+        plan(googleAdsCustomers + root + '/googleAds:search', {query, ...(token ? {pageToken: token} : {})}),
         {...credentials, loginCustomerId: root},
         query.includes('FROM customer_client') ? 'manager_hierarchy' : 'account_lookup',
       );

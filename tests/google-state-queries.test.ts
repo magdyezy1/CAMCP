@@ -24,7 +24,7 @@ for (const collection of ['biddingSeasonalityAdjustments', 'biddingDataExclusion
       action: 'synthetic',
       accountId: '123',
       method: 'POST',
-      path: '/v23/customers/123/' + collection + ':mutate',
+      path: '/v25/customers/123/' + collection + ':mutate',
       body: {operations: [{create}]},
       query: {},
       headers: {},

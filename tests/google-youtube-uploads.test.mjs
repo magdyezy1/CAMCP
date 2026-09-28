@@ -54,7 +54,7 @@ function fixture(mode = '') {
         path = decodeURIComponent(u.pathname),
         body = init.body ? JSON.parse(String(init.body)) : undefined;
       calls.push({path, body});
-      if (path === '/v23/customers/123/googleAds:search') {
+      if (path === '/v25/customers/123/googleAds:search') {
         const q = body.query + ' ';
         if (/FROM customer /.test(q))
           return Response.json({results: [{customer: {resourceName: 'customers/123', id: '123'}}]});
@@ -77,13 +77,13 @@ function fixture(mode = '') {
         throw new Error('Unexpected query ' + q);
       }
       writes++;
-      if (path === '/v23/customers/123/youTubeVideoUploads:update') {
+      if (path === '/v25/customers/123/youTubeVideoUploads:update') {
         const x = body.youTubeVideoUpload,
           id = x.resourceName.split('/').at(-1);
         if (mode !== 'ignore') uploads.get(id).videoPrivacy = x.videoPrivacy;
         return Response.json({resourceName: x.resourceName});
       }
-      if (path === '/v23/customers/123/youTubeVideoUploads:remove') {
+      if (path === '/v25/customers/123/youTubeVideoUploads:remove') {
         if (mode !== 'ignore') for (const n of body.resourceNames) uploads.delete(n.split('/').at(-1));
         return Response.json({resourceNames: mode === 'other' ? [upload(99)] : body.resourceNames});
       }

@@ -3,6 +3,7 @@ import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {googleAdsCustomers} from './google-version.js';
 
 /**
  * Account settings of a Google Ads customer, API v23 (pinned Discovery document: CustomerService.MutateCustomer,
@@ -43,7 +44,7 @@ export function googleCustomerSettingsKind(p: CompiledRequest): boolean {
     p.method === 'POST' &&
     !p.specialTransport &&
     (!p.origin || p.origin === 'https://googleads.googleapis.com') &&
-    /^\/v23\/customers\/\d+:mutate$/.test(p.path)
+    /^\/v\d+\/customers\/\d+:mutate$/.test(p.path)
   );
 }
 /** The fields a mask names: whole top-level fields, or call reporting fields one by one. */
@@ -176,7 +177,7 @@ function read(p: CompiledRequest, query: string): Read {
     ...p,
     action: 'AMCP_GOOGLE_CUSTOMER_SETTINGS_READ',
     method: 'POST',
-    path: '/v23/customers/' + account(p) + '/googleAds:search',
+    path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {query},
     query: {},
     headers: {},
@@ -341,7 +342,7 @@ export function googleCustomerSettingsImpact(p: CompiledRequest, state: unknown[
       .filter(Boolean)
       .join(' '),
     verification: 'Reads the customer settings again and compares every field written.',
-    source: 'https://developers.google.com/google-ads/api/reference/rpc/v23/Customer',
+    source: 'https://developers.google.com/google-ads/api/reference/rpc/v25/Customer',
   };
 }
 export function googleCustomerSettingsOutcome(p: CompiledRequest, r: TransportResult): boolean {

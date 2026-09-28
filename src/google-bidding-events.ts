@@ -3,6 +3,7 @@ import {googleJson} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {googleAdsCustomers} from './google-version.js';
 
 type Kind = 'biddingSeasonalityAdjustments' | 'biddingDataExclusions';
 type Send = (p: CompiledRequest) => Promise<TransportResult>;
@@ -95,7 +96,7 @@ const rn = (p: CompiledRequest, value: unknown, collection: string) => {
   return value as string;
 };
 export function googleBiddingEventKind(p: CompiledRequest): Kind | undefined {
-  const m = /^\/v23\/customers\/\d+\/(biddingSeasonalityAdjustments|biddingDataExclusions):mutate$/.exec(p.path);
+  const m = /^\/v\d+\/customers\/\d+\/(biddingSeasonalityAdjustments|biddingDataExclusions):mutate$/.exec(p.path);
   return p.gateway === 'google_ads_native_action' &&
     p.method === 'POST' &&
     !p.specialTransport &&
@@ -265,7 +266,7 @@ function read(p: CompiledRequest, query: string): CompiledRequest {
     ...p,
     action: 'AMCP_BIDDING_EVENT_READ',
     method: 'POST',
-    path: '/v23/customers/' + account(p) + '/googleAds:search',
+    path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {query},
     query: {},
     headers: {},
@@ -367,7 +368,7 @@ function reader(p: CompiledRequest, send: Send) {
     )
       stateFail('The selected customer identity, timezone or manager flag was not verified.');
     if (rows[0]!.manager === true)
-      fail('These v23 API resources belong to client accounts; choose the exact client customer.');
+      fail('These Google Ads API resources belong to client accounts; choose the exact client customer.');
     return {...rows[0], manager: false};
   };
   const events = async (kind: Kind) => {
@@ -651,7 +652,7 @@ export const googleBiddingEventImpact = {
   review:
     'Use a user-supplied expected conversion change or identified tracking outage. Account for conversion delay for exclusions; do not infer business facts, automatically offset a finished promotion or undo a data exclusion. Review current events, campaigns, budgets and portfolio targets.',
   limits:
-    'Client customers only; v23 CHANNEL accepts SEARCH/DISPLAY/SHOPPING. CAMPAIGN supports qualified Smart Bidding on those channels and Performance Max. App beta, manager events and cross-customer portfolio strategies require separate qualification. Complete history is bounded to 1000 events per kind and 2000 current campaigns.',
+    'Client customers only; CHANNEL accepts SEARCH/DISPLAY/SHOPPING. CAMPAIGN supports qualified Smart Bidding on those channels and Performance Max. App beta, manager events and cross-customer portfolio strategies require separate qualification. Complete history is bounded to 1000 events per kind and 2000 current campaigns.',
   verification:
     'Exact native configuration or complete collection absence. Auction effects, data repair, convergence, future campaigns and provider eligibility remain separate outcomes.',
   recovery:

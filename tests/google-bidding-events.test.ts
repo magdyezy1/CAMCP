@@ -141,7 +141,7 @@ function fixture(exclusion = false, file = ':memory:') {
         if (mode === 'unknown') d.incomplete = true;
         return Response.json(d);
       }
-      assert.equal(path, '/v23/customers/123/' + kind + ':mutate');
+      assert.equal(path, '/v25/customers/123/' + kind + ':mutate');
       if (mode === 'lost') throw Error('Synthetic lost response');
       if (mode === 'partial') return Response.json({results: [], partialFailureError: {code: 3}});
       if (mode === 'empty') return Response.json({});

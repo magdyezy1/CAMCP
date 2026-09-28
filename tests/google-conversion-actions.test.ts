@@ -183,11 +183,12 @@ test('missing existing standard goals cannot become a complete conversion-defini
   }
 });
 test('native evidence covers every conversion query field, allowed enum and mutation surface', async () => {
-  const proof = JSON.parse(readFileSync('tests/fixtures/google-conversion-actions-v23.json', 'utf8')),
+  const proof = JSON.parse(readFileSync('tests/fixtures/google-conversion-actions-v25.json', 'utf8')),
+    fieldTable = JSON.parse(readFileSync('tests/fixtures/google-conversion-fields-v23.json', 'utf8')).fields,
     f = fixture();
   try {
-    assert.equal(proof.version, 'v23');
-    assert.equal(proof.route, '/v23/customers/{customer_id=*}/conversionActions:mutate');
+    assert.equal(proof.version, 'v25');
+    assert.equal(proof.route, '/v25/customers/{customer_id=*}/conversionActions:mutate');
     for (const type of googleConversionActionTypes) assert.ok(proof.enums.conversion_action_type[type] > 1, type);
     for (const category of googleConversionActionCategories)
       assert.ok(proof.enums.conversion_action_category[category] > 1, category);
@@ -204,8 +205,8 @@ test('native evidence covers every conversion query field, allowed enum and muta
         .slice(7, query.indexOf(' FROM '))
         .split(', ')
         .map((s: string) => s.replace('conversion_action.', ''))) {
-        assert.equal(proof.fieldEvidence.fields[field]?.selectable, true, field);
-        assert.equal(proof.fieldEvidence.fields[field]?.repeated, false, field);
+        assert.equal(fieldTable[field]?.selectable, true, field);
+        assert.equal(fieldTable[field]?.repeated, false, field);
         const [parent, child] = field.split('.');
         assert.ok(proof.fields.ConversionAction.includes(parent), field);
         if (child)
@@ -404,7 +405,7 @@ function fixture(file = ':memory:', allowWrites = true) {
         if (mode === 'read_error') return Response.json({error: {code: 403}}, {status: 403});
         return Response.json(data);
       }
-      if (u.pathname === '/v23/customers/123/customConversionGoals:mutate') {
+      if (u.pathname === '/v25/customers/123/customConversionGoals:mutate') {
         writes++;
         const results = body.operations.map((op: JsonObject, i: number) => {
           assert.ok(op.create);
@@ -415,7 +416,7 @@ function fixture(file = ':memory:', allowWrites = true) {
         });
         return Response.json({results});
       }
-      assert.equal(u.pathname, '/v23/customers/123/conversionActions:mutate');
+      assert.equal(u.pathname, '/v25/customers/123/conversionActions:mutate');
       writes++;
       const results = body.operations.map((op: JsonObject) => {
         const id = op.create

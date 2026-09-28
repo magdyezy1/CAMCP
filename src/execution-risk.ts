@@ -72,7 +72,7 @@ const tiktokReads = new Set([
   '/v1.3/business/message/media/download/',
   '/v1.3/gmv_max/creation/custom_anchor_video_list/get/',
 ]);
-// Root-level RPCs are /v23:method, not /v23/customers/...:method. These
+// Root-level RPCs are /vNN:method, not /vNN/customers/...:method. These
 // documented planning metadata reads create no customer-owned resources.
 export const googleGlobalReadMethods = new Set([
   'generateConversionRates',
@@ -181,8 +181,8 @@ export function independentlyReadOnly(plan: CompiledRequest): boolean {
     case 'google_ads_native_action':
       return (
         !!googleGenerationKind(plan) ||
-        (/^\/v23\//.test(pathname) && googleReadMethods.has(pathname.split(':').at(-1)!)) ||
-        (/^\/v23:[A-Za-z]+$/.test(pathname) && googleGlobalReadMethods.has(pathname.slice(5)))
+        (/^\/v\d+\//.test(pathname) && googleReadMethods.has(pathname.split(':').at(-1)!)) ||
+        (/^\/v\d+:[A-Za-z]+$/.test(pathname) && googleGlobalReadMethods.has(pathname.slice(pathname.indexOf(':') + 1)))
       );
     case 'tiktok_native_action':
       return tiktokReads.has(pathname.replace(/^\/open_api/, '')) || !!tiktokPreviewRoute(plan);

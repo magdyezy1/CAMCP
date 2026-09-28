@@ -36,7 +36,7 @@ const googleFailure = (reason = 'USER_PERMISSION_DENIED') => ({
     status: 'PERMISSION_DENIED',
     details: [
       {
-        '@type': 'type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure',
+        '@type': 'type.googleapis.com/google.ads.googleads.v25.errors.GoogleAdsFailure',
         requestId: 'body-trace',
         errors: [
           {
@@ -99,7 +99,7 @@ test('Google 403 preserves provider reason, request stage and routing without re
     assert.equal(error.provider.code, 'USER_PERMISSION_DENIED');
     assert.equal(error.http_status, 403);
     assert.equal(error.request.stage, 'account_lookup');
-    assert.equal(error.request.path, '/v23/customers/1234567890/googleAds:search');
+    assert.equal(error.request.path, '/v25/customers/1234567890/googleAds:search');
     assert.equal(error.provider.request_id, 'synthetic-provider-trace');
     assert.equal(error.login_customer_id, '9999999999');
     assert.match(error.next_action, /direct access/);
@@ -168,7 +168,7 @@ test('Google reporting retains exact account, manager routing, query dates and r
     assert.equal(f.requests.length, 3);
     assert.equal(f.requests[2]!.body.pageToken, 'second-page');
     for (const request of f.requests) {
-      assert.equal(new URL(request.url).pathname, '/v23/customers/1234567890/googleAds:search');
+      assert.equal(new URL(request.url).pathname, '/v25/customers/1234567890/googleAds:search');
       assert.equal(request.headers['login-customer-id'], '9999999999');
     }
     assert.match(f.requests[1]!.body.query, /segments.date BETWEEN '2026-08-01' AND '2026-08-07'/);
@@ -270,7 +270,7 @@ test('Activity exposes diagnostic fields for historical Google failures while pr
         gateway: 'google_ads_native_action',
         action: 'AMCP_READINESS',
         method: 'POST',
-        path: '/v23/customers/1234567890/googleAds:search',
+        path: '/v25/customers/1234567890/googleAds:search',
         accountId: source.account_id,
       },
       error: {code: 'INSUFFICIENT_SCOPE', message: 'Platform returned HTTP 403', details: {upstream: googleFailure()}},

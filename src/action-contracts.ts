@@ -28,6 +28,7 @@ import {gtmDiagnosticOperations} from './gtm-diagnostics.js';
 import legacy from './google-legacy-mapping.json' with {type: 'json'};
 import type {Action, CompiledRequest, JsonObject} from './types.js';
 import {reviewedFamilyFiles} from './reviewed-families.js';
+import {googleAdsCustomers} from './google-version.js';
 
 export type ContractStatus =
   | 'native_read'
@@ -384,7 +385,7 @@ export function actionContracts(registry: Registry): ActionContract[] {
     if (gateway === 'google_ads_native_action' && !route.path) {
       const entry = legacy.entries.find(e => e.name === a.name) as JsonObject | undefined;
       if (entry?.kind === 'GAQL')
-        route = {...a, method: 'POST', path: '/v23/customers/{customer_id}/googleAds:search', read_only: true};
+        route = {...a, method: 'POST', path: googleAdsCustomers + '{customer_id}/googleAds:search', read_only: true};
       else {
         const hint = legacyCoverage.entries.find(e => e.action === a.name)?.destination;
         const mapped = hint
@@ -394,7 +395,7 @@ export function actionContracts(registry: Registry): ActionContract[] {
           : undefined;
         if (mapped) route = mapped;
         else if (hint && /^[a-z_]+$/.test(hint))
-          route = {...a, method: 'POST', path: '/v23/customers/{customer_id}/googleAds:search', read_only: true};
+          route = {...a, method: 'POST', path: googleAdsCustomers + '{customer_id}/googleAds:search', read_only: true};
       }
       source = entry ? 'src/google-legacy-mapping.json' : source;
     }

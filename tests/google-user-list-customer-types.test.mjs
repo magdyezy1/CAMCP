@@ -57,7 +57,7 @@ function fixture(mode = '') {
       path = u.pathname,
       body = init.body ? JSON.parse(String(init.body)) : undefined;
     calls.push({path, body});
-    if (path === '/v23/customers/123/googleAds:search') {
+    if (path === '/v25/customers/123/googleAds:search') {
       const q = body.query;
       if (/FROM customer /.test(q + ' '))
         return Response.json({
@@ -96,7 +96,7 @@ function fixture(mode = '') {
       }
       throw new Error('Unexpected query ' + q);
     }
-    if (path === '/v23/customers/123/userListCustomerTypes:mutate') {
+    if (path === '/v25/customers/123/userListCustomerTypes:mutate') {
       writes++;
       return Response.json({
         results: body.operations.map((op, i) => {
@@ -276,14 +276,14 @@ test('a result naming another customer type is a failure that is never resubmitt
 test('the categories and conflicts match the pinned Discovery document, and the ledger lists the action in the family', async () => {
   const {googleCustomerTypeCategories, googleCustomerTypeConflicts} =
     await import('../dist/src/google-user-list-customer-types.js');
-  const doc = JSON.parse(readFileSync('.mirror/VENDOR/google-ads-v23.json', 'utf8')),
+  const doc = JSON.parse(readFileSync('.mirror/VENDOR/google-ads-v25.json', 'utf8')),
     S = (doc.document ?? doc).schemas;
-  assert.deepEqual(S.GoogleAdsGoogleadsV23Resources__UserListCustomerType.properties.customerTypeCategory.enum, [
+  assert.deepEqual(S.GoogleAdsGoogleadsV25Resources__UserListCustomerType.properties.customerTypeCategory.enum, [
     'UNSPECIFIED',
     'UNKNOWN',
     ...googleCustomerTypeCategories,
   ]);
-  const errors = S.GoogleAdsGoogleadsV23Errors__ErrorCode.properties.userListCustomerTypeError,
+  const errors = S.GoogleAdsGoogleadsV25Errors__ErrorCode.properties.userListCustomerTypeError,
     conflicts = errors.enumDescriptions[errors.enum.indexOf('CONFLICTING_CUSTOMER_TYPES')];
   const label = c =>
     ({

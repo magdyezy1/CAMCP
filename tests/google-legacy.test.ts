@@ -19,13 +19,14 @@ test('legacy inventory classifies every captured alias exactly once without clai
       .map(a => a.name)
       .sort();
   assert.equal(c.total, 285);
-  assert.equal(c.requestTypes, 171);
+  // Request messages of the 171 captured RPCs, less the two lifecycle goal methods Google Ads v25 removed.
+  assert.equal(c.requestTypes, 169);
   assert.deepEqual(c.entries.map(e => e.action).sort(), names);
   assert.equal(c.exactBehaviorParityVerified, 0);
 });
 test('legacy reads use explicit resources, safe filters, exact IDs and bounded GAQL', () => {
   const p = compile('FETCH_CAMPAIGNS', {limit: 5});
-  assert.equal(p.path, '/v23/customers/111/googleAds:search');
+  assert.equal(p.path, '/v25/customers/111/googleAds:search');
   assert.equal(p.readOnly, true);
   assert.match((p.body as any).query, /FROM campaign LIMIT 5$/);
   const k = compile('FETCH_KEYWORDS', {campaign_id: '123'});
@@ -39,7 +40,7 @@ test('native protobuf validation and legacy campaign creation enforce shape and 
   const p = compile('CREATE_CAMPAIGN', {
     resource: {name: 'Draft', advertising_channel_type: 'SEARCH', campaign_budget: 'customers/111/campaignBudgets/222'},
   });
-  assert.equal(p.path, '/v23/customers/111/campaigns:mutate');
+  assert.equal(p.path, '/v25/customers/111/campaigns:mutate');
   assert.equal((p.body as any).operations[0].create.status, 'PAUSED');
   assert.equal(p.readOnly, false);
   assert.throws(
@@ -67,7 +68,7 @@ test('native protobuf validation and legacy campaign creation enforce shape and 
   );
   assert.throws(
     () =>
-      validateGoogleMessage('google.ads.googleads.v23.services.CampaignOperation', {
+      validateGoogleMessage('google.ads.googleads.v25.services.CampaignOperation', {
         create: {name: 'a'},
         remove: 'customers/111/campaigns/2',
       }),

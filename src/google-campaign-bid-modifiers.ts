@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import {googleJson} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {googleAdsCustomers} from './google-version.js';
 
 type Context = {campaigns: string[]; targets: string[]};
 type Read = CompiledRequest & {googleCampaignBidState?: Context};
@@ -113,7 +114,7 @@ export function googleCampaignBidKind(p: CompiledRequest): boolean {
     !p.specialTransport &&
     (!p.origin || p.origin === 'https://googleads.googleapis.com') &&
     p.action !== 'CREATE_CAMPAIGN_BID_MODIFIER' &&
-    /^\/v23\/customers\/\d+\/campaignBidModifiers:mutate$/.test(p.path)
+    /^\/v\d+\/customers\/\d+\/campaignBidModifiers:mutate$/.test(p.path)
   );
 }
 export function assertGoogleCampaignBid(p: CompiledRequest) {
@@ -159,7 +160,7 @@ function read(
     ...p,
     action: 'AMCP_CAMPAIGN_BID_READ',
     method: 'POST',
-    path: '/v23/customers/' + account(p) + '/googleAds:search',
+    path: googleAdsCustomers + account(p) + '/googleAds:search',
     body: {
       query:
         'SELECT ' +
