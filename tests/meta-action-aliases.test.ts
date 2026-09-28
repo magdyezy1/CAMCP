@@ -6,7 +6,7 @@ import {actionContracts} from '../src/action-contracts.js';
 import {Store} from '../src/store.js';
 import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
-import type {Connection,JsonObject} from '../src/types.js';
+import type {Connection} from '../src/types.js';
 
 const registry=new Registry(),gateway='meta_native_action',actor={tenantId:'meta-alias',userId:'operator',role:'operator' as const},owner={...actor,role:'admin' as const};
 const aliases=[['meta_campaign_update','meta_campaign_id_update','campaign_id'],['meta_campaign_delete','meta_campaign_id_delete','campaign_id'],['meta_adset_update','meta_ad_set_id_update','ad_set_id'],['meta_adset_delete','meta_ad_set_id_delete','ad_set_id'],['meta_ad_update','meta_ad_id_update','ad_id'],['meta_ad_delete','meta_ad_id_delete','ad_id']];

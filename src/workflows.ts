@@ -15,7 +15,6 @@ export interface WorkflowDependencies {
  runNative(gateway:string,input:JsonObject,actor:Actor):Promise<unknown>;
 }
 type Platform='google'|'linkedin'|'x'|'dv360';
-type Entity='campaign'|'adset'|'ad'|'creative';
 const gateways:Record<Platform,string>={google:'google_ads_native_action',linkedin:'linkedin_native_action',x:'x_ads_native_action',dv360:'dv360_native_action'};
 const obj=(v:unknown):JsonObject=>v&&typeof v==='object'&&!Array.isArray(v)?structuredClone(v):{};
 function unsupported(message:string,details:JsonObject={}):never{throw new MirrorError('WORKFLOW_UNSUPPORTED',message,details);}

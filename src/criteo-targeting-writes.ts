@@ -18,7 +18,6 @@ export function criteoTargetingKind(p:CompiledRequest):string|undefined{
  return p.gateway===gateway&&(!p.origin||p.origin==='https://api.criteo.com')&&!p.specialTransport&&m&&(m[2]?p.method==='POST':p.method==='PUT')?m[1]:undefined;
 }
 const lineId=(p:CompiledRequest)=>p.path.split('/')[4]!;
-const targetPath=(p:CompiledRequest)=>p.path.replace(/\/(append|delete)$/,'');
 export function assertCriteoTargeting(p:CompiledRequest){
  const kind=criteoTargetingKind(p);if(!kind)return;
  if(!id(p.accountId)||Object.keys(p.query).length||Object.keys(p.headers).length)fail('Use a selected numeric Criteo account without request overrides.');

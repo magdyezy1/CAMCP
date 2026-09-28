@@ -8,7 +8,6 @@ import {Store} from '../src/store.js';
 import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import {microsoftScope} from '../src/microsoft-native.js';
-import type {JsonObject} from '../src/types.js';
 
 function zip(data:string|Buffer,name='report.csv',deflate=true){
  const raw=Buffer.isBuffer(data)?data:Buffer.from(data),content=deflate?deflateRawSync(raw):raw,filename=Buffer.from(name),local=Buffer.alloc(30),central=Buffer.alloc(46),end=Buffer.alloc(22);

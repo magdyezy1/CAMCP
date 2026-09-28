@@ -8,7 +8,7 @@ import {linkedinDomainPlan} from './linkedin-insight-domains.js';
 import {linkedinTrackingPlan} from './linkedin-tracking-parameters.js';
 import {linkedinMessagePlan} from './linkedin-message-ads.js';
 import {tiktokPreviewPlan,tiktokPreviewVariantPath} from './tiktok-preview-reads.js';
-import type {Action,CallOptions,CompiledRequest,JsonObject} from './types.js';
+import type {CallOptions,CompiledRequest,JsonObject} from './types.js';
 import {Registry} from './catalog.js';
 import {guardInput} from './security.js';
 import {adaptGoogleLegacy} from './google-legacy.js';

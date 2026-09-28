@@ -8,7 +8,7 @@ import {NativeTransport} from '../src/transport.js';
 import {DelegatedNativeCompiler} from '../src/delegated-native.js';
 import {ScopeGuard} from '../src/scope.js';
 import {actionContracts} from '../src/action-contracts.js';
-import {placeActionReadKind,validatePlaceActionRead,placeActionReadResult,runPlaceActionDiscovery} from '../src/google-place-action-discovery.js';
+import {placeActionReadKind,placeActionReadResult,runPlaceActionDiscovery} from '../src/google-place-action-discovery.js';
 import {placeActionTypes} from '../src/google-place-action-links.js';
 import type {Actor,Connection,JsonObject,CompiledRequest} from '../src/types.js';
 

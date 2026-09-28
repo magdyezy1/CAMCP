@@ -4,7 +4,7 @@
     "outDir": "dist", "rootDir": ".", "strict": true,
     "esModuleInterop": true, "skipLibCheck": true, "types": ["node"],
     "resolveJsonModule": true, "declaration": true,
-    "noUncheckedIndexedAccess": true, "forceConsistentCasingInFileNames": true
+    "noUncheckedIndexedAccess": true, "noUnusedLocals": true, "forceConsistentCasingInFileNames": true
   },
   "include": ["src/**/*.ts", "server/**/*.ts", "tests/**/*.ts", "tools/**/*.ts", "generated/**/*.ts"]
 }

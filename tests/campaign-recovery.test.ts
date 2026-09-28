@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Store} from '../src/store.js';
 import {CampaignRunner} from '../src/campaign-runner.js';
-import type {Actor,JsonObject} from '../src/types.js';
+import type {Actor} from '../src/types.js';
 
 const actor:Actor={tenantId:'recovery',userId:'operator',role:'operator'};
 test('correcting an unsubmitted step preserves predecessors and cannot replay an uncertain write',async()=>{

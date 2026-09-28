@@ -13,7 +13,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 type Kind='library_update'|'library_delete'|'account_media_delete';
 type State={mediaKey?:string;accountMediaId?:string;posterKey?:string;usage?:boolean;optional?:boolean};
 type Read=CompiledRequest&{xMediaState?:State};
-const gateway='x_ads_native_action',nativeId=/^[a-z0-9]{1,32}$/,mediaKey=/^[0-9]{1,3}_[0-9]{1,25}$/;
+const gateway='x_ads_native_action',mediaKey=/^[0-9]{1,3}_[0-9]{1,25}$/;
 const limits:Record<string,number>={name:100,file_name:255,title:70,description:200},videoOnly=['title','description','poster_media_key'],moving=['VIDEO','GIF'];
 const object=(v:unknown):v is JsonObject=>!!v&&typeof v==='object'&&!Array.isArray(v);
 function fail(code:string,message:string,details:JsonObject={},status=400):never{throw new MirrorError(code,message,details,status);}

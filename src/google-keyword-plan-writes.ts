@@ -16,7 +16,6 @@ const object=(v:unknown):v is JsonObject=>!!v&&typeof v==='object'&&!Array.isArr
 const invalid=(message:string):never=>{throw new MirrorError('INVALID_CONFIGURATION_MUTATION',message);};
 const failed=(message:string):never=>{throw new MirrorError('STATE_READ_FAILED',message,{},502);};
 const camel=(s:string)=>s.replace(/_([a-z])/g,(_,c:string)=>c.toUpperCase());
-const snake=(s:string)=>s.replace(/([a-z0-9])([A-Z])/g,'$1_$2').toLowerCase();
 const keys=(value:JsonObject,allowed:string[])=>{if(Object.keys(value).some(k=>!allowed.includes(k)))invalid('Unqualified keyword-planning field.');};
 export function keywordPlanKind(p:CompiledRequest):string|undefined{const k=p.path.match(/^\/v23\/customers\/\d+\/([^/]+):mutate$/)?.[1];return p.gateway==='google_ads_native_action'&&p.method==='POST'&&(!p.origin||p.origin==='https://googleads.googleapis.com')&&k&&Object.hasOwn(keywordPlanResources,k)?k:undefined;}
 function bid(v:unknown){if(!(typeof v==='string'&&/^[1-9][0-9]*$/.test(v)||typeof v==='number'&&Number.isSafeInteger(v)&&v>0)||BigInt(v as string)>(1n<<63n)-1n)invalid('Planning CPC bids must be positive native micros, as decimal strings or safe integers.');}

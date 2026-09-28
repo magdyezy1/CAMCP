@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {DelegatedNativeCompiler,type VendorRoute} from '../src/delegated-native.js';
+import {DelegatedNativeCompiler} from '../src/delegated-native.js';
 import {MirrorError} from '../src/errors.js';
 import {applyExecutionRisk} from '../src/execution-risk.js';
 import {assertWriteShape} from '../src/write-review.js';

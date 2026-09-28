@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Registry} from '../src/catalog.js';
 import {Compiler} from '../src/compiler.js';
-import {adaptGoogleLegacy,googleLegacyCoverage,validateGoogleMessage} from '../src/google-legacy.js';
+import {googleLegacyCoverage,validateGoogleMessage} from '../src/google-legacy.js';
 import {MirrorService,strictOptions} from '../src/service.js';
 import {Store} from '../src/store.js';
 import {NativeTransport} from '../src/transport.js';

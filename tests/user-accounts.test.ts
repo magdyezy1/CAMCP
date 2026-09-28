@@ -10,7 +10,6 @@ import {createHttpApp} from '../server/http-app.js';
 import {WebStore} from '../server/web-store.js';
 import {UserAccounts,hashUserPassword} from '../server/user-accounts.js';
 import {McpOAuth} from '../server/mcp-oauth.js';
-import {sha256} from '../src/security.js';
 import type {JsonObject} from '../src/types.js';
 const master=Buffer.alloc(32,65).toString('base64'),password='synthetic-member-password',origin='https://amcp.shop';
 const key=generateKeyPairSync('rsa',{modulusLength:2048}),json=(body:unknown)=>new Response(JSON.stringify(body),{headers:{'Content-Type':'application/json'}});

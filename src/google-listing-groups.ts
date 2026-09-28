@@ -1,6 +1,5 @@
 import {MirrorError} from './errors.js';
 import {googleJson,validateGoogleRequest} from './google-contracts.js';
-import {stable} from './security.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 

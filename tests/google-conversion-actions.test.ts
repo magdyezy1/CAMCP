@@ -14,13 +14,11 @@ import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import {saveSpendPolicy} from '../src/spend-policy.js';
 import {assertGoogleConversionAction,googleConversionActionKind,googleConversionActionTypes,googleConversionActionCategories,readGoogleConversionActionState} from '../src/google-conversion-actions.js';
-import {googleJson} from '../src/google-contracts.js';
-import {stable} from '../src/security.js';
 import {readFileSync,mkdtempSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {removeTestDirectory} from './temp.js';
-import type {CompiledRequest,Connection,JsonObject} from '../src/types.js';
+import type {Connection,JsonObject} from '../src/types.js';
 
 test('workflow references validate the native result index and resource-name pointer before writes',async()=>{for(const pointer of ['/data/results/99/resourceName','/data/results/0/name','/data/results/0']){const f=fixture();try{
  const steps=[{id:'definition',kind:'write',gateway,connection_id:f.c.id,account_id:'123',arguments:f.args([{create:create()}]),depends_on:[]},{id:'goal',kind:'write',gateway,connection_id:f.c.id,account_id:'123',arguments:{action:'google_ads_v23_custom_conversion_goal_mutate_custom_conversion_goals',account_id:'123',payload:{operations:[{create:{name:'Goal',conversionActions:[{$ref:'definition#'+pointer}]}}]}},depends_on:['definition']}];
@@ -54,7 +52,7 @@ test('native evidence covers every conversion query field, allowed enum and muta
 const gateway='google_ads_native_action',rpc='google_ads_v23_conversion_action_mutate_conversion_actions';
 const actor={tenantId:'conversion-actions',userId:'operator',role:'operator' as const},owner={...actor,role:'admin' as const};
 const rn=(collection:string,id:string)=>'customers/123/'+collection+'/'+id;
-const actionId=rn('conversionActions','900'),campaignId=rn('campaigns','100'),budgetId=rn('campaignBudgets','10');
+const actionId=rn('conversionActions','900'),budgetId=rn('campaignBudgets','10');
 const create=(extra:JsonObject={})=>({name:'Approved purchase definition',status:'ENABLED',type:'WEBPAGE',category:'PURCHASE',primaryForGoal:false,countingType:'ONE_PER_CLICK',clickThroughLookbackWindowDays:'30',viewThroughLookbackWindowDays:'1',valueSettings:{defaultValue:0,defaultCurrencyCode:'SAR',alwaysUseDefaultValue:false},attributionModelSettings:{attributionModel:'GOOGLE_ADS_LAST_CLICK'},...extra});
 const update=(fields:JsonObject={name:'Renamed'},id=actionId)=>({update:{resourceName:id,...fields},updateMask:Object.keys(fields).flatMap(k=>['valueSettings','attributionModelSettings'].includes(k)?Object.keys(fields[k]).map(f=>k+'.'+f):[k]).join(',')});
 const camel=(s:string)=>s.replace(/_([a-z])/g,(_,c:string)=>c.toUpperCase());

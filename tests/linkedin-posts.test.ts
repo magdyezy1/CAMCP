@@ -6,7 +6,7 @@ import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import {WriteVerifier} from '../src/write-verification.js';
 import {ScopeGuard} from '../src/scope.js';
-import {linkedinDSCReads,assertLinkedInDSC} from '../src/linkedin-posts.js';
+import {linkedinDSCReads} from '../src/linkedin-posts.js';
 import type {Actor,Connection,JsonObject} from '../src/types.js';
 
 const actor:Actor={tenantId:'dsc-fixture',userId:'operator',role:'operator'},admin:Actor={...actor,role:'admin'},registry=new Registry();

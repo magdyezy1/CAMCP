@@ -67,7 +67,7 @@ test('all supported fields, definition inputs and snapshot selectors match pinne
  const proof=JSON.parse(readFileSync('tests/fixtures/meta-insights-sdk-v25.json','utf8')),f=fixture();
  try{const r=await f.prepare();assert.equal(r.success,true);const plan=r.data.request as CompiledRequest;
   for(const field of [...metaReportFieldContract.metrics,...metaReportFieldContract.identities])assert.ok(proof.models.adsinsights[field],field);
-  for(const model of Object.values(proof.creation) as JsonObject[]){assert.equal(model.method,'POST');assert.equal(model.edge,'/insights');for(const [field,value] of Object.entries(plan.body!))assert.ok(model.parameters[field],field);}
+  for(const model of Object.values(proof.creation) as JsonObject[]){assert.equal(model.method,'POST');assert.equal(model.edge,'/insights');for(const field of Object.keys(plan.body!))assert.ok(model.parameters[field],field);}
   for(const field of metaReportFieldContract.definition){assert.ok(proof.models.adreportrun[field],field);for(const model of Object.values(proof.creation) as JsonObject[])assert.ok(model.parameters[field],field);}
   assert.equal(proof.models.adreportrun.fields,'list<string>');assert.equal(proof.models.adsinsights.spend,'string');assert.equal(proof.models.adsinsights.actions,'list<AdsActionStats>');
   assert.ok(Object.values(proof.sources).every((s:any)=>s.url.includes('/25.0.3/')&&/^[a-f0-9]{64}$/.test(s.sha256)));

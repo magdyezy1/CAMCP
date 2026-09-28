@@ -2,7 +2,7 @@ import {MirrorError} from './errors.js';
 import * as campaignBid from './google-campaign-bid-modifiers.js';
 import {googleJson} from './google-contracts.js';
 import {stable} from './security.js';
-import type {CompiledRequest,Connection,JsonObject} from './types.js';
+import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
 type Context={groups:string[];targets:string[]};

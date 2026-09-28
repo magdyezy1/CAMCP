@@ -8,7 +8,7 @@ import {Compiler} from '../src/compiler.js';
 import {Store} from '../src/store.js';
 import {NativeTransport} from '../src/transport.js';
 import {MirrorService} from '../src/service.js';
-import {snapshotPlans,validateState,writeOutcome} from '../src/write-review.js';
+import {validateState,writeOutcome} from '../src/write-review.js';
 import {removeTestDirectory} from './temp.js';
 import type {Actor,JsonObject} from '../src/types.js';
 const registry=new Registry(),key=Buffer.alloc(32,21).toString('base64'),actor:Actor={tenantId:'t',userId:'operator',role:'operator'},admin:Actor={...actor,role:'admin'};

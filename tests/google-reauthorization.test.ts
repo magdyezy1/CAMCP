@@ -7,7 +7,6 @@ import {Script,createContext} from 'node:vm';
 import {Store} from '../src/store.js';
 import {Registry} from '../src/catalog.js';
 import {MirrorService,strictOptions} from '../src/service.js';
-import {NativeTransport} from '../src/transport.js';
 import {readOnlyPolicy} from '../src/preflight.js';
 import {MirrorError,providerHttpErrorCode} from '../src/errors.js';
 import {scopeKey} from '../src/security.js';

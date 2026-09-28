@@ -7,7 +7,7 @@ import {NativeTransport} from '../src/transport.js';
 import {ReportingOverview} from '../src/reporting-overview.js';
 import {nextSchedule,resolveReportConfig} from '../src/reporting.js';
 import {ReportWorker} from '../src/worker.js';
-import {sheetsGateway,reportTable,exportCsv} from '../src/google-sheets.js';
+import {sheetsGateway} from '../src/google-sheets.js';
 import type {Actor,JsonObject} from '../src/types.js';
 import {sha256} from '../src/security.js';
 
