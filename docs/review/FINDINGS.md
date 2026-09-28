@@ -70,20 +70,20 @@ the code path was read end to end without running it.
 
 | ID | Sev | Finding | Evidence | Recommendation | Effort | Status |
 |---|---|---|---|---|---|---|
-| F-35 | high | Errors only as a 6-second toast; dead-end pages; internal messages shown | `web/app.js:6,75,89` | Page-level error state with cause, retry and way back (`role=alert`) | M | planned |
-| F-36 | high | Destructive actions without confirmation (token/client revoke, revoke all writes, unlink sign-in, cancel plan, remove member, retention, snapshot export) | `web/app.js:110,116-117`, `web/identity.js:48`, `web/workspace.js:32`, `web/account-security.js:26` | One `confirmAction` on the styled dialog | S–M | planned |
-| F-37 | high | Focus ring 2.78:1 and control borders ~1.3:1 fail WCAG 1.4.11; command input has no focus style | `web/identity.css` | `--iris-700` ring, `--line-strong` borders | S | planned |
-| F-38 | high | Text contrast/size failures on every workspace page (subtitles 3.76, footer 3.37, kbd 2.42, 10 px notes) | `web/identity.css`, `web/app.css`, `web/reporting.css` | `--text-muted #6c697b`, 12 px minimum | S | planned |
-| F-39 | high | Re-renders drop keyboard focus; `#content` is `aria-live` so every route change is read aloud | `web/index.html:4` | Focus `h1` on navigation, restore focus keys, one live region | M | planned |
+| F-35 | high | Errors only as a 6-second toast; dead-end pages; internal messages shown | `web/app.js:6,75,89` | Page-level error state with cause, retry and way back (`role=alert`) | M | fixed (batch 3) |
+| F-36 | high | Destructive actions without confirmation (token/client revoke, revoke all writes, unlink sign-in, cancel plan, remove member, retention, snapshot export) | `web/app.js:110,116-117`, `web/identity.js:48`, `web/workspace.js:32`, `web/account-security.js:26` | One `confirmAction` on the styled dialog | S–M | fixed (batch 3) |
+| F-37 | high | Focus ring 2.78:1 and control borders ~1.3:1 fail WCAG 1.4.11; command input has no focus style | `web/identity.css` | `--iris-700` ring, `--line-strong` borders | S | fixed (batch 3) |
+| F-38 | high | Text contrast/size failures on every workspace page (subtitles 3.76, footer 3.37, kbd 2.42, 10 px notes) | `web/identity.css`, `web/app.css`, `web/reporting.css` | `--text-muted #6c697b`, 12 px minimum | S | partly fixed (batch 3: 271 → 60 low-contrast texts) |
+| F-39 | high | Re-renders drop keyboard focus; `#content` is `aria-live` so every route change is read aloud | `web/index.html:4` | Focus `h1` on navigation, restore focus keys, one live region | M | partly fixed (batch 3: live region removed; focus restoration planned) |
 | F-40 | medium | Design tokens drift from `docs/AMCP-IDENTITY.md`; `--green` holds purple; old green theme still loaded; 523 hard-coded colours | `web/app.css`, `web/identity.css` | One `tokens.css` | M | planned |
 | F-41 | medium | MFA setup shows only the raw secret (no QR), no copy/download for recovery codes | `web/account-security.js:24` | Three-step setup | S–M | planned |
 | F-42 | medium | Team members: role and removal share one select; invite success styled as error | `web/account-approvals.js:72` | Separate remove action, feedback | M | planned |
-| F-43 | medium | Heading order, unnamed dialogs, no `aria-current`, wrong breadcrumb for unknown routes | `web/app.js:12` | Semantics fixes | S | planned |
-| F-44 | medium | Overflow at 320–360 px; closed sidebar casts a shadow | `web/identity.css` | `min-width:0`, `overflow-wrap`, shadow on open only | S | planned |
-| F-45 | medium | No compression; `Cache-Control: no-store` on static assets | `server/http-app.ts:25` | `no-cache` + ETag for `/assets`, compression | S | planned |
-| F-46 | medium | Back/Forward bypasses the test-account navigation scoping (popstate bound to the original `render`) | `web/app.js:125`, `web/account-scope.js:6` | `addEventListener('popstate',()=>render())` | S | planned |
+| F-43 | medium | Heading order, unnamed dialogs, no `aria-current`, wrong breadcrumb for unknown routes | `web/app.js:12` | Semantics fixes | S | partly fixed (batch 3: dialog names, aria-current, titles) |
+| F-44 | medium | Overflow at 320–360 px; closed sidebar casts a shadow | `web/identity.css` | `min-width:0`, `overflow-wrap`, shadow on open only | S | fixed (batch 3) |
+| F-45 | medium | No compression; `Cache-Control: no-store` on static assets | `server/http-app.ts:25` | `no-cache` + ETag for `/assets`, compression | S | partly fixed (batch 3: assets revalidate; compression planned) |
+| F-46 | medium | Back/Forward bypasses the test-account navigation scoping (popstate bound to the original `render`) | `web/app.js:125`, `web/account-scope.js:6` | `addEventListener('popstate',()=>render())` | S | fixed (batch 3) |
 | F-47 | low | No RTL support; fixed `en-GB` formats | `web/reporting-overview.js:37` | `dir`, logical properties, `Intl` with user locale | M–L | planned |
-| F-48 | low | `tools/check-web.mjs` only runs `node --check` | `tools/check-web.mjs` | CSP/innerHTML/token lints, Playwright + axe smoke | M | planned |
+| F-48 | low | `tools/check-web.mjs` only runs `node --check` | `tools/check-web.mjs` | CSP/innerHTML/token lints, Playwright + axe smoke | M | fixed (batch 3) |
 
 ## Platform contracts (5.5)
 

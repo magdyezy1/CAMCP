@@ -61,3 +61,20 @@ or captured vendor document names the field; the refusal is fail-closed.
 Full qualification (`.release/batch2-20260928`): **2,686 / 2,686** tests and **4 / 4** capture tests; every
 generated check passes; Railway check passes. **531 s** with the parallel suite (batch 1: 1,478 s serial). Committed
 as `808824f`, `a5977a1`, `4c9cb97`.
+
+## Batch 3 — website accessibility, confirmations, reporting view, asset caching
+
+Findings: F-35, F-36, F-37, F-38 (part), F-39 (part), F-43 (part), F-44, F-45 (part), F-46, F-48, plus the owner's
+request to improve reporting on the website.
+
+| Change | Red on baseline | Green |
+|---|---|---|
+| `tools/check-web.mjs` now checks CSP compliance, shipped assets, stylesheet order, the live region, the confirmation dialog and native `confirm()` | 6 violations on the `03ac8d3` web files | passes |
+| `/assets` revalidate with the ETag (`no-cache`) instead of `no-store` (`server/website.ts`) | `tests/website-assets.test.mjs` fails | passes |
+| Accessibility layer, page-level errors, confirmations, dialog names, `aria-current`, reporting formulas and table region (`web/*`) | audit: 271 low-contrast texts, 3 overflowing pages, 47 whole-page live regions | 60, 0, 0 ([ACCESSIBILITY.md](ACCESSIBILITY.md)) |
+
+Not changed, recorded: 60 low-contrast labels remain, mostly inside the landing-page illustration and a few
+workspace captions; F-40 (one token set) covers them. Focus restoration after partial re-renders (F-39) is still open.
+
+Full qualification (`.release/batch3-20260928`): **2,687 / 2,687** tests and **4 / 4** capture tests; every
+generated check passes; `check:web` passes on 12 scripts and 2 pages; Railway check passes. 537 s.
