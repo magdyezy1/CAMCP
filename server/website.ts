@@ -1,3 +1,4 @@
+import {compressedAssets} from './compressed-assets.js';
 import express, {type Request, type Response, type NextFunction} from 'express';
 import path from 'node:path';
 import {reportEvidence} from '../src/report-quality.js';
@@ -974,6 +975,8 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
   // which re-downloaded the whole bundle on every visit.
   router.use(
     '/assets',
+    // Brotli or gzip copies of text assets; everything else falls through to the static handler.
+    compressedAssets(directory),
     express.static(directory, {
       dotfiles: 'deny',
       index: false,
