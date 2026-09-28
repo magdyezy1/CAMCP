@@ -1,5 +1,14 @@
 # Meta: campaign, ad set, creative, ad
 
+## API version
+
+AMCP sends Meta requests at **Graph API v26.0** (since 2026-09-28). The sections below cite the v25.0 references they
+were written against. Meta's official SDK at 26.0.2, compared with 25.0.3, keeps every catalog request AMCP compares
+(419 of 591) and removes nothing AMCP sends; its removals (ad set `cost_bidding_mode` and some ad set read fields, four
+Insights `marketing_messages_website_*` metrics, seven commerce order reads) are listed in
+`docs/implementation/META-V26-2026-09-28.md`. The owner can move every request back to v25.0 with
+`AMCP_META_API_VERSION=v25.0`; no other version is accepted.
+
 ## Public Ad Library research
 
 Use `amcp_native_action` with `operation: "search_ads_library"` and
@@ -30,7 +39,7 @@ and 60 seconds. Results are cached in memory for 15 minutes with tenant/connecti
 isolation, current access checks, a 128-entry/16-MiB cap and explicit fetch time.
 
 Contract source: [Meta Ad Library API](https://www.facebook.com/ads/library/api/),
-checked 2026-09-19; transport pinned to Graph v25.0. Synthetic lifecycle and
+checked 2026-09-19; transport at the current Graph version (above). Synthetic lifecycle and
 negative tests pass. Live app eligibility and geographic results are unverified.
 
 ## Account labels
@@ -43,7 +52,7 @@ labels do not change delivery settings. Deletion removes the shared label and
 can remove its associations; it requires the owner's deletion policy to permit it.
 
 Select the exact account and connection. Discover labels with
-`meta_ad_account_id_adlabels_get`; AMCP uses `/v25.0/act_{ad_account_id}/adlabels`.
+`meta_ad_account_id_adlabels_get`; AMCP uses `/v26.0/act_{ad_account_id}/adlabels`.
 For renaming/deletion supply `params.ad_label_id` and for attachment supply the
 corresponding `ad_id`, `campaign_id` or `creative_id`. Discover the advertising
 object first. AMCP checks fresh account ownership as part of every review.
@@ -70,7 +79,7 @@ qualified by these six catalog actions. Other Meta writes retain their own limit
 Contract research: Meta's official [account SDK methods](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adaccount.py),
 [label object](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adlabel.py)
 and [label mixin](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/mixins.py),
-checked 2026-09-19. AMCP remains pinned to v25.0. Fixtures qualify local behavior;
+checked 2026-09-19 at v25.0. Fixtures qualify local behavior;
 native receipt and empty-membership compatibility still need live verification.
 
 The account-scoped `meta_ad_account_id_value_rule_set_get` is a GET read,
@@ -217,13 +226,13 @@ Provider expiration, processing delays, app approval, field eligibility and exac
 definition echoes require live verification. Audience Network reports have a
 separate, still unqualified contract.
 
-Official evidence checked 2026-09-20, pinned Python SDK tag 25.0.3:
-[account](https://github.com/facebook/facebook-python-business-sdk/blob/25.0.3/facebook_business/adobjects/adaccount.py),
-[campaign](https://github.com/facebook/facebook-python-business-sdk/blob/25.0.3/facebook_business/adobjects/campaign.py),
-[ad set](https://github.com/facebook/facebook-python-business-sdk/blob/25.0.3/facebook_business/adobjects/adset.py),
-[report run](https://github.com/facebook/facebook-python-business-sdk/blob/25.0.3/facebook_business/adobjects/adreportrun.py),
-[native metrics](https://github.com/facebook/facebook-python-business-sdk/blob/25.0.3/facebook_business/adobjects/adsinsights.py).
-The source-hashed extraction in `tests/fixtures/meta-insights-sdk-v25.json` is
+Official evidence checked 2026-09-28, pinned Python SDK tag 26.0.2:
+[account](https://github.com/facebook/facebook-python-business-sdk/blob/26.0.2/facebook_business/adobjects/adaccount.py),
+[campaign](https://github.com/facebook/facebook-python-business-sdk/blob/26.0.2/facebook_business/adobjects/campaign.py),
+[ad set](https://github.com/facebook/facebook-python-business-sdk/blob/26.0.2/facebook_business/adobjects/adset.py),
+[report run](https://github.com/facebook/facebook-python-business-sdk/blob/26.0.2/facebook_business/adobjects/adreportrun.py),
+[native metrics](https://github.com/facebook/facebook-python-business-sdk/blob/26.0.2/facebook_business/adobjects/adsinsights.py).
+The source-hashed extraction in `tests/fixtures/meta-insights-sdk-v26.json` is
 regenerated with `tools/meta-insights-evidence.mjs --source-dir <public-sdk-files>`.
 Local lifecycle and adversarial fixtures are not live provider acceptance evidence.
 
@@ -311,17 +320,17 @@ Current grants, scopes and login credentials are checked before/after each reque
 Official research checked 2026-09-20: Meta's
 [Facebook Page token example](https://www.postman.com/meta/facebook/documentation/r56bjfd/facebook-api),
 [Instagram login and Page-linkage collection](https://www.postman.com/meta/instagram/documentation/6yqw8pt/instagram-api),
-and pinned SDK 25.0.3
-[Page](https://github.com/facebook/facebook-python-business-sdk/blob/25.0.3/facebook_business/adobjects/page.py),
-[PagePost](https://github.com/facebook/facebook-python-business-sdk/blob/25.0.3/facebook_business/adobjects/pagepost.py),
-[IGUser](https://github.com/facebook/facebook-python-business-sdk/blob/25.0.3/facebook_business/adobjects/iguser.py),
-[IGMedia](https://github.com/facebook/facebook-python-business-sdk/blob/25.0.3/facebook_business/adobjects/igmedia.py),
-and [AdAccount](https://github.com/facebook/facebook-python-business-sdk/blob/25.0.3/facebook_business/adobjects/adaccount.py).
-The extracted schema fixture `tests/fixtures/meta-post-sdk-v25.json` is regenerated
+and pinned SDK 26.0.2 (rechecked 2026-09-28; first written against 25.0.3)
+[Page](https://github.com/facebook/facebook-python-business-sdk/blob/26.0.2/facebook_business/adobjects/page.py),
+[PagePost](https://github.com/facebook/facebook-python-business-sdk/blob/26.0.2/facebook_business/adobjects/pagepost.py),
+[IGUser](https://github.com/facebook/facebook-python-business-sdk/blob/26.0.2/facebook_business/adobjects/iguser.py),
+[IGMedia](https://github.com/facebook/facebook-python-business-sdk/blob/26.0.2/facebook_business/adobjects/igmedia.py),
+and [AdAccount](https://github.com/facebook/facebook-python-business-sdk/blob/26.0.2/facebook_business/adobjects/adaccount.py).
+The extracted schema fixture `tests/fixtures/meta-post-sdk-v26.json` is regenerated
 with `node tools/meta-post-evidence.mjs --source-dir <public-sdk-files>`.
 Direct Meta documentation returned HTTP 429 during research; the official SDK
 and Meta-owned collections were accessible. Their historical token examples are
-schema guidance, not live v25 acceptance evidence. Native app approval, access,
+schema guidance, not live acceptance evidence. Native app approval, access,
 field availability and advertising eligibility remain unverified live.
 
 ## Native copies

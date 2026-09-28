@@ -15,7 +15,7 @@ registry (`src/reviewed-families.ts`).
 | Platform | API pinned | Reads | Reviewed (families, registered) | Blocked | Activation field | Primary conversions in reports | Lifecycle |
 |---|---|---|---|---|---|---|---|
 | Google Ads | v25 | 173 | 212 (23, 8) | 53 | `status` ENABLED | `metrics.conversions` | on v25 since batch 14; v25 sunset date not read (F-49) |
-| Meta | v25.0 | 420 | 54 (13, 6) | 112 | `status` ACTIVE | leads, installs or purchases by objective; empty otherwise | v26.0 released 2026-07-29; v25.0 end date unverified (F-52) |
+| Meta | v26.0 | 420 | 54 (13, 6) | 112 | `status` ACTIVE | leads, installs or purchases by objective; empty otherwise | on v26.0 since batch 15; v25.0 kept as a fallback (F-52) |
 | TikTok | v1.3 | 316 | 68 (27, 7) | 167 | `operation_status` ENABLE | `conversion` (the ad group's optimization event) | no dated sunset recorded |
 | Snapchat | v1 | 271 | 60 (10, 0) | 66 | `status` ACTIVE | installs, sign-ups or purchases by objective | no dated sunset recorded |
 | LinkedIn | 202605 | 146 | 54 (17, 9) | 87 | `status` ACTIVE (creatives: `intendedStatus`) | `externalWebsiteConversions` | monthly versions; 12 modules cite li-lms-2026-09 (F-53) |
@@ -59,9 +59,9 @@ rechecked against the v25 contract, and the seven names whose operation v25 remo
 brand safety) are refused with their replacement ([the migration record](../implementation/GOOGLE-ADS-V25-2026-09-28.md)). Numeric enum values in writes are refused since batch 1, so a changed enum number cannot slip
 through.
 
-**Meta.** Broad reads (420) with writes limited to 13 families. The unified-attribution report path is pinned to
-v25.0; v26.0 has been out since 2026-07-29 and v25.0's end date needs checking on Meta's versions page before an
-upgrade is scheduled (F-52). Reports count conversions only for lead, app-install and sales objectives; traffic and
+**Meta.** Broad reads (420) with writes limited to 13 families. On Graph v26.0 since batch 15 (F-52): Meta's official
+SDK at 26.0.2 keeps every catalog request AMCP could compare and removes nothing AMCP sends
+([the migration record](../implementation/META-V26-2026-09-28.md)); `AMCP_META_API_VERSION=v25.0` moves back. Reports count conversions only for lead, app-install and sales objectives; traffic and
 awareness campaigns show an empty conversions column by design.
 
 **TikTok.** The most families (27) and the most blocked writes (167). Smart+ and Upgraded Smart+ flows are reviewed
@@ -115,6 +115,6 @@ because they have no paused state.
 2. Add a dated sunset registry with a 90-day alarm and make the drift job open an issue on change (F-56).
 3. Pin public schemas for the platforms that have none, where the vendor publishes one (every pinned document is
    sealed since batch 5, F-72).
-4. Verify Meta v25.0 and Criteo 2026-01 end dates on the vendors' pages and schedule the upgrades (F-51, F-52).
+4. Verify the Criteo 2026-01 end date on Criteo's pages and schedule the upgrade (F-51). (Meta moved to v26.0 in batch 15.)
 5. Review LinkedIn 202609 read-only and move the version (F-53).
 6. Finish the registry migration so every platform's families are declared in one place (ROADMAP P2).

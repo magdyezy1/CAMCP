@@ -65,6 +65,12 @@ previews use the new request shape, and two server paths that had kept `/v23/` (
 re-authorisation, which would have failed at the sunset) are fixed. Action names keep their `google_ads_v23_…`
 spelling. The [migration record](../implementation/GOOGLE-ADS-V25-2026-09-28.md) lists every difference found.
 
+**Meta v26.0.** Meta requests now go to Graph API v26.0. Meta's reference pages are blocked here, so the evidence is
+Meta's official SDK (generated from Meta's API specification): compared release to release, v26.0 removes nothing
+AMCP sends, and every catalog request that can be compared (419 of 591) still exists. If v26.0 misbehaves in
+production, `AMCP_META_API_VERSION=v25.0` moves every Meta request back without a code change
+([migration record](../implementation/META-V26-2026-09-28.md)).
+
 **MCP workflow.** Each AMCP tool says when to use it rather than its neighbour. An opt-in flag
 (`MIRROR_FLAGS={"compactSchemas":true}`) removes the duplicated DV360 action names from every `tools/list`.
 
@@ -109,7 +115,7 @@ Each of these changes a level of protection, a deployment, a dependency or the p
 | Spend confirmation on field names only | Yes | Done in batch 11 |
 | Idle timeout and security-change emails (F-25) | Yes | Done in batch 11 |
 | Encrypted-only backups and purge on disconnect (F-18) | Yes | Done in batch 11 |
-| Provider upgrades: Google Ads v25 first, then LinkedIn and Meta, then Criteo (F-49 … F-53) | Yes | Google Ads v25 done in batch 14. LinkedIn, Meta and Criteo wait on their documentation, which this environment's network policy blocks |
+| Provider upgrades: Google Ads v25 first, then LinkedIn and Meta, then Criteo (F-49 … F-53) | Yes | Google Ads v25 done in batch 14 and Meta v26.0 in batch 15 (from Meta's official SDK). LinkedIn and Criteo wait on their documentation, which this environment's network policy blocks |
 | Invitations while sign-up is closed (F-15) | Keep them pending | Done in batch 11 |
 | A vendored QR encoder for two-step setup | Yes | Done in batch 11 |
 | Production settings `MIRROR_FLAGS` and `AMCP_TRUSTED_PROXY_CIDRS` | Yes | Documented in `docs/DEPLOY-RAILWAY.md`; setting them needs Railway access, which this review does not have |

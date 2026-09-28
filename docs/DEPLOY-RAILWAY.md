@@ -121,6 +121,12 @@ Set these as Railway service variables; AMCP reads them at start-up. This review
 | `MIRROR_FLAGS` | `{"compactSchemas":true}` | Lists each DV360 action once in `tools/list` (about 7 KB smaller); the legacy unprefixed names stay accepted. |
 | `AMCP_TRUSTED_PROXY_CIDRS` | The address range of Railway's edge proxy, as Railway documents it | Sign-in and OAuth rate limits then count each client separately instead of everyone together. Railway, not Cloudflare, is the immediate peer. Confirm the range against the peer address of a real request before relying on it, and list only that range. |
 
+## Provider API versions
+
+AMCP sends Google Ads requests at v25 and Meta requests at Graph API v26.0. Should Meta v26.0 misbehave in production,
+setting `AMCP_META_API_VERSION=v25.0` and redeploying moves every Meta request back to v25.0 without a code change;
+AMCP refuses to start with any other value. Google Ads has no such setting: its v25 request shapes differ from v23.
+
 ## Operations and qualification
 
 The embedded report worker uses the same volume. Do not create a second Railway service expecting to share this volume. To run a separately supervised worker on another supported host, disable the embedded one using `AMCP_RUN_WORKER=false` and provision a shared local database deliberately.

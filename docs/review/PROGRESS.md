@@ -296,3 +296,20 @@ policy blocks, so their upgrades wait for documentation access.
 Full qualification (`.release/batch14-20260928`, up to `60e2b65`): **2,760 / 2,760** tests and **4 / 4** capture
 tests; `format:check`, every generated-artifact check and the Railway check pass. 520 s. The candidate's 1,184 source
 files equal `60e2b65`, apart from `release-manifest.json`.
+
+## Batch 15 — Meta Graph API v26.0
+
+Finding: F-52. Second in the owner's upgrade order; LinkedIn, the other half of that step, publishes no
+machine-readable contract and its reference is blocked here. Every difference found is in the
+[migration record](../implementation/META-V26-2026-09-28.md).
+
+| Change | Evidence |
+|---|---|
+| One version module (`src/meta-version.ts`): paths, route recognition (the current version only), the Facebook Login dialog and token URLs, catalog records and captured listings follow `metaApiVersion` (v26.0); `AMCP_META_API_VERSION=v25.0` moves back, any other value stops start-up | `tests/meta-version.test.mjs` (5 tests): the module, the SDK evidence, the catalog and its listings agree; only the two versions are accepted; routes refuse other versions; the fallback was run once by hand (the catalog lists v25.0 paths) |
+| `src/catalog-versions.ts`: one table of gateways sent at a newer version than captured (Google Ads, Meta) replaces batch 14's Google-only hooks in the registry, introspection, the capture verification and the tests | the catalog, compiler, label, verification and Google suites |
+| Meta's official SDK at 25.0.3 and 26.0.2 compared over the 250 modules reachable from the catalog's node types: 7 commerce reads, 4 parameters, 23 read fields and 8 enum values removed; nothing AMCP sends or reads among them | `tools/meta-sdk-changes.mjs` and `tests/fixtures/meta-sdk-changes-v26.json`; the version test scans every string of the Meta modules and the catalog's native fields for the 27 removed names |
+| 419 of the 591 catalog actions map to an SDK request, and all 419 still exist at 26.0.2 | the same fixture and test |
+| The Insights and post extractors share `tools/meta-sdk.mjs` and moved to 26.0.2; rewritten, they first reproduced the v25 fixtures byte for byte at 25.0.3 | the Insights test checks every metric AMCP offers against the v26 model (four Insights metrics were removed; none is offered); the post test checks the post and media fields |
+
+Meta's v26.0 changelog could not be read, so behaviour changes beyond the SDK's schema are not known; reviewed writes
+still read back and verify every change.
