@@ -28,3 +28,16 @@ test('unavailable saved sources remain explicit selections and untrusted library
  const html=f.run('renderUnavailableReportSources(config,bootstrap)');assert.match(html,/explicitly uncheck/);assert.match(html,/revoked-login/);assert.match(html,/checked/);
  f.context.library={views:[{id:'one',config:{client_name:'<script>',name:'Untrusted'}}],templates:[]};const options=f.run('overviewLibraryOptions(library)');assert.ok(!options.includes('<script>'));assert.match(options,/&lt;script>/);
 });
+
+test('a report names the native field behind each metric on each of its platforms',()=>{
+ const f=browserFixture(async()=>({}));
+ f.context.b={platforms:[{id:'google',name:'Google Ads'},{id:'reddit',name:'Reddit'}],metrics:{spend:{label:'Spend'},conversions:{label:'Primary conversions'},cpa:{label:'Cost per conversion',formula:'spend / conversions'}},
+  metric_sources:{google:{spend:{from:'metrics.cost_micros',divisor:1000000},conversions:{from:'metrics.conversions',note:'conversion actions included in Conversions'}},reddit:{spend:{from:'spend',divisor:1000000}}}};
+ f.context.r={config:{sources:[{platform:'google'},{platform:'reddit'},{platform:'google'}]}};
+ const html=f.run("renderMetricSources(r,['spend','conversions','cpa'],b)");
+ assert.match(html,/<th scope="col">Google Ads<\/th><th scope="col">Reddit<\/th>/);
+ assert.match(html,/metrics\.cost_micros<\/code> ÷ 1,000,000/);
+ assert.match(html,/<th scope="row">Primary conversions<\/th><td><code>metrics\.conversions<\/code><small>conversion actions included in Conversions<\/small><\/td><td><span class="muted">Not reported<\/span>/);
+ assert.ok(!html.includes('Cost per conversion'),'calculated metrics are explained by their formula, not a native field');
+ assert.equal(f.run("renderMetricSources({config:{sources:[{platform:'adjust'}]}},['spend'],b)"),'');
+});

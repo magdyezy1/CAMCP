@@ -1,5 +1,6 @@
 import {sha256,stable} from './security.js';
 import type {JsonObject} from './types.js';
+import {metricSources} from './report-metrics.js';
 
 export const reportContractVersion='campaign-source-v2';
 export const formulaVersion='arithmetic-v1';
@@ -24,7 +25,12 @@ export function compactQuality(q:JsonObject={version:0,status:'unknown'}):JsonOb
  for(const s of samples)if(/^\d{1,20}$/.test(s.samples_read_count)&&/^\d{1,20}$/.test(s.sampling_space_size)&&BigInt(s.sampling_space_size)>0&&(!worst||BigInt(s.samples_read_count)*BigInt(worst.sampling_space_size)<BigInt(worst.samples_read_count)*BigInt(s.sampling_space_size)))worst=s;
  return {...summary,...(pages?{page_count:pages.length,worst_sampling_counts:worst??null,full_quality_fingerprint:fingerprint(q)}:{})};
 }
-export function reportEvidence(report:JsonObject){return {version:1,report_id:report.id,config:report.config,state:report.state,captured_at:report.captured_at,completed_at:report.completed_at,sources:report.sources,source_contract_version:report.config?.source_contract_version??'legacy-unversioned',untrusted_provider_content:true};}
+export function reportEvidence(report:JsonObject){
+ const platforms=[...new Set<string>((report.config?.sources??[]).map((s:JsonObject)=>s.platform))];
+ return {version:1,report_id:report.id,config:report.config,state:report.state,captured_at:report.captured_at,completed_at:report.completed_at,sources:report.sources,source_contract_version:report.config?.source_contract_version??'legacy-unversioned',
+  // What each shared metric means on each platform of the report (report-metrics.ts).
+  metric_sources:Object.fromEntries(platforms.filter(p=>metricSources[p]).map(p=>[p,metricSources[p]])),untrusted_provider_content:true};
+}
 
 /** Kept in CSV and Sheets even when a failed source has no campaign rows. */
 export function exportSourceStatus(report:JsonObject):JsonObject {
