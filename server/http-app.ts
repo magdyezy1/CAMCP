@@ -22,7 +22,7 @@ export function createHttpApp(service:MirrorService,store:Store,options:HttpOpti
  // on the authenticated health surface (amcp_workspace health).
  app.get('/healthz',(_req,res)=>res.setHeader('Cache-Control','no-store').json({status:'up',version:'0.1.0'}));
  app.use(hostHeaderValidation(['127.0.0.1','localhost','[::1]',...(origin?[origin.hostname]:[])]));
- app.use((_req,res,next)=>{res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Cache-Control','no-store');next();});
+ app.use((_req,res,next)=>{res.setHeader('X-Content-Type-Options','nosniff');if(origin)res.setHeader('Strict-Transport-Security','max-age=31536000');res.setHeader('Cross-Origin-Opener-Policy','same-origin');res.setHeader('Cross-Origin-Resource-Policy','same-origin');res.setHeader('Cache-Control','no-store');next();});
  app.use('/mcp',(req,res,next)=>{
   try{
    if(req.headers.origin&&req.headers.origin!==origin?.origin)throw new MirrorError('FORBIDDEN_ORIGIN','Origin is not allowed.',{},403);

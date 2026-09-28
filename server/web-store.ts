@@ -44,8 +44,17 @@ export function cookieValue(req:Request,name:string):string|undefined{
  const entries=(req.headers.cookie??'').split(';').map(s=>s.trim()).filter(s=>s.startsWith(name+'='));
  return entries.length===1?entries[0]!.slice(name.length+1):undefined;
 }
+/** Rate-limit key of an address. An IPv6 client usually controls a whole /64, so one /64 shares one key. */
+export function rateLimitAddress(address:string):string{
+ if(isIP(address)!==6)return address;
+ const [head='',tail]=address.split('::'),h=head?head.split(':'):[],t=tail?tail.split(':'):[];
+ const groups=tail===undefined?h:[...h,...Array(Math.max(0,8-h.length-t.length)).fill('0'),...t];
+ return groups.slice(0,4).map(g=>parseInt(g,16).toString(16)).join(':')+'::/64';
+}
 export class WebStore {
  readonly clientAddress:(req:Request)=>string;
+ /** The client address as a rate-limit key: the resolved address, with IPv6 reduced to its /64. */
+ readonly limitAddress=(req:Request)=>rateLimitAddress(this.clientAddress(req));
  readonly tenantId:string;readonly origin:string;readonly secure:boolean;readonly cookieName:string;readonly administratorHash?:string;private reviewerHash?:string;readonly testPasswordProblem?:string;private box?:SecretBox;
  constructor(readonly store:Store,readonly options:WebsiteOptions){
   this.clientAddress=clientAddressResolver(options.trustedProxyCidrs);
@@ -86,7 +95,7 @@ export class WebStore {
  /** Reviewers share one workspace that is not the owner's, so no connection of yours is in reach. */
  get testTenantId(){return this.tenantId+'-test';}
  consumeMcpAttempt(req:Request){
-  const key=sha256('mcp-auth:'+this.clientAddress(req)),now=Date.now();
+  const key=sha256('mcp-auth:'+this.limitAddress(req)),now=Date.now();
   this.store.db.prepare('DELETE FROM amcp_login_limits WHERE until_at<=?').run(now);
   const row=this.store.db.prepare('SELECT attempts FROM amcp_login_limits WHERE key=?').get(key) as {attempts:number}|undefined;
   if(row&&row.attempts>=50)throw new MirrorError('OAUTH_RATE_LIMIT','Too many OAuth requests. Try again in 15 minutes.',{},429);
@@ -96,11 +105,12 @@ export class WebStore {
  openClientSecret(id:string,sealed:string){if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Credential encryption is unavailable.',{},503);return this.box.open<string>(sealed,scopeKey('mcp-client',this.tenantId,id));}
  sealAccount(id:string,data:JsonObject){if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Account security is not configured.',{},503);return this.box.seal(data,scopeKey('account-auth',id));}
  openAccount(id:string,data:string){if(!this.box)throw new MirrorError('ENCRYPTION_REQUIRED','Account security is not configured.',{},503);return this.box.open<JsonObject>(data,scopeKey('account-auth',id));}
- createSession(actor:Actor):WebSession{
+ /** signedInAt is when the person last proved who they are; a workspace switch keeps it (recent sign-in checks). */
+ createSession(actor:Actor,signedInAt=Date.now()):WebSession{
   const now=Date.now(),s:WebSession={id:randomBytes(32).toString('base64url'),csrf:randomBytes(32).toString('base64url'),actor,expiresAt:now+8*3600000};
   this.store.db.prepare('DELETE FROM amcp_web_sessions WHERE expires_at<=?').run(now);this.store.ensureTenant(actor.tenantId);
   const user=this.store.db.prepare('SELECT version FROM amcp_users WHERE id=? AND disabled=0 AND approved=1').get(actor.userId) as JsonObject|undefined;
-  this.store.db.prepare('INSERT INTO amcp_web_sessions VALUES(?,?,?,?)').run(sha256(s.id),JSON.stringify(Object.assign(actor,{...(user?{accountVersion:user.version}:{}),signedInAt:now})),s.csrf,s.expiresAt);return s;
+  this.store.db.prepare('INSERT INTO amcp_web_sessions VALUES(?,?,?,?)').run(sha256(s.id),JSON.stringify(Object.assign(actor,{...(user?{accountVersion:user.version}:{}),signedInAt:Math.min(signedInAt,now)})),s.csrf,s.expiresAt);return s;
  }
  /** Password sign-in for a reviewer. Mirrors the administrator door but lands in the test
   * workspace with the evaluator scope, separate from the deployment owner's connections. */

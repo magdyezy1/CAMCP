@@ -36,9 +36,12 @@ export class UserAccounts {
  /** Signups need an owner's approval unless a deployment opts out of the review step. */
  get autoApprove(){return this.env.AMCP_AUTO_APPROVE_SIGNUPS==='true';}
  limit(req:Request,action:string,identity='',max=8){
-  const now=Date.now(),db=this.web.store.db,keys=[sha256('user-auth:'+action+':'+this.web.clientAddress(req))];if(identity)keys.push(sha256('user-auth-identity:'+action+':'+identity));
+  const now=Date.now(),db=this.web.store.db,keys=[sha256('user-auth:'+action+':'+this.web.limitAddress(req))];if(identity)keys.push(sha256('user-auth-identity:'+action+':'+identity));
   this.web.store.transaction(()=>{db.prepare('DELETE FROM amcp_login_limits WHERE until_at<=?').run(now);for(const key of keys){const row=db.prepare('SELECT attempts FROM amcp_login_limits WHERE key=?').get(key) as JsonObject|undefined;if(row&&row.attempts>=max)throw new MirrorError('LOGIN_RATE_LIMIT','Too many attempts. Please try again in 15 minutes.',{},429);}for(const key of keys)db.prepare('INSERT INTO amcp_login_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET attempts=attempts+1').run(key,now+900000);});
  }
+ /** A proven identity no longer counts toward its own limit, so a person who keeps signing in is never locked out.
+  * Address counters stay: they are what limits guessing across many identities. */
+ forgive(action:string,identity:string){this.web.store.db.prepare('DELETE FROM amcp_login_limits WHERE key=?').run(sha256('user-auth-identity:'+action+':'+identity));}
  user(id:string):JsonObject{const user=this.web.store.db.prepare('SELECT * FROM amcp_users WHERE id=? AND disabled=0').get(id) as JsonObject|undefined;if(!user)throw new MirrorError('ACCOUNT_UNAVAILABLE','This account is unavailable.',{},401);return user;}
  /** Sign-in and session paths must refuse an account that has not been granted access. */
  assertApproved(user:JsonObject){if(!user.approved)throw new MirrorError('ACCOUNT_PENDING_APPROVAL','Your account is awaiting approval. You will be able to sign in once an administrator grants access.',{},403);}
@@ -65,11 +68,11 @@ export class UserAccounts {
   return this.user(id);
  }
  hasMfa(id:string){return !!this.web.store.db.prepare('SELECT 1 FROM amcp_mfa WHERE user_id=?').get(id);}
- session(user:JsonObject,tenant=user.tenant_id,mfaVerified=false){
+ session(user:JsonObject,tenant=user.tenant_id,mfaVerified=false,signedInAt=Date.now()){
   if(this.hasMfa(user.id)&&!mfaVerified)throw new MirrorError('MFA_REQUIRED','Complete two-step verification.',{},401);
   const m=this.web.store.db.prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1').get(tenant,user.id) as JsonObject|undefined;
   if(!m)throw new MirrorError('MEMBERSHIP_REQUIRED','You no longer have access to this workspace.',{},403);
-  return this.web.createSession({userId:user.id,ownerUserId:user.id,tenantId:tenant,membershipRole:m.role,role:m.role==='viewer'?'reader':m.role==='operator'?'operator':'admin',...(user.test_account?{testAccount:true}:{})});
+  return this.web.createSession({userId:user.id,ownerUserId:user.id,tenantId:tenant,membershipRole:m.role,role:m.role==='viewer'?'reader':m.role==='operator'?'operator':'admin',...(user.test_account?{testAccount:true}:{})},signedInAt);
  }
  loginResult(user:JsonObject){if(this.hasMfa(user.id))return {mfaRequired:true,ticket:this.challenge('mfa_login',{userId:user.id,version:user.version},300000)};return this.session(user);}
  async login(req:Request,input:JsonObject){
@@ -78,7 +81,7 @@ export class UserAccounts {
   if(!await verifyPassword(input.password,user?.password_hash))throw new MirrorError('INVALID_LOGIN','Email or password is incorrect.',{},401);
   // The password may have changed while the asynchronous KDF was running.
   const current=this.user(user!.id);if(current.version!==user!.version)throw new MirrorError('INVALID_LOGIN','Please sign in again.',{},401);
-  this.assertApproved(current);
+  this.assertApproved(current);this.forgive('login',email);
   if(user!.password_hash?.startsWith('scrypt-v2$')&&typeof input.password==='string'&&input.password.length>=15){const hash=await hashUserPassword(input.password);const changed=this.web.store.db.prepare('UPDATE amcp_users SET password_hash=? WHERE id=? AND version=?').run(hash,current.id,current.version);if(!changed.changes)throw new MirrorError('INVALID_LOGIN','Please sign in again.',{},401);}
   this.web.store.appendAudit(current.tenant_id,randomUUID(),{event:'account_sign_in',method:'password'});return this.loginResult(current);
  }

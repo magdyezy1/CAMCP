@@ -28,6 +28,9 @@ export class McpOAuth implements OAuthServerProvider {
    if(input.token_endpoint_auth_method!=='none'&&input.token_endpoint_auth_method!=='client_secret_post')throw new InvalidClientMetadataError('Use none or client_secret_post with S256 PKCE.');
    if(!input.redirect_uris.length||input.redirect_uris.length>10||input.redirect_uris.some(uri=>{try{const u=new URL(uri);return !!(u.username||u.password||u.hash)||u.protocol!=='https:'&&!(u.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(u.hostname));}catch{return true;}}))throw new InvalidClientMetadataError('Register exact HTTPS or loopback HTTP redirect URIs.');
    const scopes=this.validateScopes(input.scope===undefined?(this.allowWrites?[readScope,writeScope]:[readScope]):input.scope.split(' '));
+   // Registration is anonymous, so a client that never completed authorization within a day is released; otherwise
+   // abandoned registrations fill the cap below for good.
+   this.web.store.db.prepare("DELETE FROM amcp_mcp_clients WHERE json_extract(data,'$.client_id_issued_at')<? AND id NOT IN (SELECT client_id FROM amcp_mcp_grants)").run(Math.floor(Date.now()/1000)-86400);
    const count=this.web.store.db.prepare('SELECT count(*) AS n FROM amcp_mcp_clients').get() as {n:number};if(count.n>=1000)throw new InvalidClientMetadataError('Client registration limit reached. Contact the workspace administrator.');
    const client:OAuthClientInformationFull={client_id:randomUUID(),client_id_issued_at:Math.floor(Date.now()/1000),client_name:String(input.client_name??'MCP client').slice(0,120),redirect_uris:input.redirect_uris,token_endpoint_auth_method:input.token_endpoint_auth_method,grant_types:['authorization_code','refresh_token'],response_types:['code'],scope:scopes.join(' ')};
    if(input.token_endpoint_auth_method==='client_secret_post'){client.client_secret=opaque();client.client_secret_expires_at=0;}
