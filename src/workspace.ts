@@ -1,4 +1,5 @@
 import {nativeAuthority} from './native-authority.js';
+import {linkedinVersion} from './linkedin-version.js';
 import {ownerOperations} from './owner-operations.js';
 import {workspaceCapabilities} from './capabilities.js';
 import {actionContractPage} from './action-contracts.js';
@@ -21,7 +22,7 @@ export const accountPlan=(gateway:string,id:string):CompiledRequest=>{
   case 'snapchat_native_action':p.path='/v1/adaccounts/'+id;break;
   case 'tiktok_native_action':p.path='/v1.3/advertiser/info/';p.query={advertiser_ids:[id]};break;
   case 'google_ads_native_action':p.method='POST';p.path='/v23/customers/'+id+'/googleAds:search';p.body={query:'SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1'};break;
-  case 'linkedin_native_action':p.path='/rest/adAccounts/'+id;p.headers={'LinkedIn-Version':'202605','X-Restli-Protocol-Version':'2.0.0'};break;
+  case 'linkedin_native_action':p.path='/rest/adAccounts/'+id;p.headers={'LinkedIn-Version':linkedinVersion(),'X-Restli-Protocol-Version':'2.0.0'};break;
   case 'x_ads_native_action':p.path='/12/accounts/'+id;break;
   case 'dv360_native_action':p.path='/v4/advertisers/'+id;break;
   case 'reddit_native_action':p.path='/api/v3/ad_accounts/'+id;break;

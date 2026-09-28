@@ -1,4 +1,5 @@
 import {NativeTransport,buildUrl} from '../src/transport.js';
+import {linkedinVersion} from '../src/linkedin-version.js';
 import {MirrorError} from '../src/errors.js';
 import {CredentialProvider} from '../src/auth.js';
 import type {Connection,Credentials,CompiledRequest,JsonObject} from '../src/types.js';
@@ -15,7 +16,7 @@ export interface AssetGroup {checkedAt?:number;kind:string;assets:WorkspaceAsset
 export class AssetDiscovery {
  private transport:NativeTransport;private credentials:CredentialProvider;
  constructor(private store:Store,fetcher:typeof fetch=fetch){this.transport=new NativeTransport(fetcher);if(fetcher===fetch)this.transport.coordination=store;this.credentials=new CredentialProvider(store,fetcher);}
- private plan(c:Connection,path:string,query:JsonObject={},method='GET',body?:unknown):CompiledRequest{return {gateway:c.gateway,action:'AMCP_ASSET_DISCOVERY',path,query,method,body,headers:c.gateway==='linkedin_native_action'?{'LinkedIn-Version':process.env.AMCP_LINKEDIN_API_VERSION??'202605','X-Restli-Protocol-Version':'2.0.0'}:{},readOnly:true,destructive:false,requiresConfirmation:false,evidence:'INDEPENDENT_ACCOUNT_DISCOVERY',warnings:[]};}
+ private plan(c:Connection,path:string,query:JsonObject={},method='GET',body?:unknown):CompiledRequest{return {gateway:c.gateway,action:'AMCP_ASSET_DISCOVERY',path,query,method,body,headers:c.gateway==='linkedin_native_action'?{'LinkedIn-Version':linkedinVersion(),'X-Restli-Protocol-Version':'2.0.0'}:{},readOnly:true,destructive:false,requiresConfirmation:false,evidence:'INDEPENDENT_ACCOUNT_DISCOVERY',warnings:[]};}
  private async pages(c:Connection,request:(plan:CompiledRequest)=>ReturnType<NativeTransport['request']>,path:string,query:JsonObject,extract:(data:JsonObject)=>unknown[],origin?:string):Promise<JsonObject[]>{
   const plan={...this.plan(c,path,query),...(origin?{origin}:{})},original=buildUrl(plan,c),items:JsonObject[]=[],seen=new Set<string>();
   for(let page=0;page<25;page++){
