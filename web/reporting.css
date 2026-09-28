@@ -43,7 +43,8 @@
 .report-control-top label,
 .report-platform-body label,
 .target-fields label,
-.custom-metric-fields label {
+.custom-metric-fields label,
+.report-delivery-policy {
   display: grid;
   gap: 7px;
   font-size: 12px;
@@ -56,7 +57,8 @@
 .target-fields input,
 .target-fields select,
 .custom-metric-fields input,
-.custom-metric-fields select {
+.custom-metric-fields select,
+.report-delivery-policy select {
   min-height: 40px;
   background: #fff;
   border: 1px solid #ddd5e8;
@@ -335,6 +337,11 @@
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 10px;
+}
+/* The Sheets delivery choice sits between the report options and the run bar, aligned with the sections above. */
+.report-delivery-policy {
+  max-width: 380px;
+  padding: 16px 25px;
 }
 .report-runbar {
   display: flex;
@@ -709,6 +716,9 @@
   .report-platforms {
     grid-template-columns: 1fr;
     padding: 0 14px 16px;
+  }
+  .report-delivery-policy {
+    padding: 16px 14px;
   }
   .report-control-top {
     padding: 18px;

@@ -1,7 +1,7 @@
 # Review summary for the owner
 
 Review of AMCP started 2026-09-28 from `03ac8d3`, on branch `Codex-branch`. The detailed records are in this
-folder: [FINDINGS.md](FINDINGS.md) (80 findings with severity and status), [THREAT-MODEL.md](THREAT-MODEL.md),
+folder: [FINDINGS.md](FINDINGS.md) (83 findings with severity and status), [THREAT-MODEL.md](THREAT-MODEL.md),
 [MCP-SECURITY-CALIBRATION.md](MCP-SECURITY-CALIBRATION.md) (your question on read and write controls),
 [PLATFORMS.md](PLATFORMS.md) (per-platform contracts and workflows), [ACCESSIBILITY.md](ACCESSIBILITY.md),
 [ARCHITECTURE.md](ARCHITECTURE.md), [ROADMAP.md](ROADMAP.md) and [PROGRESS.md](PROGRESS.md), which lists every batch
@@ -46,7 +46,8 @@ No protection was loosened. The changes that would loosen one are listed below f
 - Destructive actions ask first.
 - Errors are page-level.
 - Keyboard focus survives re-renders.
-- Contrast and reflow meet WCAG 2.1 AA on every audited page (60 → 0 texts below 4.5:1 in batch 19).
+- Contrast and reflow meet WCAG 2.1 AA on every audited page (60 → 0 texts below 4.5:1 in batch 19), and every
+  control meets WCAG 2.2's 24 px target size or one of its exceptions (54 → 0 in batch 27).
 - The design tokens are defined once, in `web/tokens.css`.
 - Arabic or Hebrew campaign names and ad copy read right to left in fields and tables.
 - MFA setup is guided.
@@ -116,6 +117,7 @@ whole contract in every inspect and prepare; `amcp_campaign` does so for each st
 | A Meta campaign `prepare` result / a three-step campaign run once its first step is prepared | 7.2 KB / 9.3 KB | 2.7 KB with `evidence: "ref"` / 4.8 KB, and 4.5 KB less for each further prepared step |
 | Website text assets per full download | 308 KB | 82 KB (Brotli) |
 | Low-contrast texts over 50 page/width checks | 271 | 0 |
+| Controls failing WCAG 2.2 target size (2.5.8), exceptions applied | 54 (measured at batch 26) | 0 |
 | Pages that overflow at 320–360 px / whole-page live regions | 3 / 47 | 0 / 0 |
 | Focus ring contrast | 2.78:1 | 7.06:1 |
 | Source lines over 300 characters (`src/`) | 1,640 | 61, all string literals |
@@ -147,7 +149,7 @@ Each of these changes a level of protection, a deployment, a dependency or the p
   one more registry hook.
 - Contracts and operations: the end dates this environment could not read (Google Ads v25, Meta, LinkedIn and the
   others recorded as unknown).
-- Website: target sizes of small inline links (a WCAG 2.2 criterion); folding the one-off tints into tokens.
+- Website: folding the one-off tints into tokens.
 
 ## Limits
 

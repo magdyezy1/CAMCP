@@ -84,6 +84,8 @@ the code path was read end to end without running it.
 | F-46 | medium | Back/Forward bypasses the test-account navigation scoping (popstate bound to the original `render`) | `web/app.js:125`, `web/account-scope.js:6` | `addEventListener('popstate',()=>render())` | S | fixed (batch 3) |
 | F-47 | low | No RTL support; fixed `en-GB` formats | `web/reporting-overview.js:37` | `dir`, logical properties, `Intl` with user locale | M–L | fixed (batch 9: dates and numbers in the viewer's locale; batch 19: text fields, text areas and table cells take their direction from their own text, so Arabic and Hebrew read right to left. A mirrored interface would come with a translated one) |
 | F-48 | low | `tools/check-web.mjs` only runs `node --check` | `tools/check-web.mjs` | CSP/innerHTML/token lints, Playwright + axe smoke | M | fixed (batch 3) |
+| F-82 | medium | 54 controls on 49 page/width combinations were below WCAG 2.2's 24 px target size (2.5.8) with no exception applying: plain disclosure summaries 18 px tall, the native-metrics summary 14 px, "Manage connections" links 15 px and an unstyled 21 px select, each within 12 px of another control | measured in Chromium with the criterion's inline and spacing exceptions; `web/reporting.css`, `web/identity.css` | At least 24 px for controls that stand alone | S | fixed (batch 27: 0 failures; the 116 smaller targets left are links inside sentences (45) or spaced as the criterion allows (71)) |
+| F-83 | low | The Sheets delivery policy on the reporting page was an unstyled label and select at the panel's left edge | `web/reporting-overview.js:214` | Style it as the report's other fields | S | fixed (batch 27) |
 
 ## Platform contracts (5.5)
 

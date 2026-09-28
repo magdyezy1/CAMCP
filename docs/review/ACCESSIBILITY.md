@@ -68,4 +68,24 @@ no unnamed control.
   Arabic campaign name starts at the right edge of its cell, English names and numbers at the left (F-47).
 - The design tokens are defined once, in `web/tokens.css` (F-40).
 
-Remaining (see [FINDINGS.md](FINDINGS.md)): small inline links (target size is a WCAG 2.2 criterion).
+Batch 27: target size, WCAG 2.2 success criterion 2.5.8 (F-82). The audit now evaluates the criterion with its exceptions: a
+control and its label count as one target; a link is exempt when it is inline in a sentence; a smaller target passes
+when a 24 px circle centred on it meets no other target and no other small target's circle. Before and after were measured on fresh local sites built from the
+same code, one serving the web assets of `e21ec88` and one those of batch 27.
+
+| Measure (49 page/width combinations, 1,368 targets) | Before | After |
+|---|---:|---:|
+| Targets below 24 × 24 px | 197 | 116 |
+| of which links inside sentences (exempt) | 45 | 45 |
+| of which spaced as the criterion allows | 98 | 71 |
+| **of which failing** | **54** | **0** |
+
+- Plain disclosure summaries (18 px) gain 3 px above and below; the native-metrics summary (14 px), text links such as
+  "Manage connections ↗" (15 px) and selects without their own sizing (21 px) are at least 24 px tall. The pages grow
+  by 0 to 28 px, and the reporting page by up to 239 px at 360 px with every platform open.
+- The Sheets delivery policy on the reporting page was an unstyled label and select at the panel's edge; it now
+  matches the report's other fields (F-83).
+- The same full audit afterwards: 0 texts below contrast, no horizontal overflow, no unnamed control, no duplicate
+  id, and only the three expected console errors of the anonymous OAuth result page.
+
+Nothing from this report remains open.

@@ -201,3 +201,17 @@ td,
 tbody th {
   unicode-bidi: plaintext;
 }
+
+/* Controls that stand on their own are at least 24px tall (WCAG 2.2, 2.5.8): plain disclosure summaries, text links,
+   the native-metrics summary and selects without their own sizing. Links inside sentences are exempt and unchanged. */
+details:not([class]) > summary {
+  padding-block: 3px;
+}
+.native-settings summary {
+  min-height: 24px;
+  align-items: center;
+}
+.text-link,
+select {
+  min-height: 24px;
+}

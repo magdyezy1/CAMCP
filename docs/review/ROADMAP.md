@@ -60,8 +60,8 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
 - Website: page-level error states, confirmations for destructive actions, focus handling, contrast and target sizes,
   one token file, MFA setup with QR, team flow, responsive fixes, back-button scoping, caching and compression
   (F-35 … F-46). **Reporting**: clearer states, `Intl` formats from the user's locale, metric definitions per
-  platform, currency and time-zone labels, accessible table and exports. **Done by batch 19** apart from the target
-  sizes of small inline links (WCAG 2.2); batch 19 also finished contrast, the token file and right-to-left text.
+  platform, currency and time-zone labels, accessible table and exports. **Done**: batch 19 finished contrast, the
+  token file and right-to-left text, and batch 27 the WCAG 2.2 target sizes (F-82).
 - MCP: opt-in compact outputs (`evidence:"ref"`), compact tool list flag, accurate descriptions, "use this when"
   guidance, canonical argument names (F-29 … F-32).
 
