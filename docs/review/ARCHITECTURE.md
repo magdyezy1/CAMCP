@@ -138,16 +138,16 @@ Code anchors (formatted line numbers differ; search by name):
 | Input guard | `WriteReviewService.call` (unknown keys, delegated vs direct) | `src/write-review.ts` |
 | Compile | `Compiler.compile` / `DelegatedNativeCompiler.compile` → `applyExecutionRisk` | `src/compiler.ts`, `src/delegated-native.ts`, `src/execution-risk.ts` |
 | Membership | `reviewedWriteFamily(plan)` | `src/reviewed-routes.ts` |
-| Validation | `assertWriteShape(plan)` (chain of family `assert…`) | `src/write-review.ts` |
+| Validation | `assertWriteShape(plan)` (chain of family `assert…`) | `src/write-shape.ts` |
 | Scope | `access()` → `resolveConnection`, `assertAccountWrite`, family scope asserts, `ScopeGuard.authorize` | `src/write-review.ts`, `src/scope.ts` |
-| Snapshot plan | `snapshotPlans(plan)` (chain of family `…Snapshots`) | `src/write-review.ts` |
+| Snapshot plan | `snapshotPlans(plan)` (chain of family `…Snapshots`) | `src/write-snapshots.ts` |
 | Snapshot read | `state()` (family readers, then an 83-level nested reader chain) | `src/write-review.ts` |
-| Normalize | `validateState`, `normalizeSnapshot`, `reviewStateHash` | `src/write-review.ts`, `src/review-state.ts` |
+| Normalize | `validateState`, `normalizeSnapshot`, `reviewStateHash` | `src/write-state.ts`, `src/review-state.ts` |
 | Prerequisites | ~100 unconditional `…Prerequisites(plan, values)` calls | `src/write-review.ts` |
 | Impact | `writeImpact` (chain) | `src/write-impact.ts` |
 | Policy | `checkSpendPolicy` (activation, deletion, budget amounts, daily reservation) | `src/spend-policy.ts` |
 | Confirmation | `authorizeExecution` (per-family spend confirmations, generic text match) | `src/preflight.ts` |
-| Execute | `transport.request` once; `writeOutcome` + `confirmedMutationResult` (chain) | `src/write-review.ts` |
+| Execute | `transport.request` once; `writeOutcome` + `confirmedMutationResult` (chain) | `src/write-review.ts`, `src/write-outcome.ts` |
 | Verify | `WriteVerifier.verify` (`verificationReads`, `observed`, nested reader chain) | `src/write-verification.ts` |
 
 Invariants the lifecycle maintains (all verified in code; see `FINDINGS.md` for exceptions):
@@ -172,10 +172,10 @@ dispatches each hook through hand-written, order-sensitive `if (xKind(plan)) ret
 | Chain | File | Entries |
 |---|---|---|
 | route → family name | `src/reviewed-routes.ts` | 130+ |
-| outcome | `src/write-review.ts` (`confirmedMutationResult`) | 120+ |
-| state validation | `src/write-review.ts` (`validateState`) | 100+ |
-| shape assertion | `src/write-review.ts` (`assertWriteShape`) | 100+ |
-| snapshot plans | `src/write-review.ts` (`snapshotPlans`) | 100+ |
+| outcome | `src/write-outcome.ts` (`confirmedMutationResult`) | 120+ |
+| state validation | `src/write-state.ts` (`validateState`) | 100+ |
+| shape assertion | `src/write-shape.ts` (`assertWriteShape`) | 100+ |
+| snapshot plans | `src/write-snapshots.ts` (`snapshotPlans`) | 100+ |
 | scope asserts | `src/write-review.ts` (`access`), `src/write-verification.ts` | 60+ each |
 | nested readers | `src/write-review.ts`, `src/write-verification.ts` | 83 levels each |
 | prerequisites | `src/write-review.ts` | ~100 calls |

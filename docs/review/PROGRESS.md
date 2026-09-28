@@ -448,3 +448,14 @@ Measured on 4 CPUs, median of 5–7 fresh processes, before (`32e2d3b`) and afte
 Full qualification (`.release/batch22-20260928`, up to `003b6a3`): **2,779 / 2,779** tests and **4 / 4** capture
 tests; `format:check`, every generated-artifact check and the Railway check pass. 277 s, against 533–577 s for the
 previous five qualifications. The candidate's 1,201 source files equal `003b6a3`, apart from `release-manifest.json`.
+
+## Batch 23 — the reviewed-write lifecycle in stage modules
+
+Roadmap P2 item 3. `src/write-review.ts` held every stage of the reviewed-write lifecycle in 3,027 lines, 666 of them
+imports.
+
+| Change | Evidence |
+|---|---|
+| The stages moved verbatim into their own modules: `write-shape.ts` (request shapes, `assertWriteShape`), `write-snapshots.ts` (`snapshotPlans`), `write-state.ts` (`validateState`), `write-outcome.ts` (`writeOutcome`) and the helpers they share in `write-common.ts`; `write-review.ts` keeps the service (1,151 lines) | A move, proven: all 14 top-level declarations have identical syntax trees before and after (an added `export` on the shared helpers aside); none is missing or declared twice; every module imports only specifiers the original imported from the same module, or the new stage modules. `tsc` passes with `noUnusedLocals` |
+| Importers (5 modules, 11 tests) import from the stage that holds the function | full suite: 2,779 tests, 2,774 pass, 0 fail, 5 skipped |
+| `executeRequirements`' description had drifted above another declaration; it is back above its function | comment only |

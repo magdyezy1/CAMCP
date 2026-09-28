@@ -14,19 +14,19 @@ in `src/reviewed-families.ts`. The lifecycle modules consult the registry; they 
 | Stage | Hook | Called from | Must |
 |---|---|---|---|
 | Membership | `kind(plan)` | everywhere, through `familyOf` | Be truthy only for this family's mutations. It sees every request. |
-| Validation | `assert(plan)` | `assertWriteShape` (`write-review.ts`) | Refuse anything outside the qualified contract before any network call. |
+| Validation | `assert(plan)` | `assertWriteShape` (`write-shape.ts`) | Refuse anything outside the qualified contract before any network call. |
 | Scope | `scope(connection, write, plan)` | `access()` at prepare/execute with `write=true`; verification with `write=false` | Throw when the OAuth grant lacks what the call needs (`INSUFFICIENT_SCOPE`; DV360 writes use `assertDV360WriteScope`). |
 | Authorization | `authorize(plan, connection, account, store)` | `ScopeGuard.authorize` (`scope.ts`), for the mutation and every read | Return true when it proved the request stays inside `account`; false for requests that are not its own. |
-| Snapshot plan | `snapshots(plan)` | `snapshotPlans` | Return the reads whose results decide whether the write is allowed and what it changes. Mark each read with a family field (e.g. `businessLodgingRead`). |
+| Snapshot plan | `snapshots(plan)` | `snapshotPlans` (`write-snapshots.ts`) | Return the reads whose results decide whether the write is allowed and what it changes. Mark each read with a family field (e.g. `businessLodgingRead`). |
 | Snapshot read | `reader(read, next)` | `readThroughFamilies` (prepare, execute, verification) | Handle only reads carrying its marker; pass every other read to `next` unchanged. Project the provider response to a small, stable shape. |
 | Read recognition | `isRead(read)` | `familyOfRead` | Be true only for reads it marked (check the gateway and the marker). |
-| State check | `validateState(read, result)` | `validateState` | Refuse incomplete, paginated or foreign results (`STATE_…` codes). |
+| State check | `validateState(read, result)` | `validateState` (`write-state.ts`) | Refuse incomplete, paginated or foreign results (`STATE_…` codes). |
 | Snapshot state | `snapshotState(read, data)` | `normalizeSnapshot` | Optional: the part of a marked read kept as state, when not the reader's projection as is. |
 | Prerequisites | `prerequisites(plan, state)` | `WriteReviewer.state` | Refuse a request the current state does not allow. |
 | Impact | `impact(plan, state)` | `writeImpact` | Return the summary a person reviews: what changes, what it affects. |
 | Spending | `spendConfirmation`, `exemptFromSpendTextMatch` | `authorizeExecution` (`preflight.ts`) | See [Spending](#spending). |
 | Owner policy | `activates`, `destructive`, `policyAmounts` | `checkSpendPolicy` (`spend-policy.ts`), `applyExecutionRisk` | See [Spending](#spending). |
-| Outcome | `outcome(plan, result, before)` | `writeOutcome` | Return true only when the response confirms every mutation of the request. |
+| Outcome | `outcome(plan, result, before)` | `writeOutcome` (`write-outcome.ts`) | Return true only when the response confirms every mutation of the request. |
 | Verification | `verification(plan, result, before)`, `observed(read, data)` | `WriteVerifier` | Name the reads and expected fields that show the result, and project each read to the shape of its `expected`. |
 | Created resources | `verifiedResources(plan, actual)` | `WriteVerifier` | Optional: IDs a consistent read-back proves the write created; they become readable for the account after `scope` with `write`. |
 | Ledger | `name`, `files` | `action-contracts.ts` | Name the family as the ledger does and list its implementation and tests. |
