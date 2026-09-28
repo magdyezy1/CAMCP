@@ -7,6 +7,7 @@ import {linkedinConversionPlan} from './linkedin-conversion-links.js';
 import {linkedinDomainPlan} from './linkedin-insight-domains.js';
 import {linkedinTrackingPlan} from './linkedin-tracking-parameters.js';
 import {linkedinMessagePlan} from './linkedin-message-ads.js';
+import {tiktokPreviewPlan,tiktokPreviewVariantPath} from './tiktok-preview-reads.js';
 import type {Action,CallOptions,CompiledRequest,JsonObject} from './types.js';
 import {Registry} from './catalog.js';
 import {guardInput} from './security.js';
@@ -91,7 +92,8 @@ export class Compiler {
    templateQuery[key]=template.replace(/\{([^}]+)\}/g,(_all,key:string)=>{if(values[key]===undefined)throw new MirrorError('MISSING_PARAMETER','Missing query template parameter: '+key);consumed.push(key);return String(values[key]);});
   }
   const required=new Set([...action.required,...(action.raw.required_path_params??[])]);
-  if(gateway==='google_ads_native_action'||options.mode==='enhanced'&&options.flags.catalogPreflight)for(const key of required){
+  // tiktokPreviewPlan checks each TikTok preview_type's own required fields; the catalog lists every variant's together.
+  if(gateway==='google_ads_native_action'||options.mode==='enhanced'&&options.flags.catalogPreflight&&!tiktokPreviewVariantPath(gateway,action.path))for(const key of required){
    if(typeof key!=='string')continue;const v=values[key]??(gateway==='google_ads_native_action'?values[key.replace(/_([a-z])/g,(_,c:string)=>c.toUpperCase())]:undefined);
    // The AMCP Drive importer supplies the binary payload after review. Only its
    // exact upload routes may omit their ordinary native content container.
@@ -142,7 +144,7 @@ export class Compiler {
    readOnly=readOnly&&['GET','HEAD'].includes(override);
   }
   if(gateway==='meta_native_action'&&query.batch!==undefined)readOnly=false;
-  return linkedinDomainPlan(linkedinMessagePlan(snapchatPlanningPlan(xAudienceEstimatePlan(xReportPlan(metaReportPlan(dv360TargetingSearchPlan(linkedinTrackingPlan(linkedinConversionPlan(googleGenerationPlan(googleContractEvidence(validateApplePlan({gateway,action:action.canonical_name||action.name,method,path,query,...(absolute?{origin:absolute.origin}:{}),...(body===undefined?{}:{body}),headers,readOnly,destructive:action.destructive===true||headers['X-HTTP-Method-Override']==='DELETE',requiresConfirmation:!readOnly,accountId,evidence:action.evidence,warnings:['Request routing compiled locally; live behavioral parity is tracked separately.'],specialTransport:action.raw.special_transport??undefined,...(projection?{responseControls:projection}:{})}))))))),input)))));
+  return tiktokPreviewPlan(linkedinDomainPlan(linkedinMessagePlan(snapchatPlanningPlan(xAudienceEstimatePlan(xReportPlan(metaReportPlan(dv360TargetingSearchPlan(linkedinTrackingPlan(linkedinConversionPlan(googleGenerationPlan(googleContractEvidence(validateApplePlan({gateway,action:action.canonical_name||action.name,method,path,query,...(absolute?{origin:absolute.origin}:{}),...(body===undefined?{}:{body}),headers,readOnly,destructive:action.destructive===true||headers['X-HTTP-Method-Override']==='DELETE',requiresConfirmation:!readOnly,accountId,evidence:action.evidence,warnings:['Request routing compiled locally; live behavioral parity is tracked separately.'],specialTransport:action.raw.special_transport??undefined,...(projection?{responseControls:projection}:{})}))))))),input))))));
  }
  private native(gateway:string,input:JsonObject):CompiledRequest{
   const n=input.native_request;if(!['GET','POST','PUT','PATCH','DELETE'].includes(n.method)||typeof n.path!=='string')throw new MirrorError('INVALID_NATIVE_REQUEST','Provide a supported HTTP method and a relative path.');

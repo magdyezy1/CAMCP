@@ -3834,5 +3834,47 @@
       },
       "meaning": "Synthetic native preview: replace the advertiser, discovered geography and approved keyword with the actual user intent; these are not a campaign recommendation."
     }
+  ],
+  "tiktok_preview_reads": [
+    {
+      "gateway": "tiktok_native_action",
+      "arguments": {
+        "action": "tiktok_creative_ads_preview_create",
+        "account_id": "123",
+        "payload": {
+          "advertiser_id": "123",
+          "preview_type": "AD",
+          "ad_id": "401"
+        }
+      }
+    },
+    {
+      "gateway": "tiktok_native_action",
+      "arguments": {
+        "action": "tiktok_smart_plus_ad_preview",
+        "account_id": "123",
+        "payload": {
+          "advertiser_id": "123",
+          "preview_type": "AD",
+          "smart_plus_ad_id": "1800000000000000001"
+        }
+      }
+    },
+    {
+      "gateway": "tiktok_native_action",
+      "arguments": {
+        "action": "tiktok_creative_smart_text_get",
+        "account_id": "123",
+        "payload": {
+          "advertiser_id": "123",
+          "adgroup_id": "301",
+          "language": "EN",
+          "keywords": [
+            "running shoes"
+          ],
+          "limit": 5
+        }
+      }
+    }
   ]
 }

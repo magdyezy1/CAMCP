@@ -1068,7 +1068,16 @@ Tests: `tests/tiktok-conversion-edits.test.mjs` (3), red on `aef9f72` / green af
 
 - New reviewed family `tiktok_deletions` (`src/tiktok-deletions.ts`) for deleting unused saved audiences and custom identities, two rows. Ad groups or ads that use them block the deletion; the creation tests now expect deletion to be reviewed.
 
-Tests: `tests/tiktok-deletions.test.mjs` (3), red on `5ca6357` / green after.
+Tests: `tests/tiktok-deletions.test.mjs` (3), red on `5ca6357` / green after. Committed as `03d7b89`.
+
+## Finished batch — TikTok previews and Smart Text as reads (2026-09-27)
+
+[Implementation](TIKTOK-PREVIEW-READS-2026-09-27.md) and
+[qualification](TIKTOK-PREVIEW-READS-VERIFICATION-2026-09-27.json).
+
+- `src/tiktok-preview-reads.ts` validates the ad and creative preview, the Upgraded Smart+ ad preview and Smart Text recommendations during compilation and marks them read-only; `src/execution-risk.ts` classifies the three routes as reads. Six unqualified-read rows become native reads. The enhanced catalog preflight skips the two preview routes, whose catalog entries list every variant's required fields together.
+
+Tests: `tests/tiktok-preview-reads.test.mjs` (5), red on `03d7b89` / green after; `tests/compiler.test.ts` and `tests/guide-contract-examples.test.mjs` updated.
 
 ## CI and live evidence
 
@@ -1082,7 +1091,7 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 696 in reviewed write families. **735 remaining rows** are in
+3241 captured actions; 696 in reviewed write families. **729 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
@@ -1090,7 +1099,7 @@ coverage ledger with the same status filter as the 2026-09-25 file:
 |---|---:|
 | blocked_write | 620 |
 | unmapped | 79 |
-| unqualified_read | 23 |
+| unqualified_read | 17 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 

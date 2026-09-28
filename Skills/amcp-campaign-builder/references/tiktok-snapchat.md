@@ -250,6 +250,36 @@ correct.
 Reference: TikTok API for Business v1.3 "Delete Saved Audiences" and "Delete an identity"
 (https://business-api.tiktok.com/portal/docs?id=1780154666312706), checked 2026-09-27.
 
+## TikTok previews and Smart Text
+
+Three TikTok requests use POST but change nothing, so AMCP runs them as reads (a reader can run
+them, and a read-only deployment allows them). They do not go through `amcp_write`:
+
+- `tiktok_creative_ads_preview_create` (alias `tiktok_ad_preview`) returns a `preview_link` and an
+  `iframe`. `preview_type` decides the other fields: `ADS_CREATION` for an ad you plan to create
+  (`objective_type`, `identity_id`, `identity_type`, `ad_format` and the creative fields of ad
+  creation), `AD` (`ad_id` of an existing ad), `CARD` (`card_id`), `PAGE` (`page_id`),
+  `SINGLE_VIDEO` or `SINGLE_IMAGE` (`video_id` or `image_id`, `display_name`, `ad_text` and
+  `placements`).
+- `tiktok_smart_plus_ad_preview` (alias `tiktok_smart_ad_preview`) previews an Upgraded Smart+ ad:
+  `ADS_CREATION` with 1–31 `creative_list` entries (each with `creative_info`), up to 5
+  `ad_text_list` texts and up to 3 `call_to_action_list` entries, or `AD` with `smart_plus_ad_id`.
+- `tiktok_creative_smart_text_get` (alias `tiktok_smart_text`) returns up to 20 suggested ad texts
+  (`limit`, default 10) for an `adgroup_id`. With the default `param_type: CUSTOMIZED` send a
+  `language` (`EN`, `JA`, `RU` or `VI`) and `keywords`; `RECOMMENDED` lets TikTok predict them.
+  Smart Text is not available to ad accounts in the United States or Canada.
+
+A preview link stays valid for 30 days (24 hours for `CARD`, `PAGE`, `SINGLE_VIDEO` and
+`SINGLE_IMAGE` previews) and opens for anyone who has it, so share it deliberately. Fields of
+another preview type, query parameters, header overrides and requests over 64 KiB are refused with
+`INVALID_TIKTOK_PREVIEW_READ` before any request; `advertiser_id` must be the selected advertiser.
+Sending Smart Text feedback (`tiktok_creative_smart_text_feedback`) stays unqualified.
+
+Reference: TikTok API for Business v1.3 "Preview an ad or a creative", "Preview Upgraded Smart+
+Ads" and "Get Smart Text recommendations"
+(https://business-api.tiktok.com/portal/docs/preview-an-ad-or-a-creative/v1.3), checked
+2026-09-27.
+
 ## TikTok Upgraded Smart+ status
 
 - `tiktok_smart_plus_campaign_status_update`, `tiktok_smart_plus_adgroup_status_update` and

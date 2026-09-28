@@ -37,6 +37,10 @@ test('every method/path record expands deterministically from its declared templ
   // Snapchat planning reads are also validated during compilation (src/snapchat-planning-reads.ts).
   if(c.gateway==='snapchat_native_action'&&a.path==='/v1/adaccounts/{ad_account_id}/targeting_insights')input.payload={base_spec:{geos:[{country_code:'us'}]},targeting_spec:{geos:[{country_code:'us'}]}};
   if(c.gateway==='snapchat_native_action'&&a.path==='/v1/adaccounts/{ad_account_id}/reserved_forecasting')input.payload={placement_v2:{config:'AUTOMATIC'},targeting:{geos:[{country_code:'us'}]},delivery_constraint:'REACH_AND_FREQUENCY',start_time:new Date(Date.now()+48*3600000).toISOString(),end_time:new Date(Date.now()+30*24*3600000).toISOString(),optimization_goal:'VIDEO_VIEWS',cap_and_exclusion_config:{frequency_cap_config:[]}};
+  // TikTok previews and Smart Text are validated during compilation too (src/tiktok-preview-reads.ts). The catalog lists
+  // the required fields of every preview variant together, so each route gets the fields of one variant.
+  const tiktokRead=c.gateway==='tiktok_native_action'?({'/v1.3/creative/ads_preview/create/':{preview_type:'AD',ad_id:'401'},'/v1.3/smart_plus/ad/preview/':{preview_type:'AD',smart_plus_ad_id:'401'},'/v1.3/creative/smart_text/generate/':{adgroup_id:'301',param_type:'RECOMMENDED'}} as Record<string,Record<string,string>>)[a.path]:undefined;
+  if(tiktokRead){input.params={advertiser_id:'test'};input.payload=tiktokRead;}
   const p=compiler.compile(c.gateway,input,strictOptions);assert.equal(p.method,a.method);
   // One independently documented account prefix correction; all other captured
   // templates retain the original deterministic conformance assertion.
