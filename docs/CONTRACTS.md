@@ -36,7 +36,7 @@ Google Ads v25: native RPC mappings are checked against the official Discovery d
 
 ## google
 
-Maintenance: [official updates](https://developers.google.com/google-ads/api/docs/release-notes). [Lifecycle](https://developers.google.com/google-ads/api/docs/sunset-dates). Documented sunset month 2027-02, checked 2026-09-18.
+Maintenance: [official updates](https://developers.google.com/google-ads/api/docs/release-notes). [Lifecycle](https://developers.google.com/google-ads/api/docs/sunset-dates).
 
 - v23 and v25 use start_date_time/end_date_time in customer timezone, not start_date/end_date.
 - Discovery validates fields; review contracts still restrict mutation families and batch sizes.
@@ -90,7 +90,7 @@ Maintenance: [official updates](https://learn.microsoft.com/en-us/advertising/gu
 
 ## criteo
 
-Maintenance: [official updates](https://developers.criteo.com/retail-media/changelog/version-202601-release-notes). [Lifecycle](https://developers.criteo.com/retail-media/docs/dsp-analytics-migration-guide).
+Maintenance: [official updates](https://developers.criteo.com/retail-media/changelog/version-202601-release-notes). [Lifecycle](https://developers.criteo.com/retail-media/docs/dsp-analytics-migration-guide). Version 2026-01 ends 2027-01 (the provider's support period), checked 2026-09-28.
 
 - Campaign PUT can clear omitted limits. The qualified family requires complete manual finite-limit fields, standard Criteo-budget balances and no budget overrides; campaign status is computed, not writable.
 - AMCP is pinned to 2026.01. The 2026.07 reporting redesign uses different endpoints, filters and row/date limits; it cannot be enabled by changing a version string.

@@ -1,4 +1,5 @@
 import {effectiveProviderContract, providerContracts} from './provider-contracts.js';
+import {providerSunset} from './provider-sunsets.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 export const providerMaintenance: Record<string, JsonObject> = {
   criteo: {
@@ -17,7 +18,6 @@ export const providerMaintenance: Record<string, JsonObject> = {
   google: {
     changelog: 'https://developers.google.com/google-ads/api/docs/release-notes',
     lifecycle: 'https://developers.google.com/google-ads/api/docs/sunset-dates',
-    sunset_month: '2027-02',
     sandbox: 'Test accounts under a test manager; production hostname. Project access level and quota are separate.',
     traps: [
       'v23 and v25 use start_date_time/end_date_time in customer timezone, not start_date/end_date.',
@@ -86,6 +86,8 @@ export function providerContractView(gateway?: string): JsonObject | undefined {
   return {
     ...effectiveProviderContract(item.id),
     maintenance: providerMaintenance[item.id] ?? {sandbox: 'unqualified', changelog: item.documentation},
+    // When the version AMCP sends stops working, as far as AMCP has evidence (F-56).
+    version_end: providerSunset(String(item.id)) ?? null,
     evidence_interpretation:
       'Catalog evidence is captured compatibility metadata. Vendor schemas, local reviewed contracts and live provider qualification are distinct. Use amcp_write inspect with the exact payload.',
   };

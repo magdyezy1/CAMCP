@@ -26,6 +26,9 @@ jobs:
       - name: Watch public documentation without changing contract pins
         if: always()
         run: node dist/tools/provider-lifecycle.js --live > provider-lifecycle.json
+      - name: Fail when a provider version AMCP sends is 90 days or less from its recorded sunset
+        if: always()
+        run: node dist/tools/provider-sunsets.js --alarm > provider-sunsets.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
@@ -33,3 +36,4 @@ jobs:
           path: |
             provider-drift.json
             provider-lifecycle.json
+            provider-sunsets.json

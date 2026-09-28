@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import {providerContracts} from '../src/provider-contracts.js';
 import {providerMaintenance} from '../src/contract-evidence.js';
 import {googleAdsVersion} from '../src/google-version.js';
+import {providerSunset} from '../src/provider-sunsets.js';
 const escape = (v: unknown) =>
   String(v ?? 'Unsupported')
     .replaceAll('|', '\\|')
@@ -45,13 +46,14 @@ lines.push(
   '`generate:vendor:check`, `generate:wsdl:check` and `contracts:check` are deterministic offline checks. The public-provider workflow separately checks remote schemas and documentation. A changed page is a maintenance signal, not proof of a breaking change. No CI job automatically upgrades versions or submits account mutations.',
 );
 for (const c of providerContracts) {
-  const m = providerMaintenance[c.id];
+  const m = providerMaintenance[c.id],
+    end = providerSunset(String(c.id));
   if (!m) continue;
   lines.push(
     '',
     '## ' + c.id,
     '',
-    `Maintenance: [official updates](${m.changelog}).${m.lifecycle ? ` [Lifecycle](${m.lifecycle}).${m.sunset_month ? ` Documented sunset month ${m.sunset_month}, checked 2026-09-18.` : ''}` : ''}`,
+    `Maintenance: [official updates](${m.changelog}).${m.lifecycle ? ` [Lifecycle](${m.lifecycle}).` : ''}${end?.sunset ? ` Version ${end.version} ends ${end.sunset} (${end.basis === 'official' ? 'the published date' : "the provider's support period"}), checked ${end.checked}.` : ''}`,
     '',
     ...(m.traps as string[]).map(t => '- ' + t),
   );
