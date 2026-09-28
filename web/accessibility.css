@@ -26,3 +26,15 @@ code{overflow-wrap:anywhere}
 #recipe-form{grid-template-columns:minmax(0,1fr)}#recipe-form>*{min-width:0}
 /* Report table (batch 9): IDs, currency and time zone were #9b8ba9 (3.15:1) and source details #8f7aa2 (3.84:1), both at 10px. */
 .report-table td small,.report-table tbody th small,.report-table td details,.report-table tbody th details{color:var(--muted);font-size:12px}.report-table thead th{font-size:12px}
+/* Batch 19: the last text below 4.5:1 (docs/review/ACCESSIBILITY.md). The same hues, darkened until they reach 4.6:1 on
+   their own backgrounds; the platform initials keep their brand hue. Text at 10px or less moves to the 12px floor. */
+.workspace-metrics span,.campaign-steps small,.workspace-copy{color:#746984}
+.metric-pills span{color:#766a83}
+.quick-actions small{color:#816e8d;font-size:12px}.quick-actions>a>i{font-style:normal}
+.report-platform summary small{color:#7a7187;font-size:12px}
+.report-section-label>span{color:#816c9c}
+.account-monogram{color:#846795}
+.client-cloud span{color:#7b6287}
+.evidence-tags span{color:#697285;font-size:12px}
+.how-steps li>span{color:#7c6b8f}
+.platform-google{color:#916225}.platform-meta{color:#386ca6}.platform-snapchat{color:#826a2c}.platform-microsoft{color:#8f5731}
