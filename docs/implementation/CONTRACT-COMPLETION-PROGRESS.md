@@ -8,6 +8,17 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## FB — TikTok asset library edits (2026-09-27)
+
+TikTok library images and videos can now be renamed, and ones no ad or Upgraded Smart+ ad uses
+deleted, through reviewed requests that search the assets (and read the ads) first and read the
+change back. See [implementation](TIKTOK-LIBRARY-ASSETS-2026-09-27.md),
+[qualification](TIKTOK-LIBRARY-ASSETS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 721 (five TikTok rows reviewed). Pushes go only to CAMCP; its exact-commit CI
+result and live acceptance are pending.
+
 ## FA — TikTok custom audience edits (2026-09-27)
 
 TikTok custom audiences can now be renamed, converted to Reach & Frequency, deleted when unused and
@@ -17,7 +28,7 @@ requests that read the audiences and ad groups first and read the change back. S
 [qualification](TIKTOK-AUDIENCE-EDITS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 726 (three TikTok rows reviewed). Pushes go only to CAMCP; its exact-commit CI
+Remaining rows: 726 (three TikTok rows reviewed). Committed as `d397f7c`; its exact-commit CI
 result and live acceptance are pending.
 
 ## EZ — TikTok previews and Smart Text as reads (2026-09-27)

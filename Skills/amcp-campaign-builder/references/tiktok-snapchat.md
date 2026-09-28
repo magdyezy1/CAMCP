@@ -642,6 +642,30 @@ Reference: TikTok API for Business v1.3 "Update an audience", "Delete audiences"
 audiences to ad groups" (https://business-api.tiktok.com/portal/docs/update-an-audience/v1.3),
 checked 2026-09-27.
 
+## TikTok asset library edits
+
+- `tiktok_file_image_ad_update` (alias `tiktok_image_update`) with `payload: {advertiser_id,
+  image_id, file_name}` renames a library image; `tiktok_file_video_ad_update` (alias
+  `tiktok_video_update`) with `video_id` renames a video. Names have 1–100 characters without
+  leading or trailing spaces (TikTok cuts longer ones). If another image or video of the advertiser
+  already has the name, TikTok adds a millisecond timestamp at the end; verification accepts that.
+- `tiktok_creative_asset_delete` with `image_ids` and/or `video_ids` (1–50 each) deletes library
+  assets.
+
+AMCP searches the named images or videos by ID (`/file/image/ad/search/`,
+`/file/video/ad/search/`); an asset the advertiser does not have is `STATE_NOT_FOUND` and an
+unchanged name is refused. Deletions also read every ad and Upgraded Smart+ ad: an asset one of
+them uses (video, images, Smart+ creatives) is `ASSET_IN_USE` (TikTok does not document deleting
+such assets). Nothing needs spending confirmation; deletions count under owner deletion policies.
+A non-zero `code`, or a deletion reply that lists `failed_image_ids` or `failed_video_ids`, is a
+failure never resubmitted: the other assets may be gone, so search them before trying again.
+Verification searches the assets again: the new name (or with TikTok's timestamp), or the deleted
+assets gone. `INVALID_TIKTOK_LIBRARY_ASSET` names the field to correct.
+
+Reference: TikTok API for Business v1.3 "Update the name of an image", "Update the name of a
+video" and "Delete creative assets"
+(https://business-api.tiktok.com/portal/docs/delete-creative-assets/v1.3), checked 2026-09-27.
+
 ## Snapchat planning reads
 
 Two planning requests use POST but only estimate, so AMCP runs them as reads (a reader can run

@@ -14,6 +14,7 @@ import {tiktokBlockedWordImpact} from './tiktok-blocked-words.js';
 import {tiktokConversionEditImpact} from './tiktok-conversion-edits.js';
 import {tiktokDeletionImpact} from './tiktok-deletions.js';
 import {tiktokAudienceEditImpact} from './tiktok-audience-edits.js';
+import {tiktokLibraryImpact} from './tiktok-library-assets.js';
 import {snapSegmentImpact} from './snapchat-segments.js';
 import {tiktokIdentityKind,tiktokIdentityImpact} from './tiktok-identities.js';
 import {metaCopyKind,metaCopyImpact} from './meta-copies.js';
@@ -148,6 +149,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  const tiktokConversionEdit=tiktokConversionEditImpact(plan,state);if(tiktokConversionEdit)return tiktokConversionEdit;
  const tiktokDeletion=tiktokDeletionImpact(plan,state);if(tiktokDeletion)return tiktokDeletion;
  const tiktokAudienceEdit=tiktokAudienceEditImpact(plan,state);if(tiktokAudienceEdit)return tiktokAudienceEdit;
+ const tiktokLibrary=tiktokLibraryImpact(plan,state);if(tiktokLibrary)return tiktokLibrary;
  if(metaCopyKind(plan))return metaCopyImpact(plan,state);
  if(googlePreviewKind(plan))return googlePreviewImpact;
  if(googleDismissalKind(plan))return googleDismissalImpact(plan,state);

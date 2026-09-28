@@ -1086,7 +1086,16 @@ Tests: `tests/tiktok-preview-reads.test.mjs` (5), red on `03d7b89` / green after
 
 - New reviewed family `tiktok_audience_edits` (`src/tiktok-audience-edits.ts`) for renaming custom audiences, converting unused ones to Reach & Frequency, deleting unused unshared ones and applying one to ad groups (include, exclude, disconnect), three rows. Applying always needs spending confirmation.
 
-Tests: `tests/tiktok-audience-edits.test.mjs` (5), red on `5119489` / green after.
+Tests: `tests/tiktok-audience-edits.test.mjs` (5), red on `5119489` / green after. Committed as `d397f7c`.
+
+## Finished batch — TikTok asset library edits (2026-09-27)
+
+[Implementation](TIKTOK-LIBRARY-ASSETS-2026-09-27.md) and
+[qualification](TIKTOK-LIBRARY-ASSETS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `tiktok_library_assets` (`src/tiktok-library-assets.ts`) for renaming library images and videos and deleting ones no ad or Upgraded Smart+ ad uses, five rows. Verification accepts TikTok's timestamp on a taken name; a deletion reply with failed IDs is a failure.
+
+Tests: `tests/tiktok-library-assets.test.mjs` (4), red on `d397f7c` / green after.
 
 ## CI and live evidence
 
@@ -1100,19 +1109,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 699 in reviewed write families. **726 remaining rows** are in
+3241 captured actions; 704 in reviewed write families. **721 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 617 |
+| blocked_write | 612 |
 | unmapped | 79 |
 | unqualified_read | 17 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 175, Meta 117, LinkedIn 94, Snapchat 66,
+Blocked writes by platform: TikTok 170, Meta 117, LinkedIn 94, Snapchat 66,
 Google Ads 57, X 43, DV360 30, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
