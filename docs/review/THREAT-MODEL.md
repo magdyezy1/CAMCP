@@ -63,7 +63,7 @@ Rated by likelihood × impact for this deployment (one replica, one owner worksp
 | T7 | Spoofing: MFA brute force | Password known, TOTP guessed across many IPs | Per-IP limit, replay block | No per-user limit (F-09) | Medium |
 | T8 | Elevation: stolen session escalates to takeover | Old session re-freshed via workspace switch, then e-mail change | 15-minute recent sign-in | `signedInAt` reset on switch (F-10) | Medium |
 | T9 | Denial of service: connector registration exhausted | 1,000 anonymous DCR registrations | Rate limit 20/h | No pruning (F-11) | Medium |
-| T10 | Information disclosure: plaintext response history | Database or backup copy exposes report rows and lead PII | Secrets sealed; tokens hashed | Audit keeps full read outcomes forever; plain `admin backup` (F-18) | Medium |
+| T10 | Information disclosure: plaintext response history | Database or backup copy exposes report rows and lead PII | Secrets sealed; tokens hashed; since batch 7 a read is audited by size, hash and row counts, not content | Rows written before batch 7 keep full outcomes; no purge on disconnect; plain `admin backup` (F-18) | Medium |
 | T11 | Tampering: family misclassification | Enhanced mode `native_request` with a spoofed `action` | Strict mode default | `amcp_write` accepts native requests (F-07) | Medium (non-default) |
 | T12 | Cross-tenant access | Operator guesses another tenant's review or connection id | Tenant column in every key and query | Verified correct | Low |
 | T13 | SSRF | Media URL or Drive link to internal addresses | Host allowlists, pinned DNS for report downloads, `redirect: 'error'` | Verified correct; dot-segment hardening (F-20) | Low |

@@ -20,7 +20,7 @@ the roadmap), **decision** (changes the level of protection; needs the owner's y
 | Independent read classification | 17 unqualified reads stay blocked | Right (fail closed) | — |
 | Pagination / size limits | 8 MB responses, bounded pages | Right | — |
 | `inspect_google_drive_media` | Any role, buffers up to 128 MiB, no concurrency limit | **Too loose** (resource exhaustion) | **done**: hashed while streaming (the file is never held), one inspection per workspace and four per process (F-21) |
-| Untrusted provider content | One response-wide label | Too coarse | **next**: label paths that carry provider text (F-22) |
+| Untrusted provider content | One response-wide label | Too coarse | **done** (batch 7): `meta.untrusted_paths` names `data` or the error detail that quotes the provider (F-22) |
 
 ## 2. Write path
 
@@ -28,9 +28,9 @@ the roadmap), **decision** (changes the level of protection; needs the owner's y
 |---|---|---|---|
 | Deployment kill switch | `MIRROR_ALLOW_WRITES`, read at start-up | Right, but no emergency stop without redeploy | **done**: owner `pause_writes` with a reason, checked at every execute and media upload; reviews, reads and verification continue; plan steps stay ready (F-24) |
 | Role + account write grant | Operator/admin plus per-account grant | Right | — |
-| inspect → prepare → execute, 5-minute review, state hash, fingerprint | Frozen request, re-read before execute | Right; expiry is the one sharp edge | **next**: `REVIEW_EXPIRED` returns a ready re-prepare call; `amcp_campaign` re-prepares instead of failing the step (F-27) |
+| inspect → prepare → execute, 5-minute review, state hash, fingerprint | Frozen request, re-read before execute | Right; expiry is the one sharp edge | **done** (batch 2): `REVIEW_EXPIRED` returns a ready re-prepare call; `amcp_campaign` re-prepares instead of failing the step (F-27) |
 | `confirmed: true` | Always required at execute | Cheap, deliberate act; keep | — |
-| `idempotency_key` | Must be passed and must equal `review_id` | **Friction without protection**: the key is the review id either way; three different error codes for the same mistake | **next**: default it to `review_id`; one error code (F-33). Protection unchanged |
+| `idempotency_key` | Must be passed and must equal `review_id` | **Friction without protection**: the key is the review id either way; three different error codes for the same mistake | **done** (batch 2): defaults to `review_id`; the mismatch codes are unchanged (F-33). Protection unchanged |
 | `spend_change_confirmed` — when | Decided only at execute; first attempt fails | **Stumper** | **done**: `prepare` returns `execute_requirements` with reasons and fields (F-06) |
 | `spend_change_confirmed` — coverage | Text match on budget/bid/spend + string ACTIVE | **Too loose** for bid targets, pacing, schedules, targeting, optimization, numeric statuses | **done**: structural, fail-closed rule (F-01, F-03) |
 | `spend_change_confirmed` — false positives | Any value containing "bid"/"budget"/"spend" (e.g. a campaign *named* "Budget test") | **Too tight**, and it trains models to always send the flag, which weakens it | **decision**: match field names only, now that the structural rule covers the value-only cases. This removes confirmations, so it waits for a yes |
@@ -39,8 +39,8 @@ the roadmap), **decision** (changes the level of protection; needs the owner's y
 | Owner spending policy | Budgets only; unconfigured accounts unprotected; workspace default unit-less | **Too loose** in three ways | **done**: Reddit `goal_value` counted (F-02), numeric status = activation (F-01). **decision**: unit-aware workspace defaults (F-04), optional bid ceiling (F-57), a default policy on first connection |
 | Paused creation | New serving entities must be created paused/draft | Right | — |
 | Enhanced `native_request` in writes | Accepted | **Too loose** (action/path spoofing) | **done**: refused in `amcp_write` (F-07) |
-| Plan steps for DV360/Amazon | `account_id` injected into schemas that forbid it | **Too tight by accident** (a bug) | **next**: add `account_id` only where declared (F-26) |
-| Error remedies | Generic "prepare again" for most codes, including execute-time confirmations | **Stumper** | **next**: code-specific remedies with `next_call` (F-28) |
+| Plan steps for DV360/Amazon | `account_id` injected into schemas that forbid it | **Too tight by accident** (a bug) | **done** (batch 2): `account_id` only where the schema declares it (F-26) |
+| Error remedies | Generic "prepare again" for most codes, including execute-time confirmations | **Stumper** | **done** (batches 2 and 7): code-specific remedies; the generic "prepare again" now covers 379 of 1,956 refusal sites instead of 1,436, and no longer any state-read or owner-policy refusal (F-28) |
 
 ## 3. Resulting model (what a client can rely on)
 
