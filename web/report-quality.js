@@ -8,7 +8,7 @@ function readTargetContext(objective){
 }
 function reportQualityDetails(source){
  const q=source.quality;if(!q)return '<p class="form-note">Legacy snapshot: measurement-quality metadata was not recorded.</p>';
- const labels=[q.sampled?'Sampled':'',q.thresholded?'Thresholded':'',q.data_loss?'Aggregation loss':'',q.restricted_metrics?.length?'Restricted: '+q.restricted_metrics.join(', '):''].filter(Boolean);
+ const labels=[q.sampled?'Sampled':'',q.thresholded?'Thresholded':'',q.data_loss?'Aggregation loss':'',q.truncated?'Truncated by GA4':'',q.restricted_metrics?.length?'Restricted: '+q.restricted_metrics.join(', '):''].filter(Boolean);
  return `<p class="form-note">${esc(labels.join(' · ')||'No additional source-quality flags recorded.')}</p><details><summary>Quality and source evidence</summary><pre>${esc(JSON.stringify({quality:q,lineage:source.lineage,query_fingerprint:source.query_fingerprint},null,2))}</pre></details>`;
 }
 function refreshRecentReports(report){

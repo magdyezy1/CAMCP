@@ -101,6 +101,8 @@ export async function collectReportPeriods(
     data_loss: results.some(r => r.quality?.data_loss),
     invalid_sampling: results.some(r => r.quality?.invalid_sampling),
     empty_reasons: [...new Set(results.flatMap(r => r.quality?.empty_reasons ?? []))],
+    truncated: results.some(r => r.quality?.truncated),
+    truncation_types: [...new Set(results.flatMap(r => r.quality?.truncation_types ?? []))],
     restricted_metrics: [...new Set(results.flatMap(r => r.quality?.restricted_metrics ?? []))],
     measurement_complete: results.every(r => r.quality?.measurement_complete === true),
     pages: results.flatMap(r => r.quality?.pages ?? []),

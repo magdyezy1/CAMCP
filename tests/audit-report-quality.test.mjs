@@ -207,6 +207,34 @@ test('GA4 measurement quality handles precision, thresholding and empty reasons 
     e => e.code === 'REPORT_SHAPE_CHANGED',
   );
 });
+test('GA4 data truncation makes a report incomplete and says which limit applied', () => {
+  // GA4 Data v1beta and v1alpha, Discovery revision 20260924: ResponseMetaData.dataTruncationReasons.
+  const reason = {
+    dataTruncationType: 'DATA_TRUNCATION_TYPE_GOOGLE_ADS',
+    dataTruncationDate: '2023-09-01',
+    dataTruncationDateRanges: [{startDate: '2023-06-01', endDate: '2023-08-31'}],
+    dataTruncationMessage: 'Data is truncated due to Google Ads 36 month retention policy.',
+  };
+  const page = ga4Quality({dataTruncationReasons: [reason]}, ['sessionCampaignId'], 0);
+  assert.deepEqual(page.truncation, [
+    {
+      type: 'DATA_TRUNCATION_TYPE_GOOGLE_ADS',
+      date: '2023-09-01',
+      date_ranges: [{start_date: '2023-06-01', end_date: '2023-08-31'}],
+      message: 'Data is truncated due to Google Ads 36 month retention policy.',
+    },
+  ]);
+  const q = summarizeGA4Quality([page, ga4Quality({}, ['sessionCampaignId'], 1000)]);
+  assert.equal(q.truncated, true);
+  assert.deepEqual(q.truncation_types, ['DATA_TRUNCATION_TYPE_GOOGLE_ADS']);
+  assert.equal(q.measurement_complete, false);
+  const whole = summarizeGA4Quality([ga4Quality({}, ['sessionCampaignId'], 0)]);
+  assert.equal(whole.truncated, false);
+  assert.deepEqual(whole.truncation_types, []);
+  assert.equal(whole.measurement_complete, true);
+  // Anything that is not the documented shape is kept out rather than trusted.
+  assert.deepEqual(ga4Quality({dataTruncationReasons: 'yes'}, [], 0).truncation, []);
+});
 test('recommendations expose uncertainty and honor contradictory evidence and business limits', () => {
   const row = {
     campaign_key: 'a',

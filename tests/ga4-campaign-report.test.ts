@@ -25,7 +25,7 @@ const row = (dims: string[], values: string[]) => ({
 });
 
 /** rows are [sessionCampaignId, sessionCampaignName, sessions] combinations the property holds. */
-function fixture(rows: [string, string, string][]) {
+function fixture(rows: [string, string, string][], metadata?: JsonObject) {
   const store = new Store(':memory:', key),
     bodies: JsonObject[] = [];
   store.putConnection(
@@ -73,6 +73,7 @@ function fixture(rows: [string, string, string][]) {
           rowCount: out.length,
           metricHeaders: names.map(name => ({name})),
           dimensionHeaders: dims.map(name => ({name})),
+          ...(metadata ? {metadata} : {}),
         });
       },
       async () => {},
@@ -142,6 +143,31 @@ test('GA4 sessions with no utm_id collapse into one (not set) row and warn inste
     assert.equal((rows[0]!.metrics as JsonObject).sessions, 18);
     assert.ok(
       (report.sources[0].warnings as string[]).some(w => /utm_id/.test(w)),
+      JSON.stringify(report.sources),
+    );
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a GA4 report that GA4 truncated is partial, and says which limit applied', async () => {
+  const f = fixture([['p994w', 'Sedra_Q3', '10']], {
+    dataTruncationReasons: [
+      {
+        dataTruncationType: 'DATA_TRUNCATION_TYPE_PROPERTY',
+        dataTruncationDate: '2025-01-10',
+        dataTruncationMessage:
+          'Data truncated because the query attempts to read event data prior to its retention date.',
+      },
+    ],
+  });
+  try {
+    const report = await f.run();
+    assert.equal(report.state, 'partial', JSON.stringify(report));
+    assert.ok(
+      (report.sources[0].warnings as string[]).some(w =>
+        /left data out of this report \(DATA_TRUNCATION_TYPE_PROPERTY\)/.test(w),
+      ),
       JSON.stringify(report.sources),
     );
   } finally {

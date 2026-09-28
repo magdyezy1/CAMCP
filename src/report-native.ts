@@ -871,6 +871,12 @@ export class NativeCampaignReports {
         warnings.push('GA4 thresholding or high-cardinality aggregation limits this report.');
       if (quality.empty_reasons.length)
         warnings.push('GA4 empty response reasons: ' + quality.empty_reasons.join('; '));
+      if (quality.truncated)
+        warnings.push(
+          'GA4 left data out of this report (' +
+            quality.truncation_types.join(', ') +
+            "); the truncated dates and GA4's explanation are in source quality.",
+        );
       resultDefinition =
         'GA4 key events attributed to session campaign ID from manual tagging or linked advertising integrations';
     } else if (p === 'gsc') {

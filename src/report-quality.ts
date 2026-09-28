@@ -22,11 +22,24 @@ export function ga4Quality(metadata: JsonObject, dimensions: string[], offset: n
     metric_name: String(r.metricName ?? ''),
     restricted_types: Array.isArray(r.restrictedMetricTypes) ? r.restrictedMetricTypes.map(String) : [],
   }));
+  // GA4 names the limits that cut data out of a report: retention, attribution windows, Google Ads' 36 months.
+  const text = (v: unknown) => (typeof v === 'string' ? v : null);
+  const truncation = (Array.isArray(metadata.dataTruncationReasons) ? metadata.dataTruncationReasons : [])
+    .filter((r: unknown) => r && typeof r === 'object' && typeof (r as JsonObject).dataTruncationType === 'string')
+    .map((r: JsonObject) => ({
+      type: r.dataTruncationType,
+      date: text(r.dataTruncationDate),
+      date_ranges: (Array.isArray(r.dataTruncationDateRanges) ? r.dataTruncationDateRanges : []).map(
+        (d: JsonObject) => ({start_date: text(d?.startDate), end_date: text(d?.endDate)}),
+      ),
+      message: text(r.dataTruncationMessage),
+    }));
   return {
     dimensions,
     offset,
     samples,
     restrictions,
+    truncation,
     thresholded: metadata.subjectToThresholding === true,
     data_loss: metadata.dataLossFromOtherRow === true,
     empty_reason: typeof metadata.emptyReason === 'string' ? metadata.emptyReason : null,
@@ -51,7 +64,8 @@ export function summarizeGA4Quality(pages: JsonObject[]): JsonObject {
   ];
   const thresholded = pages.some(p => p.thresholded),
     data_loss = pages.some(p => p.data_loss),
-    empty_reasons = [...new Set(pages.map(p => p.empty_reason).filter(Boolean))];
+    empty_reasons = [...new Set(pages.map(p => p.empty_reason).filter(Boolean))],
+    truncation_types = [...new Set<string>(pages.flatMap(p => (p.truncation ?? []).map((t: JsonObject) => t.type)))];
   return {
     version: 1,
     pages_collected: true,
@@ -61,7 +75,15 @@ export function summarizeGA4Quality(pages: JsonObject[]): JsonObject {
     thresholded,
     data_loss,
     empty_reasons,
-    measurement_complete: !sampled && !restricted_metrics.length && !thresholded && !data_loss && !empty_reasons.length,
+    truncated: truncation_types.length > 0,
+    truncation_types,
+    measurement_complete:
+      !sampled &&
+      !restricted_metrics.length &&
+      !thresholded &&
+      !data_loss &&
+      !empty_reasons.length &&
+      !truncation_types.length,
     pages,
   };
 }
