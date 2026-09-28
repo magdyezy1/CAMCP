@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Call-to-action buttons of X Ads pre-roll line items, Ads API v12 (Creatives reference, "Preroll Call To Actions";
@@ -117,3 +118,21 @@ export function xPrerollCtaVerification(p:CompiledRequest,result:JsonObject,befo
  return [{read:stateRead(p,{ctaId:id}),expected:{cta:expected},id:'pre-roll call to action '+id}];
 }
 export function xPrerollCtaObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {cta:object(data.cta)?data.cta:null};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const xPrerollCtaFamily:ReviewedFamily={
+ name:'x_preroll_ctas',
+ files:['src/x-preroll-ctas.ts',['tests/x-preroll-ctas.test.mjs']],
+ kind:xPrerollCtaKind,
+ assert:assertXPrerollCta,
+ snapshots:xPrerollCtaSnapshots,
+ isRead:isXPrerollCtaRead,
+ reader:readXPrerollCtas,
+ validateState:validateXPrerollCtaState,
+ prerequisites:xPrerollCtaPrerequisites,
+ impact:xPrerollCtaImpact,
+ outcome:xPrerollCtaOutcome,
+ verification:xPrerollCtaVerification,
+ observed:xPrerollCtaObserved,
+ exemptFromSpendTextMatch:true,
+};

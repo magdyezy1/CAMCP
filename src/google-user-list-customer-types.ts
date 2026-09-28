@@ -1,7 +1,8 @@
 import {MirrorError} from './errors.js';
-import {googleJson} from './google-contracts.js';
+import {googleJson,assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Customer types of Google Ads user lists, API v23 (pinned Discovery document: UserListCustomerTypeService
@@ -159,3 +160,21 @@ export function googleCustomerTypeVerification(p:CompiledRequest,_result:JsonObj
  return [{read,expected:{types:Object.fromEntries(lists.map(id=>['l'+id,next['l'+id]??[]]))},id:lists.map(id=>listName(p,id)).join(',')}];
 }
 export function googleCustomerTypeObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {types:object(data.types)?data.types:{}};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleCustomerTypeFamily:ReviewedFamily={
+ name:'google_user_list_customer_types',
+ files:['src/google-user-list-customer-types.ts',['tests/google-user-list-customer-types.test.mjs']],
+ kind:googleCustomerTypeKind,
+ assert:assertGoogleCustomerTypes,
+ scope:assertGoogleAdsScope,
+ snapshots:googleCustomerTypeSnapshots,
+ isRead:isGoogleCustomerTypeRead,
+ reader:readGoogleCustomerTypes,
+ validateState:validateGoogleCustomerTypeState,
+ prerequisites:googleCustomerTypePrerequisites,
+ impact:googleCustomerTypeImpact,
+ outcome:googleCustomerTypeOutcome,
+ verification:googleCustomerTypeVerification,
+ observed:googleCustomerTypeObserved,
+};

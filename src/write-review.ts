@@ -1,5 +1,4 @@
 import {snapUpdateKind,assertSnapUpdate,snapUpdateSnapshots,readSnapUpdateState,snapUpdateOutcome} from './snapchat-nested-updates.js';
-import {tiktokBlockedWordKind,assertTiktokBlockedWords,tiktokBlockedWordSnapshots,readTiktokBlockedWords,isTiktokBlockedWordRead,validateTiktokBlockedWordState,tiktokBlockedWordPrerequisites,tiktokBlockedWordOutcome} from './tiktok-blocked-words.js';
 import {snapPixelNameKind,assertSnapPixelName,snapPixelNameSnapshots,readSnapPixelNames,isSnapPixelNameRead,validateSnapPixelNameState,snapPixelNamePrerequisites,snapPixelNameOutcome} from './snapchat-pixel-names.js';
 import {snapEventKind,assertSnapEvent,snapEventSnapshots,readSnapEvents,isSnapEventRead,validateSnapEventState,snapEventPrerequisites,snapEventOutcome} from './snapchat-event-details.js';
 import {snapTemplateKind,assertSnapTemplate,snapTemplateSnapshots,readSnapTemplates,isSnapTemplateRead,validateSnapTemplateState,snapTemplatePrerequisites,snapTemplateOutcome} from './snapchat-dynamic-templates.js';
@@ -48,12 +47,7 @@ import {readKeywordPlanTree,validateKeywordPlanTree} from './google-keyword-plan
 import {reviewedWriteFamily} from './reviewed-routes.js';
 import {xDraftKind,assertXDraft,xDraftSnapshots,readXDraftState,xDraftOutcome} from './x-draft-writes.js';
 import {linkedinRuleKind,assertLinkedInRule,linkedinRuleSnapshots,readLinkedInRules,isLinkedInRuleRead,validateLinkedInRuleState,linkedinRulePrerequisites,linkedinRuleOutcome} from './linkedin-conversion-rules.js';
-import {assertGoogleAdsScope as assertBrandGuidelinesScope} from './google-contracts.js';
-import {googleApplyKind,assertGoogleApply,googleApplySnapshots,readGoogleApply,isGoogleApplyRead,validateGoogleApplyState,googleApplyPrerequisites,googleApplyOutcome} from './google-recommendation-apply.js';
-import {googleCustomerTypeKind,assertGoogleCustomerTypes,googleCustomerTypeSnapshots,readGoogleCustomerTypes,isGoogleCustomerTypeRead,validateGoogleCustomerTypeState,googleCustomerTypePrerequisites,googleCustomerTypeOutcome} from './google-user-list-customer-types.js';
 import {googleBidKind,assertGoogleBid,assertGoogleBidScope,googleBidSnapshots,readGoogleBidState,isGoogleBidRead,validateGoogleBidState,googleBidPrerequisites,googleBidOutcome} from './google-bid-modifiers.js';
-import {linkedinMessageKind,assertLinkedInMessage,assertLinkedInMessageScope,linkedinMessageSnapshots,readLinkedInMessage,isLinkedInMessageRead,validateLinkedInMessageState,linkedinMessagePrerequisites,linkedinMessageOutcome} from './linkedin-message-ads.js';
-import {linkedinThirdPartyKind,assertLinkedInThirdParty,assertLinkedInThirdPartyScope,linkedinThirdPartySnapshots,readLinkedInThirdParty,isLinkedInThirdPartyRead,validateLinkedInThirdPartyState,linkedinThirdPartyPrerequisites,linkedinThirdPartyOutcome} from './linkedin-third-party-tracking.js';
 import {linkedinConversionKind,assertLinkedInConversion,assertLinkedInConversionScope,linkedinConversionSnapshots,readLinkedInConversions,isLinkedInConversionRead,validateLinkedInConversionState,linkedinConversionPrerequisites,linkedinConversionOutcome} from './linkedin-conversion-links.js';
 import {metaLabelKind,assertMetaLabel,assertMetaLabelScope,metaLabelSnapshots,readMetaLabels,validateMetaLabelState,validateMetaLabelPrerequisites,metaLabelOutcome} from './meta-label-writes.js';
 import {criteoTargetingKind,assertCriteoTargeting,assertCriteoTargetingScopes,criteoTargetingSnapshots,readCriteoTargeting,validateCriteoTargetState,validateCriteoTargetingPrerequisites,criteoTargetingOutcome} from './criteo-targeting-writes.js';
@@ -69,26 +63,13 @@ import {tiktokNegativeKeywordKind,assertTiktokNegativeKeywords,tiktokNegativeKey
 import {tiktokBrandSafetyKind,assertTiktokBrandSafety,tiktokBrandSafetyReads,isTiktokBrandSafetyRead,validateTiktokBrandSafetyState,validateTiktokBrandSafetyPrerequisites,tiktokBrandSafetyOutcome} from './tiktok-brand-safety.js';
 import {metaValueRuleKind,assertMetaValueRule,metaValueRuleReads,isMetaValueRuleRead,validateMetaValueRuleState,validateMetaValueRulePrerequisites,metaValueRuleOutcome} from './meta-value-rules.js';
 import {metaBrandSafetyKind,assertMetaBrandSafety,metaBrandSafetyReads,isMetaBrandSafetyRead,validateMetaBrandSafetyState,validateMetaBrandSafetyPrerequisites,metaBrandSafetyOutcome} from './meta-brand-safety.js';
-import {criteoSegmentKind,assertCriteoSegments,assertCriteoSegmentScopes,criteoSegmentSnapshots,readCriteoSegments,isCriteoSegmentRead,validateCriteoSegmentState,criteoSegmentPrerequisites,criteoSegmentOutcome} from './criteo-audience-segments.js';
 import {criteoCatalogKind,assertCriteoCatalog,assertCriteoCatalogScopes,criteoCatalogSnapshots,readCriteoCatalog,isCriteoCatalogRead,validateCriteoCatalogState,criteoCatalogPrerequisites,criteoCatalogOutcome} from './criteo-catalog-requests.js';
-import {criteoPreferredKind,assertCriteoPreferred,assertCriteoPreferredScopes,criteoPreferredSnapshots,readCriteoPreferred,isCriteoPreferredRead,validateCriteoPreferredState,criteoPreferredPrerequisites,criteoPreferredOutcome} from './criteo-preferred-line-items.js';
 import {criteoOverrideKind,assertCriteoOverride,assertCriteoOverrideScopes,criteoOverrideSnapshots,readCriteoOverrides,isCriteoOverrideRead,validateCriteoOverrideState,criteoOverridePrerequisites,criteoOverrideOutcome} from './criteo-budget-overrides.js';
 import {criteoLineItemKind,assertCriteoLineItem,assertCriteoLineItemScopes,criteoLineItemReads,isCriteoLineItemRead,validateCriteoLineItemState,validateCriteoLineItemPrerequisites,criteoLineItemOutcome,readCriteoLineItems} from './criteo-auction-line-items.js';
 import {criteoPromotedProductsKind,assertCriteoPromotedProducts,criteoPromotedProductsReads,validateCriteoPromotedProductsPrerequisites,criteoPromotedProductsOutcome} from './criteo-promoted-products.js';
 import {criteoKeywordKind,criteoBidMultiplierKind,assertCriteoKeywords,assertCriteoBidMultipliers,criteoLineItemBiddingReads,validateCriteoLineItemBiddingPrerequisites,criteoLineItemBiddingOutcome} from './criteo-line-item-bidding.js';
-import {dv360AdGroupKind,assertDV360AdGroup,dv360AdGroupReads,isDV360AdGroupRead,validateDV360AdGroupState,validateDV360AdGroupPrerequisites,dv360AdGroupOutcome,readDV360AdGroups} from './dv360-demand-gen-ad-groups.js';
 import {dv360AdAssetKind,assertDV360AdAsset,dv360AdAssetReads,isDV360AdAssetRead,validateDV360AdAssetState,validateDV360AdAssetPrerequisites,dv360AdAssetOutcome} from './dv360-ad-assets.js';
-import {xCuratedKind,assertXCurated,xCuratedSnapshots,isXCuratedRead,validateXCuratedState,xCuratedPrerequisites,xCuratedOutcome,readXCurated} from './x-curated-categories.js';
-import {xAssociationKind,assertXAssociation,xAssociationSnapshots,isXAssociationRead,validateXAssociationState,xAssociationPrerequisites,xAssociationOutcome,readXAssociations} from './x-line-item-associations.js';
-import {xScheduledKind,assertXScheduled,xScheduledSnapshots,isXScheduledRead,validateXScheduledState,xScheduledPrerequisites,xScheduledOutcome,readXScheduled} from './x-scheduled-tweets.js';
-import {xPrerollCtaKind,assertXPrerollCta,xPrerollCtaSnapshots,isXPrerollCtaRead,validateXPrerollCtaState,xPrerollCtaPrerequisites,xPrerollCtaOutcome,readXPrerollCtas} from './x-preroll-ctas.js';
-import {xTrackingTagKind,assertXTrackingTag,xTrackingTagSnapshots,isXTrackingTagRead,validateXTrackingTagState,xTrackingTagPrerequisites,xTrackingTagOutcome,readXTrackingTags} from './x-tracking-tags.js';
 import {dv360SdfKind,assertDV360Sdf,dv360SdfSnapshots,readDV360Sdf,isDV360SdfRead,validateDV360SdfState,dv360SdfPrerequisites,dv360SdfOutcome} from './dv360-sdf-downloads.js';
-import {dv360BiddingKind,assertDV360Bidding,dv360BiddingSnapshots,readDV360Bidding,isDV360BiddingRead,validateDV360BiddingState,dv360BiddingPrerequisites,dv360BiddingOutcome} from './dv360-custom-bidding.js';
-import {dv360AdvertiserKind} from './dv360-advertiser-settings.js';
-import {dv360InventoryGroupKind,assertDV360InventoryGroup,dv360InventoryGroupSnapshots,readDV360InventoryGroup,isDV360InventoryGroupRead,validateDV360InventoryGroupState,dv360InventoryGroupPrerequisites,dv360InventoryGroupOutcome} from './dv360-inventory-source-groups.js';
-import {dv360LineItemDuplicateKind,assertDV360LineItemDuplicate,dv360LineItemDuplicateSnapshots,isDV360LineItemDuplicateRead,validateDV360LineItemDuplicateState,dv360LineItemDuplicatePrerequisites,dv360LineItemDuplicateOutcome,readDV360LineItemDuplicate} from './dv360-line-item-duplicate.js';
-import {dv360LineItemBulkKind} from './dv360-line-item-bulk-update.js';
 import {dv360AdKind,assertDV360Ad,dv360AdReads,isDV360AdRead,validateDV360AdState,validateDV360AdPrerequisites,dv360AdOutcome,readDV360Ads} from './dv360-demand-gen-ads.js';
 import {googleConfigurationKind,assertGoogleConfiguration,googleConfigurationSnapshots,validateGoogleConfigurationState,googleConfigurationOutcome} from './google-configuration-writes.js';
 import {checkSpendPolicy} from './spend-policy.js';
@@ -132,6 +113,7 @@ import {validateMicrosoftAssociationState} from './microsoft-associations.js';
 import {measurementWriteGateways,assertMeasurementWrite,assertMeasurementScopes,measurementSnapshots,optionalMissingState,validateMeasurementState,measurementOutcome} from './measurement-writes.js';
 import {familyOf,familyOfRead,readThroughFamilies} from './reviewed-families.js';
 import {assertWritesNotPaused} from './owner-operations.js';
+import {assertDV360WriteScope} from './dv360-scope.js';
 
 export const writeTool={name:'amcp_write',description:'Inspect, prepare and execute a reviewed native advertising or measurement mutation. inspect checks local write-contract support without credentials or network calls. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request. Execution requires its review_id, idempotency_key and explicit confirmation. Operator role and administrator account write grants are required. This is an AMCP extension, not a captured AMCP tool.',inputSchema:{type:'object',required:['action'],properties:{action:{type:'string',enum:['inspect','prepare','execute']},gateway:{type:'string'},arguments:{type:'object'},connection_id:{type:'string'},review_id:{type:'string'},idempotency_key:{type:'string',description:'Optional at execute: defaults to the review_id. When given it must equal the review_id returned by prepare.'},confirmed:{type:'boolean'},spend_change_confirmed:{type:'boolean'},creative_edit_confirmed:{type:'boolean',description:'Explicitly acknowledge a reviewed X card edit/deletion or Tweet rename that may disrupt promoted ads. Freeze this choice during prepare and repeat it during execute.'}},additionalProperties:false}};
 export const writeContractGateways=new Set(['meta_native_action','tiktok_native_action','snapchat_native_action','google_ads_native_action','google_business_native_action','linkedin_native_action','x_ads_native_action','dv360_native_action','reddit_native_action','criteo_native_action',microsoftGateway,...measurementWriteGateways]);
@@ -170,11 +152,7 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(linkedinConversionKind(plan))return linkedinConversionOutcome(plan,result);
  // Registered families (reviewed-families.ts) are consulted here; the lines around this one belong to families not yet registered.
  const family=familyOf(plan);if(family?.outcome)return family.outcome(plan,result,before);
- if(linkedinThirdPartyKind(plan))return linkedinThirdPartyOutcome(plan,result);
- if(linkedinMessageKind(plan))return linkedinMessageOutcome(plan,result);
  if(googleBidKind(plan))return googleBidOutcome(plan,result);
- if(googleCustomerTypeKind(plan))return googleCustomerTypeOutcome(plan,result);
- if(googleApplyKind(plan))return googleApplyOutcome(plan,result);
  if(googleBiddingEventKind(plan))return googleBiddingEventOutcome(plan,result,before);
  if(googlePortfolioKind(plan))return googlePortfolioOutcome(plan,result,before);
  if(googleConversionActionKind(plan))return googleConversionActionOutcome(plan,result,before);
@@ -190,7 +168,6 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(snapTemplateKind(plan))return snapTemplateOutcome(plan,result);
  if(snapEventKind(plan))return snapEventOutcome(plan,result);
  if(snapPixelNameKind(plan))return snapPixelNameOutcome(plan,result);
- if(tiktokBlockedWordKind(plan))return tiktokBlockedWordOutcome(plan,result);
  if(xReportKind(plan))return xReportOutcome(plan,result);
  if(tiktokReportKind(plan))return tiktokReportOutcome(plan,result);
  if(criteoReportKind(plan))return criteoReportOutcome(plan,result);
@@ -206,23 +183,12 @@ function confirmedMutationResult(plan:CompiledRequest,result:TransportResult,bef
  if(metaBrandSafetyKind(plan))return metaBrandSafetyOutcome(plan,result);
  if(criteoLineItemKind(plan))return criteoLineItemOutcome(plan,result);
  if(criteoOverrideKind(plan))return criteoOverrideOutcome(plan,result);
- if(criteoPreferredKind(plan))return criteoPreferredOutcome(plan,result);
  if(criteoCatalogKind(plan))return criteoCatalogOutcome(plan,result);
- if(criteoSegmentKind(plan))return criteoSegmentOutcome(plan,result);
  if(criteoPromotedProductsKind(plan))return criteoPromotedProductsOutcome(plan,result);
  if(criteoKeywordKind(plan)||criteoBidMultiplierKind(plan))return criteoLineItemBiddingOutcome(plan,result);
- if(dv360AdGroupKind(plan))return dv360AdGroupOutcome(plan,result);
  if(dv360AdAssetKind(plan))return dv360AdAssetOutcome(plan,result);
  if(dv360AdKind(plan))return dv360AdOutcome(plan,result);
- if(dv360LineItemDuplicateKind(plan))return dv360LineItemDuplicateOutcome(plan,result);
- if(dv360InventoryGroupKind(plan))return dv360InventoryGroupOutcome(plan,result);
- if(dv360BiddingKind(plan))return dv360BiddingOutcome(plan,result);
  if(dv360SdfKind(plan))return dv360SdfOutcome(plan,result);
- if(xTrackingTagKind(plan))return xTrackingTagOutcome(plan,result);
- if(xPrerollCtaKind(plan))return xPrerollCtaOutcome(plan,result);
- if(xScheduledKind(plan))return xScheduledOutcome(plan,result);
- if(xAssociationKind(plan))return xAssociationOutcome(plan,result);
- if(xCuratedKind(plan))return xCuratedOutcome(plan,result);
  if(dv360ListKind(plan))return dv360ListOutcome(plan,result);
  if(googleConfigurationKind(plan))return googleConfigurationOutcome(plan,result);
  if(googleAssetLinkKind(plan))return googleAssetLinkOutcome(plan,result);
@@ -269,10 +235,7 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  if(isMetaBrandSafetyRead(read)){validateMetaBrandSafetyState(read,result);return;}
  if(isCriteoLineItemRead(read)){validateCriteoLineItemState(read,result);return;}
  if(isCriteoOverrideRead(read)){validateCriteoOverrideState(read,result);return;}
- if(isCriteoPreferredRead(read)){validateCriteoPreferredState(read,result);return;}
  if(isCriteoCatalogRead(read)){validateCriteoCatalogState(read,result);return;}
- if(isCriteoSegmentRead(read)){validateCriteoSegmentState(read,result);return;}
- if(isDV360AdGroupRead(read)){validateDV360AdGroupState(read,result);return;}
  if(isDV360AdAssetRead(read)){validateDV360AdAssetState(read,result);return;}
  if(isDV360AdRead(read)){validateDV360AdState(read,result);return;}
  if(isSnapchatMediaCopyRead(read)){validateSnapchatMediaCopyState(read,result);return;}
@@ -283,23 +246,10 @@ export function validateState(read:CompiledRequest,result:TransportResult):void 
  if(isSnapTemplateRead(read)){validateSnapTemplateState(read,result);return;}
  if(isSnapEventRead(read)){validateSnapEventState(read,result);return;}
  if(isSnapPixelNameRead(read)){validateSnapPixelNameState(read,result);return;}
- if(isTiktokBlockedWordRead(read)){validateTiktokBlockedWordState(read,result);return;}
- if(isDV360LineItemDuplicateRead(read)){validateDV360LineItemDuplicateState(read,result);return;}
- if(isDV360InventoryGroupRead(read)){validateDV360InventoryGroupState(read,result);return;}
- if(isDV360BiddingRead(read)){validateDV360BiddingState(read,result);return;}
  if(isDV360SdfRead(read)){validateDV360SdfState(read,result);return;}
- if(isXTrackingTagRead(read)){validateXTrackingTagState(read,result);return;}
- if(isXPrerollCtaRead(read)){validateXPrerollCtaState(read,result);return;}
- if(isXScheduledRead(read)){validateXScheduledState(read,result);return;}
- if(isXAssociationRead(read)){validateXAssociationState(read,result);return;}
- if(isXCuratedRead(read)){validateXCuratedState(read,result);return;}
  if(isLinkedInLeadFormRead(read)){validateLinkedInLeadFormState(read,result);return;}
  if(isLinkedInConversionRead(read)){validateLinkedInConversionState(read,result);return;}
- if(isLinkedInThirdPartyRead(read)){validateLinkedInThirdPartyState(read,result);return;}
- if(isLinkedInMessageRead(read)){validateLinkedInMessageState(read,result);return;}
  if(isGoogleBidRead(read)){validateGoogleBidState(read,result);return;}
- if(isGoogleCustomerTypeRead(read)){validateGoogleCustomerTypeState(read,result);return;}
- if(isGoogleApplyRead(read)){validateGoogleApplyState(read,result);return;}
  if(read.metaLabelState){validateMetaLabelState(read,result);return;}
  if(read.criteoTargetState){validateCriteoTargetState(read,result);return;}
  if(read.gateway==='reddit_native_action'&&read.redditProfilesState){validateRedditProfiles(read,result);return;}
@@ -400,17 +350,7 @@ export function assertWriteShape(plan:CompiledRequest){
  if(linkedinLeadFormKind(plan)){assertLinkedInLeadForm(plan);return;}
  if(linkedinConversionKind(plan)){assertLinkedInConversion(plan);return;}
  const family=familyOf(plan);if(family?.assert){family.assert(plan);return;}
- if(linkedinThirdPartyKind(plan)){assertLinkedInThirdParty(plan);return;}
- if(tiktokBlockedWordKind(plan)){assertTiktokBlockedWords(plan);return;}
- if(linkedinMessageKind(plan)){assertLinkedInMessage(plan);return;}
- if(googleCustomerTypeKind(plan)){assertGoogleCustomerTypes(plan);return;}
- if(googleApplyKind(plan)){assertGoogleApply(plan);return;}
  if(xDraftKind(plan)){assertXDraft(plan);return;}
- if(xTrackingTagKind(plan)){assertXTrackingTag(plan);return;}
- if(xPrerollCtaKind(plan)){assertXPrerollCta(plan);return;}
- if(xScheduledKind(plan)){assertXScheduled(plan);return;}
- if(xAssociationKind(plan)){assertXAssociation(plan);return;}
- if(xCuratedKind(plan)){assertXCurated(plan);return;}
  if(dv360TargetingKind(plan)){assertDV360Targeting(plan);return;}
  if(googleListingGroupKind(plan)){assertGoogleListingGroups(plan);return;}
  if(tiktokNegativeKeywordKind(plan)){assertTiktokNegativeKeywords(plan);return;}
@@ -419,17 +359,11 @@ export function assertWriteShape(plan:CompiledRequest){
  if(metaBrandSafetyKind(plan)){assertMetaBrandSafety(plan);return;}
  if(criteoLineItemKind(plan)){assertCriteoLineItem(plan);return;}
  if(criteoOverrideKind(plan)){assertCriteoOverride(plan);return;}
- if(criteoPreferredKind(plan)){assertCriteoPreferred(plan);return;}
  if(criteoCatalogKind(plan)){assertCriteoCatalog(plan);return;}
- if(criteoSegmentKind(plan)){assertCriteoSegments(plan);return;}
  if(criteoPromotedProductsKind(plan)){assertCriteoPromotedProducts(plan);return;}
  if(criteoKeywordKind(plan)||criteoBidMultiplierKind(plan)){assertCriteoKeywords(plan);assertCriteoBidMultipliers(plan);return;}
- if(dv360AdGroupKind(plan)){assertDV360AdGroup(plan);return;}
  if(dv360AdAssetKind(plan)){assertDV360AdAsset(plan);return;}
  if(dv360AdKind(plan)){assertDV360Ad(plan);return;}
- if(dv360LineItemDuplicateKind(plan)){assertDV360LineItemDuplicate(plan);return;}
- if(dv360InventoryGroupKind(plan)){assertDV360InventoryGroup(plan);return;}
- if(dv360BiddingKind(plan)){assertDV360Bidding(plan);return;}
  if(dv360SdfKind(plan)){assertDV360Sdf(plan);return;}
  if(plan.headers['X-HTTP-Method-Override']||plan.headers['X-RestLi-Method']&&!['CREATE','PARTIAL_UPDATE','DELETE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))fail('WRITE_CONTRACT_UNAVAILABLE','This REST.li method override is not qualified for reviewed execution.');
  if(gtmWorkflowKind(plan)){assertGtmWorkflow(plan);return;}
@@ -535,7 +469,6 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(snapTemplateKind(plan))return snapTemplateSnapshots(plan);
  if(snapEventKind(plan))return snapEventSnapshots(plan);
  if(snapPixelNameKind(plan))return snapPixelNameSnapshots(plan);
- if(tiktokBlockedWordKind(plan))return tiktokBlockedWordSnapshots(plan);
  if(googlePreviewKind(plan))return googlePreviewSnapshots(plan);
  if(placeActionKind(plan))return placeActionSnapshots(plan);
  if(businessNotificationKind(plan))return businessNotificationSnapshots(plan);
@@ -547,11 +480,7 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(xDraftKind(plan))return xDraftSnapshots(plan);
  if(linkedinRuleKind(plan))return linkedinRuleSnapshots(plan);
  if(linkedinConversionKind(plan))return linkedinConversionSnapshots(plan);
- if(linkedinThirdPartyKind(plan))return linkedinThirdPartySnapshots(plan);
- if(linkedinMessageKind(plan))return linkedinMessageSnapshots(plan);
  if(googleBidKind(plan))return googleBidSnapshots(plan);
- if(googleCustomerTypeKind(plan))return googleCustomerTypeSnapshots(plan);
- if(googleApplyKind(plan))return googleApplySnapshots(plan);
  if(googleBiddingEventKind(plan))return googleBiddingEventSnapshots(plan);
  if(googlePortfolioKind(plan))return googlePortfolioSnapshots(plan);
  if(googleConversionActionKind(plan))return googleConversionActionSnapshots(plan);
@@ -573,23 +502,12 @@ export function snapshotPlans(plan:CompiledRequest,registry:Registry):CompiledRe
  if(metaBrandSafetyKind(plan))return metaBrandSafetyReads(plan);
  if(criteoLineItemKind(plan))return criteoLineItemReads(plan);
  if(criteoOverrideKind(plan))return criteoOverrideSnapshots(plan);
- if(criteoPreferredKind(plan))return criteoPreferredSnapshots(plan);
  if(criteoCatalogKind(plan))return criteoCatalogSnapshots(plan);
- if(criteoSegmentKind(plan))return criteoSegmentSnapshots(plan);
  if(criteoPromotedProductsKind(plan))return criteoPromotedProductsReads(plan);
  if(criteoKeywordKind(plan)||criteoBidMultiplierKind(plan))return criteoLineItemBiddingReads(plan);
- if(dv360AdGroupKind(plan))return dv360AdGroupReads(plan);
  if(dv360AdAssetKind(plan))return dv360AdAssetReads(plan);
  if(dv360AdKind(plan))return dv360AdReads(plan);
- if(dv360LineItemDuplicateKind(plan))return dv360LineItemDuplicateSnapshots(plan);
- if(dv360InventoryGroupKind(plan))return dv360InventoryGroupSnapshots(plan);
- if(dv360BiddingKind(plan))return dv360BiddingSnapshots(plan);
  if(dv360SdfKind(plan))return dv360SdfSnapshots(plan);
- if(xTrackingTagKind(plan))return xTrackingTagSnapshots(plan);
- if(xPrerollCtaKind(plan))return xPrerollCtaSnapshots(plan);
- if(xScheduledKind(plan))return xScheduledSnapshots(plan);
- if(xAssociationKind(plan))return xAssociationSnapshots(plan);
- if(xCuratedKind(plan))return xCuratedSnapshots(plan);
  if(dv360ListKind(plan))return dv360ListSnapshots(plan);
  if(googleConfigurationKind(plan))return googleConfigurationSnapshots(plan);
  if(googleAssetLinkKind(plan))return googleAssetLinkSnapshots(plan);
@@ -724,24 +642,19 @@ export class WriteReviewService {
   if(criteoCampaignKind(plan))assertCriteoCampaignScopes(c,true);
   if(criteoLineItemKind(plan)||criteoPromotedProductsKind(plan)||criteoKeywordKind(plan)||criteoBidMultiplierKind(plan))assertCriteoLineItemScopes(c,true);
   if(criteoOverrideKind(plan))assertCriteoOverrideScopes(c,true);
-  if(criteoPreferredKind(plan))assertCriteoPreferredScopes(c,true);
   if(criteoCatalogKind(plan))assertCriteoCatalogScopes(c,criteoCatalogKind(plan));
-  if(criteoSegmentKind(plan))assertCriteoSegmentScopes(c,true,plan);
   if(criteoReportKind(plan))assertCriteoReportScopes(c,criteoReportKind(plan));
   if(placeActionKind(plan))assertPlaceActionScope(c);
   if(businessNotificationKind(plan))assertBusinessNotificationScope(c);
   if(businessAccessKind(plan))assertBusinessAccessScope(c);
   if(metaLabelKind(plan))assertMetaLabelScope(c,true);
-  familyOf(plan)?.scope?.(c,true);
+  familyOf(plan)?.scope?.(c,true,plan);
   if(googleBidKind(plan))assertGoogleBidScope(c);
-  if(googleCustomerTypeKind(plan))assertBrandGuidelinesScope(c);
-  if(googleApplyKind(plan))assertBrandGuidelinesScope(c);
   if(googlePreviewKind(plan)||googleDismissalKind(plan)||googleAccessKind(plan))assertGoogleAdsScope(c);
   if(googleSegmentKind(plan)||googleBiddingEventKind(plan)||googleConversionGoalKind(plan)||googlePortfolioKind(plan)||googleConversionActionKind(plan)||googleListingGroupKind(plan))assertGoogleAdsScope(c);
   if(linkedinConversionKind(plan)||linkedinRuleKind(plan))assertLinkedInConversionScope(c,true);
-  if(linkedinThirdPartyKind(plan))assertLinkedInThirdPartyScope(c,true);
-  if(linkedinMessageKind(plan))assertLinkedInMessageScope(c,true);
-  if((dv360ListKind(plan)||dv360TargetingKind(plan)||dv360AdGroupKind(plan)||dv360AdAssetKind(plan)||dv360AdKind(plan)||dv360LineItemBulkKind(plan)||dv360LineItemDuplicateKind(plan)||dv360InventoryGroupKind(plan)||dv360AdvertiserKind(plan)||dv360BiddingKind(plan)||dv360SdfKind(plan))&&!c.scopes.includes('https://www.googleapis.com/auth/display-video'))fail('PROVIDER_WRITE_SCOPE_REQUIRED','Reconnect DV360 with the display-video OAuth scope.');
+  // Registered DV360 families check the scope through their scope hook (dv360-scope.ts).
+  if(dv360ListKind(plan)||dv360TargetingKind(plan)||dv360AdAssetKind(plan)||dv360AdKind(plan)||dv360SdfKind(plan))assertDV360WriteScope(c,true);
   if(plan.gateway===microsoftGateway&&!c.scopes.some(s=>s===microsoftScope||s==='msads.manage'))fail('INSUFFICIENT_SCOPE','Reconnect Microsoft Advertising with msads.manage permission.');
   plan.accountId=id;new ScopeGuard(this.registry,this.store).authorize(plan,c);assertMeasurementScopes(plan,c);return c;
  }
@@ -844,7 +757,7 @@ export class WriteReviewService {
   });
   const values:unknown[]=[];
   for(const read of reads){if(!applyExecutionRisk(read).readOnly)fail('STATE_READ_UNSAFE','The state check must be independently read-only.');const c=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(read,c);const auth=await this.credentials.get(c);this.access(actor,plan,connectionId);let result:TransportResult;
-   try{result=await readThroughFamilies(read,familyPage=>readTiktokBlockedWords(familyPage,blockedWordPage=>readSnapPixelNames(blockedWordPage,pixelNamePage=>readSnapEvents(pixelNamePage,eventPage=>readSnapTemplates(eventPage,templatePage=>readSnapProductSets(templatePage,productSetPage=>readSnapConversions(productSetPage,conversionReadPage=>readDV360Sdf(conversionReadPage,sdfPage=>readGoogleApply(sdfPage,applyPage=>readSnapSegmentDelete(applyPage,segmentDeletePage=>readDV360Bidding(segmentDeletePage,biddingPage=>readCriteoCatalog(biddingPage,catalogPage=>readCriteoPreferred(catalogPage,preferredPage=>readXScheduled(preferredPage,scheduledPage=>readXPrerollCtas(scheduledPage,ctaPage=>readSnapDisclaimers(ctaPage,disclaimerPage=>readCriteoSegments(disclaimerPage,segmentPage=>readDV360InventoryGroup(segmentPage,inventoryPage=>readCriteoOverrides(inventoryPage,overridePage=>readLinkedInMessage(overridePage,messagePage=>readXCurated(messagePage,curatedPage=>readXAssociations(curatedPage,xAssociationPage=>readLinkedInThirdParty(xAssociationPage,thirdPartyPage=>readXTrackingTags(thirdPartyPage,xTagPage=>readDV360LineItemDuplicate(xTagPage,copyLinePage=>readGoogleCustomerTypes(copyLinePage,typePage=>readSnapchatMediaCopy(typePage,copyPage=>readLinkedInRules(copyPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360AdGroups(lineItemPage,groupPage=>readDV360Ads(groupPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;})))))))))))))))))))))))))))))))))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
+   try{result=await readThroughFamilies(read,familyPage=>readSnapPixelNames(familyPage,pixelNamePage=>readSnapEvents(pixelNamePage,eventPage=>readSnapTemplates(eventPage,templatePage=>readSnapProductSets(templatePage,productSetPage=>readSnapConversions(productSetPage,conversionReadPage=>readDV360Sdf(conversionReadPage,sdfPage=>readSnapSegmentDelete(sdfPage,segmentDeletePage=>readCriteoCatalog(segmentDeletePage,catalogPage=>readSnapDisclaimers(catalogPage,disclaimerPage=>readCriteoOverrides(disclaimerPage,overridePage=>readSnapchatMediaCopy(overridePage,copyPage=>readLinkedInRules(copyPage,rulePage=>readLinkedInConversions(rulePage,linkPage=>readGoogleBidState(linkPage,bidPage=>readMetaLabels(bidPage,metaPage=>readCriteoTargeting(metaPage,criteoPage=>readRedditProfiles(criteoPage,redditPage=>readKeywordPlanTree(redditPage,planningPage=>readAssetSetContents(planningPage,feedPage=>readGtmWorkspace(feedPage,workspacePage=>readGtmWorkflow(workspacePage,gtmPage=>readDV360List(gtmPage,listPage=>readDV360Targeting(listPage,targetingPage=>readTiktokNegativeKeywords(targetingPage,negativePage=>readCriteoLineItems(negativePage,lineItemPage=>readDV360Ads(lineItemPage,async page=>{const current=this.access(actor,plan,connectionId);new ScopeGuard(this.registry,this.store).authorize(page,current);const response=await this.request(actor,plan,page,current,auth);this.access(actor,plan,connectionId);return response;})))))))))))))))))))))))))));}catch(e){const absent=optionalMissingState(read,e);if(!absent)throw e;result=absent;}
    const reader=this.access(actor,plan,connectionId);validateState(read,result);if(read.gateway==='snapchat_native_action')new ScopeGuard(this.registry,this.store).observe(read,reader,result.data);
    // A Smart+ bid edit also reads the campaign's ad groups once the ad group names its campaign.
    const sibling=tiktokSmartPlusAdgroupUpdateSiblingRead(plan,read,result.data);if(sibling&&!reads.some(r=>r.path===sibling.path&&stable(r.query)===stable(sibling.query)))reads.push(sibling);
@@ -873,12 +786,7 @@ export class WriteReviewService {
   snapTemplatePrerequisites(plan,values);
   snapEventPrerequisites(plan,values);
   snapPixelNamePrerequisites(plan,values);
-  tiktokBlockedWordPrerequisites(plan,values);
-  googleCustomerTypePrerequisites(plan,values);
-  googleApplyPrerequisites(plan,values);
   linkedinConversionPrerequisites(plan,values);
-  linkedinThirdPartyPrerequisites(plan,values);
-  linkedinMessagePrerequisites(plan,values);
   linkedinRulePrerequisites(plan,values);
   tiktokAdgroupConversionPrerequisites(plan,values);
   tiktokCtaPortfolioPrerequisites(plan,values);
@@ -899,23 +807,12 @@ export class WriteReviewService {
   validateMetaBrandSafetyPrerequisites(plan,values);
   validateCriteoLineItemPrerequisites(plan,values);
   criteoOverridePrerequisites(plan,values);
-  criteoPreferredPrerequisites(plan,values);
   criteoCatalogPrerequisites(plan,values);
-  criteoSegmentPrerequisites(plan,values);
   validateCriteoPromotedProductsPrerequisites(plan,values);
   validateCriteoLineItemBiddingPrerequisites(plan,values);
-  validateDV360AdGroupPrerequisites(plan,values);
   validateDV360AdAssetPrerequisites(plan,values);
   validateDV360AdPrerequisites(plan,values);
-  dv360LineItemDuplicatePrerequisites(plan,values);
-  dv360InventoryGroupPrerequisites(plan,values);
-  dv360BiddingPrerequisites(plan,values);
   dv360SdfPrerequisites(plan,values);
-  xTrackingTagPrerequisites(plan,values);
-  xPrerollCtaPrerequisites(plan,values);
-  xScheduledPrerequisites(plan,values);
-  xAssociationPrerequisites(plan,values);
-  xCuratedPrerequisites(plan,values);
   if(appleEntityKind(plan)==='shared_budget'&&!plan.scopeContext?.appleSharedOrgId){
    const account=object(values[reads.findIndex(r=>r.path==='/v1/ad-accounts/'+plan.accountId)]).result;
    const target=object(values[reads.findIndex(r=>r.path===plan.path)]).result;

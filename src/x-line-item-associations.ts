@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Promoted accounts, media creatives and scheduled promoted Tweets of X Ads line items, Ads API v12 (Campaign Management
@@ -158,3 +159,23 @@ export function xAssociationVerification(p:CompiledRequest,result:JsonObject,_be
  return [{read:stateRead(p,{resource:kind.resource,id}),expected:{association:expected},id:labels[kind.resource]+' '+id}];
 }
 export function xAssociationObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {association:object(data.association)?data.association:null};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const xAssociationFamily:ReviewedFamily={
+ name:'x_line_item_associations',
+ files:['src/x-line-item-associations.ts',['tests/x-line-item-associations.test.mjs']],
+ kind:xAssociationKind,
+ assert:assertXAssociation,
+ snapshots:xAssociationSnapshots,
+ isRead:isXAssociationRead,
+ reader:readXAssociations,
+ validateState:validateXAssociationState,
+ prerequisites:xAssociationPrerequisites,
+ impact:xAssociationImpact,
+ outcome:xAssociationOutcome,
+ verification:xAssociationVerification,
+ observed:xAssociationObserved,
+ spendConfirmation:{needed:xAssociationNeedsConfirmation,message:'A new promoted account or media creative is ACTIVE and serves at once under an active line item and campaign. Review them and provide spend_change_confirmed=true.'},
+ exemptFromSpendTextMatch:true,
+ activates:xAssociationNeedsConfirmation,
+};

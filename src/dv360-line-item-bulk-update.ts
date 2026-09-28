@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {assertDV360WriteScope} from './dv360-scope.js';
 
 /**
  * Bulk status and EU political advertising updates of DV360 line items, per the pinned Display & Video 360 API v4 Discovery
@@ -108,6 +109,7 @@ export const dv360LineItemBulkFamily:ReviewedFamily={
  files:['src/dv360-line-item-bulk-update.ts',['tests/dv360-line-item-bulk-update.test.mjs']],
  kind:dv360LineItemBulkKind,
  assert:assertDV360LineItemBulk,
+ scope:assertDV360WriteScope,
  snapshots:dv360LineItemBulkSnapshots,
  isRead:isDV360LineItemBulkRead,
  reader:readDV360LineItemBulk,

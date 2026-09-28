@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Tracking tags of X Ads line items, Ads API v12 (Campaign Management reference, "Tracking Tags"; docs.x.com copy read on
@@ -111,3 +112,21 @@ export function xTrackingTagVerification(p:CompiledRequest,result:JsonObject,bef
  return [{read:stateRead(p,{tagId:id}),expected:{tag:expected},id:'tracking tag '+id}];
 }
 export function xTrackingTagObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {tag:object(data.tag)?data.tag:null};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const xTrackingTagFamily:ReviewedFamily={
+ name:'x_tracking_tags',
+ files:['src/x-tracking-tags.ts',['tests/x-tracking-tags.test.mjs']],
+ kind:xTrackingTagKind,
+ assert:assertXTrackingTag,
+ snapshots:xTrackingTagSnapshots,
+ isRead:isXTrackingTagRead,
+ reader:readXTrackingTags,
+ validateState:validateXTrackingTagState,
+ prerequisites:xTrackingTagPrerequisites,
+ impact:xTrackingTagImpact,
+ outcome:xTrackingTagOutcome,
+ verification:xTrackingTagVerification,
+ observed:xTrackingTagObserved,
+ exemptFromSpendTextMatch:true,
+};

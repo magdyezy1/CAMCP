@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * LinkedIn third-party tracking tags, per "Third-Party Tracking" of the Marketing API (li-lms-2025-10 to li-lms-2026-09,
@@ -137,3 +138,23 @@ export function linkedinThirdPartyObserved(read:CompiledRequest,data:JsonObject)
  const s=(read as Read).linkedinThirdPartyState,tags=object(data.tags)?data.tags:{};
  return {tag:object(data.tag)?data.tag:null,listed:!!s?.tagId&&Object.hasOwn(tags,'t'+s.tagId)};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const linkedinThirdPartyFamily:ReviewedFamily={
+ name:'linkedin_third_party_tracking',
+ files:['src/linkedin-third-party-tracking.ts',['tests/linkedin-third-party-tracking.test.mjs']],
+ kind:linkedinThirdPartyKind,
+ assert:assertLinkedInThirdParty,
+ scope:assertLinkedInThirdPartyScope,
+ authorize:authorizeLinkedInThirdParty,
+ snapshots:linkedinThirdPartySnapshots,
+ isRead:isLinkedInThirdPartyRead,
+ reader:readLinkedInThirdParty,
+ validateState:validateLinkedInThirdPartyState,
+ prerequisites:linkedinThirdPartyPrerequisites,
+ impact:linkedinThirdPartyImpact,
+ outcome:linkedinThirdPartyOutcome,
+ verification:linkedinThirdPartyVerification,
+ observed:linkedinThirdPartyObserved,
+ exemptFromSpendTextMatch:true,
+};

@@ -1,7 +1,8 @@
 import {MirrorError} from './errors.js';
-import {googleJson} from './google-contracts.js';
+import {googleJson,assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Applying keyword and campaign budget recommendations, Google Ads API v23 (pinned Discovery document:
@@ -189,3 +190,24 @@ async function check(p:CompiledRequest,s:NonNullable<Read['googleApplyState']>,s
  return {status:200,headers:{},data:{keywords:Object.fromEntries((s.keywords??[]).map(k=>{const key=k.adGroup+'|'+k.matchType+'|'+k.text;return [key,{present:found.includes(key)}];}))}};
 }
 export function googleApplyObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {...(object(data.budgets)?{budgets:data.budgets}:{}),...(object(data.keywords)?{keywords:data.keywords}:{})};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const googleApplyFamily:ReviewedFamily={
+ name:'google_recommendation_apply',
+ files:['src/google-recommendation-apply.ts',['tests/google-recommendation-apply.test.mjs']],
+ kind:googleApplyKind,
+ assert:assertGoogleApply,
+ scope:assertGoogleAdsScope,
+ snapshots:googleApplySnapshots,
+ isRead:isGoogleApplyRead,
+ reader:readGoogleApply,
+ validateState:validateGoogleApplyState,
+ prerequisites:googleApplyPrerequisites,
+ impact:googleApplyImpact,
+ outcome:googleApplyOutcome,
+ verification:googleApplyVerification,
+ observed:googleApplyObserved,
+ spendConfirmation:{needed:googleApplyKind,message:'Applying a recommendation adds keywords that serve at once or changes campaign budgets. Review the changes and provide spend_change_confirmed=true.'},
+ activates:googleApplyActivates,
+ policyAmounts:googleApplyPolicyAmounts,
+};

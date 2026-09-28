@@ -35,10 +35,13 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
    policy amounts, spend declaration). The core iterates the registry. Equivalence proof: the action ledger,
    `CONTRACTS.md` and guidance coverage are unchanged, plus a disjointness test over every ledger route and a
    runtime guard that refuses a plan matched by two families. Migrate the 83 families of the nested reader chain
-   first, then the rest (F-59, F-60, F-63). **Pass 1 done:** 41 families registered; remaining: the other
-   reader-chain families (irregular hooks: Criteo catalog/overrides and DV360 SDF authorize before the qualified-read
-   check and record verified resources; Snapchat families assert after the method-override check), then the
-   families without readers, then the DV360 write-scope line and compile-time path rewriting.
+   first, then the rest (F-59, F-60, F-63). **Passes 1 and 2 done:** 57 families registered (verification
+   hooks take `before`, scope hooks the plan, spend messages may depend on the request, `snapshotState` and
+   `verifiedResources` hooks; the DV360 write scope is a family hook). Remaining: the Snapchat families (their
+   assertions run after the shared method-override check, so the registry needs a second assertion point), Criteo
+   catalog/overrides and DV360 SDF (authorizers that must run before the generic qualified-read check), TikTok
+   negative keywords (snapshots normalized by the generic TikTok branches), the families without readers, and
+   compile-time path rewriting.
 2. **Guarded reader helper** replacing the 15 hand-copied wrappers in `state()` (F-61).
 3. **Stage split** of `write-review.ts` / `write-verification.ts` along the lifecycle.
 4. **Formatting**: Prettier at 120 columns, `.editorconfig` with LF, module by module in format-only commits; each

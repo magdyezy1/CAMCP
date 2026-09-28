@@ -191,7 +191,8 @@ The typed registry replaces these chains family by family. Each family module de
 at the position of the first line it replaced, so the order of the lines still in the chain is unchanged.
 `familyOf` refuses a request two registered families claim (`REVIEWED_FAMILY_CONFLICT`), and the nested reader
 chains start with `readThroughFamilies`, which composes every registered reader. Pass 1 registered 41 families
-and removed 734 lines of wiring from the ten lifecycle modules (reader chains 83 → 42 and 80 → 39 levels);
+and removed 734 lines of wiring from the ten lifecycle modules; pass 2 registered 16 more and removed another 310
+(57 families; reader chains 83 → 42 → 26 and 80 → 39 → 23 levels; named spend-match exemptions 83 → 45 → 32).
 `docs/ADDING-A-REVIEWED-FAMILY.md` is the guide, `ROADMAP.md` tracks the rest.
 
 ## 6. Data model (SQLite)

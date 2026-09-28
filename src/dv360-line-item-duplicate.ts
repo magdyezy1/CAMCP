@@ -1,6 +1,8 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
+import {assertDV360WriteScope} from './dv360-scope.js';
 
 /**
  * Duplication of DV360 line items, per the pinned Display & Video 360 API v4 Discovery document
@@ -79,3 +81,22 @@ export function dv360LineItemDuplicateVerification(p:CompiledRequest,result:Json
  return [{read:stateRead(p,copy),expected:{lineItem:{lineItemId:copy,insertionOrderId:source.insertionOrderId,lineItemType:source.lineItemType,displayName:b.targetDisplayName,containsEuPoliticalAds:b.containsEuPoliticalAds,entityStatus:'ENTITY_STATUS_DRAFT'}},id:'line item '+copy}];
 }
 export function dv360LineItemDuplicateObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {lineItem:object(data.lineItem)?data.lineItem:null};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const dv360LineItemDuplicateFamily:ReviewedFamily={
+ name:'dv360_line_item_duplicate',
+ files:['src/dv360-line-item-duplicate.ts',['tests/dv360-line-item-duplicate.test.mjs']],
+ kind:dv360LineItemDuplicateKind,
+ assert:assertDV360LineItemDuplicate,
+ scope:assertDV360WriteScope,
+ snapshots:dv360LineItemDuplicateSnapshots,
+ isRead:isDV360LineItemDuplicateRead,
+ reader:readDV360LineItemDuplicate,
+ validateState:validateDV360LineItemDuplicateState,
+ prerequisites:dv360LineItemDuplicatePrerequisites,
+ impact:dv360LineItemDuplicateImpact,
+ outcome:dv360LineItemDuplicateOutcome,
+ verification:dv360LineItemDuplicateVerification,
+ observed:dv360LineItemDuplicateObserved,
+ exemptFromSpendTextMatch:true,
+};

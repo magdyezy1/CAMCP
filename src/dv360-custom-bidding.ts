@@ -1,6 +1,8 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
+import {assertDV360WriteScope} from './dv360-scope.js';
 
 /**
  * Advertiser-owned custom bidding algorithms on Display & Video 360 API v4, per the pinned Discovery document
@@ -128,3 +130,23 @@ export function dv360BiddingVerification(p:CompiledRequest,result:JsonObject):{r
  return [{read:stateRead(p,{algorithmId:algorithm,optional:true}),expected:{algorithm:expected},id:'custom bidding algorithm '+algorithm}];
 }
 export function dv360BiddingObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {algorithm:obj(data.algorithm)?data.algorithm:null};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const dv360BiddingFamily:ReviewedFamily={
+ name:'dv360_custom_bidding',
+ files:['src/dv360-custom-bidding.ts',['tests/dv360-custom-bidding.test.mjs']],
+ kind:dv360BiddingKind,
+ assert:assertDV360Bidding,
+ scope:assertDV360WriteScope,
+ authorize:authorizeDV360Bidding,
+ snapshots:dv360BiddingSnapshots,
+ isRead:isDV360BiddingRead,
+ reader:readDV360Bidding,
+ validateState:validateDV360BiddingState,
+ prerequisites:dv360BiddingPrerequisites,
+ impact:dv360BiddingImpact,
+ outcome:dv360BiddingOutcome,
+ verification:dv360BiddingVerification,
+ observed:dv360BiddingObserved,
+ exemptFromSpendTextMatch:true,
+};

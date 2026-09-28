@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Ad comment blocked words, per TikTok API for Business v1.3 "Create blocked words", "Update a blocked word", "Delete
@@ -114,3 +115,21 @@ export function tiktokBlockedWordVerification(p:CompiledRequest,result:JsonObjec
  return [{read:listRead(p),expected:{words:after(p,words!)},id:'blocked words of '+p.accountId}];
 }
 export function tiktokBlockedWordObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {...(Array.isArray(data.words)?{words:data.words}:{}),...(obj(data.task)?{task:data.task}:{})};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const tiktokBlockedWordFamily:ReviewedFamily={
+ name:'tiktok_blocked_words',
+ files:['src/tiktok-blocked-words.ts',['tests/tiktok-blocked-words.test.mjs']],
+ kind:tiktokBlockedWordKind,
+ assert:assertTiktokBlockedWords,
+ snapshots:tiktokBlockedWordSnapshots,
+ isRead:isTiktokBlockedWordRead,
+ reader:readTiktokBlockedWords,
+ validateState:validateTiktokBlockedWordState,
+ prerequisites:tiktokBlockedWordPrerequisites,
+ impact:tiktokBlockedWordImpact,
+ outcome:tiktokBlockedWordOutcome,
+ verification:tiktokBlockedWordVerification,
+ observed:tiktokBlockedWordObserved,
+ exemptFromSpendTextMatch:true,
+};

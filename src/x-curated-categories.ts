@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Curated categories of X Ads pre-roll line items, Ads API v12 (Campaign Management reference, "Line Item Curated
@@ -116,3 +117,23 @@ export function xCuratedVerification(p:CompiledRequest,result:JsonObject,before:
  return [{read:stateRead(p,{id}),expected:{association:expected},id:'line item curated category '+id}];
 }
 export function xCuratedObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {association:object(data.association)?data.association:null};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const xCuratedFamily:ReviewedFamily={
+ name:'x_curated_categories',
+ files:['src/x-curated-categories.ts',['tests/x-curated-categories.test.mjs']],
+ kind:xCuratedKind,
+ assert:assertXCurated,
+ snapshots:xCuratedSnapshots,
+ isRead:isXCuratedRead,
+ reader:readXCurated,
+ validateState:validateXCuratedState,
+ prerequisites:xCuratedPrerequisites,
+ impact:xCuratedImpact,
+ outcome:xCuratedOutcome,
+ verification:xCuratedVerification,
+ observed:xCuratedObserved,
+ spendConfirmation:{needed:xCuratedNeedsConfirmation,message:'A curated category decides next to which publishers the pre-roll line item runs. Review it and provide spend_change_confirmed=true.'},
+ exemptFromSpendTextMatch:true,
+ activates:xCuratedNeedsConfirmation,
+};

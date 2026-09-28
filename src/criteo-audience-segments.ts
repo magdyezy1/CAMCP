@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Audience segments of a Criteo Retail Media account, API 2026-01 (pinned OpenAPI document: bulkCreateAudienceSegments,
@@ -202,3 +203,25 @@ export function criteoSegmentObserved(read:CompiledRequest,data:JsonObject):Json
  const found=object(data.segments)?data.segments:{},wanted=(read as Read).criteoSegmentState?.segments??[];
  return {segments:Object.fromEntries(wanted.map(k=>[k,object(found[k])?{present:true,...found[k]}:{present:false}]))};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const criteoSegmentFamily:ReviewedFamily={
+ name:'criteo_audience_segments',
+ files:['src/criteo-audience-segments.ts',['tests/criteo-audience-segments.test.mjs']],
+ kind:criteoSegmentKind,
+ assert:assertCriteoSegments,
+ scope:assertCriteoSegmentScopes,
+ snapshots:criteoSegmentSnapshots,
+ isRead:isCriteoSegmentRead,
+ reader:readCriteoSegments,
+ validateState:validateCriteoSegmentState,
+ prerequisites:criteoSegmentPrerequisites,
+ impact:criteoSegmentImpact,
+ outcome:criteoSegmentOutcome,
+ verification:criteoSegmentVerification,
+ observed:criteoSegmentObserved,
+ spendConfirmation:{needed:criteoSegmentServing,message:'New event rules change who line items targeting these segments reach. Review them and provide spend_change_confirmed=true.'},
+ exemptFromSpendTextMatch:true,
+ activates:criteoSegmentServing,
+ destructive:criteoSegmentRemoves,
+};

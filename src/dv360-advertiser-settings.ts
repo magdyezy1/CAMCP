@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {assertDV360WriteScope} from './dv360-scope.js';
 
 /**
  * Settings of the selected DV360 advertiser, Display & Video 360 API v4 (pinned Discovery document: advertisers.patch,
@@ -118,6 +119,7 @@ export const dv360AdvertiserFamily:ReviewedFamily={
  files:['src/dv360-advertiser-settings.ts',['tests/dv360-advertiser-settings.test.mjs']],
  kind:dv360AdvertiserKind,
  assert:assertDV360Advertiser,
+ scope:assertDV360WriteScope,
  snapshots:dv360AdvertiserSnapshots,
  isRead:isDV360AdvertiserRead,
  reader:readDV360Advertiser,

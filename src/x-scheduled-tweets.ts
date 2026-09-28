@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Scheduled Tweets of an X Ads account, Ads API v12 (Creatives reference and guide, "Scheduled Tweets"; docs.x.com copy
@@ -176,3 +177,21 @@ export function xScheduledVerification(p:CompiledRequest,result:JsonObject,befor
  return [{read:stateRead(p,{tweetId:id,optional:true}),expected:{tweet:expected},id:'scheduled Tweet '+id}];
 }
 export function xScheduledObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {tweet:object(data.tweet)?data.tweet:null};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const xScheduledFamily:ReviewedFamily={
+ name:'x_scheduled_tweets',
+ files:['src/x-scheduled-tweets.ts',['tests/x-scheduled-tweets.test.mjs']],
+ kind:xScheduledKind,
+ assert:assertXScheduled,
+ snapshots:xScheduledSnapshots,
+ isRead:isXScheduledRead,
+ reader:readXScheduled,
+ validateState:validateXScheduledState,
+ prerequisites:xScheduledPrerequisites,
+ impact:xScheduledImpact,
+ outcome:xScheduledOutcome,
+ verification:xScheduledVerification,
+ observed:xScheduledObserved,
+ exemptFromSpendTextMatch:true,
+};

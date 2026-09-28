@@ -1,6 +1,8 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
+import {assertDV360WriteScope} from './dv360-scope.js';
 
 /**
  * Advertiser-owned inventory source groups on Display & Video 360 API v4, per the pinned Discovery document
@@ -233,3 +235,26 @@ export function dv360InventoryGroupObserved(p:CompiledRequest,data:JsonObject):J
  if(s?.view==='sources')return {inventorySources:Array.isArray(data.assigned)?(data.assigned as Assignment[]).map(a=>a.inventorySourceId).sort(byId):null};
  return {group:obj(data.group)?data.group:null};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const dv360InventoryGroupFamily:ReviewedFamily={
+ name:'dv360_inventory_source_groups',
+ files:['src/dv360-inventory-source-groups.ts',['tests/dv360-inventory-source-groups.test.mjs']],
+ kind:dv360InventoryGroupKind,
+ assert:assertDV360InventoryGroup,
+ scope:assertDV360WriteScope,
+ authorize:authorizeDV360InventoryGroup,
+ snapshots:dv360InventoryGroupSnapshots,
+ isRead:isDV360InventoryGroupRead,
+ reader:readDV360InventoryGroup,
+ validateState:validateDV360InventoryGroupState,
+ prerequisites:dv360InventoryGroupPrerequisites,
+ impact:dv360InventoryGroupImpact,
+ outcome:dv360InventoryGroupOutcome,
+ verification:dv360InventoryGroupVerification,
+ observed:dv360InventoryGroupObserved,
+ spendConfirmation:{needed:dv360InventoryGroupServing,message:'Inventory source group membership decides which deals and auction packages line items targeting the group can buy. Review the change and provide spend_change_confirmed=true.'},
+ exemptFromSpendTextMatch:true,
+ activates:dv360InventoryGroupServing,
+ destructive:dv360InventoryGroupRemoves,
+};

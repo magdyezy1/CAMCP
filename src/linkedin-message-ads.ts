@@ -1,6 +1,7 @@
 import {MirrorError} from './errors.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * LinkedIn Message Ads and Conversation Ads content, per "Message Ads API" and "Conversation Ads API" of the Marketing API
@@ -337,3 +338,23 @@ export function linkedinMessageObserved(read:CompiledRequest,data:JsonObject):Js
  for(const k of (read as Read).linkedinMessageState?.absent??[])if(!Object.hasOwn(messages,k))messages[k]={present:false};
  return {conversation:data.conversation??null,inmail:data.inmail??null,messages};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const linkedinMessageFamily:ReviewedFamily={
+ name:'linkedin_message_ads',
+ files:['src/linkedin-message-ads.ts',['tests/linkedin-message-ads.test.mjs']],
+ kind:linkedinMessageKind,
+ assert:assertLinkedInMessage,
+ scope:assertLinkedInMessageScope,
+ authorize:authorizeLinkedInMessage,
+ snapshots:linkedinMessageSnapshots,
+ isRead:isLinkedInMessageRead,
+ reader:readLinkedInMessage,
+ validateState:validateLinkedInMessageState,
+ prerequisites:linkedinMessagePrerequisites,
+ impact:linkedinMessageImpact,
+ outcome:linkedinMessageOutcome,
+ verification:linkedinMessageVerification,
+ observed:linkedinMessageObserved,
+ exemptFromSpendTextMatch:true,
+};

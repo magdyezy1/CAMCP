@@ -3,6 +3,7 @@ import {stable} from './security.js';
 import type {Store} from './store.js';
 import type {CompiledRequest,Connection,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
 
 /**
  * Criteo Retail Media preferred (onsite display) line items on API 2026-01, per the pinned OpenAPI document
@@ -211,3 +212,28 @@ export function criteoPreferredVerification(p:CompiledRequest,result:JsonObject,
  return [{read:{...read(p,prefix+'/accounts',{limitToId:[p.accountId!],pageIndex:0,pageSize:2}),criteoPreferredState:{lineItemId:lineId,...(id(a.creativeId)?{creativeId:a.creativeId}:{})}},expected:{line:{...expected,id:lineId,...(kind==='create'?{targetRetailerId:String(a.targetRetailerId)}:{})}},id:'preferred line item '+lineId}];
 }
 export function criteoPreferredObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {line:obj(data.line)?data.line:null};}
+
+/** The preferred line item a verified creation made; its ID becomes readable for the account. */
+export function criteoPreferredVerifiedResources(p:CompiledRequest,actual:JsonObject):string[]{return criteoPreferredKind(p)==='create'&&typeof actual?.line?.id==='string'?['preferred-line-items/'+actual.line.id]:[];}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const criteoPreferredFamily:ReviewedFamily={
+ name:'criteo_preferred_line_items',
+ files:['src/criteo-preferred-line-items.ts',['tests/criteo-preferred-line-items.test.mjs']],
+ kind:criteoPreferredKind,
+ assert:assertCriteoPreferred,
+ scope:assertCriteoPreferredScopes,
+ authorize:(plan,connection,id,store)=>authorizeCriteoPreferred(plan,connection,store,id),
+ snapshots:criteoPreferredSnapshots,
+ isRead:isCriteoPreferredRead,
+ reader:readCriteoPreferred,
+ validateState:validateCriteoPreferredState,
+ prerequisites:criteoPreferredPrerequisites,
+ impact:criteoPreferredImpact,
+ outcome:criteoPreferredOutcome,
+ verification:criteoPreferredVerification,
+ observed:criteoPreferredObserved,
+ verifiedResources:criteoPreferredVerifiedResources,
+ spendConfirmation:{needed:p=>!!criteoPreferredKind(p),message:p=>criteoPreferredKind(p)==='create'?'The new preferred line item carries a budget that it spends once it is activated. Review it and provide spend_change_confirmed=true.':'A complete preferred line item PUT replaces its budget, dates, placement and status and can start or change spending. Review it and provide spend_change_confirmed=true.'},
+ policyAmounts:criteoPreferredPolicyAmounts,
+};

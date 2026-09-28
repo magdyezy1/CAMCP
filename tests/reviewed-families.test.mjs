@@ -14,7 +14,7 @@ const planOf=r=>({gateway:r.gateway,action:r.operation?r.operation+(r.action!==r
 const routes=rows.filter(r=>r.method&&r.path);
 
 test('every registered family is complete and owns routes in the action ledger',()=>{
- assert.ok(families.length>=41);
+ assert.ok(families.length>=57);
  assert.equal(new Set(families.map(f=>f.name)).size,families.length,'family names are unique');
  for(const f of families){
   assert.match(f.name,/^[a-z0-9]+(?:_[a-z0-9]+)+$/,f.name);
@@ -23,7 +23,8 @@ test('every registered family is complete and owns routes in the action ledger',
   for(const t of f.files[1])assert.ok(fs.existsSync(t),f.name+': '+t);
   // A family that marks reads must recognise them, or its reads would reach no validator or projection.
   if(f.reader||f.validateState||f.observed)assert.equal(typeof f.isRead,'function',f.name+' marks reads without isRead');
-  if(f.spendConfirmation)assert.ok(f.spendConfirmation.message.includes('spend_change_confirmed=true'),f.name+' names the flag');
+  // A message may depend on the request; either way it names the flag the caller must send.
+  if(f.spendConfirmation)assert.ok(String(f.spendConfirmation.message).includes('spend_change_confirmed=true'),f.name+' names the flag');
   assert.ok(rows.some(r=>r.family===f.name&&r.status==='reviewed_write_family'),f.name+' owns no ledger route');
  }
 });
@@ -71,10 +72,8 @@ test('family readers pass every read they did not mark to the next reader unchan
 
 test('lifecycle modules reach registered families only through the registry',()=>{
  const lifecycle=['write-review','write-verification','write-impact','preflight','review-state','reviewed-routes','scope','spend-policy','execution-risk','action-contracts'];
- // The DV360 display-video write scope is one gateway-level check that still names its families; it moves when every
- // DV360 family is registered.
- const allowed=new Set(['write-review:dv360AdvertiserKind','write-review:dv360LineItemBulkKind']);
- const hookNames=new Set(['kind','assert','scope','authorize','snapshots','isRead','reader','validateState','prerequisites','impact','outcome','verification','observed','needed','activates','destructive','policyAmounts']);
+ const allowed=new Set();
+ const hookNames=new Set(['kind','assert','scope','authorize','snapshots','isRead','reader','validateState','prerequisites','impact','outcome','verification','observed','needed','message','activates','destructive','policyAmounts','snapshotState','verifiedResources']);
  const names=new Set();
  for(const f of families)for(const v of [...Object.values(f),f.spendConfirmation?.needed])if(typeof v==='function'&&v.name&&!hookNames.has(v.name))names.add(v.name);
  for(const f of families)if(f.scope)names.delete(f.scope.name); // shared assertions such as assertGoogleAdsScope

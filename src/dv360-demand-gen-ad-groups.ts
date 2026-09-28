@@ -5,6 +5,8 @@ import {stable} from './security.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import type {CompiledRequest,JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import type {ReviewedFamily} from './reviewed-family.js';
+import {assertDV360WriteScope} from './dv360-scope.js';
 
 /**
  * Demand Gen ad groups on Display & Video 360 API v4, per the pinned Discovery document (AdGroup, adGroups.create, patch
@@ -217,3 +219,24 @@ export function dv360AdGroupVerification(plan:CompiledRequest,result:JsonObject,
  return [{read:dv360AdGroupStateRead(plan,{adGroupId:id,optional:kind==='delete'}),expected:{adGroup:expected},id:'Demand Gen ad group '+id}];
 }
 export function dv360AdGroupObserved(_read:CompiledRequest,data:JsonObject):JsonObject{return {adGroup:obj(data.adGroup)?data.adGroup:null};}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const dv360AdGroupFamily:ReviewedFamily={
+ name:'dv360_demand_gen_ad_groups',
+ files:['src/dv360-demand-gen-ad-groups.ts',['tests/dv360-demand-gen-ad-groups.test.mjs']],
+ kind:dv360AdGroupKind,
+ assert:assertDV360AdGroup,
+ scope:assertDV360WriteScope,
+ snapshots:dv360AdGroupReads,
+ isRead:isDV360AdGroupRead,
+ reader:readDV360AdGroups,
+ validateState:validateDV360AdGroupState,
+ snapshotState:(_read,data)=>dv360AdGroupReviewState(data),
+ prerequisites:validateDV360AdGroupPrerequisites,
+ impact:dv360AdGroupImpact,
+ outcome:dv360AdGroupOutcome,
+ verification:dv360AdGroupVerification,
+ observed:dv360AdGroupObserved,
+ spendConfirmation:{needed:dv360AdGroupNeedsConfirmation,message:'An active Demand Gen ad group bids once its line item and an ad are active, and a bid value changes what it pays. Review the ad group and provide spend_change_confirmed=true.'},
+ exemptFromSpendTextMatch:true,
+};

@@ -134,3 +134,17 @@ tests. The first run stopped at `report --check`, because a public release does 
 `9bd24e4` compares only files present, and the remaining checks (`report --check`, `check:web`, provider drift and
 lifecycle, contracts, action ledger) then passed in the same candidate with the fixed tool. Railway check passes.
 479 s. The candidate's files equal `9bd24e4` for all 125 files changed since `2360a9c`.
+
+## Batch 6 — registry pass 2, website focus, MFA setup and team removal
+
+Findings: F-39, F-42, part of F-41, and F-59, F-60, F-63 in part.
+
+| Change | Evidence |
+|---|---|
+| 16 more families registered (57 in all); the lifecycle modules lose another 310 lines (16 added); reader chains 42 → 26 and 39 → 23 levels. Verification hooks receive `before`, scope hooks the plan; a spend message may depend on the request; new `snapshotState` (DV360 Demand Gen ad groups) and `verifiedResources` (Criteo preferred line items) hooks; the DV360 display-video write scope is the `assertDV360WriteScope` hook of the six registered DV360 families | the 2,708 existing tests; the ledger and `CONTRACTS.md` unchanged; the 40,624 recorded calls of the pre-refactor build replay with **0 differences**; `tests/reviewed-families.test.mjs` now allows no lifecycle module to name a registered family |
+| Keyboard focus returns to the control after an action, or to its section, or to the page heading (`authBind`, F-39) | Chromium probe on the settings page |
+| MFA setup steps, open-in-authenticator link, grouped copyable key, copy and download of recovery codes (F-41) | `check:web`; 57 tests loading web scripts |
+| Member removal is a confirmed button of its own; success messages are notices (F-42) | same |
+
+Kept wired on purpose, with the reason in `docs/ADDING-A-REVIEWED-FAMILY.md`: TikTok negative keywords, whose
+snapshots the generic TikTok branches normalize — registering it would change its state hash.
