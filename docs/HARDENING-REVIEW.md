@@ -30,3 +30,30 @@ Curated campaign/ad-set/creative/context preflight, automatic Meta Page Access T
 `npm run report` replays 33 frozen catalog pages and 20 frozen DESCRIBE_ACTION payloads across Google Ads, Meta, TikTok, Snapchat, LinkedIn and X. Four sanitized Meta/TikTok/Snapchat/X preview fixtures compare canonical action, HTTP method, resolved path, query and body. Their provenance records the source hash and account-ID substitution; headers, outer envelopes and preflight receipts are outside these comparisons. Google and LinkedIn have zero successful preview-routing fixtures in this set.
 
 The machine-readable counts are written to `.mirror/REPORTS/compatibility-verification.json` and included in the implementation status report. Full preview-envelope equivalence and live-equivalence counts remain zero. Automated checks use local mocks or frozen evidence and make no advertising-platform writes. Production OAuth acceptance and full platform/workflow qualification remain outstanding.
+
+## Security and reliability review (2026-09-28)
+
+A second review covered the threat model, the controls reached through MCP, the website and the engineering
+workflow. Its records are in `docs/review/`: [findings](review/FINDINGS.md) with severity and status,
+[threat model](review/THREAT-MODEL.md), [MCP read/write calibration](review/MCP-SECURITY-CALIBRATION.md),
+[accessibility](review/ACCESSIBILITY.md) and the [progress log](review/PROGRESS.md) with each batch's evidence and
+qualification. Every behavioural change came with a test that failed before it and passed after, and each batch was qualified
+with `npm run check` and `deploy/check-railway.mjs` in a fresh sanitized release candidate.
+
+| Area | Decision and implementation |
+| --- | --- |
+| Spending and activation | Numeric statuses count as activation for owner policies and spend confirmation (F-01); Reddit `goal_value` is counted by budget policies (F-02); delivery edits of existing entities need `spend_change_confirmed` by structure, not by field-name text (F-03). |
+| Who confirms a spend change | `amcp_campaign` no longer pre-fills `spend_change_confirmed` or `confirmed` (F-05); `prepare` announces every acknowledgement execute will need in `execute_requirements` (F-06). |
+| Request integrity | Enhanced-mode `native_request` is refused in `amcp_write`, since it lets a caller choose action and path independently (F-07); dot segments are rejected before scope checks (F-20); GCM tag length is checked (F-19). |
+| Emergency stop | The owner can pause and resume every reviewed write at runtime with a reason (`pause_writes`, F-24); reads, reviews and verification continue. |
+| Sign-in and MCP OAuth | Rate limits attributed to the resolved client address, with trusted proxies set by the operator (F-08); two-step codes limited per person (F-09); recent sign-in kept across workspace switches (F-10); client registrations pruned (F-11); per-kind challenge caps (F-12); email flows that do not wait on delivery (F-13); reviewer sessions scoped to themselves (F-14); HSTS/COOP/CORP everywhere (F-17); code replay revokes its tokens and expired grants are pruned (F-25, part). Details in [OAuth hardening](OAUTH-HARDENING.md). |
+| Provider content | Reads are audited by size, hash and row counts instead of content (F-18, part); `meta.untrusted_paths` names where provider text can appear (F-22); Drive inspection is streamed and bounded (F-21). |
+| Refusals | Expired reviews return the re-prepare call (F-27); campaign plans pass `account_id` only where declared (F-26); most refusal codes name their own next step (F-28); `RESOURCE_SCOPE_REQUIRED` names the ownership read (F-70, part). |
+| Structure | 57 reviewed write families are declared once and reached through a typed registry, proven equivalent by replaying 40,624 recorded calls (F-59, F-60, part); Prettier formatting proven by syntax-tree equality (F-62). |
+
+Still open, with recommendations: owner decisions on unit-aware default policies and bid ceilings (F-04, F-57),
+invitations under closed sign-up (F-15), an out-of-band approval for spend and activation, loosening the value-text
+spend match, provider version upgrades (F-49 … F-53) and a QR encoder for MFA setup; and planned work on legacy
+administrator hashing (F-16), idle session timeout and security-change alerts (F-25), purge on disconnect and
+encrypted-only backups (F-18).
+
