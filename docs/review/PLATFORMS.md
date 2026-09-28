@@ -14,7 +14,7 @@ registry (`src/reviewed-families.ts`).
 
 | Platform | API pinned | Reads | Reviewed (families, registered) | Blocked | Activation field | Primary conversions in reports | Lifecycle |
 |---|---|---|---|---|---|---|---|
-| Google Ads | v23 | 175 | 213 (23, 8) | 57 | `status` ENABLED | `metrics.conversions` | v23 sunsets 2027-02; v25 current (F-49) |
+| Google Ads | v25 | 173 | 212 (23, 8) | 53 | `status` ENABLED | `metrics.conversions` | on v25 since batch 14; v25 sunset date not read (F-49) |
 | Meta | v25.0 | 420 | 54 (13, 6) | 112 | `status` ACTIVE | leads, installs or purchases by objective; empty otherwise | v26.0 released 2026-07-29; v25.0 end date unverified (F-52) |
 | TikTok | v1.3 | 316 | 68 (27, 7) | 167 | `operation_status` ENABLE | `conversion` (the ad group's optimization event) | no dated sunset recorded |
 | Snapchat | v1 | 271 | 60 (10, 0) | 66 | `status` ACTIVE | installs, sign-ups or purchases by objective | no dated sunset recorded |
@@ -54,9 +54,9 @@ have no reviewed writes.
 
 ## Platform notes
 
-**Google Ads.** The largest surface (213 reviewed routes, 23 families). The v23 → v25 migration is the most urgent
-lifecycle item: v23 stops in 2027-02, and the migration touches every GAQL field list and enum used by the families
-(F-49, owner decision). Numeric enum values in writes are refused since batch 1, so a changed enum number cannot slip
+**Google Ads.** The largest surface (212 reviewed routes, 23 families). On v25 since batch 14 (F-49): the families were
+rechecked against the v25 contract, and the seven names whose operation v25 removed (lifecycle goals, campaign-level
+brand safety) are refused with their replacement ([the migration record](../implementation/GOOGLE-ADS-V25-2026-09-28.md)). Numeric enum values in writes are refused since batch 1, so a changed enum number cannot slip
 through.
 
 **Meta.** Broad reads (420) with writes limited to 13 families. The unified-attribution report path is pinned to
@@ -110,8 +110,8 @@ because they have no paused state.
 
 ## Recommendations, in order
 
-1. Decide the Google Ads v23 → v25 migration (sunset 2027-02) and the Microsoft REST evidence (2027-01-31); both have
-   hard dates inside the next five months.
+1. Decide the Microsoft REST evidence (2027-01-31), which has a hard date inside the next five months. (Google Ads moved
+   to v25 in batch 14.)
 2. Add a dated sunset registry with a 90-day alarm and make the drift job open an issue on change (F-56).
 3. Pin public schemas for the platforms that have none, where the vendor publishes one (every pinned document is
    sealed since batch 5, F-72).

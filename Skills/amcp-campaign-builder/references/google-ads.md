@@ -1,5 +1,22 @@
 # Google Ads: choose the channel's actual hierarchy
 
+## API version
+
+AMCP sends Google Ads requests at **v25** (since 2026-09-28) and checks each one against the pinned v25 Discovery
+document. Action names keep their captured `google_ads_v23_…` spelling: they are names, not the version sent. The
+sections below cite the v23 references they were written against; every contract was rechecked against v25, and
+only these changed:
+
+- Shareable previews take a new request and result shape (below).
+- Lifecycle goals are gone: `CONFIGURE_*_LIFECYCLE_GOAL`, `LIST_*_LIFECYCLE_GOALS` and the two native lifecycle RPCs
+  return `PROVIDER_ACTION_UNSUPPORTED`. New customer acquisition is now a goal type (`goal`, `campaign_goal_config`).
+- The campaign-level video brand safety setting is gone: `SET_CAMPAIGN_BRAND_SAFETY` is refused. Set the account's
+  setting under Account settings, or exclude content labels per campaign (`SET_CAMPAIGN_CONTENT_LABEL_EXCLUSIONS`).
+- The user list customer type `LOYALTY_SIGN_UPS` is gone.
+
+GAQL field facts (selectable, repeated) come from the v23 field reference; the v25 Discovery document confirms each
+field AMCP reads still exists with the same cardinality.
+
 ## Campaign call-interaction bid modifiers
 
 The v23 `CampaignBidModifierService.MutateCampaignBidModifiers` RPC and the
@@ -301,8 +318,8 @@ attach and remove.
   and category once; lists of the selected customer only. `partialFailure` and `validateOnly`
   stay false.
 - Categories: `ALL_CUSTOMERS`, `PURCHASERS`, `HIGH_VALUE_CUSTOMERS`, `DISENGAGED_CUSTOMERS`,
-  `QUALIFIED_LEADS`, `CONVERTED_LEADS`, `PAID_SUBSCRIBERS`, `LOYALTY_SIGN_UPS`, `CART_ABANDONERS`
-  and `LOYALTY_TIER_1_MEMBERS` to `LOYALTY_TIER_7_MEMBERS`.
+  `QUALIFIED_LEADS`, `CONVERTED_LEADS`, `PAID_SUBSCRIBERS`, `CART_ABANDONERS` and
+  `LOYALTY_TIER_1_MEMBERS` to `LOYALTY_TIER_7_MEMBERS` (v25 dropped `LOYALTY_SIGN_UPS`).
 - Google refuses conflicting types on one list: purchasers with converted leads, qualified leads
   or cart abandoners; qualified with converted leads; disengaged customers with converted leads,
   qualified leads or cart abandoners; and two different loyalty tiers. AMCP checks the types the
@@ -310,7 +327,7 @@ attach and remove.
 - AMCP reads the customer (conversion tracking must be enabled and managed by this account, or by
   this manager), each list (CRM-based or rule-based to attach a type; a revoked share is refused)
   and the current types of each list. An existing type is `CONFIGURATION_EXISTS`; removing a type
-  the list does not have is refused. Lists that v23 cannot name (data-model and GCN lists read as
+  the list does not have is refused. Lists that the API cannot name (data-model and GCN lists read as
   `UNKNOWN`) are refused too.
 - No spending confirmation is needed: budgets and list members do not change. A result that does
   not name every requested type is a failure and is not resubmitted.
@@ -1005,8 +1022,8 @@ Official evidence checked 2026-09-20:
 [native user service](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/services/customer_user_access_service.proto),
 [native invitation service](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/services/customer_user_access_invitation_service.proto),
 and [invitation sample](https://developers.google.com/google-ads/api/samples/invite-user-with-access-role).
-The sample uses a newer version; runtime contracts remain pinned to v23 Discovery
-and nine source-hashed official protos in `google-user-access-v23.json`, reproduced
+Runtime contracts are pinned to the v25 Discovery document and nine source-hashed
+official v25 protos in `google-user-access-v25.json` (rechecked 2026-09-28), reproduced
 by `tools/google-access-evidence.mjs`. Local lifecycle, negative and restart tests
 use synthetic accounts. No live invitation or permission change was performed.
 
@@ -1083,34 +1100,35 @@ Official evidence checked 2026-09-24: [v23 strategy fields](https://developers.g
 [immutable type and association errors](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/errors/bidding_strategy_error.proto),
 and [current scheme contexts](https://developers.google.com/google-ads/api/docs/campaigns/bidding/strategy-types).
 Seven public source hashes and extracted fields/enums are pinned in
-`tests/fixtures/google-portfolio-v23.json`; `tools/google-portfolio-evidence.mjs`
-regenerates it from explicitly supplied public source files. Runtime remains v23;
-newer guide examples do not silently upgrade it. The machine-checked inspection
+`tests/fixtures/google-portfolio-v25.json` (the v25 protos, rechecked 2026-09-28: only the route version changed);
+`tools/google-portfolio-evidence.mjs` regenerates it from explicitly supplied public source files. The machine-checked inspection
 examples and synthetic lifecycle tests establish local behavior, not live acceptance.
 
 ## Shareable previews
 
 `GENERATE_SHAREABLE_PREVIEWS` and
-`google_ads_v23_shareable_preview_generate_shareable_previews` now use a reviewed
-v23 contract. These calls create shareable links, so use `amcp_write inspect`,
+`google_ads_v23_shareable_preview_generate_shareable_previews` use a reviewed
+v25 contract. These calls create shareable links, so use `amcp_write inspect`,
 `prepare`, and confirmed `execute`. They require the selected Ads connection,
 adwords scope, operator role, account write grant and enabled deployment writes.
 They do not publish, activate or edit ads and do not require spend confirmation.
+`amcp_ad_previews` with `platform: google_ads` names this call for you.
 
-Supply 1–25 distinct `shareablePreviews` records. For Performance Max use
-`{"assetGroupIdentifier":{"assetGroupId":"7"},"previewType":"UI_PREVIEW"}`.
+Supply 1–25 distinct previews in an operation, each naming its type:
+`{"operation":{"shareablePreviews":[…]}}`. For a Performance Max asset group use
+`{"assetGroup":"customers/123/assetGroups/7","previewType":"UI_PREVIEW"}`.
 For an existing eligible YouTube video/audio ad use
 `{"adGroupAd":"customers/123/adGroupAds/5~9","previewType":"YOUTUBE_LIVE_PREVIEW"}`.
 The IDs here are synthetic examples; discover current IDs in the selected account.
-Never substitute Search or Display ads. Google decides exact format eligibility
-in its per-item result; an account grant alone does not establish that eligibility.
-Do not copy v24 identifier shapes into the pinned v23 request.
+Never substitute Search or Display ads: Google answers `UNSUPPORTED_AD_TYPE` for the
+whole request. The v23 shape (`shareablePreviews` at the top, `assetGroupIdentifier`)
+is refused, and the error's `version_change` shows the v25 one.
 
 Ask before sharing the resulting link with another person. A preview link is a
 private capability, not proof of provider approval. AMCP retains validated links
 encrypted for at most 24 hours and hides them from ordinary receipts/audit.
 `previews.results` contains the validated link(s), target, status and provider
-expiration when supplied. Open UI previews in a separate tab; Google forbids
+expiration when supplied. Open previews in a separate tab; Google forbids
 iframe embedding. AMCP does not fetch the link or claim the creative rendered.
 The accepted URL hosts are ads.google.com and, for YouTube mode, youtube.com,
 www.youtube.com and tv.youtube.com. Unexpected hosts need contract review.
@@ -1121,23 +1139,23 @@ the state hash. The rendering can include inherited assets, feeds or later sourc
 changes: this is a review to generate a preview, not a frozen-content approval.
 For campaign/creative edits, prepare those operations separately.
 
-HTTP 200 can contain a mixture of generated previews and native errors. Inspect
-every result; a partial response is not successful completion. Keep the original
-review/key. Repeating `execute` returns its saved outcome and retained links without
-another generation. A lost provider response stays uncertain; never manufacture
-a new key to retry it. Expired/unavailable links are explicit and require a new
-user-authorized generation. `amcp_campaign verify` checks the original receipt and
-current sources, without generating/fetching another preview. Source disagreement
-is inconclusive, not permission to repeat the operation.
+Google answers for the whole request: one result per preview (`result.previews`,
+each naming its asset group or ad and holding a UI or YouTube result), or an
+error. A response that does not match the reviewed previews one to one is not a
+success. Keep the original review/key. Repeating `execute` returns its saved
+outcome and retained links without another generation. A lost provider response
+stays uncertain; never manufacture a new key to retry it. Expired/unavailable
+links are explicit and require a new user-authorized generation. `amcp_campaign
+verify` checks the original receipt and current sources, without generating or
+fetching another preview. Source disagreement is inconclusive, not permission to
+repeat the operation.
 
-Official evidence checked 2026-09-24:
-[v23 service and restrictions](https://developers.google.com/google-ads/api/reference/rpc/v23/ShareablePreviewService),
-[native protocol](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/services/shareable_preview_service.proto),
-[v23 input](https://developers.google.com/google-ads/api/reference/rpc/v23/ShareablePreview),
-and [native per-item result](https://developers.google.com/google-ads/api/reference/rpc/v23/ShareablePreviewOrError).
-The fixture and `tools/google-preview-evidence.mjs` pin and check protocol fields,
-route, scope and oneofs. Local tests use synthetic data; live format acceptance,
-link expiry/lifetime and rendering remain unverified.
+Official evidence checked 2026-09-28:
+[the v25 service](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/services/shareable_preview_service.proto)
+and [the v25 request and result](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/actions/generate_shareable_previews.proto).
+`tests/fixtures/google-preview-v25.json` and `tools/google-preview-evidence.mjs`
+pin and check protocol fields, route, scope and oneofs. Local tests use synthetic
+data; live format acceptance, link expiry/lifetime and rendering remain unverified.
 
 ## Conversion definitions
 
@@ -1201,11 +1219,11 @@ need a separately supported ingestion route, consent and provider access.
 In particular, the June 2026 offline-click upload restrictions are not removed
 by creating an UPLOAD_CLICKS definition.
 
-Native protocol/field evidence was checked on 2026-09-25 and pinned in
-`tests/fixtures/google-conversion-actions-v23.json`. Regenerate using
-`tools/google-conversion-evidence.mjs --source-dir <public-source-directory>`;
-the directory must contain the named v23 protos and public field-table excerpts
-in `fields.txt`. No credentials are used by that extractor.
+Native protocol evidence is pinned in `tests/fixtures/google-conversion-actions-v25.json`
+(the v25 protos, rechecked 2026-09-28: v25 adds conversion types and a category, removes none), and the GAQL field
+table (checked 2026-09-25 at v23) in `tests/fixtures/google-conversion-fields-v23.json`. Regenerate them with
+`tools/google-conversion-evidence.mjs --source-dir <public-source-directory>` and
+`tools/google-conversion-field-evidence.mjs <reference-text> <date>`. Neither uses credentials.
 
 Sources: [v23 mutation service](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/services/conversion_action_service.proto),
 [native definition fields](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v23/resources/conversion_action.proto),
@@ -1218,8 +1236,8 @@ Local synthetic tests are not live acceptance, upload authorization or tracking 
 
 ## Customizer attribute availability
 
-`UPDATE_CUSTOMIZER_ATTRIBUTE` is a historical alias with no Google Ads v23 update
-operation. Inspect returns `PROVIDER_ACTION_UNSUPPORTED` with its official source;
+`UPDATE_CUSTOMIZER_ATTRIBUTE` is a historical alias with no Google Ads update
+operation (v23 or v25). Inspect returns `PROVIDER_ACTION_UNSUPPORTED` with its official source;
 additional confirmation cannot enable it. The native operation union supports
 create and remove, even though its service comment and `update_mask` mention
 updates. Existing `CREATE_CUSTOMIZER_ATTRIBUTE`, `REMOVE_CUSTOMIZER_ATTRIBUTE`
@@ -1228,4 +1246,4 @@ and the corresponding native RPC remain reviewed writes.
 For a changed name/type, create a new attribute, then separately inspect and
 review replacement associations and affected ads. Do not automatically delete
 the old attribute or promise an atomic migration. Existing association values
-have their own contracts. See the [v23 service definition](https://github.com/googleapis/googleapis/blob/master/google/ads/googleads/v23/services/customizer_attribute_service.proto), checked 2026-09-25.
+have their own contracts. See the [v25 service definition](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/services/customizer_attribute_service.proto), checked 2026-09-28.

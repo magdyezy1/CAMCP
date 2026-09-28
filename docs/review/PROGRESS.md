@@ -269,3 +269,26 @@ fields, and `docs/AD-PREVIEWS.md` says so. X's preview route is not called, beca
 Full qualification (`.release/batch13-20260928`, up to `85506b1`): **2,753 / 2,753** tests and **4 / 4** capture
 tests; `format:check`, every generated-artifact check and the Railway check pass. 508 s. The candidate's 1,177 source
 files equal `85506b1`, apart from `release-manifest.json`.
+
+## Batch 14 — Google Ads v25
+
+Findings: F-49, F-77, F-78, F-79 (and F-80 recorded). The owner's decision of 2026-09-28: upgrade the provider APIs,
+Google Ads v25 first. Every difference found is in the
+[migration record](../implementation/GOOGLE-ADS-V25-2026-09-28.md).
+
+| Change | Evidence |
+|---|---|
+| One version module (`src/google-version.ts`): paths, the pinned Discovery contract, catalog records, captured listings and the tool definition follow `googleAdsVersion`; action names keep their captured `google_ads_v23_…` spelling | `tests/google-version.test.mjs` (7 tests): the source, the evidence tools, the descriptors, the routes and the Discovery document agree on v25; every catalog path is at v25; what callers read (tool definition, catalog pages, descriptions) says v25 |
+| The v25 Discovery document (revision 20260923) is pinned and sealed; the v23 one is removed; every captured RPC v25 still has maps to exactly one v25 method with its request schema | `tests/google-contracts.test.ts`: 175 methods, 1,489 schemas, 169 routes; the two unrouted RPCs are exactly the retired ones |
+| Two server paths outside the catalog kept `/v23/`: account discovery and re-authorisation now build their paths from the version module | the account discovery and diagnostics suites (`tests/google-sync-errors.test.ts`) against v25 paths |
+| The legacy adapter's protobuf descriptors are generated: `tools/google-legacy-descriptors.mjs` reproduces the pinned v23 set exactly, then writes v25 | v23 reproduction: 2,206 of 2,206 descriptors, 726 sources and 171 request types equal (9 upstream v23 files changed since pinning, only in comments); v25: 2,297 descriptors, 756 sources, 169 request types |
+| What v25 removed is refused by name with its replacement: lifecycle goal configuration and reads (four legacy names, two RPCs) and campaign-level video brand safety | `tests/google-version.test.mjs`; `tests/provider-unavailable-actions.test.mjs`; the contract ledger moves 7 rows to `provider_unsupported` |
+| Shareable previews use the v25 request (`operation.shareablePreviews`, `assetGroup` by resource, `previewType` required) and result (`result.previews`, no per-preview errors); a v23-shaped request is refused with the v25 shape in `version_change` | `tests/google-preview-writes.test.ts` (18 tests, rewritten for v25, including the v23 shapes and a v23-shaped receipt); `tests/ad-previews.test.ts` |
+| Required request fields recorded at v23 are checked against v25: one rename mapped (`shareable_previews` → `operation`); a missing field is the caller's `MISSING_PARAMETER` (was `INTERNAL_ERROR`) | `tests/google-version.test.mjs` (152 fields); `tests/google-experiment-lifecycle.test.mjs` |
+| Proto evidence re-derived from the official v25 protos (previews, user access, portfolios, conversion actions) with shared helpers (`tools/google-protos.mjs`); the conversion field table is its own fixture | the four tools reproduce their fixtures with `--check`; user access and portfolios differ from v23 only in the route version; conversion actions gained 10 types and 1 category |
+| The GAQL fields AMCP took from the v23 field reference (626) exist in v25 with the same cardinality | `tests/google-version.test.mjs` |
+
+The official pages on `developers.google.com` are outside the review environment's network policy: v25's sunset date,
+the v25 field reference and the release notes were not read. The Discovery document and the googleapis protos are
+the evidence. LinkedIn, Meta and Criteo, next in the owner's order, publish their API references on hosts the same
+policy blocks, so their upgrades wait for documentation access.

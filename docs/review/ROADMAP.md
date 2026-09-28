@@ -69,7 +69,7 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
 
 ## P5 — functionality and contracts
 
-- Provider lifecycle: dated sunset registry with a 90-day alarm; Google Ads v23 → v25 (sunset 2027-02), Microsoft REST
+- Provider lifecycle: dated sunset registry with a 90-day alarm; Google Ads v23 → v25 (done in batch 14), Microsoft REST
   evidence (SOAP ends 2027-01-31), Criteo 2026-01 → 2026-07, Meta v26 (F-49 … F-52, F-56). **owner** for the
   upgrade order.
 - Newly implementable ledger rows (F-58), each to the full family standard.

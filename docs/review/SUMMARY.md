@@ -1,7 +1,7 @@
 # Review summary for the owner
 
 Review of AMCP started 2026-09-28 from `03ac8d3`, on branch `Codex-branch`. The detailed records are in this
-folder: [FINDINGS.md](FINDINGS.md) (72 findings with severity and status), [THREAT-MODEL.md](THREAT-MODEL.md),
+folder: [FINDINGS.md](FINDINGS.md) (80 findings with severity and status), [THREAT-MODEL.md](THREAT-MODEL.md),
 [MCP-SECURITY-CALIBRATION.md](MCP-SECURITY-CALIBRATION.md) (your question on read and write controls),
 [PLATFORMS.md](PLATFORMS.md) (per-platform contracts and workflows), [ACCESSIBILITY.md](ACCESSIBILITY.md),
 [ARCHITECTURE.md](ARCHITECTURE.md), [ROADMAP.md](ROADMAP.md) and [PROGRESS.md](PROGRESS.md), which lists every batch
@@ -58,6 +58,13 @@ Links are fetched only from public internet addresses. *Preview your ads* (and `
 platform's own preview links for existing ads on Meta, TikTok, Snapchat, LinkedIn and Reddit, and names the reviewed
 call that creates a Google Ads shareable preview.
 
+**Google Ads v25.** AMCP now sends Google Ads requests at v25, checked against the pinned v25 contract, well before
+v23's 2027-02 sunset. Every contract was compared with v25 rather than assumed: seven action names whose operation v25
+removed (lifecycle goals, campaign-level video brand safety) are refused and name what to use instead, shareable
+previews use the new request shape, and two server paths that had kept `/v23/` (account discovery and
+re-authorisation, which would have failed at the sunset) are fixed. Action names keep their `google_ads_v23_…`
+spelling. The [migration record](../implementation/GOOGLE-ADS-V25-2026-09-28.md) lists every difference found.
+
 **MCP workflow.** Each AMCP tool says when to use it rather than its neighbour. An opt-in flag
 (`MIRROR_FLAGS={"compactSchemas":true}`) removes the duplicated DV360 action names from every `tools/list`.
 
@@ -102,7 +109,7 @@ Each of these changes a level of protection, a deployment, a dependency or the p
 | Spend confirmation on field names only | Yes | Done in batch 11 |
 | Idle timeout and security-change emails (F-25) | Yes | Done in batch 11 |
 | Encrypted-only backups and purge on disconnect (F-18) | Yes | Done in batch 11 |
-| Provider upgrades: Google Ads v25 first, then LinkedIn and Meta, then Criteo (F-49 … F-53) | Yes | In progress, against official documentation |
+| Provider upgrades: Google Ads v25 first, then LinkedIn and Meta, then Criteo (F-49 … F-53) | Yes | Google Ads v25 done in batch 14. LinkedIn, Meta and Criteo wait on their documentation, which this environment's network policy blocks |
 | Invitations while sign-up is closed (F-15) | Keep them pending | Done in batch 11 |
 | A vendored QR encoder for two-step setup | Yes | Done in batch 11 |
 | Production settings `MIRROR_FLAGS` and `AMCP_TRUSTED_PROXY_CIDRS` | Yes | Documented in `docs/DEPLOY-RAILWAY.md`; setting them needs Railway access, which this review does not have |
