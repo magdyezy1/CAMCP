@@ -1519,6 +1519,19 @@
       }
     },
     {
+      "gateway": "x_ads_native_action",
+      "arguments": {
+        "action": "x_accounts_account_id_cards_poll_post",
+        "account_id": "abc12",
+        "payload": {
+          "name": "Best coast",
+          "duration_in_minutes": 1440,
+          "first_choice": "East",
+          "second_choice": "West"
+        }
+      }
+    },
+    {
       "gateway": "tiktok_native_action",
       "arguments": {
         "action": "tiktok_dmp_custom_audience_rule_create",

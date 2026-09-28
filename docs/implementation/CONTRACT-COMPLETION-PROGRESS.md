@@ -8,6 +8,17 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## FD — X poll and conversation cards (2026-09-27)
+
+X poll, image conversation and video conversation cards can now be created through reviewed
+requests that check each field against the Creatives reference, read the media library first and
+read the new card back. See [implementation](X-CONVERSATION-CARDS-2026-09-27.md),
+[qualification](X-CONVERSATION-CARDS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 717 (three X rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## FC — TikTok audiences by rule (2026-09-27)
 
 TikTok retargeting audiences of website visitors, ad engagers and lead form users can now be
@@ -17,7 +28,7 @@ the pixels or ad groups first and read the new audience back. See
 [qualification](TIKTOK-RULE-AUDIENCES-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 720 (one TikTok row reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 720 (one TikTok row reviewed). Committed as `b45d675`; its exact-commit CI result
 and live acceptance are pending.
 
 ## FB — TikTok asset library edits (2026-09-27)

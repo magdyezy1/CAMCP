@@ -822,6 +822,32 @@ to correct.
 
 Reference: [Custom Audiences](https://docs.x.com/x-ads-api/audiences/reference), checked 2026-09-27.
 
+### X poll and conversation cards
+
+- `x_accounts_account_id_cards_poll_post`: `payload: {name, duration_in_minutes, first_choice,
+  second_choice}` and optionally `third_choice`, `fourth_choice` (in order; each 1–25 characters,
+  all different) and `media_key` (an image or video of the media library; X requires the
+  `PROMOTED_MEDIA_POLLS` account feature for media polls). `duration_in_minutes` is 5–10080 and the
+  poll opens when the card is created, not when a Tweet uses it. X cannot edit poll cards.
+- `x_accounts_account_id_cards_image_conversation_post` and `..._video_conversation_post`:
+  `name`, `media_key` (a ready image, or a ready video for the video card), `first_cta` (a hashtag:
+  `#` and up to 20 letters, digits or underscores) with `first_cta_tweet`, up to three more CTAs in
+  order (each with its Tweet text), `thank_you_text` (up to 23 characters), a `title` (up to 23)
+  when there is no second CTA, and optionally `thank_you_url` (https),
+  `unlocked_image_media_key`, and for video cards `poster_media_key` and
+  `unlocked_video_media_key`.
+
+AMCP reads the account, each media item (`STATE_NOT_FOUND` when missing or deleted; the wrong type
+or media still transcoding is refused) and, for a media poll, the account features. A new card
+reaches no one until a promoted Tweet uses it, so no spending confirmation is needed. A receipt
+without a card ID is a failure never resubmitted. Verification reads the new card and compares the
+fields sent (media keys are write-only on polls). Editing or deleting these cards stays
+unqualified: it needs the promoted Tweet usage scan of the website card contract.
+`INVALID_X_CONVERSATION_CARD` names the field to correct.
+
+Reference: [Creatives](https://docs.x.com/x-ads-api/creatives/reference) ("Poll Cards", "Image
+Conversation Cards", "Video Conversation Cards"), checked 2026-09-27.
+
 ### X atomic targeting batches
 
 Use `x_batch_accounts_account_id_targeting_criteria_post` through
