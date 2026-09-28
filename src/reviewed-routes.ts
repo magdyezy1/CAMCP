@@ -13,6 +13,7 @@ import {dv360BiddingFileKind} from './dv360-custom-bidding-files.js';
 import {tiktokBlockedWordKind} from './tiktok-blocked-words.js';
 import {tiktokConversionEditKind} from './tiktok-conversion-edits.js';
 import {tiktokDeletionKind} from './tiktok-deletions.js';
+import {tiktokAudienceEditKind} from './tiktok-audience-edits.js';
 import {xReportKind} from './x-report-jobs.js';
 import {googlePreviewKind} from './google-preview-writes.js';
 import {criteoCampaignKind} from './criteo-campaign-writes.js';
@@ -123,6 +124,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(tiktokBlockedWordKind(p))return 'tiktok_blocked_words';
  if(tiktokConversionEditKind(p))return 'tiktok_custom_conversion_edits';
  if(tiktokDeletionKind(p))return 'tiktok_deletions';
+ if(tiktokAudienceEditKind(p))return 'tiktok_audience_edits';
  if(googlePreviewKind(p))return 'google_shareable_previews';
  if(placeActionKind(p))return 'google_place_actions';
  if(businessNotificationKind(p))return 'google_business_notifications';

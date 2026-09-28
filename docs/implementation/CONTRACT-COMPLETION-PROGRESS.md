@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## FA — TikTok custom audience edits (2026-09-27)
+
+TikTok custom audiences can now be renamed, converted to Reach & Frequency, deleted when unused and
+unshared, and included in, excluded from or disconnected from ad groups, through reviewed
+requests that read the audiences and ad groups first and read the change back. See
+[implementation](TIKTOK-AUDIENCE-EDITS-2026-09-27.md),
+[qualification](TIKTOK-AUDIENCE-EDITS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 726 (three TikTok rows reviewed). Pushes go only to CAMCP; its exact-commit CI
+result and live acceptance are pending.
+
 ## EZ — TikTok previews and Smart Text as reads (2026-09-27)
 
 TikTok ad and creative previews, Upgraded Smart+ ad previews and Smart Text recommendations now run
@@ -17,7 +29,7 @@ them, and each preview type accepts only its own fields. See
 [qualification](TIKTOK-PREVIEW-READS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 729 (six TikTok rows are now native reads). Pushes go only to CAMCP; its
+Remaining rows: 729 (six TikTok rows are now native reads). Committed as `5119489`; its
 exact-commit CI result and live acceptance are pending.
 
 ## EY — TikTok saved audience and identity deletion (2026-09-27)

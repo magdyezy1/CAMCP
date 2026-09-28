@@ -604,8 +604,43 @@ blocked words", "Get blocked words" and the export task pages
   ownership. TikTok documents `lookalike_spec` as possibly `null` on read, so the sent spec is
   listed under `unobservable_fields`.
 - The new audience takes effect only when added to an ad group's targeting, and may take up to
-  48 hours to become available. Refresh, update, sharing, deletion and customer-file audiences are
-  not available here.
+  48 hours to become available. Refresh, sharing and customer-file audiences are not available
+  here; renaming, deletion and applying audiences to ad groups are covered in the next section.
+
+## TikTok custom audience edits
+
+- `tiktok_dmp_custom_audience_update` with `payload: {advertiser_id, custom_audience_id,
+  custom_audience_name}` renames an audience (1–128 characters, no leading or trailing spaces).
+  With `audience_sub_type: "REACH_FREQUENCY"` instead, it makes an audience usable only in Reach &
+  Frequency ads; TikTok cannot convert it back or convert a lookalike, and ignores other fields
+  sent with it, so AMCP takes one or the other. Customer file changes (`file_paths`, `action`) are
+  refused.
+- `tiktok_dmp_custom_audience_delete` with `custom_audience_ids` (1–100) deletes audiences.
+- `tiktok_dmp_custom_audience_apply` with `custom_audience_id`, `adgroup_ids` (1–100) and
+  `action_mode` (`Apply` with `usage_mode` `Include` or `Exclude`, or `Disconnect`) adds one
+  audience to the targeting of ad groups, excludes it, or removes it.
+
+AMCP reads the named audiences (`/dmp/custom_audience/list/`). An audience the advertiser does not
+have is `STATE_NOT_FOUND`. Only its owner renames, converts or deletes an audience shared with the
+advertiser (`STATE_TARGET_MISMATCH`), but a shared-in audience can be applied. Expiring or expired
+audiences cannot be changed (`AUDIENCE_EXPIRING`; `expired_time` is read as UTC) and an expired
+one cannot be applied. Deletions and conversions also read every ad group and Upgraded Smart+ ad
+group: an audience any of them includes or excludes is `AUDIENCE_IN_USE`, and an audience shared
+with other advertisers is not deleted (`AUDIENCE_SHARED`; cancel the sharing first). Applying
+reads the named ad groups: ad groups that already use the audience as asked (or do not use it,
+for `Disconnect`), or use it the other way, are refused with `INVALID_TIKTOK_AUDIENCE_EDIT`.
+
+Applying or disconnecting always needs `spend_change_confirmed=true`, because enabled ad groups
+then reach different people at once; the review lists the enabled ones. Renames, conversions and
+deletions need no spending confirmation; deletions count under owner deletion policies. A
+non-zero `code` is a failure never resubmitted. Verification reads the audiences or ad groups
+again: the new name or sub type, the deleted audiences gone, or each ad group including,
+excluding or no longer using the audience. `INVALID_TIKTOK_AUDIENCE_EDIT` names the field to
+correct.
+
+Reference: TikTok API for Business v1.3 "Update an audience", "Delete audiences" and "Apply
+audiences to ad groups" (https://business-api.tiktok.com/portal/docs/update-an-audience/v1.3),
+checked 2026-09-27.
 
 ## Snapchat planning reads
 

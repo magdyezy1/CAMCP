@@ -1077,7 +1077,16 @@ Tests: `tests/tiktok-deletions.test.mjs` (3), red on `5ca6357` / green after. Co
 
 - `src/tiktok-preview-reads.ts` validates the ad and creative preview, the Upgraded Smart+ ad preview and Smart Text recommendations during compilation and marks them read-only; `src/execution-risk.ts` classifies the three routes as reads. Six unqualified-read rows become native reads. The enhanced catalog preflight skips the two preview routes, whose catalog entries list every variant's required fields together.
 
-Tests: `tests/tiktok-preview-reads.test.mjs` (5), red on `03d7b89` / green after; `tests/compiler.test.ts` and `tests/guide-contract-examples.test.mjs` updated.
+Tests: `tests/tiktok-preview-reads.test.mjs` (5), red on `03d7b89` / green after; `tests/compiler.test.ts` and `tests/guide-contract-examples.test.mjs` updated. Committed as `5119489`.
+
+## Finished batch — TikTok custom audience edits (2026-09-27)
+
+[Implementation](TIKTOK-AUDIENCE-EDITS-2026-09-27.md) and
+[qualification](TIKTOK-AUDIENCE-EDITS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `tiktok_audience_edits` (`src/tiktok-audience-edits.ts`) for renaming custom audiences, converting unused ones to Reach & Frequency, deleting unused unshared ones and applying one to ad groups (include, exclude, disconnect), three rows. Applying always needs spending confirmation.
+
+Tests: `tests/tiktok-audience-edits.test.mjs` (5), red on `5119489` / green after.
 
 ## CI and live evidence
 
@@ -1091,19 +1100,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 696 in reviewed write families. **729 remaining rows** are in
+3241 captured actions; 699 in reviewed write families. **726 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 620 |
+| blocked_write | 617 |
 | unmapped | 79 |
 | unqualified_read | 17 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 178, Meta 117, LinkedIn 94, Snapchat 66,
+Blocked writes by platform: TikTok 175, Meta 117, LinkedIn 94, Snapchat 66,
 Google Ads 57, X 43, DV360 30, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
