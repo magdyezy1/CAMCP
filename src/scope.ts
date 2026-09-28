@@ -55,6 +55,7 @@ import {authorizeDV360AudienceEdit} from './dv360-audience-edits.js';
 import {authorizeLinkedInAccountSettings} from './linkedin-account-settings.js';
 import {authorizeBusinessLocationEdit} from './google-business-location-edits.js';
 import {authorizeBusinessAttribute} from './google-business-location-attributes.js';
+import {authorizeBusinessLodging} from './google-business-lodging.js';
 import {authorizeLinkedInMessage} from './linkedin-message-ads.js';
 import {authorizeLinkedInTemplate} from './linkedin-audience-templates.js';
 import {authorizeLinkedInRule} from './linkedin-conversion-rules.js';
@@ -166,6 +167,7 @@ export class ScopeGuard {
   if(authorizeLinkedInAccountSettings(plan,connection,id))return id;
   if(authorizeBusinessLocationEdit(plan,connection,id))return id;
   if(authorizeBusinessAttribute(plan,connection,id))return id;
+  if(authorizeBusinessLodging(plan,connection,id))return id;
   if(authorizeLinkedInMessage(plan,connection,id))return id;
   if(authorizeLinkedInRule(plan,connection,id))return id;
   if(authorizeLinkedInLeadForm(plan,connection,this.store,id))return id;

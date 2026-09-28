@@ -30,6 +30,7 @@ import {linkedinAccountSettingsImpact} from './linkedin-account-settings.js';
 import {businessLocationEditImpact} from './google-business-location-edits.js';
 import {businessAttributeImpact} from './google-business-location-attributes.js';
 import {xEntityBatchImpact} from './x-entity-batches.js';
+import {businessLodgingImpact} from './google-business-lodging.js';
 import {snapSegmentImpact} from './snapchat-segments.js';
 import {tiktokIdentityKind,tiktokIdentityImpact} from './tiktok-identities.js';
 import {metaCopyKind,metaCopyImpact} from './meta-copies.js';
@@ -180,6 +181,7 @@ export function writeImpact(plan:CompiledRequest,state:unknown[],override:boolea
  const businessLocationEdit=businessLocationEditImpact(plan,state);if(businessLocationEdit)return businessLocationEdit;
  const businessAttribute=businessAttributeImpact(plan,state);if(businessAttribute)return businessAttribute;
  const xEntityBatch=xEntityBatchImpact(plan,state);if(xEntityBatch)return xEntityBatch;
+ const businessLodging=businessLodgingImpact(plan,state);if(businessLodging)return businessLodging;
  if(metaCopyKind(plan))return metaCopyImpact(plan,state);
  if(googlePreviewKind(plan))return googlePreviewImpact;
  if(googleDismissalKind(plan))return googleDismissalImpact(plan,state);

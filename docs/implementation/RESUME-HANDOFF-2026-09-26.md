@@ -1239,7 +1239,16 @@ Tests: `tests/google-business-location-attributes.test.mjs` (3), red on `ee25dfa
 
 - New reviewed family `x_entity_batches` (`src/x-entity-batches.ts`) for batches of paused campaign or line item creates, updates or deletions with funding instrument, campaign and entity reads and a per-entity budget policy, two rows.
 
-Tests: `tests/x-entity-batches.test.mjs` (3), red on `fd8340b` / green after.
+Tests: `tests/x-entity-batches.test.mjs` (3), red on `fd8340b` / green after. Committed as `9d2011e`.
+
+## Finished batch — Business Profile lodging facts (2026-09-28)
+
+[Implementation](GOOGLE-BUSINESS-LODGING-2026-09-28.md) and
+[qualification](GOOGLE-BUSINESS-LODGING-VERIFICATION-2026-09-28.json).
+
+- New reviewed family `google_business_lodging` (`src/google-business-lodging.ts`) for lodging facts set and cleared by field mask and checked against the pinned lodging schema, one row.
+
+Tests: `tests/google-business-lodging.test.mjs` (3), red on `9d2011e` / green after; `tests/google-business-sync.test.ts` updated.
 
 ## CI and live evidence
 
@@ -1253,20 +1262,20 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 732 in reviewed write families. **693 remaining rows** are in
+3241 captured actions; 733 in reviewed write families. **692 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 584 |
+| blocked_write | 583 |
 | unmapped | 79 |
 | unqualified_read | 17 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
 Blocked writes by platform: TikTok 167, Meta 112, LinkedIn 87, Snapchat 66,
-Google Ads 57, X 33, DV360 29, Criteo 23, Business Profile 10.
+Google Ads 57, X 33, DV360 29, Criteo 23, Business Profile 9.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local
 planning script in this checkout, not committed and not a ledger):

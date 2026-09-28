@@ -889,6 +889,24 @@ value unless the attribute is repeatable. Listings without Voice of Merchant, pe
 locations and unchanged values are refused (`INVALID_BUSINESS_LOCATION_ATTRIBUTE`). Nothing needs
 spending confirmation; verification reads the attributes again: set values, and cleared ones absent.
 
+## Business Profile lodging facts
+
+`gmb_lodging_ops` / `UPDATE_LODGING` changes the lodging facts of one hotel location (Wi-Fi,
+check-in times, room counts, pools, pets, languages spoken, guest unit types and the like) through
+the exact `locations/{id}` grant: `query: {updateMask}` names 1–100 lowerCamelCase field paths
+(`connectivity.freeWifi`, `policies.checkinTime`), and `payload` is the Lodging with a value, or
+`null` to clear, for each path, plus `metadata: {updateTime}`: the RFC 3339 UTC time (ending in
+`Z`) at which the facts are asserted true, not in the future. `metadata.updateTime` may also be
+named in the mask. A fact and its `...Exception` are one union: set one of them. Repeated fields
+(`guestUnits`, `services.languagesSpoken`, eco certifications) are replaced whole, so the mask names
+the list, not its items; guest unit codes are unique. `"*"`, `name`, other metadata and the
+output-only `allUnits`, `someUnits` and `greenBuildingDesign` stay out, and every value is checked
+against the pinned lodging schema (booleans, int32 counts, TimeOfDay hours 0–23, enums, the accepted
+language codes). AMCP reads the location (Voice of Merchant, open status) and the lodging, which may
+not exist yet; listings without Voice of Merchant, permanently closed locations and unchanged facts
+are refused (`INVALID_BUSINESS_LODGING_EDIT`). Nothing needs spending confirmation; verification
+reads the lodging again and compares each masked fact, lists as sets.
+
 ## Business Profile account notification settings
 
 `google_business_native_action` / `gmb_notification_ops` /

@@ -1022,8 +1022,8 @@
         {
           "operation": "gmb_lodging_ops",
           "action": "UPDATE_LODGING",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_business_lodging"
         }
       ],
       "mapping_status": "mapped",

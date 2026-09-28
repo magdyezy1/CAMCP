@@ -30,6 +30,7 @@ import {linkedinAccountSettingsKind} from './linkedin-account-settings.js';
 import {businessLocationEditKind} from './google-business-location-edits.js';
 import {businessAttributeKind} from './google-business-location-attributes.js';
 import {xEntityBatchKind} from './x-entity-batches.js';
+import {businessLodgingKind} from './google-business-lodging.js';
 import {xReportKind} from './x-report-jobs.js';
 import {googlePreviewKind} from './google-preview-writes.js';
 import {criteoCampaignKind} from './criteo-campaign-writes.js';
@@ -157,6 +158,7 @@ export function reviewedWriteFamily(p:CompiledRequest):string|undefined{
  if(businessLocationEditKind(p))return 'google_business_location_edits';
  if(businessAttributeKind(p))return 'google_business_location_attributes';
  if(xEntityBatchKind(p))return 'x_entity_batches';
+ if(businessLodgingKind(p))return 'google_business_lodging';
  if(googlePreviewKind(p))return 'google_shareable_previews';
  if(placeActionKind(p))return 'google_place_actions';
  if(businessNotificationKind(p))return 'google_business_notifications';

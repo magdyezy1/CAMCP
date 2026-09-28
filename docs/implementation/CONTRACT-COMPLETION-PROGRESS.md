@@ -8,6 +8,19 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## FS — Business Profile lodging facts (2026-09-28)
+
+The lodging facts of a hotel location (Wi-Fi, check-in times, room counts, pools, pets, languages,
+guest unit types and more) can now be set and cleared through reviewed edits for the exact location
+grant that check every value against the pinned lodging schema, keep each fact and its exception to
+one, refuse listings without Voice of Merchant and read the lodging back. See
+[implementation](GOOGLE-BUSINESS-LODGING-2026-09-28.md),
+[qualification](GOOGLE-BUSINESS-LODGING-VERIFICATION-2026-09-28.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 692 (one Business Profile row reviewed). Pushes go only to CAMCP; its exact-commit CI
+result and live acceptance are pending.
+
 ## FR — X campaign and line item batches (2026-09-28)
 
 X campaigns and line items can now be created paused, updated or deleted in reviewed batches of one
@@ -17,8 +30,8 @@ back. See [implementation](X-ENTITY-BATCHES-2026-09-28.md),
 [qualification](X-ENTITY-BATCHES-VERIFICATION-2026-09-28.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 693 (two X rows reviewed). Pushes go only to CAMCP; its exact-commit CI result and
-live acceptance are pending.
+Remaining rows: 693 (two X rows reviewed). Committed as `9d2011e`; its exact-commit CI result
+and live acceptance are pending.
 
 ## FQ — Business Profile location attributes (2026-09-27)
 

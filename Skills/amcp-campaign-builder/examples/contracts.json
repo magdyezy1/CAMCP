@@ -1521,6 +1521,33 @@
     {
       "gateway": "google_business_native_action",
       "arguments": {
+        "operation": "gmb_lodging_ops",
+        "arguments": {
+          "action": "UPDATE_LODGING",
+          "location_id": "456",
+          "query": {
+            "updateMask": "connectivity.freeWifi,policies.checkinTime,metadata.updateTime"
+          },
+          "payload": {
+            "name": "locations/456/lodging",
+            "metadata": {
+              "updateTime": "2026-09-28T08:00:00Z"
+            },
+            "connectivity": {
+              "freeWifi": true
+            },
+            "policies": {
+              "checkinTime": {
+                "hours": 15
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "gateway": "google_business_native_action",
+      "arguments": {
         "operation": "gmb_location_ops",
         "arguments": {
           "action": "UPDATE_LOCATION_ATTRIBUTES",
