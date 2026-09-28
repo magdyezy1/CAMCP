@@ -334,8 +334,14 @@ export class SocialSignIn {
         user = this.accounts.newUser(accountName(identity.name), identity.email, null, this.accounts.autoApprove);
       }
       if (pending.link) this.accounts.assertApproved(user);
-      if (!existing)
+      if (!existing) {
         db.prepare('INSERT INTO amcp_identities VALUES(?,?,?,?)').run(provider, identity.subject, user.id, Date.now());
+        if (pending.link)
+          this.accounts.securityNotice(
+            user,
+            'A ' + definitions[provider].name + ' sign-in was added to your AMCP account',
+          );
+      }
       // Commit a new pending registration and its owner notice before returning the
       // access error. Throwing here would roll back the request the owner must approve.
       if (!user.approved) return {pendingUser: user};

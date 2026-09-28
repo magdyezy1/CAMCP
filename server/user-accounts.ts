@@ -328,6 +328,26 @@ export class UserAccounts {
     // waited on the email provider would tell the caller whether an account exists. The worker retries what stays queued.
     void this.deliverEmails(id).catch(() => {});
   }
+  /**
+   * Tells a person their sign-in security changed, so a change they did not make is noticed (owner decision, review
+   * 2026-09-28). Queued in the transaction that makes the change; the worker delivers it. `to` defaults to the
+   * account's address; an email change notifies the previous one.
+   */
+  securityNotice(user: JsonObject, change: string, to: unknown = user.email) {
+    if (typeof to !== 'string' || !to) return false;
+    return this.queueNotice(
+      String(user.tenant_id ?? this.web.tenantId),
+      to,
+      'Security change on your AMCP account',
+      change +
+        ' (' +
+        new Date().toUTCString() +
+        ').\n\nIf this was you, there is nothing to do. If it was not, reset your password now and tell your workspace owner:\n' +
+        this.web.origin +
+        '/forgot-password\n',
+      'security:' + user.id + ':' + randomUUID(),
+    );
+  }
   /** Queues a notification that carries no single-use link. The worker drains the outbox
    * every second, so callers need not await delivery inside a transaction. */
   queueNotice(tenant: string, to: string, subject: string, text: string, key: string) {
@@ -511,10 +531,13 @@ export class UserAccounts {
           this.web.store.db
             .prepare('UPDATE amcp_users SET email=?,version=version+1 WHERE id=?')
             .run(data.email, user.id);
-        } else
+          this.securityNotice(user, 'The sign-in email of your AMCP account was changed to ' + data.email);
+        } else {
           this.web.store.db
             .prepare('UPDATE amcp_users SET password_hash=?,version=version+1 WHERE id=?')
             .run(hash, user.id);
+          this.securityNotice(user, 'The password of your AMCP account was reset through an emailed link');
+        }
         this.revokeAccess(user);
         this.web.store.appendAudit(user.tenant_id, randomUUID(), {
           event: kind === 'email' ? 'account_email_verified' : 'account_password_reset',
@@ -578,6 +601,7 @@ export class UserAccounts {
         throw new MirrorError('ACCOUNT_CHANGED', 'Sign in again before retrying.');
       this.web.store.db.prepare('UPDATE amcp_users SET password_hash=?,version=version+1 WHERE id=?').run(hash, u.id);
       this.revokeAccess(u);
+      this.securityNotice(u, 'The password of your AMCP account was changed');
       return this.session(this.user(u.id), s.actor.tenantId, true);
     });
   }
@@ -591,8 +615,11 @@ export class UserAccounts {
       ).n;
       if (!u.password_hash && count <= 1)
         throw new MirrorError('LAST_SIGN_IN_METHOD', 'Add another sign-in method before removing this one.');
-      this.web.store.db.prepare('DELETE FROM amcp_identities WHERE user_id=? AND provider=?').run(u.id, provider);
+      const removed = this.web.store.db
+        .prepare('DELETE FROM amcp_identities WHERE user_id=? AND provider=?')
+        .run(u.id, provider).changes;
       this.web.store.appendAudit(u.tenant_id, randomUUID(), {event: 'account_identity_removed', provider});
+      if (removed) this.securityNotice(u, 'A ' + provider + ' sign-in was removed from your AMCP account');
     });
   }
 }

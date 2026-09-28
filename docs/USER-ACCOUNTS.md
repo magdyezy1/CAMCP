@@ -57,7 +57,7 @@ Account settings provides authenticator-app TOTP and ten one-use recovery codes.
 
 Invitations expire after 30 minutes and are bound to the invited email. Existing users accept while signed in as that identity; new users verify the invitation and choose a password. The inviter's current permission is checked again at acceptance. The owner cannot be demoted/removed through member editing.
 
-Password/email security changes, MFA changes and membership changes revoke the relevant browser/MCP access. Jobs recheck membership and credential/account version before requests. Revoked schedules pause; reauthorize explicitly. Recent sign-in, exact Origin and CSRF remain required for sensitive changes. Existing advertising and MCP OAuth redirect, PKCE, scope and resource controls remain in force.
+Password/email security changes, MFA changes and membership changes revoke the relevant browser/MCP access. Each of them — a password change or reset, an email change (sent to the previous address), two-step verification turned on or off, a recovery code used, a sign-in method added or removed — also emails a security notice through the outbox. A browser session ends after 2 hours without a request, within its 8-hour limit. Jobs recheck membership and credential/account version before requests. Revoked schedules pause; reauthorize explicitly. Recent sign-in, exact Origin and CSRF remain required for sensitive changes. Existing advertising and MCP OAuth redirect, PKCE, scope and resource controls remain in force.
 
 ## Production acceptance
 

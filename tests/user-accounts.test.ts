@@ -7,7 +7,7 @@ import {Store} from '../src/store.js';
 import {Registry} from '../src/catalog.js';
 import {MirrorService} from '../src/service.js';
 import {createHttpApp} from '../server/http-app.js';
-import {WebStore} from '../server/web-store.js';
+import {WebStore, sessionIdleMs} from '../server/web-store.js';
 import {UserAccounts, hashUserPassword} from '../server/user-accounts.js';
 import {McpOAuth} from '../server/mcp-oauth.js';
 import type {JsonObject} from '../src/types.js';
@@ -842,5 +842,68 @@ test('a bad test password closes that door instead of stopping the deployment', 
     } finally {
       await f.close();
     }
+  }
+});
+
+test('a website session unused for two hours ends, and activity keeps it alive', async () => {
+  const f = await fixture({AMCP_AUTO_APPROVE_SIGNUPS: 'true'});
+  try {
+    await f.request('/api/account/verify-email', 'POST', await f.signup());
+    const headers = await f.login();
+    assert.equal((await f.request('/api/account', 'GET', undefined, headers)).status, 200);
+    const seenAt = () =>
+      (f.store.db.prepare("SELECT json_extract(actor,'$.seenAt') AS s FROM amcp_web_sessions").get() as JsonObject)?.s;
+    // Ten idle minutes: still signed in, and the request counts as activity.
+    f.store.db.prepare("UPDATE amcp_web_sessions SET actor=json_set(actor,'$.seenAt',?)").run(Date.now() - 600000);
+    assert.equal((await f.request('/api/account', 'GET', undefined, headers)).status, 200);
+    assert.ok(Number(seenAt()) > Date.now() - 60000, 'activity recorded');
+    // Beyond the idle limit: signed out, and the session is gone.
+    f.store.db
+      .prepare("UPDATE amcp_web_sessions SET actor=json_set(actor,'$.seenAt',?)")
+      .run(Date.now() - sessionIdleMs - 60000);
+    assert.equal((await f.request('/api/account', 'GET', undefined, headers)).status, 401);
+    assert.equal((f.store.db.prepare('SELECT count(*) AS n FROM amcp_web_sessions').get() as JsonObject).n, 0);
+  } finally {
+    await f.close();
+  }
+});
+
+test('security changes are emailed: a password change to the account, an email change to the old address', async () => {
+  const f = await fixture({AMCP_AUTO_APPROVE_SIGNUPS: 'true'});
+  try {
+    await f.request('/api/account/verify-email', 'POST', await f.signup());
+    let headers = await f.login();
+    const changed = await f.request(
+      '/api/account/password',
+      'POST',
+      {currentPassword: password, password: 'another-synthetic-password'},
+      headers,
+    );
+    assert.equal(changed.status, 200);
+    while (await f.accounts.deliverEmails());
+    const notices = () => f.emails.filter(e => e.subject === 'Security change on your AMCP account');
+    assert.equal(notices().length, 1);
+    assert.deepEqual(notices()[0]!.to, ['member@example.test']);
+    assert.match(String(notices()[0]!.text), /password of your AMCP account was changed/);
+    assert.match(String(notices()[0]!.text), /forgot-password/);
+    // Change the sign-in email: the notice goes to the previous address, which the change no longer controls.
+    headers = {
+      Cookie: changed.headers.get('set-cookie')!.split(';')[0]!,
+      'X-AMCP-CSRF': (await changed.json()).csrf,
+    };
+    assert.equal((await f.request('/api/account/email', 'POST', {email: 'new@example.test'}, headers)).status, 200);
+    while (await f.accounts.deliverEmails());
+    const link = /https:\/\/\S+/.exec(String(f.emails.at(-1)!.text))![0]!,
+      params = new URLSearchParams(new URL(link).hash.slice(1));
+    assert.equal(
+      (await f.request('/api/account/verify-email', 'POST', {kind: 'email', token: params.get('token')})).status,
+      200,
+    );
+    while (await f.accounts.deliverEmails());
+    assert.equal(notices().length, 2);
+    assert.deepEqual(notices()[1]!.to, ['member@example.test']);
+    assert.match(String(notices()[1]!.text), /changed to new@example\.test/);
+  } finally {
+    await f.close();
   }
 });

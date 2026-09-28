@@ -282,6 +282,10 @@ export class AccountSecurity {
     if (index >= 0) {
       recovery.splice(index, 1);
       this.db.prepare('UPDATE amcp_mfa SET recovery=? WHERE user_id=?').run(JSON.stringify(recovery), userId);
+      this.accounts.securityNotice(
+        this.accounts.user(userId),
+        'A recovery code of your AMCP account was used; ' + recovery.length + ' remain',
+      );
       return;
     }
     throw new MirrorError('MFA_INVALID', 'The code is invalid or was already used.', {}, 401);
@@ -313,6 +317,7 @@ export class AccountSecurity {
         );
       this.db.prepare('UPDATE amcp_users SET version=version+1 WHERE id=?').run(u.id);
       this.accounts.revokeAccess(u);
+      this.accounts.securityNotice(u, 'Two-step verification was turned on for your AMCP account');
       const session = this.accounts.session(this.accounts.user(u.id), s.actor.tenantId, true);
       return {session, recoveryCodes: codes};
     });
@@ -343,6 +348,7 @@ export class AccountSecurity {
       this.db.prepare('DELETE FROM amcp_mfa WHERE user_id=?').run(u.id);
       this.db.prepare('UPDATE amcp_users SET version=version+1 WHERE id=?').run(u.id);
       this.accounts.revokeAccess(u);
+      this.accounts.securityNotice(u, 'Two-step verification was turned off for your AMCP account');
       return this.accounts.session(this.accounts.user(u.id), s.actor.tenantId);
     });
   }

@@ -67,6 +67,8 @@ export function clientAddressResolver(cidrs: string[] = []): (req: Request) => s
     return address;
   };
 }
+/** A website session that sees no request for this long ends (owner decision, review 2026-09-28). */
+export const sessionIdleMs = 2 * 3600000;
 export function passwordHash(password: string, salt = randomBytes(16).toString('hex')): string {
   return 'scrypt$' + salt + '$' + scryptSync(password, salt, 32).toString('hex');
 }
@@ -350,7 +352,19 @@ export class WebStore {
       .prepare('SELECT * FROM amcp_web_sessions WHERE hash=? AND expires_at>?')
       .get(sha256(id), Date.now()) as JsonObject | undefined;
     if (!row) return;
-    const actor = JSON.parse(row.actor);
+    const actor = JSON.parse(row.actor),
+      now = Date.now(),
+      seen = Number(actor.seenAt);
+    // Idle sign-out (owner decision, review 2026-09-28): a session unused for sessionIdleMs ends, within the 8-hour
+    // limit. Activity is recorded at most every five minutes; a session from before this rule starts counting now.
+    if (Number.isFinite(seen) && now - seen > sessionIdleMs) {
+      this.store.db.prepare('DELETE FROM amcp_web_sessions WHERE hash=?').run(sha256(id));
+      return;
+    }
+    if (!Number.isFinite(seen) || now - seen > 300000)
+      this.store.db
+        .prepare("UPDATE amcp_web_sessions SET actor=json_set(actor,'$.seenAt',?) WHERE hash=?")
+        .run(now, sha256(id));
     if (actor.userId !== 'workspace-admin' && actor.userId !== 'workspace-test') {
       const user = this.store.db
         .prepare('SELECT version,test_account FROM amcp_users WHERE id=? AND disabled=0 AND approved=1')
