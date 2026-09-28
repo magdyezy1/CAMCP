@@ -19,4 +19,4 @@
 .mfa-steps .recovery-key{letter-spacing:.08em;margin:10px 0}
 /* Row headers of the report table keep the look of the first data column. */
 .report-table tbody th{position:static;background:transparent;z-index:auto;color:inherit;font-size:12px;font-weight:400;letter-spacing:0;padding:17px 15px;border-bottom:1px solid #eee7f4;text-align:left;vertical-align:top;min-width:245px;max-width:300px;white-space:normal}.report-table tbody th strong{display:block;color:#3b2c4d;font-size:12px}.report-table tbody th small{display:block;color:#9b8ba9;margin-top:7px;font-size:10px;line-height:1.65}.report-table tbody th details{font-size:10px;margin-top:8px;color:#8f7aa2}.report-table tbody th pre{max-width:260px;max-height:200px;overflow:auto}
-.mfa-qr{display:block;width:196px;height:196px;margin:12px 0;background:#fff;border:1px solid #8e87a0;border-radius:8px}
+.mfa-qr{display:block;width:196px;height:196px;margin:12px 0;background:#fff;border:1px solid var(--line-strong);border-radius:8px}

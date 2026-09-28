@@ -1,0 +1,2 @@
+/* AMCP design tokens: the one place the palette, radius and base type are set (docs/AMCP-IDENTITY.md). Loaded first. */
+:root{color-scheme:light;--ink:#222137;--muted:#6c697b;--iris:#7661df;--iris-700:#5a43bd;--apricot:#ffbd96;--paper:#f7f6fa;--white:#fff;--line:#e5e1eb;--line-strong:#8e87a0;--danger:#af3939;--radius:17px;font-family:'Aptos','Segoe UI',sans-serif;color:var(--ink);background:var(--paper);font-size:16px;font-synthesis:none}

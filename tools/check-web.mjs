@@ -30,6 +30,12 @@ const index = fs.readFileSync('web/index.html', 'utf8');
 const sheets = [...index.matchAll(/<link rel="stylesheet" href="\/assets\/([^"]+)">/g)].map(m => m[1]);
 if (sheets.at(-1) !== 'accessibility.css')
   problems.push('index.html: accessibility.css must be the last stylesheet (found ' + sheets.join(', ') + ')');
+// The design tokens live in tokens.css, which loads first; a token defined anywhere else forks the palette (F-40).
+if (sheets[0] !== 'tokens.css')
+  problems.push('index.html: tokens.css must be the first stylesheet (found ' + sheets.join(', ') + ')');
+for (const sheet of sheets.slice(1))
+  if (/(?:^|[{;\s])--[\w-]+\s*:/.test(fs.readFileSync('web/' + sheet, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')))
+    problems.push(sheet + ': defines a design token; tokens belong in tokens.css');
 // A live region around the whole page reads every route change aloud; announcements use #toast and alerts.
 if (/id="content"[^>]*aria-live/.test(index)) problems.push('index.html: #content must not be a live region');
 if (!/<dialog id="action-dialog"[^>]*aria-labelledby="action-title"/.test(index))
@@ -55,7 +61,7 @@ if (problems.length) {
 console.log(
   'Checked every shipped browser script: ' +
     files.length +
-    '; HTML, CSP, assets, stylesheet order and confirmations: ' +
+    '; HTML, CSP, assets, stylesheet order, tokens and confirmations: ' +
     html.length +
     ' pages',
 );
