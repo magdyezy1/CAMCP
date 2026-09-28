@@ -666,7 +666,7 @@ import {assertDV360WriteScope} from './dv360-scope.js';
 export const writeTool = {
   name: 'amcp_write',
   description:
-    'Inspect, prepare and execute a reviewed native advertising or measurement mutation. inspect checks local write-contract support without credentials or network calls. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request. Execution requires its review_id, idempotency_key and explicit confirmation. Operator role and administrator account write grants are required. This is an AMCP extension, not a captured AMCP tool.',
+    'Use this for any single advertising or measurement change; use amcp_campaign when later steps need IDs that earlier steps create. Inspect, prepare and execute a reviewed native mutation. inspect checks local write-contract support without credentials or network calls. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request, with execute_requirements naming every acknowledgement execute will need. Execution requires its review_id and confirmed=true; idempotency_key defaults to the review_id. Operator role and administrator account write grants are required. This is an AMCP extension, not a captured AMCP tool.',
   inputSchema: {
     type: 'object',
     required: ['action'],

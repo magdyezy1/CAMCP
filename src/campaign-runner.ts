@@ -22,7 +22,7 @@ import {
 } from './workspace-core.js';
 export const campaignTool = tool(
   'amcp_campaign',
-  'Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. No fabricated IDs, implicit launch, or review bypass.',
+  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. No fabricated IDs, implicit launch, or review bypass.',
   [
     'create',
     'get',

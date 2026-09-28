@@ -30,7 +30,7 @@ import {
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 export const workspaceTool = tool(
   'amcp_workspace',
-  'Account readiness, capability evidence, approved client defaults/templates, and campaign change history. contracts lists every local action and its read/write/media/blocked contract classification without network calls; filter by gateway/search and paginate with offset/limit. Profiles never grant account access. check performs only provider reads; unsupported/missing evidence stays explicit.',
+  'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its change history. Account readiness, capability evidence, approved client defaults/templates, and campaign change history. contracts lists every local action and its read/write/media/blocked contract classification without network calls; filter by gateway/search and paginate with offset/limit. Profiles never grant account access. check performs only provider reads; unsupported/missing evidence stays explicit.',
   [
     'dashboard',
     'contracts',

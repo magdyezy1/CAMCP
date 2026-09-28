@@ -4,7 +4,7 @@ import type {Actor, JsonObject} from './types.js';
 import {audit, bad, field, fingerprint, obj, pointer, read, tool, validate, type ToolCall} from './workspace-core.js';
 export const decisionTool = tool(
   'amcp_reporting',
-  'Capture source-linked native metrics; reconcile totals with an explicitly labeled reference; compare compatible reports and generate evidence-based pacing, anomaly, fatigue and search-waste recommendations. No advertising writes. Missing metrics stay unknown.',
+  'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. Capture source-linked native metrics; reconcile totals with an explicitly labeled reference; compare compatible reports and generate evidence-based pacing, anomaly, fatigue and search-waste recommendations. No advertising writes. Missing metrics stay unknown.',
   ['capture', 'get', 'list', 'reconcile', 'analyze', 'combine'],
   {
     gateway: field.id,
