@@ -176,6 +176,15 @@ ID and `advertiserId`. DV360 returns only audiences the advertiser can access. A
 uses partner access, which an advertiser connection is not bound to, and returns
 `RESOURCE_SCOPE_REQUIRED`.
 
+Rename or re-describe a customer match audience of the advertiser with
+`DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_PATCH`: `params: {firstPartyAndPartnerAudienceId,
+advertiserId, updateMask}` with `updateMask` naming `displayName` (1–240 bytes) and/or `description`
+(first-party audiences only, at most 1,000 characters) and a body of exactly those fields. DV360
+edits only `CUSTOMER_MATCH_CONTACT_INFO` and `CUSTOMER_MATCH_DEVICE_ID` audiences, owned by the
+advertiser in `advertiserId`. `membershipDurationDays` (how long uploaded customers remain members)
+and members stay outside (`INVALID_DV360_AUDIENCE_EDIT`). AMCP reads the audience first; nothing
+needs spending confirmation, and verification reads it again.
+
 A line item or Demand Gen ad group has at most one `TARGETING_TYPE_AUDIENCE_GROUP` option (ID
 `audienceGroup`). Its `audienceGroupDetails` hold:
 

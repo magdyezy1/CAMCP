@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## FN — DV360 customer match audience names (2026-09-27)
+
+Advertiser customer match audiences on DV360 can now be renamed and re-described through reviewed
+patches that read the audience as the advertiser, keep membership duration and members out, and read
+the audience back. See
+[implementation](DV360-AUDIENCE-EDITS-2026-09-27.md),
+[qualification](DV360-AUDIENCE-EDITS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 698 (one DV360 row reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## FM — LinkedIn DSC post edits and deletion (2026-09-27)
 
 DSC posts that AMCP created can now be edited (text, landing page, call to action) and deleted through
@@ -17,7 +29,7 @@ for edits, refuse to delete a sponsored post and read the post back. See
 [qualification](LINKEDIN-DSC-EDITS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 699 (three LinkedIn rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 699 (three LinkedIn rows reviewed). Committed as `7a4cda4`; its exact-commit CI result
 and live acceptance are pending.
 
 ## FL — Meta split tests (2026-09-27)

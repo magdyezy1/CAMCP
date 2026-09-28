@@ -3662,8 +3662,8 @@
         {
           "operation": null,
           "action": "DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_PATCH",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "dv360_audience_edits"
         }
       ],
       "mapping_status": "mapped",

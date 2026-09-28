@@ -1519,6 +1519,20 @@
       }
     },
     {
+      "gateway": "dv360_native_action",
+      "arguments": {
+        "action": "DV360_FIRST_PARTY_AND_PARTNER_AUDIENCES_PATCH",
+        "params": {
+          "firstPartyAndPartnerAudienceId": "501",
+          "advertiserId": "123",
+          "updateMask": "displayName"
+        },
+        "body": {
+          "displayName": "Newsletter subscribers (EU)"
+        }
+      }
+    },
+    {
       "gateway": "linkedin_native_action",
       "arguments": {
         "action": "linkedin_rest_posts_ugc_post_urn_post",
