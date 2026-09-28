@@ -1131,7 +1131,16 @@ Tests: `tests/x-legacy-card-edits.test.mjs` (4), red on `24facf6` / green after;
 
 - New reviewed family `meta_pixels` (`src/meta-pixels.ts`) for creating an ad account pixel and renaming pixels of the account's business, two rows. Customer-data settings are refused.
 
-Tests: `tests/meta-pixels.test.mjs` (3), red on `f19a883` / green after.
+Tests: `tests/meta-pixels.test.mjs` (3), red on `f19a883` / green after. Committed as `e53b8ce`.
+
+## Finished batch — Meta ad account name, EU payor and beneficiary (2026-09-27)
+
+[Implementation](META-ACCOUNT-SETTINGS-2026-09-27.md) and
+[qualification](META-ACCOUNT-SETTINGS-VERIFICATION-2026-09-27.json).
+
+- New reviewed family `meta_account_settings` (`src/meta-account-settings.ts`) for the ad account name, the default DSA payor and beneficiary and notifications, one row. Spending caps and permanent fields are refused.
+
+Tests: `tests/meta-account-settings.test.mjs` (3), red on `e53b8ce` / green after.
 
 ## CI and live evidence
 
@@ -1145,19 +1154,19 @@ confirm BUG-1 to BUG-6 live.
 
 ## Remaining inventory
 
-3241 captured actions; 715 in reviewed write families. **710 remaining rows** are in
+3241 captured actions; 716 in reviewed write families. **709 remaining rows** are in
 [REMAINING-ACTIONS-2026-09-26.csv](REMAINING-ACTIONS-2026-09-26.csv), derived from the
 coverage ledger with the same status filter as the 2026-09-25 file:
 
 | Category | Rows |
 |---|---:|
-| blocked_write | 601 |
+| blocked_write | 600 |
 | unmapped | 79 |
 | unqualified_read | 17 |
 | adapter_requires_input | 8 |
 | provider_unsupported | 5 |
 
-Blocked writes by platform: TikTok 169, Meta 115, LinkedIn 94, Snapchat 66,
+Blocked writes by platform: TikTok 169, Meta 114, LinkedIn 94, Snapchat 66,
 Google Ads 57, X 35, DV360 30, Criteo 23, Business Profile 12.
 
 An approximate keyword triage of the 959 rows at the TikTok saved audience batch (a local

@@ -8,6 +8,18 @@ with [machine-readable verification](VERIFICATION-CHECKPOINT-2026-09-24.json).
 The [2026-09-20 handoff](RESUME-HANDOFF-2026-09-20.md) retains the provider-contract
 roadmap and remaining-action inventory. Earlier numbered checkpoints are historical.
 
+## FG — Meta ad account name, EU payor and beneficiary (2026-09-27)
+
+A Meta ad account's name, default EU (Digital Services Act) payor and beneficiary and notification
+setting can now change through a reviewed request that reads the account before and after;
+spending caps and permanent account fields stay outside. See
+[implementation](META-ACCOUNT-SETTINGS-2026-09-27.md),
+[qualification](META-ACCOUNT-SETTINGS-VERIFICATION-2026-09-27.json) and
+[handoff](RESUME-HANDOFF-2026-09-26.md).
+
+Remaining rows: 709 (one Meta row reviewed). Pushes go only to CAMCP; its exact-commit CI result
+and live acceptance are pending.
+
 ## FF — Meta pixels (2026-09-27)
 
 A Meta ad account pixel can now be created, and pixels of the account's own business renamed,
@@ -16,7 +28,7 @@ data use settings stay outside. See [implementation](META-PIXELS-2026-09-27.md),
 [qualification](META-PIXELS-VERIFICATION-2026-09-27.json) and
 [handoff](RESUME-HANDOFF-2026-09-26.md).
 
-Remaining rows: 710 (two Meta rows reviewed). Pushes go only to CAMCP; its exact-commit CI result
+Remaining rows: 710 (two Meta rows reviewed). Committed as `e53b8ce`; its exact-commit CI result
 and live acceptance are pending.
 
 ## FE — X poll and conversation card edits and deletions (2026-09-27)

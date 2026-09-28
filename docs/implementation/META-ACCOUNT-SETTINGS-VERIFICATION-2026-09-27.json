@@ -1,0 +1,100 @@
+{
+  "format_version": 1,
+  "date": "2026-09-27",
+  "branch": "Codex-branch",
+  "base_revision": "e53b8cea99e36d46e01581ad7ea5c0200d59874f",
+  "push_target": "https://github.com/magdyezy1/CAMCP (origin push disabled in this checkout)",
+  "runtime": {
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "os": "Windows",
+    "ffmpeg": "9.0.2",
+    "require_ffmpeg": true,
+    "schema_python": "system Python on PATH (standard library only)"
+  },
+  "candidate": {
+    "path": ".release/meta-account-settings-20260927-a",
+    "files": 1073,
+    "source_tree_hash": "b2b600a2413b559974d0e6708ec63a6e08a7184bc408f8e16b1c05c9be3fd470",
+    "index_code_test_guidance_files_compared": 800,
+    "comparison_scope": "Every release manifest file except evolving docs/implementation audit records and the generated empty live-sample fixture",
+    "line_endings": "Git-normalized LF comparison",
+    "untested_code_changes": []
+  },
+  "commands": {
+    "assemble": "node tools/prepare-public-release.mjs .release/meta-account-settings-20260927-a (safe.directory via GIT_CONFIG_* environment)",
+    "install": "npm ci --offline --ignore-scripts --cache ../../.runtime/npm-cache",
+    "full": "AMCP_REQUIRE_FFMPEG=true npm run check",
+    "railway": "node deploy/check-railway.mjs",
+    "environment": [
+      "AMCP_SCHEMA_PYTHON=python",
+      "AMCP_FFMPEG_PATH=<portable ffmpeg.exe>",
+      "AMCP_FFPROBE_PATH=<portable ffprobe.exe>"
+    ]
+  },
+  "runs": [
+    {
+      "path": ".runtime/meta-account-settings-20260927/install.log",
+      "sha256": "fd1d9de07b2f08802677e9eb68653e02fcf4423e062c4d00c4a3afe0d39973f2"
+    },
+    {
+      "path": ".runtime/meta-account-settings-20260927/check.log",
+      "sha256": "4ace82e408c13e3245a634985fd5a04b26b9dac6312798ccb6f35a0cfe05e9af",
+      "started": "Mon Sep 28 03:39:29 UTC 2026",
+      "finished": "Mon Sep 28 06:54:52 EDT 2026",
+      "exit_code": 0,
+      "suites": [
+        {
+          "tests": 2618,
+          "pass": 2618,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ]
+    },
+    {
+      "path": ".runtime/meta-account-settings-20260927/railway.log",
+      "sha256": "7f69b29c77623c9fdf8c99c01c93675158367f67d0d49af389e309669c0a9324",
+      "exit_code": 0
+    },
+    {
+      "path": ".runtime/meta-account-settings-20260927/red-check.log",
+      "sha256": "ea60ff54293d3388d4880f5b4c079e5eb5da50fc4805d1d41cd5640dd3ddd562",
+      "meaning": "tests/meta-account-settings.test.mjs against a build of e53b8ce: expected red, 3/3 fail (no reviewed family: WRITE_CONTRACT_UNAVAILABLE)"
+    },
+    {
+      "path": ".runtime/meta-account-settings-20260927/targeted.log",
+      "sha256": "61c5bae244ea3c308abea3ca9aac4f69db9272ed4503a1730e5fba9bdec50cf8",
+      "meaning": "208 related suite files in the working copy, including every Google, Criteo, DV360, LinkedIn, Snapchat, X, media, scope and security suite, with FFmpeg configured: 2052/2052 pass, none skipped."
+    }
+  ],
+  "development_failures": [],
+  "final": {
+    "exit_code": 0,
+    "main_tests": 2618,
+    "main_pass": 2618,
+    "capture_tests": 4,
+    "fail": 0,
+    "skip": 0,
+    "railway_exit": 0,
+    "live_verified": false,
+    "docker_verified": false
+  },
+  "limitations": [
+    "Synthetic validation only; no live provider credentials, reads or account mutations in this batch.",
+    "Spending caps stay unqualified: the reference writes them in standard units but reads them in the account's minor units, and a lower cap can pause every campaign.",
+    "Meta states no length for the name or the DSA values; AMCP keeps names to 100 and DSA values to 512 characters.",
+    "No GitHub CLI here and CAMCP is private: CI for the pushed commits was not read from this checkout.",
+    "No local Docker; container build/smoke evidence comes from GitHub Actions on the pushed commit."
+  ]
+}

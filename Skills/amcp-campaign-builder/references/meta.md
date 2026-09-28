@@ -451,3 +451,22 @@ the name.
 
 Reference: the Marketing API v25.0 "Ad Account Adspixels" and "Ad Pixel" references, checked
 2026-09-27.
+
+## Ad account name, EU payor and beneficiary
+
+`meta_ad_account_id_create` (despite its name, `POST /act_{ad_account_id}` updates the account)
+with `params: {ad_account_id}` and a payload of:
+
+- `name` (1–100 characters);
+- `default_dsa_payor` with `default_dsa_beneficiary`: who pays for and who benefits from ads that
+  reach the EU (Digital Services Act), up to 512 characters each. Meta keeps both or neither: send
+  both, or both as `""` to unset them;
+- `is_notifications_enabled` (true or false), the account notifications of this login.
+
+Spending caps (`spend_cap`, `spend_cap_action`: Meta reads the cap in the account's minor units but
+writes it in standard units), `end_advertiser`, `media_agency` and `partner` (permanent once set),
+agency declarations and business information are refused with `INVALID_META_ACCOUNT_SETTING`, as
+are unchanged values. AMCP reads the account first and again after the change; nothing needs
+spending confirmation. The connection needs `ads_management`.
+
+Reference: the Marketing API v25.0 "Ad Account" reference (Reading, Updating), checked 2026-09-27.

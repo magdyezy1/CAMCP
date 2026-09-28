@@ -1521,6 +1521,20 @@
     {
       "gateway": "meta_native_action",
       "arguments": {
+        "action": "meta_ad_account_id_create",
+        "account_id": "123",
+        "params": {
+          "ad_account_id": "act_123"
+        },
+        "payload": {
+          "default_dsa_payor": "Brand Holding BV",
+          "default_dsa_beneficiary": "Brand GmbH"
+        }
+      }
+    },
+    {
+      "gateway": "meta_native_action",
+      "arguments": {
         "action": "meta_pixel_id_update",
         "account_id": "123",
         "params": {
