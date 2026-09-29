@@ -38,6 +38,7 @@ with the [repository README](../README.md) for what AMCP is.
 ## The September 2026 review
 
 - [Findings register](review/FINDINGS.md)
+- [Write coverage: what stays blocked and why](review/COVERAGE.md)
 - [AMCP threat model](review/THREAT-MODEL.md)
 - [MCP read and write controls: calibration](review/MCP-SECURITY-CALIBRATION.md)
 - [Accessibility report](review/ACCESSIBILITY.md)
