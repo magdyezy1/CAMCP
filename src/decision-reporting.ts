@@ -4,7 +4,7 @@ import type {Actor, JsonObject} from './types.js';
 import {audit, bad, field, fingerprint, obj, pointer, read, tool, validate, type ToolCall} from './workspace-core.js';
 export const decisionTool = tool(
   'amcp_reporting',
-  'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. Capture source-linked native metrics; reconcile totals with an explicitly labeled reference; compare compatible reports and generate evidence-based pacing, anomaly, fatigue and search-waste recommendations. No advertising writes. Missing metrics stay unknown.',
+  'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. Capture source-linked native metrics; reconcile totals with an explicitly labeled reference; compare compatible reports and generate evidence-based pacing, anomaly, fatigue and search-waste recommendations. Search waste: capture a search-terms read whose mapping names search_term, clicks, spend and conversions, then analyze {id, options: {minimum_clicks}}; amcp://guides/workspace shows the Google request. No advertising writes. Missing metrics stay unknown.',
   ['capture', 'get', 'list', 'reconcile', 'analyze', 'combine'],
   {
     gateway: field.id,
@@ -87,16 +87,12 @@ function grouped(rows: JsonObject[]): JsonObject[] {
   return [...groups].map(([id, rs]) => ({entity_id: id, ...totals(rs)}));
 }
 function semantic(input: JsonObject) {
-  validate(input, [
-    'currency',
-    'timezone',
-    'date_from',
-    'date_to',
-    'attribution',
-    'conversion_definition',
-    'source_name',
-    'complete',
-  ]);
+  validate(
+    input,
+    ['currency', 'timezone', 'date_from', 'date_to', 'attribution', 'conversion_definition', 'source_name', 'complete'],
+    undefined,
+    'semantics field',
+  );
   if (!/^[A-Z]{3}$/.test(input.currency) || typeof input.timezone !== 'string')
     bad('Declare the native currency and IANA timezone.');
   try {
@@ -191,7 +187,7 @@ export class DecisionReporting {
             out[key] = null;
             continue;
           }
-          if (typeof spec !== 'string') validate(spec, ['path', 'divisor']);
+          if (typeof spec !== 'string') validate(spec, ['path', 'divisor'], undefined, 'mapping field');
           const path = typeof spec === 'string' ? spec : spec.path;
           if (typeof path !== 'string' || path.length > 512 || (path !== '' && !path.startsWith('/')))
             bad('Invalid metric JSON pointer.');
@@ -257,7 +253,12 @@ export class DecisionReporting {
     this.store.resolveConnection(actor, report.gateway, report.account_id, report.connection_id);
     if (input.action === 'reconcile') {
       const ref = input.reference;
-      validate(ref ?? {}, ['label', 'captured_at', 'totals', 'tolerance', 'evidence_url']);
+      validate(
+        ref ?? {},
+        ['label', 'captured_at', 'totals', 'tolerance', 'evidence_url'],
+        undefined,
+        'reference field',
+      );
       if (typeof ref.label !== 'string' || !ref.label.trim() || !obj(ref.totals) || !Number.isFinite(ref.captured_at))
         bad('Provide labeled reference totals and capture time.');
       const differences = Object.entries(ref.totals).map(([metric, value]) => {
@@ -320,17 +321,22 @@ export class DecisionReporting {
     }
     if (input.action !== 'analyze') bad('Unknown reporting action.');
     const options = input.options ?? {};
-    validate(options, [
-      'planned_budget',
-      'total_days',
-      'elapsed_days',
-      'target_cpa',
-      'minimum_clicks',
-      'minimum_impressions',
-      'maximum_change_percent',
-      'stale_after_hours',
-      'current_daily_budget',
-    ]);
+    validate(
+      options,
+      [
+        'planned_budget',
+        'total_days',
+        'elapsed_days',
+        'target_cpa',
+        'minimum_clicks',
+        'minimum_impressions',
+        'maximum_change_percent',
+        'stale_after_hours',
+        'current_daily_budget',
+      ],
+      undefined,
+      'option',
+    );
     const recommendations: JsonObject[] = [],
       t = report.totals;
     const add = (type: string, evidence: JsonObject, proposal: string, confidence = 'medium') =>

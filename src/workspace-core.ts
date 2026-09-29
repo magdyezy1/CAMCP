@@ -8,10 +8,31 @@ export const obj = (x: unknown): x is JsonObject => !!x && typeof x === 'object'
 export function bad(message: string, code = 'INVALID_ARGUMENT'): never {
   throw new MirrorError(code, message);
 }
-export function validate(input: JsonObject, keys: string[], max = 262144) {
+/** Checks an argument object: its keys, and its size. Each refusal says which it was (F-86). */
+export function validate(input: JsonObject, keys: string[], max = 262144, what = 'argument') {
   guardInput(input);
-  if (!obj(input) || Object.keys(input).some(k => !keys.includes(k)) || Buffer.byteLength(stable(input)) > max)
-    bad('Unsupported arguments or request too large.');
+  if (!obj(input)) bad('The ' + what + 's must be a JSON object.');
+  const unsupported = Object.keys(input).filter(k => !keys.includes(k));
+  if (unsupported.length)
+    throw new MirrorError(
+      'INVALID_ARGUMENT',
+      'Unsupported ' +
+        what +
+        (unsupported.length > 1 ? 's' : '') +
+        ': ' +
+        unsupported.join(', ') +
+        '. Accepted: ' +
+        keys.join(', ') +
+        '.',
+      {unsupported, accepted: keys},
+    );
+  const bytes = Buffer.byteLength(stable(input));
+  if (bytes > max)
+    throw new MirrorError(
+      'INVALID_ARGUMENT',
+      'The ' + what + 's take ' + bytes + ' bytes; the limit is ' + max + '. Send fewer or smaller values.',
+      {bytes, limit: max},
+    );
 }
 export function identifier(x: unknown, label = 'id'): string {
   if (typeof x !== 'string' || !/^[A-Za-z0-9_-]{1,160}$/.test(x)) bad('Invalid ' + label);

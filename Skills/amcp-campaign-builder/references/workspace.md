@@ -138,6 +138,27 @@ Example mapping: `{"entity_id":"/campaign_id","spend":{"path":"/cost_micros","di
 
 Semantics require currency, IANA timezone, date_from/date_to, attribution, conversion_definition, source_name and complete. Capture refuses known continuation/truncation indicators; retrieve a complete native read or partition by non-overlapping windows. Store the requested dates and attribution honestly; `unknown` is allowed but blocks semantic combination. Reports contain source request, hash, capture time, mapped rows, totals and coverage. Native read provenance is distinct from manually entered reference totals.
 
+### Search waste, step by step
+
+Search waste is found in two calls: capture a search-terms read, then analyze it. For Google Ads (the same request
+`tests/search-waste-format.test.ts` runs):
+
+```json
+{"action": "capture", "gateway": "google_ads_native_action", "account_id": "1234567890",
+ "arguments": {"action": "google_ads_v23_google_ads_search", "payload": {"query":
+   "SELECT campaign.id, search_term_view.search_term, metrics.clicks, metrics.cost_micros, metrics.conversions FROM search_term_view WHERE segments.date BETWEEN \"2026-09-01\" AND \"2026-09-28\""}},
+ "mapping": {"entity_id": "/campaign/id", "search_term": "/searchTermView/searchTerm", "clicks": "/metrics/clicks",
+   "spend": {"path": "/metrics/costMicros", "divisor": "1000000"}, "conversions": "/metrics/conversions"},
+ "semantics": {"currency": "USD", "timezone": "America/New_York", "date_from": "2026-09-01", "date_to": "2026-09-28",
+   "attribution": "unknown", "conversion_definition": "unknown", "source_name": "Google Ads search terms", "complete": true}}
+```
+
+then `{"action": "analyze", "id": "<the captured report's id>", "options": {"minimum_clicks": 30}}`. Each search term
+with at least `minimum_clicks` clicks (30 by default) and no conversions becomes a `search_waste` recommendation with
+its clicks and spend. Use the account's own currency and time zone. A capture must be complete: when Google returns
+another page, narrow the dates. Rows cannot be given inline; `analyze` reads a captured report. A refused request
+names the argument it did not accept and lists the accepted ones.
+
 `reconcile` compares a report with a labeled, timestamped reference and explicit per-metric tolerances. `combine` accepts only matching currency/timezone/attribution/conversion definitions and windows; overlapping same-account reports are rejected. Cross-platform attributed conversions remain potentially duplicated.
 
 `analyze` accepts an optional equal-duration earlier same-account baseline and options: planned_budget, total_days, elapsed_days, current_daily_budget, target_cpa, minimum_clicks, minimum_impressions, maximum_change_percent and stale_after_hours. It identifies pacing gaps, spend anomalies, possible CTR fatigue, zero-conversion search waste and CPA above target. Budget proposals are bounded by the supplied cap, require current budget verification and a fresh native review, and never execute automatically. Incomplete/stale data blocks action eligibility. These are explainable heuristics, not causal attribution or guaranteed performance improvements.

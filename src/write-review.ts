@@ -152,7 +152,7 @@ import {dv360AdKind, validateDV360AdPrerequisites, readDV360Ads} from './dv360-d
 import {validateGoogleConfigurationState} from './google-configuration-writes.js';
 import {checkSpendPolicy, describeExceeded, exceededCaps} from './spend-policy.js';
 import {randomUUID} from 'node:crypto';
-import {MirrorError, errorRemedy} from './errors.js';
+import {MirrorError, errorRemedy, preciseMessage} from './errors.js';
 import {assertGoogleAdsScope} from './google-contracts.js';
 import {googleSegmentKind} from './google-custom-segments.js';
 import {googleConversionGoalKind, readGoogleConversionGoalState} from './google-conversion-goals.js';
@@ -792,7 +792,7 @@ export class WriteReviewService {
           network_requests: 0,
           review_contract_supported: false,
           request: null,
-          error: {code: e.code, message: e.message, details: e.details, category: remedy.category, remedy},
+          error: {code: e.code, message: preciseMessage(e), details: e.details, category: remedy.category, remedy},
           live_permissions_verified: false,
           next_step: unavailable.replacement,
         };
@@ -862,7 +862,7 @@ export class WriteReviewService {
             review_contract_supported: false,
             request: redact(plan.gateway === 'google_business_native_action' ? placeActionSafe(plan) : plan),
             contract_evidence: executionEvidence(plan, evidence),
-            error: {code: e.code, message: e.message, details: e.details, category: remedy.category, remedy},
+            error: {code: e.code, message: preciseMessage(e), details: e.details, category: remedy.category, remedy},
             live_permissions_verified: false,
           };
         }

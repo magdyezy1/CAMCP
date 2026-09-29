@@ -490,6 +490,32 @@ export function errorRemedy(e: MirrorError) {
     mutation_retry_safe: false,
   };
 }
+/**
+ * The message, naming what its details identify (F-86): the field, parameter or missing value, and for a request
+ * checked against a pinned schema, the first fields it rejected. A client that shows only the message still learns
+ * what to correct. Details that echo a provider's reply are never quoted, so the message stays AMCP's own text.
+ */
+export function preciseMessage(e: MirrorError): string {
+  const d = e.details,
+    clip = (v: unknown) =>
+      String(v)
+        .replace(/[\u0000-\u001f]/g, ' ')
+        .slice(0, 160),
+    named: string[] = [];
+  if (d.upstream !== undefined || d.response !== undefined || /^(UPSTREAM|PROVIDER)_/.test(e.code)) return e.message;
+  for (const key of ['field', 'parameter']) if (typeof d[key] === 'string' && d[key]) named.push(clip(d[key]));
+  if (typeof d.missing === 'string' && d.missing) named.push('missing ' + clip(d.missing));
+  if (Array.isArray(d.fields) && d.fields.length && d.fields.every(f => typeof f === 'string'))
+    named.push(d.fields.slice(0, 5).map(clip).join(', ') + (d.fields.length > 5 ? ' …' : ''));
+  if (Array.isArray(d.errors))
+    for (const x of d.errors.slice(0, 3))
+      if (x && typeof x === 'object' && typeof (x as {field?: unknown}).field === 'string') {
+        const {field, reason} = x as {field: string; reason?: unknown};
+        named.push(clip(field) + (typeof reason === 'string' ? ' (' + clip(reason) + ')' : ''));
+      }
+  const missing = named.filter(n => !e.message.includes(n.replace(/^missing /, '')));
+  return missing.length ? e.message.replace(/\.?$/, '') + ': ' + missing.join('; ') + '.' : e.message;
+}
 export function errorResult(error: unknown, requestId: string, latencyMs: number) {
   const e =
     error instanceof MirrorError
@@ -529,7 +555,7 @@ export function errorResult(error: unknown, requestId: string, latencyMs: number
     success: false,
     error: {
       code: e.code,
-      message: e.message,
+      message: preciseMessage(e),
       ...(Object.keys(e.details).length ? {details: e.details} : {}),
       retryable: e.retryable,
       category: remedy.category,
