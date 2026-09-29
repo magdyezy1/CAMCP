@@ -35,18 +35,20 @@ permission, deployment, Railway setting or DNS record was touched.
 | Clone (10) | Google Search and Snapchat. Meta has its native copies (`meta copies`); other platforms are refused with `CLONE_UNSUPPORTED` |
 | Paused parents (6) | Google only, as asked. Snapchat, Meta and the others keep "create PAUSED" (open question 2) |
 
-## Open questions for the owner
+## The owner's decisions (2026-09-29)
 
-1. **All-or-nothing builds.** Google's `googleAds:mutate` can create a budget, campaign, criteria, ad groups, keywords
-   and ads atomically with temporary IDs. AMCP reviews one resource family per call, so today a failed step leaves
-   the earlier ones in place (created PAUSED). Recommendation: add it as its own reviewed family, reviewed and
-   verified per operation, if atomic builds matter more than the extra review size.
-2. **Paused parents on other platforms.** The same rule would save a second pass on Snapchat (squads and ads under a
-   paused campaign), Meta and TikTok. It loosens a check, so it waits for your yes per platform. Recommendation: yes
-   for Snapchat, whose child reviews already read the parent; Meta and TikTok once their reviews are shown to read it.
-3. **Owner policy `allow_activation: false`.** Such a policy still refuses any create with an ENABLED status, even
-   under a paused parent; a clone or recipe under that policy must set its children PAUSED (`changes.set`).
-   Recommendation: keep it; the policy is the owner's explicit "nothing goes live" switch.
+The owner answered the open questions with "do what you think is the best way forward and continue"; each
+recommendation was applied (PROGRESS.md, batch 30).
+
+1. **All-or-nothing builds: done.** `googleAds:mutate` is the reviewed family `google_atomic_builds`
+   (`GOOGLE-ATOMIC-BUILDS-2026-09-29.md`, F-108); a Google clone is one such build by default. A build Google refuses
+   outright created nothing and is amended under a new key (F-109).
+2. **Paused parents on other platforms: done** for Snapchat, Meta and TikTok, whose child creates were shown to read
+   the parent in the review; an active ad under a serving parent is also covered by a paused campaign (F-107).
+3. **`allow_activation: false`: kept** as the "nothing goes live" switch; its refusal now says to keep the entity
+   paused or ask the owner.
+4. **`https://claude.ai` origin: left empty**; `docs/DEPLOY-RAILWAY.md` says to add an origin only when the refusal
+   log shows that client refused. Setting it is a Railway change this work does not make.
 
 ## Retest plan (live, on the "test" account)
 

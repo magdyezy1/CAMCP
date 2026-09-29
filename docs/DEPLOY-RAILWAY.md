@@ -121,7 +121,7 @@ Set these as Railway service variables; AMCP reads them at start-up. This review
 | Variable | Value | Why |
 |---|---|---|
 | `MIRROR_FLAGS` | `{"compactSchemas":true}` | Lists each DV360 action once in `tools/list` (about 7 KB smaller); the legacy unprefixed names stay accepted. |
-| `AMCP_MCP_ALLOWED_ORIGINS` | Empty, unless an MCP client that sends a browser `Origin` header must connect | `/mcp` refuses every browser origin except AMCP's own, with a JSON-RPC error that names the origin. List exact origins (for example `https://claude.ai`) only for clients you use; this loosens the origin check for them, so it is the owner's decision. |
+| `AMCP_MCP_ALLOWED_ORIGINS` | Empty, unless an MCP client that sends a browser `Origin` header must connect | `/mcp` refuses every browser origin except AMCP's own, with a JSON-RPC error that names the origin. List exact origins (for example `https://claude.ai`) only for clients you use; this loosens the origin check for them, so it is the owner's decision. Recommended (2026-09-29): leave it empty and add an origin only when the refusal log shows that client's requests refused (one JSON line per refused `/mcp` request names the origin); a client that runs on a server sends no `Origin` and is unaffected. |
 | `AMCP_TRUSTED_PROXY_CIDRS` | The address range of Railway's edge proxy, as Railway documents it | Sign-in and OAuth rate limits then count each client separately instead of everyone together. Railway, not Cloudflare, is the immediate peer. Confirm the range against the peer address of a real request before relying on it, and list only that range. |
 
 ## Provider API versions

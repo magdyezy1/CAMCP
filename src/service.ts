@@ -35,7 +35,7 @@ import {redactPlaceActionInput, placeActionSafeError} from './google-place-actio
 import {errorResult, MirrorError, untrustedProviderContent} from './errors.js';
 import {redact, sha256, stable} from './security.js';
 import {paginate} from './pagination.js';
-import {ScopeGuard} from './scope.js';
+import {ScopeGuard, snapchatScopedResource} from './scope.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {WorkflowEngine} from './workflows.js';
 import {ReportingService, reportingOperations} from './reporting.js';
@@ -112,6 +112,19 @@ export function auditedRead(outcome: JsonObject): JsonObject {
   };
 }
 export const carriesProviderContent = (tool: string) => !localOnlyTools.has(tool);
+/** The read that renews a lapsed ownership observation, when AMCP may run it itself: the refused call is a native read
+ * or a write's prepare or inspect, and the read is the same gateway's account list narrowed to one ID. */
+function narrowedOwnershipRead(tool: string, input: JsonObject, result: JsonObject) {
+  const error = result.success === false ? (result.error as JsonObject) : undefined,
+    next = error?.code === 'RESOURCE_SCOPE_REQUIRED' ? (error.details?.next_call as JsonObject | undefined) : undefined,
+    args = next?.arguments as JsonObject | undefined;
+  const native = /^[a-z0-9]+(?:_[a-z0-9]+)*_native_action$/.test(tool) && tool !== 'amcp_native_action',
+    write = tool === 'amcp_write' && ['prepare', 'inspect'].includes(input.action);
+  if (!next || !args || (!native && !write)) return undefined;
+  if (next.tool !== error!.details.gateway || !/_list$/.test(String(args.action))) return undefined;
+  if (!Array.isArray(args.result_ids) || args.result_ids.length !== 1) return undefined;
+  return {tool: String(next.tool), arguments: args};
+}
 export class MirrorService {
   readonly compiler: Compiler;
   readonly introspection: Introspection;
@@ -145,7 +158,44 @@ export class MirrorService {
     this.introspection = new Introspection(registry);
     this.credentials = new CredentialProvider(store);
   }
+  /**
+   * One tool call. An ownership observation lasts five minutes (F-70); when a read, or a write's prepare or inspect,
+   * is refused only because it lapsed, and the refusal names the account's own list narrowed to the one refused ID,
+   * AMCP runs that read and retries once (the owner's decision 7, 2026-09-29). Ownership still comes only from the
+   * account's list: an ID it does not list stays refused, no request names it, and execute is never retried.
+   */
   async call(tool: string, input: JsonObject, actor: Actor): Promise<JsonObject> {
+    const first = await this.callOnce(tool, input, actor),
+      renew = narrowedOwnershipRead(tool, input, first);
+    if (!renew || !this.ownershipLapsed(actor, (first.error as JsonObject).details, renew.arguments)) return first;
+    const read = await this.callOnce(renew.tool, renew.arguments, actor),
+      found = read.success === true && (read.data as JsonObject)?.result_ids?.found;
+    if (!Array.isArray(found) || !found.length) return first;
+    const again = await this.callOnce(tool, input, actor);
+    return {
+      ...again,
+      meta: {
+        ...(again.meta as JsonObject),
+        ownership_refreshed: {tool: renew.tool, action: renew.arguments.action, result_ids: renew.arguments.result_ids},
+      },
+    };
+  }
+  /** Whether the refused resource was observed through this connection and the observation merely expired. A resource
+   * never observed, or whose observations re-provisioning cleared, is not renewed automatically. */
+  private ownershipLapsed(actor: Actor, details: JsonObject, read: JsonObject): boolean {
+    const resource =
+      details.gateway === 'snapchat_native_action' && typeof details.path === 'string'
+        ? snapchatScopedResource(details.path)
+        : undefined;
+    if (!resource) return false;
+    try {
+      const connection = this.store.resolveConnection(actor, details.gateway, details.account_id, read.connection_id);
+      return this.store.ownershipLapsed(connection, details.account_id, resource);
+    } catch {
+      return false;
+    }
+  }
+  private async callOnce(tool: string, input: JsonObject, actor: Actor): Promise<JsonObject> {
     const requestId = randomUUID(),
       start = Date.now();
     try {

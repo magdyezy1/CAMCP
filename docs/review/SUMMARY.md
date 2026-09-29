@@ -160,13 +160,13 @@ Each of these changes a level of protection, a deployment, a dependency or the p
 | Invitations while sign-up is closed (F-15) | Keep them pending | Done in batch 11 |
 | A vendored QR encoder for two-step setup | Yes | Done in batch 11 |
 | Production settings `MIRROR_FLAGS` and `AMCP_TRUSTED_PROXY_CIDRS` | Yes | Documented in `docs/DEPLOY-RAILWAY.md`; setting them needs Railway access, which this review does not have |
-| Let AMCP run the ownership read itself when the provider's record states the owning account | Not asked yet | Open |
-| All-or-nothing builds through Google's multi-resource mutate (item 5) | Not asked yet | Open. Recommendation: its own reviewed family, if atomic builds matter more than review size |
-| Paused parents on Snapchat, Meta and TikTok (item 6 on other platforms) | Not asked yet | Open. Recommendation: yes for Snapchat, whose child reviews already read the parent; Meta and TikTok once their reviews are shown to read it |
-| An owner policy with `allow_activation: false` still refuses ENABLED children under a paused parent | Not asked yet | Kept. Recommendation: keep it as the "nothing goes live" switch |
-| List `https://claude.ai` in `AMCP_MCP_ALLOWED_ORIGINS` (F-88) | Not asked yet | Empty by default; production logs now show refused origins |
-| Treat a documented provider validation refusal after submission as "not applied" (Snapchat brief) | Not asked yet | Open; today it is uncertain and the plan can only be cancelled |
-| Who sees `health`, and the mismatch acceptance design (Snapchat S7, S5) | Not asked yet | Built as the brief suggested; confirm |
+| Let AMCP run the ownership read itself when the provider's record states the owning account | Do what is best (2026-09-29) | Done in batch 30 for lapsed observations: AMCP renews them from the account list narrowed to the one ID and retries once (F-70) |
+| All-or-nothing builds through Google's multi-resource mutate (item 5) | Do what is best (2026-09-29) | Done in batch 30: `google_atomic_builds`, and a Google clone is one build by default (F-108) |
+| Paused parents on Snapchat, Meta and TikTok (item 6 on other platforms) | Do what is best (2026-09-29) | Done in batch 30 on all three, whose child reviews read the parent (F-107) |
+| An owner policy with `allow_activation: false` still refuses ENABLED children under a paused parent | Do what is best (2026-09-29) | Kept; the refusal now says to keep the entity paused or ask the owner |
+| List `https://claude.ai` in `AMCP_MCP_ALLOWED_ORIGINS` (F-88) | Do what is best (2026-09-29) | Left empty; add an origin only when the refusal log shows it refused (`docs/DEPLOY-RAILWAY.md`). Setting it is a Railway change |
+| Treat a documented provider validation refusal after submission as "not applied" (Snapchat brief) | Do what is best (2026-09-29) | Done where the contract proves it: a refused all-or-nothing Google build is amended under a new key (F-109). Elsewhere unchanged, because the documentation does not establish that nothing was applied |
+| Who sees `health`, and the mismatch acceptance design (Snapchat S7, S5) | Do what is best (2026-09-29) | Kept as built (the brief's suggestion) |
 
 ## Still open, not waiting on you
 

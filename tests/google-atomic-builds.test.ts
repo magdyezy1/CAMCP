@@ -381,6 +381,9 @@ test('an owner policy that forbids activation refuses enabled children; a budget
       const refused = review.success ? await x.execute(review) : review;
       assert.equal(refused.success, false, JSON.stringify(policy));
       assert.match(refused.error.code, code, JSON.stringify(refused.error).slice(0, 600));
+      // The refusal says how to proceed: keep it paused, or ask the owner (the owner's decision 3).
+      if (policy.allow_activation === false)
+        assert.match(refused.error.message, /Keep status paused.*ask the workspace owner/);
       assert.equal(x.mutates.length, 0);
     } finally {
       x.store.close();

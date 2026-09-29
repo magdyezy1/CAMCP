@@ -51,6 +51,11 @@ not use Snapchat's default. See `GOOGLE-BRIEF-2026-09-29.md` and `tests/campaign
 
 ## Decisions taken conservatively (for the owner)
 
+The owner answered these on 2026-09-29 with "do what you think is the best way forward": 1, 2, 3 and 4 are kept as
+built; 5 is done where the provider contract proves nothing was applied (a refused all-or-nothing Google build, F-109)
+and unchanged for Snapchat, whose documentation this environment could not reach. Lapsed ownership is now renewed
+automatically (F-70), and paused parents cover Snapchat squads and ads (F-107).
+
 1. **Health permissions (S7).** Implemented the brief's suggestion: an administrator who does not own the workspace
    sees connection status and job queues only; operators, readers and reviewer test accounts are refused. Decide
    whether anyone else should see health, or whether administrators should not.

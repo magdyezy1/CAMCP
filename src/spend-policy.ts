@@ -675,7 +675,10 @@ function checkAccountSpendPolicy(
       )
         throw new MirrorError(
           'POLICY_ACTIVATION_FORBIDDEN',
-          'The owner policy forbids activation.',
+          // The owner's "nothing goes live" switch (decision 3, 2026-09-29): it holds under a paused parent too.
+          'The owner policy forbids activation. Keep ' +
+            rule.field +
+            ' paused (a new entity too, even under a paused parent), or ask the workspace owner to allow activation.',
           {policy_id: id, field: rule.field},
           403,
         );

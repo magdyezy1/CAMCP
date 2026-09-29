@@ -161,6 +161,20 @@ const verificationStepStatus = (status: string) =>
   ['verified', 'failed', 'mismatch'].includes(status) ? status : 'verifying';
 /** A step whose result later steps may use: verified, or accepted as observed by the user (Snapchat S5). */
 const settled = (s: JsonObject) => ['verified', 'verified_with_acceptance', 'complete'].includes(s.status);
+/**
+ * A Google build Google refused outright (HTTP 4xx other than a timeout or rate limit). The pinned v25 contract
+ * applies a partialFailure-false googleAds:mutate "if and only if" every operation is valid, so a refused build created
+ * nothing (the owner's decision 5, 2026-09-29). Its key stays uncertain and is never sent again; the step may be
+ * amended and reviewed under a new key. Every other refusal after submission, and a lost response, still stop the plan.
+ */
+const rejectedBuild = (step: JsonObject) =>
+  step.kind === 'write' &&
+  step.status === 'failed' &&
+  step.gateway === 'google_ads_native_action' &&
+  /_google_ads_mutate$/.test(String(step.arguments?.action ?? '')) &&
+  step.arguments?.payload?.partial_failure !== true &&
+  step.arguments?.payload?.partialFailure !== true &&
+  [400, 401, 403, 404, 409, 412, 422].includes(Number(step.error?.details?.http_status));
 const planState = (run: JsonObject, step: JsonObject) =>
   run.steps.every(settled) ? 'complete' : settled(step) ? 'in_progress' : 'attention';
 /** The call that accepts a mismatched step's observed state; the flag is the user's, never pre-filled. */
@@ -250,6 +264,16 @@ export class CampaignRunner {
   /** Why a failed, uncertain or mismatched step stops the plan, and the one call that can move it (Snapchat S2). */
   private stopped(actor: Actor, run: JsonObject, step: JsonObject): JsonObject {
     const claim = this.claim(actor, step.review_id);
+    if (rejectedBuild(step))
+      return {
+        recovery:
+          'Google refused build ' +
+          step.id +
+          ' (HTTP ' +
+          step.error.details.http_status +
+          '), so none of it was created: a build is applied completely or not at all. Its key is never sent again. Correct what the error names with recover_step (next_call); the build is reviewed again under a new key.',
+        next_call: amendmentCall(run.id, step, step.error),
+      };
     if (step.status === 'failed' && !claim)
       return {
         recovery:
@@ -848,7 +872,7 @@ export class CampaignRunner {
           'RECOVERY_NOT_SAFE',
           {step_id: step.id, status: step.status},
         );
-      if (this.claim(actor, step.review_id))
+      if (this.claim(actor, step.review_id) && !rejectedBuild(step))
         bad(
           'Step ' +
             step.id +
@@ -907,6 +931,15 @@ export class CampaignRunner {
         step.arguments = input.arguments;
       }
       noSecrets(step.arguments);
+      if (rejectedBuild(step)) {
+        attempt.rejected_build = {http_status: step.error.details.http_status, key_retired: step.review_id};
+        audit(this.store, actor, 'campaign_step_recovered_after_rejection', {
+          id: run.id,
+          step_id: step.id,
+          review_id: step.review_id,
+          http_status: step.error.details.http_status,
+        });
+      }
       step.previous_attempts = [...(step.previous_attempts ?? []), attempt].slice(-10);
       for (const k of ['review', 'review_id', 'resolved', 'error', 'result', 'verification', 'submission'])
         delete step[k];

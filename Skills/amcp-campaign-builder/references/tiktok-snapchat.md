@@ -786,7 +786,12 @@ them, and a read-only deployment allows them). They do not go through `amcp_writ
   dependants continue. Nothing is sent to Snapchat. Otherwise, a correction is a new reviewed write.
 - Campaigns, ad squads, ads, creatives, media and pixels use global IDs whose ownership observation
   lasts five minutes. Preparing a child re-reads its parent; when Snapchat names the owning ad
-  account, or a parent this login still owns, ownership is renewed for the review window.
+  account, or a parent this login still owns, ownership is renewed for the review window. When an
+  observation this login made has lapsed, a read or a prepare renews it itself: AMCP runs the account
+  list narrowed to that one ID and retries once, and the response's `meta.ownership_refreshed` names
+  the read. An ID the account no longer lists stays refused and no request names it; an ID never
+  observed, or whose observations re-provisioning cleared, still needs the explicit read, and execute
+  is never retried.
   Re-provisioning a connection still clears every observation: read the account collection again.
 - With `result_fields`, Snapchat lists keep every wrapped record and project inside it, for example
   `{adsquads: [{sub_request_status, adsquad: {id, name, status}}]}`.

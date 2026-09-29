@@ -988,6 +988,15 @@ export class Store {
       )
       .run(connection.tenantId, connection.id, accountId, resource, Date.now() + Math.min(ttlMs, 300000));
   }
+  /** True when this connection observed the resource in the account's list and that observation has since expired;
+   * false when it never did, or when re-provisioning cleared its observations. */
+  ownershipLapsed(connection: Connection, accountId: string, resource: string): boolean {
+    return !!this.db
+      .prepare(
+        'SELECT 1 FROM resource_ownership WHERE tenant_id=? AND connection_id=? AND account_id=? AND resource=? AND expires_at<=?',
+      )
+      .get(connection.tenantId, connection.id, accountId, resource, Date.now());
+  }
   ownsResource(connection: Connection, accountId: string, resource: string): boolean {
     return !!this.db
       .prepare(

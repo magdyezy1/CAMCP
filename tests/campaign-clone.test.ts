@@ -306,7 +306,8 @@ test('clone refuses a bad spec before creating anything, and names the field', a
 const google = 'google_ads_native_action',
   actor: Actor = {tenantId: 'clone-google', userId: 'operator', role: 'operator'},
   admin: Actor = {...actor, role: 'admin'};
-function googleSource(channel = 'SEARCH', bidding = 'MAXIMIZE_CONVERSIONS') {
+/** `refuseFirst`: the HTTP status Google answers the first build with. */
+function googleSource(channel = 'SEARCH', bidding = 'MAXIMIZE_CONVERSIONS', refuseFirst?: number) {
   const store = new Store(':memory:', Buffer.alloc(32, 46).toString('base64'));
   store.putConnection(
     admin,
@@ -428,6 +429,11 @@ function googleSource(channel = 'SEARCH', bidding = 'MAXIMIZE_CONVERSIONS') {
         writes.push(body);
         if (!path.endsWith('googleAds:mutate'))
           return Response.json({error: {code: 500, message: 'Synthetic'}}, {status: 500});
+        if (refuseFirst && writes.length === 1)
+          return Response.json(
+            {error: {code: refuseFirst, status: 'INVALID_ARGUMENT', message: 'Request contains an invalid argument.'}},
+            {status: refuseFirst},
+          );
         // Google applies the whole build, resolving temporary names to the IDs it allocates.
         const temps = new Map<string, string>(),
           real = (v: unknown): unknown =>
@@ -670,6 +676,66 @@ test('the cloned build is approved once and runs as one request; every resource 
     const campaign = [...g.created.values()].find(c => c.advertising_channel_type === 'SEARCH')!;
     assert.equal(campaign.status, 'PAUSED');
     assert.equal([...g.created.values()].find(c => c.name === 'Brand')!.status, 'ENABLED');
+  } finally {
+    g.store.close();
+  }
+});
+
+const runBuild = async (g: ReturnType<typeof googleSource>, id: string) => {
+  const call = (input: JsonObject) => g.service.call('amcp_campaign', input, actor) as Promise<JsonObject>;
+  const summary = (await call({action: 'approve', id})).data;
+  await call({...summary.next_call.arguments, ...summary.next_call.add_after_user_approval});
+  return {call, ran: await call({action: 'run', id})};
+};
+
+test('a build Google refuses (HTTP 400) created nothing, so it is amended and reviewed under a new key', async () => {
+  const g = googleSource('SEARCH', 'MAXIMIZE_CONVERSIONS', 400);
+  try {
+    const id = (await g.call({})).data.id;
+    const {call, ran} = await runBuild(g, id);
+    assert.equal(ran.data.run.stopped, 'needs_attention', JSON.stringify(ran.data).slice(0, 1200));
+    assert.equal(g.writes.length, 1);
+    assert.equal(g.created.size, 0, 'Google applied nothing');
+    const next = await call({action: 'prepare_next', id});
+    assert.match(JSON.stringify(next.data), /none of it was created/);
+    const recovery = next.data.next_call;
+    assert.equal(recovery.arguments.action, 'recover_step');
+    const amended = await call({
+      ...recovery.arguments,
+      patch: [{path: '/payload/mutate_operations/0/campaign_budget_operation/create/amount_micros', value: '50000000'}],
+    });
+    assert.equal(amended.success, true, JSON.stringify(amended).slice(0, 800));
+    const again = await runBuild(g, id);
+    assert.equal(again.ran.data.state, 'complete', JSON.stringify(again.ran.data).slice(0, 1200));
+    assert.equal(g.writes.length, 2, 'the refused request is not sent again; the amended build is');
+    assert.equal(g.writes[1]!.mutate_operations[0].campaign_budget_operation.create.amount_micros, '50000000');
+    assert.equal(g.created.size, 11);
+    const plan = (await call({action: 'get', id, detail: 'full'})).data;
+    const attempt = plan.steps[0].previous_attempts[0];
+    assert.equal(attempt.rejected_build.http_status, 400);
+    // The refused key stays uncertain and is never usable again.
+    const old = g.store.db
+      .prepare('SELECT state FROM idempotency WHERE key=?')
+      .get(attempt.rejected_build.key_retired) as {state: string};
+    assert.equal(old.state, 'uncertain');
+    const events = (
+      g.store.db.prepare('SELECT event FROM audit WHERE tenant_id=?').all(actor.tenantId) as {event: string}[]
+    ).map(e => JSON.parse(e.event));
+    assert.ok(events.some(e => e.event === 'campaign_step_recovered_after_rejection' && e.http_status === 400));
+  } finally {
+    g.store.close();
+  }
+});
+
+test('a build whose outcome is unknown (HTTP 500) is never amended or sent again', async () => {
+  const g = googleSource('SEARCH', 'MAXIMIZE_CONVERSIONS', 500);
+  try {
+    const id = (await g.call({})).data.id;
+    const {call, ran} = await runBuild(g, id);
+    assert.equal(ran.data.run.stopped, 'needs_attention');
+    const refused = await call({action: 'recover_step', id, step_id: 'build', confirmed: true, arguments: {}});
+    assert.equal(refused.error?.code, 'RECOVERY_NOT_SAFE', JSON.stringify(refused).slice(0, 600));
+    assert.equal(g.writes.length, 1);
   } finally {
     g.store.close();
   }
