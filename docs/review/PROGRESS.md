@@ -735,3 +735,8 @@ The owner's decision of 2026-09-29, continued. Evidence: Snapchat's "Dynamic Pro
 | **Snapchat product feeds (`snapchat_product_feeds`).** A catalog's one feed: create, whole update and delete. Schedules follow the reference's interval table, over HTTPS and without credentials. Supplemental feeds and feed uploads stay refused; the deletion review says the reference does not state what becomes of the feed's products | `tests/snapchat-product-feeds.test.mjs` (4 tests) |
 | **TikTok catalogs blocked on evidence.** TikTok's docs portal, rendered in Chromium, shows only Reporting and Authentication without signing in, and the official SDK gives request fields without responses or meaning. The twenty catalog writes carry that reason in the ledger and in their refusal | `tests/withheld-writes.test.mjs` (two TikTok catalog cases) |
 | **Two test fixes.** The budget schedule test failed late in the UTC evening, when its 6-hour period crossed midnight in Riyadh and correctly touched two days; it now starts at 06:00 Riyadh. The Meta feed family compared schedules as JSON text, which depends on key order; it now compares stable forms | `tests/meta-budget-schedules.test.mjs` 8/8 at an hour that failed before; `tests/meta-product-feeds.test.mjs` 6/6 |
+
+Full qualification of batch 38 (`.release/batch38`, up to `03f78b3`): **2,977 / 2,977** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 317 s. The candidate's 1,284 source
+files equal `03f78b3`, apart from `release-manifest.json`. Live acceptance is unverified: no provider was called, and
+the Snapchat catalog writes need an Organization Admin.
