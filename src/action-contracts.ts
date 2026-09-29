@@ -259,12 +259,27 @@ function classify(
   }
   result.status = readOnly === true ? 'unqualified_read' : 'blocked_write';
   result.implementation = 'src/reviewed-routes.ts';
+  const withheld = readOnly === true ? undefined : evidenceWithheld[p.gateway + ' ' + p.action];
+  if (withheld) {
+    result.reason = withheld;
+    return result;
+  }
   result.reason =
     readOnly === true
       ? 'Captured read metadata did not pass independent read-only classification. This route cannot execute without a specific risk contract.'
       : 'Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.';
   return result;
 }
+/**
+ * Writes left blocked after a check of the official sources found too little to state them exactly (F-58, batch 33,
+ * read 2026-09-29). They stay refused like every other write without a family; the ledger says why.
+ */
+const evidenceWithheld: Record<string, string> = {
+  'tiktok_native_action tiktok_creative_portfolio_delete':
+    "Blocked on evidence: TikTok's official SDK (tiktok/tiktok-business-api-sdk, 2026-02-28) defines portfolio create, get and list but no delete, and TikTok's documentation pages render only in a browser, so which portfolios can be deleted and what becomes of ads using them is unread.",
+  'x_ads_native_action x_stats_jobs_accounts_account_id_delete':
+    "Blocked on evidence: docs.x.com's analytics page (read 2026-09-29) no longer documents deleting an asynchronous job, and the earlier reference placed the job ID in the path (stats/jobs/accounts/:account_id/:job_id), which the captured route lacks.",
+};
 /** Enumerates every captured action AND every delegated action enum. Unknown
  * provider denominators remain unknown. No catalog row grants permission. */
 export function actionContracts(registry: Registry): ActionContract[] {

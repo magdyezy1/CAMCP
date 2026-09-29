@@ -53,6 +53,7 @@ import {googleBrandGuidelinesFamily} from './google-pmax-brand-guidelines.js';
 import {googlePortfolioFamily} from './google-portfolio-strategies.js';
 import {googleApplyFamily} from './google-recommendation-apply.js';
 import {googleDismissalFamily} from './google-recommendation-dismissal.js';
+import {googleCustomerLabelFamily} from './google-customer-labels.js';
 import {googleSubscriptionFamily} from './google-recommendation-subscriptions.js';
 import {googlePreviewFamily} from './google-preview-writes.js';
 import {googleSmartFamily} from './google-smart-campaign-settings.js';
@@ -81,6 +82,7 @@ import {linkedinThirdPartyFamily} from './linkedin-third-party-tracking.js';
 import {linkedinTrackingFamily} from './linkedin-tracking-parameters.js';
 import {metaAccountSettingsFamily} from './meta-account-settings.js';
 import {metaImageFamily} from './meta-ad-images.js';
+import {metaVideoFamily} from './meta-ad-videos.js';
 import {metaBrandSafetyFamily} from './meta-brand-safety.js';
 import {metaCopyFamily} from './meta-copies.js';
 import {metaConversionFamily} from './meta-custom-conversions.js';
@@ -209,6 +211,7 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     googlePortfolioFamily, // google_portfolio_strategies
     googleApplyFamily, // google_recommendation_apply
     googleDismissalFamily, // google_recommendation_dismissal
+    googleCustomerLabelFamily, // google_customer_labels
     googleSubscriptionFamily, // google_recommendation_subscriptions
     googlePreviewFamily, // google_shareable_previews
     googleSmartFamily, // google_smart_campaign_settings
@@ -237,6 +240,7 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     linkedinTrackingFamily, // linkedin_tracking_parameters
     metaAccountSettingsFamily, // meta_account_settings
     metaImageFamily, // meta_ad_images
+    metaVideoFamily, // meta_ad_videos
     metaBrandSafetyFamily, // meta_brand_safety
     metaCopyFamily, // meta_copies
     metaConversionFamily, // meta_custom_conversions

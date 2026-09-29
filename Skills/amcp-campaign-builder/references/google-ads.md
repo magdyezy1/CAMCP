@@ -168,6 +168,20 @@ ad parameters, signals and exclusions can change existing ads and require spend 
 After execution, verify the exact resource or deletion. Configuration read-back establishes
 neither serving nor conversion collection; do not retry a lost mutation under a new key.
 
+### Customer labels (removal only)
+
+`google_ads_v23_customer_label_mutate_customer_labels` with `payload: {operations: [{remove:
+"customers/{customer_id}/customerLabels/{label_id}"}]}` removes 1–100 labels from the selected
+customer account, all or nothing (`partialFailure` omitted or false). The labels usually belong to
+a manager: the review reads them with the connection's login customer for the account, and a label
+it cannot see is refused with `STATE_NOT_FOUND` (`details.missing`). The labels themselves, and
+other accounts carrying them, are unchanged; serving is not affected. Removal counts under owner
+deletion policies; verification reads the customer labels again and expects each one gone.
+Applying a label to a customer (`create`) stays refused with `WRITE_CONTRACT_UNAVAILABLE`: Google's
+v25 reference marks both `CustomerLabel` fields output only and gives a create no resource name,
+so the request cannot be stated unambiguously. `INVALID_CUSTOMER_LABEL_REMOVAL` names the payload
+problem; `CUSTOMER_LABEL_STATE_UNVERIFIED` means the label read was incomplete or malformed.
+
 ## Audience signals
 
 `google_ads_v23_audience_mutate_audiences` creates and updates customer-scoped `Audience`

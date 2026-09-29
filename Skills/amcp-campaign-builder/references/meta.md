@@ -448,6 +448,15 @@ Deleting), checked 2026-09-27.
   so it refuses images in use; that reply is a failure never resubmitted. The deletion counts under
   owner deletion policies; verification lists the image again and expects it gone or DELETED.
   `INVALID_META_AD_IMAGE` names the field to correct.
+- `meta_ad_account_id_advideos_delete` with `params: {video_id}` removes a video from the ad account
+  video library (Meta: it "dissociate[s] a Video from an AdAccount"). Meta does not say what
+  becomes of creatives using the video, so AMCP reads every library video and every creative of the
+  account first (up to 1,000 of each; a larger account is refused with `INCOMPLETE_STATE`). A video
+  outside the library is refused with `STATE_NOT_FOUND`; one that any creative names (in its story,
+  asset feed, customizations or `video_id`), deleted creatives aside, with `MEDIA_IN_USE` and
+  `details.creative_ids`: delete or replace those creatives first, or keep the video. The removal
+  counts under owner deletion policies; verification lists the library again and expects the video
+  gone. `INVALID_META_AD_VIDEO` names the field to correct.
 - `meta_ad_account_id_customconversions_create` with `payload: {name, event_source_id, rule,
   custom_event_type, default_conversion_value, description, action_source_type}` creates a custom
   conversion. AMCP asks for a name of up to 100 characters, a pixel of the ad account in
@@ -460,7 +469,8 @@ Deleting), checked 2026-09-27.
   names the field to correct.
 
 Reference: the Marketing API v25.0 "Ad Image" (Deleting) and "Ad Account Customconversions"
-(Creating) references, checked 2026-09-27.
+(Creating) references, checked 2026-09-27, and the "Ad Account Advideos" reference (Deleting), read
+2026-09-29.
 
 ## Pixels
 

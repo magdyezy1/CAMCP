@@ -1,6 +1,6 @@
 # Platform contracts, workflows and integration
 
-Status on 2026-09-28, from the code and the pinned evidence only: the action ledger
+Status on 2026-09-29 (batch 33), from the code and the pinned evidence only: the action ledger
 (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`), `src/provider-contracts.ts`, `src/spend-policy.ts`
 (`activationFields`), `src/report-metrics.ts` (`metricSources`), the pinned vendor documents in `.mirror/VENDOR/` and
 the findings in [FINDINGS.md](FINDINGS.md). Nothing here was checked against a live account: every ledger row is
@@ -9,26 +9,26 @@ the findings in [FINDINGS.md](FINDINGS.md). Nothing here was checked against a l
 ## Summary
 
 Ledger columns count native routes. *Reviewed* routes belong to a reviewed write family (inspect → prepare → execute →
-verify); *blocked* routes are writes AMCP refuses; *registered* counts families already declared through the typed
-registry (`src/reviewed-families.ts`).
+verify); *blocked* routes are writes AMCP refuses; *registered* counts families declared through the typed
+registry (`src/reviewed-families.ts`): every family since batch 33.
 
 | Platform | API pinned | Reads | Reviewed (families, registered) | Blocked | Activation field | Primary conversions in reports | Lifecycle |
 |---|---|---|---|---|---|---|---|
-| Google Ads | v25 | 173 | 212 (23, 8) | 53 | `status` ENABLED | `metrics.conversions` | on v25 since batch 14; v25 sunset date not read (F-49) |
-| Meta | v26.0 | 420 | 54 (13, 6) | 112 | `status` ACTIVE | leads, installs or purchases by objective; empty otherwise | on v26.0 since batch 15; v25.0 kept as a fallback (F-52) |
-| TikTok | v1.3 | 316 | 68 (27, 7) | 167 | `operation_status` ENABLE | `conversion` (the ad group's optimization event) | no dated sunset recorded |
-| Snapchat | v1 | 271 | 60 (10, 0) | 66 | `status` ACTIVE | installs, sign-ups or purchases by objective | no dated sunset recorded |
-| LinkedIn | 202605 | 146 | 54 (17, 9) | 87 | `status` ACTIVE (creatives: `intendedStatus`) | `externalWebsiteConversions` | monthly versions; 12 modules cite li-lms-2026-09 (F-53) |
-| X Ads | 12 | 96 | 56 (14, 4) | 33 | `entity_status` ACTIVE | not reported | no dated sunset recorded |
-| DV360 | v4 | 78 | 62 (16, 4) | 29 | `entityStatus` ENTITY_STATUS_ACTIVE | — (no DV360 report source) | no dated sunset recorded |
-| Microsoft Ads | v13 | 14 | 14 (2, 0) | — | `Status` Active | `Conversions` | SOAP deprecated 2027-01-31; AMCP sends REST, pinned from Microsoft Learn (F-50, batch 32) |
-| Apple Ads | v1 | 20 | 21 (2, 0) | — | `status` ENABLED | `totalInstalls` | no dated sunset recorded |
-| Reddit | v3 | 38 | 13 (2, 0) | — | `configured_status` ACTIVE | not reported (purchases are) | onsite lead-form creation withdrawn 2026-09-21; ads using those forms paused by Reddit on 2026-09-30 |
-| Criteo Retail Media | 2026-07 | 51 | 34 (11, 0) | 23 | `status` active, scheduled | — | 2026-07 support can end from 2027-07 by the 12-month policy (F-51, moved in batch 32) |
-| Google Business Profile | v1 | 28 | 14 (6, 3) | 9 | public place links | — | — |
-| GA4 | v1beta / v1alpha | 16 | 2 (1, 0) | — | none (no delivery) | `keyEvents` | alpha surfaces can change without notice |
-| GTM | v2 | 38 | 64 (3, 0) | — | none | — | — |
-| Search Console | v3 / v1 | 6 | 4 (1, 0) | — | none | — | — |
+| Google Ads | v25 | 173 | 216 (26, 26) | 49 | `status` ENABLED | `metrics.conversions` | on v25 since batch 14; v25 sunsets 2027-08 (F-49) |
+| Meta | v26.0 | 420 | 55 (14, 14) | 111 | `status` ACTIVE | leads, installs or purchases by objective; empty otherwise | on v26.0 since batch 15, available until "TBD"; v25.0 kept as a fallback (F-52) |
+| TikTok | v1.3 | 316 | 68 (27, 27) | 167 | `operation_status` ENABLE | `conversion` (the ad group's optimization event) | no dated sunset recorded |
+| Snapchat | v1 | 271 | 60 (10, 10) | 62 | `status` ACTIVE | installs, sign-ups or purchases by objective | one version, v1; no end announced (checked 2026-09-29) |
+| LinkedIn | 202609 | 144 | 54 (17, 17) | 79 | `status` ACTIVE (creatives: `intendedStatus`) | `externalWebsiteConversions` | monthly versions; on 202609 since batch 32 (F-53) |
+| X Ads | 12 | 96 | 56 (14, 14) | 33 | `entity_status` ACTIVE | not reported | end of life "TBD" (checked 2026-09-29) |
+| DV360 | v4 | 78 | 62 (16, 16) | 29 | `entityStatus` ENTITY_STATUS_ACTIVE | — (no DV360 report source) | no deprecation announced |
+| Microsoft Ads | v13 | 14 | 14 (2, 2) | — | `Status` Active | `Conversions` | SOAP deprecated 2027-01-31; AMCP sends REST, pinned from Microsoft Learn (F-50, batch 32) |
+| Apple Ads | v1 | 20 | 21 (2, 2) | — | `status` ENABLED | `totalInstalls` | Platform API: no end published; the Campaign Management API (not sent) sunsets 2027-01-26 (checked 2026-09-29) |
+| Reddit | v3 | 38 | 13 (2, 2) | — | `configured_status` ACTIVE | not reported (purchases are) | onsite lead-form creation withdrawn 2026-09-21; ads using those forms paused by Reddit on 2026-09-30 |
+| Criteo Retail Media | 2026-07 | 51 | 34 (11, 11) | 23 | `status` active, scheduled | — | 2026-07 support can end from 2027-07 by the 12-month policy (F-51, moved in batch 32) |
+| Google Business Profile | v1 | 28 | 14 (6, 6) | 9 | public place links | — | — |
+| GA4 | v1beta / v1alpha | 16 | 2 (1, 1) | — | none (no delivery) | `keyEvents` | alpha surfaces can change without notice |
+| GTM | v2 | 38 | 64 (3, 3) | — | none | — | — |
+| Search Console | v3 / v1 | 6 | 4 (1, 1) | — | none | — | — |
 
 Reads outnumber reviewed writes on every advertising platform; the blocked writes are refused on purpose (no
 qualified contract), not missing work. Adjust (29 routes, reporting only) and Amazon (catalog-dependent, delegated)
@@ -54,12 +54,14 @@ have no reviewed writes.
 
 ## Platform notes
 
-**Google Ads.** The largest surface (212 reviewed routes, 23 families). On v25 since batch 14 (F-49): the families were
+**Google Ads.** The largest surface (216 reviewed routes, 26 families). Customer labels can be removed since batch 33
+(applying one stays refused: v25 marks both of its fields output only; F-58). On v25 since batch 14 (F-49): the families were
 rechecked against the v25 contract, and the seven names whose operation v25 removed (lifecycle goals, campaign-level
 brand safety) are refused with their replacement ([the migration record](../implementation/GOOGLE-ADS-V25-2026-09-28.md)). Numeric enum values in writes are refused since batch 1, so a changed enum number cannot slip
 through.
 
-**Meta.** Broad reads (420) with writes limited to 13 families. On Graph v26.0 since batch 15 (F-52): Meta's official
+**Meta.** Broad reads (420) with writes limited to 14 families; library videos no creative uses can be removed since
+batch 33 (F-58). On Graph v26.0 since batch 15 (F-52): Meta's official
 SDK at 26.0.2 keeps every catalog request AMCP could compare and removes nothing AMCP sends
 ([the migration record](../implementation/META-V26-2026-09-28.md)); `AMCP_META_API_VERSION=v25.0` moves back. The
 v26.0 changelog's refusals (Explore placement, poll components, the Advantage+ Audience choice of special-category ad
@@ -75,16 +77,15 @@ confirmation. Its families are all registered (batches 31 and 33); only the enti
 path. An ad squad's `lifetime_budget_micro` is held to the owner's caps in native micros, the unit Snapchat's ad
 squad reference gives it (F-55, batch 33).
 
-**LinkedIn.** One version source since batch 2 (`linkedinVersion()`), still `202605` while twelve modules cite the
-2026-09 documentation; moving to `202609` is an owner decision that needs a read-only review of the changed fields
-(F-53). Ten unversioned Marketing routes (`adCampaignsV2`, `adCreativesV2`, `dmpSegments`,
+**LinkedIn.** One version source since batch 2 (`linkedinVersion()`); AMCP sends `202609` since batch 32, after a
+review of LinkedIn's changes for 202606–202609 (F-53). Ten unversioned Marketing routes (`adCampaignsV2`, `adCreativesV2`, `dmpSegments`,
 `organizationalEntityAcls`) are withdrawn with their versioned replacements named (F-58, batch 31).
 
 **X Ads.** v12 across 14 families including entity batches, tracking tags and media library. Reports carry spend,
 impressions, clicks, engagements and video views; X has no conversion metric in AMCP reports.
 
-**DV360.** 16 families, four registered. The display-video write scope is still one gateway-level check that lists
-the DV360 families; it moves to the registry once every DV360 family is registered. Its pinned discovery document is
+**DV360.** 16 families, all registered (batch 33); each declares the display-video write scope through its own scope
+hook (`src/dv360-scope.ts`). Its pinned discovery document is
 sealed since batch 5 (F-72).
 
 **Microsoft Advertising.** AMCP sends v13 REST requests. Since batch 32 each operation's REST method, URL and request
