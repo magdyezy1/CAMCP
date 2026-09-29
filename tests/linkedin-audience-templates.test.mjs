@@ -206,7 +206,7 @@ test('LinkedIn template contracts preserve the exact native body, partial-update
       const c = f.calls.find(c => c.method !== 'GET');
       assert.deepEqual(c.body ? JSON.parse(c.body) : undefined, a.payload);
       assert.equal(c.headers['X-Restli-Protocol-Version'], '2.0.0');
-      assert.equal(c.headers['LinkedIn-Version'], '202605');
+      assert.equal(c.headers['LinkedIn-Version'], '202609');
       if (kind === 'update') assert.equal(c.headers['X-RestLi-Method'], 'PARTIAL_UPDATE');
       if (kind === 'batch') assert.equal(c.query.ids, 'List(456,457)');
       assert.equal(

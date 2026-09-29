@@ -251,7 +251,6 @@ test('malformed tracking parameters are refused before any request', async () =>
   const cases = [
     ['name with a space', {customValueParameters: {'utm source': 'x'}}],
     ['unknown dynamic value', {dynamicValueParameters: {utm_campaign: 'CAMPAIGN_TITLE'}}],
-    ['creative name before 202606', {dynamicValueParameters: {utm_content: 'CREATIVE_NAME'}}],
     ['no parameters', {}],
     ['empty custom value', {customValueParameters: {utm_source: ''}}],
     ['control character', {customValueParameters: {utm_source: 'a\nb'}}],
@@ -279,7 +278,6 @@ test('malformed tracking parameters are refused before any request', async () =>
       (await f.put(campaign(123), utm, {idempotencyToken: '100', start: '0'})).error?.code,
       'INVALID_LINKEDIN_TRACKING',
     );
-    assert.equal((await f.put('urn:li:sponsoredAccount:507', utm)).error?.code, 'INVALID_LINKEDIN_TRACKING');
     assert.equal((await f.put('urn:li:sponsoredAccount:999', utm)).error?.code, 'ACCOUNT_SCOPE_MISMATCH');
     assert.equal(f.calls.length, 0);
   } finally {
@@ -299,6 +297,28 @@ test('foreign and removed campaigns are refused after reading, without writes', 
     assert.equal(f.writes(), 0);
   } finally {
     f.store.close();
+  }
+});
+
+test('versions before 202606 refuse CREATIVE_NAME and before 202608 account-level parameters', async () => {
+  const previous = process.env.AMCP_LINKEDIN_API_VERSION;
+  process.env.AMCP_LINKEDIN_API_VERSION = '202605';
+  try {
+    const f = fixture();
+    try {
+      const r = await f.put(campaign(123), {dynamicValueParameters: {utm_content: 'CREATIVE_NAME'}});
+      assert.equal(r.error?.code, 'INVALID_LINKEDIN_TRACKING', JSON.stringify(r).slice(0, 300));
+      assert.match(r.error.message, /202606/);
+      const account = await f.put('urn:li:sponsoredAccount:507', utm);
+      assert.equal(account.error?.code, 'INVALID_LINKEDIN_TRACKING', JSON.stringify(account).slice(0, 300));
+      assert.match(account.error.message, /202608/);
+      assert.equal(f.calls.length, 0);
+    } finally {
+      f.store.close();
+    }
+  } finally {
+    if (previous === undefined) delete process.env.AMCP_LINKEDIN_API_VERSION;
+    else process.env.AMCP_LINKEDIN_API_VERSION = previous;
   }
 });
 

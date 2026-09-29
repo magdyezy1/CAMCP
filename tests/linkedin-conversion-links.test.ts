@@ -571,7 +571,7 @@ test('LinkedIn internal review enforces a monotonic deadline and all-batch capac
     path: '/rest/campaignConversions/' + pairKey(pair()),
     query: {},
     body: pair(),
-    headers: {'LinkedIn-Version': '202605', 'X-Restli-Protocol-Version': '2.0.0'},
+    headers: {'LinkedIn-Version': '202609', 'X-Restli-Protocol-Version': '2.0.0'},
     readOnly: false,
     destructive: false,
     requiresConfirmation: true,

@@ -405,7 +405,7 @@ test('a DRAFT form is created once, verifies by its exact 64-bit ID and becomes 
     assert.equal(done.data.created_id, big);
     assert.equal(f.writes.length, 1);
     assert.deepEqual(f.writes[0].body, form());
-    assert.equal(f.writes[0].headers['LinkedIn-Version'], '202605');
+    assert.equal(f.writes[0].headers['LinkedIn-Version'], '202609');
     assert.equal(f.writes[0].headers['X-Restli-Protocol-Version'], '2.0.0');
     assert.equal(f.writes[0].headers['X-RestLi-Method'], undefined);
     const verified = await f.verify(p.data.review_id);

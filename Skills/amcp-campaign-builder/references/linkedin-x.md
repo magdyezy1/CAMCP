@@ -56,7 +56,7 @@ smaller supported scope or a separately qualified discovery change.
 
 AMCP bounds are 25 include clauses, 500 targeting values, 25 private references,
 1000 templates, 20 pages per pass, 100 reads, 8 MiB and 60 seconds per collection.
-The 202605 contract accepts documented native facets only. Nested partial patches,
+The contract accepts documented native facets only (checked at 202605; unchanged through 202609). Nested partial patches,
 account transfers and shared/ownerless segment use remain unqualified. Facet
 eligibility and actual API response compatibility still require live evidence.
 
@@ -226,8 +226,8 @@ LinkedIn-Version 202606) and `customValueParameters` (name to fixed text).
 - `..._campaign_urn_delete` removes all of a campaign's parameters and counts as a deletion under
   owner policies; deleting none returns `STATE_NOT_FOUND`.
 - Account-level parameters use `(adEntity:(sponsoredAccount:urn:li:sponsoredAccount:<selected id>))`
-  and need LinkedIn-Version 202608 or later (`AMCP_LINKEDIN_API_VERSION`); the default 202605
-  refuses them.
+  and need LinkedIn-Version 202608 or later; AMCP sends 202609 by default, and an older
+  `AMCP_LINKEDIN_API_VERSION` refuses them (and `CREATIVE_NAME` before 202606).
 - Writes need `rw_ads`, reads `r_ads` or `rw_ads`. Verification reads the parameters again and
   compares every name and value, or expects none after deletion. `INVALID_LINKEDIN_TRACKING` names
   the field to correct.
@@ -541,6 +541,18 @@ Sources: [Lead Syncing](https://learn.microsoft.com/en-us/linkedin/marketing/lea
 and [Lead Syncing Schema](https://learn.microsoft.com/en-us/linkedin/marketing/lead-sync/lead-sync-schema?view=li-lms-2026-09),
 li-lms-2026-09, checked 2026-09-26. Live acceptance needs the updated deployment and
 an ad account whose login has `rw_ads`.
+
+## LinkedIn version
+
+- AMCP sends `LinkedIn-Version: 202609` (Marketing September 2026). `AMCP_LINKEDIN_API_VERSION`, or
+  a call's `api_version`, chooses another monthly version still supported by LinkedIn.
+- From 202605 to 202609 LinkedIn only added things AMCP can use: campaign group billing, beneficiary
+  and buying type (202608; earlier versions refuse them with 422, so a cloned group copies them
+  only at 202608 or later), account-level UTM parameters (202608) and `CREATIVE_NAME` (202606).
+- LinkedIn keeps each version for at least a year; 202510 ends 2026-10-15 and 202511 2026-11-16.
+
+Source: Microsoft Learn, "Recent Marketing API changes" and "LinkedIn Marketing API Versioning",
+read 2026-09-29.
 
 ## Reading LinkedIn lists
 

@@ -93,7 +93,7 @@ function fixture(file = ':memory:') {
         headers = new Headers(init!.headers);
       calls.push({url: u.href, method, body: init!.body?.toString()});
       assert.equal(u.origin, 'https://api.linkedin.com');
-      assert.equal(headers.get('LinkedIn-Version'), '202605');
+      assert.equal(headers.get('LinkedIn-Version'), '202609');
       assert.equal(headers.get('X-Restli-Protocol-Version'), '2.0.0');
       if (method === 'GET') {
         reads++;
@@ -579,7 +579,7 @@ test('LinkedIn rule collection/page/byte/deadline bounds remain explicit', async
     path: '/rest/conversions',
     query: {account},
     body: {name: 'New', type: 'LEAD'},
-    headers: {'LinkedIn-Version': '202605', 'X-Restli-Protocol-Version': '2.0.0'},
+    headers: {'LinkedIn-Version': '202609', 'X-Restli-Protocol-Version': '2.0.0'},
     readOnly: false,
     destructive: false,
     requiresConfirmation: true,

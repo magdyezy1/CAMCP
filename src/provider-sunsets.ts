@@ -34,7 +34,14 @@ export const providerSunsets: ProviderSunset[] = [
     'v26.0',
     'Released 2026-07-29. AMCP_META_API_VERSION=v25.0 moves back to v25.0, whose end date is also unverified.',
   ),
-  unknown('linkedin', '202605', 'Monthly versions; the support period was not readable from the review environment.'),
+  {
+    provider: 'linkedin',
+    version: '202609',
+    basis: 'policy',
+    sunset: '2027-09',
+    checked: '2026-09-29',
+    note: 'LinkedIn supports each monthly version for at least one year (Marketing API Versioning). Published so far: 202510 ends 2026-10-15 and 202511 ends 2026-11-16 (Recent Marketing API changes, read 2026-09-29).',
+  },
   {
     provider: 'criteo',
     version: '2026-01',
