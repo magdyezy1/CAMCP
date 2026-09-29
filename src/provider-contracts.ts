@@ -319,6 +319,7 @@ export const providerContracts: JsonObject[] = [
               'tests/linkedin-conversion-links.test.ts',
               'tests/linkedin-conversion-rules.test.ts',
               'tests/linkedin-audience-templates.test.mjs',
+              'tests/linkedin-planning-reads.test.mjs',
               'tests/linkedin-tracking-parameters.test.mjs',
               'tests/linkedin-third-party-tracking.test.mjs',
               'tests/linkedin-message-ads.test.mjs',

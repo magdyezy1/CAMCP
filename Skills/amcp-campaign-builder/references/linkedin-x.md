@@ -567,6 +567,35 @@ read 2026-09-29.
   `dmpSegments`, `organizationalEntityAcls`) are refused with `PROVIDER_ACTION_UNSUPPORTED` before any
   request; the refusal names the versioned `linkedin_rest_…` action to use instead.
 
+## LinkedIn planning reads
+
+Audience Insights and Media Planning are POST reads: available to readers and deployments where
+advertising writes are disabled, and they create, book and save nothing. Both are private LinkedIn
+products; an application LinkedIn has not provisioned gets 403 `ACCESS_DENIED`.
+
+- `linkedin_rest_targeting_audience_insights_post` with `params: {action: "audienceInsights"}` and
+  `payload: {request: {requestMetaData: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"},
+  targetingCriteria, groupBy, segmentsOrderedBy?, maxReturnCount?}}` segments the audience by one
+  documented facet (job functions, seniorities, titles, years of experience, interests, product
+  interests, skills, industries, company size, growth rate, employers, continent, country, state or
+  city); `maxReturnCount` is 1–100.
+- `linkedin_rest_media_planning_post` with `params: {action}` (`forecastReaches`,
+  `forecastImpressions` or `forecastLeads`) and `payload: {request: {sponsoredAccountUrn,
+  targetingCriteria, objectiveType, optimizationType?, currencyCode?, startDateOn?, endDateOn?,
+  targetBudgetMicros?, enableAudienceNetwork?, enableAudienceExpansion?, ctvOnly?}}` forecasts a curve
+  over budget. `objectiveType` is BRAND_AWARENESS, VIDEO_VIEW or LEAD_GENERATION; forecasts are in USD;
+  a target budget is at least 100000000 micros ($100); explicit dates are in the future and at most
+  90 days apart; `ctvOnly` needs BRAND_AWARENESS with the Audience Network on.
+
+The account in the body must be the selected one (`ACCOUNT_SCOPE_MISMATCH` otherwise). Any other field,
+query parameter or header is refused with `INVALID_LINKEDIN_PLANNING_READ` before a request. Show the
+user LinkedIn's two required notices, which the response carries in `warnings`: forecasts are
+directional estimates that don't guarantee performance, and LinkedIn tools may not be used to
+discriminate based on personal characteristics. Targeting that fits can be saved as an audience
+template (Reviewed LinkedIn saved audiences above).
+
+Reference: Microsoft Learn "Audience Insights" and "Media Planning" (li-lms-2026-09), read 2026-09-29.
+
 ## LinkedIn campaign group clone
 
 - `amcp_campaign clone` with `gateway: "linkedin_native_action"` and `source: {campaign_id}` (the

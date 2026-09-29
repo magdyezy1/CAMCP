@@ -118,6 +118,33 @@ test('every method/path record expands deterministically from its declared templ
         input.params = {advertiser_id: 'test'};
         input.payload = tiktokRead;
       }
+      // LinkedIn planning reads are validated during compilation too (src/linkedin-planning-reads.ts); they name the
+      // selected ad account in their body.
+      const criteria = {include: {and: [{or: {'urn:li:adTargetingFacet:locations': ['urn:li:geo:105080838']}}]}};
+      if (c.gateway === 'linkedin_native_action' && a.path === '/rest/targetingAudienceInsights')
+        Object.assign(input, {
+          account_id: '123',
+          params: {action: 'audienceInsights'},
+          payload: {
+            request: {
+              requestMetaData: {sponsoredAccountUrn: 'urn:li:sponsoredAccount:123'},
+              targetingCriteria: criteria,
+              groupBy: 'urn:li:adTargetingFacet:jobFunctions',
+            },
+          },
+        });
+      if (c.gateway === 'linkedin_native_action' && a.path === '/rest/mediaPlanning')
+        Object.assign(input, {
+          account_id: '123',
+          params: {action: 'forecastReaches'},
+          payload: {
+            request: {
+              sponsoredAccountUrn: 'urn:li:sponsoredAccount:123',
+              targetingCriteria: criteria,
+              objectiveType: 'BRAND_AWARENESS',
+            },
+          },
+        });
       const p = compiler.compile(c.gateway, input, strictOptions);
       assert.equal(p.method, a.method);
       // One independently documented account prefix correction; all other captured

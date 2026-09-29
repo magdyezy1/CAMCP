@@ -5,6 +5,7 @@ import {googleGenerationKind} from './google-generation.js';
 import {dv360TargetingSearchRoute} from './dv360-targeting-search.js';
 import {xAudienceEstimateRoute} from './x-audience-estimate.js';
 import {snapchatPlanningRoute} from './snapchat-planning-reads.js';
+import {linkedinPlanningRoute} from './linkedin-planning-reads.js';
 import {tiktokPreviewRoute} from './tiktok-preview-reads.js';
 import {familyOf} from './reviewed-families.js';
 import {criteoRoute} from './criteo-version.js';
@@ -88,6 +89,7 @@ export function independentlyReadOnly(plan: CompiledRequest): boolean {
     !dv360TargetingSearchRoute(plan) &&
     !xAudienceEstimateRoute(plan) &&
     !snapchatPlanningRoute(plan) &&
+    !linkedinPlanningRoute(plan) &&
     !tiktokPreviewRoute(plan)
   )
     return false;
@@ -175,6 +177,8 @@ export function independentlyReadOnly(plan: CompiledRequest): boolean {
       return xAudienceEstimateRoute(plan);
     case 'dv360_native_action':
       return dv360TargetingSearchRoute(plan);
+    case 'linkedin_native_action':
+      return !!linkedinPlanningRoute(plan);
     case 'google_ads_native_action':
       return (
         !!googleGenerationKind(plan) ||

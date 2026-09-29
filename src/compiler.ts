@@ -3,6 +3,7 @@ import {metaReportPlan} from './meta-insights-jobs.js';
 import {xReportPlan} from './x-report-jobs.js';
 import {xAudienceEstimatePlan} from './x-audience-estimate.js';
 import {snapchatPlanningPlan} from './snapchat-planning-reads.js';
+import {linkedinPlanningPlan} from './linkedin-planning-reads.js';
 import {linkedinConversionPlan} from './linkedin-conversion-links.js';
 import {linkedinDomainPlan} from './linkedin-insight-domains.js';
 import {linkedinTrackingPlan} from './linkedin-tracking-parameters.js';
@@ -323,43 +324,45 @@ export class Compiler {
     return tiktokPreviewPlan(
       linkedinDomainPlan(
         linkedinMessagePlan(
-          snapchatPlanningPlan(
-            xAudienceEstimatePlan(
-              xReportPlan(
-                metaReportPlan(
-                  dv360TargetingSearchPlan(
-                    linkedinTrackingPlan(
-                      linkedinConversionPlan(
-                        googleGenerationPlan(
-                          googleContractEvidence(
-                            validateApplePlan({
-                              gateway,
-                              action: action.canonical_name || action.name,
-                              method,
-                              path,
-                              query,
-                              ...(absolute ? {origin: absolute.origin} : {}),
-                              ...(body === undefined ? {} : {body}),
-                              headers,
-                              readOnly,
-                              destructive:
-                                action.destructive === true || headers['X-HTTP-Method-Override'] === 'DELETE',
-                              requiresConfirmation: !readOnly,
-                              accountId,
-                              evidence: action.evidence,
-                              warnings: [
-                                'Request routing compiled locally; live behavioral parity is tracked separately.',
-                              ],
-                              specialTransport: action.raw.special_transport ?? undefined,
-                              ...(projection ? {responseControls: projection} : {}),
-                            }),
+          linkedinPlanningPlan(
+            snapchatPlanningPlan(
+              xAudienceEstimatePlan(
+                xReportPlan(
+                  metaReportPlan(
+                    dv360TargetingSearchPlan(
+                      linkedinTrackingPlan(
+                        linkedinConversionPlan(
+                          googleGenerationPlan(
+                            googleContractEvidence(
+                              validateApplePlan({
+                                gateway,
+                                action: action.canonical_name || action.name,
+                                method,
+                                path,
+                                query,
+                                ...(absolute ? {origin: absolute.origin} : {}),
+                                ...(body === undefined ? {} : {body}),
+                                headers,
+                                readOnly,
+                                destructive:
+                                  action.destructive === true || headers['X-HTTP-Method-Override'] === 'DELETE',
+                                requiresConfirmation: !readOnly,
+                                accountId,
+                                evidence: action.evidence,
+                                warnings: [
+                                  'Request routing compiled locally; live behavioral parity is tracked separately.',
+                                ],
+                                specialTransport: action.raw.special_transport ?? undefined,
+                                ...(projection ? {responseControls: projection} : {}),
+                              }),
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
+                  input,
                 ),
-                input,
               ),
             ),
           ),

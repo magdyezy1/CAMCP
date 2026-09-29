@@ -7,6 +7,7 @@ import {stable} from './security.js';
 import {microsoftGateway, microsoftCustomer, microsoftContracts} from './microsoft-native.js';
 import {microsoftReportKey} from './microsoft-report-download.js';
 import {authorizeLinkedInSpecial} from './linkedin-posts.js';
+import {linkedinPlanningAccount, linkedinPlanningRoute} from './linkedin-planning-reads.js';
 import {googleGlobalRead} from './execution-risk.js';
 import {authorizeQualifiedProviderRead} from './provider-read-contracts.js';
 import {authorizeDV360TargetingSearch} from './dv360-targeting-search.js';
@@ -278,6 +279,13 @@ export class ScopeGuard {
           compare(filter[1], 'account filter');
           return id;
         }
+      }
+    }
+    if (plan.gateway === 'linkedin_native_action' && plan.readOnly && linkedinPlanningRoute(plan)) {
+      const planned = linkedinPlanningAccount(plan);
+      if (planned !== undefined) {
+        compare(planned, 'request account');
+        return id;
       }
     }
     if (plan.gateway === 'tiktok_native_action') {
