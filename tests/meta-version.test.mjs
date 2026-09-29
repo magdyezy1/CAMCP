@@ -87,12 +87,23 @@ test('nothing AMCP sends to Meta is a field, parameter or value that v26.0 remov
       'src/ad-previews.ts',
       'server/asset-discovery.ts',
     ],
-    sent = new Set();
+    sent = new Map();
+  const add = (token, where) => sent.set(token, new Set([...(sent.get(token) ?? []), where]));
   for (const file of files)
     for (const m of readFileSync(file, 'utf8').matchAll(/'([^'\n]*)'/g))
-      for (const token of m[1].split(/[^A-Za-z0-9_]+/)) if (token) sent.add(token);
+      for (const token of m[1].split(/[^A-Za-z0-9_]+/)) if (token) add(token, file);
   for (const action of JSON.parse(readFileSync('.mirror/CATALOG/meta_native_action.json', 'utf8')).actions)
-    for (const field of action.raw.native_fields ?? []) sent.add(field);
+    for (const field of action.raw.native_fields ?? []) add(field, 'catalog');
+  // v26.0 removed AdSet.time_start, the ad set's own field. The time_start of POST /{campaign or ad set}/budget_schedules
+  // stays: SDK 26.0.2 lists it for Campaign.create_budget_schedule and AdSet.create_budget_schedule, and no
+  // budget_schedules parameter is among the removals. Only the budget schedule module may send that name, to that edge.
+  assert.deepEqual(
+    changes.removed.params.filter(p => p.includes('/budget_schedules ')),
+    [],
+  );
+  const otherEdge = {time_start: 'src/meta-budget-schedules.ts'};
+  const sentAsRemoved = name =>
+    sent.has(name) && !(otherEdge[name] && [...sent.get(name)].every(where => where === otherEdge[name]));
   // Removed enum values belong to removed fields (cost_bidding_mode, budget_source, attribution counting), so the
   // field and parameter names cover them.
   const removed = [
@@ -100,8 +111,5 @@ test('nothing AMCP sends to Meta is a field, parameter or value that v26.0 remov
     ...changes.removed.params.map(p => p.split(' ').at(-1)),
   ];
   assert.equal(removed.length, 27);
-  assert.deepEqual(
-    removed.filter(name => sent.has(name)),
-    [],
-  );
+  assert.deepEqual(removed.filter(sentAsRemoved), []);
 });
