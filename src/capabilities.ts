@@ -59,14 +59,26 @@ export function workspaceCapabilities(store: Store, actor: Actor) {
     name,
     tool,
     coverage,
-    implementation: 'implemented',
+    implementation: 'implemented_unverified',
     local_test_evidence:
       'tests/workspace-operations.test.ts and tests/private-media.test.ts; consult the release CI result',
     live_qualification: 'per account and action evidence below',
   }));
+  // A workspace's live evidence is its own: the reviewed writes it verified by reading them back from the provider.
+  const gatewayOf = new Map(store.listConnections(actor.tenantId).map(c => [c.id, c.gateway]));
   return {
     contract_version: 1,
-    providers: providerContracts.map(c => effectiveProviderContract(c.id)),
+    providers: providerContracts.map(c => ({
+      ...effectiveProviderContract(c.id),
+      live_verified: writes
+        .filter(w => w.status === 'verified' && gatewayOf.get(w.connection_id) === c.gateway)
+        .map(w => ({
+          action: w.action,
+          account_id: w.account_id,
+          verified_at: new Date(w.checked_at).toISOString(),
+          review_id: w.review_id,
+        })),
+    })),
     features,
     evidence: store.listConnections(actor.tenantId).flatMap(c =>
       c.accounts.map(account => ({

@@ -758,8 +758,8 @@ test('Adjust capability descriptor separates native reads from website, writes a
   const c = effectiveProviderContract('adjust')!;
   assert.equal(c.guide, 'amcp://guides/adjust');
   assert.equal(c.contract_version, 2);
-  assert.equal(c.native_reads, 'partial');
-  assert.equal(c.discovery, 'partial');
+  assert.equal(c.native_reads, 'partial_unverified');
+  assert.equal(c.discovery, 'partial_unverified');
   assert.equal(c.website_connection, false);
   assert.equal(c.reviewed_writes, 'unsupported');
   assert.equal(c.overview_reporting, 'unsupported');

@@ -600,8 +600,8 @@ test('maintained capability reporting qualifies only sync_assets and does not cl
   assert.equal(rows[0]!.status, 'local_workflow');
   const descriptor = effectiveProviderContract('google_business')!;
   assert.equal(descriptor.website_connection, false);
-  assert.equal(descriptor.discovery, 'partial');
-  assert.equal(descriptor.native_reads, 'partial');
+  assert.equal(descriptor.discovery, 'partial_unverified');
+  assert.equal(descriptor.native_reads, 'partial_unverified');
   assert.equal(descriptor.live_qualification, 'unverified');
   assert.equal(descriptor.contract_version, 11);
   const op = registry.tools.get(gateway)!.operations!.find(o => o.operation === 'gmb_connection_ops')!;

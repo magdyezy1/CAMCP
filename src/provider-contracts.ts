@@ -242,12 +242,17 @@ export const providerContracts: JsonObject[] = [
   documentation: docs,
   guide: guide ? 'amcp://guides/' + guide : null,
   website_connection: !!guide && !['criteo', 'adjust', 'google_business'].includes(String(id)),
+  // Every level is unsupported, or built and tested locally but not proven against a live account (F-87):
+  // `…_unverified`. A workspace's own verified writes are its live evidence (capabilities.ts `live_verified`).
   discovery: ['criteo', 'adjust', 'google_business'].includes(String(id))
-    ? 'partial'
+    ? 'partial_unverified'
     : guide
-      ? 'implemented'
+      ? 'implemented_unverified'
       : 'unsupported',
-  native_reads: guide && !['criteo', 'adjust', 'google_business'].includes(String(id)) ? 'implemented' : 'partial',
+  native_reads:
+    guide && !['criteo', 'adjust', 'google_business'].includes(String(id))
+      ? 'implemented_unverified'
+      : 'partial_unverified',
   overview_reporting: [
     'google',
     'meta',
@@ -261,11 +266,11 @@ export const providerContracts: JsonObject[] = [
     'ga4',
     'gsc',
   ].includes(String(id))
-    ? 'implemented'
+    ? 'implemented_unverified'
     : 'unsupported',
-  reviewed_writes: writes ? 'partial' : 'unsupported',
+  reviewed_writes: writes ? 'partial_unverified' : 'unsupported',
   write_scope: writes,
-  media_import: media ? 'implemented' : 'unsupported',
+  media_import: media ? 'implemented_unverified' : 'unsupported',
   media_platform: media ? (({google: 'google_ads', x: 'x_ads'} as Record<string, string>)[String(id)] ?? id) : null,
   tests: [
     ...new Set([

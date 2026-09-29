@@ -256,11 +256,11 @@ test('provider descriptors account for every offered platform and match executab
   assert.equal(new Set(providerContracts.map(p => p.id)).size, providerContracts.length);
   for (const p of platforms) assert.equal(providerContracts.find(c => c.id === p.id)?.gateway, p.gateway);
   assert.deepEqual(
-    new Set(providerContracts.filter(p => p.overview_reporting === 'implemented').map(p => p.id)),
+    new Set(providerContracts.filter(p => p.overview_reporting === 'implemented_unverified').map(p => p.id)),
     new Set(Object.keys(reportPlatforms)),
   );
   assert.deepEqual(
-    new Set(providerContracts.filter(p => p.media_import === 'implemented').map(p => p.media_platform)),
+    new Set(providerContracts.filter(p => p.media_import === 'implemented_unverified').map(p => p.media_platform)),
     new Set(mediaPlatforms),
   );
   for (const p of providerContracts) {
