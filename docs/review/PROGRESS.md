@@ -701,3 +701,8 @@ uploads and Drive alike.
 | **Google Drive files and folders.** A Drive login may select folders as well as files. The panel lists a selected folder's downloadable media (Drive `files.list`, `'<folder>' in parents`, at most 500) and imports a file only after Drive's metadata names the folder among its parents. Imports land in the same encrypted upload store, through two POST routes with the session's CSRF and origin checks. A sync of one kind never drops the other's selection | `tests/drive-folders.test.mjs` (4 tests: listing, refusals before any request, parent check, import as an upload; red before); `tests/drive-folder-selection.test.mjs` (selection, file-only sync keeps folders, other platforms keep one kind; red before); `tests/private-media.test.ts` unchanged and passing |
 | **Several platforms at once.** Accounts are grouped by platform, each group with an "Every <platform> account" box, in one selection for uploads and Drive files alike | The smoke run checks both Meta accounts through the platform box |
 | **Account names (F-117).** LinkedIn discovery reads each account's own name; the website shows "Name (ID)" wherever it lists accounts | `tests/account-names.test.mjs` (red before); `tests/website.test.ts` pagination fixture answers the per-account read |
+
+Full qualification of batch 36 (`.release/batch36`, up to `0ac51f4`): **2,951 / 2,951** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 315 s. The candidate's 1,273 source
+files equal `0ac51f4`, apart from `release-manifest.json`. Live acceptance is unverified: no provider was called, and
+the Drive and LinkedIn reads were exercised against synthetic replies only.
