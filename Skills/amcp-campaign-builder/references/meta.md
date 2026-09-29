@@ -655,3 +655,48 @@ text, so Meta itself confirms the price: the catalog's product list is filtered 
 
 Reference: the Marketing API v25.0 "Product Catalog Products" reference and the product set filter fields, read
 2026-09-29.
+
+## Product feeds
+
+Scheduled feeds fetch a product file into a catalog of the selected ad account's business. They need the same
+permissions as product sets.
+
+- `meta_product_catalog_id_product_feeds_create` with `params: {product_catalog_id}` needs `name`, `schedule` and
+  `deletion_enabled`.
+- `meta_product_feed_id_update` with `params: {product_feed_id}` changes `name`, `schedule`, `update_schedule`,
+  `deletion_enabled`, `default_currency`, `delimiter`, `encoding` or `quoted_fields_mode`.
+- `meta_product_feed_id_delete` with `params: {product_feed_id}` deletes a feed.
+
+A schedule is `{url, interval, interval_count?, hour?, minute?, day_of_week?, day_of_month?, timezone?}`:
+
+- `url` is HTTPS, without credentials in it;
+- `interval` is `HOURLY`, `DAILY`, `WEEKLY` or `MONTHLY`;
+- `day_of_week` is for weekly schedules and `day_of_month` for monthly ones;
+- Meta's default time zone is America/Los_Angeles.
+
+`username` and `password` are refused: credentials never pass through AMCP, so set them in Commerce Manager. An
+`update_schedule` "would only update the items in the feed or create new ones. No items would be deleted".
+
+`deletion_enabled` is required on a new feed. Meta turns it on by default, and then "this will remove products from a
+catalog that are no longer present in a feed". "Once enabled, we do not allow this field to be disabled", so an update
+that turns it off is refused.
+
+Refused with `INVALID_META_PRODUCT_FEED`:
+
+- supplementary and localized feeds;
+- feed rules;
+- file uploads;
+- moving items between feeds (`migrated_from_feed_id`);
+- feed types other than `PRODUCTS`.
+
+Meta's feed does not name its catalog, so for a change or deletion AMCP finds the feed among the catalogs the business
+owns (at most 50). A feed elsewhere is `STATE_TARGET_MISMATCH`, and feed names are unique in a catalog
+(`CONFIGURATION_EXISTS`).
+
+The review says when Meta fetches, in which time zone and from where, and what deletion does. Deleting a feed quotes
+Meta: "Deleting a product feed effectively disables all ads using products that come from this feed." The review also
+says whether the feed holds products, and the owner policy for deletions applies. Verification reads the feed again and
+compares name, schedules and settings, or expects a deleted feed to be gone.
+
+Reference: the Marketing API v25.0 "Product Catalog Product Feeds", "Product Feed" and "Product Feed Schedule"
+references, read 2026-09-29.

@@ -2365,6 +2365,26 @@
     {
       "gateway": "meta_native_action",
       "arguments": {
+        "action": "meta_product_catalog_id_product_feeds_create",
+        "account_id": "123",
+        "params": {
+          "product_catalog_id": "555"
+        },
+        "payload": {
+          "name": "Daily prices",
+          "schedule": {
+            "interval": "DAILY",
+            "url": "https://shop.example/feeds/products.csv",
+            "hour": 3,
+            "timezone": "Asia/Riyadh"
+          },
+          "deletion_enabled": false
+        }
+      }
+    },
+    {
+      "gateway": "meta_native_action",
+      "arguments": {
         "action": "meta_product_catalog_id_products_create",
         "account_id": "123",
         "params": {
