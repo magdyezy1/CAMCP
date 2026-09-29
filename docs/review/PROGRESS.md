@@ -629,3 +629,25 @@ Full qualification of batch 32 (`.release/batch32`, up to `259337e`): **2,901 / 
 tests; `format:check`, every generated-artifact check and the Railway check pass. 302 s. The candidate's 1,253 source
 files equal `259337e`, apart from `release-manifest.json`. Live acceptance by Snapchat, LinkedIn, Criteo and Microsoft
 of the changed requests is unverified: no provider was called.
+
+## Batch 33 — the owner's list of 2026-09-29
+
+The owner asked for everything AMCP could do from its side: finish the family registry, Snapchat lifetime budgets,
+the four F-58 candidates, Meta's v26.0 changes, the refusal question, the remaining end dates, stale roadmap lines,
+and a plan for coverage platform by platform.
+
+| Change | Evidence |
+|---|---|
+| **Registry finished (F-59, F-60, F-63).** The last 72 families are declared next to their implementation: all 143 are registered, the fifteen lifecycle modules consult the registry once per stage and name no family, the two nested reader chains are composed readers, and the 20 families of the generic spend text match declare their exemption. 4,467 wiring lines removed. Two intended changes: preview and X report redaction run inside the outcome step, and the LinkedIn conversion-link and conversion-rule spend refusals name `spend_change_confirmed=true` | Replay of 46,614 distinct lifecycle calls captured from the full suite on the previous commit: 0 unintended differences, the 130 others the two intended changes recomputed from the baseline; no generic authorizer matches a family request in the capture; `tests/reviewed-families.test.mjs` covers the stage modules and every hook |
+| **Snapchat ad squad lifetime budgets (F-55).** `lifetime_budget_micro` is held to the owner's caps in native micros, the unit of Snapchat's ad squad reference | `tests/spend-policy-caps.test.ts`: a lifetime budget above the cap is refused, one within it passes; red before |
+| **Meta v26.0 (F-113).** From the v26.0 changelog: the Instagram Explore placement (`META_PLACEMENT_UNAVAILABLE`) and poll components (`META_POLL_UNAVAILABLE`, also at v25.0 from 2026-10-27) are refused before any request; a new Housing, Employment or Financial ad set with relaxable targeting needs `advantage_audience` 0 or 1 (`META_ADVANTAGE_AUDIENCE_REQUIRED`; the review now reads the campaign's `special_ad_categories`); a creative without a destination says in the review that shops default to `WEBSITE_AND_SHOP`, and the creative contract accepts `destination_spec: {destination_type: WEBSITE_AND_SHOP_OPT_OUT}` and no other destination | `tests/meta-v26-rules.test.mjs` (6 tests, red before); the version gates are tested at v25.0 and around 2026-10-27 |
+| **Two F-58 families.** `google_customer_labels` removes 1–100 labels from the customer (all or nothing) after reading them under the login customer, and verifies each gone; applying a label stays refused, since v25 marks both `CustomerLabel` fields output only and gives a create no resource name. `meta_ad_videos` removes a video from the ad account library (Meta: "dissociate") after reading every library video and creative, refusing one any creative names (`MEDIA_IN_USE`). TikTok portfolio deletion and X analytics job deletion stay blocked, with the missing evidence named in the ledger | `tests/google-customer-labels.test.mjs` and `tests/meta-ad-videos.test.mjs` (8 tests, red before); the ledger lists both writes under their families |
+| **Refusals after submission.** Checked for Snapchat, Meta and TikTok: Snapchat documents multi-record requests as not atomic, Meta's error guide is silent, TikTok's pages are unreadable here. A refused step of these platforms keeps stopping the plan; only Google's all-or-nothing builds recover (F-109) | ROADMAP P6 records the sources; no code change |
+| **End dates and stale lines.** Ten more providers carry a checked note in the sunset registry (Snapchat, Apple, Reddit, GA4, GTM, Search Console, Drive, Sheets, Adjust, Business Profile); the platform table's counts, lifecycle cells and the LinkedIn and DV360 notes are brought up to date | `providers:sunsets` passes with no alarm |
+| **Coverage plan.** [COVERAGE.md](COVERAGE.md) sorts the 562 blocked writes by the decision each needs, with a recommendation per kind, and orders the 92 candidates by platform. Reading the evidence already removed DV360's five: YouTube asset associations are allowlist-only | Counts reconciled with the ledger per platform |
+
+The first qualification run (`.release/batch33`, up to `5fda403`) failed one test: the guide's contract examples did
+not name the two new families; `aa50e6a` adds them. Full qualification of batch 33 (`.release/batch33`, up to
+`924fc08`): **2,916 / 2,916** tests and **4 / 4** capture tests; `format:check`, every generated-artifact check and the
+Railway check pass. 323 s. The candidate's 1,259 source files equal `924fc08`, apart from `release-manifest.json`. Live
+acceptance of the changed requests is unverified: no provider was called.
