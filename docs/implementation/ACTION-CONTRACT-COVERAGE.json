@@ -33013,7 +33013,7 @@
       "path": "/v26.0/act_{ad_account_id}/campaigns",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Deletes the account's campaigns by rule (delete_strategy, before_date, object_count and delete_offset in Meta's official Business SDK), not by ID, so no review can name what it would delete. Delete each campaign with the reviewed meta_campaign_id_delete.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"

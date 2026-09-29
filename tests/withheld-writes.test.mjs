@@ -45,6 +45,12 @@ const cases = [
     /snapchat_adaccounts_ad_account_id_creatives_update/,
   ],
   [
+    'meta_native_action',
+    'meta_ad_account_id_campaigns_delete',
+    {account_id: '123', params: {ad_account_id: '123', delete_strategy: 'DELETE_ANY', object_count: 5}},
+    /meta_campaign_id_delete/,
+  ],
+  [
     'tiktok_native_action',
     'tiktok_creative_portfolio_delete',
     {payload: {advertiser_id: '1', creative_portfolio_ids: ['2']}},

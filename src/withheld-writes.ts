@@ -9,6 +9,8 @@ const evidenceWithheld: Record<string, string> = {
     "Blocked on evidence: TikTok's official SDK (tiktok/tiktok-business-api-sdk, 2026-02-28) defines portfolio create, get and list but no delete, and TikTok's documentation pages render only in a browser, so which portfolios can be deleted and what becomes of ads using them is unread.",
   'x_ads_native_action x_accounts_account_id_targeting_criteria_targeting_criterion_id_put':
     "Not documented: docs.x.com's Campaign Management reference (read 2026-09-29) gives targeting criteria a read, a create, a batch create and a delete, and no update. To change a criterion, delete it and create the new one with the reviewed targeting writes.",
+  'meta_native_action meta_ad_account_id_campaigns_delete':
+    "Deletes the account's campaigns by rule (delete_strategy, before_date, object_count and delete_offset in Meta's official Business SDK), not by ID, so no review can name what it would delete. Delete each campaign with the reviewed meta_campaign_id_delete.",
   'snapchat_native_action snapchat_adaccounts_ad_account_id_creatives_creative_id_update':
     "Snapchat's Creatives page (read 2026-09-29) names PUT /creatives/{creative_id} once, but its example sends the full creative to the collection. Use the reviewed collection PUT (snapchat_adaccounts_ad_account_id_creatives_update, a complete replacement) or the reviewed JSON Patch (snapchat_creative_patch).",
   'x_ads_native_action x_stats_jobs_accounts_account_id_delete':
