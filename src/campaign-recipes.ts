@@ -321,8 +321,10 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
         'keywords',
         'google_ads_v23_ad_group_criterion_mutate_ad_group_criteria',
         {
+          // ENABLED under the paused ad group: enabling the ad group and campaign is the reviewed activation, and no
+          // second pass per keyword is needed (the owner's item 6).
           operations: keywords.map(text => ({
-            create: {ad_group: ref('adgroup', response), status: 'PAUSED', keyword: {text, match_type: 'EXACT'}},
+            create: {ad_group: ref('adgroup', response), status: 'ENABLED', keyword: {text, match_type: 'EXACT'}},
           })),
         },
         ['adgroup'],

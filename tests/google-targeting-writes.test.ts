@@ -205,10 +205,8 @@ test('Google targeting rejects invalid identities, cross-account parents, unsafe
   try {
     const cases: [string, JsonObject][] = [
       ['campaignCriteria', {create: {campaign: name('campaigns'), keyword: {text: 'positive', matchType: 'EXACT'}}}],
-      [
-        'adGroupCriteria',
-        {create: {adGroup: name('adGroups'), status: 'ENABLED', keyword: {text: 'x', matchType: 'EXACT'}}},
-      ],
+      // An ENABLED keyword is no longer refused before reading: its parents' status decides, after the read
+      // (the owner's item 6; tests/google-paused-parents.test.ts).
       [
         'adGroupCriteria',
         {create: {adGroup: 'customers/999/adGroups/100', status: 'PAUSED', keyword: {text: 'x', matchType: 'EXACT'}}},

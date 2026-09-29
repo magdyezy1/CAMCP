@@ -251,8 +251,6 @@ export function assertGoogleTargeting(plan: CompiledRequest) {
       ]);
       if (kind === 'campaignCriteria' || kind === 'adGroupCriteria' || kind === 'sharedCriteria') {
         const t = criterion(r, cfg.types, kind === 'campaignCriteria', kind === 'sharedCriteria');
-        if (kind === 'adGroupCriteria' && r.negative !== true && r.status !== 'PAUSED')
-          invalid('New positive ad-group criteria must start PAUSED.');
         if (t === 'user_list') resource(r.user_list.user_list, account, 'userLists');
         if (t === 'audience') resource(r.audience.audience, account, 'audiences');
       }
@@ -294,10 +292,11 @@ export function googleTargetingSnapshots(plan: CompiledRequest): CompiledRequest
     body = normalized(plan.body),
     reads: CompiledRequest[] = [],
     seen = new Set<string>();
-  const search = (entity: string, fields: string[], names: string[]) => {
+  const search = (entity: string, fields: string[], names: string[], related: string[] = []) => {
     const query =
       'SELECT ' +
       [...new Set(['resource_name', ...fields])].map(f => entity + '.' + f).join(', ') +
+      related.map(f => ', ' + f).join('') +
       ' FROM ' +
       entity +
       ' WHERE ' +
@@ -342,14 +341,44 @@ export function googleTargetingSnapshots(plan: CompiledRequest): CompiledRequest
     const r = op.create ?? op.update;
     if (!r) continue;
     if (r.campaign) search('campaign', ['name', 'status', 'advertising_channel_type', 'campaign_budget'], [r.campaign]);
-    if (r.ad_group) search('ad_group', ['name', 'status', 'campaign'], [r.ad_group]);
+    // The campaign's status too: a new keyword may start ENABLED only under a paused parent (owner item 6).
+    if (r.ad_group) search('ad_group', ['name', 'status', 'campaign'], [r.ad_group], ['campaign.status']);
     if (r.shared_set) search('shared_set', config.sharedSets.fields, [r.shared_set]);
     if (r.user_list) search('user_list', ['name', 'type', 'membership_status'], [r.user_list.user_list]);
     if (r.audience) search('audience', ['name', 'status', 'scope'], [r.audience.audience]);
   }
   return reads;
 }
+/**
+ * A new positive ad-group criterion serves as soon as it and its ad group and campaign are enabled. It may start
+ * ENABLED only while its ad group or campaign is paused, as read for this review: then nothing serves until that
+ * parent is enabled, which is its own reviewed activation. Under a serving parent it must start PAUSED. (Owner's
+ * item 6, 2026-09-29: requiring PAUSED under a paused campaign added a second pass per keyword set and protected
+ * nothing.) A parent the review could not read counts as serving.
+ */
+function pausedParentsCoverChildren(plan: CompiledRequest, states: unknown[]) {
+  if (googleTargetingKind(plan) !== 'adGroupCriteria') return;
+  const rows = states.flatMap(s => (s as JsonObject)?.results ?? []).map(r => normalized(r));
+  for (const op of normalized(plan.body).operations) {
+    const r = op.create;
+    if (!r || r.negative === true || r.status === 'PAUSED') continue;
+    const row = rows.find(x => x.ad_group?.resource_name === r.ad_group),
+      adGroup = row?.ad_group?.status,
+      campaign = row?.campaign?.status;
+    if (adGroup !== 'PAUSED' && campaign !== 'PAUSED')
+      throw new MirrorError(
+        'TARGETING_PARENT_SERVING',
+        'A new positive ad-group criterion must start PAUSED while its ad group and campaign can serve (ad group ' +
+          (adGroup ?? 'unread') +
+          ', campaign ' +
+          (campaign ?? 'unread') +
+          '). Under a paused ad group or campaign it may start ENABLED.',
+        {field: 'status', ad_group: r.ad_group, ad_group_status: adGroup ?? null, campaign_status: campaign ?? null},
+      );
+  }
+}
 export function validateGoogleTargetingState(plan: CompiledRequest, states: unknown[]) {
+  pausedParentsCoverChildren(plan, states);
   if (googleTargetingKind(plan) !== 'sharedCriteria') return;
   const body = normalized(plan.body),
     sets = states
