@@ -372,22 +372,25 @@ test('field-only multipart forms are refused outside the Snapchat chunked upload
   assert.equal(calls, 0);
 });
 
-test('the ledger routes the chunked INIT actions to the media workflow; raw ADD and FINALIZE steps stay blocked', () => {
-  const rows = actionContracts(registry).filter(
-    r => r.gateway === gateway && /multipart_upload/.test(r.action) && !/public_profiles/.test(r.action),
-  );
-  const by = Object.fromEntries(rows.map(r => [r.action, r.status]));
+test('the ledger routes the chunked upload to the media workflow; raw ADD and FINALIZE steps name it and stay refused', () => {
+  const rows = actionContracts(registry).filter(r => r.gateway === gateway && /multipart_upload/.test(r.action));
+  const by = Object.fromEntries(rows.map(r => [r.action, r]));
   for (const a of [
     'snapchat_media_multipart_upload',
     'snapchat_media_multipart_upload_init',
     'snapchat_media_media_id_multipart_upload_v2_upload_3',
   ])
-    assert.equal(by[a], 'media_workflow', a);
+    assert.equal(by[a].status, 'media_workflow', a);
+  // F-58: amcp_media sends INIT, each ADD and FINALIZE itself; a raw step has no upload to continue.
   for (const a of [
     'snapchat_media_multipart_upload_add',
     'snapchat_media_multipart_upload_finalize',
     'snapchat_media_media_id_multipart_upload_v2_upload',
     'snapchat_media_media_id_multipart_upload_v2_upload_2',
-  ])
-    assert.equal(by[a], 'blocked_write', a);
+  ]) {
+    assert.equal(by[a].status, 'media_workflow', a);
+    assert.match(by[a].reason, /chunked upload amcp_media performs itself.*is not accepted/, a);
+  }
+  // A public profile's upload is not part of it.
+  assert.equal(by.snapchat_public_profiles_profile_id_media_media_id_multipart_upload_upload.status, 'blocked_write');
 });

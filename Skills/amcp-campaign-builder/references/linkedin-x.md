@@ -551,6 +551,9 @@ an ad account whose login has `rw_ads`.
   `metadata.nextPageToken` back as `pageToken` until a page has none. Older finders (`start`,
   `count`) page by `paging.total`. A cursor on a read paged by offset, or a repeated cursor, is refused
   rather than returned as a partial list.
+- Unversioned `/v2` Marketing routes LinkedIn deprecated on 2024-12-16 (`adCampaignsV2`, `adCreativesV2`,
+  `dmpSegments`, `organizationalEntityAcls`) are refused with `PROVIDER_ACTION_UNSUPPORTED` before any
+  request; the refusal names the versioned `linkedin_rest_…` action to use instead.
 
 ## LinkedIn campaign group clone
 

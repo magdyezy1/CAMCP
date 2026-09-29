@@ -70,6 +70,74 @@ export const retiredProviderActions: {
     reason: 'Google Ads API v25 no longer has lifecycle goal configuration.',
     replacement: lifecycleReplacement,
   })),
+  // LinkedIn deprecated its unversioned Marketing APIs on 2024-12-16; the current pages (li-lms-2026-05) for these
+  // resources document only the versioned /rest routes, and the Content APIs replace adCreativesV2 (read 2026-09-29).
+  // Other /v2 routes stay: geo is still documented under /v2, and me, people, endorsement, shares, ugcPosts and
+  // adLiftTestBenchmark were not confirmed withdrawn (F-58).
+  ...(
+    [
+      [
+        'ad_campaigns_v2_post',
+        'POST',
+        '^/v2/adCampaignsV2$',
+        'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post',
+      ],
+      [
+        'ad_campaigns_v2_campaign_id_post',
+        'POST',
+        '^/v2/adCampaignsV2/[^/]+$',
+        'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_campaign_id_post',
+      ],
+      ['ad_creatives_v2_post', 'POST', '^/v2/adCreativesV2$', 'linkedin_rest_ad_accounts_ad_account_id_creatives_post'],
+      ['dmp_segments_post', 'POST', '^/v2/dmpSegments$', 'linkedin_rest_dmp_segments_post'],
+      [
+        'dmp_segments_segment_id_companies_post',
+        'POST',
+        '^/v2/dmpSegments/[^/]+/companies$',
+        'linkedin_rest_dmp_segments_segment_id_companies_post',
+      ],
+      [
+        'dmp_segments_segment_id_users_post',
+        'POST',
+        '^/v2/dmpSegments/[^/]+/users$',
+        'linkedin_rest_dmp_segments_segment_id_users_post',
+      ],
+      [
+        'dmp_segments_segment_id_destinations_destination_id_get',
+        'GET',
+        '^/v2/dmpSegments/[^/]+/destinations/[^/]+$',
+        'linkedin_rest_dmp_segments_segment_id_destinations_destination_id_get',
+      ],
+      [
+        'dmp_segments_dmp_segment_id_list_uploads_list_id_delete',
+        'DELETE',
+        '^/v2/dmpSegments/[^/]+/listUploads/[^/]+$',
+        'linkedin_rest_dmp_segments_dmp_segment_id_list_uploads_list_id_get (read); AMCP’s catalog has no versioned list upload deletion',
+      ],
+      [
+        'organizational_entity_acls_get',
+        'GET',
+        '^/v2/organizationalEntityAcls$',
+        'linkedin_rest_organization_acls_get',
+      ],
+      [
+        'organizational_entity_acls_post',
+        'POST',
+        '^/v2/organizationalEntityAcls$',
+        'linkedin_rest_organization_acls_organization_organization_urn_role_direct_content_poster_role_assignee_person_urn_put (not yet a reviewed write in AMCP)',
+      ],
+    ] as const
+  ).map(([action, method, path, replacement]) => ({
+    gateway: 'linkedin_native_action',
+    action: 'linkedin_v2_' + action,
+    method,
+    path: new RegExp(path),
+    source: 'https://learn.microsoft.com/en-us/linkedin/marketing/integrations/migrations?view=li-lms-2026-05',
+    updated: '2024-12-16',
+    reason:
+      'LinkedIn deprecated its unversioned Marketing APIs on 2024-12-16; the current documentation has only the versioned /rest route.',
+    replacement: 'Use ' + replacement + '.',
+  })),
 ];
 /** The catalog actions whose Google Ads method v25 removed; tools/fetch-vendor-specs.mjs keeps the same list. */
 export const retiredGoogleAdsActions = retiredProviderActions

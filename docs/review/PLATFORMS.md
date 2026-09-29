@@ -75,7 +75,8 @@ its unit (F-55, fail-closed).
 
 **LinkedIn.** One version source since batch 2 (`linkedinVersion()`), still `202605` while twelve modules cite the
 2026-09 documentation; moving to `202609` is an owner decision that needs a read-only review of the changed fields
-(F-53). Nineteen legacy routes are candidates for reclassification (F-58).
+(F-53). Ten unversioned Marketing routes (`adCampaignsV2`, `adCreativesV2`, `dmpSegments`,
+`organizationalEntityAcls`) are withdrawn with their versioned replacements named (F-58, batch 31).
 
 **X Ads.** v12 across 14 families including entity batches, tracking tags and media library. Reports carry spend,
 impressions, clicks, engagements and video views; X has no conversion metric in AMCP reports.

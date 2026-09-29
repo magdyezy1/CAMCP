@@ -374,6 +374,23 @@ function classify(
       'Use amcp_media or the native Drive import bridge. Raw native upload variants are not thereby enabled.';
     return result;
   }
+  // Snapchat's chunked upload: amcp_media sends INIT, each ADD and FINALIZE itself (F-58). A raw ADD or FINALIZE has
+  // no upload of AMCP's to continue, so it stays refused; the ledger names the workflow that performs it.
+  if (
+    p.gateway === 'snapchat_native_action' &&
+    p.method === 'POST' &&
+    /^\/(?:us\/)?v1\/media\/[^/]+\/multipart-upload-v2$/.test(p.path) &&
+    ['ADD', 'FINALIZE'].includes(String(p.query.action))
+  ) {
+    result.status = 'media_workflow';
+    result.implementation = 'src/media-upload.ts';
+    result.tests = ['tests/media-upload.test.ts'];
+    result.reason =
+      'A step of the chunked upload amcp_media performs itself (INIT, each ADD, FINALIZE). Send the file through amcp_media; a raw ' +
+      p.query.action +
+      ' is not accepted.';
+    return result;
+  }
   result.status = readOnly === true ? 'unqualified_read' : 'blocked_write';
   result.implementation = 'src/reviewed-routes.ts';
   result.reason =
