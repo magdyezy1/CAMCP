@@ -27,8 +27,8 @@ const gateway = 'google_ads_native_action',
   rn = (kind: string, id: string) => 'customers/123/' + kind + '/' + id;
 const c1 = rn('campaigns', '100'),
   c2 = rn('campaigns', '101'),
-  accountGoal = rn('customerConversionGoals', '3~2'),
-  campaignGoal = rn('campaignConversionGoals', '100~3~2'),
+  accountGoal = rn('customerConversionGoals', 'PURCHASE~WEBSITE'),
+  campaignGoal = rn('campaignConversionGoals', '100~PURCHASE~WEBSITE'),
   config = rn('conversionGoalCampaignConfigs', '100'),
   custom = rn('customConversionGoals', '500');
 const camel = (v: string) => v.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
@@ -63,7 +63,7 @@ function backend() {
     campaign_conversion_goal: [
       {resourceName: campaignGoal, campaign: c1, category: 'PURCHASE', origin: 'WEBSITE', biddable: true},
       {
-        resourceName: rn('campaignConversionGoals', '101~3~2'),
+        resourceName: rn('campaignConversionGoals', '101~PURCHASE~WEBSITE'),
         campaign: c2,
         category: 'PURCHASE',
         origin: 'WEBSITE',
@@ -121,7 +121,7 @@ function backend() {
       if (mode === 'missing_config' && resource === 'conversion_goal_campaign_config') rows = [];
       if (mode === 'duplicate' && resource === 'customer_conversion_goal') rows = [...rows, ...rows];
       if (mode === 'foreign' && resource === 'customer_conversion_goal')
-        rows = [{...rows[0], resourceName: 'customers/999/customerConversionGoals/3~2'}];
+        rows = [{...rows[0], resourceName: 'customers/999/customerConversionGoals/PURCHASE~WEBSITE'}];
       if (mode === 'partial') return {status: 200, data: {results: [], partialFailureError: {code: 3}}, headers: {}};
       if (mode === 'error') return {status: 403, data: {error: {code: 403}}, headers: {}};
       if (mode === 'unknown_row' && resource === 'customer_conversion_goal')
@@ -297,7 +297,7 @@ test('standard-goal creates/removals, immutable updates, fake masks, nulls and u
     }),
     edit('customConversionGoals', custom, {conversionActions: ['customers/999/conversionActions/900']}),
     edit('customConversionGoals', custom, {status: 'REMOVED'}),
-    edit('campaignConversionGoals', rn('campaignConversionGoals', '100~3'), {biddable: true}),
+    edit('campaignConversionGoals', rn('campaignConversionGoals', '100~PURCHASE'), {biddable: true}),
   ];
   for (const p of bad) assert.throws(() => assertGoogleConversionGoal(p), JSON.stringify(p.body));
   for (const fields of [{partialFailure: true}, {validateOnly: true}, {responseContentType: 'MUTABLE_RESOURCE'}])
@@ -421,7 +421,7 @@ function fixture(file = ':memory:', b = backend(), allowWrites = true) {
       if (!isRead && mode === 'lost') throw Error('Synthetic response lost after commit');
       if (!isRead && mode === 'partial') return Response.json({results: [], partialFailureError: {code: 3}});
       if (!isRead && mode === 'foreign')
-        return Response.json({results: [{resourceName: 'customers/999/customerConversionGoals/3~2'}]});
+        return Response.json({results: [{resourceName: 'customers/999/customerConversionGoals/PURCHASE~WEBSITE'}]});
       return Response.json(response.data, {status: response.status});
     },
     async () => {},
@@ -501,6 +501,74 @@ for (const p of [
       }
     },
   );
+test('non-purchase account goals, named as Google names them, become non-biddable in one review and read back', async () => {
+  const b = backend();
+  // An account as Google reports it: each goal is named {category}~{origin}.
+  for (const [category, origin] of [
+    ['SUBMIT_LEAD_FORM', 'WEBSITE'],
+    ['PAGE_VIEW', 'WEBSITE'],
+    ['PHONE_CALL_LEAD', 'CALL_FROM_ADS'],
+  ]) {
+    b.tables.customer_conversion_goal!.push({
+      resourceName: rn('customerConversionGoals', category + '~' + origin),
+      category,
+      origin,
+      biddable: true,
+    });
+    // Every campaign has the goal too; the one using account defaults follows the account.
+    for (const campaign of ['100', '101'])
+      b.tables.campaign_conversion_goal!.push({
+        resourceName: rn('campaignConversionGoals', campaign + '~' + category + '~' + origin),
+        campaign: rn('campaigns', campaign),
+        category,
+        origin,
+        biddable: true,
+      });
+  }
+  const f = fixture(':memory:', b);
+  try {
+    const others = b.tables
+      .customer_conversion_goal!.filter(g => g.category !== 'PURCHASE')
+      .map(g => String(g.resourceName));
+    const r = await f.prepare(
+      mutate(
+        'customerConversionGoals',
+        others.map(name => ({update: {resourceName: name, biddable: false}, updateMask: 'biddable'})),
+      ),
+    );
+    assert.equal(r.success, true, JSON.stringify(r.error));
+    const out = await f.execute(r);
+    assert.equal(out.data.success, true, JSON.stringify(out));
+    assert.equal((await f.verify(r)).data.status, 'verified');
+    assert.deepEqual(
+      Object.fromEntries(b.tables.customer_conversion_goal!.map(g => [g.category + '~' + g.origin, g.biddable])),
+      {
+        'PURCHASE~WEBSITE': true,
+        'SUBMIT_LEAD_FORM~WEBSITE': false,
+        'PAGE_VIEW~WEBSITE': false,
+        'PHONE_CALL_LEAD~CALL_FROM_ADS': false,
+      },
+    );
+    assert.equal(b.writes(), 1);
+  } finally {
+    f.store.close();
+  }
+});
+test('goal names follow the pinned contract: numeric, unknown or misordered categories and origins are refused', async () => {
+  for (const name of ['3~2', 'NOT_A_CATEGORY~WEBSITE', 'WEBSITE~PURCHASE', 'PURCHASE~UNKNOWN', 'purchase~website'])
+    assert.throws(
+      () => assertGoogleConversionGoal(edit('customerConversionGoals', rn('customerConversionGoals', name))),
+      (e: any) => e.code === 'INVALID_CONVERSION_GOAL' && /customerConversionGoals/.test(e.message),
+      name,
+    );
+  // A goal Google reports under a name that contradicts its own category or origin is not trusted.
+  const b = backend();
+  b.tables.customer_conversion_goal![0]!.origin = 'APP';
+  await assert.rejects(
+    readGoogleConversionGoalState(edit(), b.send),
+    (e: any) => e.code === 'CONVERSION_GOAL_STATE_UNVERIFIED' && /category or origin/.test(e.message),
+  );
+});
 test('legacy campaign-goal and configuration aliases execute the same native contracts', async () => {
   for (const [action, p] of [
     ['UPDATE_CAMPAIGN_CONVERSION_GOAL', edit('campaignConversionGoals', campaignGoal, {biddable: false})],

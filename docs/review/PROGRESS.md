@@ -518,3 +518,13 @@ other target and no other small target's circle), over the same 49 page/width co
 Full qualification of batches 26 and 27 (`.release/batch27-20260929`, up to `d8926a3`): **2,783 / 2,783** tests and
 **4 / 4** capture tests; `format:check`, every generated-artifact check including the new `docs:index:check`, and the
 Railway check pass. 283 s. The candidate's 1,210 source files equal `d8926a3`, apart from `release-manifest.json`.
+
+## Batch 28 — the owner's list from live Google Ads use
+
+On 2026-09-29 the owner reported ten problems found while running a Google Ads rebuild through AMCP, and asked for the
+same improvements on every other platform. Each is fixed below with local evidence. The live deployment still runs
+the previous code, so live confirmation follows the next deployment.
+
+| Change | Evidence |
+|---|---|
+| **1. Conversion goals.** Goal names follow the pinned contract: `customers/{id}/customerConversionGoals/{category}~{origin}` and `…/campaignConversionGoals/{campaign_id}~{category}~{origin}`, with the category and origin values the contract lists (UNSPECIFIED and UNKNOWN excluded). A goal Google reports under a name that contradicts its own category or origin is refused as unverified state (F-84) | red first: with the fixtures moved to Google's names, 55 of 72 goal and conversion-action tests failed with the owner's error ("Use an exact customerConversionGoals resource"); green after. The owner's case as a test: three non-purchase goals set non-biddable in one review, executed once, verified by read-back, purchases still biddable. Numeric, unknown, reversed, lower-case and UNKNOWN names are refused before any read |

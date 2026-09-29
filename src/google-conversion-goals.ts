@@ -3,7 +3,8 @@ import {googleJson} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {googleAdsCustomers} from './google-version.js';
+import {googleAdsContract, googleAdsCustomers, googleAdsVersion} from './google-version.js';
+import {pinnedJson} from './pinned-json.js';
 
 const resources = {
   customerConversionGoals: 'customer_conversion_goal',
@@ -28,15 +29,37 @@ const account = (p: CompiledRequest) => {
   if (!id || !/^\d+$/.test(id) || p.path.split('/')[3] !== id) fail('Select the exact Google Ads customer.');
   return id;
 };
+/**
+ * A goal is named by its category and origin, as the pinned contract states:
+ * `customers/{customer_id}/customerConversionGoals/{category}~{origin}` and
+ * `customers/{customer_id}/campaignConversionGoals/{campaign_id}~{category}~{origin}`, each an enum value of the
+ * contract other than UNSPECIFIED and UNKNOWN. Other goal resources and campaigns are named by numeric IDs.
+ */
+const goalValues = (field: 'category' | 'origin'): string[] =>
+  (
+    pinnedJson('.mirror/VENDOR/' + googleAdsContract + '.json').document.schemas[
+      'GoogleAdsGoogleads' + googleAdsVersion.toUpperCase() + 'Resources__CustomerConversionGoal'
+    ].properties[field].enum as string[]
+  ).filter(v => v !== 'UNSPECIFIED' && v !== 'UNKNOWN');
+const goalKey = () => '(?:' + goalValues('category').join('|') + ')~(?:' + goalValues('origin').join('|') + ')';
 const rn = (p: CompiledRequest, v: unknown, collection: string) => {
-  const parts = collection === 'customerConversionGoals' ? 2 : collection === 'campaignConversionGoals' ? 3 : 1;
-  if (
-    typeof v !== 'string' ||
-    !new RegExp(
-      '^customers/' + account(p) + '/' + collection + '/[1-9][0-9]*(?:~[1-9][0-9]*){' + (parts - 1) + '}$',
-    ).test(v)
-  )
-    fail('Use an exact ' + collection + ' resource in the selected customer.');
+  const id =
+    collection === 'customerConversionGoals'
+      ? goalKey()
+      : collection === 'campaignConversionGoals'
+        ? '[1-9][0-9]*~' + goalKey()
+        : '[1-9][0-9]*';
+  if (typeof v !== 'string' || !new RegExp('^customers/' + account(p) + '/' + collection + '/' + id + '$').test(v))
+    fail(
+      'Use an exact ' +
+        collection +
+        ' resource in the selected customer' +
+        (collection === 'customerConversionGoals'
+          ? ', named customers/{customer_id}/customerConversionGoals/{category}~{origin} (for example PURCHASE~WEBSITE).'
+          : collection === 'campaignConversionGoals'
+            ? ', named customers/{customer_id}/campaignConversionGoals/{campaign_id}~{category}~{origin}.'
+            : '.'),
+    );
   return v as string;
 };
 const campaignFor = (p: CompiledRequest, name: string) =>
@@ -315,6 +338,10 @@ function goal(p: CompiledRequest, kind: Kind, row: JsonObject): JsonObject {
       (row.biddable !== undefined && typeof row.biddable !== 'boolean')
     )
       stateFail('Goal category, origin or biddability is unknown.');
+    // The name repeats the category and origin; a row whose name says otherwise is not a goal AMCP can target.
+    const key = name.split('/').at(-1)!.split('~');
+    if (key.slice(kind === 'campaignConversionGoals' ? 1 : 0).join('~') !== row.category + '~' + row.origin)
+      stateFail('The goal resource name and its category or origin disagree.');
     out.biddable ??= false;
   }
   if (kind === 'campaignConversionGoals' || kind === 'conversionGoalCampaignConfigs')

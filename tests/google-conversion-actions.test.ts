@@ -295,10 +295,15 @@ function fixture(file = ':memory:', allowWrites = true) {
       },
     ],
     customer_conversion_goal: [
-      {resourceName: rn('customerConversionGoals', '4~2'), category: 'PURCHASE', origin: 'WEBSITE', biddable: true},
+      {
+        resourceName: rn('customerConversionGoals', 'PURCHASE~WEBSITE'),
+        category: 'PURCHASE',
+        origin: 'WEBSITE',
+        biddable: true,
+      },
     ],
     campaign_conversion_goal: ['100', '101'].map((id, i) => ({
-      resourceName: rn('campaignConversionGoals', id + '~4~2'),
+      resourceName: rn('campaignConversionGoals', id + '~PURCHASE~WEBSITE'),
       campaign: rn('campaigns', id),
       category: 'PURCHASE',
       origin: 'WEBSITE',
@@ -327,12 +332,12 @@ function fixture(file = ':memory:', allowWrites = true) {
     mode = 'success',
     afterRead: ((resource: string, query: string) => void) | undefined;
   const calls: JsonObject[] = [];
+  // Google creates the standard goals of a new category and origin, named by both (customerConversionGoals/{category}~{origin}).
   function addGoals(row: JsonObject) {
-    const category = {PURCHASE: 4, PAGE_VIEW: 3, SIGNUP: 5, PHONE_CALL_LEAD: 11}[row.category as 'PURCHASE'] ?? 2,
-      origin = row.origin === 'CALL_FROM_ADS' ? 5 : 2;
+    const goal = row.category + '~' + row.origin;
     if (!tables.customer_conversion_goal!.some(g => g.category === row.category && g.origin === row.origin))
       tables.customer_conversion_goal!.push({
-        resourceName: rn('customerConversionGoals', category + '~' + origin),
+        resourceName: rn('customerConversionGoals', goal),
         category: row.category,
         origin: row.origin,
         biddable: true,
@@ -348,10 +353,7 @@ function fixture(file = ':memory:', allowWrites = true) {
         g => g.campaign === campaign.resourceName && g.category === row.category && g.biddable === false,
       );
       tables.campaign_conversion_goal!.push({
-        resourceName: rn(
-          'campaignConversionGoals',
-          campaign.resourceName.split('/').at(-1) + '~' + category + '~' + origin,
-        ),
+        resourceName: rn('campaignConversionGoals', campaign.resourceName.split('/').at(-1) + '~' + goal),
         campaign: campaign.resourceName,
         category: row.category,
         origin: row.origin,
