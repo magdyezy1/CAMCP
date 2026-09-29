@@ -6,7 +6,7 @@ import {tiktokAdgroupConversion} from './tiktok-adgroup-conversions.js';
 import {tiktokCtaReferences} from './tiktok-cta-portfolios.js';
 import {reviewedWriteFamily} from './reviewed-routes.js';
 import {assertProviderActionAvailable} from './retired-provider-actions.js';
-import {validateMetaCampaign} from './meta-contracts.js';
+import {validateMetaCampaign, validateMetaV26} from './meta-contracts.js';
 import {validateGoogleRequest} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {validateMetaCreative} from './creative-validation.js';
@@ -35,6 +35,7 @@ export function assertWriteShape(plan: CompiledRequest) {
   assertProviderActionAvailable(plan);
   validateGoogleRequest(plan);
   validateMetaCampaign(plan);
+  validateMetaV26(plan);
   if (!writeContractGateways.has(plan.gateway))
     fail('WRITE_CONTRACT_UNAVAILABLE', 'This platform has no reviewed mutation contract.');
   if (plan.readOnly) fail('MUTATION_REQUIRED', 'Use the original native gateway to perform this read.');

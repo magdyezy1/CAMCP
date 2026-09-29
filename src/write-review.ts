@@ -29,6 +29,7 @@ import {assertAccountWrite} from './write-access.js';
 import {validateGoogleTargetingState} from './google-targeting-writes.js';
 import {validateGooglePausedParents} from './google-paused-parents.js';
 import {pausedParentFollowUp, validatePausedParents} from './paused-parents.js';
+import {metaAdSetAudienceChoice} from './meta-contracts.js';
 import {validateXTargetingState} from './x-targeting-writes.js';
 import {assertRedditWriteScopes} from './reddit-writes.js';
 import {microsoftGateway, microsoftScope} from './microsoft-native.js';
@@ -353,6 +354,7 @@ export class WriteReviewService {
     validateGoogleTargetingState(plan, values);
     validateGooglePausedParents(plan, values);
     validatePausedParents(plan, values);
+    metaAdSetAudienceChoice(plan, values);
     validateXTargetingState(plan, values);
     return values;
   }

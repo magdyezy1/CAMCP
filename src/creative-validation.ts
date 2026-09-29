@@ -8,7 +8,14 @@ export const metaCreativeFields = [
   'source_instagram_media_id',
   'instagram_user_id',
   'url_tags',
+  'destination_spec',
 ];
+/**
+ * The one destination a creative may choose: from Graph API v26.0 an eligible creative defaults to WEBSITE_AND_SHOP when
+ * the advertiser has a shop, and WEBSITE_AND_SHOP_OPT_OUT keeps it on the website
+ * (https://developers.facebook.com/docs/graph-api/changelog/version26.0, read 2026-09-29).
+ */
+export const metaCreativeDestinations = ['WEBSITE_AND_SHOP_OPT_OUT'];
 /** Separate existing Instagram media from Facebook post IDs; never invent an identity. */
 export function validateMetaCreative(body: JsonObject) {
   const supported = metaCreativeFields;
@@ -18,6 +25,19 @@ export function validateMetaCreative(body: JsonObject) {
       'WRITE_CONTRACT_UNAVAILABLE',
       'This creative contract supports owned Page stories, exact Facebook posts and existing Instagram media. Additional source/actor overrides and advanced creative fields need their own qualified contract.',
       {unsupported_fields: unsupported, supported_fields: supported},
+    );
+  if (
+    body.destination_spec !== undefined &&
+    (!body.destination_spec ||
+      typeof body.destination_spec !== 'object' ||
+      Array.isArray(body.destination_spec) ||
+      Object.keys(body.destination_spec).join() !== 'destination_type' ||
+      !metaCreativeDestinations.includes(body.destination_spec.destination_type))
+  )
+    throw new MirrorError(
+      'WRITE_CONTRACT_UNAVAILABLE',
+      'A reviewed creative may set destination_spec only to {destination_type: WEBSITE_AND_SHOP_OPT_OUT}, which keeps it off the shop.',
+      {field: 'destination_spec', allowed: metaCreativeDestinations},
     );
   const story =
     body.object_story_spec && typeof body.object_story_spec === 'object' && !Array.isArray(body.object_story_spec)

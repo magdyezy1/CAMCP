@@ -61,7 +61,9 @@ through.
 
 **Meta.** Broad reads (420) with writes limited to 13 families. On Graph v26.0 since batch 15 (F-52): Meta's official
 SDK at 26.0.2 keeps every catalog request AMCP could compare and removes nothing AMCP sends
-([the migration record](../implementation/META-V26-2026-09-28.md)); `AMCP_META_API_VERSION=v25.0` moves back. Reports count conversions only for lead, app-install and sales objectives; traffic and
+([the migration record](../implementation/META-V26-2026-09-28.md)); `AMCP_META_API_VERSION=v25.0` moves back. The
+v26.0 changelog's refusals (Explore placement, poll components, the Advantage+ Audience choice of special-category ad
+sets) are refused before any request, and the shop destination default is said in the review (F-113). Reports count conversions only for lead, app-install and sales objectives; traffic and
 awareness campaigns show an empty conversions column by design.
 
 **TikTok.** The most families (27) and the most blocked writes (167). Smart+ and Upgraded Smart+ flows are reviewed

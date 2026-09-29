@@ -11,12 +11,23 @@ Insights `marketing_messages_website_*` metrics, seven commerce order reads) are
 
 Meta's v26.0 changelog (read 2026-09-29) adds behavior the SDK comparison cannot show:
 
-- Creatives of an advertiser with a shop default to `destination_spec.destination_type: WEBSITE_AND_SHOP`. To send
-  people to the website only, set `WEBSITE_AND_SHOP_OPT_OUT` explicitly; say so in the review.
-- The Instagram Explore placement and poll components (`poll_spec`, the poll type of `interactive_components_spec`)
-  are refused; `story` in `messenger_positions` is dropped silently.
+- Creatives of an advertiser with a shop default to `destination_spec.destination_type: WEBSITE_AND_SHOP`. AMCP
+  cannot read whether the advertiser has a shop, so the review of a new creative (or an ad with an inline creative)
+  that chooses no destination carries a `creative_impact.warning` saying so. Show it to the user; to send people to
+  the website only, set `destination_spec: {destination_type: "WEBSITE_AND_SHOP_OPT_OUT"}`, the one destination the
+  reviewed creative contract accepts.
+- The Instagram Explore placement (`explore` in `targeting.instagram_positions`, when an ad set is created or updated)
+  is refused before any read with `META_PLACEMENT_UNAVAILABLE`; `explore_home` and the other positions stay. `story`
+  in `messenger_positions` is dropped silently by Meta.
+- Poll components (`poll_spec`, the poll type of `interactive_components_spec`) in creatives, new ads and ad updates
+  are refused before any read with `META_POLL_UNAVAILABLE`, at v26.0 and, from 2026-10-27, at v25.0 too. An ad update
+  that leaves the creative alone continues.
 - Housing, employment and financial ad sets with relaxable, non-broad targeting must set
-  `targeting_automation.advantage_audience` to 0 or 1.
+  `targeting_automation.advantage_audience` to 0 or 1. The review of a new ad set reads its campaign's
+  `special_ad_categories`; under `HOUSING`, `EMPLOYMENT`, `FINANCIAL_PRODUCTS_SERVICES` or `CREDIT`, custom audiences
+  or detailed targeting (`flexible_spec`, interests, behaviors and the other detailed fields) without that choice are
+  refused with `META_ADVANTAGE_AUDIENCE_REQUIRED` (`details.relaxable_targeting` names them). Ask the user whether
+  Meta may widen the audience (1) or not (0); never pick for them.
 - Delivery estimates no longer return `daily_outcomes_curve`, `budget_guardrail` or `estimate_dau`; `date_format` and
   root `?ids=` requests are refused. Most of these reach every version on 2026-10-27.
 
@@ -316,7 +327,8 @@ binding. `META_CREATIVE_STATE_UNVERIFIED` means the identity read was incomplete
 malformed; do not assume permission. Third-party partnership/creator posts and
 placement-specific eligibility still need separately qualified contracts/evidence.
 The qualified top-level creative fields are `name`, `object_story_spec`,
-`object_story_id`, `source_instagram_media_id`, `instagram_user_id` and `url_tags`.
+`object_story_id`, `source_instagram_media_id`, `instagram_user_id`, `url_tags` and
+`destination_spec` (only `{destination_type: "WEBSITE_AND_SHOP_OPT_OUT"}`; see API version).
 Alternate source/actor overrides, partnership fields and advanced creative modes
 return `WRITE_CONTRACT_UNAVAILABLE`; inspect the exact payload before planning a
 dependent ad. Add image/video/link configuration within the verified Page story.
