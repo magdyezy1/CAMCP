@@ -44,6 +44,18 @@ function setup(parents: {ad_group: string; campaign: string}) {
         queries.push(body.query);
         if (/ FROM customer /.test(body.query + ' '))
           return Response.json({results: [{customer: {id: '123', currencyCode: 'USD', timeZone: 'UTC'}}]});
+        if (/ FROM campaign /.test(body.query + ' '))
+          return Response.json({
+            results: [
+              {
+                campaign: {
+                  resourceName: 'customers/123/campaigns/9',
+                  status: parents.campaign,
+                  campaignBudget: 'customers/123/campaignBudgets/1',
+                },
+              },
+            ],
+          });
         if (/ FROM ad_group /.test(body.query + ' '))
           return Response.json({
             results: [
@@ -90,7 +102,33 @@ function setup(parents: {ad_group: string; campaign: string}) {
       {action: 'execute', review_id: review.data.review_id, confirmed: true, spend_change_confirmed: true, ...extra},
       actor,
     ) as Promise<JsonObject>;
-  return {store, parents, writes, queries, prepare, execute};
+  const create = (action: string, record: JsonObject) =>
+    service.call(
+      'amcp_write',
+      {action: 'prepare', gateway, arguments: {action, account_id: '123', payload: {operations: [{create: record}]}}},
+      actor,
+    ) as Promise<JsonObject>;
+  const newAdGroup = (status: string) =>
+    create('google_ads_v23_ad_group_mutate_ad_groups', {
+      name: 'Shoes',
+      campaign: 'customers/123/campaigns/9',
+      status,
+      type: 'SEARCH_STANDARD',
+      cpcBidMicros: '1000000',
+    });
+  const newAd = (status: string) =>
+    create('google_ads_v23_ad_group_ad_mutate_ad_group_ads', {
+      adGroup: 'customers/123/adGroups/100',
+      status,
+      ad: {
+        finalUrls: ['https://example.test/'],
+        responsiveSearchAd: {
+          headlines: [{text: 'Running shoes'}, {text: 'Free returns'}, {text: 'New season'}],
+          descriptions: [{text: 'Shoes for every run.'}, {text: 'Order today.'}],
+        },
+      },
+    });
+  return {store, parents, writes, queries, prepare, execute, newAdGroup, newAd};
 }
 
 test('a keyword may start ENABLED inside a paused campaign, in one reviewed step', async () => {
@@ -144,5 +182,33 @@ test('a campaign enabled between review and execution stops the ENABLED keyword'
     assert.equal(f.writes.length, 0);
   } finally {
     f.store.close();
+  }
+});
+
+test('ad groups and ads follow the same rule: ENABLED under a paused parent, PAUSED under a serving one', async () => {
+  const paused = setup({ad_group: 'ENABLED', campaign: 'PAUSED'});
+  try {
+    const group = await paused.newAdGroup('ENABLED');
+    assert.equal(group.success, true, JSON.stringify(group).slice(0, 600));
+    const created = await paused.newAd('ENABLED');
+    assert.equal(created.success, true, JSON.stringify(created).slice(0, 600));
+    assert.ok(paused.queries.some(q => / FROM ad_group /.test(q) && q.includes('campaign.status')));
+  } finally {
+    paused.store.close();
+  }
+  const serving = setup({ad_group: 'ENABLED', campaign: 'ENABLED'});
+  try {
+    const group = await serving.newAdGroup('ENABLED');
+    assert.equal(group.error.code, 'PARENT_SERVING');
+    assert.match(group.error.message, /ad group must start PAUSED.*campaign ENABLED/);
+    const refused = await serving.newAd('ENABLED');
+    assert.equal(refused.error.code, 'PARENT_SERVING');
+    assert.match(refused.error.message, /ad group ENABLED, campaign ENABLED/);
+    assert.equal((await serving.newAdGroup('PAUSED')).success, true);
+    assert.equal((await serving.newAd('PAUSED')).success, true);
+    // A new campaign itself still starts PAUSED.
+    assert.equal(serving.writes.length, 0);
+  } finally {
+    serving.store.close();
   }
 });

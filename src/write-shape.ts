@@ -467,8 +467,12 @@ export function assertWriteShape(plan: CompiledRequest) {
   if (plan.gateway === 'google_ads_native_action') {
     if (!Array.isArray(body.operations) || !body.operations.length || body.operations.length > 25)
       fail('WRITE_CONTRACT_UNAVAILABLE', 'Reviewed Google mutations require 1–25 homogeneous native operations.');
-    if (/\/(campaigns|adGroups|adGroupAds|assetGroups):mutate$/.test(plan.path))
+    // A new campaign starts PAUSED. Its ad groups, ads and asset groups may start ENABLED only under a parent the
+    // review reads as PAUSED (google-paused-parents.ts, the owner's item 6).
+    if (/\/campaigns:mutate$/.test(plan.path))
       for (const op of body.operations) if (op.create) expect(op.create, 'status', ['PAUSED']);
+    if (/\/(adGroups|adGroupAds|assetGroups):mutate$/.test(plan.path))
+      for (const op of body.operations) if (op.create) expect(op.create, 'status', ['PAUSED', 'ENABLED']);
     if (body.partial_failure === true || body.partialFailure === true)
       fail(
         'WRITE_CONTRACT_UNAVAILABLE',

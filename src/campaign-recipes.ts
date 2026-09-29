@@ -308,7 +308,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
               create: {
                 name: b.name + ' · search',
                 campaign: ref('campaign', response),
-                status: 'PAUSED',
+                status: 'ENABLED',
                 type: 'SEARCH_STANDARD',
                 cpc_bid_micros: bid,
               },
@@ -321,8 +321,8 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
         'keywords',
         'google_ads_v23_ad_group_criterion_mutate_ad_group_criteria',
         {
-          // ENABLED under the paused ad group: enabling the ad group and campaign is the reviewed activation, and no
-          // second pass per keyword is needed (the owner's item 6).
+          // The campaign alone starts PAUSED; its ad group, keywords and ad start ENABLED under it, so enabling the
+          // campaign is the one reviewed activation and no second pass is needed (the owner's item 6).
           operations: keywords.map(text => ({
             create: {ad_group: ref('adgroup', response), status: 'ENABLED', keyword: {text, match_type: 'EXACT'}},
           })),
@@ -337,7 +337,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
             {
               create: {
                 ad_group: ref('adgroup', response),
-                status: 'PAUSED',
+                status: 'ENABLED',
                 ad: {
                   responsive_search_ad: {
                     headlines: headlines.map(text => ({text})),

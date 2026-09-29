@@ -178,6 +178,7 @@ import {normalizeSnapshot, reviewStateHash, changedStateFields} from './review-s
 import {assertAccountWrite} from './write-access.js';
 import {xCreativeKind, xCreativeEdit, readXCreativeState} from './x-creative-writes.js';
 import {validateGoogleTargetingState} from './google-targeting-writes.js';
+import {validateGooglePausedParents} from './google-paused-parents.js';
 import {validateGoogleAssetLinkState} from './google-asset-links.js';
 import {validateXTargetingState} from './x-targeting-writes.js';
 import {xTargetingBatchRoute, readXTargetingBatchState} from './x-targeting-batch.js';
@@ -760,6 +761,7 @@ export class WriteReviewService {
       };
     }
     validateGoogleTargetingState(plan, values);
+    validateGooglePausedParents(plan, values);
     validateGoogleAssetLinkState(plan, values);
     validateGoogleConfigurationState(plan, values);
     validateMicrosoftAssociationState(plan, values);

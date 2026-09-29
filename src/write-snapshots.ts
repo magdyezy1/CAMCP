@@ -254,7 +254,11 @@ export function snapshotPlans(plan: CompiledRequest, registry: Registry): Compil
         fields: 'campaign_budget.resource_name, campaign_budget.amount_micros',
       },
       campaign: {kind: 'campaigns', fields: 'campaign.resource_name, campaign.status, campaign.campaign_budget'},
-      ad_group: {kind: 'adGroups', fields: 'ad_group.resource_name, ad_group.status, ad_group.campaign'},
+      // The campaign's status too: a new ad may start ENABLED only under a paused ad group or campaign.
+      ad_group: {
+        kind: 'adGroups',
+        fields: 'ad_group.resource_name, ad_group.status, ad_group.campaign, campaign.status',
+      },
     };
     const seen = new Set<string>();
     for (const op of body.operations)
