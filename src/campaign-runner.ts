@@ -24,7 +24,7 @@ import {
 } from './workspace-core.js';
 export const campaignTool = tool(
   'amcp_campaign',
-  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. No fabricated IDs, implicit launch, or review bypass.',
+  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. To approve a whole plan once: approve returns what the approval covers (every step’s action, account, money and status fields); approve with confirmed and that plan_hash records it; run then prepares and executes every step under it, each still a frozen, read-back review, and stops for anything that needs a person. No fabricated IDs, implicit launch, or review bypass.',
   [
     'create',
     'get',
@@ -37,6 +37,8 @@ export const campaignTool = tool(
     'preflight',
     'recover_step',
     'reconcile_step',
+    'approve',
+    'run',
     'recipes',
     'recipe_context',
     'recipe_lookup',
@@ -74,6 +76,10 @@ export const campaignTool = tool(
     },
     offset: {type: 'integer', minimum: 0},
     limit: {type: 'integer', minimum: 1, maximum: 100},
+    plan_hash: {
+      type: 'string',
+      description: 'approve with confirmed: the plan_hash of the summary the user approved.',
+    },
     accept_observed: {
       type: 'boolean',
       description:
@@ -159,6 +165,41 @@ function independentStep(run: JsonObject): string | undefined {
     if (step) return step.id;
   }
   return undefined;
+}
+/** What a plan approval covers: each step's action and account, and the money and status fields it sets. */
+function approvalSummary(run: JsonObject): JsonObject {
+  const money = /budget|bid|amount|spend_cap|cpc|cpm|target_cpa|target_roas/i;
+  const fields = (v: unknown, path = '', out: JsonObject[] = []): JsonObject[] => {
+    if (out.length >= 12) return out;
+    if (Array.isArray(v)) v.forEach((x, i) => fields(x, path + '/' + i, out));
+    else if (obj(v))
+      for (const [k, x] of Object.entries(v)) {
+        if (obj(x) && Object.hasOwn(x, '$ref')) continue;
+        if ((money.test(k) || k === 'status') && (typeof x === 'string' || typeof x === 'number'))
+          out.push({field: path + '/' + k, value: x});
+        else fields(x, path + '/' + k, out);
+      }
+    return out;
+  };
+  return {
+    plan_hash: run.plan_hash,
+    steps: run.steps.map((s: JsonObject) => {
+      const found = fields(s.arguments);
+      const spend = found.filter(f => money.test(String(f.field).split('/').at(-1)!)),
+        status = found.filter(f => String(f.field).endsWith('/status'));
+      return {
+        id: s.id,
+        gateway: s.kind === 'media' ? s.arguments.platform + '_native_action' : s.gateway,
+        action: s.arguments.action ?? s.arguments.operation ?? null,
+        account_id: s.account_id,
+        ...(s.depends_on.length ? {depends_on: s.depends_on} : {}),
+        ...(spend.length ? {spend} : {}),
+        ...(status.length ? {status} : {}),
+      };
+    }),
+    covers:
+      'Each step is still prepared as a frozen review of the state it reads and executed once with its own idempotency key and read-back; this approval stands in for the confirmation of each review. Owner spending caps, creative edits and failures still stop the run for a person.',
+  };
 }
 export class CampaignRunner {
   constructor(
@@ -247,6 +288,116 @@ export class CampaignRunner {
         ? {retry_read_after_ms: step.verification.retry_read_after_ms}
         : {}),
     };
+  }
+  /**
+   * One approval for a whole plan (the owner's item 5, 2026-09-29: a 19-step build needed 19 separate approvals).
+   * Without confirmation, approve returns what the user approves: every step's action, account and the budget,
+   * bid and status fields it sets. With confirmed: true and that summary's plan_hash, the approval is recorded and
+   * audited. It covers this plan_hash only: amending a step changes the hash and voids it. It lasts a day.
+   */
+  private approve(input: JsonObject, actor: Actor, run: JsonObject): JsonObject {
+    const summary = approvalSummary(run),
+      spending = summary.steps.some((s: JsonObject) => s.spend?.length);
+    if (input.confirmed !== true)
+      return compactPlan(run, undefined, {
+        approval: summary,
+        next_call: {
+          tool: 'amcp_campaign',
+          arguments: {action: 'approve', id: run.id, plan_hash: run.plan_hash, confirmed: true},
+          ...(spending ? {add_after_user_approval: {spend_change_confirmed: true}} : {}),
+        },
+      });
+    if (input.plan_hash !== run.plan_hash)
+      bad(
+        'plan_hash does not match: the plan changed since that summary. Show the user the current summary (approve without confirmed).',
+        'PLAN_CHANGED',
+        {field: 'plan_hash', plan_hash: run.plan_hash},
+      );
+    run.approval = {
+      plan_hash: run.plan_hash,
+      by: actor.userId,
+      at: Date.now(),
+      spend_change_confirmed: input.spend_change_confirmed === true,
+    };
+    audit(this.store, actor, 'campaign_plan_approved', {
+      id: run.id,
+      plan_hash: run.plan_hash,
+      steps: run.steps.length,
+      spend_change_confirmed: input.spend_change_confirmed === true,
+    });
+    run = this.save(actor, run);
+    return compactPlan(run, undefined, {
+      approved: {by: actor.userId, spend_change_confirmed: run.approval.spend_change_confirmed},
+      next_call: {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}},
+    });
+  }
+  /**
+   * Runs an approved plan: each step is prepared (a frozen review of the state it reads) and executed under the
+   * plan's approval, then read back, exactly as prepare_next and execute_next do one at a time. It stops for anything
+   * that needs a person: a spending acknowledgement the approval did not give, an owner cap override, a creative
+   * edit, a failure, a mismatch, or a read-back still settling. It also stops after about 25 seconds so a response
+   * always arrives; run again to continue. Nothing is rolled back: steps already done stay, as created (paused).
+   */
+  private async runApproved(input: JsonObject, actor: Actor, run: JsonObject): Promise<JsonObject> {
+    if (!run.approval || run.approval.plan_hash !== run.plan_hash || Date.now() - run.approval.at > 86400000)
+      bad(
+        'This plan has no current approval. Show the user the summary (approve), then approve it with confirmed: true.',
+        'APPROVAL_REQUIRED',
+        {next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: run.id}}},
+      );
+    const started = Date.now(),
+      executed: string[] = [];
+    const stop = (view: JsonObject, reason: string, extra: JsonObject = {}) => ({
+      ...view,
+      run: {executed, stopped: reason, ...extra},
+    });
+    for (let i = 0; i < run.steps.length * 3 + 3; i++) {
+      if (Date.now() - started > 25000)
+        return stop(this.respond({}, this.owned(actor, run.id)), 'time', {
+          next_call: {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}},
+        });
+      const prepared = await this.handle({action: 'prepare_next', id: run.id}, actor);
+      if (!prepared.review) {
+        const view = prepared.view ? prepared : this.respond({}, this.owned(actor, run.id));
+        if (view.state === 'complete') return stop(view, 'complete');
+        return stop(view, view.blocked ? 'needs_attention' : 'waiting');
+      }
+      const needs = prepared.execute_requirements ?? {};
+      const human = needs.cap_override_confirmed
+        ? 'cap_override_confirmed'
+        : needs.creative_edit_confirmed
+          ? 'creative_edit_confirmed'
+          : needs.spend_change_confirmed && !run.approval.spend_change_confirmed
+            ? 'spend_change_confirmed'
+            : undefined;
+      if (human)
+        return stop(prepared, 'needs_' + human, {
+          reason:
+            'Step ' +
+            prepared.step_id +
+            ' needs ' +
+            human +
+            ', which the plan approval does not give. Show the user this review; execute_next with it continues the step, then run continues the plan.',
+        });
+      const out = await this.handle(
+        {
+          action: 'execute_next',
+          id: run.id,
+          review_id: prepared.review.review_id,
+          idempotency_key: prepared.review.idempotency_key,
+          confirmed: true,
+          ...(needs.spend_change_confirmed ? {spend_change_confirmed: true} : {}),
+        },
+        actor,
+      );
+      executed.push(prepared.step_id);
+      if (out.state === 'complete') return stop(out, 'complete');
+      const step = out.steps?.find((s: JsonObject) => s.id === prepared.step_id);
+      if (step && ['failed', 'uncertain', 'mismatch'].includes(step.status)) return stop(out, 'needs_attention');
+    }
+    return stop(this.respond({}, this.owned(actor, run.id)), 'limit', {
+      next_call: {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}},
+    });
   }
   /** A plan response: compact unless the caller asks for detail "full" (the stored plan, as before). `full` holds
    * fields only the full form carries; `extra` fields go in both. */
@@ -710,7 +861,7 @@ export class CampaignRunner {
         next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
       });
     }
-    if (['prepare_next', 'execute_next'].includes(input.action))
+    if (['prepare_next', 'execute_next', 'approve', 'run'].includes(input.action))
       for (const s of run.steps.filter((s: JsonObject) => !settled(s))) {
         const gateway = s.kind === 'media' ? s.arguments.platform + '_native_action' : s.gateway,
           c = this.store.resolveConnection(actor, gateway, s.account_id, s.connection_id);
@@ -736,11 +887,16 @@ export class CampaignRunner {
         : compactPlan(r, undefined, {...extra, preflight: preflightView(r.preflight)});
     };
     if (run.preflight?.status === 'blocked' && input.action !== 'preflight') return blockedBy(run);
-    if (this.preflight && (input.action === 'preflight' || (input.action === 'prepare_next' && !run.preflight))) {
+    if (
+      this.preflight &&
+      (input.action === 'preflight' || (['prepare_next', 'approve', 'run'].includes(input.action) && !run.preflight))
+    ) {
       run.preflight = await this.preflight(actor, run.steps);
       run = this.save(actor, run);
       if (input.action === 'preflight' || run.preflight.status === 'blocked') return blockedBy(run);
     }
+    if (input.action === 'approve') return this.approve(input, actor, run);
+    if (input.action === 'run') return this.runApproved(input, actor, run);
     let next = run.steps.find((s: JsonObject) => !settled(s));
     if (!next) return this.respond(input, {...run, state: 'complete'});
     if (['uncertain', 'failed', 'mismatch'].includes(next.status)) {
