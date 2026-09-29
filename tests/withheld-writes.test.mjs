@@ -32,6 +32,19 @@ const cases = [
     /delete it and create the new one/,
   ],
   [
+    'snapchat_native_action',
+    'snapchat_adaccounts_ad_account_id_creatives_creative_id_update',
+    {
+      account_id: '82225ba6-7559-4000-9663-bace8adff5f2',
+      params: {
+        ad_account_id: '82225ba6-7559-4000-9663-bace8adff5f2',
+        creative_id: '7d4ce4d3-db51-4b9c-8841-0992fc589484',
+      },
+      payload: {creatives: [{id: '7d4ce4d3-db51-4b9c-8841-0992fc589484', name: 'Creative'}]},
+    },
+    /snapchat_adaccounts_ad_account_id_creatives_update/,
+  ],
+  [
     'tiktok_native_action',
     'tiktok_creative_portfolio_delete',
     {payload: {advertiser_id: '1', creative_portfolio_ids: ['2']}},
