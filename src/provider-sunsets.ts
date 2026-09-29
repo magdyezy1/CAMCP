@@ -24,16 +24,22 @@ const unknown = (provider: string, version: string, note?: string): ProviderSuns
   ...(note ? {note} : {}),
 });
 export const providerSunsets: ProviderSunset[] = [
-  unknown(
-    'google',
-    'v25',
-    "v25's date was not readable from the review environment. v23, which AMCP sent until 2026-09-28, sunsets in 2027-02 (Google's sunset page, checked 2026-09-18).",
-  ),
-  unknown(
-    'meta',
-    'v26.0',
-    'Released 2026-07-29. AMCP_META_API_VERSION=v25.0 moves back to v25.0, whose end date is also unverified.',
-  ),
+  {
+    provider: 'google',
+    version: 'v25',
+    basis: 'official',
+    sunset: '2027-08',
+    checked: '2026-09-29',
+    note: 'Released 2026-07-22 (Google Ads API "Sunset dates" timetable). v23, which AMCP sent until 2026-09-28, sunsets in 2027-02.',
+  },
+  {
+    ...unknown(
+      'meta',
+      'v26.0',
+      'Released 2026-07-29, available until "TBD" (Graph API Versions page and v26.0 changelog). AMCP_META_API_VERSION=v25.0 moves back to v25.0: the Graph API table gives it until 2028-07-29, the Marketing API table "TBD".',
+    ),
+    checked: '2026-09-29',
+  },
   {
     provider: 'linkedin',
     version: '202609',
@@ -58,13 +64,22 @@ export const providerSunsets: ProviderSunset[] = [
     ),
     checked: '2026-09-29',
   },
-
   unknown('tiktok', 'v1.3'),
   unknown('snapchat', 'v1'),
-  unknown('x', '12'),
+  {
+    ...unknown(
+      'x',
+      '12',
+      'Deprecation and end of life "TBD" (X Ads API Versioning). A version is deprecated six months after its successor is announced.',
+    ),
+    checked: '2026-09-29',
+  },
   unknown('apple', 'v1'),
   unknown('reddit', 'v3'),
-  unknown('dv360', 'v4'),
+  {
+    ...unknown('dv360', 'v4', 'Released 2025-03-27; no deprecation announced (Display & Video 360 API Deprecations).'),
+    checked: '2026-09-29',
+  },
   unknown('ga4', 'v1beta/v1alpha'),
   unknown('gtm', 'v2'),
   unknown('gsc', 'v3/v1'),

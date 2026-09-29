@@ -46,6 +46,7 @@ export const providerMaintenance: Record<string, JsonObject> = {
       'Per-account AMCP write grants are separate from Meta token/Page permissions.',
       'v25 rejects legacy AUTOMATED_SHOPPING_ADS/SMART_APP_PROMOTION. New campaigns cannot set existing_customer_budget_percentage; advantage state fields are read-only.',
       'Changelog access can be rate-limited; do not impose unverified blanket creative field bans.',
+      'v26.0: creatives of an advertiser with a shop default to destination_type WEBSITE_AND_SHOP unless WEBSITE_AND_SHOP_OPT_OUT is set; Explore placement and poll components are refused; HEC-F ad sets with relaxable targeting need targeting_automation.advantage_audience 0 or 1.',
     ],
   },
   tiktok: {

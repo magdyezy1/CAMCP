@@ -81,9 +81,9 @@ changed within their versions. Each difference was reviewed and the documents re
 multiplier became writable and now needs a spend confirmation, and GA4 began saying when it truncated a report, so a
 truncated GA4 report is now partial and says why ([the review](../implementation/SCHEMA-DRIFT-2026-09-28.md)). A
 registry records when each version AMCP sends stops working. It is checked against the versions AMCP sends, so an
-upgrade must update it. The weekly provider workflow fails 90 days before a recorded end date. Criteo moved to
-2026-07 in batch 32, whose support can end from July 2027; most other dates could not be read from here and are
-recorded as unknown.
+upgrade must update it. The weekly provider workflow fails 90 days before a recorded end date. Batch 32 read the
+official pages: Google Ads v25 ends in August 2027 (published), Criteo 2026-07 from July 2027 and LinkedIn 202609 from
+September 2027 (support policies); Meta v26.0, X 12, DV360 v4 and Microsoft v13 REST have no published end.
 
 **MCP workflow.** Each AMCP tool says when to use it rather than its neighbour. An opt-in flag
 (`MIRROR_FLAGS={"compactSchemas":true}`) removes the duplicated DV360 action names from every `tools/list`. A client

@@ -9,6 +9,17 @@ Insights `marketing_messages_website_*` metrics, seven commerce order reads) are
 `docs/implementation/META-V26-2026-09-28.md`. The owner can move every request back to v25.0 with
 `AMCP_META_API_VERSION=v25.0`; no other version is accepted.
 
+Meta's v26.0 changelog (read 2026-09-29) adds behavior the SDK comparison cannot show:
+
+- Creatives of an advertiser with a shop default to `destination_spec.destination_type: WEBSITE_AND_SHOP`. To send
+  people to the website only, set `WEBSITE_AND_SHOP_OPT_OUT` explicitly; say so in the review.
+- The Instagram Explore placement and poll components (`poll_spec`, the poll type of `interactive_components_spec`)
+  are refused; `story` in `messenger_positions` is dropped silently.
+- Housing, employment and financial ad sets with relaxable, non-broad targeting must set
+  `targeting_automation.advantage_audience` to 0 or 1.
+- Delivery estimates no longer return `daily_outcomes_curve`, `budget_guardrail` or `estimate_dau`; `date_format` and
+  root `?ids=` requests are refused. Most of these reach every version on 2026-10-27.
+
 ## Public Ad Library research
 
 Use `amcp_native_action` with `operation: "search_ads_library"` and

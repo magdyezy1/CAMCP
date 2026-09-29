@@ -14,12 +14,14 @@ test('the sunset registry records exactly the versions AMCP sends', () => {
     /google: the sunset entry records v23 but AMCP sends v25/,
   );
   assert.throws(() => assertSunsetRegistry(without('google')), /google: no sunset entry for v25/);
+  // A date without an official or policy basis, and such a basis without a date, are both refused.
   assert.throws(
-    () => assertSunsetRegistry(without('google', {...google, sunset: '2027-02'})),
+    () => assertSunsetRegistry(without('google', {...google, basis: 'unknown', sunset: '2027-08'})),
     /needs an official or policy basis/,
   );
+  const {sunset: _sunset, ...undated} = google;
   assert.throws(
-    () => assertSunsetRegistry(without('google', {...google, basis: 'official'})),
+    () => assertSunsetRegistry(without('google', {...undated, basis: 'official'})),
     /needs an official or policy basis/,
   );
   assert.throws(
@@ -47,7 +49,14 @@ test('MCP clients read each version end in the provider contract view', () => {
     ],
     ['2027-07', 'policy'],
   );
-  assert.equal(providerContractView('google_ads_native_action').version_end.basis, 'unknown');
+  // Google publishes v25's sunset: August 2027 (Sunset dates timetable, read 2026-09-29).
+  assert.deepEqual(
+    [
+      providerContractView('google_ads_native_action').version_end.sunset,
+      providerContractView('google_ads_native_action').version_end.basis,
+    ],
+    ['2027-08', 'official'],
+  );
   assert.match(providerContractView('google_ads_native_action').version_end.note, /v23.*2027-02/);
 });
 
@@ -55,4 +64,5 @@ test('the contracts page states recorded sunsets and no longer gives Google Ads 
   const contracts = fs.readFileSync('docs/CONTRACTS.md', 'utf8');
   assert.doesNotMatch(contracts, /Documented sunset month 2027-02/);
   assert.match(contracts, /Version 2026-07 ends 2027-07 \(the provider's support period\), checked 2026-09-29\./);
+  assert.match(contracts, /Version v25 ends 2027-08 \(the published date\), checked 2026-09-29\./);
 });
