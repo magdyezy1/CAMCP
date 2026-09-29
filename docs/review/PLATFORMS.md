@@ -1,6 +1,6 @@
 # Platform contracts, workflows and integration
 
-Status on 2026-09-29 (batch 33), from the code and the pinned evidence only: the action ledger
+Status on 2026-09-29 (batch 34), from the code and the pinned evidence only: the action ledger
 (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`), `src/provider-contracts.ts`, `src/spend-policy.ts`
 (`activationFields`), `src/report-metrics.ts` (`metricSources`), the pinned vendor documents in `.mirror/VENDOR/` and
 the findings in [FINDINGS.md](FINDINGS.md). Nothing here was checked against a live account: every ledger row is
@@ -16,9 +16,9 @@ registry (`src/reviewed-families.ts`): every family since batch 33.
 |---|---|---|---|---|---|---|---|
 | Google Ads | v25 | 173 | 216 (26, 26) | 49 | `status` ENABLED | `metrics.conversions` | on v25 since batch 14; v25 sunsets 2027-08 (F-49) |
 | Meta | v26.0 | 420 | 55 (14, 14) | 111 | `status` ACTIVE | leads, installs or purchases by objective; empty otherwise | on v26.0 since batch 15, available until "TBD"; v25.0 kept as a fallback (F-52) |
-| TikTok | v1.3 | 316 | 68 (27, 27) | 167 | `operation_status` ENABLE | `conversion` (the ad group's optimization event) | no dated sunset recorded |
+| TikTok | v1.3 | 316 | 70 (28, 28) | 165 | `operation_status` ENABLE | `conversion` (the ad group's optimization event) | no dated sunset recorded |
 | Snapchat | v1 | 271 | 60 (10, 10) | 62 | `status` ACTIVE | installs, sign-ups or purchases by objective | one version, v1; no end announced (checked 2026-09-29) |
-| LinkedIn | 202609 | 144 | 54 (17, 17) | 79 | `status` ACTIVE (creatives: `intendedStatus`) | `externalWebsiteConversions` | monthly versions; on 202609 since batch 32 (F-53) |
+| LinkedIn | 202609 | 146 | 54 (17, 17) | 77 | `status` ACTIVE (creatives: `intendedStatus`) | `externalWebsiteConversions` | monthly versions; on 202609 since batch 32 (F-53) |
 | X Ads | 12 | 96 | 56 (14, 14) | 33 | `entity_status` ACTIVE | not reported | end of life "TBD" (checked 2026-09-29) |
 | DV360 | v4 | 78 | 62 (16, 16) | 29 | `entityStatus` ENTITY_STATUS_ACTIVE | — (no DV360 report source) | no deprecation announced |
 | Microsoft Ads | v13 | 14 | 14 (2, 2) | — | `Status` Active | `Conversions` | SOAP deprecated 2027-01-31; AMCP sends REST, pinned from Microsoft Learn (F-50, batch 32) |
@@ -31,7 +31,7 @@ registry (`src/reviewed-families.ts`): every family since batch 33.
 | Search Console | v3 / v1 | 6 | 4 (1, 1) | — | none | — | — |
 
 Reads outnumber reviewed writes on every advertising platform; the blocked writes are refused on purpose (no
-qualified contract), not missing work. Adjust (29 routes, reporting only) and Amazon (catalog-dependent, delegated)
+qualified contract), not missing work; [COVERAGE.md](COVERAGE.md) sorts them by the decision each needs. Adjust (29 routes, reporting only) and Amazon (catalog-dependent, delegated)
 have no reviewed writes.
 
 ## What is the same on every platform
@@ -68,7 +68,7 @@ v26.0 changelog's refusals (Explore placement, poll components, the Advantage+ A
 sets) are refused before any request, and the shop destination default is said in the review (F-113). Reports count conversions only for lead, app-install and sales objectives; traffic and
 awareness campaigns show an empty conversions column by design.
 
-**TikTok.** The most families (27) and the most blocked writes (167). Smart+ and Upgraded Smart+ flows are reviewed
+**TikTok.** The most families (28) and the most blocked writes (165); pixels can be created and renamed since batch 34. Smart+ and Upgraded Smart+ flows are reviewed
 families with their own budget handling. `conversion` in reports is the optimization event of each ad group, so it
 is not comparable across ad groups optimizing for different events.
 
@@ -78,7 +78,8 @@ path. An ad squad's `lifetime_budget_micro` is held to the owner's caps in nativ
 squad reference gives it (F-55, batch 33).
 
 **LinkedIn.** One version source since batch 2 (`linkedinVersion()`); AMCP sends `202609` since batch 32, after a
-review of LinkedIn's changes for 202606–202609 (F-53). Ten unversioned Marketing routes (`adCampaignsV2`, `adCreativesV2`, `dmpSegments`,
+review of LinkedIn's changes for 202606–202609 (F-53). Audience Insights and Media Planning run as reads since batch 34; the
+unscoped `/rest/creatives` and `/rest/adCampaigns` routes stay blocked and name the account-scoped actions. Ten unversioned Marketing routes (`adCampaignsV2`, `adCreativesV2`, `dmpSegments`,
 `organizationalEntityAcls`) are withdrawn with their versioned replacements named (F-58, batch 31).
 
 **X Ads.** v12 across 14 families including entity batches, tracking tags and media library. Reports carry spend,

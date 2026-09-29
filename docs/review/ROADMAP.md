@@ -78,6 +78,9 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
 - Provider lifecycle: dated sunset registry with a 90-day alarm (done in batch 20); Google Ads v23 → v25 (done in
   batch 14), Microsoft REST evidence (SOAP ends 2027-01-31; done in batch 32), Criteo 2026-01 → 2026-07 (done in batch 32), Meta v26 (done in batch 15)
   (F-49 … F-52, F-56). Every upgrade is done, so no upgrade order is left to decide.
+- Write coverage, platform by platform ([COVERAGE.md](COVERAGE.md)): the 558 blocked writes sorted by the decision
+  each needs, with a recommendation per owner-decision kind and 79 candidates ordered by value and evidence. Batch 34:
+  TikTok pixels, LinkedIn planning reads, and recorded reasons for eleven rows.
 - Newly implementable ledger rows (F-58), each to the full family standard: Google customer label removal and Meta
   ad video removal **done** in batch 33. TikTok creative portfolio deletion and X analytics job deletion stay blocked
   on evidence (the ledger says why); they wait for TikTok's documentation to be readable and for X to document the

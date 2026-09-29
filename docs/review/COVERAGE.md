@@ -1,6 +1,6 @@
 # Write coverage: what stays blocked and why
 
-Status on 2026-09-29 (batch 33), from the action ledger (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`) only.
+Status on 2026-09-29 (batch 34), from the action ledger (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`) only.
 No provider was called. This plans the platform-by-platform coverage batches the owner asked for: which blocked
 writes wait on an owner decision, which wait on evidence, and which are candidates to build as reviewed families.
 
@@ -8,9 +8,9 @@ writes wait on an owner decision, which wait on evidence, and which are candidat
 
 | Status | Routes | Meaning |
 |---|---|---|
-| `native_read` | 1,709 | Reads that pass the independent read classification |
-| `reviewed_write_family` | 737 | Writes with a reviewed family (inspect, prepare, execute, verify) |
-| `blocked_write` | 562 | Writes AMCP refuses: no family yet, or no family on purpose |
+| `native_read` | 1,711 | Reads that pass the independent read classification |
+| `reviewed_write_family` | 739 | Writes with a reviewed family (inspect, prepare, execute, verify) |
+| `blocked_write` | 558 | Writes AMCP refuses: no family yet, or no family on purpose |
 | `local_workflow` / `media_workflow` | 83 / 24 | Steps AMCP performs itself (OAuth, uploads) |
 | `unmapped` | 79 | Advertised names with no provider request (Adjust 23, WooCommerce 31, OAuth steps and AMCP helpers) |
 | `provider_unsupported` | 22 | Methods the provider withdrew; each refusal names the replacement |
@@ -19,26 +19,26 @@ writes wait on an owner decision, which wait on evidence, and which are candidat
 
 ## Blocked writes by kind
 
-Each blocked write is placed in the first kind that matches its path: evidence and batch first, then the columns
-from left to right. Access covers users, roles, partners, agencies, system users, tokens, sharing and links; account,
+Each blocked write is placed in the first kind that matches its path: batch first, then the columns from left to
+right. *Reason recorded* counts the rows whose ledger reason and refusal already say why and what to use instead. Access covers users, roles, partners, agencies, system users, tokens, sharing and links; account,
 creating or changing accounts, advertisers, locations, settings and terms; money, billing, funds, budgets outside
 campaigns and bookings; personal data, audience members, contact uploads, events, conversions and leads; publishing,
 posts, reactions, comments, messages and stories; media uploads, the raw steps of file uploads. A handful of routes
 sit in a neighbouring kind, which does not change the decision they need. *Candidates* are the rest; the list below
 says which of them hold up once their evidence is read (DV360's five do not).
 
-| Platform | Access | Account | Money | Personal data | Publishing | Media uploads | Commerce and catalogs | Batch or async | Evidence | Candidates |
+| Platform | Access | Account | Money | Personal data | Publishing | Media uploads | Commerce and catalogs | Batch or async | Reason recorded | Candidates |
 |---|---|---|---|---|---|---|---|---|---|---|
-| TikTok | 31 | 7 | 12 | 16 | 35 | 6 | 29 | 6 | 1 | 24 |
-| Meta | 50 | 2 | 5 | 9 | 9 | 0 | 17 | 11 | 0 | 8 |
-| LinkedIn | 10 | 10 | 0 | 8 | 9 | 6 | 0 | 0 | 0 | 36 |
-| Snapchat | 18 | 4 | 2 | 14 | 6 | 0 | 10 | 0 | 0 | 8 |
+| TikTok | 31 | 7 | 12 | 16 | 35 | 6 | 29 | 6 | 1 | 22 |
+| Meta | 50 | 2 | 5 | 9 | 9 | 0 | 17 | 11 | 1 | 7 |
+| LinkedIn | 10 | 10 | 0 | 8 | 9 | 6 | 0 | 0 | 6 | 28 |
+| Snapchat | 18 | 4 | 2 | 14 | 6 | 0 | 10 | 0 | 1 | 7 |
 | Google Ads | 23 | 0 | 5 | 13 | 0 | 0 | 0 | 7 | 0 | 1 |
-| X Ads | 4 | 7 | 3 | 2 | 0 | 0 | 11 | 2 | 1 | 3 |
+| X Ads | 4 | 7 | 3 | 2 | 0 | 0 | 11 | 2 | 2 | 2 |
 | DV360 | 11 | 2 | 6 | 4 | 1 | 0 | 0 | 0 | 0 | 5 |
 | Criteo | 1 | 7 | 6 | 2 | 0 | 1 | 0 | 0 | 0 | 6 |
 | Google Business Profile | 0 | 8 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| **All** | **148** | **47** | **39** | **68** | **60** | **13** | **67** | **26** | **2** | **92** |
+| **All** | **148** | **47** | **39** | **68** | **60** | **13** | **67** | **26** | **11** | **79** |
 
 ### Kinds that need an owner decision, with a recommendation
 
@@ -70,31 +70,45 @@ says which of them hold up once their evidence is read (DV360's five do not).
 - **Batch or async** (Graph batch, async batches, Google batch jobs and offline job runs, copy tasks). *Never*: each
   would carry many writes past one review. The reviewed families that need several writes send them one by one.
 
-### Blocked on evidence
+### Reason recorded
 
-TikTok creative portfolio deletion and X analytics job deletion (F-58, batch 33); the ledger names what is missing.
+`src/withheld-writes.ts` gives these their own ledger reason and puts it in the refusal (`details.reason`):
+
+- Blocked on evidence: TikTok creative portfolio deletion (TikTok's SDK defines no delete; its pages are
+  unreadable here) and X analytics job deletion (docs.x.com no longer documents it; the older reference put the job
+  ID in the path the captured route lacks).
+- Duplicates of reviewed routes: LinkedIn's `/rest/creatives` and `/rest/adCampaigns` (six routes; the current pages
+  place both under `/rest/adAccounts/{id}/`), Snapchat's per-ID creative PUT (its page's example uses the reviewed
+  collection PUT), and X's targeting criterion PUT (X documents no update: delete and create).
+- Unreviewable by design: Meta's `DELETE act_{id}/campaigns`, which deletes by rule (strategy, date, count), not by
+  ID; each campaign is deleted with the reviewed per-campaign deletion.
+
+## Done in batch 34
+
+- **TikTok pixels** (`tiktok_pixels`): creation and renaming of owned pixels, from TikTok's official SDK request fields
+  and the documented pixel list; partner integrations and advanced matching stay out.
+- **LinkedIn planning reads**: Audience Insights and Media Planning (three forecasts) run as reads, bound to the
+  account in their body, with LinkedIn's required notices.
+- Eleven blocked rows carry a recorded reason (above).
+- Found not viable on reading: DV360's YouTube asset associations are allowlist-only ("only available to an informed
+  subset of users"), and AMCP keeps allowlist-only methods unqualified.
 
 ## Candidates to build, platform by platform
 
 Ordered by value to campaign management, then by the evidence at hand. Each becomes a reviewed family to the full
 standard (red tests, reads, impact, receipt, read-back) in its own batch.
 
-1. **TikTok** — split tests (create, update, end, promote; spending confirmation to run), pixels (create, update),
-   ACO ads (create, update, material status), lookalike refresh, ad group and Smart+ appeals. Evidence: TikTok's
-   official SDK (request shapes); TikTok's documentation pages render only in a browser, so behaviour needs a
-   readable source first.
-2. **LinkedIn** — lift tests and their surveys, matched-audience engagement rules and company lists
-   (`dmpSegments`, versioned), page sets and segment sources. Previews, media planning and audience insights are
-   POSTs that change nothing: qualify them as reads. `/rest/creatives` and `/rest/adCampaigns` duplicate the
-   account-scoped routes AMCP already reviews: refuse them naming those. Evidence: Microsoft Learn.
-3. **Snapchat** — ad squad targeting specs (PUT), creative update by ID, interaction zones and creative elements,
-   media claimed by ad code. Evidence: Snapchat's documentation.
+1. **TikTok** — ACO ads (create, update, material status), lookalike refresh, Smart+ and ad group appeals, split
+   tests. Evidence: TikTok's official SDK gives request shapes but no responses, and not split tests; TikTok's pages
+   render only in a browser, so behaviour needs a readable source first.
+2. **LinkedIn** — lift tests and their surveys, matched-audience engagement rules and company lists (`dmpSegments`,
+   versioned), page sets and segment sources. Evidence: Microsoft Learn.
+3. **Snapchat** — ad squad targeting specs (the sub-resource of ad squads with more than 500 criteria; a targeting
+   contract, since it changes who a serving ad squad reaches), interaction zones, creative elements, media claimed by
+   ad code. Evidence: Snapchat's documentation.
 4. **Meta** — ad previews (a read), ad place page sets, tracking specs, ad studies beyond split tests. Evidence:
    Meta's official SDK and references.
 5. **Criteo** — creatives (create, update) and keyword reviews. Evidence: the pinned 2026-07 document.
-6. **X Ads** — targeting criteria update. Evidence: docs.x.com.
 
-DV360 has no candidate left: its YouTube asset associations (ad group and line item, create and delete) are, per the
-pinned discovery document, "only available to an informed subset of users", and AMCP keeps allowlist-only methods
-unqualified, as it does TikTok's scheduled budgets; Floodlight group changes belong with measurement (an owner
-decision). Account-level deletes (`DELETE act_{id}/campaigns` on Meta) stay blocked: they delete by filter, not by ID.
+DV360 has no candidate left: its YouTube asset associations are allowlist-only and Floodlight group changes belong
+with measurement (an owner decision).
