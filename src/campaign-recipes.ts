@@ -181,7 +181,8 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
         bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
         destination_type: 'WEBSITE',
         targeting: {geo_locations: {countries}, age_min: 18, age_max: 65},
-        status: 'PAUSED',
+        // Under the paused campaign, the ad set and ad start ACTIVE; enabling the campaign is the one activation.
+        status: 'ACTIVE',
       },
       ['campaign'],
     );
@@ -210,7 +211,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
         name: b.name + ' · ad',
         adset_id: ref('adset', '/data/id'),
         creative: {creative_id: ref('creative', '/data/id')},
-        status: 'PAUSED',
+        status: 'ACTIVE',
       },
       ['adset', 'creative'],
     );

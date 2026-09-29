@@ -358,7 +358,6 @@ test('TikTok existing-identity image handoff and exact ad read-back; identity pr
         operation_status: 'DISABLE',
         creatives: [{...creative, operation_status: 'ENABLE'}],
       },
-      {advertiser_id: '123', adgroup_id: '200', creatives: [{...creative, operation_status: 'ENABLE'}]},
       {advertiser_id: '123', adgroup_id: '200', creatives: [{...creative, operation_status: undefined}]},
     ]) {
       const blocked = await f.prepare({action: 'tiktok_ad_create', payload});
@@ -373,6 +372,13 @@ test('TikTok existing-identity image handoff and exact ad read-back; identity pr
     });
     assert.equal(denied.error.code, 'INVALID_TIKTOK_IDENTITY');
     assert.equal(f.calls.length, before, 'refused before any provider request');
+    // An ENABLE creative is reviewed against its ad group, which reads DISABLE here, so it may start enabled
+    // (paused-parents.ts, the owner's decision of 2026-09-29); tests/paused-parents-platforms.test.ts covers the rest.
+    const covered = await f.prepare({
+      action: 'tiktok_ad_create',
+      payload: {advertiser_id: '123', adgroup_id: '200', creatives: [{...creative, operation_status: 'ENABLE'}]},
+    });
+    assert.equal(covered.success, true, JSON.stringify(covered).slice(0, 600));
   } finally {
     f.store.close();
   }

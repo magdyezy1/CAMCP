@@ -179,6 +179,7 @@ import {assertAccountWrite} from './write-access.js';
 import {xCreativeKind, xCreativeEdit, readXCreativeState} from './x-creative-writes.js';
 import {validateGoogleTargetingState} from './google-targeting-writes.js';
 import {validateGooglePausedParents} from './google-paused-parents.js';
+import {pausedParentFollowUp, validatePausedParents} from './paused-parents.js';
 import {validateGoogleAssetLinkState} from './google-asset-links.js';
 import {validateXTargetingState} from './x-targeting-writes.js';
 import {xTargetingBatchRoute, readXTargetingBatchState} from './x-targeting-batch.js';
@@ -688,6 +689,10 @@ export class WriteReviewService {
       const sibling = tiktokSmartPlusAdgroupUpdateSiblingRead(plan, read, result.data);
       if (sibling && !reads.some(r => r.path === sibling.path && stable(r.query) === stable(sibling.query)))
         reads.push(sibling);
+      // An active ad under a serving ad squad, ad set or ad group also reads the campaign its parent names.
+      const campaign = pausedParentFollowUp(plan, read, result.data);
+      if (campaign && !reads.some(r => r.path === campaign.path && stable(r.query) === stable(campaign.query)))
+        reads.push(campaign);
       // Instant Forms cannot be read by ID; the first page names how many more pages to read.
       for (const more of tiktokInstantFormFollowUps(read, result.data))
         if (!reads.some(r => r.path === more.path && stable(r.query) === stable(more.query))) reads.push(more);
@@ -762,6 +767,7 @@ export class WriteReviewService {
     }
     validateGoogleTargetingState(plan, values);
     validateGooglePausedParents(plan, values);
+    validatePausedParents(plan, values);
     validateGoogleAssetLinkState(plan, values);
     validateGoogleConfigurationState(plan, values);
     validateMicrosoftAssociationState(plan, values);

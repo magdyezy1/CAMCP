@@ -7,8 +7,8 @@ import {bad, obj, type ToolCall} from './workspace-core.js';
  * run from a spec" would have made a rebuild one command). The source is read through the ordinary account-scoped
  * native reads; the result is an ordinary draft plan, reviewed step by step or approved once. Only fields AMCP
  * already sends on create are copied (never guessed); every other field the source has is listed as not copied.
- * The new campaign starts PAUSED. Google children keep their own status, which the paused campaign covers (the
- * owner's item 6); Snapchat creates every entity PAUSED, so its ad squads and ads start PAUSED too.
+ * The new campaign starts PAUSED; its children keep their own status, which the paused campaign covers (the owner's
+ * item 6 on Google, and decision 2 on Snapchat: paused-parents.ts).
  */
 type Step = JsonObject;
 const pick = (o: JsonObject, keys: string[]) =>
@@ -71,6 +71,8 @@ const snapSystem = [
   'effective_status',
   'placement',
 ];
+// A child keeps ACTIVE or PAUSED; any other state (a deleted one, say) is created PAUSED.
+const snapStatus = (row: JsonObject) => (row.status === 'ACTIVE' ? 'ACTIVE' : 'PAUSED');
 async function snapchatClone(call: ToolCall, actor: Actor, input: JsonObject) {
   const base = {connection_id: input.connection_id, account_id: input.account_id},
     id = String(input.source.campaign_id);
@@ -132,7 +134,7 @@ async function snapchatClone(call: ToolCall, actor: Actor, input: JsonObject) {
         {
           action: 'snapchat_adsquad_create',
           path_params: {campaign_id: campaignRef},
-          payload: {adsquads: [{...pick(s, snapSquadFields), campaign_id: campaignRef, status: 'PAUSED'}]},
+          payload: {adsquads: [{...pick(s, snapSquadFields), campaign_id: campaignRef, status: snapStatus(s)}]},
         },
         ['campaign'],
       ),
@@ -149,7 +151,7 @@ async function snapchatClone(call: ToolCall, actor: Actor, input: JsonObject) {
         {
           action: 'snapchat_ad_create',
           path_params: {ad_squad_id: squadRef},
-          payload: {ads: own.map(a => ({...pick(a, snapAdFields), ad_squad_id: squadRef, status: 'PAUSED'}))},
+          payload: {ads: own.map(a => ({...pick(a, snapAdFields), ad_squad_id: squadRef, status: snapStatus(a)}))},
         },
         [sid],
       ),

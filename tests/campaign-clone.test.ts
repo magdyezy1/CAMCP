@@ -31,26 +31,26 @@ const sourceCampaign = {
   updated_at: '2026-09-02T00:00:00.000Z',
   delivery_status: ['VALID'],
 };
-const sourceSquad = (id: string, campaign: string, i: number) => {
+const sourceSquad = (id: string, campaign: string, i: number, status = 'ACTIVE') => {
   const {campaign_id: _, placement_v2: __, ...body} = squadBody(i);
   return {
     ...body,
     id,
     campaign_id: campaign,
-    status: 'ACTIVE',
+    status,
     auto_bid: true,
     created_at: '2026-09-01T00:00:00.000Z',
     delivery_status: ['VALID'],
     placement: 'UNSUPPORTED',
   };
 };
-const sourceAd = (id: string, squad: string) => ({
+const sourceAd = (id: string, squad: string, status = 'ACTIVE') => ({
   id,
   name: 'Ad ' + id,
   ad_squad_id: squad,
   creative_id: 'creative-' + id,
   type: 'REMOTE_WEBPAGE',
-  status: 'ACTIVE',
+  status,
   render_type: 'STATIC',
   review_status: 'APPROVED',
 });
@@ -65,13 +65,13 @@ function snapSource() {
         return wrapped('adsquads', [
           sourceSquad('src-sq-1', 'src-camp', 1),
           sourceSquad('other-sq', 'other-camp', 9),
-          sourceSquad('src-sq-2', 'src-camp', 2),
+          sourceSquad('src-sq-2', 'src-camp', 2, 'PAUSED'),
         ]);
       if (method === 'GET' && path === '/v1/adaccounts/acct1/ads')
         return wrapped('ads', [
           sourceAd('a1', 'src-sq-1'),
           sourceAd('a2', 'src-sq-1'),
-          sourceAd('a3', 'src-sq-2'),
+          sourceAd('a3', 'src-sq-2', 'PAUSED'),
           sourceAd('a9', 'other-sq'),
         ]);
       if (method === 'GET' && (m = /^\/v1\/creatives\/(creative-a\d)$/.exec(path)))
@@ -149,7 +149,9 @@ test('a Snapchat campaign is cloned into one draft plan with the changes, and no
     assert.equal(campaign.measurement_spec, undefined);
     const squad1 = args('squad_1').payload.adsquads[0],
       squad2 = args('squad_2').payload.adsquads[0];
-    assert.equal(squad1.status, 'PAUSED');
+    // Children keep their status: a paused campaign covers an active squad and its active ads (decision 2).
+    assert.equal(squad1.status, 'ACTIVE');
+    assert.equal(squad2.status, 'PAUSED');
     assert.deepEqual(squad1.placement_v2, {config: 'AUTOMATIC'});
     assert.deepEqual(squad1.targeting, squadBody(1).targeting);
     assert.deepEqual(squad1.campaign_id, {$ref: 'campaign#/data/campaigns/0/campaign/id'});
@@ -160,8 +162,8 @@ test('a Snapchat campaign is cloned into one draft plan with the changes, and no
     assert.deepEqual(
       ads.payload.ads.map((a: JsonObject) => [a.creative_id, a.status]),
       [
-        ['creative-a1', 'PAUSED'],
-        ['creative-a2', 'PAUSED'],
+        ['creative-a1', 'ACTIVE'],
+        ['creative-a2', 'ACTIVE'],
       ],
     );
     const events = (
@@ -194,7 +196,7 @@ test('a cloned plan is approved once and its first steps run as ordinary reviewe
     assert.equal(ran.success, true, JSON.stringify(ran).slice(0, 800));
     assert.equal(ran.data.state, 'complete', JSON.stringify(ran.data).slice(0, 800));
     assert.equal(f.writes.length, 2);
-    assert.equal([...f.squads.values()][0]!.status, 'PAUSED');
+    assert.equal([...f.squads.values()][0]!.status, 'ACTIVE');
   } finally {
     f.close();
   }
@@ -214,8 +216,8 @@ test('the whole clone runs under one approval: campaign, both squads and their a
     assert.deepEqual(
       [...ads.values()].map(a => [a.ad_squad_id, a.creative_id, a.status]),
       [
-        ['squad1', 'creative-a1', 'PAUSED'],
-        ['squad1', 'creative-a2', 'PAUSED'],
+        ['squad1', 'creative-a1', 'ACTIVE'],
+        ['squad1', 'creative-a2', 'ACTIVE'],
         ['squad2', 'creative-a3', 'PAUSED'],
       ],
     );

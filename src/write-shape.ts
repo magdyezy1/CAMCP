@@ -1,5 +1,6 @@
 /** Validation stage: the request shapes each reviewed write family accepts, checked before any read. */
 import {snapUpdateKind, assertSnapUpdate} from './snapchat-nested-updates.js';
+import {pausedParentChildStatuses} from './paused-parents.js';
 import {snapPixelNameKind, assertSnapPixelName} from './snapchat-pixel-names.js';
 import {snapEventKind, assertSnapEvent} from './snapchat-event-details.js';
 import {snapTemplateKind, assertSnapTemplate} from './snapchat-dynamic-templates.js';
@@ -359,14 +360,16 @@ export function assertWriteShape(plan: CompiledRequest) {
         allowed: values,
       });
   };
+  // Campaigns start paused. Ad sets, ad groups and ads may start active under a parent the review reads as paused
+  // (paused-parents.ts, the owner's decision of 2026-09-29).
   if (
     plan.gateway === 'meta_native_action' &&
     /^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads)$/.test(plan.path) &&
     plan.method === 'POST'
   )
-    expect(body, 'status', ['PAUSED']);
+    expect(body, 'status', pausedParentChildStatuses(plan) ?? ['PAUSED']);
   if (plan.gateway === 'tiktok_native_action' && /^\/v1\.3\/(?:campaign|adgroup)\/create\/$/.test(plan.path))
-    expect(body, 'operation_status', ['DISABLE']);
+    expect(body, 'operation_status', pausedParentChildStatuses(plan) ?? ['DISABLE']);
   if (tiktokIdentityKind(plan)) assertTiktokIdentity(plan, body);
   if (metaCopyKind(plan)) assertMetaCopy(plan, body);
   if (tiktokLookalikeKind(plan)) assertTiktokLookalike(plan, body);
@@ -403,7 +406,7 @@ export function assertWriteShape(plan: CompiledRequest) {
         'INVALID_ARGUMENT',
         'TikTok ad creation uses creatives[0].operation_status; a top-level status does not pause the creative.',
       );
-    expect(body.creatives[0], 'operation_status', ['DISABLE']);
+    expect(body.creatives[0], 'operation_status', pausedParentChildStatuses(plan) ?? ['DISABLE']);
   }
   if (plan.gateway === 'snapchat_native_action' && plan.method === 'POST') {
     const kind = plan.path.split('/').at(-1)!;
@@ -412,7 +415,7 @@ export function assertWriteShape(plan: CompiledRequest) {
     if (kind === 'lead_generation_forms') assertSnapLeadForms(plan, body[kind]);
     else if (kind === 'segments') assertSnapSegments(plan, body[kind]);
     else if (kind === 'creatives') assertSnapLeadCreativeRefs(body[kind]);
-    else for (const row of body[kind]) expect(object(row), 'status', ['PAUSED']);
+    else for (const row of body[kind]) expect(object(row), 'status', pausedParentChildStatuses(plan) ?? ['PAUSED']);
   }
   if (
     plan.gateway === 'snapchat_native_action' &&

@@ -442,7 +442,12 @@ export function snapshotPlans(plan: CompiledRequest, registry: Registry): Compil
       if (plan.path.endsWith('/adsets') || plan.path.endsWith('/ads')) {
         if (typeof parent !== 'string' || !/^\d+$/.test(parent))
           fail('MISSING_PARAMETER', 'Child creates require their exact parent ID.');
-        reads.push(base(plan.path.split('/').slice(0, 2).join('/') + '/' + parent, {fields: 'id,name,status'}));
+        // An ad set names its campaign, which covers an active ad under a serving ad set (paused-parents.ts).
+        reads.push(
+          base(plan.path.split('/').slice(0, 2).join('/') + '/' + parent, {
+            fields: plan.path.endsWith('/ads') ? 'id,name,status,campaign_id' : 'id,name,status',
+          }),
+        );
       }
       if (metaCreativeCreate(plan)) reads.push(...metaCreativeIdentityReads(plan));
       if (metaLookalikeKind(plan))

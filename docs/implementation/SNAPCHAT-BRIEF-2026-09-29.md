@@ -44,7 +44,8 @@ text.
 The tests built the paused copy by hand (read the campaign, its squads and ads, then write 11 steps). With the
 Google list's item 10 it is one call: `amcp_campaign clone` with `source: {campaign_id}` and a new `name` reads the
 campaign, its ad squads and their ads from the account's lists and returns a draft plan (`campaign`, `squad_N`,
-`squad_N_ads`), every entity PAUSED and each ad reusing its creative by ID; `approve` and `run` complete it. Snapchat
+`squad_N_ads`), the campaign PAUSED, squads and ads keeping their own status under it, and each ad reusing its
+creative by ID; `approve` and `run` complete it. Snapchat
 never returns `placement_v2`, so the clone lists it under `not_copied`; add it with `changes.set` if the copy should
 not use Snapchat's default. See `GOOGLE-BRIEF-2026-09-29.md` and `tests/campaign-clone.test.ts`.
 
