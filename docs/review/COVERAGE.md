@@ -1,6 +1,6 @@
 # Write coverage: what stays blocked and why
 
-Status on 2026-09-29 (batch 39), from the action ledger (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`) only.
+Status on 2026-09-29 (batch 40), from the action ledger (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`) only.
 No provider was called. This plans the platform-by-platform coverage batches the owner asked for: which blocked
 writes wait on an owner decision, which wait on evidence, and which are candidates to build as reviewed families.
 
@@ -9,8 +9,8 @@ writes wait on an owner decision, which wait on evidence, and which are candidat
 | Status | Routes | Meaning |
 |---|---|---|
 | `native_read` | 1,711 | Reads that pass the independent read classification |
-| `reviewed_write_family` | 771 | Writes with a reviewed family (inspect, prepare, execute, verify) |
-| `blocked_write` | 526 | Writes AMCP refuses: no family yet, or no family on purpose |
+| `reviewed_write_family` | 773 | Writes with a reviewed family (inspect, prepare, execute, verify) |
+| `blocked_write` | 524 | Writes AMCP refuses: no family yet, or no family on purpose |
 | `local_workflow` / `media_workflow` | 83 / 24 | Steps AMCP performs itself (OAuth, uploads) |
 | `unmapped` | 79 | Advertised names with no provider request (Adjust 23, WooCommerce 31, OAuth steps and AMCP helpers) |
 | `provider_unsupported` | 22 | Methods the provider withdrew; each refusal names the replacement |
@@ -33,12 +33,12 @@ says which of them hold up once their evidence is read (DV360's five do not).
 | Meta | 49 | 2 | 3 | 9 | 9 | 0 | 8 | 11 | 1 | 7 |
 | LinkedIn | 10 | 10 | 0 | 8 | 9 | 6 | 0 | 0 | 6 | 28 |
 | Snapchat | 18 | 4 | 2 | 14 | 6 | 0 | 1 | 0 | 1 | 7 |
-| Google Ads | 23 | 0 | 5 | 13 | 0 | 0 | 0 | 7 | 0 | 1 |
+| Google Ads | 23 | 0 | 5 | 13 | 0 | 0 | 0 | 7 | 1 | 0 |
 | X Ads | 4 | 7 | 3 | 2 | 0 | 0 | 0 | 2 | 2 | 2 |
-| DV360 | 11 | 2 | 6 | 4 | 1 | 0 | 0 | 0 | 0 | 5 |
-| Criteo | 1 | 7 | 6 | 2 | 0 | 1 | 0 | 0 | 0 | 6 |
-| Google Business Profile | 0 | 8 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| **All** | **147** | **47** | **37** | **67** | **60** | **13** | **19** | **26** | **31** | **79** |
+| DV360 | 11 | 2 | 6 | 4 | 1 | 0 | 0 | 0 | 5 | 0 |
+| Criteo | 1 | 7 | 6 | 2 | 0 | 1 | 0 | 0 | 4 | 0 |
+| Google Business Profile | 0 | 8 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
+| **All** | **147** | **47** | **37** | **67** | **60** | **13** | **19** | **26** | **42** | **66** |
 
 ## Owner decisions of 2026-09-29
 
@@ -73,8 +73,26 @@ Media uploads stay as recommended: the raw upload steps remain refused and `amcp
 - Duplicates of reviewed routes: LinkedIn's `/rest/creatives` and `/rest/adCampaigns` (six routes; the current pages
   place both under `/rest/adAccounts/{id}/`), Snapchat's per-ID creative PUT (its page's example uses the reviewed
   collection PUT), and X's targeting criterion PUT (X documents no update: delete and create).
+- Blocked on evidence: Google Ads campaign bid modifier creation. The v25 discovery document marks
+  `CampaignBidModifier.campaign` output-only and expects no resource name on create, and Google's code samples show no
+  campaign bid modifier creation. Update and removal of call modifiers are reviewed.
+- Allowlist-only: DV360's four YouTube asset association writes ("only available to an informed subset of users").
+- Outside the selected advertiser: DV360's Floodlight group patch, which needs a partner context and governs
+  conversion counting for every advertiser in the group.
+- Supply side: Criteo's keyword reviews (the retailer reviewer's step) and its fill rate, revenue and unfilled
+  placement reports (Supply Side Reporting). AMCP connects demand accounts.
+- Account setup kept blocked by the owner: completing a Business Profile verification.
 - Unreviewable by design: Meta's `DELETE act_{id}/campaigns`, which deletes by rule (strategy, date, count), not by
   ID; each campaign is deleted with the reviewed per-campaign deletion.
+
+## Done in batch 40
+
+- **Criteo creatives** (`criteo_creatives`): create, and whole update keeping retailer and template. Every value is
+  checked against the retailer's template read: variables, types, required and dependent variables, text length,
+  options and file counts. Updates name the line items that use the creative.
+- **Eleven more reasons recorded** (above): Google's campaign bid modifier creation, five DV360 writes, four Criteo
+  supply-side writes and Business Profile verification completion. Every former Criteo, DV360, Google Ads and Business
+  Profile candidate now has a family or a reason.
 
 ## Done in batch 39
 
@@ -150,7 +168,8 @@ standard (red tests, reads, impact, receipt, read-back) in its own batch.
    ad code. Evidence: Snapchat's documentation.
 4. **Meta** — ad previews (a read), ad place page sets, tracking specs, ad studies beyond split tests. Evidence:
    Meta's official SDK and references.
-5. **Criteo** — creatives (create, update) and keyword reviews. Evidence: the pinned 2026-07 document.
+5. **Criteo** — none left: creatives were done in batch 40, and keyword reviews and supply-side reports serve
+   retailers (reason recorded).
 
-DV360 has no candidate left: its YouTube asset associations are allowlist-only and Floodlight group changes belong
-with measurement (an owner decision).
+DV360, Google Ads and Business Profile have no candidate left either. Their remaining blocked writes carry a recorded
+reason (above), and the refusal gives it.

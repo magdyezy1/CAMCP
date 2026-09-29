@@ -765,3 +765,16 @@ Full qualification of batch 39 (`.release/batch39`, up to `c75f138`): **3,000 / 
 tests; `format:check`, every generated-artifact check and the Railway check pass. 317 s. The candidate's 1,296 source
 files equal `c75f138`, apart from `release-manifest.json`. Live acceptance is unverified: no provider was called. X's
 catalog endpoints are early access, and Meta's catalog writes need `catalog_management` after app review.
+
+## Batch 40 — Criteo creatives; reasons for the remaining Criteo, DV360, Google and Business Profile candidates
+
+| Change | Evidence |
+|---|---|
+| **Criteo creatives (`criteo_creatives`).** Create, and whole update keeping retailer and template, from the pinned 2026-07 document (Criteo's Creatives guide page has no text). AMCP reads the retailer among the account's retailers and the template. The template read is the only one outside the account, allowed only for the retailer the search returned. Every value is checked against the template, including variables that a chosen option unlocks. Updates name the line items that use the creative | `tests/criteo-creatives.test.mjs` (5 tests; 4 fail with the family unregistered) |
+| **Google campaign bid modifier creation: reason recorded.** The v25 discovery document marks `campaign` output-only and expects no resource name on create, and Google's code samples show no campaign bid modifier creation. The family's own comment already kept creation out; the refusal now says why | `tests/withheld-writes.test.mjs` |
+| **DV360: reasons recorded.** The YouTube asset association writes are allowlist-only ("only available to an informed subset of users"). A Floodlight group patch needs a partner context and governs conversion counting for every advertiser in the group | as above |
+| **Criteo supply side: reasons recorded.** Keyword review is the retailer reviewer's step ("not applicable for demand accounts"), and the fill rate, revenue and unfilled placement reports belong to Supply Side Reporting | as above, with a Criteo test of the refusal and the ledger |
+| **Business Profile verification completion: reason recorded.** Account setup, which the owner kept blocked. The key is the compiled `gmb_verification_ops/COMPLETE_VERIFICATION`, found by logging the ledger's compiled action | as above |
+
+The ledger holds 773 reviewed and 524 blocked writes; 42 blocked writes carry a recorded reason, and 66 candidates
+remain (LinkedIn 28, TikTok 22, Meta 7, Snapchat 7, X 2).
