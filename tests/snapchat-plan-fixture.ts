@@ -41,18 +41,23 @@ export interface Fixture {
   writes: string[];
   call: (tool: string, input: JsonObject) => Promise<JsonObject>;
   squads: Map<string, JsonObject>;
+  /** Every request the synthetic API received, reads included. */
+  requests: string[];
   close: () => void;
 }
 export function fixture({
   pixels = ['pixel-own'],
   reject = (_body: JsonObject): JsonObject | undefined => undefined,
   readSquad = (squad: JsonObject): JsonObject => squad,
+  routes = (): Response | undefined => undefined,
 }: {
   pixels?: string[];
   /** A Snapchat error body for an ad squad the synthetic API refuses. */
   reject?: (body: JsonObject) => JsonObject | undefined;
   /** How a read returns a stored ad squad, after Snapchat drops placement_v2. */
   readSquad?: (squad: JsonObject) => JsonObject;
+  /** Further synthetic endpoints; every request any of them answers is logged in `requests`. */
+  routes?: (method: string, path: string, url: URL) => Response | undefined;
 } = {}): Fixture {
   const store = new Store(':memory:', Buffer.alloc(32, 91).toString('base64'));
   store.putConnection(
@@ -71,7 +76,8 @@ export function fixture({
   );
   const campaigns = new Map<string, JsonObject>(),
     squads = new Map<string, JsonObject>(),
-    writes: string[] = [];
+    writes: string[] = [],
+    requests: string[] = [];
   let requestId = 0;
   const ok = (kind: string, rows: JsonObject[]) =>
     Response.json({
@@ -85,6 +91,7 @@ export function fixture({
     async (raw, init = {}) => {
       const path = new URL(String(raw)).pathname,
         method = init.method ?? 'GET';
+      requests.push(method + ' ' + path);
       let m: RegExpExecArray | null;
       if (method === 'GET' && path === '/v1/adaccounts/acct1') return ok('adaccounts', [account]);
       if (method === 'GET' && path === '/v1/adaccounts/acct1/pixels')
@@ -143,6 +150,8 @@ export function fixture({
         const {placement_v2: _, ...read} = s;
         return ok('adsquads', [readSquad({...read, placement: 'UNSUPPORTED'})]);
       }
+      const extra = routes(method, path, new URL(String(raw)));
+      if (extra) return extra;
       throw new Error('Unexpected Snapchat request ' + method + ' ' + path);
       // A burst large enough for a 50-step plan: these tests measure responses, not the per-tenant rate shaping.
     },
@@ -161,6 +170,7 @@ export function fixture({
     service,
     writes,
     squads,
+    requests,
     call: (tool, input) => service.call(tool, input, actor) as Promise<JsonObject>,
     close: () => store.close(),
   };

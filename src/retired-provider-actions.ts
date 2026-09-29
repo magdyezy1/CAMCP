@@ -77,6 +77,33 @@ export const retiredGoogleAdsActions = retiredProviderActions
   .map(r => r.action);
 export const retiredProviderAction = (p: CompiledRequest) =>
   retiredProviderActions.find(r => r.gateway === p.gateway && r.method === p.method && r.path.test(p.path));
+/**
+ * Routes a catalog captured from traffic whose request body no source AMCP has pinned or can reach documents
+ * (Snapchat S4). Calls with a guessed body failed live (HTTP 400 E1001), so AMCP refuses them before any request
+ * rather than forwarding a guess, and names the documented read that works. Not a withdrawal: once Snapchat's body is
+ * pinned from its documentation, an entry here gives way to a reviewed contract.
+ */
+export const undocumentedProviderRoutes = (['campaign', 'adsquad', 'ad', 'creative', 'media'] as const).map(entity => {
+  const plural = entity === 'media' ? 'media' : entity + 's';
+  return {
+    gateway: 'snapchat_native_action',
+    method: 'POST',
+    path: new RegExp('^/v1/adaccounts/[^/]+/get_' + plural + '_by_ids$'),
+    checked_at: '2026-09-29',
+    source:
+      'No pinned Snapchat Marketing API document gives this body; developers.snap.com was unreachable from the build environment. Owner live tests 2026-09-25 and 2026-09-29: HTTP 400 E1001 "Request body can not be correctly processed".',
+    reason:
+      'Snapchat’s request body for get_' +
+      plural +
+      '_by_ids is not documented in any source AMCP has, and guessed bodies failed with HTTP 400 E1001, so AMCP does not send one. Despite the "_get" in its name it is a POST.',
+    replacement:
+      'Read them from the account list: snapchat_' +
+      entity +
+      '_list with result_ids: [the IDs] (and result_fields to keep it small) returns only those, and the IDs it returns are owned for five minutes.',
+  };
+});
+export const undocumentedProviderRoute = (p: CompiledRequest) =>
+  undocumentedProviderRoutes.find(r => r.gateway === p.gateway && r.method === p.method && r.path.test(p.path));
 /** Legacy names that do not correspond to an operation of the current provider version: captured aliases that never
  * did, and aliases whose operation a newer version removed. Match the alias, not its shared route. */
 export const unsupportedProviderAliases = [
@@ -134,6 +161,14 @@ export function assertProviderAliasAvailable(gateway: string, action: string): v
 }
 export function assertProviderActionAvailable(p: CompiledRequest): void {
   assertProviderAliasAvailable(p.gateway, p.action);
+  const undocumented = undocumentedProviderRoute(p);
+  if (undocumented)
+    throw new MirrorError('PROVIDER_ACTION_UNSUPPORTED', undocumented.reason, {
+      action: p.action,
+      source: undocumented.source,
+      checked_at: undocumented.checked_at,
+      replacement: undocumented.replacement,
+    });
   const retired = retiredProviderAction(p);
   if (retired)
     throw new MirrorError(

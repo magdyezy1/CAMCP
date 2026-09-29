@@ -102,7 +102,9 @@ export function ownershipReads(
       'meta_custom_audience_list',
     ].map(a => call(a, {query: {fields: 'id'}}));
   if (gateway === 'snapchat_native_action') {
-    const kind = snapchatScopedResource(path)?.split('/')[0],
+    // An organization's pixel list is readable once the account's own read names the organization (Snapchat S6).
+    if (snapchatOrganizationPixels(path)) return [call('snapchat_account_get')];
+    const [kind, resource] = snapchatScopedResource(path)?.split('/') ?? [],
       action =
         kind &&
         (
@@ -117,7 +119,8 @@ export function ownershipReads(
             segments: 'snapchat_audience_list',
           } as Record<string, string>
         )[kind];
-    return action ? [call(action)] : [];
+    // Only the refused ID comes back, however long the account's list (Snapchat S3: 312 creatives were 52 KB).
+    return action ? [call(action, resource && /^[\w-]{1,64}$/.test(resource) ? {result_ids: [resource]} : {})] : [];
   }
   if (gateway === 'linkedin_native_action' && path === '/rest/adPreviews')
     return [
@@ -144,6 +147,10 @@ export function ownershipReads(
       : [];
   }
   return [];
+}
+/** The organization of GET /v1/organizations/{id}/pixels: the only organization read an account binding reaches. */
+export function snapchatOrganizationPixels(path: string): string | undefined {
+  return /^\/v1\/organizations\/([\w-]{1,64})\/pixels$/.exec(path)?.[1];
 }
 export function snapchatScopedResource(path: string): string | undefined {
   let decoded: string;
@@ -442,6 +449,9 @@ export class ScopeGuard {
           ? snapchatScopedResource(plan.path)
           : undefined;
     if (resource && this.store.ownsResource(connection, id, resource)) return id;
+    const organization =
+      plan.gateway === 'snapchat_native_action' && plan.method === 'GET' && snapchatOrganizationPixels(decoded);
+    if (organization && this.store.ownsResource(connection, id, 'organizations/' + organization)) return id;
     // Administrative provisioning can declare otherwise unscoped Business/Profile resources.
     for (const binding of connection.resourceBindings ?? []) {
       if (normalizeAccount(plan.gateway, binding.accountId) !== id) continue;
@@ -565,6 +575,18 @@ export class ScopeGuard {
           )
             this.store.rememberResource(connection, id, kind + '/' + entity.id);
         }
+      // The account's own read names its organization; that binds only the organization's pixel list (S6).
+      const own = /^\/v1\/adaccounts\/([\w-]+)$/.exec(plan.path)?.[1],
+        account =
+          own && String(d?.request_status).toUpperCase() === 'SUCCESS' ? d.adaccounts?.[0]?.adaccount : undefined;
+      if (
+        own &&
+        normalizeAccount(plan.gateway, own) === id &&
+        account?.id === own &&
+        typeof account.organization_id === 'string' &&
+        /^[\w-]{1,64}$/.test(account.organization_id)
+      )
+        this.store.rememberResource(connection, id, 'organizations/' + account.organization_id);
       // A read of an entity authorize() already required ownership for keeps that ownership fresh when the
       // provider names the owning account, or a parent this login still owns. It never learns a new ID.
       const single = /^\/v1\/(campaigns|adsquads|ads|creatives|media|lead_generation_forms|segments)\/([\w-]+)$/.exec(

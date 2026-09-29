@@ -33,6 +33,7 @@ const controls = new Set([
   'before_state',
   'spend_change_confirmed',
   'result_fields',
+  'result_ids',
   'fields',
   'max_items',
   'compact',

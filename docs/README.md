@@ -136,6 +136,7 @@ verification file holds its machine-checked evidence.
 
 | Date | Record | Evidence |
 |---|---|---|
+| 2026-09-29 | [Snapchat brief S1–S14](implementation/SNAPCHAT-BRIEF-2026-09-29.md) |  |
 | 2026-09-27 | [Snapchat chunked media upload](implementation/SNAPCHAT-CHUNKED-MEDIA-2026-09-27.md) | [verification](implementation/SNAPCHAT-CHUNKED-MEDIA-VERIFICATION-2026-09-27.json) |
 | 2026-09-27 | [Snapchat custom conversions](implementation/SNAPCHAT-CUSTOM-CONVERSIONS-2026-09-27.md) | [verification](implementation/SNAPCHAT-CUSTOM-CONVERSIONS-VERIFICATION-2026-09-27.json) |
 | 2026-09-27 | [Snapchat dynamic templates](implementation/SNAPCHAT-DYNAMIC-TEMPLATES-2026-09-27.md) | [verification](implementation/SNAPCHAT-DYNAMIC-TEMPLATES-VERIFICATION-2026-09-27.json) |

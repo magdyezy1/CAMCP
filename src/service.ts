@@ -19,6 +19,7 @@ import {campaignPreflight} from './campaign-preflight.js';
 import {searchMetaAdLibrary} from './meta-ad-library.js';
 import {fetchMetaExistingPosts, redactMetaPostInput} from './meta-existing-posts.js';
 import {assertProviderActionAvailable} from './retired-provider-actions.js';
+import {keepResultIds, snapchatResultIds} from './snapchat-result-ids.js';
 import {gtmDiagnosticOperations, gtmDiagnostics} from './gtm-diagnostics.js';
 import {randomUUID} from 'node:crypto';
 import type {Actor, CallOptions, CompiledRequest, JsonObject} from './types.js';
@@ -418,6 +419,8 @@ export class MirrorService {
     requestId: string = randomUUID(),
   ): Promise<unknown> {
     assertProviderActionAvailable(plan);
+    // Checked before any request: result_ids reads an account list, whose path establishes ownership (Snapchat S3).
+    const wantedIds = snapchatResultIds(plan, input);
     if (input.connection_id && input.connectionId && input.connection_id !== input.connectionId)
       throw new MirrorError(
         'CONFLICTING_PARAMETER',
@@ -549,9 +552,11 @@ export class MirrorService {
                       !!(input.aggregate_pages || input.paginate || input.allPages),
                       Number(input.max_pages ?? 25),
                     )
-                  : input.aggregate_pages || input.paginate || input.allPages
+                  : wantedIds || input.aggregate_pages || input.paginate || input.allPages
                     ? await paginate(plan, fetchPage, Number(input.max_pages ?? 25))
                     : {data: await fetchPage(plan), pages: 1, truncated: false};
+      const kept = wantedIds ? keepResultIds(result.data, wantedIds, result.pages, result.truncated) : undefined;
+      if (kept) result.data = kept.data;
       const nativeCsv = plan.tiktokReportRead?.kind === 'download' ? (result.data as JsonObject) : undefined;
       const projected = projectResponse(
         nativeCsv ? {data: nativeCsv.data} : result.data,
@@ -586,6 +591,7 @@ export class MirrorService {
         ...(generation ? {generation} : {}),
         truncated: result.truncated || projected.truncated,
         ...(projected.truncated ? {response_truncated: true} : {}),
+        ...(kept ? {result_ids: kept.summary} : {}),
       };
       this.store.appendAudit(actor.tenantId, requestId, {
         event: 'request_completed',

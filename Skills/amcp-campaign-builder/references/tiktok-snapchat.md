@@ -752,6 +752,9 @@ them, and a read-only deployment allows them). They do not go through `amcp_writ
 
 ## Snapchat campaign plans
 
+- Plan responses are compact (at most 12 KB): one row per step with its `resource_ids`, and
+  `current`, the step the call acted on, with its receipt and verification. `get` with `step_id`
+  returns one step whole (frozen review, receipt, verification); `detail: "full"` the whole plan.
 - `amcp_campaign` steps may pin `expected_currency`. Preflight reads the ad account and uses
   `adaccounts[0].adaccount.currency`. `amcp_workspace check` with `live: true` also returns the
   account `currency` and `timezone`.
@@ -794,6 +797,26 @@ them, and a read-only deployment allows them). They do not go through `amcp_writ
   details. A currency or status change still invalidates the review.
 - Preflight adds one `SPEND_POLICY_MISSING` warning when no spending policy covers the account; it
   never blocks, and each review still asks for `spend_change_confirmed` where budgets change.
+
+## Reading Snapchat records by ID
+
+- A single-entity read (`snapchat_creative_get`, `/v1/creatives/{id}`) needs ownership first. Read
+  known IDs from the account's own list instead, in one call:
+  `{"action":"snapchat_creative_list","account_id":"<account>","result_ids":["<id>","<id>"],"result_fields":["id","name","type"]}`.
+  AMCP pages through the list (up to `max_pages`, 25 by default) and returns only those records, with
+  `result_ids: {requested, found, missing, pages_read, complete}`. Every ID the list returns is owned
+  for five minutes, so a following single-entity read works. An ID the account does not list is
+  reported `missing` and stays unreadable. `result_ids` works on every account list: campaigns, ad
+  squads, ads, creatives, media, pixels, lead forms and audiences. A `RESOURCE_SCOPE_REQUIRED`
+  refusal now suggests this call with the refused ID.
+- The five `snapchat_*_get_by_ids` reads (`POST /v1/adaccounts/{id}/get_<entity>s_by_ids`; the
+  `_get` in their names is misleading, they are POSTs) are refused locally with
+  `PROVIDER_ACTION_UNSUPPORTED`. Their request body is not documented in any source AMCP has, and
+  guessed bodies failed with HTTP 400 `E1001` in live use. The refusal names the `result_ids` read.
+- Pixels the account lists (`snapchat_pixel_list`) can be read one by one, including
+  `snapchat_pixel_campaign_eligibility`. The organization's pixel list
+  (`snapchat_organizations_organization_id_pixels_get`) is readable once `snapchat_account_get` has
+  named the account's own `organization_id`; no other organization path is reachable this way.
 
 ## Snapchat media copy between ad accounts
 

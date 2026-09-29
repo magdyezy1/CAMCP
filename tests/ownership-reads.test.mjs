@@ -53,10 +53,17 @@ test('a Snapchat ownership refusal names the one collection read that establishe
     assert.match(refused.error.message, /five minutes/);
     assert.deepEqual(refused.error.details.next_call, {
       tool: 'snapchat_native_action',
-      arguments: {action: 'snapchat_campaign_list', account_id: 'acct1', connection_id: f.connection.id},
+      // Narrowed to the refused ID (Snapchat S3): the whole account list overflowed clients.
+      arguments: {
+        action: 'snapchat_campaign_list',
+        account_id: 'acct1',
+        connection_id: f.connection.id,
+        result_ids: ['c1'],
+      },
     });
     const listed = await f.call(refused.error.details.next_call.tool, refused.error.details.next_call.arguments);
     assert.equal(listed.success, true, JSON.stringify(listed));
+    assert.deepEqual(listed.data.result_ids.found, ['c1']);
     const again = await f.call('snapchat_native_action', read);
     assert.equal(again.success, true, JSON.stringify(again));
   } finally {

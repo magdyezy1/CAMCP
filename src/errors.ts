@@ -566,7 +566,8 @@ export function errorResult(error: unknown, requestId: string, latencyMs: number
       'The provider denied access. Check its error details and request ID; a 403 alone does not identify a missing OAuth scope.',
     INSUFFICIENT_SCOPE: 'Check provider permissions and the selected account; reconnect with the required scope.',
     WRITE_ACCOUNT_FORBIDDEN: 'Ask the workspace owner to grant reviewed write access for this exact account.',
-    RESOURCE_SCOPE_REQUIRED: 'Read the parent account-scoped collection to establish ownership, then prepare again.',
+    RESOURCE_SCOPE_REQUIRED:
+      'Run the ownership read in details.next_call (the account list, narrowed to the refused ID where it can be), then send the call again; a write is prepared again.',
     STATE_CHANGED: 'Inspect changed_fields and the state hashes, then prepare and approve a fresh review.',
     REVIEW_EXPIRED:
       'Nothing was submitted. Prepare the same request again (details.next_call when present), review the new before_state and execute the new review within five minutes.',
