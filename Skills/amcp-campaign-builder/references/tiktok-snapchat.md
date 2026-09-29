@@ -693,6 +693,28 @@ Reference: TikTok API for Business v1.3 "Update the name of an image", "Update t
 video" and "Delete creative assets"
 (https://business-api.tiktok.com/portal/docs/delete-creative-assets/v1.3), checked 2026-09-27.
 
+## TikTok pixels
+
+- `tiktok_pixel_create` with `payload: {advertiser_id, pixel_name, pixel_category?}` creates a pixel;
+  `pixel_category` is one of ONLINE_STORE, FILLING_FORM, CONTACTS, LANDING_PAGE or CUSTOMIZE_EVENTS.
+- `tiktok_pixel_update` with `payload: {advertiser_id, pixel_id, pixel_name}` renames one.
+
+AMCP lists every pixel of the advertiser first (20 per page, up to 200; more is `INCOMPLETE_STATE`).
+A new name used by another pixel in any case is `CONFIGURATION_EXISTS` (`details.pixel_id` names it:
+reuse it), which also lets verification find the new pixel by name when TikTok's receipt names none.
+Only a pixel the advertiser owns is renamed: one it does not list is `STATE_NOT_FOUND`, a shared one
+`STATE_TARGET_MISMATCH`, and an unchanged name is refused. `partner_name` (partner integrations) and
+`advanced_matching_fields` (which personal data TikTok matches) stay outside the contract. A pixel
+records nothing until its code is on a website, and ad groups use it only once they name it, so
+nothing needs spending confirmation. A non-zero `code` is a failure never resubmitted. Verification
+lists the pixels again and expects one new pixel with the name, or compares the new name.
+`INVALID_TIKTOK_PIXEL` names the field to correct.
+
+Reference: the request fields of TikTok's official Business API SDK
+(https://github.com/tiktok/tiktok-business-api-sdk, `yml_files/pixel_create.yml` and
+`pixel_update.yml`, read 2026-09-29) and TikTok API for Business v1.3 "Get pixels", checked
+2026-09-26.
+
 ## TikTok audiences by rule
 
 `tiktok_dmp_custom_audience_rule_create` creates a retargeting audience from past activity:

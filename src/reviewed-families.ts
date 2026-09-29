@@ -123,6 +123,7 @@ import {tiktokLookalikeFamily} from './tiktok-lookalikes.js';
 import {tiktokNegativeKeywordFamily} from './tiktok-negative-keywords.js';
 import {tiktokReportFamily} from './tiktok-report-jobs.js';
 import {tiktokRuleAudienceFamily} from './tiktok-rule-audiences.js';
+import {tiktokPixelFamily} from './tiktok-pixels.js';
 import {tiktokSavedAudienceFamily} from './tiktok-saved-audiences.js';
 import {tiktokSmartPlusAdUpdateFamily} from './tiktok-smart-plus-ad-updates.js';
 import {tiktokSmartPlusAdgroupUpdateFamily} from './tiktok-smart-plus-adgroup-updates.js';
@@ -281,6 +282,7 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     tiktokNegativeKeywordFamily, // tiktok_negative_keywords
     tiktokReportFamily, // tiktok_report_jobs
     tiktokRuleAudienceFamily, // tiktok_rule_audiences
+    tiktokPixelFamily, // tiktok_pixels
     tiktokSavedAudienceFamily, // tiktok_saved_audiences
     tiktokSmartPlusAdUpdateFamily, // tiktok_smart_plus_ad_edits
     tiktokSmartPlusAdgroupUpdateFamily, // tiktok_smart_plus_adgroup_edits
