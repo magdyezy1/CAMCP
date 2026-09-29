@@ -1,6 +1,6 @@
 # Write coverage: what stays blocked and why
 
-Status on 2026-09-29 (batch 35), from the action ledger (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`) only.
+Status on 2026-09-29 (batch 37), from the action ledger (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`) only.
 No provider was called. This plans the platform-by-platform coverage batches the owner asked for: which blocked
 writes wait on an owner decision, which wait on evidence, and which are candidates to build as reviewed families.
 
@@ -9,8 +9,8 @@ writes wait on an owner decision, which wait on evidence, and which are candidat
 | Status | Routes | Meaning |
 |---|---|---|
 | `native_read` | 1,711 | Reads that pass the independent read classification |
-| `reviewed_write_family` | 741 | Writes with a reviewed family (inspect, prepare, execute, verify) |
-| `blocked_write` | 556 | Writes AMCP refuses: no family yet, or no family on purpose |
+| `reviewed_write_family` | 748 | Writes with a reviewed family (inspect, prepare, execute, verify) |
+| `blocked_write` | 549 | Writes AMCP refuses: no family yet, or no family on purpose |
 | `local_workflow` / `media_workflow` | 83 / 24 | Steps AMCP performs itself (OAuth, uploads) |
 | `unmapped` | 79 | Advertised names with no provider request (Adjust 23, WooCommerce 31, OAuth steps and AMCP helpers) |
 | `provider_unsupported` | 22 | Methods the provider withdrew; each refusal names the replacement |
@@ -30,7 +30,7 @@ says which of them hold up once their evidence is read (DV360's five do not).
 | Platform | Access | Account | Money | Personal data | Publishing | Media uploads | Commerce and catalogs | Batch or async | Reason recorded | Candidates |
 |---|---|---|---|---|---|---|---|---|---|---|
 | TikTok | 31 | 7 | 12 | 16 | 35 | 6 | 29 | 6 | 1 | 22 |
-| Meta | 50 | 2 | 3 | 9 | 9 | 0 | 17 | 11 | 1 | 7 |
+| Meta | 50 | 2 | 3 | 9 | 9 | 0 | 10 | 11 | 1 | 7 |
 | LinkedIn | 10 | 10 | 0 | 8 | 9 | 6 | 0 | 0 | 6 | 28 |
 | Snapchat | 18 | 4 | 2 | 14 | 6 | 0 | 10 | 0 | 1 | 7 |
 | Google Ads | 23 | 0 | 5 | 13 | 0 | 0 | 0 | 7 | 0 | 1 |
@@ -38,7 +38,7 @@ says which of them hold up once their evidence is read (DV360's five do not).
 | DV360 | 11 | 2 | 6 | 4 | 1 | 0 | 0 | 0 | 0 | 5 |
 | Criteo | 1 | 7 | 6 | 2 | 0 | 1 | 0 | 0 | 0 | 6 |
 | Google Business Profile | 0 | 8 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| **All** | **148** | **47** | **37** | **68** | **60** | **13** | **67** | **26** | **11** | **79** |
+| **All** | **148** | **47** | **37** | **68** | **60** | **13** | **60** | **26** | **11** | **79** |
 
 ## Owner decisions of 2026-09-29
 
@@ -53,7 +53,7 @@ Recorded so they are not asked again. Each is the owner's answer to the recommen
 | Account setup (accounts, advertisers, settings, terms) | Stay blocked, same terms as access | Blocked |
 | Batch or async | Generic batch passthroughs stay closed for good. Typed batch families that validate and verify each item, like the X campaign and line item batch, are considered case by case | Graph batch, async batches, Google batch jobs and copy tasks stay closed |
 | Personal data (customer lists, conversions) | Stay blocked; a one-page policy drafted for the owner's approval, nothing opened | Draft: [PERSONAL-DATA-POLICY.md](PERSONAL-DATA-POLICY.md) |
-| Commerce and catalogs | Make them available | Planned as reviewed families from official references, platform by platform |
+| Commerce and catalogs | Make them available | Meta done in batch 37 (product sets, products, scheduled feeds); TikTok, Snapchat and X next, from official references |
 | Meta shop opt-out (`destination_spec`) | Keep, on conditions: cite Meta's v26.0 changelog; accept exactly `{destination_type: "WEBSITE_AND_SHOP_OPT_OUT"}`; never set automatically; the review says "people go to your website only, not your Meta shop"; verified on read-back, or against the write response when the read omits it (inconclusive, not failed or passed) | Done in batch 35 (d875647). AMCP calls Graph API v26.0 by default since batch 15, and the value is accepted only from v26.0 |
 
 Media uploads stay as recommended: the raw upload steps remain refused and `amcp_media` covers uploads end to end.
@@ -70,6 +70,19 @@ Media uploads stay as recommended: the raw upload steps remain refused and `amcp
   collection PUT), and X's targeting criterion PUT (X documents no update: delete and create).
 - Unreviewable by design: Meta's `DELETE act_{id}/campaigns`, which deletes by rule (strategy, date, count), not by
   ID; each campaign is deleted with the reviewed per-campaign deletion.
+
+## Done in batch 37
+
+- **Meta product sets** (`meta_product_sets`): create, change and delete sets of catalogs of the account's business,
+  with the documented filter grammar, a check with Meta that a filter selects products, and the account's ad sets and
+  creatives that use a set (a set in use is not deleted; one live ad sets use is not emptied).
+- **Meta catalog products** (`meta_catalog_products`): one product at a time. Meta replaces an existing `retailer_id`
+  by default, so AMCP does so only with an explicit `allow_upsert: true` and shows before and after. The price is read
+  back through Meta's numeric price filter.
+- **Meta product feeds** (`meta_product_feeds`): scheduled feeds with an explicit deletion choice, HTTPS schedules
+  without credentials, and Meta's own warning on deleting a feed.
+- Still blocked for Meta commerce: item batches, feed rules and uploads, catalog creation and deletion, catalog
+  sharing (`assigned_users`), stores, hotels, vehicles and home listings.
 
 ## Done in batch 35
 

@@ -706,3 +706,16 @@ Full qualification of batch 36 (`.release/batch36`, up to `0ac51f4`): **2,951 / 
 tests; `format:check`, every generated-artifact check and the Railway check pass. 315 s. The candidate's 1,273 source
 files equal `0ac51f4`, apart from `release-manifest.json`. Live acceptance is unverified: no provider was called, and
 the Drive and LinkedIn reads were exercised against synthetic replies only.
+
+## Batch 37 — Meta catalogs
+
+The owner's decision of 2026-09-29: "Product catalogs: make it available". Meta first. Every family writes only
+catalogs of the selected ad account's business and needs `catalog_management` (Meta app review) with
+`ads_management`. The defaults of the Meta login are unchanged: the owner adds the scopes to `AMCP_META_SCOPES`.
+
+| Change | Evidence |
+|---|---|
+| **Product sets (`meta_product_sets`).** Create, change and delete, from the "Product Catalog Product Sets" reference and SDK 26.0.2. The filter grammar is checked, then Meta is asked whether the filter selects any product; a filter Meta refuses stops the review with Meta's message. A set that the account's ad sets or creatives use is not deleted, and a change that would empty a set active ad sets use is refused (`PRODUCT_SET_EMPTY`) | `tests/meta-product-sets.test.mjs` (6 tests; 5 fail with the family unregistered) |
+| **Catalog products (`meta_catalog_products`).** One product at a time. Meta's `allow_upsert` defaults to true, silently replacing an existing `retailer_id`; AMCP replaces one only with an explicit `allow_upsert: true` and shows before and after, prices in currency units. Prices read back as formatted text, so Meta confirms the price through its numeric `price_amount` filter | `tests/meta-catalog-products.test.mjs` (5 tests, including a price Meta did not keep while every text field matched) |
+| **Product feeds (`meta_product_feeds`).** Create, change and delete scheduled feeds. `deletion_enabled` must be chosen, since Meta turns it on by default and it cannot be turned off. HTTPS schedules carry no credentials. Deleting quotes Meta: "effectively disables all ads using products that come from this feed" | `tests/meta-product-feeds.test.mjs` (6 tests) |
+| **No counts in review state.** A review compares its state again before it executes, and feed runs change catalog counts. The reviews keep the catalog's name, vertical and business, and whether a filter selects anything | Product set test: counts change between prepare and execute, and it still executes |
