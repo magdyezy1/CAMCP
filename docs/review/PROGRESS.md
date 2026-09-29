@@ -719,3 +719,8 @@ catalogs of the selected ad account's business and needs `catalog_management` (M
 | **Catalog products (`meta_catalog_products`).** One product at a time. Meta's `allow_upsert` defaults to true, silently replacing an existing `retailer_id`; AMCP replaces one only with an explicit `allow_upsert: true` and shows before and after, prices in currency units. Prices read back as formatted text, so Meta confirms the price through its numeric `price_amount` filter | `tests/meta-catalog-products.test.mjs` (5 tests, including a price Meta did not keep while every text field matched) |
 | **Product feeds (`meta_product_feeds`).** Create, change and delete scheduled feeds. `deletion_enabled` must be chosen, since Meta turns it on by default and it cannot be turned off. HTTPS schedules carry no credentials. Deleting quotes Meta: "effectively disables all ads using products that come from this feed" | `tests/meta-product-feeds.test.mjs` (6 tests) |
 | **No counts in review state.** A review compares its state again before it executes, and feed runs change catalog counts. The reviews keep the catalog's name, vertical and business, and whether a filter selects anything | Product set test: counts change between prepare and execute, and it still executes |
+
+Full qualification of batch 37 (`.release/batch37`, up to `cb7a849`): **2,968 / 2,968** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 324 s. The candidate's 1,280 source
+files equal `cb7a849`, apart from `release-manifest.json`. Live acceptance is unverified: no provider was called, and
+catalog writes need `catalog_management`, which Meta grants only after app review.
