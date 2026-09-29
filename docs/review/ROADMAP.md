@@ -82,8 +82,11 @@ candidate (`npm run check` + `node deploy/check-railway.mjs`). IDs refer to [FIN
 
 - Google items 1–10 and Snapchat S1–S14: **done** (F-84 … F-106; records in
   `docs/implementation/GOOGLE-BRIEF-2026-09-29.md` and `SNAPCHAT-BRIEF-2026-09-29.md`).
-- **owner:** all-or-nothing builds through Google's multi-resource mutate as its own reviewed family; paused parents
-  on Snapchat, Meta and TikTok; `https://claude.ai` in the MCP origin allowlist; documented validation refusals
-  after submission as "not applied". Recommendations are in `SUMMARY.md`.
+- The owner's decisions (2026-09-29, "do what you think is best"): **done** in batch 30. All-or-nothing Google
+  builds (F-108) and the recovery of a refused build (F-109); paused parents on Snapchat, Meta and TikTok (F-107);
+  lapsed ownership renewed automatically (F-70); the activation policy kept, its refusal clearer; the origin
+  allowlist left empty with a rule for when to set it (a Railway change).
+- Still needing documentation this environment cannot reach: whether a Snapchat, Meta or TikTok refusal after
+  submission proves nothing was applied (today it still stops the plan).
 - Next without a decision: clone for Meta (after its native copies), TikTok and LinkedIn campaigns once their
   create shapes are in reviewed families; Snapchat by-ID reads once Snapchat documents their body.

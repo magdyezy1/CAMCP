@@ -128,7 +128,7 @@ Every review, confirmation, idempotency key and read-back stays per step. Your i
 
 | Measure | Before (`03ac8d3`) | Now |
 |---|---|---|
-| Tests (full qualification) | 2,654 | 2,779 |
+| Tests (full qualification) | 2,654 | 2,876 |
 | Full qualification time, 4 CPUs | 1,478 s (serial) | about 530 s; the test suite alone 244 s since batch 22 |
 | Lifecycle wiring for reviewed families | ~14 order-sensitive chains; reader nesting 83 (review) and 80 (verification) levels | 57 families registered; 1,044 wiring lines removed; reader nesting 26 and 23 |
 | Refusal sites falling back to a generic "prepare again" | 1,436 of 1,956 | 379 |
