@@ -778,3 +778,7 @@ catalog endpoints are early access, and Meta's catalog writes need `catalog_mana
 
 The ledger holds 773 reviewed and 524 blocked writes; 42 blocked writes carry a recorded reason, and 66 candidates
 remain (LinkedIn 28, TikTok 22, Meta 7, Snapchat 7, X 2).
+
+Full qualification of batch 40 (`.release/batch40`, up to `8233c11`): **3,006 / 3,006** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 319 s. The candidate's 1,298 source
+files equal `8233c11`, apart from `release-manifest.json`. Live acceptance is unverified: no provider was called.
