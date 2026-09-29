@@ -651,3 +651,18 @@ not name the two new families; `aa50e6a` adds them. Full qualification of batch 
 `924fc08`): **2,916 / 2,916** tests and **4 / 4** capture tests; `format:check`, every generated-artifact check and the
 Railway check pass. 323 s. The candidate's 1,259 source files equal `924fc08`, apart from `release-manifest.json`. Live
 acceptance of the changed requests is unverified: no provider was called.
+
+## Batch 34 — write coverage, first platform pass
+
+The first coverage batch the owner asked for, following [COVERAGE.md](COVERAGE.md).
+
+| Change | Evidence |
+|---|---|
+| **TikTok pixels (`tiktok_pixels`).** Creation (`pixel_name`, optional `pixel_category`) and renaming of pixels the advertiser owns, from the request fields of TikTok's official Business API SDK and the documented pixel list. Every pixel page is read (up to 200); a name another pixel uses, in any case, is `CONFIGURATION_EXISTS`, which also lets verification find a new pixel by name when the receipt names none; shared pixels are `STATE_TARGET_MISMATCH`. `partner_name` and `advanced_matching_fields` stay outside the contract | `tests/tiktok-pixels.test.mjs` (5 tests, red before) |
+| **LinkedIn planning reads.** Audience Insights (`action=audienceInsights`) and Media Planning (`forecastReaches`, `forecastImpressions`, `forecastLeads`) compile as reads a reader can run with writes disabled: the documented fields, facets, objectives and limits, the account in the body as the read scope (`ACCOUNT_SCOPE_MISMATCH` otherwise), and LinkedIn's two required notices in `warnings` | `tests/linkedin-planning-reads.test.mjs` (4 tests, 20 refusals before any request, red before); the catalog-wide compile test gives both routes valid bodies; both are native reads in the ledger |
+| **Recorded reasons.** `src/withheld-writes.ts` gives eleven blocked rows their own ledger reason and puts it in the refusal: LinkedIn's unscoped `/rest/creatives` and `/rest/adCampaigns` (six) name the account-scoped actions; X's targeting criterion PUT (X documents no update) says delete and create; Snapchat's per-ID creative PUT names the collection PUT and the JSON Patch; Meta's `DELETE act_{id}/campaigns` deletes by rule, not by ID; and the two F-58 writes blocked on evidence | `tests/withheld-writes.test.mjs` (every case: the inspect carries the reason with no request, and the ledger row matches) |
+| **Coverage plan.** 558 blocked writes, 79 candidates; DV360's YouTube asset associations are allowlist-only, so DV360 has no candidate left | Counts reconciled with the regenerated ledger per platform |
+
+Full qualification of batch 34 (`.release/batch34`, up to `a9016a9`): **2,927 / 2,927** tests and **4 / 4** capture
+tests; `format:check`, every generated-artifact check and the Railway check pass. 336 s. The candidate's 1,265 source
+files equal `a9016a9`, apart from `release-manifest.json`. Live acceptance is unverified: no provider was called.
