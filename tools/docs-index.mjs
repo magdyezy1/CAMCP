@@ -39,6 +39,7 @@ const sections = [
     [
       'review/FINDINGS.md',
       'review/COVERAGE.md',
+      'review/PERSONAL-DATA-POLICY.md',
       'review/THREAT-MODEL.md',
       'review/MCP-SECURITY-CALIBRATION.md',
       'review/ACCESSIBILITY.md',

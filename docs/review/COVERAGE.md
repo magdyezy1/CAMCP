@@ -1,6 +1,6 @@
 # Write coverage: what stays blocked and why
 
-Status on 2026-09-29 (batch 34), from the action ledger (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`) only.
+Status on 2026-09-29 (batch 35), from the action ledger (`docs/implementation/ACTION-CONTRACT-COVERAGE.json`) only.
 No provider was called. This plans the platform-by-platform coverage batches the owner asked for: which blocked
 writes wait on an owner decision, which wait on evidence, and which are candidates to build as reviewed families.
 
@@ -9,8 +9,8 @@ writes wait on an owner decision, which wait on evidence, and which are candidat
 | Status | Routes | Meaning |
 |---|---|---|
 | `native_read` | 1,711 | Reads that pass the independent read classification |
-| `reviewed_write_family` | 739 | Writes with a reviewed family (inspect, prepare, execute, verify) |
-| `blocked_write` | 558 | Writes AMCP refuses: no family yet, or no family on purpose |
+| `reviewed_write_family` | 741 | Writes with a reviewed family (inspect, prepare, execute, verify) |
+| `blocked_write` | 556 | Writes AMCP refuses: no family yet, or no family on purpose |
 | `local_workflow` / `media_workflow` | 83 / 24 | Steps AMCP performs itself (OAuth, uploads) |
 | `unmapped` | 79 | Advertised names with no provider request (Adjust 23, WooCommerce 31, OAuth steps and AMCP helpers) |
 | `provider_unsupported` | 22 | Methods the provider withdrew; each refusal names the replacement |
@@ -30,7 +30,7 @@ says which of them hold up once their evidence is read (DV360's five do not).
 | Platform | Access | Account | Money | Personal data | Publishing | Media uploads | Commerce and catalogs | Batch or async | Reason recorded | Candidates |
 |---|---|---|---|---|---|---|---|---|---|---|
 | TikTok | 31 | 7 | 12 | 16 | 35 | 6 | 29 | 6 | 1 | 22 |
-| Meta | 50 | 2 | 5 | 9 | 9 | 0 | 17 | 11 | 1 | 7 |
+| Meta | 50 | 2 | 3 | 9 | 9 | 0 | 17 | 11 | 1 | 7 |
 | LinkedIn | 10 | 10 | 0 | 8 | 9 | 6 | 0 | 0 | 6 | 28 |
 | Snapchat | 18 | 4 | 2 | 14 | 6 | 0 | 10 | 0 | 1 | 7 |
 | Google Ads | 23 | 0 | 5 | 13 | 0 | 0 | 0 | 7 | 0 | 1 |
@@ -38,39 +38,27 @@ says which of them hold up once their evidence is read (DV360's five do not).
 | DV360 | 11 | 2 | 6 | 4 | 1 | 0 | 0 | 0 | 0 | 5 |
 | Criteo | 1 | 7 | 6 | 2 | 0 | 1 | 0 | 0 | 0 | 6 |
 | Google Business Profile | 0 | 8 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| **All** | **148** | **47** | **39** | **68** | **60** | **13** | **67** | **26** | **11** | **79** |
+| **All** | **148** | **47** | **37** | **68** | **60** | **13** | **67** | **26** | **11** | **79** |
 
-### Kinds that need an owner decision, with a recommendation
+## Owner decisions of 2026-09-29
 
-- **Access** (users, roles, partners, agencies, system users and their tokens, Business Center assets, account and
-  data links, OAuth tokens, sharing). These grant or remove people's and apps' access to money-bearing accounts.
-  *Recommendation: keep blocked.* Access changes belong in each platform's own interface, where its owner
-  verification applies; Google user access is the one exception already reviewed (administrator only).
-- **Money** (billing setups, budget proposals, invoices, balances and funds, reservations, reach and frequency
-  bookings, guaranteed orders, budget schedules, incentives). *Recommendation: keep blocked, except budget schedules*
-  (Meta campaign and ad set high-demand periods), which the owner spending policy could hold like any budget; that
-  one is worth a family if the owner wants scheduled budget increases.
-- **Personal data** (customer list and contact uploads, offline events, conversion and call uploads, pixel and
-  server events, lead forms, lead feedback). *Recommendation: keep blocked until the owner sets a personal-data
-  policy* (what may be uploaded, hashing, retention, who may approve). Conversion uploads also change what bidding
-  learns from, so they need the same care as a budget.
-- **Publishing** (Page and profile posts, comments, replies, messages, stories, creator and TikTok One campaigns).
-  These speak for the brand in public or to people directly. *Recommendation: keep blocked*; AMCP manages paid
-  delivery, and Spark Ads and existing-post ads already use posts the owner published.
-- **Account** (creating, changing or deleting ad accounts, advertisers and locations; tax and user settings; terms
-  and subscriptions; verification). *Recommendation: keep blocked*; these are set up once, by the account owner, in
-  the platform's interface.
-- **Media uploads** (raw upload steps: LinkedIn images, videos and documents, TikTok file uploads, Criteo assets).
-  `amcp_media` already uploads images and videos end to end for Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and
-  DV360, so the raw steps stay refused, as Snapchat's multipart steps do. *Recommendation: extend `amcp_media`* for the
-  gaps (LinkedIn documents, TikTok music, Criteo assets) rather than open the raw steps.
-- **Commerce and catalogs** (product catalogs, feeds, sets, TikTok Shop and GMV Max). A product decision rather than
-  a safety one: AMCP does not manage catalogs today. *Recommendation: decide whether AMCP should*; if yes, product
-  sets (Meta, TikTok) are the natural first family, since Snapchat's already exist.
-- **Batch or async** (Graph batch, async batches, Google batch jobs and offline job runs, copy tasks). *Never*: each
-  would carry many writes past one review. The reviewed families that need several writes send them one by one.
+Recorded so they are not asked again. Each is the owner's answer to the recommendations of batch 34.
 
-### Reason recorded
+| Kind | Decision | Where it stands |
+|---|---|---|
+| Access (users, roles, partners, agencies, system users, tokens, sharing, links) | Stay blocked, not as a hard block: if a user asks for one, the owner may enable it | Blocked; each would come as its own reviewed family on request |
+| Money (billing, funds, invoices, bookings, guaranteed orders) | Stay blocked, same terms as access | Blocked |
+| Money: Meta budget schedules | Open, on conditions: a spending policy on the account (advise on unprotected accounts); the full scheduled increase, up to 8 times daily, counted against the caps at prepare; start and end in the account time zone and the maximum extra spend in the review, with `spend_change_confirmed`; how a period is cancelled said in the review; read back from the schedule list; Meta's limits (50 periods, 3 hours, daily budgets only, `CAN_USE_BUDGET_SCHEDULING_API`) | Done in batch 35 (`meta_budget_schedules`, F-116). Meta documents no API update or deletion of a period, so the review says it is changed in Ads Manager and that pausing stops spending at once; the Ads Manager path is not verifiable from here |
+| Publishing (posts, comments, messages, stories) | Stay blocked, same terms as access | Blocked |
+| Account setup (accounts, advertisers, settings, terms) | Stay blocked, same terms as access | Blocked |
+| Batch or async | Generic batch passthroughs stay closed for good. Typed batch families that validate and verify each item, like the X campaign and line item batch, are considered case by case | Graph batch, async batches, Google batch jobs and copy tasks stay closed |
+| Personal data (customer lists, conversions) | Stay blocked; a one-page policy drafted for the owner's approval, nothing opened | Draft: [PERSONAL-DATA-POLICY.md](PERSONAL-DATA-POLICY.md) |
+| Commerce and catalogs | Make them available | Planned as reviewed families from official references, platform by platform |
+| Meta shop opt-out (`destination_spec`) | Keep, on conditions: cite Meta's v26.0 changelog; accept exactly `{destination_type: "WEBSITE_AND_SHOP_OPT_OUT"}`; never set automatically; the review says "people go to your website only, not your Meta shop"; verified on read-back, or against the write response when the read omits it (inconclusive, not failed or passed) | Done in batch 35 (d875647). AMCP calls Graph API v26.0 by default since batch 15, and the value is accepted only from v26.0 |
+
+Media uploads stay as recommended: the raw upload steps remain refused and `amcp_media` covers uploads end to end.
+
+## Reason recorded
 
 `src/withheld-writes.ts` gives these their own ledger reason and puts it in the refusal (`details.reason`):
 
@@ -82,6 +70,13 @@ says which of them hold up once their evidence is read (DV360's five do not).
   collection PUT), and X's targeting criterion PUT (X documents no update: delete and create).
 - Unreviewable by design: Meta's `DELETE act_{id}/campaigns`, which deletes by rule (strategy, date, count), not by
   ID; each campaign is deleted with the reviewed per-campaign deletion.
+
+## Done in batch 35
+
+- **Meta budget schedules** (`meta_budget_schedules`) on the owner's conditions above; `budget_schedule_specs` on
+  campaign and ad set requests is refused so every period passes this review (F-116).
+- **Meta shop opt-out** on the owner's conditions, and new ads name an existing creative only (F-115).
+- **X reports**: analytics times are sent in whole hours without fractional seconds (F-114).
 
 ## Done in batch 34
 
