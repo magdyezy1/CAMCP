@@ -388,23 +388,49 @@ export class Store {
     });
   }
   /**
-   * Reserves encrypted staging for a file uploaded to AMCP or imported from a link (media-sources.ts): at most four
-   * per workspace and eight in all, apart from the reviews and variants each workspace may stage.
+   * Bytes held by uploaded files: a finished one counts its size, one still arriving (or downloading) the whole media
+   * limit, since its size is not final.
+   */
+  private stagedSourceBytes(tenant?: string) {
+    const rows = (
+      tenant === undefined
+        ? this.db.prepare("SELECT tenant_id, id, secret FROM media_staging WHERE id LIKE 'src-%'").all()
+        : this.db
+            .prepare("SELECT tenant_id, id, secret FROM media_staging WHERE tenant_id=? AND id LIKE 'src-%'")
+            .all(tenant)
+    ) as {tenant_id: string; id: string; secret: string | null}[];
+    let bytes = 0;
+    for (const r of rows) {
+      const size = r.secret
+        ? Number(this.box!.open<{size?: unknown}>(r.secret, scopeKey(r.tenant_id, 'media', r.id)).size)
+        : NaN;
+      bytes += Number.isSafeInteger(size) && size >= 0 && size <= MAX_MEDIA_BYTES ? size : MAX_MEDIA_BYTES;
+    }
+    return bytes;
+  }
+  /**
+   * Reserves encrypted staging for a file uploaded to AMCP or imported from a link or Drive (media-sources.ts), apart
+   * from the reviews and variants each workspace may stage. Each workspace holds at most four, and AMCP at most eight,
+   * times the media limit in bytes, counting the new file at the limit until it is finished; and at most 25 and 50
+   * files. Four full-sized files still fill a workspace, and many small ones fit in the same space.
    */
   reserveMediaSource(tenant: string, id: string, expiresAt: number) {
     if (!this.box) throw new MirrorError('ENCRYPTION_REQUIRED', 'Media staging requires the configured master key.');
     if (!/^src-[0-9a-f-]{36}$/.test(id)) throw new MirrorError('MEDIA_STAGING_INVALID', 'Invalid media source id.');
     this.transaction(() => {
       this.cleanupStagedMedia();
-      if (this.stagedCount(true, tenant) >= 4)
+      if (
+        this.stagedCount(true, tenant) >= 25 ||
+        this.stagedSourceBytes(tenant) + MAX_MEDIA_BYTES > 4 * MAX_MEDIA_BYTES
+      )
         throw new MirrorError(
           'MEDIA_STAGING_FULL',
-          'Four uploaded files are already waiting in this workspace. Remove one, or wait for one to expire (30 minutes after upload).',
+          'The uploaded files waiting in this workspace fill its space (25 files, or four at the media limit). Push or remove some, or wait for them to expire (30 minutes after upload).',
           {retry_after_ms: 60000},
           429,
           true,
         );
-      if (this.stagedCount(true) >= 8)
+      if (this.stagedCount(true) >= 50 || this.stagedSourceBytes() + MAX_MEDIA_BYTES > 8 * MAX_MEDIA_BYTES)
         throw new MirrorError(
           'MEDIA_STAGING_FULL',
           'AMCP is holding as many uploaded files as it keeps at once. Try again in a few minutes.',

@@ -107,6 +107,34 @@ test('uploaded files have their own staging quota: four per workspace, eight in 
   }
 });
 
+test('many small finished uploads fit where four full-sized ones did; the bytes each workspace holds stay bounded', () => {
+  // The owner's request of 2026-09-29: several images and videos at once. The bound stays four (per workspace) and
+  // eight (in all) times the media limit in bytes; a finished upload counts its size, one still arriving the limit.
+  const store = new Store(':memory:', key);
+  try {
+    const id = () => 'src-' + crypto.randomUUID(),
+      later = Date.now() + 60000,
+      small = Buffer.alloc(1024, 7);
+    for (let i = 0; i < 25; i++) {
+      const s = id();
+      store.reserveMediaSource('a', s, later);
+      store.stageMedia('a', s, small);
+    }
+    // 25 files is the count bound of one workspace.
+    assert.throws(() => store.reserveMediaSource('a', id(), later), {code: 'MEDIA_STAGING_FULL'});
+    // Three unfinished uploads still fit beside many small ones in another workspace; a fourth would reach the bound.
+    for (let i = 0; i < 5; i++) {
+      const s = id();
+      store.reserveMediaSource('b', s, later);
+      store.stageMedia('b', s, small);
+    }
+    for (let i = 0; i < 3; i++) store.reserveMediaSource('b', id(), later);
+    assert.throws(() => store.reserveMediaSource('b', id(), later), {code: 'MEDIA_STAGING_FULL'});
+  } finally {
+    store.close();
+  }
+});
+
 test('an upload completes only with every part, each full-sized but the last, and keeps its bytes encrypted', () => {
   const store = new Store(':memory:', key);
   try {
