@@ -4,6 +4,15 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
+import {
+  assertMetaCatalogOfBusiness,
+  assertMetaCatalogScope,
+  metaAbsent,
+  metaCatalogFields,
+  metaCatalogView,
+  metaRefusal,
+  optionalMetaRead,
+} from './meta-catalogs.js';
 
 /**
  * Product sets of Meta catalogs, opened by the owner on 2026-09-29 ("Product catalogs: make it available").
@@ -172,14 +181,7 @@ export function assertMetaProductSet(p: CompiledRequest): void {
   }
 }
 export function assertMetaProductSetScope(c: Connection, write = false): void {
-  const has = (s: string) => c.scopes.includes(s);
-  if (write ? !(has('catalog_management') && has('ads_management')) : !(has('ads_read') || has('ads_management')))
-    fail(
-      'INSUFFICIENT_SCOPE',
-      'Product set changes need the catalog_management and ads_management permissions: add them to AMCP_META_SCOPES and reconnect Meta. catalog_management needs Meta app review.',
-      {required: ['catalog_management', 'ads_management']},
-      403,
-    );
+  assertMetaCatalogScope(c, write, 'Product set changes');
 }
 const graph = (p: CompiledRequest, path: string, query: JsonObject, page: Page = {}): Read => ({
   ...p,
@@ -198,7 +200,7 @@ const graph = (p: CompiledRequest, path: string, query: JsonObject, page: Page =
   specialTransport: undefined,
 });
 const setFields = 'id,name,filter,retailer_id,product_count,product_catalog{id}',
-  catalogFields = 'id,name,vertical,product_count,business{id}',
+  catalogFields = metaCatalogFields,
   adSetFields = 'id,name,status,promoted_object',
   creativeFields = 'id,name,status,product_set_id';
 const read = (p: CompiledRequest, s: State): Read => ({
@@ -270,32 +272,6 @@ export function metaProductSetSnapshots(p: CompiledRequest): Read[] {
 export function isMetaProductSetRead(p: CompiledRequest): p is Read {
   return p.gateway === gateway && !!(p as Read).metaProductSetState;
 }
-/** Meta's refusal of a read, as the transport raises it: HTTP 400 with the native error in the details. */
-function metaRefusal(e: unknown): JsonObject | undefined {
-  if (!(e instanceof MirrorError) || e.code !== 'UPSTREAM_ERROR' || e.status !== 400) return;
-  const up = object(e.details?.upstream) ? (e.details.upstream as JsonObject) : {};
-  return object(up.error) ? up.error : undefined;
-}
-/** "Unsupported get request" (code 100, subcode 33): the object does not exist or is not visible. */
-const absent = (e: unknown) => {
-  const err = metaRefusal(e);
-  return (
-    (e instanceof MirrorError && (e.status === 404 || e.code === 'NOT_FOUND')) ||
-    (!!err && Number(err.code) === 100 && Number(err.error_subcode) === 33)
-  );
-};
-/** A read that may find nothing: the reply's data, or undefined when Meta says the object does not exist. */
-async function optional(fetch: (p: CompiledRequest) => Promise<TransportResult>, q: CompiledRequest, label: string) {
-  let r: TransportResult;
-  try {
-    r = await fetch(q);
-  } catch (e) {
-    if (absent(e)) return undefined;
-    throw e;
-  }
-  if (r.status !== 200 || !object(r.data) || r.data.error) unverified('Meta did not return the ' + label + '.');
-  return r.data as JsonObject;
-}
 const filterValue = (v: unknown): unknown => {
   if (typeof v !== 'string') return object(v) ? v : v === undefined || v === null ? null : v;
   if (!v.trim()) return {};
@@ -344,7 +320,7 @@ export async function readMetaProductSets(
     }
   };
   if (s.verify) {
-    const x = await optional(fetch, graph(p, s.set!, {fields: setFields}, {set: s.set}), 'product set');
+    const x = await optionalMetaRead(fetch, graph(p, s.set!, {fields: setFields}, {set: s.set}), 'product set');
     return {status: 200, headers: {}, data: {set: x ? {present: true, ...setView(x)} : {present: false, id: s.set}}};
   }
   const acct = await get(graph(p, 'act_' + account(p.accountId), {fields: 'id,business{id}'}), 'ad account');
@@ -352,7 +328,7 @@ export async function readMetaProductSets(
   let set: JsonObject | null = null,
     catalogId = s.catalog;
   if (s.set) {
-    const x = await optional(fetch, graph(p, s.set, {fields: setFields}, {set: s.set}), 'product set');
+    const x = await optionalMetaRead(fetch, graph(p, s.set, {fields: setFields}, {set: s.set}), 'product set');
     if (x) {
       set = setView(x);
       if (set.id !== s.set) unverified('Meta returned a different product set.');
@@ -362,16 +338,13 @@ export async function readMetaProductSets(
   }
   const out: JsonObject = {account_id: account(p.accountId), business, set: set ?? {present: false, id: s.set ?? null}};
   if (!catalogId) return {status: 200, headers: {}, data: out};
-  const c = await optional(fetch, graph(p, catalogId, {fields: catalogFields}, {catalog: catalogId}), 'catalog');
-  if (!c) return {status: 200, headers: {}, data: {...out, catalog: {present: false, id: catalogId}}};
-  out.catalog = {
-    present: true,
-    id: String(c.id),
-    name: c.name ?? null,
-    vertical: c.vertical ?? null,
-    product_count: c.product_count === undefined ? null : Number(c.product_count),
-    business: object(c.business) && c.business.id !== undefined ? String(c.business.id) : null,
-  };
+  const c = await optionalMetaRead(
+    fetch,
+    graph(p, catalogId, {fields: catalogFields}, {catalog: catalogId}),
+    'catalog',
+  );
+  out.catalog = metaCatalogView(c, catalogId);
+  if (!c) return {status: 200, headers: {}, data: out};
   out.sets = (
     await all(
       graph(p, catalogId + '/product_sets', {fields: setFields, limit: pageSize}, {catalog: catalogId}),
@@ -394,7 +367,7 @@ export async function readMetaProductSets(
       );
     } catch (e) {
       const err = metaRefusal(e);
-      if (!err || absent(e)) throw e;
+      if (!err || metaAbsent(e)) throw e;
       out.filter_refused = String(err.error_user_msg ?? err.message ?? 'Meta refused the filter.').slice(0, 500);
     }
     if (r) {
@@ -440,20 +413,7 @@ export function metaProductSetPrerequisites(p: CompiledRequest, states: unknown[
   if (!object(s) || !object(s.set)) unverified('Missing verified product set state.');
   if (kind !== 'create' && s.set.present === false)
     fail('STATE_NOT_FOUND', 'Product set ' + idOf(p) + ' was not found.', {product_set_id: idOf(p)}, 404);
-  const catalog = s.catalog;
-  if (!object(catalog) || catalog.present === false)
-    fail('STATE_NOT_FOUND', 'The catalog was not found.', {catalog_id: kind === 'create' ? idOf(p) : null}, 404);
-  if (s.business === null || catalog.business !== s.business)
-    fail(
-      'STATE_TARGET_MISMATCH',
-      'Catalog ' +
-        String(catalog.id) +
-        " does not belong to the selected ad account's business" +
-        (s.business ? ' (' + String(s.business) + ')' : '') +
-        '; AMCP changes only catalogs of that business.',
-      {catalog_id: String(catalog.id), business: s.business as string | null},
-      409,
-    );
+  assertMetaCatalogOfBusiness(s, kind === 'create' ? idOf(p) : null);
   if (!Array.isArray(s.sets)) unverified('Missing the product sets of the catalog.');
   if (typeof s.filter_refused === 'string')
     invalid('Meta refused this filter: ' + s.filter_refused, {meta_message: s.filter_refused});

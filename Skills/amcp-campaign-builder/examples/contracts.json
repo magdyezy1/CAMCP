@@ -2365,6 +2365,25 @@
     {
       "gateway": "meta_native_action",
       "arguments": {
+        "action": "meta_product_catalog_id_products_create",
+        "account_id": "123",
+        "params": {
+          "product_catalog_id": "555"
+        },
+        "payload": {
+          "retailer_id": "SKU-1",
+          "name": "Trail shoe",
+          "price": 49900,
+          "currency": "SAR",
+          "image_url": "https://shop.example/images/trail-shoe.jpg",
+          "url": "https://shop.example/trail-shoe",
+          "availability": "in stock"
+        }
+      }
+    },
+    {
+      "gateway": "meta_native_action",
+      "arguments": {
         "action": "meta_product_catalog_id_product_sets_create",
         "account_id": "123",
         "params": {

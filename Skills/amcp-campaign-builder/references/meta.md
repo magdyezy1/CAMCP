@@ -624,3 +624,33 @@ gone.
 
 Reference: the Marketing API v25.0 "Product Catalog Product Sets" reference, read 2026-09-29, and the ProductSet node
 (update, delete) in Meta's Business SDK 26.0.2.
+
+## Catalog products
+
+`meta_product_catalog_id_products_create` with `params: {product_catalog_id}` adds one product to a catalog of the
+selected ad account's business. It needs the same permissions as product sets.
+
+- **Required:** `retailer_id`, `name`, `price`, `currency` and `image_url`.
+- **Optional:** `description` (at most 5,000 characters), `url`, `mobile_link`, `additional_image_urls` (at most 20),
+  `sale_price`, `sale_price_start_date` and `sale_price_end_date`, `availability`, `condition`, `visibility`
+  (`staging` or `published`), `brand`, `category`, `fb_product_category`, `product_type`, `color`, `size`,
+  `material`, `pattern`, `gender`, `age_group`, `gtin`, `manufacturer_part_number`, `retailer_product_group_id`,
+  `short_description`, `custom_label_0` to `custom_label_4`, `inventory` and `allow_upsert`.
+- **Refused** with `INVALID_META_CATALOG_PRODUCT`: every other field (shops, checkout, app links, variants,
+  compliance), and item batches.
+
+Prices are whole hundredths of the currency in every currency: `49900` is 499 SAR and `49000` is ¥490. URLs are
+HTTPS.
+
+Meta's `allow_upsert` defaults to true: a create with a `retailer_id` the catalog already has replaces that product.
+AMCP reads the catalog for the `retailer_id` first. Replacing an existing product needs `allow_upsert: true` in the
+request (`CONFIGURATION_EXISTS` otherwise), and the review then shows the product before and after, with prices in
+currency units. The captured catalog has no product update or delete: send the product again with `allow_upsert`, and
+take it out of ads with `availability` or `visibility: staging`.
+
+Verification finds the product by `retailer_id` and compares its text fields. Meta reads prices back as formatted
+text, so Meta itself confirms the price: the catalog's product list is filtered on `price_amount` (and
+`sale_price_amount`) equal to the reviewed value.
+
+Reference: the Marketing API v25.0 "Product Catalog Products" reference and the product set filter fields, read
+2026-09-29.
