@@ -12,6 +12,7 @@ import {dv360AdGroupFamily} from './dv360-demand-gen-ad-groups.js';
 import {dv360InventoryGroupFamily} from './dv360-inventory-source-groups.js';
 import {dv360LineItemBulkFamily} from './dv360-line-item-bulk-update.js';
 import {dv360LineItemDuplicateFamily} from './dv360-line-item-duplicate.js';
+import {googleAtomicFamily} from './google-atomic-builds.js';
 import {googleAutoAssetFamily} from './google-auto-assets.js';
 import {businessAttributeFamily} from './google-business-location-attributes.js';
 import {businessLocationEditFamily} from './google-business-location-edits.js';
@@ -81,6 +82,7 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     dv360InventoryGroupFamily, // dv360_inventory_source_groups
     dv360LineItemBulkFamily, // dv360_line_item_bulk_update
     dv360LineItemDuplicateFamily, // dv360_line_item_duplicate
+    googleAtomicFamily, // google_atomic_builds
     googleAutoAssetFamily, // google_auto_assets
     businessAttributeFamily, // google_business_location_attributes
     businessLocationEditFamily, // google_business_location_edits

@@ -7,7 +7,7 @@ import {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {MirrorError, errorRemedy} from './errors.js';
 import {amendmentCall, applyPatch} from './campaign-amendment.js';
-import {applyCloneChanges, assertCloneGateway, clonePlan} from './campaign-clone.js';
+import {applyCloneChanges, assertCloneGateway, clonePlan, composeGoogleBuild} from './campaign-clone.js';
 import {compactPlan, preflightView, reviewView} from './campaign-view.js';
 import {
   audit,
@@ -25,7 +25,7 @@ import {
 } from './workspace-core.js';
 export const campaignTool = tool(
   'amcp_campaign',
-  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. To approve a whole plan once: approve returns what the approval covers (every step’s action, account, money and status fields); approve with confirmed and that plan_hash records it; run then prepares and executes every step under it, each still a frozen, read-back review, and stops for anything that needs a person. clone reads an existing Snapchat or Google Search campaign (source.campaign_id) into a new draft plan under a new name, with changes applied (set a field, drop a step); the new campaign starts PAUSED and nothing is sent until the plan is reviewed or approved. No fabricated IDs, implicit launch, or review bypass.',
+  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. To approve a whole plan once: approve returns what the approval covers (every step’s action, account, money and status fields); approve with confirmed and that plan_hash records it; run then prepares and executes every step under it, each still a frozen, read-back review, and stops for anything that needs a person. clone reads an existing Snapchat or Google Search campaign (source.campaign_id) into a new draft plan under a new name, with changes applied (set a field, drop a step); a Google copy is one all-or-nothing step (atomic: false for one step per resource type); the new campaign starts PAUSED and nothing is sent until the plan is reviewed or approved. No fabricated IDs, implicit launch, or review bypass.',
   [
     'create',
     'get',
@@ -90,6 +90,11 @@ export const campaignTool = tool(
     actual_hash: {
       type: 'string',
       description: 'reconcile_step with accept_observed: the observed state hash accepted.',
+    },
+    atomic: {
+      type: 'boolean',
+      description:
+        'clone (Google): true (the default) makes the copy one all-or-nothing step, a single googleAds:mutate; false keeps one step per resource type.',
     },
     source: {
       type: 'object',
@@ -553,7 +558,7 @@ export class CampaignRunner {
       const connection = this.store.resolveConnection(actor, input.gateway, input.account_id, input.connection_id),
         source = await clonePlan(this.call, actor, {...input, connection_id: connection.id}),
         changed = applyCloneChanges(source.steps, input.changes);
-      if (changed.steps.length > 50)
+      if (changed.steps.length > 50 && (input.gateway !== 'google_ads_native_action' || input.atomic === false))
         bad(
           'The clone has ' +
             changed.steps.length +
@@ -561,12 +566,16 @@ export class CampaignRunner {
           'CLONE_SOURCE_TOO_LARGE',
           {field: 'changes.drop', steps: changed.steps.slice(0, 100).map(s => s.id)},
         );
+      // A Google clone is one all-or-nothing build unless the caller asks for step-by-step (atomic: false).
+      const atomic = input.gateway === 'google_ads_native_action' && input.atomic !== false;
       const created = await this.handle(
           {
             action: 'create',
             name: input.name,
             brief: input.brief ?? 'Clone of campaign ' + source.source.campaign_id + '.',
-            steps: changed.steps,
+            steps: atomic
+              ? [composeGoogleBuild(changed.steps, String(input.account_id).replace(/-/g, ''))]
+              : changed.steps,
             detail: 'full',
           },
           actor,
@@ -577,6 +586,7 @@ export class CampaignRunner {
         not_copied: source.notCopied,
         ...(changed.set.length ? {set: changed.set} : {}),
         ...(changed.dropped.length ? {dropped: changed.dropped} : {}),
+        ...(atomic ? {all_or_nothing: true, steps: changed.steps.map(s => s.id)} : {}),
       };
       audit(this.store, actor, 'campaign_plan_cloned', {id: run.id, source: source.source, plan_hash: run.plan_hash});
       return this.respond(input, this.save(actor, run), undefined, {

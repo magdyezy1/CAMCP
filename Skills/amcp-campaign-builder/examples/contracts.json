@@ -269,6 +269,71 @@
     {
       "gateway": "google_ads_native_action",
       "arguments": {
+        "action": "google_ads_v23_google_ads_mutate",
+        "account_id": "123",
+        "payload": {
+          "mutate_operations": [
+            {
+              "campaign_budget_operation": {
+                "create": {
+                  "resource_name": "customers/123/campaignBudgets/-1",
+                  "name": "Client approved build budget",
+                  "amount_micros": "40000000",
+                  "delivery_method": "STANDARD",
+                  "explicitly_shared": false
+                }
+              }
+            },
+            {
+              "campaign_operation": {
+                "create": {
+                  "resource_name": "customers/123/campaigns/-2",
+                  "name": "Client approved build",
+                  "status": "PAUSED",
+                  "advertising_channel_type": "SEARCH",
+                  "campaign_budget": "customers/123/campaignBudgets/-1",
+                  "manual_cpc": {},
+                  "network_settings": {
+                    "target_google_search": true,
+                    "target_search_network": false,
+                    "target_content_network": false
+                  },
+                  "contains_eu_political_advertising": "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING"
+                }
+              }
+            },
+            {
+              "ad_group_operation": {
+                "create": {
+                  "resource_name": "customers/123/adGroups/-3",
+                  "name": "Client approved ad group",
+                  "campaign": "customers/123/campaigns/-2",
+                  "status": "ENABLED",
+                  "type": "SEARCH_STANDARD",
+                  "cpc_bid_micros": "1500000"
+                }
+              }
+            },
+            {
+              "ad_group_criterion_operation": {
+                "create": {
+                  "ad_group": "customers/123/adGroups/-3",
+                  "status": "ENABLED",
+                  "keyword": {
+                    "text": "client approved keyword",
+                    "match_type": "EXACT"
+                  }
+                }
+              }
+            }
+          ],
+          "partial_failure": false
+        }
+      }
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "arguments": {
         "action": "google_ads_v23_bidding_strategy_mutate_bidding_strategies",
         "account_id": "123",
         "payload": {

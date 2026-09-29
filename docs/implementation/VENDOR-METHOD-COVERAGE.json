@@ -12536,8 +12536,8 @@
         {
           "operation": null,
           "action": "google_ads_v23_google_ads_mutate",
-          "status": "blocked_write",
-          "family": null
+          "status": "reviewed_write_family",
+          "family": "google_atomic_builds"
         }
       ],
       "mapping_status": "mapped",

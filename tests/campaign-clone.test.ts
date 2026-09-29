@@ -18,6 +18,16 @@ const wrapped = (kind: string, rows: JsonObject[]) =>
     paging: {},
     [kind]: rows.map(r => ({sub_request_status: 'SUCCESS', [kind.slice(0, -1)]: r})),
   });
+const camel = (k: string) => k.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+// Google reads either JSON spelling; the compiled request uses camelCase.
+const snakeKeys = (v: unknown): any =>
+  Array.isArray(v)
+    ? v.map(snakeKeys)
+    : v && typeof v === 'object'
+      ? Object.fromEntries(
+          Object.entries(v).map(([k, x]) => [k.replace(/[A-Z]/g, c => '_' + c.toLowerCase()), snakeKeys(x)]),
+        )
+      : v;
 const sourceCampaign = {
   id: 'src-camp',
   name: 'Spring launch',
@@ -313,7 +323,8 @@ function googleSource(channel = 'SEARCH', bidding = 'MAXIMIZE_CONVERSIONS') {
     {accessToken: 'synthetic', developerToken: 'synthetic'},
   );
   const queries: string[] = [],
-    writes: JsonObject[] = [];
+    writes: JsonObject[] = [],
+    created = new Map<string, JsonObject>();
   const rows: Record<string, JsonObject[]> = {
     campaign: [
       {
@@ -401,16 +412,59 @@ function googleSource(channel = 'SEARCH', bidding = 'MAXIMIZE_CONVERSIONS') {
     store,
     new NativeTransport(
       async (url, init) => {
-        const body = JSON.parse(String(init?.body ?? '{}'));
-        if (new URL(String(url)).pathname.endsWith('googleAds:search')) {
+        const body = snakeKeys(JSON.parse(String(init?.body ?? '{}'))),
+          path = new URL(String(url)).pathname;
+        if (path.endsWith('googleAds:search')) {
           queries.push(body.query);
           const from = / FROM ([a-z_]+)/.exec(body.query)?.[1] ?? '';
           if (from === 'customer')
             return Response.json({results: [{customer: {id: '123', currencyCode: 'USD', timeZone: 'UTC'}}]});
+          // Read-back of what a build created, by name; otherwise the source campaign's rows.
+          const names = [...String(body.query).matchAll(/IN \('(customers\/[^']+)'\)/g)].map(m => m[1]!);
+          if (names.length && names.every(n => created.has(n)))
+            return Response.json({results: names.map(n => ({[camel(from)]: created.get(n)}))});
           return Response.json({results: rows[from] ?? []});
         }
         writes.push(body);
-        return Response.json({error: {code: 500, message: 'Synthetic'}}, {status: 500});
+        if (!path.endsWith('googleAds:mutate'))
+          return Response.json({error: {code: 500, message: 'Synthetic'}}, {status: 500});
+        // Google applies the whole build, resolving temporary names to the IDs it allocates.
+        const temps = new Map<string, string>(),
+          real = (v: unknown): unknown =>
+            typeof v === 'string' && temps.has(v)
+              ? temps.get(v)
+              : Array.isArray(v)
+                ? v.map(real)
+                : v && typeof v === 'object'
+                  ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, real(x)]))
+                  : v;
+        return Response.json({
+          mutateOperationResponses: body.mutate_operations.map((op: JsonObject) => {
+            const key = Object.keys(op)[0]!,
+              {resource_name: temp, ...record} = op[key].create,
+              kind = camel(key.replace(/_operation$/, '')).replace(/y$/, 'ie') + 's',
+              id = String(created.size + 500),
+              parent = String(real(record.ad_group ?? record.campaign ?? ''))
+                .split('/')
+                .at(-1),
+              name =
+                'customers/123/' +
+                (kind === 'campaignCriterions'
+                  ? 'campaignCriteria'
+                  : kind === 'adGroupCriterions'
+                    ? 'adGroupCriteria'
+                    : kind) +
+                '/' +
+                (/Criterion|Ad$/.test(
+                  key.replace(/_operation$/, '').replace(/_([a-z])/g, (_, c: string) => c.toUpperCase()),
+                )
+                  ? parent + '~' + id
+                  : id);
+            if (temp) temps.set(temp, name);
+            created.set(name, {resourceName: name, ...(real(record) as JsonObject)});
+            return {[camel(key.replace(/_operation$/, '')) + 'Result']: {resourceName: name}};
+          }),
+        });
       },
       undefined,
       undefined,
@@ -433,13 +487,14 @@ function googleSource(channel = 'SEARCH', bidding = 'MAXIMIZE_CONVERSIONS') {
       },
       actor,
     ) as Promise<JsonObject>;
-  return {store, service, queries, writes, call};
+  return {store, service, queries, writes, created, call};
 }
 
 test('a Google Search campaign is cloned: budget, paused campaign, targeting, ad groups, keywords and ads', async () => {
   const g = googleSource();
   try {
     const r = await g.call({
+      atomic: false,
       changes: {set: [{step_id: 'budget', path: '/payload/operations/0/create/amount_micros', value: '60000000'}]},
     });
     assert.equal(r.success, true, JSON.stringify(r).slice(0, 800));
@@ -532,5 +587,90 @@ test('Google campaigns AMCP cannot recreate are refused by name, with nothing cr
     } finally {
       g.store.close();
     }
+  }
+});
+
+test('a Google clone is one all-or-nothing build by default, with the changes applied before it is composed', async () => {
+  const g = googleSource();
+  try {
+    const r = await g.call({
+      changes: {
+        set: [{step_id: 'budget', path: '/payload/operations/0/create/amount_micros', value: '60000000'}],
+        drop: ['adgroup_2'],
+      },
+    });
+    assert.equal(r.success, true, JSON.stringify(r).slice(0, 800));
+    assert.deepEqual(
+      r.data.steps.map((s: JsonObject) => s.id),
+      ['build'],
+    );
+    assert.equal(r.data.clone.all_or_nothing, true);
+    assert.deepEqual(r.data.clone.steps, [
+      'budget',
+      'campaign',
+      'targeting',
+      'adgroup_1',
+      'adgroup_1_keywords',
+      'adgroup_1_ads',
+    ]);
+    assert.deepEqual(r.data.clone.dropped, ['adgroup_2', 'adgroup_2_keywords']);
+    const plan = (
+      (await g.service.call('amcp_campaign', {action: 'get', id: r.data.id, detail: 'full'}, actor)) as JsonObject
+    ).data;
+    const ops = plan.steps[0].arguments.payload.mutate_operations as JsonObject[];
+    assert.equal(plan.steps[0].arguments.payload.partial_failure, false);
+    assert.deepEqual(
+      ops.map(o => Object.keys(o)[0]),
+      [
+        'campaign_budget_operation',
+        'campaign_operation',
+        'campaign_criterion_operation',
+        'campaign_criterion_operation',
+        'campaign_criterion_operation',
+        'ad_group_operation',
+        'ad_group_criterion_operation',
+        'ad_group_criterion_operation',
+        'ad_group_ad_operation',
+      ],
+    );
+    const create = (i: number) => (Object.values(ops[i]!)[0] as JsonObject).create;
+    assert.equal(create(0).resource_name, 'customers/123/campaignBudgets/-1');
+    assert.equal(create(0).amount_micros, '60000000', 'the change is in the build');
+    assert.equal(create(1).resource_name, 'customers/123/campaigns/-2');
+    assert.equal(create(1).campaign_budget, 'customers/123/campaignBudgets/-1');
+    assert.equal(create(2).campaign, 'customers/123/campaigns/-2');
+    assert.equal(create(5).resource_name, 'customers/123/adGroups/-3');
+    assert.equal(create(6).ad_group, 'customers/123/adGroups/-3');
+    assert.equal(create(8).ad_group, 'customers/123/adGroups/-3');
+    assert.ok(!JSON.stringify(ops).includes('$ref'));
+    assert.equal(g.writes.length, 0);
+  } finally {
+    g.store.close();
+  }
+});
+
+test('the cloned build is approved once and runs as one request; every resource is read back', async () => {
+  const g = googleSource();
+  try {
+    const r = await g.call({});
+    const call = (input: JsonObject) => g.service.call('amcp_campaign', input, actor) as Promise<JsonObject>;
+    const summary = (await call(r.data.next_call.arguments)).data;
+    const approved = await call({...summary.next_call.arguments, ...summary.next_call.add_after_user_approval});
+    assert.equal(approved.success, true, JSON.stringify(approved).slice(0, 800));
+    const ran = await call({action: 'run', id: r.data.id});
+    assert.equal(ran.success, true, JSON.stringify(ran).slice(0, 1200));
+    assert.equal(ran.data.state, 'complete', JSON.stringify(ran.data).slice(0, 1500));
+    assert.deepEqual(ran.data.run.executed, ['build']);
+    assert.equal(g.writes.length, 1, 'one googleAds:mutate');
+    assert.equal(g.created.size, 11, 'budget, campaign, three criteria, two ad groups, three keywords and an ad');
+    const step = ran.data.steps[0];
+    assert.equal(step.verification, 'verified');
+    assert.equal(step.resource_count, 11);
+    // Everything under the paused campaign keeps its status; enabling the campaign is the one activation.
+    const campaign = [...g.created.values()].find(c => c.advertising_channel_type === 'SEARCH')!;
+    assert.equal(campaign.status, 'PAUSED');
+    assert.equal([...g.created.values()].find(c => c.name === 'Brand')!.status, 'ENABLED');
+  } finally {
+    g.store.close();
   }
 });

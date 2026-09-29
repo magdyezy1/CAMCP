@@ -506,3 +506,94 @@ export function applyCloneChanges(steps: Step[], changes: unknown) {
   });
   return {steps: kept, set: applied, dropped: steps.filter(s => gone.has(s.id)).map(s => s.id as string)};
 }
+// The one-service create actions a Google build step may contain, and the operation each becomes in googleAds:mutate.
+const buildOperations: Record<string, {key: string; kind: string}> = {
+  campaign_budget_mutate_campaign_budgets: {key: 'campaign_budget_operation', kind: 'campaignBudgets'},
+  campaign_mutate_campaigns: {key: 'campaign_operation', kind: 'campaigns'},
+  campaign_criterion_mutate_campaign_criteria: {key: 'campaign_criterion_operation', kind: 'campaignCriteria'},
+  ad_group_mutate_ad_groups: {key: 'ad_group_operation', kind: 'adGroups'},
+  ad_group_criterion_mutate_ad_group_criteria: {key: 'ad_group_criterion_operation', kind: 'adGroupCriteria'},
+  ad_group_ad_mutate_ad_group_ads: {key: 'ad_group_ad_operation', kind: 'adGroupAds'},
+};
+/**
+ * A Google plan's create steps as one all-or-nothing step (google-atomic-builds.ts, the owner's decision 1). Each step
+ * a later one references by {$ref: "<step>#/data/results/0/resourceName"} creates its one resource under a temporary
+ * name, and the reference becomes that name; Google creates every resource or none. Steps keep their order, so each
+ * temporary name is created before it is used.
+ */
+export function composeGoogleBuild(steps: Step[], account: string): Step {
+  const temps = new Map<string, string>(),
+    referenced = new Set<string>(),
+    ops: JsonObject[] = [];
+  const refOf = (v: unknown) =>
+    obj(v) && typeof v.$ref === 'string' ? /^([^#]+)#\/data\/results\/0\/resourceName$/.exec(v.$ref)?.[1] : undefined;
+  const scan = (v: unknown): void => {
+    const id = refOf(v);
+    if (id) referenced.add(id);
+    else if (Array.isArray(v)) v.forEach(scan);
+    else if (obj(v)) Object.values(v).forEach(scan);
+  };
+  steps.forEach(s => scan(s.arguments));
+  const resolve = (v: unknown): unknown => {
+    const id = refOf(v);
+    if (id && !temps.has(id))
+      throw new MirrorError(
+        'CLONE_UNSUPPORTED',
+        'A step refers to ' + id + ', which no earlier step of the build creates.',
+        {
+          field: 'atomic',
+        },
+      );
+    if (id) return temps.get(id);
+    if (Array.isArray(v)) return v.map(resolve);
+    return obj(v) ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, resolve(x)])) : v;
+  };
+  steps.forEach(s => {
+    const action = String(s.arguments?.action ?? '').replace(/^google_ads_v\d+_/, ''),
+      op = buildOperations[action],
+      list = s.arguments?.payload?.operations;
+    if (!op || !Array.isArray(list) || list.some(o => !obj(o) || Object.keys(o).join() !== 'create'))
+      throw new MirrorError('CLONE_UNSUPPORTED', 'Step ' + s.id + ' is not a Google create this build can include.', {
+        field: 'atomic',
+      });
+    if (referenced.has(s.id)) {
+      if (list.length !== 1)
+        throw new MirrorError(
+          'CLONE_UNSUPPORTED',
+          'Step ' + s.id + ' is referenced but creates more than one resource.',
+          {
+            field: 'atomic',
+          },
+        );
+      temps.set(s.id, 'customers/' + account + '/' + op.kind + '/-' + (temps.size + 1));
+    }
+    for (const o of list)
+      ops.push({
+        [op.key]: {
+          create: {
+            ...(referenced.has(s.id) ? {resource_name: temps.get(s.id)} : {}),
+            ...(resolve(o.create) as JsonObject),
+          },
+        },
+      });
+  });
+  if (ops.length > 1000)
+    throw new MirrorError(
+      'CLONE_SOURCE_TOO_LARGE',
+      'The copy has ' +
+        ops.length +
+        ' resources; one build creates at most 1,000. Leave some out with changes.drop, or clone with atomic: false.',
+      {field: 'changes.drop'},
+    );
+  const first = steps[0]!;
+  return {
+    id: 'build',
+    kind: 'write',
+    gateway: 'google_ads_native_action',
+    connection_id: first.connection_id,
+    account_id: first.account_id,
+    description: 'Every resource of ' + steps.map(s => s.id).join(', ') + ', created together or not at all.',
+    arguments: {action: 'google_ads_v23_google_ads_mutate', payload: {mutate_operations: ops, partial_failure: false}},
+    depends_on: [],
+  };
+}
