@@ -1,3 +1,5 @@
+import type {ReviewedFamily} from './reviewed-family.js';
+import {assertDV360WriteScope} from './dv360-scope.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import {validateDiscoveryBody} from './discovery-body.js';
@@ -231,3 +233,21 @@ export function dv360AdAssetVerification(
     };
   });
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const dv360AdAssetFamily: ReviewedFamily = {
+  name: 'dv360_ad_assets',
+  files: ['src/dv360-ad-assets.ts', ['tests/dv360-ad-assets.test.mjs']],
+  kind: dv360AdAssetKind,
+  assert: assertDV360AdAsset,
+  snapshots: dv360AdAssetReads,
+  isRead: isDV360AdAssetRead,
+  validateState: validateDV360AdAssetState,
+  snapshotState: dv360AdAssetReviewState,
+  prerequisites: validateDV360AdAssetPrerequisites,
+  impact: dv360AdAssetImpact,
+  outcome: dv360AdAssetOutcome,
+  verification: dv360AdAssetVerification,
+  scope: assertDV360WriteScope,
+  exemptFromSpendTextMatch: true,
+};

@@ -1,12 +1,5 @@
 /** Outcome stage: whether the provider's response to the one mutation shows that it took effect. */
 import {snapUpdateKind, snapUpdateOutcome} from './snapchat-nested-updates.js';
-import {snapPixelNameKind, snapPixelNameOutcome} from './snapchat-pixel-names.js';
-import {snapEventKind, snapEventOutcome} from './snapchat-event-details.js';
-import {snapTemplateKind, snapTemplateOutcome} from './snapchat-dynamic-templates.js';
-import {snapProductSetKind, snapProductSetOutcome} from './snapchat-product-sets.js';
-import {snapConversionKind, snapConversionOutcome} from './snapchat-custom-conversions.js';
-import {snapSegmentDeleteKind, snapSegmentDeleteOutcome} from './snapchat-segment-deletions.js';
-import {snapDisclaimerKind, snapDisclaimerOutcome} from './snapchat-offer-disclaimers.js';
 import {snapchatMediaCopyKind, snapchatMediaCopyOutcome} from './snapchat-media-copy.js';
 import {metaCopyKind, metaCopyOutcome} from './meta-copies.js';
 import {tiktokLookalikeKind} from './tiktok-lookalikes.js';
@@ -47,14 +40,9 @@ import {tiktokNegativeKeywordKind, tiktokNegativeKeywordOutcome} from './tiktok-
 import {tiktokBrandSafetyKind, tiktokBrandSafetyOutcome} from './tiktok-brand-safety.js';
 import {metaValueRuleKind, metaValueRuleOutcome} from './meta-value-rules.js';
 import {metaBrandSafetyKind, metaBrandSafetyOutcome} from './meta-brand-safety.js';
-import {criteoCatalogKind, criteoCatalogOutcome} from './criteo-catalog-requests.js';
 import {criteoOverrideKind, criteoOverrideOutcome} from './criteo-budget-overrides.js';
 import {criteoLineItemKind, criteoLineItemOutcome} from './criteo-auction-line-items.js';
-import {criteoPromotedProductsKind, criteoPromotedProductsOutcome} from './criteo-promoted-products.js';
 import {criteoKeywordKind, criteoBidMultiplierKind, criteoLineItemBiddingOutcome} from './criteo-line-item-bidding.js';
-import {dv360AdAssetKind, dv360AdAssetOutcome} from './dv360-ad-assets.js';
-import {dv360SdfKind, dv360SdfOutcome} from './dv360-sdf-downloads.js';
-import {dv360AdKind, dv360AdOutcome} from './dv360-demand-gen-ads.js';
 import {googleConfigurationKind, googleConfigurationOutcome} from './google-configuration-writes.js';
 import {googleConversionGoalKind, googleConversionGoalOutcome} from './google-conversion-goals.js';
 import {googleBiddingEventKind, googleBiddingEventOutcome} from './google-bidding-events.js';
@@ -164,13 +152,6 @@ function confirmedMutationResult(plan: CompiledRequest, result: TransportResult,
   if (criteoCampaignKind(plan)) return criteoCampaignOutcome(plan, result);
   if (snapUpdateKind(plan)) return snapUpdateOutcome(plan, result);
   if (snapchatMediaCopyKind(plan)) return snapchatMediaCopyOutcome(plan, result);
-  if (snapDisclaimerKind(plan)) return snapDisclaimerOutcome(plan, result);
-  if (snapSegmentDeleteKind(plan)) return snapSegmentDeleteOutcome(plan, result);
-  if (snapConversionKind(plan)) return snapConversionOutcome(plan, result);
-  if (snapProductSetKind(plan)) return snapProductSetOutcome(plan, result);
-  if (snapTemplateKind(plan)) return snapTemplateOutcome(plan, result);
-  if (snapEventKind(plan)) return snapEventOutcome(plan, result);
-  if (snapPixelNameKind(plan)) return snapPixelNameOutcome(plan, result);
   if (xReportKind(plan)) return xReportOutcome(plan, result);
   if (tiktokReportKind(plan)) return tiktokReportOutcome(plan, result);
   if (criteoReportKind(plan)) return criteoReportOutcome(plan, result);
@@ -186,12 +167,7 @@ function confirmedMutationResult(plan: CompiledRequest, result: TransportResult,
   if (metaBrandSafetyKind(plan)) return metaBrandSafetyOutcome(plan, result);
   if (criteoLineItemKind(plan)) return criteoLineItemOutcome(plan, result);
   if (criteoOverrideKind(plan)) return criteoOverrideOutcome(plan, result);
-  if (criteoCatalogKind(plan)) return criteoCatalogOutcome(plan, result);
-  if (criteoPromotedProductsKind(plan)) return criteoPromotedProductsOutcome(plan, result);
   if (criteoKeywordKind(plan) || criteoBidMultiplierKind(plan)) return criteoLineItemBiddingOutcome(plan, result);
-  if (dv360AdAssetKind(plan)) return dv360AdAssetOutcome(plan, result);
-  if (dv360AdKind(plan)) return dv360AdOutcome(plan, result);
-  if (dv360SdfKind(plan)) return dv360SdfOutcome(plan, result);
   if (dv360ListKind(plan)) return dv360ListOutcome(plan, result);
   if (googleConfigurationKind(plan)) return googleConfigurationOutcome(plan, result);
   if (googleAssetLinkKind(plan)) return googleAssetLinkOutcome(plan, result);

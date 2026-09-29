@@ -193,6 +193,11 @@ at the position of the first line it replaced, so the order of the lines still i
 chains start with `readThroughFamilies`, which composes every registered reader. Pass 1 registered 41 families
 and removed 734 lines of wiring from the ten lifecycle modules; pass 2 registered 16 more and removed another 310
 (57 families; reader chains 83 → 42 → 26 and 80 → 39 → 23 levels; named spend-match exemptions 83 → 45 → 32).
+Pass 3 (batch 31) registered 12 more, including the Snapchat families pass 2 left, and removed another 522 lines
+(71 families; 27 → 17 and 23 → 13 nested readers; named exemptions 32 → 20). Its proof replays 46,187 distinct calls
+of eleven lifecycle functions, recorded while the full suite ran on the previous commit, through the new build: 0
+differences. Authorization is not among them, so its order was checked by hand: every authorizer the moved ones now
+follow is guarded by another gateway, kind or read marker.
 `docs/ADDING-A-REVIEWED-FAMILY.md` is the guide, `ROADMAP.md` tracks the rest.
 
 Families whose state reads need their own login binding or observation read through one guarded reader per side

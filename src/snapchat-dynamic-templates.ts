@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -467,3 +468,22 @@ export function snapTemplateVerification(
 export function snapTemplateObserved(_read: CompiledRequest, data: JsonObject): JsonObject {
   return {templates: object(data.templates) ? data.templates : {}};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const snapTemplateFamily: ReviewedFamily = {
+  name: 'snapchat_dynamic_templates',
+  files: ['src/snapchat-dynamic-templates.ts', ['tests/snapchat-dynamic-templates.test.mjs']],
+  kind: snapTemplateKind,
+  assert: assertSnapTemplate,
+  authorize: authorizeSnapTemplate,
+  snapshots: snapTemplateSnapshots,
+  isRead: isSnapTemplateRead,
+  reader: readSnapTemplates,
+  validateState: validateSnapTemplateState,
+  prerequisites: snapTemplatePrerequisites,
+  impact: snapTemplateImpact,
+  outcome: snapTemplateOutcome,
+  verification: snapTemplateVerification,
+  observed: snapTemplateObserved,
+  exemptFromSpendTextMatch: true,
+};

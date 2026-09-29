@@ -67,7 +67,9 @@ test('no ledger route is claimed by two families, registered or still wired in r
     const mod = await import('../dist/src/' + imports.get(m[1]));
     wired.push({name: m[2], kind: mod[m[1]]});
   }
-  assert.ok(wired.length > 50);
+  // Registering a family moves it from `wired` to `families`: together they stay at least the 115 families recognised
+  // one statement each before batch 31, so a regex that stopped finding wired families would fail here.
+  assert.ok(wired.length + families.length >= 115, wired.length + ' wired + ' + families.length + ' registered');
   const all = [...families, ...wired];
   let claimed = 0;
   for (const r of routes) {

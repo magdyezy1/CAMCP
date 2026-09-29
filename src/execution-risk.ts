@@ -14,7 +14,6 @@ import {xTargetingBatchDeletes} from './x-targeting-batch.js';
 import {microsoftGateway, microsoftRead} from './microsoft-native.js';
 import {qualifiedProviderRead} from './provider-read-contracts.js';
 import {criteoTargetingKind} from './criteo-targeting-writes.js';
-import {criteoPromotedProductsKind} from './criteo-promoted-products.js';
 import {googleGenerationKind} from './google-generation.js';
 import {dv360TargetingSearchRoute} from './dv360-targeting-search.js';
 import {googleSegmentRemoval} from './google-custom-segments.js';
@@ -278,7 +277,6 @@ export function applyExecutionRisk(plan: CompiledRequest): CompiledRequest {
       googleRemoval ||
       googleSegmentRemoval(plan) ||
       (!!criteoTargetingKind(plan) && plan.path.endsWith('/delete')) ||
-      criteoPromotedProductsKind(plan) === 'delete' ||
       xCreativeEdit(plan) ||
       dv360ListRemoves(plan) ||
       dv360TargetingRemoves(plan) ||

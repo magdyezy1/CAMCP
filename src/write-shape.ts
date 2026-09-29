@@ -1,13 +1,6 @@
 /** Validation stage: the request shapes each reviewed write family accepts, checked before any read. */
 import {snapUpdateKind, assertSnapUpdate} from './snapchat-nested-updates.js';
 import {pausedParentChildStatuses} from './paused-parents.js';
-import {snapPixelNameKind, assertSnapPixelName} from './snapchat-pixel-names.js';
-import {snapEventKind, assertSnapEvent} from './snapchat-event-details.js';
-import {snapTemplateKind, assertSnapTemplate} from './snapchat-dynamic-templates.js';
-import {snapProductSetKind, assertSnapProductSet} from './snapchat-product-sets.js';
-import {snapConversionKind, assertSnapConversion} from './snapchat-custom-conversions.js';
-import {snapSegmentDeleteKind, assertSnapSegmentDelete} from './snapchat-segment-deletions.js';
-import {snapDisclaimerKind, assertSnapDisclaimers} from './snapchat-offer-disclaimers.js';
 import {snapchatMediaCopyKind, assertSnapchatMediaCopy} from './snapchat-media-copy.js';
 import {assertSnapLeadForms, assertSnapLeadCreativeRefs} from './snapchat-lead-forms.js';
 import {assertSnapSegments, assertSnapSegmentUpdates} from './snapchat-segments.js';
@@ -67,19 +60,14 @@ import {tiktokNegativeKeywordKind, assertTiktokNegativeKeywords} from './tiktok-
 import {tiktokBrandSafetyKind, assertTiktokBrandSafety} from './tiktok-brand-safety.js';
 import {metaValueRuleKind, assertMetaValueRule} from './meta-value-rules.js';
 import {metaBrandSafetyKind, assertMetaBrandSafety} from './meta-brand-safety.js';
-import {criteoCatalogKind, assertCriteoCatalog} from './criteo-catalog-requests.js';
 import {criteoOverrideKind, assertCriteoOverride} from './criteo-budget-overrides.js';
 import {criteoLineItemKind, assertCriteoLineItem} from './criteo-auction-line-items.js';
-import {criteoPromotedProductsKind, assertCriteoPromotedProducts} from './criteo-promoted-products.js';
 import {
   criteoKeywordKind,
   criteoBidMultiplierKind,
   assertCriteoKeywords,
   assertCriteoBidMultipliers,
 } from './criteo-line-item-bidding.js';
-import {dv360AdAssetKind, assertDV360AdAsset} from './dv360-ad-assets.js';
-import {dv360SdfKind, assertDV360Sdf} from './dv360-sdf-downloads.js';
-import {dv360AdKind, assertDV360Ad} from './dv360-demand-gen-ads.js';
 import {assertGoogleConfiguration} from './google-configuration-writes.js';
 import {validateMetaCampaign} from './meta-contracts.js';
 import {validateGoogleRequest} from './google-contracts.js';
@@ -221,29 +209,9 @@ export function assertWriteShape(plan: CompiledRequest) {
     assertCriteoOverride(plan);
     return;
   }
-  if (criteoCatalogKind(plan)) {
-    assertCriteoCatalog(plan);
-    return;
-  }
-  if (criteoPromotedProductsKind(plan)) {
-    assertCriteoPromotedProducts(plan);
-    return;
-  }
   if (criteoKeywordKind(plan) || criteoBidMultiplierKind(plan)) {
     assertCriteoKeywords(plan);
     assertCriteoBidMultipliers(plan);
-    return;
-  }
-  if (dv360AdAssetKind(plan)) {
-    assertDV360AdAsset(plan);
-    return;
-  }
-  if (dv360AdKind(plan)) {
-    assertDV360Ad(plan);
-    return;
-  }
-  if (dv360SdfKind(plan)) {
-    assertDV360Sdf(plan);
     return;
   }
   if (
@@ -286,34 +254,6 @@ export function assertWriteShape(plan: CompiledRequest) {
   }
   if (snapchatMediaCopyKind(plan)) {
     assertSnapchatMediaCopy(plan);
-    return;
-  }
-  if (snapDisclaimerKind(plan)) {
-    assertSnapDisclaimers(plan);
-    return;
-  }
-  if (snapSegmentDeleteKind(plan)) {
-    assertSnapSegmentDelete(plan);
-    return;
-  }
-  if (snapConversionKind(plan)) {
-    assertSnapConversion(plan);
-    return;
-  }
-  if (snapProductSetKind(plan)) {
-    assertSnapProductSet(plan);
-    return;
-  }
-  if (snapTemplateKind(plan)) {
-    assertSnapTemplate(plan);
-    return;
-  }
-  if (snapEventKind(plan)) {
-    assertSnapEvent(plan);
-    return;
-  }
-  if (snapPixelNameKind(plan)) {
-    assertSnapPixelName(plan);
     return;
   }
   if (xReportKind(plan)) {

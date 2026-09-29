@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -446,3 +447,22 @@ export function snapEventVerification(
 export function snapEventObserved(_read: CompiledRequest, data: JsonObject): JsonObject {
   return {events: object(data.events) ? data.events : {}};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const snapEventFamily: ReviewedFamily = {
+  name: 'snapchat_event_details',
+  files: ['src/snapchat-event-details.ts', ['tests/snapchat-event-details.test.mjs']],
+  kind: snapEventKind,
+  assert: assertSnapEvent,
+  authorize: authorizeSnapEvent,
+  snapshots: snapEventSnapshots,
+  isRead: isSnapEventRead,
+  reader: readSnapEvents,
+  validateState: validateSnapEventState,
+  prerequisites: snapEventPrerequisites,
+  impact: snapEventImpact,
+  outcome: snapEventOutcome,
+  verification: snapEventVerification,
+  observed: snapEventObserved,
+  exemptFromSpendTextMatch: true,
+};

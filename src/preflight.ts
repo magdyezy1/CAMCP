@@ -2,12 +2,7 @@ import {snapUpdateKind} from './snapchat-nested-updates.js';
 import {criteoCampaignKind} from './criteo-campaign-writes.js';
 import {criteoLineItemKind} from './criteo-auction-line-items.js';
 import {criteoOverrideNeedsConfirmation} from './criteo-budget-overrides.js';
-import {criteoCatalogKind} from './criteo-catalog-requests.js';
-import {criteoPromotedProductsKind} from './criteo-promoted-products.js';
 import {criteoKeywordKind, criteoBidMultiplierKind, criteoKeywordsWiden} from './criteo-line-item-bidding.js';
-import {dv360AdAssetKind} from './dv360-ad-assets.js';
-import {dv360AdKind, dv360AdNeedsConfirmation} from './dv360-demand-gen-ads.js';
-import {dv360SdfKind} from './dv360-sdf-downloads.js';
 import {metaReportKind} from './meta-insights-jobs.js';
 import {xReportKind} from './x-report-jobs.js';
 import {tiktokReportKind} from './tiktok-report-jobs.js';
@@ -42,13 +37,6 @@ import {googleListingGroupKind} from './google-listing-groups.js';
 import {tiktokNegativeKeywordWidens} from './tiktok-negative-keywords.js';
 import {tiktokBrandSafetyWidens, tiktokBrandSafetyHubKind} from './tiktok-brand-safety.js';
 import {metaValueRuleServing} from './meta-value-rules.js';
-import {snapDisclaimerKind} from './snapchat-offer-disclaimers.js';
-import {snapSegmentDeleteKind} from './snapchat-segment-deletions.js';
-import {snapConversionKind} from './snapchat-custom-conversions.js';
-import {snapProductSetKind} from './snapchat-product-sets.js';
-import {snapTemplateKind} from './snapchat-dynamic-templates.js';
-import {snapEventKind} from './snapchat-event-details.js';
-import {snapPixelNameKind} from './snapchat-pixel-names.js';
 import {metaAccountControlsKind} from './meta-brand-safety.js';
 import {microsoftAssociationWrite} from './microsoft-associations.js';
 import {xPromotion} from './x-creative-writes.js';
@@ -151,11 +139,6 @@ export function authorizeExecution(
         ? 'The new line item carries budgets and bids that apply once products are added and it is activated. Review them and provide spend_change_confirmed=true.'
         : 'A complete line item PUT replaces its budgets, bids, dates and status and can start or change delivery. Review every field and provide spend_change_confirmed=true.',
     );
-  if (dv360AdNeedsConfirmation(plan) && input.spend_change_confirmed !== true)
-    throw new MirrorError(
-      'SPEND_CONFIRMATION_REQUIRED',
-      'An active Demand Gen ad serves once its ad group and line item are active. Review the ad and provide spend_change_confirmed=true.',
-    );
   if (
     (criteoKeywordsWiden(plan) || criteoKeywordKind(plan) === 'bids' || criteoBidMultiplierKind(plan)) &&
     input.spend_change_confirmed !== true
@@ -163,11 +146,6 @@ export function authorizeExecution(
     throw new MirrorError(
       'SPEND_CONFIRMATION_REQUIRED',
       'Keywords that widen delivery, keyword bids and bid multipliers change where and at what price the line item bids. Review them and provide spend_change_confirmed=true.',
-    );
-  if (['append', 'unpause'].includes(criteoPromotedProductsKind(plan)!) && input.spend_change_confirmed !== true)
-    throw new MirrorError(
-      'SPEND_CONFIRMATION_REQUIRED',
-      'Appending or unpausing promoted products, and changing their bid overrides, changes what the line item advertises and at what price. Review the products and provide spend_change_confirmed=true.',
     );
   if (criteoTargetingKind(plan) && input.spend_change_confirmed !== true)
     throw new MirrorError(
@@ -275,20 +253,8 @@ export function authorizeExecution(
     !xReportKind(plan) &&
     !tiktokReportKind(plan) &&
     !criteoReportKind(plan) &&
-    !dv360AdAssetKind(plan) &&
-    !dv360AdKind(plan) &&
     !criteoKeywordKind(plan) &&
     !criteoBidMultiplierKind(plan) &&
-    !criteoPromotedProductsKind(plan) &&
-    !snapDisclaimerKind(plan) &&
-    !criteoCatalogKind(plan) &&
-    !dv360SdfKind(plan) &&
-    !snapSegmentDeleteKind(plan) &&
-    !snapConversionKind(plan) &&
-    !snapProductSetKind(plan) &&
-    !snapTemplateKind(plan) &&
-    !snapEventKind(plan) &&
-    !snapPixelNameKind(plan) &&
     !googlePortfolioKind(plan) &&
     !googleAccessKind(plan) &&
     !googleDismissalKind(plan) &&

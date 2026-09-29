@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -261,3 +262,21 @@ export function snapDisclaimerObserved(read: CompiledRequest, data: JsonObject):
     ),
   };
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const snapDisclaimerFamily: ReviewedFamily = {
+  name: 'snapchat_offer_disclaimers',
+  files: ['src/snapchat-offer-disclaimers.ts', ['tests/snapchat-offer-disclaimers.test.mjs']],
+  kind: snapDisclaimerKind,
+  assert: assertSnapDisclaimers,
+  snapshots: snapDisclaimerSnapshots,
+  isRead: isSnapDisclaimerRead,
+  reader: readSnapDisclaimers,
+  validateState: validateSnapDisclaimerState,
+  prerequisites: snapDisclaimerPrerequisites,
+  impact: snapDisclaimerImpact,
+  outcome: snapDisclaimerOutcome,
+  verification: snapDisclaimerVerification,
+  observed: snapDisclaimerObserved,
+  exemptFromSpendTextMatch: true,
+};

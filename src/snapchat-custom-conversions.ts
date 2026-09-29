@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -365,3 +366,22 @@ export function snapConversionObserved(_read: CompiledRequest, data: JsonObject)
     ...(object(data.conversion) ? {conversion: data.conversion} : {}),
   };
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const snapConversionFamily: ReviewedFamily = {
+  name: 'snapchat_custom_conversions',
+  files: ['src/snapchat-custom-conversions.ts', ['tests/snapchat-custom-conversions.test.mjs']],
+  kind: snapConversionKind,
+  assert: assertSnapConversion,
+  authorize: authorizeSnapConversion,
+  snapshots: snapConversionSnapshots,
+  isRead: isSnapConversionRead,
+  reader: readSnapConversions,
+  validateState: validateSnapConversionState,
+  prerequisites: snapConversionPrerequisites,
+  impact: snapConversionImpact,
+  outcome: snapConversionOutcome,
+  verification: snapConversionVerification,
+  observed: snapConversionObserved,
+  exemptFromSpendTextMatch: true,
+};

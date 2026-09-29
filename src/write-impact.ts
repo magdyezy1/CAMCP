@@ -1,12 +1,5 @@
 import {snapUpdateKind, snapUpdateImpact} from './snapchat-nested-updates.js';
 import {snapchatMediaCopyImpact} from './snapchat-media-copy.js';
-import {snapDisclaimerImpact} from './snapchat-offer-disclaimers.js';
-import {snapSegmentDeleteImpact} from './snapchat-segment-deletions.js';
-import {snapConversionImpact} from './snapchat-custom-conversions.js';
-import {snapProductSetImpact} from './snapchat-product-sets.js';
-import {snapTemplateImpact} from './snapchat-dynamic-templates.js';
-import {snapEventImpact} from './snapchat-event-details.js';
-import {snapPixelNameImpact} from './snapchat-pixel-names.js';
 import {snapSegmentImpact} from './snapchat-segments.js';
 import {tiktokIdentityKind, tiktokIdentityImpact} from './tiktok-identities.js';
 import {metaCopyKind, metaCopyImpact} from './meta-copies.js';
@@ -84,12 +77,7 @@ import {metaValueRuleImpact} from './meta-value-rules.js';
 import {metaBrandSafetyImpact} from './meta-brand-safety.js';
 import {criteoLineItemImpact} from './criteo-auction-line-items.js';
 import {criteoOverrideImpact} from './criteo-budget-overrides.js';
-import {criteoCatalogImpact} from './criteo-catalog-requests.js';
-import {criteoPromotedProductsImpact} from './criteo-promoted-products.js';
 import {criteoLineItemBiddingImpact} from './criteo-line-item-bidding.js';
-import {dv360AdAssetImpact} from './dv360-ad-assets.js';
-import {dv360AdImpact} from './dv360-demand-gen-ads.js';
-import {dv360SdfImpact} from './dv360-sdf-downloads.js';
 import {gtmWorkflowKind} from './gtm-workflow-writes.js';
 import {gtmWorkspaceKind} from './gtm-workspace-writes.js';
 import {stable} from './security.js';
@@ -160,24 +148,10 @@ export function writeImpact(
   if (snapUpdateKind(plan)) return snapUpdateImpact;
   const snapCopy = snapchatMediaCopyImpact(plan, state);
   if (snapCopy) return snapCopy;
-  const snapDisclaimer = snapDisclaimerImpact(plan, state);
-  if (snapDisclaimer) return snapDisclaimer;
-  const snapSegmentDelete = snapSegmentDeleteImpact(plan, state);
-  if (snapSegmentDelete) return snapSegmentDelete;
-  const snapConversion = snapConversionImpact(plan, state);
-  if (snapConversion) return snapConversion;
-  const snapProductSet = snapProductSetImpact(plan, state);
-  if (snapProductSet) return snapProductSet;
   // Registered families (reviewed-families.ts) are consulted here; the lines around this one belong to families not yet registered.
   const family = familyOf(plan),
     familyImpact = family?.impact?.(plan, state);
   if (familyImpact) return familyImpact;
-  const snapTemplate = snapTemplateImpact(plan, state);
-  if (snapTemplate) return snapTemplate;
-  const snapEvent = snapEventImpact(plan, state);
-  if (snapEvent) return snapEvent;
-  const snapPixelName = snapPixelNameImpact(plan, state);
-  if (snapPixelName) return snapPixelName;
   if (metaCopyKind(plan)) return metaCopyImpact(plan, state);
   if (googlePreviewKind(plan)) return googlePreviewImpact;
   if (googleDismissalKind(plan)) return googleDismissalImpact(plan, state);
@@ -264,18 +238,8 @@ export function writeImpact(
   if (criteoLineItem) return criteoLineItem;
   const criteoOverride = criteoOverrideImpact(plan, state);
   if (criteoOverride) return criteoOverride;
-  const criteoCatalog = criteoCatalogImpact(plan, state);
-  if (criteoCatalog) return criteoCatalog;
-  const criteoProducts = criteoPromotedProductsImpact(plan, state);
-  if (criteoProducts) return criteoProducts;
   const criteoBidding = criteoLineItemBiddingImpact(plan, state);
   if (criteoBidding) return criteoBidding;
-  const dv360AdAssets = dv360AdAssetImpact(plan);
-  if (dv360AdAssets) return dv360AdAssets;
-  const dv360Ad = dv360AdImpact(plan, state);
-  if (dv360Ad) return dv360Ad;
-  const dv360Sdf = dv360SdfImpact(plan, state);
-  if (dv360Sdf) return dv360Sdf;
   if (dv360ListKind(plan))
     return {
       provider: 'dv360',

@@ -1,11 +1,4 @@
 import {snapUpdateKind, verifySnapUpdate} from './snapchat-nested-updates.js';
-import {readSnapPixelNames} from './snapchat-pixel-names.js';
-import {readSnapEvents} from './snapchat-event-details.js';
-import {readSnapTemplates} from './snapchat-dynamic-templates.js';
-import {readSnapProductSets} from './snapchat-product-sets.js';
-import {readSnapConversions} from './snapchat-custom-conversions.js';
-import {readSnapSegmentDelete} from './snapchat-segment-deletions.js';
-import {readSnapDisclaimers} from './snapchat-offer-disclaimers.js';
 import {readSnapchatMediaCopy} from './snapchat-media-copy.js';
 import {googlePreviewKind, verifyGooglePreview} from './google-preview-writes.js';
 import {criteoCampaignKind, assertCriteoCampaignScopes, verifyCriteoCampaign} from './criteo-campaign-writes.js';
@@ -77,13 +70,9 @@ import {appleSharedAccounts} from './apple-entity-writes.js';
 import {readDV360List} from './dv360-list-writes.js';
 import {readDV360Targeting} from './dv360-line-item-targeting.js';
 import {readTiktokNegativeKeywords} from './tiktok-negative-keywords.js';
-import {criteoCatalogKind, readCriteoCatalog, assertCriteoCatalogScopes} from './criteo-catalog-requests.js';
 import {criteoOverrideKind, readCriteoOverrides, assertCriteoOverrideScopes} from './criteo-budget-overrides.js';
 import {criteoLineItemKind, readCriteoLineItems, assertCriteoLineItemScopes} from './criteo-auction-line-items.js';
-import {criteoPromotedProductsKind} from './criteo-promoted-products.js';
 import {criteoKeywordKind, criteoBidMultiplierKind} from './criteo-line-item-bidding.js';
-import {dv360SdfKind, readDV360Sdf, assertDV360SdfScope} from './dv360-sdf-downloads.js';
-import {readDV360Ads} from './dv360-demand-gen-ads.js';
 import {readGtmWorkflow} from './gtm-workflow-writes.js';
 import {readGtmWorkspace} from './gtm-workspace-writes.js';
 import {validateState} from './write-state.js';
@@ -187,15 +176,9 @@ export class WriteVerifier {
     if (criteoTargetingKind(plan)) assertCriteoReadScope(c);
     if (metaReportKind(plan)) assertMetaReportScope(c);
     if (criteoCampaignKind(plan)) assertCriteoCampaignScopes(c);
-    if (
-      criteoLineItemKind(plan) ||
-      criteoPromotedProductsKind(plan) ||
-      criteoKeywordKind(plan) ||
-      criteoBidMultiplierKind(plan)
-    )
+    if (criteoLineItemKind(plan) || criteoKeywordKind(plan) || criteoBidMultiplierKind(plan))
       assertCriteoLineItemScopes(c);
     if (criteoOverrideKind(plan)) assertCriteoOverrideScopes(c);
-    if (criteoCatalogKind(plan)) assertCriteoCatalogScopes(c);
     if (criteoReportKind(plan)) assertCriteoReportScopes(c);
     if (placeActionKind(plan)) assertPlaceActionScope(c);
     if (businessNotificationKind(plan)) {
@@ -491,72 +474,40 @@ export class WriteVerifier {
                 let response;
                 try {
                   response = await readThroughFamilies(item.read, familyPage =>
-                    readSnapPixelNames(familyPage, pixelNamePage =>
-                      readSnapEvents(pixelNamePage, eventPage =>
-                        readSnapTemplates(eventPage, templatePage =>
-                          readSnapProductSets(templatePage, productSetPage =>
-                            readSnapConversions(productSetPage, conversionReadPage =>
-                              readDV360Sdf(conversionReadPage, sdfPage =>
-                                readSnapSegmentDelete(sdfPage, segmentDeletePage =>
-                                  readCriteoCatalog(segmentDeletePage, catalogPage =>
-                                    readSnapDisclaimers(catalogPage, disclaimerPage =>
-                                      readCriteoOverrides(disclaimerPage, overridePage =>
-                                        readSnapchatMediaCopy(overridePage, copyPage =>
-                                          readLinkedInRules(copyPage, rulePage =>
-                                            readLinkedInConversions(rulePage, linkPage =>
-                                              readGoogleBidState(linkPage, bidPage =>
-                                                readMetaLabels(bidPage, metaPage =>
-                                                  readCriteoTargeting(metaPage, criteoPage =>
-                                                    readGtmWorkspace(criteoPage, workspacePage =>
-                                                      readGtmWorkflow(workspacePage, gtmPage =>
-                                                        readDV360List(gtmPage, listPage =>
-                                                          readDV360Targeting(listPage, targetingPage =>
-                                                            readTiktokNegativeKeywords(targetingPage, negativePage =>
-                                                              readCriteoLineItems(negativePage, lineItemPage =>
-                                                                readDV360Ads(lineItemPage, async page => {
-                                                                  this.store.assertActorActive(actor);
-                                                                  const latest = this.store.resolveConnection(
-                                                                    actor,
-                                                                    plan.gateway,
-                                                                    plan.accountId,
-                                                                    c.id,
-                                                                  );
-                                                                  if (googleBidKind(plan)) assertGoogleBidScope(latest);
-                                                                  new ScopeGuard(this.registry, this.store).authorize(
-                                                                    page,
-                                                                    latest,
-                                                                  );
-                                                                  const result = await this.request(
-                                                                    actor,
-                                                                    page,
-                                                                    latest,
-                                                                    auth,
-                                                                  );
-                                                                  this.store.assertActorActive(actor);
-                                                                  const current = this.store.resolveConnection(
-                                                                    actor,
-                                                                    plan.gateway,
-                                                                    plan.accountId,
-                                                                    c.id,
-                                                                  );
-                                                                  if (googleBidKind(plan))
-                                                                    assertGoogleBidScope(current);
-                                                                  new ScopeGuard(this.registry, this.store).authorize(
-                                                                    page,
-                                                                    current,
-                                                                  );
-                                                                  return result;
-                                                                }),
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
+                    readCriteoOverrides(familyPage, overridePage =>
+                      readSnapchatMediaCopy(overridePage, copyPage =>
+                        readLinkedInRules(copyPage, rulePage =>
+                          readLinkedInConversions(rulePage, linkPage =>
+                            readGoogleBidState(linkPage, bidPage =>
+                              readMetaLabels(bidPage, metaPage =>
+                                readCriteoTargeting(metaPage, criteoPage =>
+                                  readGtmWorkspace(criteoPage, workspacePage =>
+                                    readGtmWorkflow(workspacePage, gtmPage =>
+                                      readDV360List(gtmPage, listPage =>
+                                        readDV360Targeting(listPage, targetingPage =>
+                                          readTiktokNegativeKeywords(targetingPage, negativePage =>
+                                            readCriteoLineItems(negativePage, async page => {
+                                              this.store.assertActorActive(actor);
+                                              const latest = this.store.resolveConnection(
+                                                actor,
+                                                plan.gateway,
+                                                plan.accountId,
+                                                c.id,
+                                              );
+                                              if (googleBidKind(plan)) assertGoogleBidScope(latest);
+                                              new ScopeGuard(this.registry, this.store).authorize(page, latest);
+                                              const result = await this.request(actor, page, latest, auth);
+                                              this.store.assertActorActive(actor);
+                                              const current = this.store.resolveConnection(
+                                                actor,
+                                                plan.gateway,
+                                                plan.accountId,
+                                                c.id,
+                                              );
+                                              if (googleBidKind(plan)) assertGoogleBidScope(current);
+                                              new ScopeGuard(this.registry, this.store).authorize(page, current);
+                                              return result;
+                                            }),
                                           ),
                                         ),
                                       ),
@@ -667,28 +618,6 @@ export class WriteVerifier {
             const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
             family!.scope?.(current, true, plan);
             for (const id of created) this.store.rememberResource(current, plan.accountId!, id);
-          }
-          if (
-            criteoCatalogKind(plan) &&
-            readback.consistent &&
-            typeof (actual as JsonObject)?.catalog?.id === 'string'
-          ) {
-            const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id);
-            assertCriteoCatalogScopes(current);
-            this.store.rememberResource(current, plan.accountId!, 'catalogs/' + (actual as JsonObject).catalog.id);
-          }
-          // A verified task's operation, and its files once done, become readable for this advertiser.
-          if (
-            dv360SdfKind(plan) &&
-            readback.consistent &&
-            typeof (actual as JsonObject)?.operation?.name === 'string'
-          ) {
-            const current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, c.id),
-              op = (actual as JsonObject).operation;
-            assertDV360SdfScope(current);
-            this.store.rememberResource(current, plan.accountId!, op.name);
-            if (typeof op.resource_name === 'string')
-              this.store.rememberResource(current, plan.accountId!, op.resource_name);
           }
         }
         status = reads.length

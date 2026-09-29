@@ -22,7 +22,6 @@ import {assertGoogleAccessPolicy} from './google-user-access.js';
 import {redditCreativeServing} from './reddit-creative-writes.js';
 import {redditPolicyAmounts} from './reddit-writes.js';
 import {criteoTargetingKind} from './criteo-targeting-writes.js';
-import {criteoPromotedProductsServing} from './criteo-promoted-products.js';
 import {criteoLineItemBiddingServing} from './criteo-line-item-bidding.js';
 import {googleBidKind} from './google-bid-modifiers.js';
 import {googleConversionGoalKind, googleConversionGoalServing} from './google-conversion-goals.js';
@@ -651,7 +650,6 @@ function checkAccountSpendPolicy(
           googleConversionGoalServing(plan) ||
           !!criteoCampaignKind(plan) ||
           !!criteoTargetingKind(plan) ||
-          criteoPromotedProductsServing(plan, before) ||
           criteoLineItemBiddingServing(plan, before) ||
           xPromotion(plan) ||
           familyOf(plan)?.activates?.(plan, before) === true ||

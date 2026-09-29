@@ -1,3 +1,5 @@
+import type {ReviewedFamily} from './reviewed-family.js';
+import {assertDV360WriteScope} from './dv360-scope.js';
 import {MirrorError} from './errors.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -279,3 +281,30 @@ export function dv360SdfVerification(
 export function dv360SdfObserved(_read: CompiledRequest, data: JsonObject): JsonObject {
   return {operation: obj(data.operation) ? data.operation : null};
 }
+/** A verified task's operation, and its files once done, become readable for the advertiser. */
+export function dv360SdfCreated(_p: CompiledRequest, actual: JsonObject): string[] {
+  const op = actual?.operation;
+  if (typeof op?.name !== 'string') return [];
+  return [op.name, ...(typeof op.resource_name === 'string' ? [op.resource_name] : [])];
+}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const dv360SdfFamily: ReviewedFamily = {
+  name: 'dv360_sdf_downloads',
+  files: ['src/dv360-sdf-downloads.ts', ['tests/dv360-sdf-downloads.test.mjs']],
+  kind: dv360SdfKind,
+  assert: assertDV360Sdf,
+  authorize: (p, c, account, store) => authorizeDV360Sdf(p, c, store, account),
+  snapshots: dv360SdfSnapshots,
+  isRead: isDV360SdfRead,
+  reader: readDV360Sdf,
+  validateState: validateDV360SdfState,
+  prerequisites: dv360SdfPrerequisites,
+  impact: dv360SdfImpact,
+  outcome: dv360SdfOutcome,
+  verification: dv360SdfVerification,
+  observed: dv360SdfObserved,
+  scope: assertDV360WriteScope,
+  verifiedResources: dv360SdfCreated,
+  exemptFromSpendTextMatch: true,
+};

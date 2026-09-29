@@ -1,11 +1,4 @@
 import {snapUpdateKind, readSnapUpdateState} from './snapchat-nested-updates.js';
-import {readSnapPixelNames, snapPixelNamePrerequisites} from './snapchat-pixel-names.js';
-import {readSnapEvents, snapEventPrerequisites} from './snapchat-event-details.js';
-import {readSnapTemplates, snapTemplatePrerequisites} from './snapchat-dynamic-templates.js';
-import {readSnapProductSets, snapProductSetPrerequisites} from './snapchat-product-sets.js';
-import {readSnapConversions, snapConversionPrerequisites} from './snapchat-custom-conversions.js';
-import {readSnapSegmentDelete, snapSegmentDeletePrerequisites} from './snapchat-segment-deletions.js';
-import {readSnapDisclaimers, snapDisclaimerPrerequisites} from './snapchat-offer-disclaimers.js';
 import {snapchatMediaCopyPrerequisites, readSnapchatMediaCopy} from './snapchat-media-copy.js';
 import {assertSnapCreativeReferences} from './snapchat-lead-forms.js';
 import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions.js';
@@ -123,12 +116,6 @@ import {validateTiktokBrandSafetyPrerequisites} from './tiktok-brand-safety.js';
 import {validateMetaValueRulePrerequisites} from './meta-value-rules.js';
 import {validateMetaBrandSafetyPrerequisites} from './meta-brand-safety.js';
 import {
-  criteoCatalogKind,
-  assertCriteoCatalogScopes,
-  readCriteoCatalog,
-  criteoCatalogPrerequisites,
-} from './criteo-catalog-requests.js';
-import {
   criteoOverrideKind,
   assertCriteoOverrideScopes,
   readCriteoOverrides,
@@ -140,15 +127,11 @@ import {
   validateCriteoLineItemPrerequisites,
   readCriteoLineItems,
 } from './criteo-auction-line-items.js';
-import {criteoPromotedProductsKind, validateCriteoPromotedProductsPrerequisites} from './criteo-promoted-products.js';
 import {
   criteoKeywordKind,
   criteoBidMultiplierKind,
   validateCriteoLineItemBiddingPrerequisites,
 } from './criteo-line-item-bidding.js';
-import {dv360AdAssetKind, validateDV360AdAssetPrerequisites} from './dv360-ad-assets.js';
-import {dv360SdfKind, readDV360Sdf, dv360SdfPrerequisites} from './dv360-sdf-downloads.js';
-import {dv360AdKind, validateDV360AdPrerequisites, readDV360Ads} from './dv360-demand-gen-ads.js';
 import {validateGoogleConfigurationState} from './google-configuration-writes.js';
 import {checkSpendPolicy, describeExceeded, exceededCaps} from './spend-policy.js';
 import {randomUUID} from 'node:crypto';
@@ -375,15 +358,9 @@ export class WriteReviewService {
     if (criteoTargetingKind(plan)) assertCriteoTargetingScopes(c);
     if (metaReportKind(plan)) assertMetaReportScope(c);
     if (criteoCampaignKind(plan)) assertCriteoCampaignScopes(c, true);
-    if (
-      criteoLineItemKind(plan) ||
-      criteoPromotedProductsKind(plan) ||
-      criteoKeywordKind(plan) ||
-      criteoBidMultiplierKind(plan)
-    )
+    if (criteoLineItemKind(plan) || criteoKeywordKind(plan) || criteoBidMultiplierKind(plan))
       assertCriteoLineItemScopes(c, true);
     if (criteoOverrideKind(plan)) assertCriteoOverrideScopes(c, true);
-    if (criteoCatalogKind(plan)) assertCriteoCatalogScopes(c, criteoCatalogKind(plan));
     if (criteoReportKind(plan)) assertCriteoReportScopes(c, criteoReportKind(plan));
     if (placeActionKind(plan)) assertPlaceActionScope(c);
     if (businessNotificationKind(plan)) assertBusinessNotificationScope(c);
@@ -403,14 +380,7 @@ export class WriteReviewService {
       assertGoogleAdsScope(c);
     if (linkedinConversionKind(plan) || linkedinRuleKind(plan)) assertLinkedInConversionScope(c, true);
     // Registered DV360 families check the scope through their scope hook (dv360-scope.ts).
-    if (
-      dv360ListKind(plan) ||
-      dv360TargetingKind(plan) ||
-      dv360AdAssetKind(plan) ||
-      dv360AdKind(plan) ||
-      dv360SdfKind(plan)
-    )
-      assertDV360WriteScope(c, true);
+    if (dv360ListKind(plan) || dv360TargetingKind(plan)) assertDV360WriteScope(c, true);
     if (plan.gateway === microsoftGateway && !c.scopes.some(s => s === microsoftScope || s === 'msads.manage'))
       fail('INSUFFICIENT_SCOPE', 'Reconnect Microsoft Advertising with msads.manage permission.');
     plan.accountId = id;
@@ -609,57 +579,28 @@ export class WriteReviewService {
       let result: TransportResult;
       try {
         result = await readThroughFamilies(read, familyPage =>
-          readSnapPixelNames(familyPage, pixelNamePage =>
-            readSnapEvents(pixelNamePage, eventPage =>
-              readSnapTemplates(eventPage, templatePage =>
-                readSnapProductSets(templatePage, productSetPage =>
-                  readSnapConversions(productSetPage, conversionReadPage =>
-                    readDV360Sdf(conversionReadPage, sdfPage =>
-                      readSnapSegmentDelete(sdfPage, segmentDeletePage =>
-                        readCriteoCatalog(segmentDeletePage, catalogPage =>
-                          readSnapDisclaimers(catalogPage, disclaimerPage =>
-                            readCriteoOverrides(disclaimerPage, overridePage =>
-                              readSnapchatMediaCopy(overridePage, copyPage =>
-                                readLinkedInRules(copyPage, rulePage =>
-                                  readLinkedInConversions(rulePage, linkPage =>
-                                    readGoogleBidState(linkPage, bidPage =>
-                                      readMetaLabels(bidPage, metaPage =>
-                                        readCriteoTargeting(metaPage, criteoPage =>
-                                          readRedditProfiles(criteoPage, redditPage =>
-                                            readKeywordPlanTree(redditPage, planningPage =>
-                                              readAssetSetContents(planningPage, feedPage =>
-                                                readGtmWorkspace(feedPage, workspacePage =>
-                                                  readGtmWorkflow(workspacePage, gtmPage =>
-                                                    readDV360List(gtmPage, listPage =>
-                                                      readDV360Targeting(listPage, targetingPage =>
-                                                        readTiktokNegativeKeywords(targetingPage, negativePage =>
-                                                          readCriteoLineItems(negativePage, lineItemPage =>
-                                                            readDV360Ads(lineItemPage, async page => {
-                                                              const current = this.access(actor, plan, connectionId);
-                                                              new ScopeGuard(this.registry, this.store).authorize(
-                                                                page,
-                                                                current,
-                                                              );
-                                                              const response = await this.request(
-                                                                actor,
-                                                                plan,
-                                                                page,
-                                                                current,
-                                                                auth,
-                                                              );
-                                                              this.access(actor, plan, connectionId);
-                                                              return response;
-                                                            }),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
+          readCriteoOverrides(familyPage, overridePage =>
+            readSnapchatMediaCopy(overridePage, copyPage =>
+              readLinkedInRules(copyPage, rulePage =>
+                readLinkedInConversions(rulePage, linkPage =>
+                  readGoogleBidState(linkPage, bidPage =>
+                    readMetaLabels(bidPage, metaPage =>
+                      readCriteoTargeting(metaPage, criteoPage =>
+                        readRedditProfiles(criteoPage, redditPage =>
+                          readKeywordPlanTree(redditPage, planningPage =>
+                            readAssetSetContents(planningPage, feedPage =>
+                              readGtmWorkspace(feedPage, workspacePage =>
+                                readGtmWorkflow(workspacePage, gtmPage =>
+                                  readDV360List(gtmPage, listPage =>
+                                    readDV360Targeting(listPage, targetingPage =>
+                                      readTiktokNegativeKeywords(targetingPage, negativePage =>
+                                        readCriteoLineItems(negativePage, async page => {
+                                          const current = this.access(actor, plan, connectionId);
+                                          new ScopeGuard(this.registry, this.store).authorize(page, current);
+                                          const response = await this.request(actor, plan, page, current, auth);
+                                          this.access(actor, plan, connectionId);
+                                          return response;
+                                        }),
                                       ),
                                     ),
                                   ),
@@ -720,14 +661,7 @@ export class WriteReviewService {
     validateMetaLabelPrerequisites(plan, values);
     googleBidPrerequisites(plan, values);
     snapchatMediaCopyPrerequisites(plan, values);
-    snapDisclaimerPrerequisites(plan, values);
-    snapSegmentDeletePrerequisites(plan, values);
-    snapConversionPrerequisites(plan, values);
-    snapProductSetPrerequisites(plan, values);
     familyOf(plan)?.prerequisites?.(plan, values);
-    snapTemplatePrerequisites(plan, values);
-    snapEventPrerequisites(plan, values);
-    snapPixelNamePrerequisites(plan, values);
     linkedinConversionPrerequisites(plan, values);
     linkedinRulePrerequisites(plan, values);
     tiktokAdgroupConversionPrerequisites(plan, values);
@@ -749,12 +683,7 @@ export class WriteReviewService {
     validateMetaBrandSafetyPrerequisites(plan, values);
     validateCriteoLineItemPrerequisites(plan, values);
     criteoOverridePrerequisites(plan, values);
-    criteoCatalogPrerequisites(plan, values);
-    validateCriteoPromotedProductsPrerequisites(plan, values);
     validateCriteoLineItemBiddingPrerequisites(plan, values);
-    validateDV360AdAssetPrerequisites(plan, values);
-    validateDV360AdPrerequisites(plan, values);
-    dv360SdfPrerequisites(plan, values);
     if (appleEntityKind(plan) === 'shared_budget' && !plan.scopeContext?.appleSharedOrgId) {
       const account = object(values[reads.findIndex(r => r.path === '/v1/ad-accounts/' + plan.accountId)]).result;
       const target = object(values[reads.findIndex(r => r.path === plan.path)]).result;

@@ -1,12 +1,5 @@
 /** Snapshot plan stage: the reads that record the state a reviewed write depends on. */
 import {snapUpdateKind, snapUpdateSnapshots} from './snapchat-nested-updates.js';
-import {snapPixelNameKind, snapPixelNameSnapshots} from './snapchat-pixel-names.js';
-import {snapEventKind, snapEventSnapshots} from './snapchat-event-details.js';
-import {snapTemplateKind, snapTemplateSnapshots} from './snapchat-dynamic-templates.js';
-import {snapProductSetKind, snapProductSetSnapshots} from './snapchat-product-sets.js';
-import {snapConversionKind, snapConversionSnapshots} from './snapchat-custom-conversions.js';
-import {snapSegmentDeleteKind, snapSegmentDeleteSnapshots} from './snapchat-segment-deletions.js';
-import {snapDisclaimerKind, snapDisclaimerSnapshots} from './snapchat-offer-disclaimers.js';
 import {snapchatMediaCopyKind, snapchatMediaCopySnapshots} from './snapchat-media-copy.js';
 import {snapLeadDependencyPaths} from './snapchat-lead-forms.js';
 import {snapSegmentDependencyPaths} from './snapchat-segments.js';
@@ -65,14 +58,9 @@ import {tiktokNegativeKeywordKind, tiktokNegativeKeywordReads} from './tiktok-ne
 import {tiktokBrandSafetyKind, tiktokBrandSafetyReads} from './tiktok-brand-safety.js';
 import {metaValueRuleKind, metaValueRuleReads} from './meta-value-rules.js';
 import {metaBrandSafetyKind, metaBrandSafetyReads} from './meta-brand-safety.js';
-import {criteoCatalogKind, criteoCatalogSnapshots} from './criteo-catalog-requests.js';
 import {criteoOverrideKind, criteoOverrideSnapshots} from './criteo-budget-overrides.js';
 import {criteoLineItemKind, criteoLineItemReads} from './criteo-auction-line-items.js';
-import {criteoPromotedProductsKind, criteoPromotedProductsReads} from './criteo-promoted-products.js';
 import {criteoKeywordKind, criteoBidMultiplierKind, criteoLineItemBiddingReads} from './criteo-line-item-bidding.js';
-import {dv360AdAssetKind, dv360AdAssetReads} from './dv360-ad-assets.js';
-import {dv360SdfKind, dv360SdfSnapshots} from './dv360-sdf-downloads.js';
-import {dv360AdKind, dv360AdReads} from './dv360-demand-gen-ads.js';
 import {googleConfigurationKind, googleConfigurationSnapshots} from './google-configuration-writes.js';
 import {googleConversionGoalKind, googleConversionGoalSnapshots} from './google-conversion-goals.js';
 import {googleBiddingEventKind, googleBiddingEventSnapshots} from './google-bidding-events.js';
@@ -100,15 +88,8 @@ import {object, fail, snake} from './write-common.js';
 export function snapshotPlans(plan: CompiledRequest, registry: Registry): CompiledRequest[] {
   if (snapUpdateKind(plan)) return snapUpdateSnapshots(plan);
   if (snapchatMediaCopyKind(plan)) return snapchatMediaCopySnapshots(plan);
-  if (snapDisclaimerKind(plan)) return snapDisclaimerSnapshots(plan);
-  if (snapSegmentDeleteKind(plan)) return snapSegmentDeleteSnapshots(plan);
-  if (snapConversionKind(plan)) return snapConversionSnapshots(plan);
-  if (snapProductSetKind(plan)) return snapProductSetSnapshots(plan);
   const family = familyOf(plan);
   if (family?.snapshots) return family.snapshots(plan);
-  if (snapTemplateKind(plan)) return snapTemplateSnapshots(plan);
-  if (snapEventKind(plan)) return snapEventSnapshots(plan);
-  if (snapPixelNameKind(plan)) return snapPixelNameSnapshots(plan);
   if (googlePreviewKind(plan)) return googlePreviewSnapshots(plan);
   if (placeActionKind(plan)) return placeActionSnapshots(plan);
   if (businessNotificationKind(plan)) return businessNotificationSnapshots(plan);
@@ -142,12 +123,7 @@ export function snapshotPlans(plan: CompiledRequest, registry: Registry): Compil
   if (metaBrandSafetyKind(plan)) return metaBrandSafetyReads(plan);
   if (criteoLineItemKind(plan)) return criteoLineItemReads(plan);
   if (criteoOverrideKind(plan)) return criteoOverrideSnapshots(plan);
-  if (criteoCatalogKind(plan)) return criteoCatalogSnapshots(plan);
-  if (criteoPromotedProductsKind(plan)) return criteoPromotedProductsReads(plan);
   if (criteoKeywordKind(plan) || criteoBidMultiplierKind(plan)) return criteoLineItemBiddingReads(plan);
-  if (dv360AdAssetKind(plan)) return dv360AdAssetReads(plan);
-  if (dv360AdKind(plan)) return dv360AdReads(plan);
-  if (dv360SdfKind(plan)) return dv360SdfSnapshots(plan);
   if (dv360ListKind(plan)) return dv360ListSnapshots(plan);
   if (googleConfigurationKind(plan)) return googleConfigurationSnapshots(plan);
   if (googleAssetLinkKind(plan)) return googleAssetLinkSnapshots(plan);

@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -211,3 +212,21 @@ export function snapSegmentDeleteVerification(
 export function snapSegmentDeleteObserved(_read: CompiledRequest, data: JsonObject): JsonObject {
   return {segment: object(data.segment) ? data.segment : null};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const snapSegmentDeleteFamily: ReviewedFamily = {
+  name: 'snapchat_segment_deletions',
+  files: ['src/snapchat-segment-deletions.ts', ['tests/snapchat-segment-deletions.test.mjs']],
+  kind: snapSegmentDeleteKind,
+  assert: assertSnapSegmentDelete,
+  snapshots: snapSegmentDeleteSnapshots,
+  isRead: isSnapSegmentDeleteRead,
+  reader: readSnapSegmentDelete,
+  validateState: validateSnapSegmentDeleteState,
+  prerequisites: snapSegmentDeletePrerequisites,
+  impact: snapSegmentDeleteImpact,
+  outcome: snapSegmentDeleteOutcome,
+  verification: snapSegmentDeleteVerification,
+  observed: snapSegmentDeleteObserved,
+  exemptFromSpendTextMatch: true,
+};

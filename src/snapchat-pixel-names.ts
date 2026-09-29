@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -284,3 +285,22 @@ export function snapPixelNameVerification(
 export function snapPixelNameObserved(_read: CompiledRequest, data: JsonObject): JsonObject {
   return {pixels: object(data.pixels) ? data.pixels : {}};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const snapPixelNameFamily: ReviewedFamily = {
+  name: 'snapchat_pixel_names',
+  files: ['src/snapchat-pixel-names.ts', ['tests/snapchat-pixel-names.test.mjs']],
+  kind: snapPixelNameKind,
+  assert: assertSnapPixelName,
+  authorize: authorizeSnapPixelName,
+  snapshots: snapPixelNameSnapshots,
+  isRead: isSnapPixelNameRead,
+  reader: readSnapPixelNames,
+  validateState: validateSnapPixelNameState,
+  prerequisites: snapPixelNamePrerequisites,
+  impact: snapPixelNameImpact,
+  outcome: snapPixelNameOutcome,
+  verification: snapPixelNameVerification,
+  observed: snapPixelNameObserved,
+  exemptFromSpendTextMatch: true,
+};

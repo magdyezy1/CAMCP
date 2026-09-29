@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {Store} from './store.js';
@@ -304,3 +305,32 @@ export function criteoCatalogVerification(
 export function criteoCatalogObserved(_read: CompiledRequest, data: JsonObject): JsonObject {
   return {catalog: obj(data.catalog) ? data.catalog : null};
 }
+/** Read scopes to verify; at prepare and execute, the export kinds also need Campaign_Manage. */
+export function criteoCatalogScope(c: Connection, write = false, p?: CompiledRequest): void {
+  assertCriteoCatalogScopes(c, write && p ? criteoCatalogKind(p) : undefined);
+}
+/** A consistently read-back catalog request makes its catalog readable for the account. */
+export function criteoCatalogCreated(_p: CompiledRequest, actual: JsonObject): string[] {
+  return typeof actual?.catalog?.id === 'string' ? ['catalogs/' + actual.catalog.id] : [];
+}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const criteoCatalogFamily: ReviewedFamily = {
+  name: 'criteo_catalog_requests',
+  files: ['src/criteo-catalog-requests.ts', ['tests/criteo-catalog-requests.test.mjs']],
+  kind: criteoCatalogKind,
+  assert: assertCriteoCatalog,
+  authorize: (p, c, account, store) => authorizeCriteoCatalog(p, c, store, account),
+  snapshots: criteoCatalogSnapshots,
+  isRead: isCriteoCatalogRead,
+  reader: readCriteoCatalog,
+  validateState: validateCriteoCatalogState,
+  prerequisites: criteoCatalogPrerequisites,
+  impact: criteoCatalogImpact,
+  outcome: criteoCatalogOutcome,
+  verification: criteoCatalogVerification,
+  observed: criteoCatalogObserved,
+  scope: criteoCatalogScope,
+  verifiedResources: criteoCatalogCreated,
+  exemptFromSpendTextMatch: true,
+};

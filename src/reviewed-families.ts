@@ -1,17 +1,21 @@
 import {MirrorError} from './errors.js';
 import type {Reader, ReviewedFamily} from './reviewed-family.js';
 import type {TransportResult} from './transport.js';
-import type {CompiledRequest} from './types.js';
 import {criteoSegmentFamily} from './criteo-audience-segments.js';
+import {criteoCatalogFamily} from './criteo-catalog-requests.js';
 import {criteoPreferredFamily} from './criteo-preferred-line-items.js';
+import {criteoPromotedProductsFamily} from './criteo-promoted-products.js';
+import {dv360AdAssetFamily} from './dv360-ad-assets.js';
 import {dv360AdvertiserFamily} from './dv360-advertiser-settings.js';
 import {dv360AudienceEditFamily} from './dv360-audience-edits.js';
 import {dv360BiddingFamily} from './dv360-custom-bidding.js';
 import {dv360BiddingFileFamily} from './dv360-custom-bidding-files.js';
 import {dv360AdGroupFamily} from './dv360-demand-gen-ad-groups.js';
+import {dv360AdFamily} from './dv360-demand-gen-ads.js';
 import {dv360InventoryGroupFamily} from './dv360-inventory-source-groups.js';
 import {dv360LineItemBulkFamily} from './dv360-line-item-bulk-update.js';
 import {dv360LineItemDuplicateFamily} from './dv360-line-item-duplicate.js';
+import {dv360SdfFamily} from './dv360-sdf-downloads.js';
 import {googleAtomicFamily} from './google-atomic-builds.js';
 import {googleAutoAssetFamily} from './google-auto-assets.js';
 import {businessAttributeFamily} from './google-business-location-attributes.js';
@@ -44,6 +48,13 @@ import {metaConversionFamily} from './meta-custom-conversions.js';
 import {metaObjectFamily} from './meta-object-edits.js';
 import {metaPixelFamily} from './meta-pixels.js';
 import {metaSplitTestFamily} from './meta-split-tests.js';
+import {snapConversionFamily} from './snapchat-custom-conversions.js';
+import {snapTemplateFamily} from './snapchat-dynamic-templates.js';
+import {snapEventFamily} from './snapchat-event-details.js';
+import {snapDisclaimerFamily} from './snapchat-offer-disclaimers.js';
+import {snapPixelNameFamily} from './snapchat-pixel-names.js';
+import {snapProductSetFamily} from './snapchat-product-sets.js';
+import {snapSegmentDeleteFamily} from './snapchat-segment-deletions.js';
 import {tiktokAudienceEditFamily} from './tiktok-audience-edits.js';
 import {tiktokBlockedWordFamily} from './tiktok-blocked-words.js';
 import {tiktokChangeLogFamily} from './tiktok-change-logs.js';
@@ -61,6 +72,7 @@ import {xMediaFamily} from './x-media-library.js';
 import {xPrerollCtaFamily} from './x-preroll-ctas.js';
 import {xScheduledFamily} from './x-scheduled-tweets.js';
 import {xTrackingTagFamily} from './x-tracking-tags.js';
+import type {CompiledRequest} from './types.js';
 
 /*
  * The reviewed write families registered with the lifecycle. Each lifecycle stage (write-review, write-verification,
@@ -74,15 +86,20 @@ let registered: readonly ReviewedFamily[] | undefined;
 export function reviewedFamilies(): readonly ReviewedFamily[] {
   return (registered ??= Object.freeze([
     criteoSegmentFamily, // criteo_audience_segments
+    criteoCatalogFamily, // criteo_catalog_requests
     criteoPreferredFamily, // criteo_preferred_line_items
+    criteoPromotedProductsFamily, // criteo_promoted_products
+    dv360AdAssetFamily, // dv360_ad_assets
     dv360AdvertiserFamily, // dv360_advertiser_settings
     dv360AudienceEditFamily, // dv360_audience_edits
     dv360BiddingFamily, // dv360_custom_bidding
     dv360BiddingFileFamily, // dv360_custom_bidding_files
     dv360AdGroupFamily, // dv360_demand_gen_ad_groups
+    dv360AdFamily, // dv360_demand_gen_ads
     dv360InventoryGroupFamily, // dv360_inventory_source_groups
     dv360LineItemBulkFamily, // dv360_line_item_bulk_update
     dv360LineItemDuplicateFamily, // dv360_line_item_duplicate
+    dv360SdfFamily, // dv360_sdf_downloads
     googleAtomicFamily, // google_atomic_builds
     googleAutoAssetFamily, // google_auto_assets
     businessAttributeFamily, // google_business_location_attributes
@@ -115,6 +132,13 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     metaObjectFamily, // meta_object_edits
     metaPixelFamily, // meta_pixels
     metaSplitTestFamily, // meta_split_tests
+    snapConversionFamily, // snapchat_custom_conversions
+    snapTemplateFamily, // snapchat_dynamic_templates
+    snapEventFamily, // snapchat_event_details
+    snapDisclaimerFamily, // snapchat_offer_disclaimers
+    snapPixelNameFamily, // snapchat_pixel_names
+    snapProductSetFamily, // snapchat_product_sets
+    snapSegmentDeleteFamily, // snapchat_segment_deletions
     tiktokAudienceEditFamily, // tiktok_audience_edits
     tiktokBlockedWordFamily, // tiktok_blocked_words
     tiktokChangeLogFamily, // tiktok_change_log_tasks

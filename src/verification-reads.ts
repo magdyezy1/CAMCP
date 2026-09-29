@@ -1,42 +1,5 @@
 /** Verification plan: the reads that show a write took effect, what each must contain, and how read-backs compare. */
 import {
-  snapPixelNameKind,
-  snapPixelNameVerification,
-  isSnapPixelNameRead,
-  snapPixelNameObserved,
-} from './snapchat-pixel-names.js';
-import {snapEventKind, snapEventVerification, isSnapEventRead, snapEventObserved} from './snapchat-event-details.js';
-import {
-  snapTemplateKind,
-  snapTemplateVerification,
-  isSnapTemplateRead,
-  snapTemplateObserved,
-} from './snapchat-dynamic-templates.js';
-import {
-  snapProductSetKind,
-  snapProductSetVerification,
-  isSnapProductSetRead,
-  snapProductSetObserved,
-} from './snapchat-product-sets.js';
-import {
-  snapConversionKind,
-  snapConversionVerification,
-  isSnapConversionRead,
-  snapConversionObserved,
-} from './snapchat-custom-conversions.js';
-import {
-  snapSegmentDeleteKind,
-  snapSegmentDeleteVerification,
-  isSnapSegmentDeleteRead,
-  snapSegmentDeleteObserved,
-} from './snapchat-segment-deletions.js';
-import {
-  snapDisclaimerKind,
-  snapDisclaimerVerification,
-  isSnapDisclaimerRead,
-  snapDisclaimerObserved,
-} from './snapchat-offer-disclaimers.js';
-import {
   snapchatMediaCopyKind,
   snapchatMediaCopyVerification,
   isSnapchatMediaCopyCheck,
@@ -161,12 +124,6 @@ import {
   metaBrandSafetyObserved,
 } from './meta-brand-safety.js';
 import {
-  criteoCatalogKind,
-  criteoCatalogVerification,
-  isCriteoCatalogRead,
-  criteoCatalogObserved,
-} from './criteo-catalog-requests.js';
-import {
   criteoOverrideKind,
   criteoOverrideVerification,
   isCriteoOverrideRead,
@@ -178,15 +135,11 @@ import {
   isCriteoLineItemRead,
   criteoLineItemObserved,
 } from './criteo-auction-line-items.js';
-import {criteoPromotedProductsKind, criteoPromotedProductsVerification} from './criteo-promoted-products.js';
 import {
   criteoKeywordKind,
   criteoBidMultiplierKind,
   criteoLineItemBiddingVerification,
 } from './criteo-line-item-bidding.js';
-import {dv360AdAssetKind, dv360AdAssetVerification} from './dv360-ad-assets.js';
-import {dv360SdfKind, dv360SdfVerification, isDV360SdfRead, dv360SdfObserved} from './dv360-sdf-downloads.js';
-import {dv360AdKind, dv360AdVerification, isDV360AdRead, dv360AdObserved} from './dv360-demand-gen-ads.js';
 import {gtmWorkflowKind, gtmWorkflowVerification, gtmWorkflowObserved} from './gtm-workflow-writes.js';
 import {gtmWorkspaceKind, gtmWorkspaceVerification, gtmWorkspaceObserved} from './gtm-workspace-writes.js';
 import {snapshotPlans} from './write-snapshots.js';
@@ -253,20 +206,8 @@ export function verificationReads(
   if (metaBrandSafetyKind(plan)) return metaBrandSafetyVerification(plan, result);
   if (criteoLineItemKind(plan)) return criteoLineItemVerification(plan, result, before);
   if (criteoOverrideKind(plan)) return criteoOverrideVerification(plan);
-  if (criteoCatalogKind(plan)) return criteoCatalogVerification(plan, result);
-  if (criteoPromotedProductsKind(plan)) return criteoPromotedProductsVerification(plan);
   if (criteoKeywordKind(plan) || criteoBidMultiplierKind(plan)) return criteoLineItemBiddingVerification(plan);
-  if (dv360AdAssetKind(plan)) return dv360AdAssetVerification(plan, result);
-  if (dv360AdKind(plan)) return dv360AdVerification(plan, result, before);
-  if (dv360SdfKind(plan)) return dv360SdfVerification(plan, result);
   if (snapchatMediaCopyKind(plan)) return snapchatMediaCopyVerification(plan, result, before);
-  if (snapDisclaimerKind(plan)) return snapDisclaimerVerification(plan, result);
-  if (snapSegmentDeleteKind(plan)) return snapSegmentDeleteVerification(plan);
-  if (snapConversionKind(plan)) return snapConversionVerification(plan, result);
-  if (snapProductSetKind(plan)) return snapProductSetVerification(plan, result, before);
-  if (snapTemplateKind(plan)) return snapTemplateVerification(plan, result);
-  if (snapEventKind(plan)) return snapEventVerification(plan, result);
-  if (snapPixelNameKind(plan)) return snapPixelNameVerification(plan);
   if (googleConfigurationKind(plan)) return googleConfigurationVerification(plan, result);
   if (googleAssetLinkKind(plan)) return googleAssetLinkVerification(plan);
   if (microsoftAssociationWrite(plan)) return microsoftAssociationVerification(plan, compileMicrosoft);
@@ -554,17 +495,7 @@ export function entity(plan: CompiledRequest, data: JsonObject): JsonObject {
   if (isMetaBrandSafetyRead(plan)) return metaBrandSafetyObserved(plan, data);
   if (isCriteoLineItemRead(plan)) return criteoLineItemObserved(plan, data);
   if (isCriteoOverrideRead(plan)) return criteoOverrideObserved(plan, data);
-  if (isCriteoCatalogRead(plan)) return criteoCatalogObserved(plan, data);
-  if (isDV360AdRead(plan)) return dv360AdObserved(plan, data);
-  if (isDV360SdfRead(plan)) return dv360SdfObserved(plan, data);
   if (isSnapchatMediaCopyCheck(plan)) return snapchatMediaCopyObserved(plan, data);
-  if (isSnapDisclaimerRead(plan)) return snapDisclaimerObserved(plan, data);
-  if (isSnapSegmentDeleteRead(plan)) return snapSegmentDeleteObserved(plan, data);
-  if (isSnapConversionRead(plan)) return snapConversionObserved(plan, data);
-  if (isSnapProductSetRead(plan)) return snapProductSetObserved(plan, data);
-  if (isSnapTemplateRead(plan)) return snapTemplateObserved(plan, data);
-  if (isSnapEventRead(plan)) return snapEventObserved(plan, data);
-  if (isSnapPixelNameRead(plan)) return snapPixelNameObserved(plan, data);
   if (plan.gateway === 'google_ads_native_action')
     return googleConfigurationObserved(plan, Object.values(data.results?.[0] ?? {})[0] as JsonObject);
   if (plan.gateway === microsoftGateway) return data[microsoftContracts.get(plan.action)!.result]?.[0];

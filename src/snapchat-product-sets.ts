@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -637,3 +638,22 @@ export function snapProductSetVerification(
 export function snapProductSetObserved(_read: CompiledRequest, data: JsonObject): JsonObject {
   return {sets: object(data.sets) ? data.sets : {}};
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const snapProductSetFamily: ReviewedFamily = {
+  name: 'snapchat_product_sets',
+  files: ['src/snapchat-product-sets.ts', ['tests/snapchat-product-sets.test.mjs']],
+  kind: snapProductSetKind,
+  assert: assertSnapProductSet,
+  authorize: authorizeSnapProductSet,
+  snapshots: snapProductSetSnapshots,
+  isRead: isSnapProductSetRead,
+  reader: readSnapProductSets,
+  validateState: validateSnapProductSetState,
+  prerequisites: snapProductSetPrerequisites,
+  impact: snapProductSetImpact,
+  outcome: snapProductSetOutcome,
+  verification: snapProductSetVerification,
+  observed: snapProductSetObserved,
+  exemptFromSpendTextMatch: true,
+};

@@ -1,3 +1,4 @@
+import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -274,3 +275,26 @@ export function criteoPromotedProductsVerification(
     },
   ];
 }
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const criteoPromotedProductsFamily: ReviewedFamily = {
+  name: 'criteo_promoted_products',
+  files: ['src/criteo-promoted-products.ts', ['tests/criteo-promoted-products.test.mjs']],
+  kind: criteoPromotedProductsKind,
+  assert: assertCriteoPromotedProducts,
+  authorize: (p, c, account, store) => authorizeCriteoPromotedProducts(p, c, store, account),
+  snapshots: criteoPromotedProductsReads,
+  prerequisites: validateCriteoPromotedProductsPrerequisites,
+  impact: criteoPromotedProductsImpact,
+  outcome: criteoPromotedProductsOutcome,
+  verification: criteoPromotedProductsVerification,
+  scope: (c, write) => assertCriteoLineItemScopes(c, write),
+  spendConfirmation: {
+    needed: p => ['append', 'unpause'].includes(criteoPromotedProductsKind(p) as string),
+    message:
+      'Appending or unpausing promoted products, and changing their bid overrides, changes what the line item advertises and at what price. Review the products and provide spend_change_confirmed=true.',
+  },
+  activates: criteoPromotedProductsServing,
+  destructive: p => criteoPromotedProductsKind(p) === 'delete',
+  exemptFromSpendTextMatch: true,
+};

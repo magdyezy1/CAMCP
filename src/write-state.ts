@@ -1,11 +1,4 @@
 /** State validation stage: what a snapshot read must show before a write is prepared or executed. */
-import {isSnapPixelNameRead, validateSnapPixelNameState} from './snapchat-pixel-names.js';
-import {isSnapEventRead, validateSnapEventState} from './snapchat-event-details.js';
-import {isSnapTemplateRead, validateSnapTemplateState} from './snapchat-dynamic-templates.js';
-import {isSnapProductSetRead, validateSnapProductSetState} from './snapchat-product-sets.js';
-import {isSnapConversionRead, validateSnapConversionState} from './snapchat-custom-conversions.js';
-import {isSnapSegmentDeleteRead, validateSnapSegmentDeleteState} from './snapchat-segment-deletions.js';
-import {isSnapDisclaimerRead, validateSnapDisclaimerState} from './snapchat-offer-disclaimers.js';
 import {isSnapchatMediaCopyRead, validateSnapchatMediaCopyState} from './snapchat-media-copy.js';
 import {tiktokImageInfoPath} from './tiktok-identities.js';
 import {metaCopyChildrenRead} from './meta-copies.js';
@@ -35,12 +28,8 @@ import {isTiktokNegativeKeywordRead, validateTiktokNegativeKeywordState} from '.
 import {isTiktokBrandSafetyRead, validateTiktokBrandSafetyState} from './tiktok-brand-safety.js';
 import {isMetaValueRuleRead, validateMetaValueRuleState} from './meta-value-rules.js';
 import {isMetaBrandSafetyRead, validateMetaBrandSafetyState} from './meta-brand-safety.js';
-import {isCriteoCatalogRead, validateCriteoCatalogState} from './criteo-catalog-requests.js';
 import {isCriteoOverrideRead, validateCriteoOverrideState} from './criteo-budget-overrides.js';
 import {isCriteoLineItemRead, validateCriteoLineItemState} from './criteo-auction-line-items.js';
-import {isDV360AdAssetRead, validateDV360AdAssetState} from './dv360-ad-assets.js';
-import {isDV360SdfRead, validateDV360SdfState} from './dv360-sdf-downloads.js';
-import {isDV360AdRead, validateDV360AdState} from './dv360-demand-gen-ads.js';
 import {type TransportResult} from './transport.js';
 import {normalizeAccount} from './scope.js';
 import {stable} from './security.js';
@@ -95,52 +84,8 @@ export function validateState(read: CompiledRequest, result: TransportResult): v
     validateCriteoOverrideState(read, result);
     return;
   }
-  if (isCriteoCatalogRead(read)) {
-    validateCriteoCatalogState(read, result);
-    return;
-  }
-  if (isDV360AdAssetRead(read)) {
-    validateDV360AdAssetState(read, result);
-    return;
-  }
-  if (isDV360AdRead(read)) {
-    validateDV360AdState(read, result);
-    return;
-  }
   if (isSnapchatMediaCopyRead(read)) {
     validateSnapchatMediaCopyState(read, result);
-    return;
-  }
-  if (isSnapDisclaimerRead(read)) {
-    validateSnapDisclaimerState(read, result);
-    return;
-  }
-  if (isSnapSegmentDeleteRead(read)) {
-    validateSnapSegmentDeleteState(read, result);
-    return;
-  }
-  if (isSnapConversionRead(read)) {
-    validateSnapConversionState(read, result);
-    return;
-  }
-  if (isSnapProductSetRead(read)) {
-    validateSnapProductSetState(read, result);
-    return;
-  }
-  if (isSnapTemplateRead(read)) {
-    validateSnapTemplateState(read, result);
-    return;
-  }
-  if (isSnapEventRead(read)) {
-    validateSnapEventState(read, result);
-    return;
-  }
-  if (isSnapPixelNameRead(read)) {
-    validateSnapPixelNameState(read, result);
-    return;
-  }
-  if (isDV360SdfRead(read)) {
-    validateDV360SdfState(read, result);
     return;
   }
   if (isLinkedInLeadFormRead(read)) {

@@ -1,3 +1,5 @@
+import type {ReviewedFamily} from './reviewed-family.js';
+import {assertDV360WriteScope} from './dv360-scope.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import {validateDiscoveryBody} from './discovery-body.js';
@@ -521,3 +523,32 @@ export function dv360AdVerification(
 export function dv360AdObserved(_read: CompiledRequest, data: JsonObject): JsonObject {
   return {ad: obj(data.ad) ? data.ad : null};
 }
+/** The part of a marked read kept as review state. */
+export function dv360AdSnapshotState(_read: CompiledRequest, d: JsonObject): JsonObject {
+  return dv360AdReviewState(d);
+}
+
+/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+export const dv360AdFamily: ReviewedFamily = {
+  name: 'dv360_demand_gen_ads',
+  files: ['src/dv360-demand-gen-ads.ts', ['tests/dv360-demand-gen-ads.test.mjs']],
+  kind: dv360AdKind,
+  assert: assertDV360Ad,
+  snapshots: dv360AdReads,
+  isRead: isDV360AdRead,
+  reader: readDV360Ads,
+  validateState: validateDV360AdState,
+  snapshotState: dv360AdSnapshotState,
+  prerequisites: validateDV360AdPrerequisites,
+  impact: dv360AdImpact,
+  outcome: dv360AdOutcome,
+  verification: dv360AdVerification,
+  observed: dv360AdObserved,
+  scope: assertDV360WriteScope,
+  spendConfirmation: {
+    needed: dv360AdNeedsConfirmation,
+    message:
+      'An active Demand Gen ad serves once its ad group and line item are active. Review the ad and provide spend_change_confirmed=true.',
+  },
+  exemptFromSpendTextMatch: true,
+};
