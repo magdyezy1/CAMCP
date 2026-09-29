@@ -16,19 +16,25 @@ const cases = [
   [
     'linkedin_native_action',
     'linkedin_rest_creatives_post',
-    {},
+    {payload: {}},
     /linkedin_rest_ad_accounts_ad_account_id_creatives_post/,
   ],
   [
     'linkedin_native_action',
     'linkedin_rest_ad_campaigns_post',
-    {},
+    {payload: {}},
     /linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post/,
+  ],
+  [
+    'x_ads_native_action',
+    'x_accounts_account_id_targeting_criteria_targeting_criterion_id_put',
+    {params: {targeting_criterion_id: 'dpl3a6'}, payload: {}},
+    /delete it and create the new one/,
   ],
   [
     'tiktok_native_action',
     'tiktok_creative_portfolio_delete',
-    {advertiser_id: '1', creative_portfolio_ids: ['2']},
+    {payload: {advertiser_id: '1', creative_portfolio_ids: ['2']}},
     /no delete/,
   ],
 ];
@@ -45,10 +51,10 @@ test('the refusal of a withheld write carries its reason, before any request', a
       }),
     );
   try {
-    for (const [gateway, action, payload, reason] of cases) {
+    for (const [gateway, action, args, reason] of cases) {
       const r = await service.call(
         'amcp_write',
-        {action: 'inspect', gateway, arguments: {action, account_id: '1', payload}},
+        {action: 'inspect', gateway, arguments: {action, account_id: '1', ...args}},
         actor,
       );
       assert.equal(r.data?.review_contract_supported ?? false, false, action);

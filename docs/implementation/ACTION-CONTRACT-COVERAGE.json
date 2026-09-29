@@ -72735,7 +72735,7 @@
       "path": "/12/accounts/{account_id}/targeting_criteria/{targeting_criterion_id}",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Not documented: docs.x.com's Campaign Management reference (read 2026-09-29) gives targeting criteria a read, a create, a batch create and a delete, and no update. To change a criterion, delete it and create the new one with the reviewed targeting writes.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"

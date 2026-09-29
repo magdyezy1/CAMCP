@@ -7,6 +7,8 @@
 const evidenceWithheld: Record<string, string> = {
   'tiktok_native_action tiktok_creative_portfolio_delete':
     "Blocked on evidence: TikTok's official SDK (tiktok/tiktok-business-api-sdk, 2026-02-28) defines portfolio create, get and list but no delete, and TikTok's documentation pages render only in a browser, so which portfolios can be deleted and what becomes of ads using them is unread.",
+  'x_ads_native_action x_accounts_account_id_targeting_criteria_targeting_criterion_id_put':
+    "Not documented: docs.x.com's Campaign Management reference (read 2026-09-29) gives targeting criteria a read, a create, a batch create and a delete, and no update. To change a criterion, delete it and create the new one with the reviewed targeting writes.",
   'x_ads_native_action x_stats_jobs_accounts_account_id_delete':
     "Blocked on evidence: docs.x.com's analytics page (read 2026-09-29) no longer documents deleting an asynchronous job, and the earlier reference placed the job ID in the path (stats/jobs/accounts/:account_id/:job_id), which the captured route lacks.",
 };
