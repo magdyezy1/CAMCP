@@ -199,7 +199,7 @@ const graph = (p: CompiledRequest, path: string, query: JsonObject, page: Page =
   responseControls: undefined,
   specialTransport: undefined,
 });
-const setFields = 'id,name,filter,retailer_id,product_count,product_catalog{id}',
+const setFields = 'id,name,filter,retailer_id,product_catalog{id}',
   catalogFields = metaCatalogFields,
   adSetFields = 'id,name,status,promoted_object',
   creativeFields = 'id,name,status,product_set_id';
@@ -249,10 +249,9 @@ export function authorizeMetaProductSet(p: CompiledRequest, c: Connection, selec
     if (p.path === catalog + '/product_sets') return paged(setFields);
     if (p.path === catalog + '/products')
       return (
-        keys === 'fields,filter,limit,summary' &&
+        keys === 'fields,filter,limit' &&
         p.query.fields === 'id' &&
         String(p.query.limit) === '1' &&
-        p.query.summary === 'true' &&
         typeof p.query.filter === 'string'
       );
   }
@@ -286,7 +285,6 @@ const setView = (x: JsonObject) => ({
   name: x.name ?? null,
   filter: filterValue(x.filter),
   retailer_id: x.retailer_id ?? null,
-  product_count: x.product_count === undefined ? null : Number(x.product_count),
   catalog_id: object(x.product_catalog) && x.product_catalog.id !== undefined ? String(x.product_catalog.id) : null,
 });
 /**
@@ -361,7 +359,7 @@ export async function readMetaProductSets(
         graph(
           p,
           catalogId + '/products',
-          {filter: JSON.stringify(JSON.parse(s.filter)), fields: 'id', limit: 1, summary: 'true'},
+          {filter: JSON.stringify(JSON.parse(s.filter)), fields: 'id', limit: 1},
           {catalog: catalogId},
         ),
       );
@@ -373,9 +371,9 @@ export async function readMetaProductSets(
     if (r) {
       if (r.status !== 200 || !object(r.data) || !Array.isArray(r.data.data))
         unverified('Meta did not list the matching products.');
-      const total = object(r.data.summary) ? Number(r.data.summary.total_count) : NaN;
-      out.matching =
-        Number.isSafeInteger(total) && total >= 0 ? {count: total} : {at_least: (r.data.data as unknown[]).length};
+      // Whether the filter selects anything, not how much: counts change as feeds run, and the review compares its
+      // state again before it executes.
+      out.matching = {any: (r.data.data as unknown[]).length > 0};
     }
   }
   if (s.kind !== 'create' && set) {
@@ -405,7 +403,7 @@ export function validateMetaProductSetState(p: CompiledRequest, r: TransportResu
     d = r.data;
   if (!s || r.status !== 200 || !object(d) || !object(d.set)) unverified('Missing verified product set state.');
 }
-const matchesNone = (m: unknown) => object(m) && (m.count === 0 || m.at_least === 0);
+const matchesNone = (m: unknown) => object(m) && m.any === false;
 export function metaProductSetPrerequisites(p: CompiledRequest, states: unknown[]): void {
   const kind = metaProductSetKind(p);
   if (!kind) return;
@@ -502,11 +500,9 @@ export function metaProductSetImpact(p: CompiledRequest, state: unknown[]): Json
           selects:
             object(filter) && !Object.keys(filter).length
               ? 'Every item of the catalog.'
-              : object(matching) && typeof matching.count === 'number'
-                ? matching.count + ' product(s) of the catalog today.'
-                : object(matching) && matching.at_least === 1
-                  ? 'At least one product of the catalog today.'
-                  : 'No product of the catalog today.',
+              : matchesNone(matching)
+                ? 'No product of the catalog today.'
+                : 'Products of the catalog today (Meta found at least one).',
         }
       : {}),
     ...(kind !== 'create' ? {used_by: s.used_by ?? null} : {}),

@@ -50,7 +50,10 @@ export async function optionalMetaRead(
     throw new MirrorError('INCOMPLETE_STATE', 'Meta did not return the ' + label + '.', {}, 502);
   return r.data as JsonObject;
 }
-export const metaCatalogFields = 'id,name,vertical,product_count,business{id}';
+/**
+ * Counts are left out: feeds change them all the time, and a review compares its state again before it executes.
+ */
+export const metaCatalogFields = 'id,name,vertical,business{id}';
 /** The catalog as a review shows it, from a read with metaCatalogFields. */
 export function metaCatalogView(c: JsonObject | undefined, id: string): JsonObject {
   return c
@@ -59,7 +62,6 @@ export function metaCatalogView(c: JsonObject | undefined, id: string): JsonObje
         id: String(c.id),
         name: c.name ?? null,
         vertical: c.vertical ?? null,
-        product_count: c.product_count === undefined ? null : Number(c.product_count),
         business: object(c.business) && c.business.id !== undefined ? String(c.business.id) : null,
       }
     : {present: false, id};

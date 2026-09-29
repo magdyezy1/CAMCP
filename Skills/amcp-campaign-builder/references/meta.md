@@ -611,9 +611,10 @@ A rule is `{"and": [rules]}`, `{"or": [rules]}` (1–50 rules each, at most 6 le
 `metadata` and `publish_to_shops` (collections and shop publishing) are refused with `INVALID_META_PRODUCT_SET`.
 
 Before a write AMCP reads the catalog and its sets. A name or a filter another set already uses is
-`CONFIGURATION_EXISTS` (Meta error 10803). AMCP then asks Meta how many products the new filter selects, through the
-catalog's product list with the same filter: a filter Meta refuses is `INVALID_META_PRODUCT_SET` with Meta's message,
-before anything is written. A new set that selects nothing carries a warning ("ads tied to an empty product set do not
+`CONFIGURATION_EXISTS` (Meta error 10803). AMCP then asks Meta whether the new filter selects any product, through
+the catalog's product list with the same filter: a filter Meta refuses is `INVALID_META_PRODUCT_SET` with Meta's
+message, before anything is written. Counts are not kept in the review, since feeds change them between prepare and
+execute. A new set that selects nothing carries a warning ("ads tied to an empty product set do not
 deliver"). For a change or deletion AMCP also reads the account's ad sets (`promoted_object.product_set_id`) and
 creatives (`product_set_id`). A change that would leave a set used by active ad sets empty is refused with
 `PRODUCT_SET_EMPTY`. The review lists every ad set and creative that uses the set; other ad accounts sharing the

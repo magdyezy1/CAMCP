@@ -79,7 +79,7 @@ function fixture(options = {}) {
               {status: 400},
             );
           const none = /nomatch/.test(query.filter);
-          return Response.json({data: none ? [] : [{id: '1'}], summary: {total_count: none ? 0 : 7}});
+          return Response.json({data: none ? [] : [{id: '1'}]});
         }
         m = /^\/v26\.0\/(\d+)$/.exec(path);
         if (m && catalogs.has(m[1])) return Response.json(catalogs.get(m[1]));
@@ -135,7 +135,7 @@ function fixture(options = {}) {
       actor,
     );
   const verify = p => service.call('amcp_campaign', {action: 'verify', review_id: p.data.review_id}, actor);
-  return {store, calls, sets, create, update, remove, execute, verify, writes: () => writes};
+  return {store, calls, sets, catalogs, create, update, remove, execute, verify, writes: () => writes};
 }
 const ok = r => {
   assert.equal(r.success, true, JSON.stringify(r).slice(0, 1200));
@@ -150,7 +150,7 @@ test('a product set is created in a catalog of the account business, with what i
     const impact = p.data.creative_impact;
     assert.equal(impact.scope, 'product_set');
     assert.equal(impact.catalog.name, 'Riyadh shop');
-    assert.match(impact.selects, /^7 product/);
+    assert.match(impact.selects, /at least one/);
     assert.match(impact.effect, /ads show it only once/);
     ok(await f.execute(p));
     assert.equal(f.writes(), 1);
@@ -221,6 +221,9 @@ test('a change shows the ad sets that deliver from the set, and never empties a 
       ['221'],
     );
     assert.match(impact.note, /other ad accounts that share the catalog/);
+    // A feed run between prepare and execute changes the counts; the review does not keep them, so it still executes.
+    f.catalogs.get('555').product_count = 41;
+    f.sets.get('7001').product_count = 13;
     ok(await f.execute(p));
     const v = ok(await f.verify(p));
     assert.equal(v.data.status, 'verified', JSON.stringify(v).slice(0, 900));
