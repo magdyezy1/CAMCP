@@ -6,7 +6,7 @@ import {policyWarnings, unprotectedAccounts} from './spend-policy.js';
 import {budgetUnits} from './budget-units.js';
 import {mediaLimitProblem} from './drive-media.js';
 import type {Actor, JsonObject} from './types.js';
-import {ownerAccess, saveSpendPolicy} from './spend-policy.js';
+import {ownerAccess, saveSpendPolicy, workspaceOwner} from './spend-policy.js';
 import {googleAdsVersion} from './google-version.js';
 import {metaApiVersion} from './meta-version.js';
 const writePauseId = 'workspace';
@@ -30,8 +30,41 @@ export function assertWritesNotPaused(store: Store, tenant: string): void {
       423,
     );
 }
+/**
+ * Health for an administrator who does not own the workspace (Snapchat S7): whether each connection works and how
+ * deep each job queue is. No labels, policies, e-mail, storage or backups; those stay the owner's.
+ */
+function administratorHealth(store: Store, tenant: string): JsonObject {
+  return {
+    scope: 'administrator',
+    at: Date.now(),
+    connections: store.listConnections(tenant).map(c => {
+      const expires = store.credentials(tenant, c.id).expiresAt;
+      return {
+        id: c.id,
+        gateway: c.gateway,
+        enabled: c.enabled,
+        account_count: c.accounts.length,
+        needs_attention: !!expires && expires < Date.now() + 86400000,
+      };
+    }),
+    jobs: store.db
+      .prepare('SELECT kind,state,count(*) AS count FROM jobs WHERE tenant_id=? GROUP BY kind,state')
+      .all(tenant),
+    writes_paused: !!writePause(store, tenant),
+    owner_view: 'Policies, e-mail delivery, storage, backups and API versions are in the owner’s health view.',
+  };
+}
 export function ownerOperations(store: Store, input: JsonObject, actor: Actor): JsonObject {
-  ownerAccess(store, actor);
+  store.assertActorActive(actor);
+  if (
+    input.action === 'health' &&
+    actor.testAccount !== true &&
+    actor.role === 'admin' &&
+    !workspaceOwner(store, actor)
+  )
+    return administratorHealth(store, actor.tenantId);
+  ownerAccess(store, actor, String(input.action));
   const tenant = actor.tenantId;
   if (input.action === 'save_spend_policy') return saveSpendPolicy(store, actor, input);
   if (input.action === 'support_bundle') return operationsHealth(store, tenant);

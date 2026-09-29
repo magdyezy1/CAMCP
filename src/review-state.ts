@@ -133,6 +133,18 @@ export function normalizeReviewState(value: unknown, key = ''): unknown {
  * the native container shape for spending/ownership checks and field diagnostics.
  * Flat resource responses have no separate envelope: keep unknown configuration.
  * This is idempotent so saved, unsubmitted reviews can use the same projection. */
+/**
+ * A Snapchat ad account as a review keeps it (Snapchat S9): what a write under it depends on, not its billing centre,
+ * funding sources, cells or invoicing arrangements. The state hash covers these fields, so a change of currency or
+ * status still invalidates a review.
+ */
+export const snapAccountFields = ['id', 'name', 'status', 'currency', 'timezone', 'organization_id', 'type'];
+function snapAccountState(account: unknown): unknown {
+  if (!account || typeof account !== 'object' || Array.isArray(account)) return account;
+  return Object.fromEntries(
+    snapAccountFields.filter(k => Object.hasOwn(account, k)).map(k => [k, (account as JsonObject)[k]]),
+  );
+}
 export function normalizeSnapshot(read: CompiledRequest, data: unknown): unknown {
   if (!data || Array.isArray(data) || typeof data !== 'object') return normalizeReviewState(data);
   const d = data as JsonObject;
@@ -225,7 +237,14 @@ export function normalizeSnapshot(read: CompiledRequest, data: unknown): unknown
       return normalizeReviewState({
         [kind]: d[kind].map((row: JsonObject) =>
           Object.hasOwn(row, singular)
-            ? {[singular]: kind === 'segments' ? snapSegmentState(row[singular]) : row[singular]}
+            ? {
+                [singular]:
+                  kind === 'segments'
+                    ? snapSegmentState(row[singular])
+                    : kind === 'adaccounts'
+                      ? snapAccountState(row[singular])
+                      : row[singular],
+              }
             : row,
         ),
       });

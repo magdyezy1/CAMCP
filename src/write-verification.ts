@@ -238,7 +238,9 @@ export class WriteVerifier {
     let reads: ReturnType<typeof verificationReads> = [],
       status = 'unverified',
       checks: JsonObject[] = [],
-      resources: JsonObject[] = [];
+      resources: JsonObject[] = [],
+      retryUseful = false;
+    const previousChecks: JsonObject[] = Array.isArray(cached?.checks) ? cached.checks : [];
     try {
       if (redditPostCreation(plan)) {
         const verified = await verifyRedditPostCreation(plan, result, reviewId, c, this.store, read =>
@@ -591,15 +593,32 @@ export class WriteVerifier {
               .filter(([, v]) => differing(normalize(v.sent), normalize(v.echoed)).length)
               .map(([k]) => '/' + k);
           const measured = readback.consistent ? measurementVerificationPhase(item.read, actual) : 'inconclusive',
-            phase = measured === 'verified' && unacknowledged.length ? 'inconclusive' : measured;
+            actualHash = fingerprint(actual ?? null),
+            // Every read of this round returned the same differing state. When the previous round saw the same
+            // state too, the disagreement is not propagation: it is a mismatch, and reading again changes nothing.
+            stableReads = !readback.consistent && readback.stable === true,
+            settled =
+              stableReads &&
+              previousChecks.some(
+                (p: JsonObject) => p.resource_id === item.id && p.actual_hash === actualHash && p.stable_reads === true,
+              ),
+            phase = settled ? 'mismatch' : measured === 'verified' && unacknowledged.length ? 'inconclusive' : measured;
+          if (phase === 'inconclusive' && !readback.consistent && !settled) retryUseful = true;
           checks.push({
             resource_id: item.id,
             status: phase,
-            code: phase === 'inconclusive' ? 'VERIFICATION_INCONCLUSIVE' : undefined,
+            code:
+              phase === 'inconclusive'
+                ? 'VERIFICATION_INCONCLUSIVE'
+                : phase === 'mismatch'
+                  ? 'VERIFICATION_MISMATCH'
+                  : undefined,
             read_attempts: readback.attempts,
             changed_fields: changed,
+            ...(phase === 'mismatch' ? {diff: fieldDiff(expected, actual, changed)} : {}),
+            ...(stableReads ? {stable_reads: true} : {}),
             expected_hash: fingerprint(expected),
-            actual_hash: fingerprint(actual ?? null),
+            actual_hash: actualHash,
             checked_fields: Object.keys(expected),
             ...(Object.keys(acknowledged).length
               ? {
@@ -679,7 +698,9 @@ export class WriteVerifier {
               ? 'verified'
               : checks.some(c => c.status === 'pending')
                 ? 'pending'
-                : 'inconclusive'
+                : checks.some(c => c.status === 'mismatch')
+                  ? 'mismatch'
+                  : 'inconclusive'
           : 'unsupported';
       }
     } catch (e) {
@@ -698,14 +719,24 @@ export class WriteVerifier {
       action: plan.action,
       status,
       ...(status === 'inconclusive' ? {code: 'VERIFICATION_INCONCLUSIVE'} : {}),
+      ...(status === 'mismatch' ? {code: 'VERIFICATION_MISMATCH'} : {}),
       checks,
+      // What the operator accepts when accepting the observed state: one hash over every resource read back.
+      ...(['mismatch', 'inconclusive'].includes(status) && checks.every(c => typeof c.actual_hash === 'string')
+        ? {actual_hash: observedHash(checks)}
+        : {}),
       checked_at: Date.now(),
       automatic_retry_of_mutation: false,
       recovery:
         'Preserve successful resources. Field disagreement after bounded reads is inconclusive, not permission to repeat a mutation. Corrective writes need a new review; verification never resets idempotency.',
-      ...(['pending', 'inconclusive'].includes(status)
+      // Another read is suggested only when it can change the answer: never for a mismatch or a missing echo.
+      ...(status === 'pending' || (status === 'inconclusive' && (retryUseful || !reads.length))
         ? {
-            retry_read_after_ms: criteoReportKind(plan) ? 6000 : 1000,
+            retry_read_after_ms: criteoReportKind(plan)
+              ? 6000
+              : checks.some(c => c.stable_reads === true && c.status === 'inconclusive')
+                ? 5000
+                : 1000,
             next_call: {tool: 'amcp_campaign', arguments: {action: 'verify', review_id: reviewId}},
           }
         : {}),
@@ -720,4 +751,25 @@ export class WriteVerifier {
     });
     return receipt;
   }
+}
+/** The fields a mismatch disagrees on, with what was sent and what the provider holds (bounded; provider text). */
+function fieldDiff(expected: unknown, actual: unknown, changed: string[]): JsonObject[] {
+  const at = (v: unknown, path: string) =>
+      path
+        .slice(1)
+        .split('/')
+        .reduce((o: any, k) => (o && typeof o === 'object' ? o[k] : undefined), v),
+    clip = (v: unknown) => {
+      const text = JSON.stringify(v ?? null);
+      return text.length > 300 ? {omitted_bytes: Buffer.byteLength(text)} : (v ?? null);
+    };
+  return changed
+    .slice(0, 20)
+    .map(field => ({field, expected: clip(at(expected, field)), actual: clip(at(actual, field))}));
+}
+/** One hash over every resource a verification read back; with one resource, that resource's own actual_hash. */
+export function observedHash(checks: JsonObject[]): string {
+  return checks.length === 1
+    ? checks[0]!.actual_hash
+    : fingerprint(checks.map(c => [c.resource_id ?? null, c.actual_hash]));
 }

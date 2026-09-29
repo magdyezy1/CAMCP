@@ -10,6 +10,7 @@ import type {JsonObject} from './types.js';
  */
 export const planViewBudget = 11 * 1024; // within 12 KB once the response envelope is added
 const size = (v: unknown) => Buffer.byteLength(JSON.stringify(v));
+const done = (s: JsonObject) => ['verified', 'verified_with_acceptance'].includes(s.status);
 const pick = (o: JsonObject, keys: string[]) =>
   Object.fromEntries(keys.filter(k => o[k] !== undefined).map(k => [k, o[k]]));
 /** The resources a step created or changed, as its verification and receipt name them. */
@@ -48,7 +49,7 @@ function receipt(result: JsonObject, withData: boolean): JsonObject {
 /** A verification receipt with its outcome and per-resource comparison, without the repeated explanations. */
 export function verificationView(v: JsonObject): JsonObject {
   return {
-    ...pick(v, ['status', 'code', 'checked_at']),
+    ...pick(v, ['status', 'code', 'checked_at', 'actual_hash']),
     checks: (v.checks ?? []).map((c: JsonObject) =>
       pick(c, [
         'resource_id',
@@ -57,6 +58,8 @@ export function verificationView(v: JsonObject): JsonObject {
         'message',
         'read_attempts',
         'changed_fields',
+        'diff',
+        'stable_reads',
         'acknowledged_fields',
         'unacknowledged_fields',
         'unobservable_fields',
@@ -109,6 +112,7 @@ export function preflightView(p: JsonObject, brief = false): JsonObject {
     provider_mutations: p.provider_mutations ?? 0,
     checked_steps: checks.filter(c => c.status !== 'blocked').map(c => c.step),
     blocked_steps: blocked,
+    ...(p.warnings?.length ? {warnings: p.warnings} : {}),
     ...(groups.size ? {deferred: [...groups.values()]} : {}),
     ...(checks.some(c => c.assets)
       ? {prerequisites: checks.filter(c => c.assets).map(c => pick(c, ['step', 'assets']))}
@@ -139,7 +143,7 @@ export function compactPlan(run: JsonObject, current?: string, extra: JsonObject
     const rows =
         level < 4
           ? run.steps.map((s: JsonObject) => row(s, level < 2 ? 3 : 1))
-          : run.steps.filter((s: JsonObject) => s.status !== 'verified').map((s: JsonObject) => row(s, 1)),
+          : run.steps.filter((s: JsonObject) => !done(s)).map((s: JsonObject) => row(s, 1)),
       more =
         level >= 3 && Array.isArray(extra.missing_requirements)
           ? {...extra, missing_requirements: grouped(extra.missing_requirements)}
@@ -152,9 +156,7 @@ export function compactPlan(run: JsonObject, current?: string, extra: JsonObject
       state: run.state,
       plan_hash: run.plan_hash,
       steps: rows,
-      ...(level >= 4
-        ? {verified_steps: run.steps.filter((s: JsonObject) => s.status === 'verified').map((s: JsonObject) => s.id)}
-        : {}),
+      ...(level >= 4 ? {verified_steps: run.steps.filter(done).map((s: JsonObject) => s.id)} : {}),
       ...(step ? {current: currentStep(run, step, level)} : {}),
       ...more,
     };

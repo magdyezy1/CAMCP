@@ -30,6 +30,7 @@ import {
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {googleAdsCustomers} from './google-version.js';
 import {metaPrefix} from './meta-version.js';
+import {accountName, rememberAccountMetadata} from './account-metadata.js';
 export const workspaceTool = tool(
   'amcp_workspace',
   'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its change history. Account readiness, capability evidence, approved client defaults/templates, and campaign change history. contracts lists every local action and its read/write/media/blocked contract classification without network calls; filter by gateway/search and paginate with offset/limit. Profiles never grant account access. check performs only provider reads; unsupported/missing evidence stays explicit.',
@@ -382,7 +383,16 @@ export class WorkspaceService {
         access();
         validateState(p, r);
         this.store.resolveConnection(actor, c.gateway, id, c.id);
-        liveAccount = {currency: accountCurrency(c.gateway, r.data), timezone: accountTimezone(c.gateway, r.data)};
+        const currency = accountCurrency(c.gateway, r.data),
+          timezone = accountTimezone(c.gateway, r.data),
+          meta = accountMetadata(c.gateway, r.data);
+        liveAccount = {currency, timezone};
+        rememberAccountMetadata(this.store, actor.tenantId, c.id, id, {
+          currency,
+          timezone,
+          name: accountName(meta),
+          organization_id: meta.organization_id,
+        });
         check('provider_read', true, 'Provider confirmed the exact selected account.');
       } catch (e) {
         check(

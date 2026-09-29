@@ -236,6 +236,18 @@ export const writeTool = {
   },
 };
 /** A guarded-reader binding: the connection's whole login must stay the one the first read used. */
+/** What execute accepts; anything else was frozen at prepare (Snapchat S12). */
+const executeFields = [
+  'action',
+  'review_id',
+  'idempotency_key',
+  'confirmed',
+  'spend_change_confirmed',
+  'cap_override_confirmed',
+  'creative_edit_confirmed',
+  'gateway (the review’s own)',
+  'connection_id (the review’s own)',
+];
 const sameLogin = (message: string) => ({
   value: (credentials: Credentials) => sha256(stable(credentials)),
   changed: (): never => fail('REAUTHORIZATION_REQUIRED', message),
@@ -964,7 +976,8 @@ export class WriteReviewService {
     if (input.arguments !== undefined)
       fail(
         'INVALID_ARGUMENT',
-        'Execute takes only review_id, idempotency_key and confirmation flags; the request was frozen at prepare. Prepare a new review to change it.',
+        'Remove arguments: execute takes review_id, idempotency_key, confirmed and, when execute_requirements lists them, spend_change_confirmed, cap_override_confirmed or creative_edit_confirmed. The request was frozen at prepare; prepare a new review to change it.',
+        {field: 'arguments', accepted: executeFields},
       );
     const review = this.store.document(actor.tenantId, 'write_review', input.review_id);
     if (review.user_id !== actor.userId)
@@ -978,8 +991,19 @@ export class WriteReviewService {
     )
       fail(
         'INVALID_ARGUMENT',
-        'This review is bound to its original gateway and connection. Omit them, or prepare a new review to use another.',
-        {gateway: plan.gateway, connection_id: review.connection_id},
+        'This review is bound to gateway ' +
+          plan.gateway +
+          ' and connection ' +
+          review.connection_id +
+          '; the ' +
+          (input.gateway !== undefined && input.gateway !== plan.gateway ? 'gateway' : 'connection_id') +
+          ' sent differs. Omit gateway and connection_id (repeating the same ones is accepted), or prepare a new review to use another.',
+        {
+          field: input.gateway !== undefined && input.gateway !== plan.gateway ? 'gateway' : 'connection_id',
+          gateway: plan.gateway,
+          connection_id: review.connection_id,
+          accepted: executeFields,
+        },
       );
     this.access(actor, plan, review.connection_id);
     if (input.idempotency_key !== input.review_id)

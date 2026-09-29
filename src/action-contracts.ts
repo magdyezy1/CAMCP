@@ -635,8 +635,17 @@ export function actionContractPage(registry: Registry, input: JsonObject) {
       'INVALID_ARGUMENT',
       'Contract inventory uses offset >= 0, limit 1–100 and search up to 200 characters.',
     );
+  const summary = actionContractSummary(registry);
   if (input.gateway !== undefined && !registry.tools.has(input.gateway))
-    throw new MirrorError('UNKNOWN_GATEWAY', 'Choose a gateway returned in the contract summary.');
+    throw new MirrorError(
+      'UNKNOWN_GATEWAY',
+      'gateway ' +
+        JSON.stringify(String(input.gateway)) +
+        ' is not a gateway. Gateways: ' +
+        summary.map(s => s.gateway).join(', ') +
+        '.',
+      {field: 'gateway', allowed: summary.map(s => s.gateway)},
+    );
   const needle = String(input.search ?? '').toLowerCase(),
     rows = actionContracts(registry).filter(
       r =>
@@ -645,7 +654,8 @@ export function actionContractPage(registry: Registry, input: JsonObject) {
     );
   return {
     network_requests: 0,
-    summary: actionContractSummary(registry),
+    // A page filtered to one gateway summarises that gateway only (Snapchat S10: about 6 KB of every gateway before).
+    summary: input.gateway ? summary.filter(s => s.gateway === input.gateway) : summary,
     total: rows.length,
     offset,
     limit,

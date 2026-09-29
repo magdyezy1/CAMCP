@@ -60,27 +60,43 @@ export const spendPolicyKey = (gateway: string, account: string) =>
  * short-circuit and let them through. They are rejected explicitly rather than by role, so the
  * guard survives any future change to the role the test door issues.
  */
-export function ownerAccess(store: Store, actor: Actor) {
+/** What each owner-only action does, for a refusal that names it (Snapchat S7). */
+const ownerActs: Record<string, string> = {
+  health: 'read the whole workspace health (policies, e-mail, storage and backups)',
+  support_bundle: 'export the support bundle',
+  save_spend_policy: 'change spending policies',
+  save_retention: 'change how long reports are kept',
+  pause_writes: 'pause every write',
+  resume_writes: 'resume writes',
+};
+/** Whether this actor is the workspace owner: an administrator who owns the workspace, or the local administrator. */
+export function workspaceOwner(store: Store, actor: Actor): boolean {
+  if (actor.testAccount === true || actor.role !== 'admin') return false;
+  if (!actor.ownerUserId || actor.membershipRole === 'owner') return true;
+  return !!store.db
+    .prepare("SELECT 1 FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND role='owner' AND active=1")
+    .get(actor.tenantId, actor.ownerUserId);
+}
+export function ownerAccess(store: Store, actor: Actor, action?: string) {
   store.assertActorActive(actor);
+  const act = (action && ownerActs[action]) || 'change safety, spending or retention policies';
   if (actor.testAccount === true)
     throw new MirrorError(
       'OWNER_REQUIRED',
-      'Reviewer test accounts cannot change safety, spending or retention policies.',
-      {},
+      'Reviewer test accounts cannot ' + act + '.',
+      {action: action ?? null},
       403,
     );
-  if (
-    actor.role !== 'admin' ||
-    (actor.ownerUserId &&
-      actor.membershipRole !== 'owner' &&
-      !store.db
-        .prepare("SELECT 1 FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND role='owner' AND active=1")
-        .get(actor.tenantId, actor.ownerUserId))
-  )
+  if (!workspaceOwner(store, actor))
     throw new MirrorError(
       'OWNER_REQUIRED',
-      'Only the workspace owner can change safety and spending policies.',
-      {},
+      'Only the workspace owner can ' +
+        act +
+        '.' +
+        (action === 'health'
+          ? ' Administrators see connection status and job queues; ask one of them or the owner.'
+          : ''),
+      {action: action ?? null, required_role: action === 'health' ? 'owner or administrator' : 'owner'},
       403,
     );
 }
@@ -180,7 +196,7 @@ function effectivePolicy(policy: JsonObject, gateway: string): JsonObject {
   return {...shared, ...((perGateway as JsonObject | undefined)?.[gateway] ?? {})};
 }
 export function saveSpendPolicy(store: Store, actor: Actor, input: JsonObject) {
-  ownerAccess(store, actor);
+  ownerAccess(store, actor, 'save_spend_policy');
   if (input.scope === 'workspace') {
     if (input.confirmed !== true || !input.policy || typeof input.policy !== 'object')
       throw new MirrorError('INVALID_POLICY', 'Confirm a workspace default spending policy.');

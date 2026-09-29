@@ -290,7 +290,9 @@ test('an inconclusive step no longer stalls independent steps, but its dependant
     assert.notEqual(settled.state, 'complete');
     const run = (await f.call('amcp_campaign', {action: 'get', id: created.data.id})).data,
       status = Object.fromEntries(run.steps.map(s => [s.id, s.status]));
-    assert.deepEqual(status, {campaign: 'verifying', squad: 'pending', beta: 'verified'});
+    // The name disagrees the same way on every read, so the campaign settles as a mismatch awaiting the user (S5).
+    // It still holds only its dependant: the independent campaign ran.
+    assert.deepEqual(status, {campaign: 'mismatch', squad: 'pending', beta: 'verified'});
     assert.deepEqual(f.writes, ['POST /v1/adaccounts/acct1/campaigns', 'POST /v1/adaccounts/acct1/campaigns']);
   } finally {
     f.store.close();

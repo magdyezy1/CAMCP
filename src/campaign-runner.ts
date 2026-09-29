@@ -74,6 +74,15 @@ export const campaignTool = tool(
     },
     offset: {type: 'integer', minimum: 0},
     limit: {type: 'integer', minimum: 1, maximum: 100},
+    accept_observed: {
+      type: 'boolean',
+      description:
+        'reconcile_step: the user accepts the state a mismatched step reads back as its result, with actual_hash. Sends nothing to the provider; audited.',
+    },
+    actual_hash: {
+      type: 'string',
+      description: 'reconcile_step with accept_observed: the observed state hash accepted.',
+    },
     patch: {
       type: 'array',
       minItems: 1,
@@ -128,14 +137,21 @@ const structure = (steps: JsonObject[]) =>
   );
 const verificationStepStatus = (status: string) =>
   ['verified', 'failed', 'mismatch'].includes(status) ? status : 'verifying';
-/** While an earlier step only awaits read-back, the first step whose declared predecessors are all verified.
- * Failed, uncertain, mismatched or processing steps still stop the whole plan. */
+/** A step whose result later steps may use: verified, or accepted as observed by the user (Snapchat S5). */
+const settled = (s: JsonObject) => ['verified', 'verified_with_acceptance', 'complete'].includes(s.status);
+const planState = (run: JsonObject, step: JsonObject) =>
+  run.steps.every(settled) ? 'complete' : settled(step) ? 'in_progress' : 'attention';
+/** The call that accepts a mismatched step's observed state; the flag is the user's, never pre-filled. */
+const acceptCall = (run: JsonObject, step: JsonObject) => ({
+  tool: 'amcp_campaign',
+  arguments: {action: 'reconcile_step', id: run.id, step_id: step.id, actual_hash: step.verification.actual_hash},
+  add_after_user_approval: {accept_observed: true},
+});
+/** While an earlier step awaits read-back or the user's decision on a mismatch, the first step whose declared
+ * predecessors are all settled. Failed, uncertain or processing steps still stop the whole plan. */
 function independentStep(run: JsonObject): string | undefined {
-  if (run.steps.some((s: JsonObject) => ['uncertain', 'failed', 'mismatch', 'processing'].includes(s.status)))
-    return undefined;
-  const done = new Set(
-    run.steps.filter((s: JsonObject) => ['verified', 'complete'].includes(s.status)).map((s: JsonObject) => s.id),
-  );
+  if (run.steps.some((s: JsonObject) => ['uncertain', 'failed', 'processing'].includes(s.status))) return undefined;
+  const done = new Set(run.steps.filter(settled).map((s: JsonObject) => s.id));
   for (const status of ['executing', 'review_ready', 'pending']) {
     const step = run.steps.find(
       (s: JsonObject) => s.status === status && s.depends_on.every((d: string) => done.has(d)),
@@ -185,14 +201,18 @@ export class CampaignRunner {
           ' failed before reaching the provider. Amend it with recover_step (next_call); it is prepared and reviewed again, and verified steps are never resubmitted.',
         next_call: amendmentCall(run.id, step, step.error),
       };
-    if (step.status === 'mismatch')
+    if (step.status === 'mismatch') {
+      const fields = [...new Set((step.verification?.checks ?? []).flatMap((c: JsonObject) => c.changed_fields ?? []))];
       return {
         recovery:
           'Step ' +
           step.id +
-          ' was written, but reading it back shows different values (current.verification). AMCP never writes it again on its own. Check the differing fields in the provider; a correction is a new reviewed write.',
-        next_call: null,
+          ' was written, but every read shows the provider holding different values in ' +
+          (fields.join(', ') || 'the fields current.verification lists') +
+          '. Reading again will not change that. If the user agrees the provider’s values are acceptable, accept them (next_call, adding accept_observed: true); nothing is sent. Otherwise a correction is a new reviewed write. Steps that depend on it wait; others continue.',
+        next_call: typeof step.verification?.actual_hash === 'string' ? acceptCall(run, step) : null,
       };
+    }
     return {
       recovery:
         'Step ' +
@@ -205,6 +225,27 @@ export class CampaignRunner {
         claim?.state === 'complete'
           ? {tool: 'amcp_campaign', arguments: {action: 'reconcile_step', id: run.id, step_id: step.id}}
           : null,
+    };
+  }
+  /** What comes after a step's read-back: the next step, another read that can still help, or the user's decision. */
+  private followUp(actor: Actor, run: JsonObject, step: JsonObject): JsonObject {
+    if (step.status === 'mismatch') return {blocked: true, ...this.stopped(actor, run, step)};
+    if (step.status === 'verifying' && step.verification && !step.verification.next_call)
+      return typeof step.verification.actual_hash === 'string'
+        ? {
+            next_call: acceptCall(run, step),
+            decision:
+              'Reading again cannot settle step ' +
+              step.id +
+              ' (current.verification). Accept the observed state if the user agrees, or correct it with a new reviewed write.',
+          }
+        : {next_call: null};
+    return {
+      next_call:
+        run.state === 'complete' ? null : {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
+      ...(step.status === 'verifying' && step.verification?.retry_read_after_ms
+        ? {retry_read_after_ms: step.verification.retry_read_after_ms}
+        : {}),
     };
   }
   /** A plan response: compact unless the caller asks for detail "full" (the stored plan, as before). `full` holds
@@ -450,6 +491,92 @@ export class CampaignRunner {
       return this.respond(input, run, undefined, {notice: 'Already created provider resources remain intact.'});
     }
     if (run.state === 'cancelled') bad('This campaign plan was cancelled.');
+    if (input.action === 'reconcile_step' && input.accept_observed !== undefined) {
+      const ids = run.steps.map((x: JsonObject) => x.id),
+        step = run.steps.find((x: JsonObject) => x.id === input.step_id);
+      if (!step)
+        bad(
+          'step_id ' +
+            JSON.stringify(String(input.step_id ?? '')) +
+            ' is not in this plan. Its steps: ' +
+            ids.join(', ') +
+            '.',
+          'INVALID_ARGUMENT',
+          {field: 'step_id', allowed: ids},
+        );
+      const disagrees =
+        step.kind === 'write' &&
+        typeof step.review_id === 'string' &&
+        (step.status === 'mismatch' ||
+          (step.status === 'verifying' && ['mismatch', 'inconclusive'].includes(step.verification?.status)));
+      if (!disagrees)
+        bad(
+          'Step ' +
+            step.id +
+            ' is ' +
+            step.status +
+            '. Only a written step whose read-back disagrees with what was sent can be accepted as observed.',
+          'RECOVERY_NOT_SAFE',
+          {step_id: step.id, status: step.status},
+        );
+      if (input.accept_observed !== true)
+        bad('Set accept_observed: true once the user accepts the observed state.', 'INVALID_ARGUMENT', {
+          field: 'accept_observed',
+        });
+      if (typeof input.actual_hash !== 'string')
+        bad(
+          'Send actual_hash: the observed state the user accepted (current.verification.actual_hash of step ' +
+            step.id +
+            ').',
+          'INVALID_ARGUMENT',
+          {field: 'actual_hash'},
+        );
+      if (this.claim(actor, step.review_id)?.state !== 'complete')
+        bad('Step ' + step.id + ' has no completed receipt to accept.', 'RECOVERY_NOT_SAFE', {step_id: step.id});
+      // Read it once more: the user accepts the state they saw, not whatever the provider holds by now.
+      const v = await this.verifyWrite(actor, step.review_id);
+      this.store.assertActorActive(actor);
+      step.verification = v;
+      if (v.status === 'verified') {
+        step.status = 'verified';
+        if (v.verified_resources) step.result = {...step.result, verified_resources: v.verified_resources};
+      } else if (v.actual_hash !== input.actual_hash) {
+        step.status = verificationStepStatus(v.status);
+        run.state = planState(run, step);
+        this.save(actor, run);
+        throw new MirrorError(
+          'STATE_CHANGED',
+          'The provider’s state for step ' +
+            step.id +
+            ' changed since that diff: actual_hash is now ' +
+            v.actual_hash +
+            '. Show the user current.verification again before accepting.',
+          {field: 'actual_hash', step_id: step.id, actual_hash: v.actual_hash ?? null},
+          409,
+        );
+      } else {
+        const changed = [...new Set(v.checks.flatMap((c: JsonObject) => c.changed_fields ?? []))];
+        step.status = 'verified_with_acceptance';
+        step.acceptance = {
+          at: Date.now(),
+          by: actor.userId,
+          review_id: step.review_id,
+          actual_hash: v.actual_hash,
+          changed_fields: changed,
+        };
+        audit(this.store, actor, 'campaign_step_accepted', {
+          id: run.id,
+          step_id: step.id,
+          review_id: step.review_id,
+          actual_hash: v.actual_hash,
+          changed_fields: changed,
+        });
+      }
+      delete step.error;
+      run.state = planState(run, step);
+      run = this.save(actor, run);
+      return this.respond(input, run, step.id, this.followUp(actor, run, step));
+    }
     if (input.action === 'reconcile_step') {
       const step = run.steps.find((s: JsonObject) => s.id === input.step_id);
       if (
@@ -481,12 +608,9 @@ export class CampaignRunner {
       }
       this.store.assertActorActive(actor);
       delete step.error;
-      run.state = run.steps.every((s: JsonObject) => s.status === 'verified')
-        ? 'complete'
-        : step.status === 'verified'
-          ? 'in_progress'
-          : 'attention';
-      return this.respond(input, this.save(actor, run), step.id);
+      run.state = planState(run, step);
+      run = this.save(actor, run);
+      return this.respond(input, run, step.id, step.kind === 'write' ? this.followUp(actor, run, step) : {});
     }
     if (input.action === 'recover_step') {
       const ids = run.steps.map((x: JsonObject) => x.id),
@@ -587,7 +711,7 @@ export class CampaignRunner {
       });
     }
     if (['prepare_next', 'execute_next'].includes(input.action))
-      for (const s of run.steps.filter((s: JsonObject) => !['verified', 'complete'].includes(s.status))) {
+      for (const s of run.steps.filter((s: JsonObject) => !settled(s))) {
         const gateway = s.kind === 'media' ? s.arguments.platform + '_native_action' : s.gateway,
           c = this.store.resolveConnection(actor, gateway, s.account_id, s.connection_id);
         assertAccountWrite(this.store, c, normalizeAccount(gateway, s.account_id));
@@ -617,10 +741,14 @@ export class CampaignRunner {
       run = this.save(actor, run);
       if (input.action === 'preflight' || run.preflight.status === 'blocked') return blockedBy(run);
     }
-    let next = run.steps.find((s: JsonObject) => !['verified', 'complete'].includes(s.status));
+    let next = run.steps.find((s: JsonObject) => !settled(s));
     if (!next) return this.respond(input, {...run, state: 'complete'});
-    if (['uncertain', 'failed', 'mismatch'].includes(next.status))
-      return this.respond(input, run, next.id, {blocked: true, ...this.stopped(actor, run, next)});
+    if (['uncertain', 'failed', 'mismatch'].includes(next.status)) {
+      // A mismatch holds only its dependants; the user's decision on it can wait while other steps run.
+      const other = next.status === 'mismatch' ? independentStep(run) : undefined;
+      if (!other) return this.respond(input, run, next.id, {blocked: true, ...this.stopped(actor, run, next)});
+      next = run.steps.find((s: JsonObject) => s.id === other)!;
+    }
     if (next.status === 'processing') {
       const status = await this.call('amcp_media', {action: 'status', review_id: next.review_id}, actor);
       if (!status.success) {
@@ -653,14 +781,13 @@ export class CampaignRunner {
       next.status = verificationStepStatus(v.status);
       if (next.status === 'verified' && v.verified_resources)
         next.result = {...next.result, verified_resources: v.verified_resources};
-      run.state = run.steps.every((s: JsonObject) => s.status === 'verified')
-        ? 'complete'
-        : next.status === 'verified'
-          ? 'in_progress'
-          : 'attention';
-      // A read-back that is still inconclusive or pending must not stall steps that do not depend on it.
-      const other = next.status === 'verifying' ? independentStep(run) : undefined;
-      if (!other) return this.respond(input, this.save(actor, run), next.id);
+      run.state = planState(run, next);
+      // A read-back that is inconclusive, pending or mismatched must not stall steps that do not depend on it.
+      const other = ['verifying', 'mismatch'].includes(next.status) ? independentStep(run) : undefined;
+      if (!other) {
+        run = this.save(actor, run);
+        return this.respond(input, run, next.id, this.followUp(actor, run, next));
+      }
       run = this.save(actor, run);
       next = run.steps.find((s: JsonObject) => s.id === other)!;
     }
@@ -698,15 +825,9 @@ export class CampaignRunner {
             },
           },
         };
-      if (
-        next.depends_on.some(
-          (id: string) => !['verified', 'complete'].includes(run.steps.find((s: JsonObject) => s.id === id).status),
-        )
-      )
+      if (next.depends_on.some((id: string) => !settled(run.steps.find((s: JsonObject) => s.id === id))))
         bad('Wait for predecessor verification.', 'DEPENDENCY_PENDING');
-      const results = new Map<string, JsonObject>(
-        run.steps.filter((s: JsonObject) => s.status === 'verified').map((s: JsonObject) => [s.id, s.result]),
-      );
+      const results = new Map<string, JsonObject>(run.steps.filter(settled).map((s: JsonObject) => [s.id, s.result]));
       const resolved = references(next.arguments, results, new Set(next.depends_on));
       let prepared: JsonObject;
       if (next.kind === 'media')
@@ -766,7 +887,7 @@ export class CampaignRunner {
       if (review.reused === true) {
         next.result = review;
         next.status = 'verified';
-        run.state = run.steps.every((s: JsonObject) => s.status === 'verified') ? 'complete' : 'in_progress';
+        run.state = planState(run, next);
         return this.respond(input, this.save(actor, run), next.id);
       }
       next.review_id = review.review_id;
@@ -857,25 +978,25 @@ export class CampaignRunner {
       if (step.status === 'verified' && step.verification.verified_resources)
         step.result = {...step.result, verified_resources: step.verification.verified_resources};
     }
-    run.state = run.steps.every((s: JsonObject) => s.status === 'verified')
-      ? 'complete'
-      : step.status === 'verified'
-        ? 'in_progress'
-        : 'attention';
+    run.state = planState(run, step);
     run = this.save(actor, run);
     return this.respond(
       input,
       run,
       step.id,
-      {
-        next_call:
-          run.state === 'complete' ? null : {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
-      },
+      step.kind === 'write'
+        ? this.followUp(actor, run, step)
+        : {
+            next_call:
+              run.state === 'complete'
+                ? null
+                : {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
+          },
       {
         receipt: {
-          verified: run.steps.filter((s: JsonObject) => s.status === 'verified').map((s: JsonObject) => s.id),
+          verified: run.steps.filter(settled).map((s: JsonObject) => s.id),
           remaining: run.steps
-            .filter((s: JsonObject) => s.status !== 'verified')
+            .filter((s: JsonObject) => !settled(s))
             .map((s: JsonObject) => ({id: s.id, status: s.status})),
         },
       },

@@ -162,7 +162,8 @@ test('dependants of an amended step still wait until it verifies', async () => {
       rows.map((s: JsonObject) => [s.id, s.status]),
       [
         ['campaign', 'verified'],
-        ['squad_1', 'verifying'],
+        // The read-back disagrees the same way twice, so the step is a mismatch awaiting the user (S5).
+        ['squad_1', 'mismatch'],
         ['squad_2', 'pending'],
       ],
     );

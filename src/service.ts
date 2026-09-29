@@ -68,6 +68,7 @@ import {
   mediaInstructions,
 } from './media-routing.js';
 import {ContractMemory, evidenceForm, providerContractView} from './contract-evidence.js';
+import {accountMetadataStaleMs, recallAccountMetadata} from './account-metadata.js';
 import {googleGenerationKind, googleGenerationResult, validateGoogleGeneration} from './google-generation.js';
 import {
   dv360TargetingSearchRoute,
@@ -958,18 +959,40 @@ export class MirrorService {
               !args.platform || c.gateway.startsWith(args.platform === 'google' ? 'google_ads' : String(args.platform)),
           )
           .flatMap(c =>
-            c.accounts.map(id => ({
-              id,
-              platform: c.gateway,
-              connection_id: c.id,
-              name: c.label,
-              source: 'configured_binding',
-              currency: null,
-              timezone: null,
-              write_enabled:
-                this.policy.allowWrites && actor.role !== 'reader' && c.writeAccounts?.includes(id) === true,
-              is_default: c.isDefault === true,
-            })),
+            c.accounts.map(id => {
+              // The account's own metadata from its last live read; never the connection's label (Snapchat S8).
+              const meta = recallAccountMetadata(this.store, actor.tenantId, c.id, id),
+                stale = !!meta && Date.now() - meta.checked_at > accountMetadataStaleMs;
+              return {
+                id,
+                platform: c.gateway,
+                connection_id: c.id,
+                name: meta?.name ?? null,
+                connection_label: c.label,
+                source: 'configured_binding',
+                currency: meta?.currency ?? null,
+                timezone: meta?.timezone ?? null,
+                metadata: meta
+                  ? {
+                      source: meta.source,
+                      checked_at: new Date(meta.checked_at).toISOString(),
+                      ...(meta.organization_id ? {organization_id: meta.organization_id} : {}),
+                      ...(stale ? {stale: true} : {}),
+                    }
+                  : null,
+                ...(!meta || stale
+                  ? {
+                      next_call: {
+                        tool: 'amcp_workspace',
+                        arguments: {action: 'check', connection_id: c.id, account_id: id, live: true},
+                      },
+                    }
+                  : {}),
+                write_enabled:
+                  this.policy.allowWrites && actor.role !== 'reader' && c.writeAccounts?.includes(id) === true,
+                is_default: c.isDefault === true,
+              };
+            }),
           );
       return this.store.documents(actor.tenantId, 'workspace_asset');
     }

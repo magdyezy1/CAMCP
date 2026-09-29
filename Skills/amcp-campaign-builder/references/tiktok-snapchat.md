@@ -770,8 +770,17 @@ them, and a read-only deployment allows them). They do not go through `amcp_writ
 - Snapchat never returns `placement_v2` on GET; reads show `placement: "UNSUPPORTED"`. Ad squad
   verification therefore compares `placement_v2` with the create response and lists it under
   `acknowledged_fields`. A missing or different echo stays `inconclusive`.
-- A step whose read-back is still inconclusive no longer stalls later steps that do not depend on it.
-  Its dependants, and any plan with a failed, uncertain or mismatched step, still wait.
+- A step whose read-back is still inconclusive, or mismatched, no longer stalls later steps that do
+  not depend on it. Its dependants wait, and a failed or uncertain step still stops the plan.
+- A read-back that disagrees with what was sent in the same way in two verification rounds is a
+  `mismatch`, with a `diff` per field (`{field, expected, actual}`) and the observed state's
+  `actual_hash`. Reading again will not change it, so no `next_call` points back to a read. If the
+  user agrees the provider's values are acceptable (a normalised name, for instance), follow the
+  plan's `next_call` and add `accept_observed: true`:
+  `{"action":"reconcile_step","id":"<plan>","step_id":"squad_1","actual_hash":"<hash>","accept_observed":true}`.
+  AMCP reads the resource once more, refuses with `STATE_CHANGED` and the new hash if the state
+  moved, and otherwise marks the step `verified_with_acceptance`, writes an audit entry and lets its
+  dependants continue. Nothing is sent to Snapchat. Otherwise, a correction is a new reviewed write.
 - Campaigns, ad squads, ads, creatives, media and pixels use global IDs whose ownership observation
   lasts five minutes. Preparing a child re-reads its parent; when Snapchat names the owning ad
   account, or a parent this login still owns, ownership is renewed for the review window.
@@ -779,7 +788,12 @@ them, and a read-only deployment allows them). They do not go through `amcp_writ
 - With `result_fields`, Snapchat lists keep every wrapped record and project inside it, for example
   `{adsquads: [{sub_request_status, adsquad: {id, name, status}}]}`.
 - `amcp_write execute` accepts the review's own `gateway` and `connection_id`, never different ones
-  and never `arguments`.
+  and never `arguments`; a refusal names the field and what execute accepts.
+- A review keeps only the ad account's `id`, `name`, `status`, `currency`, `timezone`,
+  `organization_id` and `type`, never its billing centre, funding sources, cells or invoicing
+  details. A currency or status change still invalidates the review.
+- Preflight adds one `SPEND_POLICY_MISSING` warning when no spending policy covers the account; it
+  never blocks, and each review still asks for `spend_change_confirmed` where budgets change.
 
 ## Snapchat media copy between ad accounts
 

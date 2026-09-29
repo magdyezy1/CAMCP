@@ -117,6 +117,30 @@ export function errorRemedy(e: MirrorError) {
         'Wait for the active media lease. Use amcp_media recovery with the original review_id; resume only when resume_available is true and continuation is confirmed. Do not allocate a replacement or change the idempotency key.',
       mutation_retry_safe: false,
     };
+  // Nothing in the request can change who may do this (Snapchat S7): the way forward is the person who can.
+  if (e.code === 'OWNER_REQUIRED')
+    return {
+      category: 'permission',
+      owner: 'workspace_owner',
+      action:
+        'Ask the workspace owner to do this, or to give you what you need from it. Changing the request does not help.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'REVISION_CONFLICT')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Someone changed this since you read it. Read it again (get), then send the call with the current revision.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'DEPENDENCY_PENDING')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action: 'Wait until the step this one depends on is verified; prepare_next continues from there.',
+      mutation_retry_safe: false,
+    };
   // A campaign plan step names itself; the media uploads that share this code do not.
   if (e.code === 'RECOVERY_NOT_SAFE' && typeof e.details.step_id === 'string')
     return {
@@ -495,7 +519,7 @@ export function errorRemedy(e: MirrorError) {
     action:
       e.code === 'INTERNAL_ERROR'
         ? 'Use the request ID to inspect the audit trail.'
-        : 'Correct the named input or deployment prerequisite, then prepare again. Never resubmit an uncertain mutation.',
+        : 'Correct what the message names and send the call again (a write is prepared again). A write whose outcome is uncertain is never resubmitted.',
     mutation_retry_safe: false,
   };
 }

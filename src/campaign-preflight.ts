@@ -10,7 +10,9 @@ import {driveDownloadUrl} from './drive-media.js';
 import {mediaLinkUrl} from './media-link.js';
 import {validateMetaCreative} from './creative-validation.js';
 import {normalizeAccount} from './scope.js';
-import {accountPlan, accountCurrency} from './workspace.js';
+import {accountPlan, accountCurrency, accountMetadata, accountTimezone} from './workspace.js';
+import {accountName, rememberAccountMetadata} from './account-metadata.js';
+import {unprotectedAccounts} from './spend-policy.js';
 import {fingerprint} from './workspace-core.js';
 import {googleJson} from './google-contracts.js';
 
@@ -154,8 +156,16 @@ export async function campaignPreflight(
           const plan = accountPlan(gateway, account);
           const out = (await service.runPlan(plan, {connection_id: c.id}, actor)) as JsonObject;
           {
-            const currency = accountCurrency(gateway, out.data);
+            const currency = accountCurrency(gateway, out.data),
+              meta = accountMetadata(gateway, out.data);
             currencies.set(accountKey, currency);
+            // A plan's account read is a live read like a check's: list_accounts shows what it found (S8).
+            rememberAccountMetadata(service.store, actor.tenantId, c.id, account, {
+              name: accountName(meta),
+              currency,
+              timezone: accountTimezone(gateway, out.data),
+              organization_id: meta.organization_id,
+            });
             if (step.expected_currency !== undefined && currency !== step.expected_currency)
               throw new MirrorError(
                 'RECIPE_CURRENCY_MISMATCH',
@@ -269,9 +279,36 @@ export async function campaignPreflight(
       error(step.id, e);
     }
   }
+  // One notice per plan when no spending policy covers an account it writes to (Snapchat S13). It never blocks:
+  // each review still shows its spending effect and asks for spend_change_confirmed as before.
+  const planned = new Set(
+      steps.filter(s => s.kind === 'write').map(s => s.gateway + ':' + normalizeAccount(s.gateway, s.account_id)),
+    ),
+    unprotected = unprotectedAccounts(service.store, actor).filter(a =>
+      planned.has(a.gateway + ':' + normalizeAccount(a.gateway, a.account_id)),
+    );
+  const warnings = unprotected.length
+    ? [
+        {
+          code: 'SPEND_POLICY_MISSING',
+          accounts: unprotected.map(a => ({gateway: a.gateway, account_id: a.account_id})),
+          message:
+            'No spending policy protects ' +
+            (unprotected.length === 1 ? 'the account' : unprotected.length + ' accounts') +
+            ' this plan writes to, so no owner limit caps its budgets; each review still asks for spend_change_confirmed. This does not block the plan.',
+          next_call: {
+            tool: 'amcp_workspace',
+            arguments: {action: 'save_spend_policy', scope: 'workspace', confirmed: true},
+            owner_only: true,
+            add_after_owner_choice: {policy: '<the owner’s limits, for example {"max_budget_native": {...}}>'},
+          },
+        },
+      ]
+    : [];
   return {
     status: checks.some(c => c.status === 'blocked') ? 'blocked' : 'ready',
     checked_at: Date.now(),
+    ...(warnings.length ? {warnings} : {}),
     plan_hash: fingerprint(
       steps.map(s => ({id: s.id, arguments: s.arguments, account_id: s.account_id, connection_id: s.connection_id})),
     ),
